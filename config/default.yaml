@@ -1,0 +1,102 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Cinemateca AI — Configuração padrão
+# Copie este arquivo para 'config/local.yaml' e ajuste conforme necessário.
+# Os valores aqui são os defaults conservadores (CPU, qualidade vs velocidade).
+# ─────────────────────────────────────────────────────────────────────────────
+
+project:
+  name: "Cinemateca AI"
+  version: "0.1.0-alpha"
+
+# ── Caminhos ─────────────────────────────────────────────────────────────────
+paths:
+  data_dir: "data"
+  raw_dir: "data/raw"
+  frames_dir: "data/frames"
+  metadata_dir: "data/metadata"
+  embeddings_dir: "data/embeddings"
+  models_dir: "models"
+  outputs_dir: "outputs"
+  logs_dir: "logs"
+
+# ── Hardware ──────────────────────────────────────────────────────────────────
+hardware:
+  # "auto" detecta MPS → CUDA → CPU automaticamente
+  # Forçar um device específico: "cpu", "cuda", "mps"
+  device: "auto"
+  force_cpu: false     # override de emergência — força CPU mesmo se GPU disponível
+
+# ── Extração de frames (NB01) ─────────────────────────────────────────────────
+frame_extraction:
+  fps: 1                    # frames por segundo a extrair
+  target_height: 480        # altura alvo (0 = manter original)
+  quality: 2                # qualidade JPEG FFmpeg (2=alta, 31=baixa)
+  sample_duration: null     # null = vídeo inteiro; int = segundos (ex: 300 = 5min)
+
+# ── Detecção de cenas (NB02) ──────────────────────────────────────────────────
+scene_detection:
+  detector: "content"       # "content" ou "adaptive"
+  # ContentDetector
+  content_threshold: 27.0   # menor = mais sensível (mais cortes detectados)
+  # AdaptiveDetector
+  adaptive_threshold: 3.0
+  # Compartilhado
+  min_scene_len: 15         # duração mínima da cena em frames
+  keyframes_per_scene: 1    # 1=frame do meio; 3=início/meio/fim
+
+# ── Análise visual (NB03) ─────────────────────────────────────────────────────
+visual_analysis:
+  # Detecção facial (MTCNN)
+  face_detection:
+    enabled: true
+    min_face_size: 20
+    thresholds: [0.6, 0.7, 0.7]
+  # Detecção de objetos (YOLOv8)
+  object_detection:
+    enabled: true
+    model: "yolov8n.pt"     # n=nano, s=small, m=medium, l=large, x=xlarge
+    confidence: 0.30
+  # Classificação de ambiente (heurística)
+  environment:
+    enabled: true
+    brightness_threshold: 100   # limiar dia/noite (escala 0-255)
+    edge_density_threshold: 0.05  # limiar interno/externo
+
+# ── Embeddings e busca (NB04) ────────────────────────────────────────────────
+embeddings:
+  model: "ViT-B-32"         # modelo CLIP open_clip
+  pretrained: "openai"
+  batch_size: 16
+  # Arquivo de saída (relativo a embeddings_dir)
+  filename: "keyframe_embeddings.npy"
+  mapping_filename: "index_mapping.json"
+
+# ── Descrição LLM (NB05) ──────────────────────────────────────────────────────
+llm:
+  model_id: "vikhyatk/moondream2"
+  revision: "2025-01-09"
+  # Processamento
+  checkpoint_interval: 25   # salvar progresso a cada N frames
+  process_limit: null       # null = tudo; int = limitar (para testes)
+  # Saída
+  descriptions_filename: "scene_descriptions.json"
+  tags_filename: "scene_tags.json"
+
+# ── Pipeline ──────────────────────────────────────────────────────────────────
+pipeline:
+  # Quais módulos rodar (desative para pular etapas já concluídas)
+  steps:
+    frame_extraction: true
+    scene_detection: true
+    visual_analysis: true
+    embeddings: true
+    llm_description: true
+  # Comportamento
+  skip_existing: true       # pular etapas se outputs já existirem
+  stop_on_error: false      # false = continua mesmo com erros não-fatais
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+logging:
+  level: "INFO"             # DEBUG | INFO | WARNING | ERROR
+  to_file: true
+  filename: "cinemateca.log"

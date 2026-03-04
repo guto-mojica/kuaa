@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "cinemateca-ai"
+version = "0.1.0-alpha"
+description = "Sistema de catalogação audiovisual com IA para acervos cinematográficos"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Cinemateca AI Team" }]
+keywords = ["computer-vision", "cinemateca", "film-archive", "AI", "catalogação"]
+
+# Dependências mínimas — modelos ML são opcionais para não forçar download
+dependencies = [
+    "pyyaml>=6.0",
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "Pillow>=10.0",
+    "opencv-python>=4.8",
+    "tqdm>=4.65",
+]
+
+[project.optional-dependencies]
+# Instalar tudo: pip install -e ".[full]"
+full = [
+    "torch>=2.0",
+    "torchvision>=0.15",
+    "open-clip-torch>=2.20",
+    "scenedetect[opencv]>=0.6",
+    "ultralytics>=8.0",
+    "facenet-pytorch>=2.5",
+    "transformers>=4.35",
+    "streamlit>=1.28",
+    "rich>=13.0",
+]
+# Somente GUI: pip install -e ".[gui]"
+gui = [
+    "streamlit>=1.28",
+    "rich>=13.0",
+]
+# Somente busca: pip install -e ".[search]"
+search = [
+    "torch>=2.0",
+    "open-clip-torch>=2.20",
+]
+# Desenvolvimento: pip install -e ".[dev]"
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "black>=23.0",
+    "ruff>=0.1",
+    "mypy>=1.5",
+]
+
+[project.scripts]
+# Após instalação: cinemateca process --video meu_filme.mp4
+cinemateca = "cinemateca.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"cinemateca" = ["py.typed"]
+
+# ── Ferramentas de desenvolvimento ────────────────────────────────────────────
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]  # linha longa (black já cuida)
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
