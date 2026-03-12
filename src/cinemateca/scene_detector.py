@@ -115,7 +115,7 @@ class SceneDetector:
 
         scene_manager.detect_scenes(video_manager, show_progress=False)
         scene_list = scene_manager.get_scene_list()
-        video_manager.release()
+        video_manager.capture.release()
 
         logger.info("✓ %d cenas detectadas em %s", len(scene_list), video_path.name)
         return scene_list
@@ -151,7 +151,7 @@ class SceneDetector:
             image_extension="jpg",
             output_dir=str(output_dir),
         )
-        video_manager.release()
+        video_manager.capture.release()
 
         keyframes = sorted(output_dir.glob("*.jpg"))
         logger.info("✓ %d keyframes extraídos em %s", len(keyframes), output_dir)
