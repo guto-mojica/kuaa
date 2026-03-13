@@ -42,7 +42,8 @@ scene_detection:
   adaptive_threshold: 3.0
   # Compartilhado
   min_scene_len: 15         # duração mínima da cena em frames
-  keyframes_per_scene: 1    # 1=frame do meio; 3=início/meio/fim
+  keyframes_per_scene: 3    # 1=frame do meio; 3=início/meio/fim
+  frame_skip: 1             # analisa 1 a cada N+1 frames (0=todos, 1=metade, 2=um terço) — acelera detecção
 
 # ── Análise visual (NB03) ─────────────────────────────────────────────────────
 visual_analysis:

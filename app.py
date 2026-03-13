@@ -209,14 +209,18 @@ with tab_search:
             "Execute o pipeline com a etapa **Embeddings CLIP** ativada primeiro."
         )
     else:
-        st.caption(f"{len(kf_df)} cenas indexadas · modelo CLIP ViT-B/32")
+        tag_index_search = _load_json(cfg.paths.metadata_dir / "scene_tags.json") or {}
+        available_tags_search = sorted(tag_index_search.keys())
+        has_tags = bool(available_tags_search)
+
+        model_label = cfg.embeddings.model if hasattr(cfg, "embeddings") else "ViT-B-32"
+        tag_info = f" · {len(tag_index_search)} tags" if has_tags else " · sem tags (rode etapa LLM)"
+        st.caption(f"{len(kf_df)} cenas indexadas · {model_label}{tag_info}")
 
         search_mode = st.radio(
             "Modo de busca", ["Por texto", "Por imagem"], horizontal=True
         )
         top_k = st.slider("Resultados", min_value=4, max_value=24, value=8, step=4)
-
-        query_emb = None
 
         if search_mode == "Por texto":
             query_text = st.text_input(
@@ -224,11 +228,28 @@ with tab_search:
                 placeholder="two people talking outdoors at daytime",
                 help="CLIP foi treinado predominantemente em inglês — descrições em inglês tendem a ter melhor recall.",
             )
+
+            filter_tags_search: list[str] = []
+            if has_tags:
+                filter_tags_search = st.multiselect(
+                    "Filtrar por tags antes da busca (opcional)",
+                    available_tags_search,
+                    help="Pré-filtra cenas pelas tags do LLM antes do ranking semântico — melhora precisão.",
+                )
+
             if query_text:
                 with st.spinner("Calculando similaridade..."):
                     from cinemateca.embeddings import SemanticSearch
                     searcher = SemanticSearch(embeddings, kf_df, embedder)
-                    results_df = searcher.by_text(query_text, top_k=top_k)
+                    if filter_tags_search and tag_index_search:
+                        results_df = searcher.combined(
+                            query_text,
+                            filter_tags=filter_tags_search,
+                            tag_index=tag_index_search,
+                            top_k=top_k,
+                        )
+                    else:
+                        results_df = searcher.by_text(query_text, top_k=top_k)
 
                 if results_df.empty:
                     st.info("Nenhum resultado.")
