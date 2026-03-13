@@ -64,7 +64,7 @@ def _render_keyframe_grid(rows, cols: int = 4):
             fp = Path(row.get("filepath", ""))
             with grid[j]:
                 if fp.exists():
-                    st.image(str(fp), use_container_width=True)
+                    st.image(str(fp), width=300)
                 else:
                     st.caption("imagem não encontrada")
                 scene_id = row.get("scene_id", row.get("rank", ""))
@@ -248,7 +248,7 @@ with tab_search:
 
                 col_img, col_res = st.columns([1, 3])
                 with col_img:
-                    st.image(str(tmp_path), caption="Referência", use_container_width=True)
+                    st.image(str(tmp_path), caption="Referência", width=300)
 
                 with st.spinner("Calculando similaridade..."):
                     from cinemateca.embeddings import SemanticSearch
@@ -344,7 +344,7 @@ with tab_catalog:
                     sid = str(scene.get("scene_id", ""))
                     with grid[j]:
                         if fp.exists():
-                            st.image(str(fp), use_container_width=True)
+                            st.image(str(fp), width=300)
                         else:
                             st.caption("sem imagem")
 
