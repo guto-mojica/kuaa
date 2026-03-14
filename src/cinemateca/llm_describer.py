@@ -37,57 +37,28 @@ logger = logging.getLogger(__name__)
 # de alta qualidade (~20s/frame). PIL completa o mesmo trabalho em <0.1s.
 _MOONDREAM_INPUT_SIZE = 378
 
-# ─── Prompt combinado ────────────────────────────────────────────────────────
+# ─── Prompts individuais ─────────────────────────────────────────────────────
 #
-# Uma única chamada ao decoder por frame em vez de 6 separadas.
-# Reduz 2100 chamadas (350 cenas × 6) para 350 (350 × 1) → ~5-6× mais rápido.
+# Moondream 2 não segue instruções de formato JSON de forma confiável —
+# retorna o template literal em vez de preencher os campos.
+# Perguntas individuais curtas produzem respostas corretas e consistentes.
+# max_new_tokens limita a geração para evitar respostas excessivamente longas.
 
-COMBINED_PROMPT = (
-    "Analyze this film scene. Reply with a JSON object only, no other text:\n"
-    '{\n'
-    '  "description": "one or two sentences about subject, action and setting",\n'
-    '  "location": "indoor or outdoor",\n'
-    '  "setting": "2-4 words e.g. rural field, urban street, farm, village",\n'
-    '  "time_of_day": "day, night, or unknown",\n'
-    '  "people_and_action": "e.g. 2 people talking or: no people visible",\n'
-    '  "objects": "up to 6 items comma-separated"\n'
-    '}'
-)
-
-_COMBINED_KEYS = (
-    "description", "location", "setting",
-    "time_of_day", "people_and_action", "objects",
-)
-
-
-def _parse_combined_response(text: str) -> dict:
-    """
-    Extrai os campos estruturados da resposta JSON do modelo.
-
-    Tenta json.loads primeiro; se falhar, tenta extrair o bloco JSON com regex;
-    se ainda falhar, retorna strings de erro para cada campo.
-    """
-    # Remover fences de markdown (```json ... ```)
-    text = re.sub(r"```(?:json)?\s*", "", text).strip().rstrip("`").strip()
-
-    def _clean(data: dict) -> dict:
-        return {k: data.get(k, f"ERROR: missing key '{k}'") for k in _COMBINED_KEYS}
-
-    try:
-        return _clean(json.loads(text))
-    except (json.JSONDecodeError, ValueError):
-        pass
-
-    # Tentar extrair o objeto JSON do meio do texto
-    match = re.search(r"\{[^{}]+\}", text, re.DOTALL)
-    if match:
-        try:
-            return _clean(json.loads(match.group()))
-        except (json.JSONDecodeError, ValueError):
-            pass
-
-    logger.warning("Resposta LLM não parseável: %s", text[:120])
-    return {k: "ERROR: unparseable response" for k in _COMBINED_KEYS}
+PROMPTS: dict[str, tuple[str, int]] = {
+    #                prompt                                          max_new_tokens
+    "description":     ("Describe this film scene in one or two sentences. "
+                        "Focus on the main subject, action, and setting.",      80),
+    "location":        ("Is this scene indoors or outdoors? "
+                        "Answer with one word: indoor or outdoor.",             10),
+    "setting":         ("Describe the setting in 2-4 words. "
+                        "Examples: urban street, rural field, farm, village.",  20),
+    "time_of_day":     ("What time of day is this scene? "
+                        "Answer with one word: day, night, or unknown.",        10),
+    "people_and_action": ("How many people are visible and what are they doing? "
+                          "Answer briefly, e.g.: 2 people talking.",            30),
+    "objects":         ("List the most notable objects in this scene, "
+                        "comma-separated. Maximum 6 items.",                    40),
+}
 
 
 LOCATION_MAP = {
@@ -259,20 +230,22 @@ class LLMDescriber:
         logger.info("✓ Moondream 2 carregado em %.1fs", time.time() - t0)
 
     def _query_frame(self, image: Image.Image) -> dict:
-        """Faz uma única chamada ao decoder por frame usando prompt combinado."""
+        """Consulta o modelo com perguntas individuais, reutilizando o encoding."""
         self._load_model()
         image = image.resize(
             (_MOONDREAM_INPUT_SIZE, _MOONDREAM_INPUT_SIZE),
             Image.Resampling.BILINEAR,
         )
         enc = self._model.encode_image(image)
-        try:
-            raw_text = self._model.answer_question(
-                enc, COMBINED_PROMPT, self._tokenizer
-            ).strip()
-            return _parse_combined_response(raw_text)
-        except Exception as e:
-            return {k: f"ERROR: {e}" for k in _COMBINED_KEYS}
+        raw = {}
+        for field, (prompt, max_tokens) in PROMPTS.items():
+            try:
+                raw[field] = self._model.answer_question(
+                    enc, prompt, self._tokenizer, max_new_tokens=max_tokens
+                ).strip()
+            except Exception as e:
+                raw[field] = f"ERROR: {e}"
+        return raw
 
     def _build_metadata(self, row: pd.Series, raw: dict) -> dict:
         """Monta o dict final de metadados combinando dados do catálogo + respostas LLM."""
