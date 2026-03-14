@@ -43,6 +43,7 @@ scene_detection:
   # Compartilhado
   min_scene_len: 15         # duração mínima da cena em frames
   keyframes_per_scene: 3    # 1=frame do meio; 3=início/meio/fim
+  keyframe_height: 480      # altura dos keyframes salvos (0 = resolução original)
 
 # ── Análise visual (NB03) ─────────────────────────────────────────────────────
 visual_analysis:

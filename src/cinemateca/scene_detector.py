@@ -54,12 +54,14 @@ class SceneDetector:
             self.adaptive_threshold = sd.adaptive_threshold
             self.min_scene_len = sd.min_scene_len
             self.keyframes_per_scene = sd.keyframes_per_scene
+            self.keyframe_height = getattr(sd, "keyframe_height", 480)
         else:
             self.detector_type = "adaptive"
             self.content_threshold = 27.0
             self.adaptive_threshold = 3.0
             self.min_scene_len = 15
             self.keyframes_per_scene = 3
+            self.keyframe_height = 480
 
     def detect(self, video_path: str | Path) -> SceneList:
         """
@@ -150,6 +152,7 @@ class SceneDetector:
             num_images=self.keyframes_per_scene,
             image_extension="jpg",
             output_dir=str(output_dir),
+            height=self.keyframe_height if self.keyframe_height > 0 else None,
         )
         video_manager.capture.release()
 

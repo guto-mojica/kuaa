@@ -100,7 +100,9 @@ with st.sidebar:
 
 # ─── Abas ─────────────────────────────────────────────────────────────────────
 
-tab_process, tab_search, tab_catalog = st.tabs(["Processar", "Pesquisar", "Catálogo"])
+tab_process, tab_search, tab_catalog, tab_annotate = st.tabs(
+    ["Processar", "Pesquisar", "Catálogo", "Anotar"]
+)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

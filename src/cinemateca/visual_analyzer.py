@@ -55,24 +55,14 @@ class FaceDetector:
                 "facenet-pytorch não instalado. Execute: pip install facenet-pytorch"
             )
 
-        device_str = str(self._device) if self._device else "cpu"
-
-        try:
-            self._model = MTCNN(
-                keep_all=True,
-                device=device_str,
-                thresholds=self.thresholds,
-                min_face_size=self.min_face_size,
-            )
-            logger.info("MTCNN carregado no device: %s", device_str)
-        except Exception:
-            logger.warning("MTCNN falhou em %s — caindo para CPU", device_str)
-            self._model = MTCNN(
-                keep_all=True,
-                device="cpu",
-                thresholds=self.thresholds,
-                min_face_size=self.min_face_size,
-            )
+        # MTCNN has MPS incompatibilities with adaptive pooling — always use CPU
+        self._model = MTCNN(
+            keep_all=True,
+            device="cpu",
+            thresholds=self.thresholds,
+            min_face_size=self.min_face_size,
+        )
+        logger.info("MTCNN carregado no device: cpu")
 
     def detect(self, image_path: str | Path) -> dict:
         """
