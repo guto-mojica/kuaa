@@ -471,11 +471,9 @@ with tab_annotate:
             with nav_col1:
                 if st.button("←", disabled=st.session_state.annotate_idx == 0):
                     st.session_state.annotate_idx -= 1
-                    st.rerun()
             with nav_col3:
                 if st.button("→", disabled=st.session_state.annotate_idx == len(_scenes) - 1):
                     st.session_state.annotate_idx += 1
-                    st.rerun()
             with nav_col2:
                 chosen = st.selectbox(
                     "Cena",
@@ -486,7 +484,6 @@ with tab_annotate:
                 )
                 if chosen != st.session_state.annotate_idx:
                     st.session_state.annotate_idx = chosen
-                    st.rerun()
 
             _scene = _scenes[st.session_state.annotate_idx]
             _sid   = str(_scene["scene_id"])
@@ -543,4 +540,4 @@ with tab_annotate:
                     if st.button("Limpar", key=f"clear_{_sid}"):
                         _annotations.pop(_sid, None)
                         _save_annotations(_meta_dir, _annotations)
-                        st.rerun()
+                        st.session_state.pop(f"tag_input_{_sid}", None)
