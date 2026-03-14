@@ -239,13 +239,6 @@ class CatalogPipeline:
         desc_path = self.cfg.paths.metadata_dir / llm_cfg.descriptions_filename
         tags_path = self.cfg.paths.metadata_dir / llm_cfg.tags_filename
 
-        if self.cfg.pipeline.skip_existing and desc_path.exists():
-            logger.info("↷ Pulando llm_description (descrições existentes)")
-            return StepResult(
-                name=name, success=True, skipped=True,
-                output={"descriptions_path": desc_path, "tags_path": tags_path}
-            )
-
         t0 = time.time()
         try:
             with open(metadata_path, encoding="utf-8") as f:
@@ -253,6 +246,20 @@ class CatalogPipeline:
             kf_df = pd.DataFrame(kf_data)
             kf_df["exists"] = kf_df["filepath"].apply(lambda x: Path(x).exists())
             valid_kf = kf_df[kf_df["exists"]].reset_index(drop=True)
+
+            # Pular apenas se TODAS as cenas válidas já foram descritas
+            if self.cfg.pipeline.skip_existing and desc_path.exists():
+                with open(desc_path, encoding="utf-8") as f:
+                    existing_check = json.load(f)
+                described_ids = {r["scene_id"] for r in existing_check if "error" not in r}
+                pending = len(valid_kf[~valid_kf["scene_id"].isin(described_ids)])
+                if pending == 0:
+                    logger.info("↷ Pulando llm_description (todas as %d cenas já descritas)", len(described_ids))
+                    return StepResult(
+                        name=name, success=True, skipped=True,
+                        output={"descriptions_path": desc_path, "tags_path": tags_path}
+                    )
+                logger.info("↷ llm_description: %d cenas pendentes, retomando...", pending)
 
             # Retomada: carregar resultados anteriores se existirem
             existing = []
