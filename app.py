@@ -56,6 +56,14 @@ def _load_json(path: Path) -> list | dict | None:
     return None
 
 
+def _load_merged_tags(metadata_dir: Path) -> dict:
+    """Carrega scene_tags.json e mescla com manual_annotations.json."""
+    from cinemateca.annotator import load as load_annotations, merge_tag_index
+    llm_tags = _load_json(metadata_dir / "scene_tags.json") or {}
+    annotations = load_annotations(metadata_dir)
+    return merge_tag_index(llm_tags, annotations)
+
+
 def _render_keyframe_grid(rows, cols: int = 4):
     """Renderiza uma grade de keyframes a partir de uma lista de dicts com 'filepath'."""
     for i in range(0, len(rows), cols):
@@ -211,7 +219,7 @@ with tab_search:
             "Execute o pipeline com a etapa **Embeddings CLIP** ativada primeiro."
         )
     else:
-        tag_index_search = _load_json(cfg.paths.metadata_dir / "scene_tags.json") or {}
+        tag_index_search = _load_merged_tags(cfg.paths.metadata_dir)
         available_tags_search = sorted(tag_index_search.keys())
         has_tags = bool(available_tags_search)
 
@@ -298,7 +306,7 @@ with tab_catalog:
     meta_dir = cfg.paths.metadata_dir
     kf_meta = _load_json(meta_dir / "keyframes_metadata.json")
     descriptions = _load_json(meta_dir / "scene_descriptions.json")
-    tag_index = _load_json(meta_dir / "scene_tags.json")
+    tag_index = _load_merged_tags(meta_dir)
     visual_data = _load_json(meta_dir / "visual_analysis.json")
 
     if kf_meta is None:
@@ -404,3 +412,135 @@ with tab_catalog:
                                 vis_parts.append(f"{faces} rosto(s)")
                             if vis_parts:
                                 st.caption(" · ".join(vis_parts))
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ABA 4 — ANOTAR
+# ══════════════════════════════════════════════════════════════════════════════
+
+with tab_annotate:
+    st.header("Anotar cenas")
+    st.write("Adicione tags manualmente a cenas sem descrição LLM ou com metadados incompletos.")
+
+    from cinemateca.annotator import load as _load_annotations, save as _save_annotations
+
+    _meta_dir = cfg.paths.metadata_dir
+    _kf_meta  = _load_json(_meta_dir / "keyframes_metadata.json")
+    _descs    = _load_json(_meta_dir / "scene_descriptions.json") or []
+
+    if not _kf_meta:
+        st.warning("Execute a etapa **Detecção de cenas** primeiro.")
+    else:
+        # IDs com descrição LLM válida (sem template quebrado e sem erro)
+        _BROKEN = "One or two sentences about subject"
+        _valid_desc_ids = {
+            d["scene_id"] for d in _descs
+            if "error" not in d and _BROKEN not in d.get("description", "")
+        }
+
+        _filter = st.radio(
+            "Exibir",
+            ["Sem descrição LLM", "Todas as cenas"],
+            horizontal=True,
+        )
+        _scenes = (
+            [s for s in _kf_meta if s["scene_id"] not in _valid_desc_ids]
+            if _filter == "Sem descrição LLM"
+            else _kf_meta
+        )
+
+        # Carregar anotações manuais (sem cache — leitura direta para refletir saves)
+        _annotations = _load_annotations(_meta_dir)
+        _annotated_n = sum(1 for s in _scenes if str(s["scene_id"]) in _annotations)
+
+        st.caption(f"{len(_scenes)} cenas · {_annotated_n} já anotadas manualmente")
+        st.markdown("---")
+
+        if not _scenes:
+            st.success("Todas as cenas têm descrição LLM válida.")
+        else:
+            # ── Navegação ──────────────────────────────────────────────────────
+            if "annotate_idx" not in st.session_state:
+                st.session_state.annotate_idx = 0
+            # Clamp index in case the scene list changed
+            st.session_state.annotate_idx = min(
+                st.session_state.annotate_idx, len(_scenes) - 1
+            )
+
+            nav_col1, nav_col2, nav_col3 = st.columns([1, 6, 1])
+            with nav_col1:
+                if st.button("←", disabled=st.session_state.annotate_idx == 0):
+                    st.session_state.annotate_idx -= 1
+                    st.rerun()
+            with nav_col3:
+                if st.button("→", disabled=st.session_state.annotate_idx == len(_scenes) - 1):
+                    st.session_state.annotate_idx += 1
+                    st.rerun()
+            with nav_col2:
+                chosen = st.selectbox(
+                    "Cena",
+                    range(len(_scenes)),
+                    format_func=lambda i: f"Cena {_scenes[i]['scene_id']}",
+                    index=st.session_state.annotate_idx,
+                    label_visibility="collapsed",
+                )
+                if chosen != st.session_state.annotate_idx:
+                    st.session_state.annotate_idx = chosen
+                    st.rerun()
+
+            _scene = _scenes[st.session_state.annotate_idx]
+            _sid   = str(_scene["scene_id"])
+            _fp    = Path(_scene.get("filepath", ""))
+
+            # ── Conteúdo da cena ───────────────────────────────────────────────
+            img_col, form_col = st.columns([1, 1])
+
+            with img_col:
+                if _fp.exists():
+                    st.image(str(_fp))
+                else:
+                    st.caption("imagem não encontrada")
+                _start = _scene.get("start_time_s", 0)
+                _end   = _scene.get("end_time_s", 0)
+                st.caption(f"⏱ {_start:.1f}s → {_end:.1f}s  ·  duração {_end - _start:.1f}s")
+
+            with form_col:
+                # LLM info (se existir)
+                _llm = next((d for d in _descs if d["scene_id"] == _scene["scene_id"]), None)
+                if _llm and _BROKEN not in _llm.get("description", ""):
+                    st.markdown("**Descrição LLM**")
+                    st.caption(_llm.get("description", ""))
+                    _ltags = _llm.get("tags", [])
+                    if _ltags:
+                        st.caption(" ".join(f"`{t}`" for t in _ltags))
+                else:
+                    st.caption("_Sem descrição LLM_")
+
+                st.markdown("---")
+                st.markdown("**Tags manuais**")
+
+                _existing = _annotations.get(_sid, [])
+                _tag_input = st.text_input(
+                    "Tags (separadas por vírgula)",
+                    value=", ".join(_existing),
+                    key=f"tag_input_{_sid}",
+                    placeholder="rural, exterior, cavalo, pessoa-unica",
+                    label_visibility="collapsed",
+                )
+                st.caption("Use hífens para tags compostas: `duas-pessoas`, `cena-noturna`")
+
+                save_col, clear_col = st.columns(2)
+                with save_col:
+                    if st.button("Salvar", type="primary", key=f"save_{_sid}"):
+                        _new_tags = [
+                            t.strip().lower().replace(" ", "-")
+                            for t in _tag_input.split(",") if t.strip()
+                        ]
+                        _annotations[_sid] = _new_tags
+                        _save_annotations(_meta_dir, _annotations)
+                        st.success(f"✓ {len(_new_tags)} tag(s) salvas")
+                with clear_col:
+                    if st.button("Limpar", key=f"clear_{_sid}"):
+                        _annotations.pop(_sid, None)
+                        _save_annotations(_meta_dir, _annotations)
+                        st.rerun()
