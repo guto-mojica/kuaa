@@ -3,11 +3,46 @@
 **Sistema de catalogação audiovisual com modelos locais para acervos cinematográficos.**
 
 Desenvolvido para cinematecas nacionais e arquivos públicos de filme, com foco em
-acervos históricos em preto-e-branco e baixa resolução.
+acervos históricos de diversos períodos de produção e material de baixa resolução.
 
 [![Licença: MIT](https://img.shields.io/badge/Licença-MIT-amber.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://python.org)
-[![Versão](https://img.shields.io/badge/versão-0.1.0--alpha-orange.svg)](CHANGELOG.md)
+[![Versão](https://img.shields.io/badge/versão-0.2.1-orange.svg)](CHANGELOG.md)
+
+---
+
+## Overview (English)
+
+**Cinemateca imgsearch** is an open-source tool that turns a video file into a searchable, annotated scene catalog — entirely offline, with no data sent to external APIs.
+
+It was built for **film archives and public cinematheques** that hold large collections of historical footage with minimal metadata. The pipeline processes a video and automatically produces:
+
+- **Scene segmentation** — detects cuts and extracts a representative keyframe per scene
+- **Visual analysis** — detects faces, objects, and classifies environment (indoor/outdoor, day/night)
+- **Natural language descriptions** — a local vision model (Moondream 2) describes each scene in text
+- **Semantic search** — find scenes by free-text query ("two people talking outdoors") or by a reference image, without exact keywords
+- **Manual annotation** — a dedicated tab lets curators add or correct tags scene by scene, which are merged with the automated metadata for search
+
+### Quick start
+
+```bash
+git clone https://github.com/guto-mojica/cinemateca-imgsearch.git
+cd cinemateca-imgsearch
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[full]"
+streamlit run app.py          # opens at http://localhost:8501
+```
+
+The Streamlit interface has four tabs:
+
+| Tab | Purpose |
+|---|---|
+| **Processar** | Load a video and run the cataloguing pipeline |
+| **Pesquisar** | Semantic search by text or reference image |
+| **Catálogo** | Browse and filter all catalogued scenes |
+| **Anotar** | Manually add or correct tags on individual scenes |
+
+Designed for **digitised archival footage** — various production periods, variable quality, unusual aspect ratios. Runs on CPU; Apple Silicon M1+ or NVIDIA GPU recommended for the LLM step.
 
 ---
 
@@ -213,7 +248,7 @@ O desenvolvimento usa **Jeca Tatu (1959)** de Amácio Mazzaropi como referência
 
 - Formato: P&B, ~90 minutos
 - Fonte: [Internet Archive](https://archive.org/details/paixaoflix_mazzaropi__jeca_tatu) (~~domínio público~~)
-- Escolhido por representar os desafios típicos de acervo: P&B, qualidade de digitalização
+- Escolhido por representar os desafios típicos de acervo: qualidade de digitalização
   variável, variedade de ambientes (rural/urbano, interno/externo)
 
 ---
