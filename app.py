@@ -87,7 +87,7 @@ def _render_keyframe_grid(rows, cols: int = 4):
 
 with st.sidebar:
     st.title("🎞 Cinemateca AI")
-    st.caption("v0.1.0-alpha")
+    st.caption("v0.2.1")
     st.markdown("---")
 
     local_yaml = Path("config/local.yaml")
