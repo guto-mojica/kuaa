@@ -471,9 +471,11 @@ with tab_annotate:
             with nav_col1:
                 if st.button("←", disabled=st.session_state.annotate_idx == 0):
                     st.session_state.annotate_idx -= 1
+                    st.rerun()
             with nav_col3:
                 if st.button("→", disabled=st.session_state.annotate_idx == len(_scenes) - 1):
                     st.session_state.annotate_idx += 1
+                    st.rerun()
             with nav_col2:
                 chosen = st.selectbox(
                     "Cena",
