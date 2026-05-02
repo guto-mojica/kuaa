@@ -32,12 +32,12 @@ full = [
     "ultralytics>=8.0",
     "facenet-pytorch>=2.5",
     "transformers>=4.35",
-    "streamlit>=1.28",
+    "streamlit>=1.18",
     "rich>=13.0",
 ]
 # Somente GUI: pip install -e ".[gui]"
 gui = [
-    "streamlit>=1.28",
+    "streamlit>=1.18",
     "rich>=13.0",
 ]
 # Somente busca: pip install -e ".[search]"
