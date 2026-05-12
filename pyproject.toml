@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "cinemateca-ai"
@@ -28,7 +28,7 @@ full = [
     "torch>=2.0",
     "torchvision>=0.15",
     "open-clip-torch>=2.20",
-    "scenedetect[opencv]>=0.6",
+    "scenedetect>=0.6",
     "ultralytics>=8.0",
     "facenet-pytorch>=2.5",
     "transformers>=4.35",
