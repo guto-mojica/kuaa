@@ -1,0 +1,38 @@
+{% if not cards %}
+<p class="text-muted scenes-count">{{ _("No scenes match the filters.") }}</p>
+{% else %}
+<p class="text-muted scenes-count">{{ cards | length }} {{ _("scenes") }}</p>
+
+{% for card in cards %}
+<div class="scene-card">
+
+    {% if card.img_url %}
+    <img class="scene-card__keyframe"
+         src="{{ card.img_url }}"
+         alt="{{ _('Scene') }} {{ card.scene_id }}"
+         loading="lazy">
+    {% else %}
+    <div class="scene-card__keyframe scene-card__keyframe--missing"></div>
+    {% endif %}
+
+    <div class="scene-card__meta">
+        <span class="scene-card__timecode">{{ card.timecode or ("scene " ~ card.scene_id) }}</span>
+        {% if card.environment %}
+        <span class="scene-card__env">{{ card.environment }}</span>
+        {% endif %}
+        {% if card.num_people is not none and card.num_people > 0 %}
+        <span class="scene-card__people">{{ card.num_people }}p</span>
+        {% endif %}
+    </div>
+
+    {% if card.tags %}
+    <div class="scene-card__tags">
+        {% for tag in card.tags %}
+        <span class="tag">{{ tag }}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+</div>
+{% endfor %}
+{% endif %}

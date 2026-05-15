@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from api.deps import get_config
-from api.routes import search, tabs
+from api.routes import scenes, search, tabs
 from api.templates import templates
 
 logger = logging.getLogger(__name__)
@@ -39,6 +39,7 @@ app.mount("/static", StaticFiles(directory=str(_BASE / "web" / "static")), name=
 
 app.include_router(tabs.router)
 app.include_router(search.router)
+app.include_router(scenes.router)
 
 
 @app.get("/", response_class=HTMLResponse)

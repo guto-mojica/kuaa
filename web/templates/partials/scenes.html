@@ -1,5 +1,43 @@
 <div class="tab-panel">
-    <div class="scene-grid" id="scenes-grid">
-        <p class="text-muted">{{ _("Scenes tab — coming in next iteration.") }}</p>
+
+{% if no_data %}
+<div class="scenes-empty">
+    <p class="text-muted">{{ _("No scenes found. Run the pipeline with the Scene Detection step first.") }}</p>
+</div>
+{% else %}
+
+<!-- Filter form — change/keyup triggers grid refresh via HTMX -->
+<form id="scenes-filter"
+      hx-get="/api/scenes"
+      hx-trigger="change, keyup changed delay:400ms from:#scenes-keyword"
+      hx-target="#scenes-grid"
+      hx-swap="innerHTML">
+
+    <div class="scenes-filter-bar">
+        <input id="scenes-keyword"
+               name="q"
+               type="text"
+               class="filter-input scenes-keyword"
+               placeholder="{{ _('Filter by description keyword…') }}">
     </div>
+
+    {% if available_tags %}
+    <div class="tag-filter-pills">
+        {% for tag in available_tags %}
+        <label class="tag-pill">
+            <input type="checkbox" name="tags" value="{{ tag }}">
+            {{ tag }}
+        </label>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+</form>
+
+<!-- Scene grid — also the HTMX swap target for filter updates -->
+<div id="scenes-grid" class="scene-grid">
+    {% include "partials/scenes_grid.html" %}
+</div>
+
+{% endif %}
 </div>

@@ -250,7 +250,7 @@ Last updated: in the commit message that touched CLAUDE.md.
 - [x] FastAPI app skeleton running on `localhost:8501`
 - [x] Base layout (sidebar + main) in `web/templates/base.html`
 - [x] Search tab functional via HTMX
-- [ ] Scenes tab functional via HTMX
+- [x] Scenes tab functional via HTMX
 - [ ] Annotate tab functional via HTMX
 - [ ] Processing tab with SSE
 - [ ] About modal

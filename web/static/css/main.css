@@ -414,6 +414,77 @@ body {
     font-size: 1.25rem;
 }
 
+/* ── Scenes filter bar ─────────────────────────────────────────────────────── */
+.scenes-filter-bar {
+    margin-bottom: 12px;
+}
+
+.scenes-keyword {
+    width: 100%;
+    max-width: 400px;
+}
+
+.tag-filter-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.tag-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border: 1px solid var(--c-bg-border);
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    color: var(--c-text-muted);
+    cursor: pointer;
+    transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
+    user-select: none;
+}
+.tag-pill input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.tag-pill:hover {
+    border-color: var(--c-text-muted);
+    color: var(--c-text-secondary);
+}
+.tag-pill:has(input:checked) {
+    background: rgba(200, 150, 62, 0.15);
+    border-color: var(--c-accent);
+    color: var(--c-accent-text);
+}
+
+.scenes-count {
+    margin-bottom: 12px;
+    font-size: 0.75rem;
+}
+
+.scenes-empty {
+    padding: 32px 0;
+}
+
+/* ── Scene card tags strip ─────────────────────────────────────────────────── */
+.scene-card__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 0 8px 8px;
+}
+
+.tag {
+    display: inline-block;
+    padding: 1px 6px;
+    background: var(--c-bg-overlay);
+    border-radius: 4px;
+    font-size: 0.6875rem;
+    color: var(--c-text-muted);
+}
+
 /* ── Search results ────────────────────────────────────────────────────────── */
 .scene-card__keyframe--missing {
     background: var(--c-bg-overlay);
