@@ -838,6 +838,31 @@ body {
 .modal-link { color: var(--c-accent-text); text-decoration: none; }
 .modal-link:hover { text-decoration: underline; }
 
+/* ── Image upload ──────────────────────────────────────────────────────────── */
+.image-upload-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--c-bg-overlay);
+    border: 1px dashed var(--c-bg-border);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--c-text-secondary);
+    font-size: 0.875rem;
+    transition: border-color 150ms, color 150ms;
+    margin-top: 12px;
+}
+.image-upload-label:hover {
+    border-color: var(--c-accent-dim);
+    color: var(--c-text-primary);
+}
+.image-upload-label input[type="file"] { display: none; }
+
+.search-tag-filter {
+    margin-top: 12px;
+}
+
 /* ── Locale switcher ───────────────────────────────────────────────────────── */
 .locale-switcher {
     display: flex;

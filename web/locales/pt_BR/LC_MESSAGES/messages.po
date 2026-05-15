@@ -148,3 +148,6 @@ msgstr "Fechar"
 
 msgid "Model attributions"
 msgstr "Atribuições de modelos"
+
+msgid "Choose image…"
+msgstr "Escolher imagem…"

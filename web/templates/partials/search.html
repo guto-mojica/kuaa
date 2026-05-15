@@ -1,19 +1,59 @@
 <div class="tab-panel">
-    <form class="search-container"
-          hx-get="/api/search"
-          hx-trigger="keyup changed delay:500ms from:#search-input, submit"
-          hx-target="#search-results">
-        <input id="search-input"
-               class="search-input"
-               type="text"
-               name="q"
-               autocomplete="off"
-               placeholder="{{ _('two people talking outdoors') }}">
-        <div class="search-mode-toggle">
-            <button class="active" type="button">{{ _("Text") }}</button>
-            <button type="button">{{ _("Image") }}</button>
-        </div>
-    </form>
+
+    <div class="search-mode-toggle">
+        <button class="active" type="button" onclick="setSearchMode('text')">{{ _("Text") }}</button>
+        <button type="button" onclick="setSearchMode('image')">{{ _("Image") }}</button>
+    </div>
+
+    <!-- ── Text search ────────────────────────────────────────────────────── -->
+    <div id="search-text-panel">
+        <form hx-get="/api/search"
+              hx-trigger="keyup changed delay:500ms from:#search-input, change from:.search-tag-filter input, submit"
+              hx-target="#search-results">
+            <input id="search-input"
+                   class="search-input"
+                   type="text"
+                   name="q"
+                   autocomplete="off"
+                   placeholder="{{ _('two people talking outdoors') }}">
+
+            {% if available_tags %}
+            <div class="search-tag-filter tag-filter">
+                {% for tag in available_tags %}
+                <label class="tag-pill">
+                    <input type="checkbox" name="tags" value="{{ tag }}">{{ tag }}
+                </label>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- ── Image search ───────────────────────────────────────────────────── -->
+    <div id="search-image-panel" style="display:none">
+        <form hx-post="/api/search/image"
+              hx-encoding="multipart/form-data"
+              hx-trigger="change from:#image-input"
+              hx-target="#search-results">
+            <label class="image-upload-label" for="image-input">
+                <ph-icon name="upload-simple" weight="light"></ph-icon>
+                <span id="image-upload-filename">{{ _("Choose image…") }}</span>
+                <input id="image-input" type="file" name="file" accept="image/*"
+                       onchange="document.getElementById('image-upload-filename').textContent = this.files[0]?.name || '{{ _('Choose image…') }}'">
+            </label>
+        </form>
+    </div>
 
     <div id="search-results" class="scene-grid"></div>
 </div>
+
+<script>
+function setSearchMode(mode) {
+    document.getElementById('search-text-panel').style.display  = mode === 'text'  ? '' : 'none';
+    document.getElementById('search-image-panel').style.display = mode === 'image' ? '' : 'none';
+    document.querySelectorAll('.search-mode-toggle button').forEach(function(b, i) {
+        b.classList.toggle('active', (mode === 'text' && i === 0) || (mode === 'image' && i === 1));
+    });
+    document.getElementById('search-results').innerHTML = '';
+}
+</script>

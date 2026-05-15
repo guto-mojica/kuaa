@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import tempfile
 from functools import lru_cache
 from pathlib import Path
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, File, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse
 
 from api.deps import get_config, make_ctx
@@ -32,6 +34,18 @@ def _load_index(embeddings_dir: str, mapping_filename: str, embeddings_filename:
     return embeddings, kf_df, embedder
 
 
+def _load_tag_index(metadata_dir: Path) -> dict:
+    from cinemateca.annotator import load as load_annotations, merge_tag_index
+
+    tags_path = metadata_dir / "scene_tags.json"
+    llm_tags: dict = {}
+    if tags_path.exists():
+        with open(tags_path, encoding="utf-8") as f:
+            llm_tags = json.load(f)
+    annotations = load_annotations(metadata_dir)
+    return merge_tag_index(llm_tags, annotations)
+
+
 def _keyframe_url(filepath: str, data_dir: Path) -> str | None:
     """Convert a stored filepath to a /media/... URL."""
     fp = Path(filepath)
@@ -44,13 +58,32 @@ def _keyframe_url(filepath: str, data_dir: Path) -> str | None:
     return None
 
 
+def _results_to_dicts(results_df, data_dir: Path) -> list[dict]:
+    return [
+        {**row, "img_url": _keyframe_url(str(row["filepath"]), data_dir)}
+        for row in results_df.to_dict("records")
+    ]
+
+
 @router.get("/tab/search", response_class=HTMLResponse)
 async def tab_search(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse(request, "partials/search.html", make_ctx(request))
+    cfg = get_config()
+    tag_index = _load_tag_index(Path(cfg.paths.metadata_dir))
+    available_tags = sorted(tag_index.keys()) if tag_index else []
+    return templates.TemplateResponse(
+        request,
+        "partials/search.html",
+        make_ctx(request, available_tags=available_tags),
+    )
 
 
 @router.get("/api/search", response_class=HTMLResponse)
-async def api_search(request: Request, q: str = "", top_k: int = 8) -> HTMLResponse:
+async def api_search(
+    request: Request,
+    q: str = "",
+    tags: list[str] = Query(default=[]),
+    top_k: int = 8,
+) -> HTMLResponse:
     q = q.strip()
     if len(q) < 2:
         return HTMLResponse("")
@@ -73,16 +106,60 @@ async def api_search(request: Request, q: str = "", top_k: int = 8) -> HTMLRespo
 
     searcher = SemanticSearch(embeddings, kf_df, embedder)
     loop = asyncio.get_event_loop()
-    results_df = await loop.run_in_executor(None, searcher.by_text, q, top_k)
-
     data_dir = Path(cfg.paths.data_dir).resolve()
-    results = [
-        {**row, "img_url": _keyframe_url(str(row["filepath"]), data_dir)}
-        for row in results_df.to_dict("records")
-    ]
+
+    if tags:
+        tag_index = _load_tag_index(Path(cfg.paths.metadata_dir))
+        results_df = await loop.run_in_executor(
+            None, lambda: searcher.combined(q, tags, tag_index, top_k)
+        )
+    else:
+        results_df = await loop.run_in_executor(None, searcher.by_text, q, top_k)
 
     return templates.TemplateResponse(
         request,
         "partials/search_results.html",
-        make_ctx(request, results=results, no_index=False),
+        make_ctx(request, results=_results_to_dicts(results_df, data_dir), no_index=False),
+    )
+
+
+@router.post("/api/search/image", response_class=HTMLResponse)
+async def api_search_image(
+    request: Request,
+    file: UploadFile = File(...),
+    top_k: int = 8,
+) -> HTMLResponse:
+    cfg = get_config()
+    embeddings, kf_df, embedder = _load_index(
+        str(cfg.paths.embeddings_dir),
+        cfg.embeddings.mapping_filename,
+        cfg.embeddings.filename,
+    )
+
+    if embeddings is None:
+        return templates.TemplateResponse(
+            request,
+            "partials/search_results.html",
+            make_ctx(request, results=[], no_index=True),
+        )
+
+    suffix = Path(file.filename or "img.jpg").suffix or ".jpg"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(await file.read())
+        tmp_path = Path(tmp.name)
+
+    try:
+        from cinemateca.embeddings import SemanticSearch
+
+        searcher = SemanticSearch(embeddings, kf_df, embedder)
+        loop = asyncio.get_event_loop()
+        results_df = await loop.run_in_executor(None, searcher.by_image, tmp_path, top_k)
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+    data_dir = Path(cfg.paths.data_dir).resolve()
+    return templates.TemplateResponse(
+        request,
+        "partials/search_results.html",
+        make_ctx(request, results=_results_to_dicts(results_df, data_dir), no_index=False),
     )
