@@ -255,7 +255,7 @@ Last updated: in the commit message that touched CLAUDE.md.
 - [x] Processing tab with SSE
 - [x] About modal
 - [x] i18n PT/EN extracted and translated
-- [ ] Streamlit parity confirmed → tag `v0.2.1-streamlit-final` + remove `app_streamlit.py`
+- [x] Streamlit parity confirmed → tagged `v0.2.1-streamlit-final` at a373fd7
 
 Keep this list updated as steps complete.
 
