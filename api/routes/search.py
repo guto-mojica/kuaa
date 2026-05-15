@@ -46,7 +46,7 @@ def _keyframe_url(filepath: str, data_dir: Path) -> str | None:
 
 @router.get("/tab/search", response_class=HTMLResponse)
 async def tab_search(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse("partials/search.html", make_ctx(request))
+    return templates.TemplateResponse(request, "partials/search.html", make_ctx(request))
 
 
 @router.get("/api/search", response_class=HTMLResponse)
@@ -64,6 +64,7 @@ async def api_search(request: Request, q: str = "", top_k: int = 8) -> HTMLRespo
 
     if embeddings is None:
         return templates.TemplateResponse(
+            request,
             "partials/search_results.html",
             make_ctx(request, results=[], no_index=True),
         )
@@ -81,6 +82,7 @@ async def api_search(request: Request, q: str = "", top_k: int = 8) -> HTMLRespo
     ]
 
     return templates.TemplateResponse(
+        request,
         "partials/search_results.html",
         make_ctx(request, results=results, no_index=False),
     )

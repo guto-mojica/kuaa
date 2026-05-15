@@ -45,6 +45,7 @@ async def tab_processing(request: Request) -> HTMLResponse:
     jobs = active_jobs()
 
     return templates.TemplateResponse(
+        request,
         "partials/processing.html",
         make_ctx(request, films=films, step_defs=STEP_DEFS, jobs=jobs),
     )
@@ -70,6 +71,7 @@ async def api_pipeline_start(
     job = get_job(job_id)
 
     return templates.TemplateResponse(
+        request,
         "partials/processing_job.html",
         make_ctx(request, job=job),
     )

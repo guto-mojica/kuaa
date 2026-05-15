@@ -126,6 +126,7 @@ async def tab_annotate(
     ctx = _scene_context(scenes, id, data_dir, desc_by_scene, annotations)
 
     return templates.TemplateResponse(
+        request,
         "partials/annotate.html",
         make_ctx(request, filter=filter, no_data=no_data, all_done=all_done, **ctx),
     )
@@ -145,6 +146,7 @@ async def api_annotate_scene(
     ctx = _scene_context(scenes, id, data_dir, desc_by_scene, annotations)
 
     return templates.TemplateResponse(
+        request,
         "partials/annotate_scene.html",
         make_ctx(request, filter=filter, **ctx),
     )
@@ -173,6 +175,7 @@ async def api_annotate_save(
     ctx = _scene_context(scenes, scene_id, data_dir, desc_by_scene, annotations)
 
     return templates.TemplateResponse(
+        request,
         "partials/annotate_scene.html",
         make_ctx(request, filter=filter, saved=True, **ctx),
     )
@@ -199,6 +202,7 @@ async def api_annotate_clear(
     ctx = _scene_context(scenes, scene_id, data_dir, desc_by_scene, annotations)
 
     return templates.TemplateResponse(
+        request,
         "partials/annotate_scene.html",
         make_ctx(request, filter=filter, cleared=True, **ctx),
     )

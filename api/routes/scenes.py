@@ -132,6 +132,7 @@ async def tab_scenes(request: Request) -> HTMLResponse:
     cards = _build_cards(kf_meta, desc_by_scene, vis_by_scene, tag_index, data_dir, [], "")
 
     return templates.TemplateResponse(
+        request,
         "partials/scenes.html",
         make_ctx(request, cards=cards, available_tags=available_tags, no_data=not kf_meta),
     )
@@ -151,6 +152,7 @@ async def api_scenes(
     cards = _build_cards(kf_meta, desc_by_scene, vis_by_scene, tag_index, data_dir, tags, q)
 
     return templates.TemplateResponse(
+        request,
         "partials/scenes_grid.html",
         make_ctx(request, cards=cards),
     )

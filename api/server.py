@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from api.deps import get_config, make_ctx
-from api.routes import about, annotate, processing, scenes, search, tabs
+from api.routes import about, annotate, library, processing, scenes, search, tabs
 from api.templates import templates
 
 logger = logging.getLogger(__name__)
@@ -43,10 +43,10 @@ app.include_router(scenes.router)
 app.include_router(annotate.router)
 app.include_router(processing.router)
 app.include_router(about.router)
+app.include_router(library.router)
 
 
-@app.get("/", response_class=HTMLResponse)
-async def index(request: Request) -> HTMLResponse:
+async def _base_page(request: Request, active_tab: str) -> HTMLResponse:
     cfg = get_config()
     from cinemateca.library import scan_library
 
@@ -55,12 +55,38 @@ async def index(request: Request) -> HTMLResponse:
         metadata_dir=Path(cfg.paths.metadata_dir),
     )
     return templates.TemplateResponse(
+        request,
         "base.html",
         make_ctx(
             request,
-            active_tab="search",
+            active_tab=active_tab,
             processing_jobs=0,
             films=films,
             selected_slug=films[0].slug if films else None,
         ),
     )
+
+
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request) -> HTMLResponse:
+    return await _base_page(request, "search")
+
+
+@app.get("/search", response_class=HTMLResponse)
+async def page_search(request: Request) -> HTMLResponse:
+    return await _base_page(request, "search")
+
+
+@app.get("/scenes", response_class=HTMLResponse)
+async def page_scenes(request: Request) -> HTMLResponse:
+    return await _base_page(request, "scenes")
+
+
+@app.get("/annotate", response_class=HTMLResponse)
+async def page_annotate(request: Request) -> HTMLResponse:
+    return await _base_page(request, "annotate")
+
+
+@app.get("/processing", response_class=HTMLResponse)
+async def page_processing(request: Request) -> HTMLResponse:
+    return await _base_page(request, "processing")

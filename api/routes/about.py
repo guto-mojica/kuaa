@@ -13,6 +13,7 @@ router = APIRouter()
 @router.get("/api/about", response_class=HTMLResponse)
 async def api_about(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
+        request,
         "partials/about_modal.html",
         make_ctx(request, version="0.3.0"),
     )
@@ -25,5 +26,5 @@ async def api_set_locale(code: str) -> Response:
     locale = code if code in supported else "pt_BR"
     resp = Response(status_code=200)
     resp.set_cookie("locale", locale, max_age=60 * 60 * 24 * 365, samesite="lax")
-    resp.headers["HX-Refresh"] = "true"
+    resp.headers["HX-Redirect"] = "/"
     return resp
