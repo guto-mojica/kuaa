@@ -245,10 +245,10 @@ a new pattern. Don't duplicate here — reference.
 
 Last updated: in the commit message that touched CLAUDE.md.
 
-- [ ] Folder structure (`api/`, `web/`, `docs/`) created
-- [ ] `library.py` in `src/cinemateca/` to manage film collection
-- [ ] FastAPI app skeleton running on `localhost:8501`
-- [ ] Base layout (sidebar + main) in `web/templates/base.html`
+- [x] Folder structure (`api/`, `web/`, `docs/`) created
+- [x] `library.py` in `src/cinemateca/` to manage film collection
+- [x] FastAPI app skeleton running on `localhost:8501`
+- [x] Base layout (sidebar + main) in `web/templates/base.html`
 - [ ] Search tab functional via HTMX
 - [ ] Scenes tab functional via HTMX
 - [ ] Annotate tab functional via HTMX

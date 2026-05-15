@@ -32,10 +32,27 @@ full = [
     "ultralytics>=8.0",
     "facenet-pytorch>=2.5",
     "transformers>=4.35",
-    "streamlit>=1.28",
     "rich>=13.0",
+    # v0.3.0 web stack
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.7",
+    "aiofiles>=23.0",
+    "babel>=2.14",
+    # legacy Streamlit (removed after parity confirmed)
+    "streamlit>=1.28",
 ]
-# Somente GUI: pip install -e ".[gui]"
+# v0.3.0 web interface: pip install -e ".[web]"
+web = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.7",
+    "aiofiles>=23.0",
+    "babel>=2.14",
+]
+# Somente GUI (legacy Streamlit): pip install -e ".[gui]"
 gui = [
     "streamlit>=1.28",
     "rich>=13.0",

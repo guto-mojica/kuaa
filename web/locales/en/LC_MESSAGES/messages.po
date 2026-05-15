@@ -1,0 +1,63 @@
+# Cinemateca AI — English translations
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+
+msgid "Search"
+msgstr "Search"
+
+msgid "Scenes"
+msgstr "Scenes"
+
+msgid "Annotate"
+msgstr "Annotate"
+
+msgid "Processing"
+msgstr "Processing"
+
+msgid "About"
+msgstr "About"
+
+msgid "Add film"
+msgstr "Add film"
+
+msgid "Filter library"
+msgstr "Filter library"
+
+msgid "Start processing"
+msgstr "Start processing"
+
+msgid "Cancel"
+msgstr "Cancel"
+
+msgid "Done"
+msgstr "Done"
+
+msgid "scenes catalogued"
+msgstr "scenes catalogued"
+
+msgid "remaining"
+msgstr "remaining"
+
+msgid "No films in library"
+msgstr "No films in library"
+
+msgid "Text"
+msgstr "Text"
+
+msgid "Image"
+msgstr "Image"
+
+msgid "two people talking outdoors"
+msgstr "two people talking outdoors"
+
+msgid "Scenes tab — coming in next iteration."
+msgstr "Scenes tab — coming in next iteration."
+
+msgid "Annotate tab — coming in next iteration."
+msgstr "Annotate tab — coming in next iteration."
+
+msgid "No active processing jobs."
+msgstr "No active processing jobs."

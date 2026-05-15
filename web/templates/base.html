@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cinemateca AI</title>
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/main.css') }}">
+    <script src="{{ request.url_for('static', path='js/htmx.min.js') }}" defer></script>
+    <script src="https://unpkg.com/@phosphor-icons/web@2.1.1" defer></script>
+</head>
+<body>
+<div class="shell">
+
+    <!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <ph-icon name="film-reel" weight="light"></ph-icon>
+            <span class="sidebar-title">Cinemateca AI</span>
+        </div>
+
+        <input class="filter-input"
+               type="text"
+               placeholder="{{ _('Filter library') }}"
+               hx-get="/api/library/filter"
+               hx-trigger="keyup changed delay:300ms"
+               hx-target="#library-tree">
+
+        <nav class="library-tree" id="library-tree">
+            {% include "partials/library_tree.html" %}
+        </nav>
+
+        <footer class="sidebar-footer">
+            <a class="about-link"
+               hx-get="/api/about"
+               hx-target="#modal-container"
+               hx-swap="innerHTML">
+                <ph-icon name="info" weight="light"></ph-icon>
+                {{ _("About") }}
+            </a>
+            <span class="version">v0.3.0</span>
+        </footer>
+    </aside>
+
+    <!-- ── Main ────────────────────────────────────────────────────────────── -->
+    <main class="main">
+
+        <!-- Tab bar -->
+        <nav class="tab-bar" id="tab-bar">
+            <a class="tab {% if active_tab == 'search' %}tab--active{% endif %}"
+               hx-get="/tab/search"
+               hx-target="#tab-content"
+               hx-swap="innerHTML"
+               hx-push-url="/search"
+               onclick="setActiveTab(this)">
+                <ph-icon name="magnifying-glass" weight="light"></ph-icon>
+                {{ _("Search") }}
+            </a>
+            <a class="tab {% if active_tab == 'scenes' %}tab--active{% endif %}"
+               hx-get="/tab/scenes"
+               hx-target="#tab-content"
+               hx-swap="innerHTML"
+               hx-push-url="/scenes"
+               onclick="setActiveTab(this)">
+                <ph-icon name="squares-four" weight="light"></ph-icon>
+                {{ _("Scenes") }}
+            </a>
+            <a class="tab {% if active_tab == 'annotate' %}tab--active{% endif %}"
+               hx-get="/tab/annotate"
+               hx-target="#tab-content"
+               hx-swap="innerHTML"
+               hx-push-url="/annotate"
+               onclick="setActiveTab(this)">
+                <ph-icon name="tag" weight="light"></ph-icon>
+                {{ _("Annotate") }}
+            </a>
+            {% if processing_jobs %}
+            <a class="tab {% if active_tab == 'processing' %}tab--active{% endif %}"
+               hx-get="/tab/processing"
+               hx-target="#tab-content"
+               hx-swap="innerHTML"
+               hx-push-url="/processing"
+               onclick="setActiveTab(this)">
+                <ph-icon name="spinner-gap" weight="light" class="spin"></ph-icon>
+                {{ _("Processing") }}
+                <span class="badge">{{ processing_jobs }}</span>
+            </a>
+            {% endif %}
+        </nav>
+
+        <!-- Tab content -->
+        <div class="tab-content" id="tab-content">
+            {% if active_tab == 'search' %}
+                {% include "partials/search.html" %}
+            {% elif active_tab == 'scenes' %}
+                {% include "partials/scenes.html" %}
+            {% elif active_tab == 'annotate' %}
+                {% include "partials/annotate.html" %}
+            {% elif active_tab == 'processing' %}
+                {% include "partials/processing.html" %}
+            {% endif %}
+        </div>
+
+    </main>
+</div>
+
+<!-- Modal container (filled by HTMX on About click) -->
+<div id="modal-container"></div>
+
+<script>
+function setActiveTab(el) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('tab--active'));
+    el.classList.add('tab--active');
+}
+</script>
+</body>
+</html>

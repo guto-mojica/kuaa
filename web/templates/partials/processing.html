@@ -1,0 +1,18 @@
+<div class="tab-panel">
+    <div class="pipeline-steps" id="pipeline-steps">
+        {% for step in steps | default([]) %}
+        <div class="step-pill step-pill--{{ step.state }}">
+            {% if step.state == 'done' %}
+                <ph-icon name="check-circle" weight="fill"></ph-icon>
+            {% elif step.state == 'active' %}
+                <ph-icon name="spinner-gap" weight="light" class="spin"></ph-icon>
+            {% else %}
+                <ph-icon name="circle" weight="light"></ph-icon>
+            {% endif %}
+            {{ step.label }}
+        </div>
+        {% else %}
+        <p class="text-muted">{{ _("No active processing jobs.") }}</p>
+        {% endfor %}
+    </div>
+</div>

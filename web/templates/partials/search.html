@@ -1,0 +1,19 @@
+<div class="tab-panel">
+    <form class="search-container"
+          hx-get="/api/search"
+          hx-trigger="keyup changed delay:500ms from:#search-input, submit"
+          hx-target="#search-results">
+        <input id="search-input"
+               class="search-input"
+               type="text"
+               name="q"
+               autocomplete="off"
+               placeholder="{{ _('two people talking outdoors') }}">
+        <div class="search-mode-toggle">
+            <button class="active" type="button">{{ _("Text") }}</button>
+            <button type="button">{{ _("Image") }}</button>
+        </div>
+    </form>
+
+    <div id="search-results" class="scene-grid"></div>
+</div>

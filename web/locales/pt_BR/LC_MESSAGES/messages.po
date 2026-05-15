@@ -1,0 +1,63 @@
+# Cinemateca AI — Portuguese (Brazil) translations
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: pt_BR\n"
+
+msgid "Search"
+msgstr "Buscar"
+
+msgid "Scenes"
+msgstr "Cenas"
+
+msgid "Annotate"
+msgstr "Anotar"
+
+msgid "Processing"
+msgstr "Processamento"
+
+msgid "About"
+msgstr "Sobre"
+
+msgid "Add film"
+msgstr "Adicionar filme"
+
+msgid "Filter library"
+msgstr "Filtrar acervo"
+
+msgid "Start processing"
+msgstr "Iniciar processamento"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "Done"
+msgstr "Concluído"
+
+msgid "scenes catalogued"
+msgstr "cenas catalogadas"
+
+msgid "remaining"
+msgstr "restante(s)"
+
+msgid "No films in library"
+msgstr "Nenhum filme no acervo"
+
+msgid "Text"
+msgstr "Texto"
+
+msgid "Image"
+msgstr "Imagem"
+
+msgid "two people talking outdoors"
+msgstr "duas pessoas conversando ao ar livre"
+
+msgid "Scenes tab — coming in next iteration."
+msgstr "Aba Cenas — em desenvolvimento."
+
+msgid "Annotate tab — coming in next iteration."
+msgstr "Aba Anotar — em desenvolvimento."
+
+msgid "No active processing jobs."
+msgstr "Nenhum processamento em andamento."

@@ -1,0 +1,16 @@
+{% if films %}
+    {% for film in films %}
+    <a class="tree-node {% if selected_slug == film.slug %}tree-node--active{% endif %}"
+       hx-get="/api/library/{{ film.slug }}/select"
+       hx-target="#tab-content"
+       hx-swap="innerHTML">
+        <ph-icon name="film-strip" weight="light"></ph-icon>
+        <span class="tree-node__title">{{ film.title }}</span>
+        {% if film.scene_count %}
+        <span class="tree-node__count">{{ film.scene_count }}</span>
+        {% endif %}
+    </a>
+    {% endfor %}
+{% else %}
+    <p class="tree-empty">{{ _("No films in library") }}</p>
+{% endif %}
