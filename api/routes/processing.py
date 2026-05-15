@@ -1,0 +1,115 @@
+"""Processing tab routes — pipeline start, SSE stream, status."""
+from __future__ import annotations
+
+import asyncio
+import logging
+from pathlib import Path
+
+from fastapi import APIRouter, Form, Request
+from fastapi.responses import HTMLResponse, StreamingResponse
+
+from api.deps import get_config
+from api.jobs import STEP_DEFS, JobState, active_jobs, get_job, start_job
+from api.templates import templates
+
+logger = logging.getLogger(__name__)
+router = APIRouter()
+
+
+# ── Rendering helpers ─────────────────────────────────────────────────────────
+
+def _render_stepper(job: JobState) -> str:
+    """Render the stepper HTML fragment for SSE (no request context needed)."""
+    html = templates.env.get_template("partials/processing_stepper.html").render(
+        steps=job.steps,
+        progress=job.progress,
+        status=job.status,
+        error_msg=job.error_msg,
+        total_duration_s=job.total_duration_s,
+        job_id=job.id,
+    )
+    return html.replace("\n", " ").strip()
+
+
+# ── Routes ────────────────────────────────────────────────────────────────────
+
+@router.get("/tab/processing", response_class=HTMLResponse)
+async def tab_processing(request: Request) -> HTMLResponse:
+    cfg = get_config()
+    from cinemateca.library import scan_library
+
+    films = scan_library(
+        raw_dir=Path(cfg.paths.raw_dir),
+        metadata_dir=Path(cfg.paths.metadata_dir),
+    )
+    jobs = active_jobs()
+
+    return templates.TemplateResponse(
+        "partials/processing.html",
+        {
+            "request": request,
+            "films": films,
+            "step_defs": STEP_DEFS,
+            "jobs": jobs,
+        },
+    )
+
+
+@router.post("/api/pipeline/start", response_class=HTMLResponse)
+async def api_pipeline_start(
+    request: Request,
+    video_path: str = Form(...),
+    steps: list[str] = Form(default=[]),
+) -> HTMLResponse:
+    if not steps:
+        steps = [name for name, _ in STEP_DEFS]
+
+    cfg = get_config()
+    vp = Path(video_path)
+    if not vp.exists():
+        return HTMLResponse(
+            f'<p class="text-error">File not found: {vp}</p>', status_code=400
+        )
+
+    job_id = start_job(str(vp), set(steps), cfg)
+    job = get_job(job_id)
+
+    return templates.TemplateResponse(
+        "partials/processing_job.html",
+        {"request": request, "job": job},
+    )
+
+
+@router.get("/api/pipeline/stream/{job_id}")
+async def api_pipeline_stream(job_id: str) -> StreamingResponse:
+    async def generator():
+        job = get_job(job_id)
+        if not job:
+            yield "data: <p class='text-error'>Job not found.</p>\n\n"
+            return
+
+        while True:
+            try:
+                signal = job.events.get_nowait()
+            except Exception:
+                # Queue empty — wait, send keepalive
+                if job.status in ("done", "error"):
+                    break
+                await asyncio.sleep(0.4)
+                yield ": keepalive\n\n"
+                continue
+
+            html = _render_stepper(job)
+            yield f"data: {html}\n\n"
+
+            if signal in ("done", "error"):
+                break
+
+        # Final state flush
+        yield f"data: {_render_stepper(job)}\n\n"
+
+    return StreamingResponse(
+        generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

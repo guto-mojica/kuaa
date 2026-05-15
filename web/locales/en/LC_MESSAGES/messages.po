@@ -121,3 +121,24 @@ msgstr "Run the Scene Detection step first."
 
 msgid "All scenes have valid LLM descriptions."
 msgstr "All scenes have valid LLM descriptions."
+
+msgid "Film"
+msgstr "Film"
+
+msgid "Steps"
+msgstr "Steps"
+
+msgid "No video files found in the raw directory."
+msgstr "No video files found in the raw directory."
+
+msgid "Starting…"
+msgstr "Starting…"
+
+msgid "No active jobs."
+msgstr "No active jobs."
+
+msgid "Pipeline completed in"
+msgstr "Pipeline completed in"
+
+msgid "Pipeline failed"
+msgstr "Pipeline failed"

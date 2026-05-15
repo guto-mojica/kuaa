@@ -121,3 +121,24 @@ msgstr "Execute a etapa Detecção de cenas primeiro."
 
 msgid "All scenes have valid LLM descriptions."
 msgstr "Todas as cenas têm descrição LLM válida."
+
+msgid "Film"
+msgstr "Filme"
+
+msgid "Steps"
+msgstr "Etapas"
+
+msgid "No video files found in the raw directory."
+msgstr "Nenhum arquivo de vídeo encontrado no diretório raw."
+
+msgid "Starting…"
+msgstr "Iniciando…"
+
+msgid "No active jobs."
+msgstr "Nenhum processamento em andamento."
+
+msgid "Pipeline completed in"
+msgstr "Pipeline concluído em"
+
+msgid "Pipeline failed"
+msgstr "Pipeline falhou"

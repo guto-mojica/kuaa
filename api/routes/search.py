@@ -44,6 +44,11 @@ def _keyframe_url(filepath: str, data_dir: Path) -> str | None:
     return None
 
 
+@router.get("/tab/search", response_class=HTMLResponse)
+async def tab_search(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse("partials/search.html", {"request": request})
+
+
 @router.get("/api/search", response_class=HTMLResponse)
 async def api_search(request: Request, q: str = "", top_k: int = 8) -> HTMLResponse:
     q = q.strip()

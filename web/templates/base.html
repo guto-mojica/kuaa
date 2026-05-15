@@ -6,6 +6,7 @@
     <title>Cinemateca AI</title>
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/main.css') }}">
     <script src="{{ request.url_for('static', path='js/htmx.min.js') }}" defer></script>
+    <script src="{{ request.url_for('static', path='js/htmx-ext-sse.js') }}" defer></script>
     <script src="https://unpkg.com/@phosphor-icons/web@2.1.1" defer></script>
 </head>
 <body>
@@ -73,18 +74,18 @@
                 <ph-icon name="tag" weight="light"></ph-icon>
                 {{ _("Annotate") }}
             </a>
-            {% if processing_jobs %}
             <a class="tab {% if active_tab == 'processing' %}tab--active{% endif %}"
                hx-get="/tab/processing"
                hx-target="#tab-content"
                hx-swap="innerHTML"
                hx-push-url="/processing"
                onclick="setActiveTab(this)">
-                <ph-icon name="spinner-gap" weight="light" class="spin"></ph-icon>
+                <ph-icon name="spinner-gap" weight="light"></ph-icon>
                 {{ _("Processing") }}
+                {% if processing_jobs %}
                 <span class="badge">{{ processing_jobs }}</span>
+                {% endif %}
             </a>
-            {% endif %}
         </nav>
 
         <!-- Tab content -->

@@ -1,18 +1,60 @@
 <div class="tab-panel">
-    <div class="pipeline-steps" id="pipeline-steps">
-        {% for step in steps | default([]) %}
-        <div class="step-pill step-pill--{{ step.state }}">
-            {% if step.state == 'done' %}
-                <ph-icon name="check-circle" weight="fill"></ph-icon>
-            {% elif step.state == 'active' %}
-                <ph-icon name="spinner-gap" weight="light" class="spin"></ph-icon>
-            {% else %}
-                <ph-icon name="circle" weight="light"></ph-icon>
-            {% endif %}
-            {{ step.label }}
-        </div>
-        {% else %}
-        <p class="text-muted">{{ _("No active processing jobs.") }}</p>
-        {% endfor %}
+
+<!-- Start form -->
+<form class="pipeline-form"
+      hx-post="/api/pipeline/start"
+      hx-target="#processing-job"
+      hx-swap="innerHTML"
+      hx-indicator="#start-spinner">
+
+    {% if films %}
+    <div class="pipeline-form__row">
+        <label class="pipeline-form__label">{{ _("Film") }}</label>
+        <select name="video_path" class="jump-select pipeline-form__select">
+            {% for film in films %}
+            <option value="{{ film.raw_path }}">{{ film.title }}</option>
+            {% endfor %}
+        </select>
     </div>
+    {% else %}
+    <p class="text-muted" style="margin-bottom:16px">
+        {{ _("No video files found in the raw directory.") }}
+    </p>
+    {% endif %}
+
+    <div class="pipeline-form__row">
+        <label class="pipeline-form__label">{{ _("Steps") }}</label>
+        <div class="pipeline-steps-check">
+            {% for name, label in step_defs %}
+            <label class="tag-pill">
+                <input type="checkbox" name="steps" value="{{ name }}" checked>
+                {{ label }}
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="pipeline-form__actions">
+        <button type="submit" class="btn-primary" {% if not films %}disabled{% endif %}>
+            {{ _("Start processing") }}
+        </button>
+        <span id="start-spinner" class="htmx-indicator text-muted" style="font-size:0.75rem">
+            {{ _("Starting…") }}
+        </span>
+    </div>
+</form>
+
+<div class="pipeline-divider"></div>
+
+<!-- Active job (populated by POST response) -->
+<div id="processing-job">
+    {% if jobs %}
+    {% for job in jobs %}
+    {% include "partials/processing_job.html" %}
+    {% endfor %}
+    {% else %}
+    <p class="text-muted" style="font-size:0.75rem">{{ _("No active jobs.") }}</p>
+    {% endif %}
+</div>
+
 </div>
