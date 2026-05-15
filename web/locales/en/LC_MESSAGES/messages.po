@@ -73,3 +73,51 @@ msgstr "Scene"
 
 msgid "scene"
 msgstr "scene"
+
+msgid "Show"
+msgstr "Show"
+
+msgid "Without LLM description"
+msgstr "Without LLM description"
+
+msgid "All scenes"
+msgstr "All scenes"
+
+msgid "annotated"
+msgstr "annotated"
+
+msgid "No scenes match the current filter."
+msgstr "No scenes match the current filter."
+
+msgid "tag(s) saved"
+msgstr "tag(s) saved"
+
+msgid "Tags cleared"
+msgstr "Tags cleared"
+
+msgid "LLM description"
+msgstr "LLM description"
+
+msgid "No LLM description"
+msgstr "No LLM description"
+
+msgid "Manual tags"
+msgstr "Manual tags"
+
+msgid "rural, exterior, horse, single-person"
+msgstr "rural, exterior, horse, single-person"
+
+msgid "Use hyphens for compound tags: two-people, night-scene"
+msgstr "Use hyphens for compound tags: two-people, night-scene"
+
+msgid "Save"
+msgstr "Save"
+
+msgid "Clear"
+msgstr "Clear"
+
+msgid "Run the Scene Detection step first."
+msgstr "Run the Scene Detection step first."
+
+msgid "All scenes have valid LLM descriptions."
+msgstr "All scenes have valid LLM descriptions."

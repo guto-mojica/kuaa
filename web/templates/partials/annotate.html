@@ -1,3 +1,65 @@
 <div class="tab-panel">
-    <p class="text-muted">{{ _("Annotate tab — coming in next iteration.") }}</p>
+
+{% if no_data %}
+<p class="text-muted">{{ _("Run the Scene Detection step first.") }}</p>
+
+{% elif all_done %}
+<p class="annotate-all-done text-muted">{{ _("All scenes have valid LLM descriptions.") }}</p>
+
+{% else %}
+
+<!-- Filter -->
+<div class="annotate-filter">
+    <span class="annotate-filter__label">{{ _("Show") }}:</span>
+    <label class="annotate-filter__option">
+        <input type="radio" name="ui-filter" value="no_llm"
+               {% if filter == 'no_llm' %}checked{% endif %}
+               hx-get="/tab/annotate?filter=no_llm"
+               hx-target="#tab-content"
+               hx-swap="innerHTML">
+        {{ _("Without LLM description") }}
+    </label>
+    <label class="annotate-filter__option">
+        <input type="radio" name="ui-filter" value="all"
+               {% if filter == 'all' %}checked{% endif %}
+               hx-get="/tab/annotate?filter=all"
+               hx-target="#tab-content"
+               hx-swap="innerHTML">
+        {{ _("All scenes") }}
+    </label>
+    <span class="annotate-filter__count text-muted">
+        {{ total }} {{ _("scenes") }} · {{ annotated_count }} {{ _("annotated") }}
+    </span>
+</div>
+
+{% if scene %}
+
+<!-- Jump to scene -->
+<div class="annotate-jump">
+    <form hx-get="/api/annotate/scene"
+          hx-trigger="change from:select"
+          hx-target="#annotate-scene"
+          hx-swap="innerHTML">
+        <input type="hidden" name="filter" value="{{ filter }}">
+        <select name="id" class="jump-select">
+            {% for s in scene_list %}
+            <option value="{{ s.scene_id }}"
+                    {% if s.scene_id == scene_id %}selected{% endif %}>
+                {{ _("Scene") }} {{ s.scene_id }}
+            </option>
+            {% endfor %}
+        </select>
+    </form>
+</div>
+
+<!-- Scene panel — HTMX swap target for prev/next navigation -->
+<div id="annotate-scene">
+    {% include "partials/annotate_scene.html" %}
+</div>
+
+{% else %}
+<p class="text-muted">{{ _("No scenes match the current filter.") }}</p>
+{% endif %}
+
+{% endif %}
 </div>

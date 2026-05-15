@@ -6,13 +6,9 @@ from api.templates import templates
 
 router = APIRouter()
 
-# /tab/search → api/routes/search.py
-# /tab/scenes → api/routes/scenes.py
-
-
-@router.get("/tab/annotate", response_class=HTMLResponse)
-async def tab_annotate(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse("partials/annotate.html", {"request": request})
+# /tab/search     → api/routes/search.py
+# /tab/scenes     → api/routes/scenes.py
+# /tab/annotate   → api/routes/annotate.py
 
 
 @router.get("/tab/processing", response_class=HTMLResponse)

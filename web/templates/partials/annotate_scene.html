@@ -1,0 +1,104 @@
+<!-- Save / clear feedback (fades out via CSS animation) -->
+{% if saved %}
+<div class="annotate-feedback annotate-feedback--success">
+    ✓ {{ existing_tags | length }} {{ _("tag(s) saved") }}
+</div>
+{% elif cleared %}
+<div class="annotate-feedback annotate-feedback--success">
+    ✓ {{ _("Tags cleared") }}
+</div>
+{% endif %}
+
+<!-- Prev / next navigation -->
+<div class="annotate-nav">
+    {% if prev_id is not none %}
+    <button class="btn-ghost annotate-nav__btn"
+            hx-get="/api/annotate/scene?id={{ prev_id }}&filter={{ filter }}"
+            hx-target="#annotate-scene"
+            hx-swap="innerHTML">←</button>
+    {% else %}
+    <button class="btn-ghost annotate-nav__btn" disabled>←</button>
+    {% endif %}
+
+    <span class="annotate-nav__pos text-muted">{{ current_idx + 1 }} / {{ total }}</span>
+
+    {% if next_id is not none %}
+    <button class="btn-ghost annotate-nav__btn"
+            hx-get="/api/annotate/scene?id={{ next_id }}&filter={{ filter }}"
+            hx-target="#annotate-scene"
+            hx-swap="innerHTML">→</button>
+    {% else %}
+    <button class="btn-ghost annotate-nav__btn" disabled>→</button>
+    {% endif %}
+</div>
+
+<!-- Two-column layout: keyframe | annotation form -->
+<div class="annotate-layout">
+
+    <!-- Left: keyframe + time -->
+    <div class="annotate-keyframe-col">
+        {% if img_url %}
+        <img class="annotate-keyframe"
+             src="{{ img_url }}"
+             alt="{{ _('Scene') }} {{ scene_id }}">
+        {% else %}
+        <div class="annotate-keyframe annotate-keyframe--missing"></div>
+        {% endif %}
+        <p class="annotate-timecode text-muted">
+            {{ "%.1f" | format(start_s) }}s → {{ "%.1f" | format(end_s) }}s
+            · {{ "%.1f" | format(duration_s) }}s
+        </p>
+    </div>
+
+    <!-- Right: LLM description + manual tags form -->
+    <div class="annotate-form-col">
+
+        {% if llm %}
+        <div class="annotate-llm">
+            <p class="annotate-section-label">{{ _("LLM description") }}</p>
+            <p class="annotate-llm__text">{{ llm.description }}</p>
+            {% if llm.tags %}
+            <div class="scene-card__tags" style="margin-top: 8px">
+                {% for tag in llm.tags %}
+                <span class="tag">{{ tag }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <p class="text-muted annotate-no-llm">{{ _("No LLM description") }}</p>
+        {% endif %}
+
+        <div class="annotate-divider"></div>
+
+        <p class="annotate-section-label">{{ _("Manual tags") }}</p>
+
+        <form hx-post="/api/annotate/save"
+              hx-target="#annotate-scene"
+              hx-swap="innerHTML">
+            <input type="hidden" name="scene_id" value="{{ scene_id }}">
+            <input type="hidden" name="filter" value="{{ filter }}">
+            <input class="annotate-tags-input"
+                   name="tags"
+                   type="text"
+                   value="{{ tags_value }}"
+                   placeholder="{{ _('rural, exterior, horse, single-person') }}"
+                   autocomplete="off">
+            <p class="annotate-hint text-muted">
+                {{ _("Use hyphens for compound tags: two-people, night-scene") }}
+            </p>
+            <div class="annotate-actions">
+                <button type="submit" class="btn-primary">{{ _("Save") }}</button>
+                <button type="button"
+                        class="btn-secondary"
+                        hx-post="/api/annotate/clear"
+                        hx-vals='{"scene_id": {{ scene_id }}, "filter": "{{ filter }}"}'
+                        hx-target="#annotate-scene"
+                        hx-swap="innerHTML">
+                    {{ _("Clear") }}
+                </button>
+            </div>
+        </form>
+
+    </div>
+</div>

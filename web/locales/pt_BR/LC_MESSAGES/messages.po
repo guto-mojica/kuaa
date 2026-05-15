@@ -73,3 +73,51 @@ msgstr "Cena"
 
 msgid "scene"
 msgstr "cena"
+
+msgid "Show"
+msgstr "Exibir"
+
+msgid "Without LLM description"
+msgstr "Sem descrição LLM"
+
+msgid "All scenes"
+msgstr "Todas as cenas"
+
+msgid "annotated"
+msgstr "anotadas"
+
+msgid "No scenes match the current filter."
+msgstr "Nenhuma cena corresponde ao filtro atual."
+
+msgid "tag(s) saved"
+msgstr "tag(s) salvas"
+
+msgid "Tags cleared"
+msgstr "Tags removidas"
+
+msgid "LLM description"
+msgstr "Descrição LLM"
+
+msgid "No LLM description"
+msgstr "Sem descrição LLM"
+
+msgid "Manual tags"
+msgstr "Tags manuais"
+
+msgid "rural, exterior, horse, single-person"
+msgstr "rural, exterior, cavalo, pessoa-unica"
+
+msgid "Use hyphens for compound tags: two-people, night-scene"
+msgstr "Use hífens para tags compostas: duas-pessoas, cena-noturna"
+
+msgid "Save"
+msgstr "Salvar"
+
+msgid "Clear"
+msgstr "Limpar"
+
+msgid "Run the Scene Detection step first."
+msgstr "Execute a etapa Detecção de cenas primeiro."
+
+msgid "All scenes have valid LLM descriptions."
+msgstr "Todas as cenas têm descrição LLM válida."
