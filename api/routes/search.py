@@ -9,7 +9,7 @@ from pathlib import Path
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from api.deps import get_config
+from api.deps import get_config, make_ctx
 from api.templates import templates
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ def _keyframe_url(filepath: str, data_dir: Path) -> str | None:
 
 @router.get("/tab/search", response_class=HTMLResponse)
 async def tab_search(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse("partials/search.html", {"request": request})
+    return templates.TemplateResponse("partials/search.html", make_ctx(request))
 
 
 @router.get("/api/search", response_class=HTMLResponse)
@@ -65,7 +65,7 @@ async def api_search(request: Request, q: str = "", top_k: int = 8) -> HTMLRespo
     if embeddings is None:
         return templates.TemplateResponse(
             "partials/search_results.html",
-            {"request": request, "results": [], "no_index": True},
+            make_ctx(request, results=[], no_index=True),
         )
 
     from cinemateca.embeddings import SemanticSearch
@@ -82,5 +82,5 @@ async def api_search(request: Request, q: str = "", top_k: int = 8) -> HTMLRespo
 
     return templates.TemplateResponse(
         "partials/search_results.html",
-        {"request": request, "results": results, "no_index": False},
+        make_ctx(request, results=results, no_index=False),
     )

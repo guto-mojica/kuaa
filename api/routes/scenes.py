@@ -9,7 +9,7 @@ from typing import Optional
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse
 
-from api.deps import get_config
+from api.deps import get_config, make_ctx
 from api.templates import templates
 
 logger = logging.getLogger(__name__)
@@ -133,12 +133,7 @@ async def tab_scenes(request: Request) -> HTMLResponse:
 
     return templates.TemplateResponse(
         "partials/scenes.html",
-        {
-            "request": request,
-            "cards": cards,
-            "available_tags": available_tags,
-            "no_data": not kf_meta,
-        },
+        make_ctx(request, cards=cards, available_tags=available_tags, no_data=not kf_meta),
     )
 
 
@@ -157,5 +152,5 @@ async def api_scenes(
 
     return templates.TemplateResponse(
         "partials/scenes_grid.html",
-        {"request": request, "cards": cards},
+        make_ctx(request, cards=cards),
     )

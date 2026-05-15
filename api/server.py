@@ -13,8 +13,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from api.deps import get_config
-from api.routes import annotate, processing, scenes, search, tabs
+from api.deps import get_config, make_ctx
+from api.routes import about, annotate, processing, scenes, search, tabs
 from api.templates import templates
 
 logger = logging.getLogger(__name__)
@@ -42,6 +42,7 @@ app.include_router(search.router)
 app.include_router(scenes.router)
 app.include_router(annotate.router)
 app.include_router(processing.router)
+app.include_router(about.router)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -55,11 +56,11 @@ async def index(request: Request) -> HTMLResponse:
     )
     return templates.TemplateResponse(
         "base.html",
-        {
-            "request": request,
-            "active_tab": "search",
-            "processing_jobs": 0,
-            "films": films,
-            "selected_slug": films[0].slug if films else None,
-        },
+        make_ctx(
+            request,
+            active_tab="search",
+            processing_jobs=0,
+            films=films,
+            selected_slug=films[0].slug if films else None,
+        ),
     )

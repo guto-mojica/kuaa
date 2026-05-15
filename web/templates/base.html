@@ -31,14 +31,26 @@
         </nav>
 
         <footer class="sidebar-footer">
-            <a class="about-link"
-               hx-get="/api/about"
-               hx-target="#modal-container"
-               hx-swap="innerHTML">
-                <ph-icon name="info" weight="light"></ph-icon>
-                {{ _("About") }}
-            </a>
-            <span class="version">v0.3.0</span>
+            <div class="locale-switcher">
+                <ph-icon name="globe" weight="light"></ph-icon>
+                <a class="locale-link {% if locale == 'pt_BR' %}locale-link--active{% endif %}"
+                   hx-get="/api/locale/pt_BR"
+                   hx-swap="none">PT</a>
+                <span class="locale-sep">|</span>
+                <a class="locale-link {% if locale == 'en' %}locale-link--active{% endif %}"
+                   hx-get="/api/locale/en"
+                   hx-swap="none">EN</a>
+            </div>
+            <div class="sidebar-footer__row">
+                <a class="about-link"
+                   hx-get="/api/about"
+                   hx-target="#modal-container"
+                   hx-swap="innerHTML">
+                    <ph-icon name="info" weight="light"></ph-icon>
+                    {{ _("About") }}
+                </a>
+                <span class="version">v0.3.0</span>
+            </div>
         </footer>
     </aside>
 

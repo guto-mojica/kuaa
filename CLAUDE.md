@@ -253,8 +253,8 @@ Last updated: in the commit message that touched CLAUDE.md.
 - [x] Scenes tab functional via HTMX
 - [x] Annotate tab functional via HTMX
 - [x] Processing tab with SSE
-- [ ] About modal
-- [ ] i18n PT/EN extracted and translated
+- [x] About modal
+- [x] i18n PT/EN extracted and translated
 - [ ] Streamlit parity confirmed → tag `v0.2.1-streamlit-final` + remove `app_streamlit.py`
 
 Keep this list updated as steps complete.

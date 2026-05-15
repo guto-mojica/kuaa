@@ -8,7 +8,7 @@ from pathlib import Path
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 
-from api.deps import get_config
+from api.deps import get_config, make_ctx
 from api.jobs import STEP_DEFS, JobState, active_jobs, get_job, start_job
 from api.templates import templates
 
@@ -46,12 +46,7 @@ async def tab_processing(request: Request) -> HTMLResponse:
 
     return templates.TemplateResponse(
         "partials/processing.html",
-        {
-            "request": request,
-            "films": films,
-            "step_defs": STEP_DEFS,
-            "jobs": jobs,
-        },
+        make_ctx(request, films=films, step_defs=STEP_DEFS, jobs=jobs),
     )
 
 
@@ -76,7 +71,7 @@ async def api_pipeline_start(
 
     return templates.TemplateResponse(
         "partials/processing_job.html",
-        {"request": request, "job": job},
+        make_ctx(request, job=job),
     )
 
 

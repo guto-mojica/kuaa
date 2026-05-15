@@ -9,7 +9,7 @@ from typing import Optional
 from fastapi import APIRouter, Form, Query, Request
 from fastapi.responses import HTMLResponse
 
-from api.deps import get_config
+from api.deps import get_config, make_ctx
 from api.templates import templates
 
 logger = logging.getLogger(__name__)
@@ -127,13 +127,7 @@ async def tab_annotate(
 
     return templates.TemplateResponse(
         "partials/annotate.html",
-        {
-            "request": request,
-            "filter": filter,
-            "no_data": no_data,
-            "all_done": all_done,
-            **ctx,
-        },
+        make_ctx(request, filter=filter, no_data=no_data, all_done=all_done, **ctx),
     )
 
 
@@ -152,7 +146,7 @@ async def api_annotate_scene(
 
     return templates.TemplateResponse(
         "partials/annotate_scene.html",
-        {"request": request, "filter": filter, **ctx},
+        make_ctx(request, filter=filter, **ctx),
     )
 
 
@@ -180,7 +174,7 @@ async def api_annotate_save(
 
     return templates.TemplateResponse(
         "partials/annotate_scene.html",
-        {"request": request, "filter": filter, "saved": True, **ctx},
+        make_ctx(request, filter=filter, saved=True, **ctx),
     )
 
 
@@ -206,5 +200,5 @@ async def api_annotate_clear(
 
     return templates.TemplateResponse(
         "partials/annotate_scene.html",
-        {"request": request, "filter": filter, "cleared": True, **ctx},
+        make_ctx(request, filter=filter, cleared=True, **ctx),
     )

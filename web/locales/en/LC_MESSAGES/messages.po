@@ -142,3 +142,9 @@ msgstr "Pipeline completed in"
 
 msgid "Pipeline failed"
 msgstr "Pipeline failed"
+
+msgid "Close"
+msgstr "Close"
+
+msgid "Model attributions"
+msgstr "Model attributions"
