@@ -61,3 +61,15 @@ msgstr "Annotate tab — coming in next iteration."
 
 msgid "No active processing jobs."
 msgstr "No active processing jobs."
+
+msgid "No search index found. Run the pipeline with the Embeddings step first."
+msgstr "No search index found. Run the pipeline with the Embeddings step first."
+
+msgid "No results."
+msgstr "No results."
+
+msgid "Scene"
+msgstr "Scene"
+
+msgid "scene"
+msgstr "scene"

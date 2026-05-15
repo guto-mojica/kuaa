@@ -61,3 +61,15 @@ msgstr "Aba Anotar — em desenvolvimento."
 
 msgid "No active processing jobs."
 msgstr "Nenhum processamento em andamento."
+
+msgid "No search index found. Run the pipeline with the Embeddings step first."
+msgstr "Índice de busca não encontrado. Execute o pipeline com a etapa Embeddings primeiro."
+
+msgid "No results."
+msgstr "Nenhum resultado."
+
+msgid "Scene"
+msgstr "Cena"
+
+msgid "scene"
+msgstr "cena"

@@ -414,7 +414,25 @@ body {
     font-size: 1.25rem;
 }
 
+/* ── Search results ────────────────────────────────────────────────────────── */
+.scene-card__keyframe--missing {
+    background: var(--c-bg-overlay);
+    aspect-ratio: 4/3;
+    display: block;
+}
+
+.scene-card__score {
+    margin-left: auto;
+    font-size: 0.6875rem;
+    color: var(--c-text-muted);
+    font-family: var(--font-mono);
+}
+
+.search-notice {
+    padding: 24px 0;
+}
+
 /* ── Utility ───────────────────────────────────────────────────────────────── */
-.text-muted    { color: var(--c-text-muted); font-size: 0.875rem; }
+.text-muted     { color: var(--c-text-muted); font-size: 0.875rem; }
 .text-secondary { color: var(--c-text-secondary); }
-.tab-panel     { min-height: 0; }
+.tab-panel      { min-height: 0; }

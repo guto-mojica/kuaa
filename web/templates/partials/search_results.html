@@ -1,0 +1,26 @@
+{% if no_index %}
+<div class="search-notice">
+    <p class="text-muted">
+        {{ _("No search index found. Run the pipeline with the Embeddings step first.") }}
+    </p>
+</div>
+{% elif not results %}
+<p class="text-muted">{{ _("No results.") }}</p>
+{% else %}
+{% for r in results %}
+<div class="scene-card">
+    {% if r.img_url %}
+    <img class="scene-card__keyframe"
+         src="{{ r.img_url }}"
+         alt="{{ _('Scene') }} {{ r.scene_id }}"
+         loading="lazy">
+    {% else %}
+    <div class="scene-card__keyframe scene-card__keyframe--missing"></div>
+    {% endif %}
+    <div class="scene-card__meta">
+        <span class="scene-card__timecode">{{ _("scene") }} {{ r.scene_id }}</span>
+        <span class="scene-card__score">{{ "%.3f" | format(r.similarity) }}</span>
+    </div>
+</div>
+{% endfor %}
+{% endif %}

@@ -1,5 +1,9 @@
 """FastAPI application — mounted by uvicorn via app.py."""
+from __future__ import annotations
+
+import logging
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 # Safety net for non-installed dev environments
@@ -10,15 +14,31 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from api.deps import get_config
-from api.routes import tabs
+from api.routes import search, tabs
 from api.templates import templates
 
-app = FastAPI(title="Cinemateca AI", version="0.3.0")
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    cfg = get_config()
+    data_dir = Path(cfg.paths.data_dir).resolve()
+    if data_dir.exists():
+        app.mount("/media", StaticFiles(directory=str(data_dir)), name="media")
+        logger.info("Serving media from %s", data_dir)
+    else:
+        logger.warning("data_dir not found — keyframe images will not be served: %s", data_dir)
+    yield
+
 
 _BASE = Path(__file__).parent.parent
+
+app = FastAPI(title="Cinemateca AI", version="0.3.0", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(_BASE / "web" / "static")), name="static")
 
 app.include_router(tabs.router)
+app.include_router(search.router)
 
 
 @app.get("/", response_class=HTMLResponse)
