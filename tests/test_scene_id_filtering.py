@@ -28,16 +28,18 @@ CLIP call, and ``encode_text`` is the only model touch — stubbed).
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
-from fastapi.testclient import TestClient
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# sys.path bootstrap + the shared temp-config isolation fixtures
+# (``tmp_config``/``client``) live in tests/conftest.py. This module's
+# ``seeded_client`` now layers its tag-test metadata on top of the
+# shared isolated config instead of re-implementing the rebasing +
+# per-route-module monkeypatching (Phase 2 consolidation). Assertions
+# below are unchanged.
 
 
 # ── Unit tests: the canonical-key helpers ─────────────────────────────────────
@@ -84,20 +86,19 @@ class TestSceneIdKey:
 # ── Shared fixture: isolated client with seeded metadata ──────────────────────
 
 @pytest.fixture()
-def seeded_client(tmp_path, monkeypatch):
-    """TestClient with temp config and metadata files seeded for tag tests."""
-    from cinemateca.config import load_config
+def seeded_client(tmp_config, client):
+    """Shared isolated ``client`` + metadata seeded for the tag tests.
 
-    cfg = load_config(project_root=tmp_path)
-    for name in (
-        "data_dir", "raw_dir", "frames_dir", "metadata_dir",
-        "embeddings_dir", "models_dir", "outputs_dir", "logs_dir",
-    ):
-        d = tmp_path / name
-        d.mkdir(parents=True, exist_ok=True)
-        setattr(cfg.paths, name, d)
-
-    meta_dir = Path(cfg.paths.metadata_dir)
+    Builds on the consolidated ``tmp_config``/``client`` fixtures
+    (conftest.py): the config rebasing, per-route-module ``get_config``
+    monkeypatching, lru-cache clears and job-registry reset are all
+    done there. This fixture only writes the *specific* 3-scene tag
+    dataset these tests assert on (deliberately different from the
+    generic ``seed_metadata``: 3 scenes 351/352/353, no timecode so the
+    grid falls back to the per-scene "scene <id>" marker the
+    ``_scene_ids`` parser keys on).
+    """
+    meta_dir = Path(tmp_config.paths.metadata_dir)
 
     # Three keyframes / scenes. No timecode_start so the grid template
     # falls back to rendering "scene <id>" — a precise per-scene marker
@@ -122,27 +123,7 @@ def seeded_client(tmp_path, monkeypatch):
     descriptions = [{"scene_id": s, "description": f"scene {s}"} for s in (351, 352, 353)]
     (meta_dir / "scene_descriptions.json").write_text(json.dumps(descriptions))
 
-    import api.deps as deps
-
-    deps.get_config.cache_clear()
-    monkeypatch.setattr(deps, "get_config", lambda: cfg)
-
-    import api.server as server
-    from api.routes import annotate, library, processing, scenes, search
-
-    for mod in (server, scenes, search, annotate, processing, library):
-        if hasattr(mod, "get_config"):
-            monkeypatch.setattr(mod, "get_config", lambda: cfg)
-
-    import api.jobs as jobs
-
-    monkeypatch.setattr(jobs, "_jobs", {})
-
-    from api.server import app
-
-    with TestClient(app) as c:
-        c.cookies.set("locale", "en")
-        yield c
+    return client
 
 
 # ── Scenes tab: tag-filter correctness ────────────────────────────────────────

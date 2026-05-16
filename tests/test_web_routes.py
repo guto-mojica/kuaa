@@ -28,120 +28,17 @@ Three groups of tests live here:
 
 All tests use an isolated temp config so the repository ``data/``
 directory is never read or written.
+
+The ``client`` and ``inject_job`` fixtures (formerly defined inline
+here) were consolidated into ``tests/conftest.py`` in Phase 2 — the
+isolation behaviour is unchanged; this module's assertions are
+untouched. See conftest.py for the temp-config / hermetic-client
+machinery now shared with the other web test modules.
 """
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
-from fastapi.testclient import TestClient
-
-# Allow `import cinemateca...` without an editable install (mirrors test_smoke).
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-# Allow `import api...` — the repo root holds the `api` package and is not
-# otherwise on sys.path under pytest's default rootdir-based collection.
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-
-# ── Isolated app fixture ──────────────────────────────────────────────────────
-
-@pytest.fixture()
-def client(tmp_path, monkeypatch):
-    """
-    A TestClient whose config points every data path at empty temp
-    directories. The routes call ``api.deps.get_config()`` directly
-    (not via ``Depends``), and each route module imported the symbol
-    into its own namespace, so we patch every binding and clear the
-    ``lru_cache``.
-    """
-    from cinemateca.config import load_config
-
-    # Real project root so default.yaml resolves; paths rebased to tmp.
-    cfg = load_config(project_root=tmp_path)
-    for name in (
-        "data_dir",
-        "raw_dir",
-        "frames_dir",
-        "metadata_dir",
-        "embeddings_dir",
-        "models_dir",
-        "outputs_dir",
-        "logs_dir",
-    ):
-        d = tmp_path / name
-        d.mkdir(parents=True, exist_ok=True)
-        setattr(cfg.paths, name, d)
-
-    import api.deps as deps
-
-    deps.get_config.cache_clear()
-    monkeypatch.setattr(deps, "get_config", lambda: cfg)
-
-    # Each route module did `from api.deps import get_config`, binding a
-    # local name. Patch all of them so no route reaches the real data/.
-    # `library` is mounted in api/server.py and reads cfg.paths.raw_dir /
-    # metadata_dir, so it MUST be patched too (Phase 2 exercises it).
-    import api.server as server
-    from api.routes import annotate, library, processing, scenes, search
-
-    patched = (server, scenes, search, annotate, processing, library)
-    for mod in patched:
-        if hasattr(mod, "get_config"):
-            monkeypatch.setattr(mod, "get_config", lambda: cfg)
-
-    # Structural guard: the patch list above is maintained by hand and has
-    # drifted before. Fail loudly here if any module that imports
-    # get_config did NOT get rebound to the temp config — converts "added
-    # a route module, forgot the fixture" into an immediate, obvious
-    # fixture-time error instead of a silent non-hermetic test later.
-    for mod in patched:
-        if hasattr(mod, "get_config"):
-            assert mod.get_config() is cfg, (
-                f"{mod.__name__}.get_config was not rebound to the temp "
-                f"config — this module would read the real repo data/"
-            )
-
-    # about.py imports only make_ctx (no get_config), so it needs no patch.
-
-    # Reset the in-memory job registry so processing tests are hermetic.
-    import api.jobs as jobs
-
-    monkeypatch.setattr(jobs, "_jobs", {})
-
-    from api.server import app
-
-    with TestClient(app) as c:
-        # The default locale is pt_BR (api/deps.make_ctx), whose catalog
-        # translates UI strings to Portuguese. The `en` catalog has empty
-        # msgstr entries, so gettext falls back to the English msgid —
-        # i.e. the literal source strings the templates were written with
-        # and that these tests assert on. Pin `en` for stable markers.
-        c.cookies.set("locale", "en")
-        yield c
-
-
-@pytest.fixture()
-def inject_job(monkeypatch):
-    """Insert one running JobState into the registry and return it."""
-    import api.jobs as jobs
-
-    def _inject(video_path: str = "data/raw/jeca_tatu.mp4"):
-        job = jobs.JobState(
-            id="testjob1",
-            video_path=video_path,
-            steps=[
-                jobs.StepInfo(name=name, label=label)
-                for name, label in jobs.STEP_DEFS
-            ],
-        )
-        job.steps[0].state = "active"
-        jobs._jobs[job.id] = job
-        return job
-
-    return _inject
-
 
 # ── Group 1: empty-data smoke tests (must PASS) ───────────────────────────────
 

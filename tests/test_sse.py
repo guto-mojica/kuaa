@@ -29,14 +29,15 @@ so the stream endpoint sees our hand-built job.
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# sys.path bootstrap lives in tests/conftest.py. ``sse_client`` stays a
+# deliberately lighter fixture than the shared ``client`` (the stream
+# generator never touches config or the data dir), but the job-registry
+# reset it relies on is now also guaranteed by conftest's machinery.
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
