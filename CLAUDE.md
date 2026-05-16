@@ -85,7 +85,7 @@ web/static/          CSS, vendored htmx.min.js, icons.
 web/locales/         pt_BR and en, managed by Babel.
 config/              default.yaml (versioned) + local.yaml (gitignored).
 tests/               pytest, no heavy-model dependencies in test_smoke.
-docs/                DESIGN_SYSTEM.md, ARCHITECTURE.md, MIGRATION_NOTES.md.
+docs/                DESIGN_SYSTEM.md (visual source of truth), PROTOCOL_OPTION.md (pluggable model-backend design).
 app.py               FastAPI entrypoint (uvicorn api.server:app).
 app_streamlit.py     Legacy entrypoint. Removed at end of migration.
 ```
@@ -141,30 +141,38 @@ from or push to GitHub. The discipline below avoids stale-code conflicts.
 ## Common commands
 
 ```bash
-# One-time setup
-python3 -m venv .venv && source .venv/bin/activate
-pip install -e ".[full,dev]"
+# One-time setup (uv — primary)
+uv venv                       # creates .venv using the .python-version pin
+uv sync --extra full --group dev   # full extra + dev tooling group
+# Fallback without uv (no lockfile, so this still works identically):
+#   python3 -m venv .venv && source .venv/bin/activate
+#   pip install -e ".[full]" && pip install pytest pytest-cov black ruff mypy
 
 # Run the FastAPI interface (v0.3.0+)
-python app.py
+uv run app.py
 # Opens at http://localhost:8501
 
 # Run the legacy Streamlit interface (during migration)
-streamlit run app_streamlit.py
+uv run streamlit run app_streamlit.py
 
 # Tests
-pytest tests/ -q
-pytest tests/test_smoke.py -v   # smoke only, no heavy models
+uv run pytest tests/ -q
+uv run pytest tests/test_smoke.py -v   # smoke only, no heavy models
 
 # CLI
-python -m cinemateca info --video data/raw/jeca_tatu.mp4
-python -m cinemateca process --video data/raw/jeca_tatu.mp4
-python -m cinemateca process --video data/raw/jeca_tatu.mp4 --steps scenes,embeddings
+uv run python -m cinemateca info --video data/raw/jeca_tatu.mp4
+uv run python -m cinemateca process --video data/raw/jeca_tatu.mp4
+uv run python -m cinemateca process --video data/raw/jeca_tatu.mp4 --steps scenes,embeddings
 
 # i18n
-pybabel extract -F web/babel.cfg -o web/locales/messages.pot web/
-pybabel update -i web/locales/messages.pot -d web/locales/
-pybabel compile -d web/locales/
+uv run pybabel extract -F web/babel.cfg -o web/locales/messages.pot web/
+uv run pybabel update -i web/locales/messages.pot -d web/locales/
+uv run pybabel compile -d web/locales/
+
+# Lint / format / typecheck (run before committing)
+uv run black .
+uv run ruff check .
+uv run mypy src
 ```
 
 ---
@@ -201,7 +209,8 @@ processed in `data/`. Artefacts persist across runs.
 - **Type hints required** on public signatures in `src/cinemateca/` and `api/`.
 - **Docstrings in English** for public functions (project-wide collaboration).
   Inline comments may be in either language.
-- **Black + isort** (configured in `pyproject.toml`). Run before committing.
+- **Black + Ruff + mypy** (configured in `pyproject.toml`). Ruff covers isort
+  (`I`) rules — there is no separate isort. Run all three before committing.
 - **Logging via `logging.getLogger(__name__)`**, never `print()` in production code.
 - **Paths via `pathlib.Path`**, never string concatenation.
 - **Config via dependency injection** in `api/` (use `api/deps.py`), never direct imports.
@@ -256,6 +265,7 @@ Last updated: in the commit message that touched CLAUDE.md.
 - [x] About modal
 - [x] i18n PT/EN extracted and translated
 - [x] Streamlit parity confirmed → tagged `v0.2.1-streamlit-final` at a373fd7
+- [x] uv adopted for env/deps (config-only, lockfile deferred — see docs/superpowers/specs/2026-05-16-uv-migration-scaffold-design.md)
 
 Keep this list updated as steps complete.
 
