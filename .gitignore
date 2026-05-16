@@ -39,3 +39,8 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# uv — lockfile deliberately not committed (config-only uv adoption).
+# Local `uv sync` creates an untracked uv.lock; that is expected.
+# To start committing locks: delete the next line, run `uv lock`.
+uv.lock
