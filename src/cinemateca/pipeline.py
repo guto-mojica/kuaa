@@ -25,9 +25,84 @@ import logging
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
+# Canonical pipeline step order. The single source of truth for which
+# steps exist and in what order they run.
+STEP_ORDER: tuple[str, ...] = (
+    "frame_extraction",
+    "scene_detection",
+    "visual_analysis",
+    "embeddings",
+    "llm_description",
+)
+
+# Dependency graph for step execution.
+#
+# Each step lists the OTHER steps whose output it consumes. The edges
+# below were verified against the private ``_step_*`` implementations and
+# the legacy ``run()`` orchestrator (which is preserved verbatim):
+#
+#   * ``frame_extraction``  — root. Reads the video file only.
+#   * ``scene_detection``   — root. ``_step_scene_detection`` reads the
+#     video directly (it does NOT consume sampled frames); ``run()``
+#     never gated it on frame_extraction. So it has no step prereq.
+#   * ``visual_analysis``   — needs the keyframe ``.jpg`` files produced
+#     by ``scene_detection`` (``_step_visual_analysis`` raises
+#     ``FileNotFoundError`` when ``keyframes_dir`` is empty).
+#   * ``embeddings``        — needs ``keyframes_metadata.json`` produced
+#     by ``scene_detection`` (``run()`` gates it on
+#     ``metadata_path.exists()``).
+#   * ``llm_description``   — same metadata prerequisite as embeddings.
+#
+# Edges encode the *producing* step. The actual gate (see
+# :meth:`CatalogPipeline.run_steps`) is INPUT-based: a downstream step is
+# only blocked when its required artefact is genuinely absent AND not
+# (re)produced by a prerequisite running in the same invocation. This
+# preserves legitimate subset runs that rely on artefacts from a prior
+# successful run.
+STEP_DEPS: dict[str, tuple[str, ...]] = {
+    "frame_extraction": (),
+    "scene_detection": (),
+    "visual_analysis": ("scene_detection",),
+    "embeddings": ("scene_detection",),
+    "llm_description": ("scene_detection",),
+}
+
+
+class StepCancelled(Exception):
+    """Raised internally when a cooperative cancel is requested mid-run."""
+
+
+@dataclass
+class StepRun:
+    """Per-step record produced by :meth:`CatalogPipeline.run_steps`.
+
+    ``state`` is one of ``done`` / ``skipped`` / ``error`` / ``blocked``.
+    ``blocked`` means a prerequisite failed or a required input artefact
+    was missing, so the step was deliberately NOT executed (no stale
+    mixed output is produced).
+    """
+
+    name: str
+    state: str
+    duration_s: float = 0.0
+    error: Optional[str] = None
+    output: Any = None
+
+
+@dataclass
+class StepResults:
+    """Aggregate result of a selected-step run."""
+
+    video_path: str
+    runs: List[StepRun] = field(default_factory=list)
+
+    @property
+    def ok(self) -> bool:
+        return all(r.state in ("done", "skipped") for r in self.runs)
 
 
 @dataclass
@@ -366,3 +441,166 @@ class CatalogPipeline:
         result.total_duration_s = time.time() - pipeline_start
         logger.info(result.summary())
         return result
+
+    # ─── Public selected-step API (Phase 4) ───────────────────────────────────
+
+    def _keyframes_dir(self) -> Path:
+        return self.cfg.paths.frames_dir / "scenes" / "keyframes_content"
+
+    def _keyframes_metadata_path(self) -> Path:
+        return self.cfg.paths.metadata_dir / "keyframes_metadata.json"
+
+    def _inputs_available(self, step: str, keyframes_dir: Path) -> bool:
+        """Return True if ``step``'s required input artefacts exist on disk.
+
+        This is the INPUT-based gate: it lets a subset run proceed when
+        the artefacts a prior successful run produced are still present,
+        and only reports missing inputs when they are genuinely absent.
+        """
+        if step in ("frame_extraction", "scene_detection"):
+            return True
+        if step == "visual_analysis":
+            return bool(sorted(keyframes_dir.glob("*.jpg")))
+        if step in ("embeddings", "llm_description"):
+            return self._keyframes_metadata_path().exists()
+        return True
+
+    def run_steps(
+        self,
+        video_path: str | Path,
+        steps: list[str],
+        progress_cb: Optional[Callable[[str, str, "StepRun | None"], None]] = None,
+        cancel_check: Optional[Callable[[], bool]] = None,
+    ) -> StepResults:
+        """Execute the requested ``steps`` for ``video_path``.
+
+        Thin orchestration over the existing private ``_step_*``
+        implementations — step logic is NOT reimplemented here. Adds:
+
+          * step selection (only steps in ``steps`` run; others are not
+            reported),
+          * dependency-aware gating: a step is marked ``blocked`` (and
+            NOT executed) when a prerequisite step running in this same
+            invocation failed/blocked, or when its required input
+            artefacts are absent on disk — preventing the historical
+            defect where a failed ``scene_detection`` still let
+            ``embeddings``/``llm_description`` run on a stale
+            ``keyframes_metadata.json``,
+          * per-step progress callback ``progress_cb(step_name, phase,
+            run)`` where ``phase`` is ``"start"`` (run is ``None``) or
+            ``"finish"`` (run is the completed :class:`StepRun`),
+          * cooperative cancellation: ``cancel_check`` is polled before
+            each step; when it returns truthy a :class:`StepCancelled`
+            is raised so the caller can finalize a ``cancelled`` job.
+
+        Successful full-run behaviour is unchanged: the same ``_step_*``
+        methods run in the same order with the same skip-existing logic,
+        producing byte-identical artefacts. Gating only changes the
+        FAILURE / missing-input path.
+
+        Args:
+            video_path: Source video file.
+            steps: Step names to execute (any subset of
+                :data:`STEP_ORDER`).
+            progress_cb: Optional per-step lifecycle callback.
+            cancel_check: Optional callable polled between steps; truthy
+                aborts the run via :class:`StepCancelled`.
+
+        Returns:
+            :class:`StepResults` with one :class:`StepRun` per requested
+            step.
+
+        Raises:
+            StepCancelled: if ``cancel_check`` requested cancellation.
+        """
+        video_path = Path(video_path)
+        requested = [s for s in STEP_ORDER if s in set(steps)]
+        results = StepResults(video_path=str(video_path))
+
+        keyframes_dir = self._keyframes_dir()
+        metadata_path = self._keyframes_metadata_path()
+
+        # Track per-step outcome for in-run dependency gating.
+        outcome: dict[str, str] = {}
+
+        def _emit(name: str, phase: str, run: "StepRun | None") -> None:
+            if progress_cb is not None:
+                progress_cb(name, phase, run)
+
+        for name in requested:
+            if cancel_check is not None and cancel_check():
+                raise StepCancelled()
+
+            # ── Dependency gate ───────────────────────────────────────
+            # A step is blocked if a prerequisite that ran in THIS
+            # invocation did not succeed, OR its required inputs are not
+            # on disk (and no in-run prerequisite will produce them).
+            blocked_reason: str | None = None
+            for dep in STEP_DEPS[name]:
+                if dep in outcome and outcome[dep] not in ("done", "skipped"):
+                    blocked_reason = (
+                        f"prerequisite '{dep}' did not succeed "
+                        f"(state: {outcome[dep]})"
+                    )
+                    break
+            if blocked_reason is None and not self._inputs_available(
+                name, keyframes_dir
+            ):
+                blocked_reason = (
+                    f"required input artefacts for '{name}' are missing"
+                )
+
+            if blocked_reason is not None:
+                run = StepRun(
+                    name=name, state="blocked", error=blocked_reason
+                )
+                outcome[name] = "blocked"
+                results.runs.append(run)
+                _emit(name, "start", None)
+                _emit(name, "finish", run)
+                logger.warning(
+                    "Step %s blocked: %s", name, blocked_reason
+                )
+                continue
+
+            _emit(name, "start", None)
+
+            # ── Delegate to the existing private step impl ────────────
+            if name == "frame_extraction":
+                sr = self._step_frame_extraction(video_path)
+            elif name == "scene_detection":
+                sr = self._step_scene_detection(video_path)
+                if (
+                    sr.success
+                    and not sr.skipped
+                    and isinstance(sr.output, dict)
+                    and sr.output.get("keyframes_dir")
+                ):
+                    keyframes_dir = Path(sr.output["keyframes_dir"])
+            elif name == "visual_analysis":
+                sr = self._step_visual_analysis(keyframes_dir)
+            elif name == "embeddings":
+                sr = self._step_embeddings(metadata_path)
+            elif name == "llm_description":
+                sr = self._step_llm_description(metadata_path)
+            else:  # pragma: no cover - guarded by requested filter
+                raise ValueError(f"Unknown step: {name}")
+
+            if sr.skipped:
+                state = "skipped"
+            elif sr.success:
+                state = "done"
+            else:
+                state = "error"
+            run = StepRun(
+                name=name,
+                state=state,
+                duration_s=sr.duration_s,
+                error=sr.error,
+                output=sr.output,
+            )
+            outcome[name] = state
+            results.runs.append(run)
+            _emit(name, "finish", run)
+
+        return results

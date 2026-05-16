@@ -194,6 +194,48 @@ def test_stream_emits_single_error_terminal_frame(sse_client):
     assert "boom: model not found" in err_frame["data"]
 
 
+def test_stream_emits_single_cancelled_terminal_frame(sse_client):
+    """A cancelled job ends the stream with exactly one ``event:
+    cancelled`` frame, then stops — same close contract as done/error
+    so the EventSource does not reconnect (Phase 4)."""
+    client, job = sse_client
+
+    job.steps[0].state = "active"
+    job.events.put("update")
+    job.steps[0].state = "error"
+    job.status = "cancelled"
+    job.error_msg = "Cancelled by user."
+    job.events.put("cancelled")
+
+    with client.stream("GET", f"/api/pipeline/stream/{job.id}") as r:
+        assert r.status_code == 200
+        body = "".join(chunk for chunk in r.iter_text())
+
+    frames = _frames(body)
+    events = [f["event"] for f in frames]
+    assert events.count("cancelled") == 1, events
+    assert "done" not in events and "error" not in events, events
+    assert "message" not in events, events
+    assert events[-1] == "cancelled", f"cancelled must be final: {events}"
+    assert "processing-cancelled" in frames[-1]["data"], frames[-1]["data"]
+
+
+def test_stream_terminal_status_without_queued_signal_closes(sse_client):
+    """Defensive path: if status is terminal (``cancelled``) but no
+    terminal signal was queued, the stream still emits exactly one
+    matching terminal frame and stops (no infinite keepalive loop)."""
+    client, job = sse_client
+    job.status = "cancelled"  # no events queued at all
+
+    with client.stream("GET", f"/api/pipeline/stream/{job.id}") as r:
+        assert r.status_code == 200
+        body = "".join(chunk for chunk in r.iter_text())
+
+    frames = _frames(body)
+    events = [f["event"] for f in frames]
+    assert events == ["cancelled"], events
+
+
 def test_stream_job_not_found_is_typed_error(sse_client):
     """An unknown job id yields a single typed ``error`` frame and
     closes (the client must be able to stop on it, not reconnect)."""
@@ -217,17 +259,22 @@ def test_processing_job_template_sse_attrs_match_server_events():
     server actually emits: ``sse-swap`` on the progress event and
     ``sse-close`` on the terminal events."""
     html = (REPO / "web/templates/partials/processing_job.html").read_text()
-    assert 'sse-close="done,error"' in html, html
+    # Phase 4 extended the terminal set with ``cancelled`` (a cancelled
+    # job is terminal and must close the stream exactly like done/error).
+    m_close = re.search(r'sse-close="([^"]+)"', html)
+    assert m_close, "no sse-close attribute in processing_job.html"
+    close_names = {n.strip() for n in m_close.group(1).split(",")}
+    assert {"done", "error", "cancelled"} <= close_names, close_names
     # sse-swap must include "update" (the progress event the server now
-    # emits) AND the terminal events so the final stepper is shown
+    # emits) AND every terminal event so the final stepper is shown
     # before the source closes.
     m = re.search(r'sse-swap="([^"]+)"', html)
     assert m, "no sse-swap attribute in processing_job.html"
     swap_names = {n.strip() for n in m.group(1).split(",")}
     assert "update" in swap_names, swap_names
-    assert {"done", "error"} <= swap_names, (
-        f"sse-swap must also listen to done/error so the terminal "
-        f"stepper is rendered before close: {swap_names}"
+    assert {"done", "error", "cancelled"} <= swap_names, (
+        f"sse-swap must also listen to done/error/cancelled so the "
+        f"terminal stepper is rendered before close: {swap_names}"
     )
     assert "message" not in swap_names, (
         "sse-swap still listens on the generic 'message' event — the "
