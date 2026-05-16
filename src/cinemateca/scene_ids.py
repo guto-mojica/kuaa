@@ -102,14 +102,3 @@ def normalize_tag_index(
         str(tag): {scene_id_key(v) for v in ids}
         for tag, ids in index.items()
     }
-
-
-def normalize_scene_record(record: Mapping[str, Any]) -> dict[str, Any]:
-    """Return a shallow copy of ``record`` with ``scene_id`` canonicalized.
-
-    Does not mutate the input. Leaves every other field untouched.
-    """
-    out = dict(record)
-    if "scene_id" in out:
-        out["scene_id"] = scene_id_key(out["scene_id"])
-    return out

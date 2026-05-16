@@ -80,16 +80,6 @@ class TestSceneIdKey:
         for v in norm.values():
             assert all(isinstance(x, str) for x in v)
 
-    def test_normalize_scene_record(self):
-        from cinemateca.scene_ids import normalize_scene_record
-
-        rec = {"scene_id": 351, "tags": ["a"]}
-        out = normalize_scene_record(rec)
-        assert out["scene_id"] == "351"
-        assert out["tags"] == ["a"]
-        # Original not mutated.
-        assert rec["scene_id"] == 351
-
 
 # ── Shared fixture: isolated client with seeded metadata ──────────────────────
 

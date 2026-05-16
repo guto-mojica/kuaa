@@ -356,11 +356,18 @@ class SemanticSearch:
             DataFrame com colunas: rank, scene_id, similarity, filepath.
         """
         if filter_tags and tag_index:
-            # The tag index is a hybrid with mixed int (LLM) / str (manual)
-            # ids. Normalize it AND the df scene_id column to the canonical
-            # string key so the membership test is provably str-vs-str.
-            # The .map() is a local computation only — the stored
-            # keyframes_df dtype is left untouched (callers downstream read
+            # SOLE / REQUIRED normalization for the search path — do not
+            # delete believing the caller already normalized. Every real
+            # caller passes the RAW hybrid index straight in:
+            # api/routes/search.py (~L123) hands over merge_tag_index(...)
+            # untouched, and app_streamlit.py (~L255) does the same. That
+            # hybrid mixes int (LLM) and str (manual) scene ids. If this
+            # normalize_tag_index call is removed the membership test below
+            # silently mismatches and tag-filtered search returns nothing.
+            # We normalize the index AND map the df scene_id column to the
+            # canonical string key so the test is provably str-vs-str. The
+            # .map() is a local computation only — the stored keyframes_df
+            # dtype is left untouched (callers downstream read
             # row["scene_id"] for display, which str()-renders identically).
             from cinemateca.scene_ids import normalize_tag_index, scene_id_key
 
@@ -369,6 +376,10 @@ class SemanticSearch:
             for tag in filter_tags[1:]:
                 valid_ids &= set(norm_index.get(tag, set()))
 
+            # Intentionally per-row via .map(scene_id_key) — NOT a vectorized
+            # .astype(str). A NaN-tainted int column is float64, so
+            # .astype(str) would yield "351.0" and never match "351",
+            # reintroducing the exact bug this code fixes.
             scene_id_keys = self.keyframes_df["scene_id"].map(scene_id_key)
             mask = scene_id_keys.isin(valid_ids)
             kf_subset = self.keyframes_df[mask].reset_index(drop=True)
