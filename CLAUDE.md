@@ -264,7 +264,7 @@ Last updated: in the commit message that touched CLAUDE.md.
 - [x] Processing tab with SSE
 - [x] About modal
 - [x] i18n PT/EN extracted and translated
-- [x] Streamlit parity confirmed → tagged `v0.2.1-streamlit-final` at a373fd7
+- [x] Streamlit parity confirmed → tagged `v0.2.1-streamlit-final`
 - [x] uv adopted for env/deps (config-only, lockfile deferred — see docs/superpowers/specs/2026-05-16-uv-migration-scaffold-design.md)
 
 Keep this list updated as steps complete.
