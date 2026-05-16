@@ -1,17 +1,24 @@
-"""Search tab routes — text and image semantic search via CLIP."""
+"""Search tab routes — text and image semantic search via CLIP.
+
+Thin HTTP layer: request parse + executor offload + template render.
+All index loading (now mtime/size-cache-invalidated), shape validation,
+upload guards and result conversion live in
+``api/services/search.py`` (Phase 3c). Path resolution flows through
+:class:`FilmContext` (consistent with scenes / annotate).
+"""
 from __future__ import annotations
 
 import asyncio
 import logging
 import tempfile
-from functools import lru_cache
 from pathlib import Path
 
 from fastapi import APIRouter, File, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse
 
 from api.deps import get_config, make_ctx
-from api.services.catalog import keyframe_url, load_tag_index
+from api.services import search as search_service
+from api.services.catalog import load_tag_index
 from api.services.film_context import FilmContext
 from api.templates import templates
 
@@ -19,42 +26,22 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@lru_cache(maxsize=1)
-def _load_index(embeddings_dir: str, mapping_filename: str, embeddings_filename: str):
-    """Load CLIP embeddings from disk. Cached for the process lifetime."""
-    from cinemateca.embeddings import CLIPEmbedder
-
-    emb_path = Path(embeddings_dir) / embeddings_filename
-    map_path = Path(embeddings_dir) / mapping_filename
-    if not emb_path.exists() or not map_path.exists():
-        logger.warning("Search index not found at %s", embeddings_dir)
-        return None, None, None
-    embeddings, _mapping, kf_df = CLIPEmbedder.load(emb_path, map_path)
-    embedder = CLIPEmbedder()
-    logger.info("Search index loaded: %d vectors", len(kf_df))
-    return embeddings, kf_df, embedder
-
-
-def _results_to_dicts(results_df, data_dir: Path) -> list[dict]:
-    return [
-        {**row, "img_url": keyframe_url(str(row["filepath"]), data_dir)}
-        for row in results_df.to_dict("records")
-    ]
-
-
+# Re-exported so api/server.py's tab-context map (``"search":
+# search.build_search_context``) keeps working without churn; the
+# implementation now lives in the service.
 def build_search_context() -> dict:
-    """Build the template context the search tab partial needs.
-
-    Shared by the ``/tab/search`` HTMX fragment and the ``/search``
-    full-page route so both render identical markup. The tag index is
-    loaded via the catalog service's shared primitive (raw merged shape
-    — only the keys feed ``available_tags``; identical either way).
-    The deeper search-index seam is Phase 3c.
-    """
+    """Build the search-tab partial context (delegates to the service)."""
     ctx = FilmContext.from_config(get_config())
-    tag_index = load_tag_index(ctx.metadata_dir)
-    available_tags = sorted(tag_index.keys()) if tag_index else []
-    return {"available_tags": available_tags}
+    return search_service.build_search_context(ctx)
+
+
+def _no_index_response(request: Request) -> HTMLResponse:
+    """Render the graceful no-index / corrupt-index results state."""
+    return templates.TemplateResponse(
+        request,
+        "partials/search_results.html",
+        make_ctx(request, results=[], no_index=True),
+    )
 
 
 @router.get("/tab/search", response_class=HTMLResponse)
@@ -78,37 +65,29 @@ async def api_search(
         return HTMLResponse("")
 
     cfg = get_config()
-    embeddings, kf_df, embedder = _load_index(
-        str(cfg.paths.embeddings_dir),
-        cfg.embeddings.mapping_filename,
-        cfg.embeddings.filename,
+    ctx = FilmContext.from_config(cfg)
+    index = search_service.load_index(
+        ctx,
+        mapping_filename=cfg.embeddings.mapping_filename,
+        embeddings_filename=cfg.embeddings.filename,
     )
+    if not index.ok:
+        return _no_index_response(request)
 
-    if embeddings is None:
-        return templates.TemplateResponse(
-            request,
-            "partials/search_results.html",
-            make_ctx(request, results=[], no_index=True),
-        )
-
-    from cinemateca.embeddings import SemanticSearch
-
-    searcher = SemanticSearch(embeddings, kf_df, embedder)
+    tag_index = load_tag_index(ctx.metadata_dir) if tags else {}
     loop = asyncio.get_event_loop()
-    data_dir = Path(cfg.paths.data_dir).resolve()
-
-    if tags:
-        tag_index = load_tag_index(Path(cfg.paths.metadata_dir))
-        results_df = await loop.run_in_executor(
-            None, lambda: searcher.combined(q, tags, tag_index, top_k)
-        )
-    else:
-        results_df = await loop.run_in_executor(None, searcher.by_text, q, top_k)
+    results_df = await loop.run_in_executor(
+        None, search_service.search_text, index, q, tags, tag_index, top_k
+    )
 
     return templates.TemplateResponse(
         request,
         "partials/search_results.html",
-        make_ctx(request, results=_results_to_dicts(results_df, data_dir), no_index=False),
+        make_ctx(
+            request,
+            results=search_service.results_to_dicts(results_df, ctx.data_dir),
+            no_index=False,
+        ),
     )
 
 
@@ -119,36 +98,46 @@ async def api_search_image(
     top_k: int = 8,
 ) -> HTMLResponse:
     cfg = get_config()
-    embeddings, kf_df, embedder = _load_index(
-        str(cfg.paths.embeddings_dir),
-        cfg.embeddings.mapping_filename,
-        cfg.embeddings.filename,
+    ctx = FilmContext.from_config(cfg)
+    index = search_service.load_index(
+        ctx,
+        mapping_filename=cfg.embeddings.mapping_filename,
+        embeddings_filename=cfg.embeddings.filename,
     )
+    if not index.ok:
+        return _no_index_response(request)
 
-    if embeddings is None:
+    data = await file.read()
+    try:
+        suffix = search_service.validate_upload(
+            file.filename, file.content_type, data
+        )
+    except search_service.UploadRejected as exc:
+        logger.info("Image-search upload rejected: %s", exc)
         return templates.TemplateResponse(
             request,
             "partials/search_results.html",
-            make_ctx(request, results=[], no_index=True),
+            make_ctx(request, results=[], no_index=False, upload_error=str(exc)),
         )
 
-    suffix = Path(file.filename or "img.jpg").suffix or ".jpg"
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-        tmp.write(await file.read())
+        tmp.write(data)
         tmp_path = Path(tmp.name)
 
     try:
-        from cinemateca.embeddings import SemanticSearch
-
-        searcher = SemanticSearch(embeddings, kf_df, embedder)
         loop = asyncio.get_event_loop()
-        results_df = await loop.run_in_executor(None, searcher.by_image, tmp_path, top_k)
+        results_df = await loop.run_in_executor(
+            None, search_service.search_image, index, tmp_path, top_k
+        )
     finally:
         tmp_path.unlink(missing_ok=True)
 
-    data_dir = Path(cfg.paths.data_dir).resolve()
     return templates.TemplateResponse(
         request,
         "partials/search_results.html",
-        make_ctx(request, results=_results_to_dicts(results_df, data_dir), no_index=False),
+        make_ctx(
+            request,
+            results=search_service.results_to_dicts(results_df, ctx.data_dir),
+            no_index=False,
+        ),
     )

@@ -103,14 +103,16 @@ def tmp_config(tmp_path, monkeypatch):
     deps.get_config.cache_clear()
     monkeypatch.setattr(deps, "get_config", lambda: cfg)
 
-    # search._load_index is @lru_cache(maxsize=1) keyed on the embeddings
-    # dir path. It is NOT keyed on cfg identity, so a populated/corrupt
-    # index loaded by one test would leak into the next. Clear it per
-    # test. (The legacy fixtures never did this because no legacy test
-    # exercised a populated index through the route — Phase 2 does.)
-    import api.routes.search as search_route
+    # The search index cache (Phase 3c: api.services.search) is keyed by
+    # the embeddings/mapping file paths + their (mtime,size) signature,
+    # NOT by cfg identity, so a populated/corrupt index loaded by one
+    # test could leak into the next (and a fresh temp dir with the same
+    # absent-file signature would otherwise hit a stale entry). Clear it
+    # per test. (Before Phase 3c this was the @lru_cache on
+    # search._load_index; the service exposes clear_index_cache() now.)
+    import api.services.search as search_service
 
-    search_route._load_index.cache_clear()
+    search_service.clear_index_cache()
 
     # Dynamic hermeticity guard. The routes do `from api.deps import
     # get_config`, binding a *local* name in each module; patching only

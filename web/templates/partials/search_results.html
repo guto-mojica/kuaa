@@ -4,6 +4,12 @@
         {{ _("No search index found. Run the pipeline with the Embeddings step first.") }}
     </p>
 </div>
+{% elif upload_error %}
+<div class="search-notice">
+    <p class="text-muted">
+        {{ _("That image could not be used. Upload a single image file under 8 MB.") }}
+    </p>
+</div>
 {% elif not results %}
 <p class="text-muted">{{ _("No results.") }}</p>
 {% else %}

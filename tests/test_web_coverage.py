@@ -396,25 +396,21 @@ def stub_search_embedder(monkeypatch):
     return _PatchedEmbedder
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="corrupt-index graceful handling lands in Phase 3c "
-    "(api/services/search.py extraction adds load-time length "
-    "validation). CURRENT behaviour: CLIPEmbedder.load does no "
-    "row-count check, so a mismatched index crashes the /api/search "
-    "request with pandas IndexError instead of degrading to the "
-    "no_index/corrupt empty state. When Phase 3c adds validation this "
-    "test XPASSes and strict=True flips it red, forcing removal of the "
-    "xfail and conversion to a plain assertion.",
-)
 def test_corrupt_index_degrades_gracefully(client, stub_search_embedder):
     """A length-mismatched index must NOT crash the search request.
 
-    The desired post-Phase-3c contract: the route reports the
+    Phase 3c (api/services/search.py) added load-time shape validation:
+    a mapping with fewer keyframe rows than the embeddings matrix is
+    classified ``IndexStatus.CORRUPT`` and the route renders the
     no-index / corrupt empty state (HTTP 200 + the no-index hint)
-    rather than 500-ing. Today it crashes, so this xfails. Hermetic:
+    instead of 500-ing with a pandas ``IndexError``.
+
+    This was an ``xfail(strict=True)`` Phase-2 tripwire; Phase 3c (the
+    owning phase) removed the marker and promoted it to a plain
+    assertion per the Phase-0 module-docstring convention. Hermetic:
     the embedder is stubbed (no CLIP load); only ``CLIPEmbedder.load``
-    keeps its real, defective no-validation behaviour."""
+    keeps its real no-validation behaviour, so the validation under
+    test is genuinely the service's, not the AI core's."""
     cfg = _cfg_from_client()
     _write_corrupt_index(cfg)
 
@@ -423,19 +419,30 @@ def test_corrupt_index_degrades_gracefully(client, stub_search_embedder):
     assert SEARCH_NO_INDEX in r.text
 
 
-def test_corrupt_index_current_behaviour_is_a_crash(client):
-    """Companion (always-passing) test that PINS today's defect so the
-    regression story is explicit and self-documenting: a corrupt index
-    raises ``IndexError`` out of the search code path.
+def test_corrupt_index_root_defect_still_in_ai_core_but_caught_by_service(
+    client,
+):
+    """Regression story, made explicit and self-documenting.
 
-    This is intentionally NOT xfail — it asserts the *current* broken
-    behaviour positively. Phase 3c, when it fixes the crash, will make
-    THIS test fail (the IndexError no longer raises), which is the
-    correct signal that the companion xfail above should be promoted to
-    a plain assertion and this pin deleted.
+    The ROOT defect is unchanged and intentionally so: the AI core
+    ``CLIPEmbedder.load`` still performs NO row-count check (Phase 3c
+    deliberately did NOT touch ``src/cinemateca/embeddings.py`` to avoid
+    changing the model/artefact contract), and ``SemanticSearch.by_text``
+    over a mismatched index still raises out of pandas. This pins that
+    so a future change to the AI core is noticed.
+
+    The FIX lives one layer up: ``api.services.search.load_index``
+    validates shape and returns ``IndexStatus.CORRUPT`` *before* any
+    ``SemanticSearch`` is constructed, so the crash never reaches a
+    request. This test asserts BOTH halves — the core still crashes
+    when used raw, AND the service refuses the same corrupt index
+    gracefully — which is the correct post-Phase-3c contract (replacing
+    the old always-passing 'current behaviour is a crash' pin).
     """
     import pandas as pd
 
+    from api.services.film_context import FilmContext
+    from api.services.search import IndexStatus, load_index
     from cinemateca.embeddings import CLIPEmbedder, SemanticSearch
 
     cfg = _cfg_from_client()
@@ -444,7 +451,7 @@ def test_corrupt_index_current_behaviour_is_a_crash(client):
     emb_path = Path(cfg.paths.embeddings_dir) / cfg.embeddings.filename
     map_path = Path(cfg.paths.embeddings_dir) / cfg.embeddings.mapping_filename
     embeddings, _mapping, kf_df = CLIPEmbedder.load(emb_path, map_path)
-    # load() silently accepts the mismatch — that is the root defect.
+    # AI core load() still silently accepts the mismatch — unchanged.
     assert embeddings.shape[0] == 3
     assert len(kf_df) == 2
 
@@ -452,6 +459,18 @@ def test_corrupt_index_current_behaviour_is_a_crash(client):
         def encode_text(self, q):
             return np.ones(4, dtype="float32")
 
+    # Raw AI-core search over the mismatched index still crashes ...
     searcher = SemanticSearch(embeddings, kf_df, _StubEmbedder())
     with pytest.raises((IndexError, pd.errors.IndexingError)):
         searcher.by_text("horse", top_k=8)
+
+    # ... but the service layer refuses it gracefully (no crash, typed
+    # CORRUPT status) before any SemanticSearch is ever constructed.
+    ctx = FilmContext.from_config(cfg)
+    index = load_index(
+        ctx,
+        mapping_filename=cfg.embeddings.mapping_filename,
+        embeddings_filename=cfg.embeddings.filename,
+    )
+    assert index.status is IndexStatus.CORRUPT
+    assert not index.ok
