@@ -81,15 +81,29 @@ def client(tmp_path, monkeypatch):
 
     # Each route module did `from api.deps import get_config`, binding a
     # local name. Patch all of them so no route reaches the real data/.
+    # `library` is mounted in api/server.py and reads cfg.paths.raw_dir /
+    # metadata_dir, so it MUST be patched too (Phase 2 exercises it).
     import api.server as server
-    from api.routes import about, annotate, processing, scenes, search
+    from api.routes import annotate, library, processing, scenes, search
 
-    for mod in (server, scenes, search, annotate, processing):
+    patched = (server, scenes, search, annotate, processing, library)
+    for mod in patched:
         if hasattr(mod, "get_config"):
             monkeypatch.setattr(mod, "get_config", lambda: cfg)
 
-    # about.py imports only make_ctx, no get_config — nothing to patch.
-    _ = about
+    # Structural guard: the patch list above is maintained by hand and has
+    # drifted before. Fail loudly here if any module that imports
+    # get_config did NOT get rebound to the temp config — converts "added
+    # a route module, forgot the fixture" into an immediate, obvious
+    # fixture-time error instead of a silent non-hermetic test later.
+    for mod in patched:
+        if hasattr(mod, "get_config"):
+            assert mod.get_config() is cfg, (
+                f"{mod.__name__}.get_config was not rebound to the temp "
+                f"config — this module would read the real repo data/"
+            )
+
+    # about.py imports only make_ctx (no get_config), so it needs no patch.
 
     # Reset the in-memory job registry so processing tests are hermetic.
     import api.jobs as jobs
