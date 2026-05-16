@@ -62,14 +62,6 @@ search = [
     "torch>=2.0",
     "open-clip-torch>=2.20",
 ]
-# Desenvolvimento: pip install -e ".[dev]"
-dev = [
-    "pytest>=7.4",
-    "pytest-cov>=4.1",
-    "black>=23.0",
-    "ruff>=0.1",
-    "mypy>=1.5",
-]
 
 [project.scripts]
 # Após instalação: cinemateca process --video meu_filme.mp4
@@ -80,6 +72,20 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "cinemateca" = ["py.typed"]
+
+# ── Dependency groups (PEP 735) ───────────────────────────────────────────────
+# Dev tooling. `uv sync` installs it (it is the only group); excluded from the
+# wheel. Not a [project.optional-dependencies] extra — `pip install -e ".[dev]"`
+# no longer works. Without uv:
+#   pip install -e ".[full]" && pip install pytest pytest-cov black ruff mypy
+[dependency-groups]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "black>=23.0",
+    "ruff>=0.1",
+    "mypy>=1.5",
+]
 
 # ── Ferramentas de desenvolvimento ────────────────────────────────────────────
 
@@ -100,3 +106,20 @@ warn_unused_configs = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --tb=short"
+
+# ── uv ────────────────────────────────────────────────────────────────────────
+[tool.uv]
+# No uv.lock is committed yet (config-only adoption — see
+# docs/superpowers/specs/2026-05-16-uv-migration-scaffold-design.md).
+#
+# When a committed lockfile is wanted, the torch stack needs an explicit CPU
+# (or CUDA) index to keep the lock reproducible and small. Fill in then:
+#
+# [[tool.uv.index]]
+# name = "pytorch-cpu"
+# url = "https://download.pytorch.org/whl/cpu"
+# explicit = true
+#
+# [tool.uv.sources]
+# torch = { index = "pytorch-cpu" }
+# torchvision = { index = "pytorch-cpu" }
