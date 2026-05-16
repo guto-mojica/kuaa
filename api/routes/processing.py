@@ -84,6 +84,15 @@ async def api_pipeline_start(
 
 @router.get("/api/pipeline/stream/{job_id}")
 async def api_pipeline_stream(job_id: str) -> StreamingResponse:
+    """Stream pipeline progress for a job as Server-Sent Events.
+
+    Emits ``event: update`` frames carrying the rendered stepper HTML for
+    each progress signal, then exactly one terminal ``event: done`` or
+    ``event: error`` frame carrying the final stepper HTML, after which the
+    generator returns and the stream closes. An unknown ``job_id`` yields a
+    single terminal ``event: error`` frame and closes immediately.
+    """
+
     async def generator():
         job = get_job(job_id)
         if not job:

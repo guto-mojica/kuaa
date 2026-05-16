@@ -9,7 +9,11 @@
          frame. sse-swap listens to all three so the final stepper
          (done/error state) is rendered into the DOM, and sse-close
          closes the EventSource on the terminal events so it does NOT
-         reconnect after the job finishes. -->
+         reconnect after the job finishes. The swap-then-close ordering is
+         guaranteed because the extension registers the sse-swap listeners
+         before the sse-close listener on the same EventSource, and DOM
+         listeners fire in registration order, so the terminal frame's
+         final stepper is rendered into the DOM before source.close(). -->
     <div hx-ext="sse"
          sse-connect="/api/pipeline/stream/{{ job.id }}"
          sse-close="done,error">

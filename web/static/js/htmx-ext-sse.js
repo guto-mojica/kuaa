@@ -240,14 +240,15 @@ This extension adds support for Server Sent Events to htmx.  See /www/extensions
       // listener for an event literally named "done,error".
       var closeEventNames = closeAttribute.split(',')
       for (var ci = 0; ci < closeEventNames.length; ci++) {
-        var closeEventName = closeEventNames[ci].trim()
-        source.addEventListener(closeEventName, function() {
+        const closeEventName = closeEventNames[ci].trim()
+        const closeListener = function() {
           api.triggerEvent(elt, 'htmx:sseClose', {
             source,
             type: 'message',
           })
           source.close()
-        });
+        }
+        source.addEventListener(closeEventName, closeListener)
       }
     }
   }
