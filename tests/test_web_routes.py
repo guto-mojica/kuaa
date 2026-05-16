@@ -82,16 +82,21 @@ def test_tab_processing_empty_has_no_active_jobs(client):
 
 class TestFullPageContextDivergence:
     """
-    ``_base_page()`` in api/server.py supplies only
-    ``active_tab, processing_jobs, films, library_state``. ``base.html``
-    then ``{% include %}``s the tab partials, which need far more
-    context. So a direct GET of a full-page route renders a degraded /
-    incomplete panel compared to the dedicated ``/tab/*`` route.
+    Regression suite locking in the Phase-1a fix: full-page vs HTMX-tab
+    context parity.
+
+    Before Phase 1a, ``_base_page()`` in api/server.py supplied only
+    ``active_tab, processing_jobs, films, library_state`` while
+    ``base.html`` ``{% include %}``d the tab partials, which need far
+    more context — so a direct GET of a full-page route rendered a
+    degraded / incomplete panel compared to the dedicated ``/tab/*``
+    route. Phase 1a routed the full-page path through the same context
+    builders as the tab path, so both now render identically.
 
     Each test below asserts the full-page response contains a specific
-    marker that the matching ``/tab/*`` response contains. They FAIL
-    today (the marker is absent from the full page) — that absence *is*
-    the documented bug.
+    marker that the matching ``/tab/*`` response contains. They pass
+    against the fixed behavior and must stay green: a failure here means
+    the full-page/tab context parity fix has regressed.
     """
 
     def test_scenes_full_page_matches_tab_empty_state(self, client):
@@ -149,14 +154,21 @@ class TestFullPageContextDivergence:
 
 class TestProcessingSplitFilterCrash:
     """
-    ``web/templates/partials/processing_job.html`` uses
+    Regression suite locking in the Phase-1b fix: Processing job/stepper
+    renders without the unsupported Jinja ``split`` filter.
+
+    Before Phase 1b, ``web/templates/partials/processing_job.html`` used
     ``{{ job.video_path | replace('\\\\','/') | split('/') | last }}``.
     Jinja2 has no built-in ``split`` filter and the app's Jinja env
-    (api/templates.py) registers none. Rendering ANY active job raises
+    (api/templates.py) registers none, so rendering ANY active job raised
     ``jinja2.exceptions.TemplateAssertionError: No filter named 'split'``.
+    Phase 1b computes the display filename in Python and removed the
+    ``split`` filter from the template.
 
     ``/tab/processing`` includes ``processing_job.html`` for every active
-    job, so injecting one job and GETting the tab must trip the crash.
+    job, so injecting one job and GETting the tab exercises the fixed
+    path. These tests assert the corrected behavior and must stay green:
+    a failure here means the ``split``-filter fix has regressed.
     """
 
     def test_tab_processing_with_active_job_renders(self, client, inject_job):
