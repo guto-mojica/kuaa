@@ -137,6 +137,7 @@ class TestSeededScenes:
     """The generic seed_metadata dataset flows through the scenes route."""
 
     def test_scenes_tab_not_empty_state(self, seed_metadata, client):
+        seed_metadata()
         r = client.get("/tab/scenes")
         assert r.status_code == 200, r.text[:300]
         assert SCENES_NO_DATA not in r.text
@@ -144,6 +145,7 @@ class TestSeededScenes:
         assert "2 scenes" in r.text
 
     def test_scenes_grid_renders_both_scene_ids(self, seed_metadata, client):
+        seed_metadata()
         r = client.get("/api/scenes")
         assert r.status_code == 200, r.text[:300]
         # scene 351 has timecode_start "00:01:23"; scene 352 "00:02:00".
@@ -153,6 +155,7 @@ class TestSeededScenes:
     def test_scenes_tag_filter_intersects(self, seed_metadata, client):
         """``dia`` is an LLM tag on scene 351 only (int id) → filtering
         returns just that scene's timecode, not 352's."""
+        seed_metadata()
         r = client.get("/api/scenes", params={"tags": ["dia"]})
         assert r.status_code == 200, r.text[:300]
         assert "00:01:23" in r.text
@@ -162,6 +165,7 @@ class TestSeededScenes:
         """``manual-only`` is a manual annotation on STR key "352"; the
         keyframe scene_id is INT 352. The Phase-1c canonical-key fix
         means this still matches → scene 352 only."""
+        seed_metadata()
         r = client.get("/api/scenes", params={"tags": ["manual-only"]})
         assert r.status_code == 200, r.text[:300]
         assert "00:02:00" in r.text
@@ -170,6 +174,7 @@ class TestSeededScenes:
     def test_scenes_keyword_filter(self, seed_metadata, client):
         """Keyword searches the description blob. 'office' is only in
         scene 352's description."""
+        seed_metadata()
         r = client.get("/api/scenes", params={"q": "office"})
         assert r.status_code == 200, r.text[:300]
         assert "00:02:00" in r.text
@@ -196,7 +201,7 @@ class TestAnnotationSaveClear:
     """
 
     def test_save_writes_normalized_tags_to_disk(self, seed_metadata, client):
-        manual_path: Path = seed_metadata["manual_path"]
+        manual_path: Path = seed_metadata()["manual_path"]
 
         # Input has an empty fragment (",,") and a trailing comma so the
         # route's ``if t.strip()`` drop branch is exercised by data, not
@@ -227,6 +232,7 @@ class TestAnnotationSaveClear:
         assert on_disk["352"] == ["manual-only", "noite"]
 
     def test_save_feedback_in_response(self, seed_metadata, client):
+        seed_metadata()
         r = client.post(
             "/api/annotate/save",
             data={"scene_id": 351, "filter": "all", "tags": "rural"},
@@ -235,7 +241,7 @@ class TestAnnotationSaveClear:
         assert "annotate-feedback--success" in r.text
 
     def test_clear_removes_only_target_scene(self, seed_metadata, client):
-        manual_path: Path = seed_metadata["manual_path"]
+        manual_path: Path = seed_metadata()["manual_path"]
 
         # Seed an annotation on 351 first so there is something to clear.
         client.post(
@@ -258,7 +264,7 @@ class TestAnnotationSaveClear:
     def test_clear_missing_scene_is_noop_not_error(self, seed_metadata, client):
         """Clearing a scene with no annotation must not 500 (ann.pop has
         a default) and must leave the file otherwise intact."""
-        manual_path: Path = seed_metadata["manual_path"]
+        manual_path: Path = seed_metadata()["manual_path"]
         r = client.post(
             "/api/annotate/clear",
             data={"scene_id": 351, "filter": "all"},

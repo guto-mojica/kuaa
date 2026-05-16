@@ -24,10 +24,16 @@ Fixtures provided:
     no fixture edit is needed and none can be forgotten.
   * ``client``      — an empty-data ``TestClient`` (locale pinned ``en``)
     built on ``tmp_config``.
-  * ``seed_metadata`` — factory that writes a realistic minimal dataset
-    (2 scenes, fake keyframe file, LLM tag index with INT ids, manual
-    annotations with STR keys, one visual-analysis record) into the
-    temp metadata/frames dirs and returns the paths.
+  * ``seed_metadata`` — FACTORY fixture (mirrors ``inject_job``):
+    returns a callable that writes a dataset into the temp
+    metadata/frames dirs and returns the paths. Called with no
+    arguments it produces the EXACT historical default dataset
+    (2 scenes, fake keyframe file, LLM tag index with INT ids,
+    manual annotations with STR keys, one visual-analysis record)
+    byte-identically, so every pre-existing test that used the old
+    fixed-shape fixture keeps passing unchanged. Callers that need a
+    different shape pass explicit ``scenes`` / ``llm_tags`` /
+    ``manual`` / ``descriptions`` / ``visual`` specs (Phase 3a-c/5).
   * ``inject_job``  — insert one running ``JobState`` into the registry.
 
 ``tmp_config`` additionally asserts, while the temp config is active,
@@ -189,7 +195,16 @@ def client(tmp_config):
 
 @pytest.fixture()
 def seed_metadata(tmp_config):
-    """Write a realistic minimal dataset into the temp dirs.
+    """Factory: write a dataset into the temp dirs, return its paths.
+
+    Mirrors the ``inject_job`` factory pattern: the fixture yields a
+    callable. Invoked with no arguments it writes the historical
+    default dataset *byte-identically* (so every pre-existing test
+    that did ``seed_metadata`` then requested ``client`` keeps passing
+    unchanged — see ``_DEFAULT_*`` below, which are the literal values
+    the old fixed fixture wrote). Callers needing a different dataset
+    shape (Phase 3a-c/5) override any of ``scenes`` / ``llm_tags`` /
+    ``manual`` / ``descriptions`` / ``visual``.
 
     Returns a dict of useful paths/objects. Schema choices match what
     the routes actually READ (verified against the route source), not
@@ -226,58 +241,95 @@ def seed_metadata(tmp_config):
     meta_dir = Path(cfg.paths.metadata_dir)
     frames_dir = Path(cfg.paths.frames_dir)
 
-    kf_file = frames_dir / "s351.jpg"
-    kf_file.touch()  # placeholder; no route opens it on these paths
+    _SENTINEL = object()
 
-    kf_meta = [
-        {
-            "scene_id": 351,
-            "filepath": str(kf_file),
-            "timecode_start": "00:01:23",
-            "start_time_s": 83.0,
-            "end_time_s": 90.0,
-        },
-        {
-            "scene_id": 352,
-            "filepath": "frames/s352.jpg",
-            "timecode_start": "00:02:00",
-            "start_time_s": 120.0,
-            "end_time_s": 128.0,
-        },
-    ]
-    (meta_dir / "keyframes_metadata.json").write_text(json.dumps(kf_meta))
+    def _seed(
+        *,
+        scenes=_SENTINEL,
+        llm_tags=_SENTINEL,
+        manual=_SENTINEL,
+        descriptions=_SENTINEL,
+        visual=_SENTINEL,
+        keyframe_file_name: str = "s351.jpg",
+    ) -> dict:
+        """Write the requested (or default) dataset; return path map.
 
-    # LLM tag index — INT scene ids (post build_tag_index + JSON round-trip).
-    llm_tags = {"exterior": [351, 352], "dia": [351]}
-    (meta_dir / "scene_tags.json").write_text(json.dumps(llm_tags))
+        Each ``_SENTINEL`` argument falls back to the historical
+        default value (verbatim from the pre-factory fixture). One
+        keyframe file is always ``touch``ed so the default scene 351's
+        ``filepath`` points at a real on-disk placeholder, exactly as
+        before. Pass an arg explicitly (including ``None`` to skip
+        writing that file) to override.
+        """
+        kf_file = frames_dir / keyframe_file_name
+        kf_file.touch()  # placeholder; no route opens it on these paths
 
-    # Manual annotations — JSON object => STRING keys.
-    manual = {"352": ["manual-only", "noite"]}
-    (meta_dir / "manual_annotations.json").write_text(json.dumps(manual))
+        _default_scenes = [
+            {
+                "scene_id": 351,
+                "filepath": str(kf_file),
+                "timecode_start": "00:01:23",
+                "start_time_s": 83.0,
+                "end_time_s": 90.0,
+            },
+            {
+                "scene_id": 352,
+                "filepath": "frames/s352.jpg",
+                "timecode_start": "00:02:00",
+                "start_time_s": 120.0,
+                "end_time_s": 128.0,
+            },
+        ]
+        # LLM tag index — INT scene ids (post build_tag_index + JSON round-trip).
+        _default_llm = {"exterior": [351, 352], "dia": [351]}
+        # Manual annotations — JSON object => STRING keys.
+        _default_manual = {"352": ["manual-only", "noite"]}
+        _default_desc = [
+            {"scene_id": 351, "description": "a man walking outdoors at dawn"},
+            {"scene_id": 352, "description": "interior office scene"},
+        ]
+        _default_visual = [
+            {
+                "scene_id": 351,
+                "environment": {"location": "exterior", "time_of_day": "dia"},
+                "num_faces": 2,
+            }
+        ]
 
-    descriptions = [
-        {"scene_id": 351, "description": "a man walking outdoors at dawn"},
-        {"scene_id": 352, "description": "interior office scene"},
-    ]
-    (meta_dir / "scene_descriptions.json").write_text(json.dumps(descriptions))
+        scenes_v = _default_scenes if scenes is _SENTINEL else scenes
+        llm_v = _default_llm if llm_tags is _SENTINEL else llm_tags
+        manual_v = _default_manual if manual is _SENTINEL else manual
+        desc_v = _default_desc if descriptions is _SENTINEL else descriptions
+        visual_v = _default_visual if visual is _SENTINEL else visual
 
-    visual = [
-        {
-            "scene_id": 351,
-            "environment": {"location": "exterior", "time_of_day": "dia"},
-            "num_faces": 2,
+        # ``None`` => deliberately omit that artefact file (e.g. to test
+        # a partially-processed library); any other value is written.
+        if scenes_v is not None:
+            (meta_dir / "keyframes_metadata.json").write_text(json.dumps(scenes_v))
+        if llm_v is not None:
+            (meta_dir / "scene_tags.json").write_text(json.dumps(llm_v))
+        if manual_v is not None:
+            (meta_dir / "manual_annotations.json").write_text(json.dumps(manual_v))
+        if desc_v is not None:
+            (meta_dir / "scene_descriptions.json").write_text(json.dumps(desc_v))
+        if visual_v is not None:
+            (meta_dir / "visual_analysis.json").write_text(json.dumps(visual_v))
+
+        scene_ids = (
+            [s["scene_id"] for s in scenes_v if "scene_id" in s]
+            if isinstance(scenes_v, list)
+            else []
+        )
+        return {
+            "cfg": cfg,
+            "meta_dir": meta_dir,
+            "frames_dir": frames_dir,
+            "keyframe_file": kf_file,
+            "manual_path": meta_dir / "manual_annotations.json",
+            "scene_ids": scene_ids,
         }
-    ]
-    (meta_dir / "visual_analysis.json").write_text(json.dumps(visual))
 
-    return {
-        "cfg": cfg,
-        "meta_dir": meta_dir,
-        "frames_dir": frames_dir,
-        "keyframe_file": kf_file,
-        "manual_path": meta_dir / "manual_annotations.json",
-        "scene_ids": [351, 352],
-    }
+    return _seed
 
 
 # ── Job registry helper ───────────────────────────────────────────────────────
