@@ -7,7 +7,7 @@ acervos históricos de diversos períodos de produção e material de baixa reso
 
 [![Licença: MIT](https://img.shields.io/badge/Licença-MIT-amber.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://python.org)
-[![Versão](https://img.shields.io/badge/versão-0.2.1-orange.svg)](CHANGELOG.md)
+[![Versão](https://img.shields.io/badge/versão-0.3.0--dev-orange.svg)](CHANGELOG.md)
 
 ---
 
@@ -28,19 +28,20 @@ It was built for **film archives and public cinematheques** that hold large coll
 ```bash
 git clone https://github.com/guto-mojica/cinemateca-imgsearch.git
 cd cinemateca-imgsearch
-python3 -m venv .venv && source .venv/bin/activate
-pip install -e ".[full]"
-streamlit run app.py          # opens at http://localhost:8501
+uv venv
+uv sync --extra full --group dev
+uv run app.py                 # FastAPI + HTMX, opens at http://localhost:8501
+# Legacy Streamlit UI (during migration): uv run streamlit run app_streamlit.py
 ```
 
-The Streamlit interface has four tabs:
+The web interface (FastAPI + HTMX) has these tabs:
 
 | Tab | Purpose |
 |---|---|
-| **Processar** | Load a video and run the cataloguing pipeline |
-| **Pesquisar** | Semantic search by text or reference image |
-| **Catálogo** | Browse and filter all catalogued scenes |
+| **Buscar** | Semantic search by text or reference image |
+| **Cenas** | Browse and filter all catalogued scenes |
 | **Anotar** | Manually add or correct tags on individual scenes |
+| **Processamento** | Pipeline progress — appears only while a video is processing |
 
 Designed for **digitised archival footage** — various production periods, variable quality, unusual aspect ratios. Runs on CPU; Apple Silicon M1+ or NVIDIA GPU recommended for the LLM step.
 
@@ -93,18 +94,21 @@ de metadados que:
 
 ```bash
 # 1. Clonar o repositório
-git clone https://github.com/cinemateca-brasileira/cinemateca-imgsearch.git
+git clone https://github.com/guto-mojica/cinemateca-imgsearch.git
 cd cinemateca-imgsearch
 
-# 2. Criar e ativar ambiente virtual
-python3 -m venv .venv
-source .venv/bin/activate
+# 2. Criar o ambiente (uv usa a versão fixada em .python-version)
+uv venv
 
-# 3. Instalar dependências
-pip install -e ".[full]"
+# 3. Instalar dependências (extra "full" + grupo de dev)
+uv sync --extra full --group dev
+# Sem uv: python3 -m venv .venv && source .venv/bin/activate
+#         && pip install -e ".[full]" && pip install pytest pytest-cov black ruff mypy
 
-# 4. Iniciar a interface
-streamlit run app.py
+# 4. Iniciar a interface (FastAPI + HTMX)
+uv run app.py
+# Interface Streamlit legada (durante a migração):
+#   uv run streamlit run app_streamlit.py
 ```
 
 Para instruções detalhadas, incluindo instalação do FFmpeg e configuração para
@@ -114,35 +118,36 @@ servidores remotos, veja [SETUP.md](SETUP.md).
 
 ## Uso
 
-### Interface gráfica
+### Interface web
 
 ```bash
-streamlit run app.py
-# Abre em http://localhost:8501
+uv run app.py
+# Abre em http://localhost:8501 (FastAPI + HTMX)
 ```
 
-A interface tem três abas:
+A interface tem as abas:
 
 | Aba | Função |
 |---|---|
-| **Processar** | Carregar um vídeo e executar o pipeline de catalogação |
-| **Pesquisar** | Busca semântica por texto ou imagem no acervo indexado |
-| **Catálogo** | Navegar e filtrar todas as cenas catalogadas |
+| **Buscar** | Busca semântica por texto ou imagem no acervo indexado |
+| **Cenas** | Navegar e filtrar todas as cenas catalogadas |
+| **Anotar** | Adicionar ou corrigir tags manualmente, cena a cena |
+| **Processamento** | Progresso do pipeline — aparece apenas durante o processamento |
 
 ### Linha de comando
 
 ```bash
 # Inspecionar um vídeo
-python -m cinemateca info --video caminho/para/filme.mp4
+uv run python -m cinemateca info --video caminho/para/filme.mp4
 
 # Processar um vídeo completo
-python -m cinemateca process --video caminho/para/filme.mp4
+uv run python -m cinemateca process --video caminho/para/filme.mp4
 
 # Processar com configuração personalizada
-python -m cinemateca process --video caminho/para/filme.mp4 --config config/local.yaml
+uv run python -m cinemateca process --video caminho/para/filme.mp4 --config config/local.yaml
 
 # Executar apenas etapas específicas
-python -m cinemateca process --video caminho/para/filme.mp4 --steps scenes,embeddings
+uv run python -m cinemateca process --video caminho/para/filme.mp4 --steps scenes,embeddings
 ```
 
 ### Como módulo Python
@@ -284,8 +289,8 @@ primeiro para discutir o que você gostaria de modificar.
 
 Para rodar os testes:
 ```bash
-pip install -e ".[dev]"
-pytest tests/
+uv sync --group dev
+uv run pytest tests/
 ```
 
 ---
