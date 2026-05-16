@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 
 from api.deps import get_config, make_ctx
 from api.routes import about, annotate, library, processing, scenes, search, tabs
+from api.services.annotations import build_annotate_context
 from api.services.catalog import build_scenes_context
 from api.services.film_context import FilmContext
 from api.templates import templates
@@ -52,16 +53,16 @@ app.include_router(library.router)
 # `/tab/<x>` route uses, so a direct full-page GET renders identical tab
 # markup (modulo the surrounding base chrome).
 #
-# `scenes` is the Phase-3a extracted case: its builder now lives in the
-# catalog SERVICE and takes a `FilmContext`, so the `/tab/scenes` route
-# and this full-page path both call `build_scenes_context(FilmContext
-# .from_config(...))` — same service function, same context keys. The
-# other three builders still live in their route modules (Phase 3b/3c/4
+# `scenes` and `annotate` are the Phase-3a/3b extracted cases: their
+# builders now live in SERVICES and take a `FilmContext`, so the
+# `/tab/<x>` route and this full-page path both call the same service
+# function with `FilmContext.from_config(...)` — same context keys. The
+# other two builders still live in their route modules (Phase 3c/4
 # extract them) and remain zero-arg.
 _TAB_CONTEXT_BUILDERS = {
     "search": search.build_search_context,
     "scenes": lambda: build_scenes_context(FilmContext.from_config(get_config())),
-    "annotate": annotate.build_annotate_context,
+    "annotate": lambda: build_annotate_context(FilmContext.from_config(get_config())),
     "processing": processing.build_processing_context,
 }
 

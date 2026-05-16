@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import tempfile
 from pathlib import Path
 from typing import Dict, List
 
@@ -54,8 +56,30 @@ def save(metadata_dir: str | Path, annotations: Dict[str, List[str]]) -> Path:
     """
     path = Path(metadata_dir) / FILENAME
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(annotations, f, indent=2, ensure_ascii=False)
+
+    # Atomic write: serialize to a temp file in the SAME directory, then
+    # os.replace() over the target. os.replace is atomic on POSIX (and
+    # Windows for same-volume replaces), so a crash mid-write can never
+    # leave a truncated/half-written manual_annotations.json — a reader
+    # sees either the old complete file or the new complete file. The
+    # JSON formatting (indent=2, ensure_ascii=False) is unchanged, so the
+    # on-disk bytes are identical to the previous plain-rewrite path;
+    # only the write mechanism is crash-safe. The temp file lives in the
+    # target's parent dir (not the system tmpdir) because os.replace must
+    # stay within one filesystem to be atomic. On any failure the temp
+    # file is removed so no stray ``.tmp`` is left behind.
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f".{FILENAME}.", suffix=".tmp", dir=path.parent
+    )
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(annotations, f, indent=2, ensure_ascii=False)
+        os.replace(tmp_path, path)
+    except BaseException:
+        tmp_path.unlink(missing_ok=True)
+        raise
+
     logger.info("✓ Anotações manuais salvas: %s (%d cenas)", path, len(annotations))
     return path
 

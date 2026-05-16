@@ -1,140 +1,46 @@
-"""Annotate tab routes — manual scene tagging."""
+"""Annotate tab routes — manual scene tagging.
+
+Thin HTTP layer (Phase 3b): every route here only parses the request,
+delegates all JSON loading / id normalization / scene-list building /
+persistence to ``api/services/annotations.py``, and renders. No
+catalog/annotation logic is duplicated in this module anymore.
+"""
 from __future__ import annotations
 
 import logging
-from pathlib import Path
-from typing import Optional
 
 from fastapi import APIRouter, Form, Query, Request
 from fastapi.responses import HTMLResponse
 
 from api.deps import get_config, make_ctx
-from api.services.catalog import keyframe_url, load_json
+from api.services.annotations import (
+    build_annotate_context,
+    build_scene_panel,
+    load_annotations,
+    normalize_tags,
+    save_annotations,
+)
+from api.services.film_context import FilmContext
 from api.templates import templates
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-_BROKEN_LLM = "One or two sentences about subject"
 
-
-# ── Data helpers ──────────────────────────────────────────────────────────────
-#
-# JSON-load and keyframe-URL primitives now come from the catalog
-# service (``api/services/catalog.py``, Phase 3a) — annotate consumes
-# the shared functions instead of keeping its own copies. The
-# annotate-specific scene-list / scene-context builders below stay here
-# until the dedicated annotations service (Phase 3b).
-
-def _build_scene_list(meta_dir: Path, filter_mode: str) -> tuple[list, dict, dict]:
-    """Return (scene_list, desc_by_scene, annotations)."""
-    from cinemateca.annotator import load as load_annotations
-
-    kf_meta = load_json(meta_dir / "keyframes_metadata.json") or []
-    descriptions = load_json(meta_dir / "scene_descriptions.json") or []
-    annotations = load_annotations(meta_dir)
-
-    desc_by_scene = {d["scene_id"]: d for d in descriptions if "scene_id" in d}
-
-    valid_desc_ids = {
-        d["scene_id"] for d in descriptions
-        if "error" not in d and _BROKEN_LLM not in d.get("description", "")
-    }
-
-    if filter_mode == "no_llm":
-        scenes = [s for s in kf_meta if s["scene_id"] not in valid_desc_ids]
-    else:
-        scenes = list(kf_meta)
-
-    return scenes, desc_by_scene, annotations
-
-
-def _scene_context(
-    scenes: list,
-    scene_id: Optional[int],
-    data_dir: Path,
-    desc_by_scene: dict,
-    annotations: dict,
-) -> dict:
-    """Build template context for the annotate scene panel."""
-    if not scenes:
-        return {"scene": None, "scene_list": [], "total": 0, "annotated_count": 0}
-
-    # Default to first scene if scene_id not found
-    if scene_id is None or not any(s["scene_id"] == scene_id for s in scenes):
-        scene_id = scenes[0]["scene_id"]
-
-    idx = next(i for i, s in enumerate(scenes) if s["scene_id"] == scene_id)
-    scene = scenes[idx]
-
-    fp = Path(scene.get("filepath", ""))
-    start_s = float(scene.get("start_time_s", 0))
-    end_s = float(scene.get("end_time_s", 0))
-
-    llm = desc_by_scene.get(scene_id)
-    has_llm = bool(llm and _BROKEN_LLM not in llm.get("description", ""))
-
-    existing_tags = annotations.get(str(scene_id), [])
-    annotated_count = sum(1 for s in scenes if str(s["scene_id"]) in annotations)
-
-    return {
-        "scene": scene,
-        "scene_id": scene_id,
-        "img_url": keyframe_url(fp, data_dir),
-        "start_s": start_s,
-        "end_s": end_s,
-        "duration_s": end_s - start_s,
-        "llm": llm if has_llm else None,
-        "existing_tags": existing_tags,
-        "tags_value": ", ".join(existing_tags),
-        "prev_id": scenes[idx - 1]["scene_id"] if idx > 0 else None,
-        "next_id": scenes[idx + 1]["scene_id"] if idx < len(scenes) - 1 else None,
-        "current_idx": idx,
-        "total": len(scenes),
-        "annotated_count": annotated_count,
-        "scene_list": scenes,
-    }
-
-
-# ── Routes ────────────────────────────────────────────────────────────────────
-
-def build_annotate_context(
-    filter_mode: str = "no_llm", scene_id: int | None = None
-) -> dict:
-    """Build the template context the annotate tab partial needs.
-
-    Shared by the ``/tab/annotate`` HTMX fragment and the ``/annotate``
-    full-page route so both render identical markup (including the
-    no_data / all_done empty-state branches).
-    """
-    cfg = get_config()
-    meta_dir = Path(cfg.paths.metadata_dir)
-    data_dir = Path(cfg.paths.data_dir).resolve()
-
-    no_data = not bool(load_json(meta_dir / "keyframes_metadata.json"))
-    scenes, desc_by_scene, annotations = _build_scene_list(meta_dir, filter_mode)
-    all_done = (not no_data) and (not scenes) and filter_mode == "no_llm"
-
-    ctx = _scene_context(scenes, scene_id, data_dir, desc_by_scene, annotations)
-
-    return {
-        "filter": filter_mode,
-        "no_data": no_data,
-        "all_done": all_done,
-        **ctx,
-    }
+def _ctx() -> FilmContext:
+    return FilmContext.from_config(get_config())
 
 
 @router.get("/tab/annotate", response_class=HTMLResponse)
 async def tab_annotate(
     request: Request,
     filter: str = Query(default="no_llm"),
-    id: Optional[int] = Query(default=None),
+    id: int | None = Query(default=None),
 ) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "partials/annotate.html",
-        make_ctx(request, **build_annotate_context(filter, id)),
+        make_ctx(request, **build_annotate_context(_ctx(), filter, id)),
     )
 
 
@@ -144,13 +50,7 @@ async def api_annotate_scene(
     id: int = Query(...),
     filter: str = Query(default="no_llm"),
 ) -> HTMLResponse:
-    cfg = get_config()
-    meta_dir = Path(cfg.paths.metadata_dir)
-    data_dir = Path(cfg.paths.data_dir).resolve()
-
-    scenes, desc_by_scene, annotations = _build_scene_list(meta_dir, filter)
-    ctx = _scene_context(scenes, id, data_dir, desc_by_scene, annotations)
-
+    ctx = build_scene_panel(_ctx(), id, filter)
     return templates.TemplateResponse(
         request,
         "partials/annotate_scene.html",
@@ -165,21 +65,15 @@ async def api_annotate_save(
     filter: str = Form(default="no_llm"),
     tags: str = Form(default=""),
 ) -> HTMLResponse:
-    from cinemateca.annotator import load as load_annotations, save as save_annotations
+    fctx = _ctx()
 
-    cfg = get_config()
-    meta_dir = Path(cfg.paths.metadata_dir)
-    data_dir = Path(cfg.paths.data_dir).resolve()
-
-    new_tags = [t.strip().lower().replace(" ", "-") for t in tags.split(",") if t.strip()]
-    ann = load_annotations(meta_dir)
+    new_tags = normalize_tags(tags)
+    ann = load_annotations(fctx)
     ann[str(scene_id)] = new_tags
-    save_annotations(meta_dir, ann)
+    save_annotations(fctx, ann)
     logger.info("Saved %d tag(s) for scene %s", len(new_tags), scene_id)
 
-    scenes, desc_by_scene, annotations = _build_scene_list(meta_dir, filter)
-    ctx = _scene_context(scenes, scene_id, data_dir, desc_by_scene, annotations)
-
+    ctx = build_scene_panel(fctx, scene_id, filter)
     return templates.TemplateResponse(
         request,
         "partials/annotate_scene.html",
@@ -193,20 +87,14 @@ async def api_annotate_clear(
     scene_id: int = Form(...),
     filter: str = Form(default="no_llm"),
 ) -> HTMLResponse:
-    from cinemateca.annotator import load as load_annotations, save as save_annotations
+    fctx = _ctx()
 
-    cfg = get_config()
-    meta_dir = Path(cfg.paths.metadata_dir)
-    data_dir = Path(cfg.paths.data_dir).resolve()
-
-    ann = load_annotations(meta_dir)
+    ann = load_annotations(fctx)
     ann.pop(str(scene_id), None)
-    save_annotations(meta_dir, ann)
+    save_annotations(fctx, ann)
     logger.info("Cleared tags for scene %s", scene_id)
 
-    scenes, desc_by_scene, annotations = _build_scene_list(meta_dir, filter)
-    ctx = _scene_context(scenes, scene_id, data_dir, desc_by_scene, annotations)
-
+    ctx = build_scene_panel(fctx, scene_id, filter)
     return templates.TemplateResponse(
         request,
         "partials/annotate_scene.html",
