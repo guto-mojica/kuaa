@@ -1,3 +1,4 @@
+{% from "partials/_icons.html" import icon %}
 <div class="tab-panel">
 
     <div class="search-mode-toggle">
@@ -36,7 +37,7 @@
               hx-trigger="change from:#image-input"
               hx-target="#search-results">
             <label class="image-upload-label" for="image-input">
-                <ph-icon name="upload-simple" weight="light"></ph-icon>
+                {{ icon("upload-simple") }}
                 <span id="image-upload-filename">{{ _("Choose image…") }}</span>
                 <input id="image-input" type="file" name="file" accept="image/*"
                        onchange="document.getElementById('image-upload-filename').textContent = this.files[0]?.name || '{{ _('Choose image…') }}'">

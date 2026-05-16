@@ -1,13 +1,14 @@
+{% from "partials/_icons.html" import icon %}
 <div class="modal-backdrop" onclick="document.getElementById('modal-container').innerHTML=''">
     <div class="modal-card" onclick="event.stopPropagation()">
         <button class="modal-close"
                 onclick="document.getElementById('modal-container').innerHTML=''"
                 title="{{ _('Close') }}">
-            <ph-icon name="x" weight="regular"></ph-icon>
+            {{ icon("x") }}
         </button>
 
         <header class="modal-header">
-            <ph-icon name="film-reel" weight="duotone" class="modal-logo"></ph-icon>
+            {{ icon("film-reel", "modal-logo") }}
             <h1 class="modal-title">Cinemateca AI</h1>
         </header>
 

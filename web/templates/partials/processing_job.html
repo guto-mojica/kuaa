@@ -1,6 +1,7 @@
+{% from "partials/_icons.html" import icon %}
 <div class="processing-job" id="job-{{ job.id }}">
     <p class="processing-job__title text-muted">
-        <ph-icon name="film-strip" weight="light"></ph-icon>
+        {{ icon("film-strip") }}
         {{ job.video_name }}
     </p>
 

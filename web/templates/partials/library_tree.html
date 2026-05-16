@@ -3,21 +3,22 @@
    film would not change context in v0.3, so the affordance is gone) and
    NO fabricated per-file scene counts / processed badges — processed
    state is GLOBAL, reported once below. #}
+{% from "partials/_icons.html" import icon %}
 {% if library_state %}
 <div class="library-state" id="library-state">
     {% if library_state.is_processed %}
     <span class="library-state__badge library-state__badge--ok">
-        <ph-icon name="check-circle" weight="light"></ph-icon>
-        {{ _("Library processed") }} · {{ library_state.scene_count }} {{ _("scenes") }}
+        {{ icon("check-circle") }}
+        {{ _("Library processed · %(n)d scenes") % {"n": library_state.scene_count} }}
     </span>
     {% elif library_state.raw_present %}
     <span class="library-state__badge library-state__badge--pending">
-        <ph-icon name="circle-dashed" weight="light"></ph-icon>
+        {{ icon("circle-dashed") }}
         {{ _("Not yet processed") }}
     </span>
     {% else %}
     <span class="library-state__badge library-state__badge--empty">
-        <ph-icon name="circle" weight="light"></ph-icon>
+        {{ icon("circle") }}
         {{ _("No source video") }}
     </span>
     {% endif %}
@@ -30,7 +31,7 @@
 {% if films %}
     {% for film in films %}
     <div class="tree-node tree-node--inventory">
-        <ph-icon name="film-strip" weight="light"></ph-icon>
+        {{ icon("film-strip") }}
         <span class="tree-node__title">{{ film.title }}</span>
     </div>
     {% endfor %}

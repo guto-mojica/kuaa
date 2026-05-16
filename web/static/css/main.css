@@ -1,9 +1,12 @@
 /* ── Fonts ─────────────────────────────────────────────────────────────────────
-   IBM Plex loaded from Google Fonts (Apache 2.0). iA Writer Mono must be placed
-   in web/static/fonts/ manually (OFL licence, download from github.com/iaolo/iA-Fonts).
-   TODO: self-host all three per DESIGN_SYSTEM.md.
+   IBM Plex (Sans 400/500, Serif 400) is SELF-HOSTED (Apache 2.0): the
+   woff2 subsets + @font-face rules live under web/static/fonts/ and are
+   imported locally below — the app makes ZERO font network requests, so
+   it renders correctly fully offline (Phase 6 offline-polish contract).
+   iA Writer Mono (--font-mono) is an optional OFL extra; absent, the
+   mono stack falls back gracefully (see --font-mono below).
    ─────────────────────────────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Serif:wght@400&display=swap');
+@import url('../fonts/ibmplex.css');
 
 /* ── Custom properties ─────────────────────────────────────────────────────── */
 :root {
@@ -265,6 +268,19 @@ body {
 /* ── HTMX transitions ──────────────────────────────────────────────────────── */
 .htmx-swapping { opacity: 0; transition: opacity 150ms ease; }
 .htmx-settling  { opacity: 1; }
+
+/* ── Inline SVG icons (vendored Phosphor, offline) ─────────────────────────── */
+/* Replaces the CDN-loaded Phosphor web component. Sized in `em` so the glyph
+   tracks the surrounding font-size exactly as the old icon font did
+   (e.g. .modal-logo's font-size:2rem scales this to 2rem). fill is
+   currentColor on the <svg>, so color also follows text color. */
+.ph-icon {
+    width: 1em;
+    height: 1em;
+    display: inline-block;
+    flex-shrink: 0;
+    vertical-align: -0.125em;
+}
 
 /* ── Spinner ───────────────────────────────────────────────────────────────── */
 @keyframes spin { to { transform: rotate(360deg); } }

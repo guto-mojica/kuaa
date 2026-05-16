@@ -193,6 +193,25 @@ def client(tmp_config):
         c.__exit__(None, None, None)
 
 
+@pytest.fixture()
+def raw_client(tmp_config):
+    """Like ``client`` but locale-unpinned and redirect-following OFF.
+
+    Phase-6 i18n/a11y tests need to (a) drive the locale cookie
+    explicitly per request and (b) inspect the locale-switch route's
+    own response (303 / HX-Redirect) instead of transparently following
+    it. The shared ``client`` fixture does neither.
+    """
+    from api.server import app
+
+    c = TestClient(app, follow_redirects=False)
+    c.__enter__()
+    try:
+        yield c
+    finally:
+        c.__exit__(None, None, None)
+
+
 # ── Fixture-metadata builder ──────────────────────────────────────────────────
 
 @pytest.fixture()

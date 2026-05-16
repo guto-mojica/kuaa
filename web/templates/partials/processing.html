@@ -1,3 +1,4 @@
+{% from "partials/_step_labels.html" import step_label with context %}
 <div class="tab-panel">
 
 <!-- Start form -->
@@ -28,7 +29,7 @@
             {% for name, label in step_defs %}
             <label class="tag-pill">
                 <input type="checkbox" name="steps" value="{{ name }}" checked>
-                {{ label }}
+                {{ step_label(name) }}
             </label>
             {% endfor %}
         </div>

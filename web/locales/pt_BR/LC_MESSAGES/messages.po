@@ -1,10 +1,16 @@
 # Cinemateca AI — Portuguese (Brazil) translations
 msgid ""
 msgstr ""
+"Project-Id-Version: cinemateca-ai 0.3.0\n"
+"Language: pt_BR\n"
+"Language-Team: pt_BR\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+"MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Language: pt_BR\n"
+"Generated-By: Babel 2.18.0\n"
 
+# ── Navigation / chrome ───────────────────────────────────────────────
 msgid "Search"
 msgstr "Buscar"
 
@@ -20,30 +26,35 @@ msgstr "Processamento"
 msgid "About"
 msgstr "Sobre"
 
-msgid "Add film"
-msgstr "Adicionar filme"
+msgid "Back"
+msgstr "Voltar"
+
+msgid "Close"
+msgstr "Fechar"
 
 msgid "Filter library"
 msgstr "Filtrar acervo"
 
-msgid "Start processing"
-msgstr "Iniciar processamento"
-
-msgid "Cancel"
-msgstr "Cancelar"
-
-msgid "Done"
-msgstr "Concluído"
-
-msgid "scenes catalogued"
-msgstr "cenas catalogadas"
-
-msgid "remaining"
-msgstr "restante(s)"
-
 msgid "No films in library"
 msgstr "Nenhum filme no acervo"
 
+msgid "Model attributions"
+msgstr "Atribuições de modelos"
+
+# ── Library state badge ───────────────────────────────────────────────
+msgid "Library processed · %(n)d scenes"
+msgstr "Acervo processado · %(n)d cenas"
+
+msgid "Not yet processed"
+msgstr "Ainda não processado"
+
+msgid "No source video"
+msgstr "Sem vídeo de origem"
+
+msgid "Search index missing"
+msgstr "Índice de busca ausente"
+
+# ── Search tab ────────────────────────────────────────────────────────
 msgid "Text"
 msgstr "Texto"
 
@@ -53,17 +64,14 @@ msgstr "Imagem"
 msgid "two people talking outdoors"
 msgstr "duas pessoas conversando ao ar livre"
 
-msgid "Scenes tab — coming in next iteration."
-msgstr "Aba Cenas — em desenvolvimento."
-
-msgid "Annotate tab — coming in next iteration."
-msgstr "Aba Anotar — em desenvolvimento."
-
-msgid "No active processing jobs."
-msgstr "Nenhum processamento em andamento."
+msgid "Choose image…"
+msgstr "Escolher imagem…"
 
 msgid "No search index found. Run the pipeline with the Embeddings step first."
 msgstr "Índice de busca não encontrado. Execute o pipeline com a etapa Embeddings primeiro."
+
+msgid "That image could not be used. Upload a single image file under 8 MB."
+msgstr "Não foi possível usar essa imagem. Envie um único arquivo de imagem com menos de 8 MB."
 
 msgid "No results."
 msgstr "Nenhum resultado."
@@ -73,6 +81,26 @@ msgstr "Cena"
 
 msgid "scene"
 msgstr "cena"
+
+# ── Scenes tab ────────────────────────────────────────────────────────
+msgid "No scenes found. Run the pipeline with the Scene Detection step first."
+msgstr "Nenhuma cena encontrada. Execute o pipeline com a etapa Detecção de cenas primeiro."
+
+msgid "Filter by description keyword…"
+msgstr "Filtrar por palavra-chave da descrição…"
+
+msgid "No scenes match the filters."
+msgstr "Nenhuma cena corresponde aos filtros."
+
+msgid "scenes"
+msgstr "cenas"
+
+# ── Annotate tab ──────────────────────────────────────────────────────
+msgid "Run the Scene Detection step first."
+msgstr "Execute a etapa Detecção de cenas primeiro."
+
+msgid "All scenes have valid LLM descriptions."
+msgstr "Todas as cenas têm descrição LLM válida."
 
 msgid "Show"
 msgstr "Exibir"
@@ -116,12 +144,7 @@ msgstr "Salvar"
 msgid "Clear"
 msgstr "Limpar"
 
-msgid "Run the Scene Detection step first."
-msgstr "Execute a etapa Detecção de cenas primeiro."
-
-msgid "All scenes have valid LLM descriptions."
-msgstr "Todas as cenas têm descrição LLM válida."
-
+# ── Processing tab ────────────────────────────────────────────────────
 msgid "Film"
 msgstr "Filme"
 
@@ -131,8 +154,14 @@ msgstr "Etapas"
 msgid "No video files found in the raw directory."
 msgstr "Nenhum arquivo de vídeo encontrado no diretório raw."
 
+msgid "Start processing"
+msgstr "Iniciar processamento"
+
 msgid "Starting…"
 msgstr "Iniciando…"
+
+msgid "Cancel"
+msgstr "Cancelar"
 
 msgid "No active jobs."
 msgstr "Nenhum processamento em andamento."
@@ -143,11 +172,24 @@ msgstr "Pipeline concluído em"
 msgid "Pipeline failed"
 msgstr "Pipeline falhou"
 
-msgid "Close"
-msgstr "Fechar"
+msgid "Pipeline cancelled"
+msgstr "Pipeline cancelado"
 
-msgid "Model attributions"
-msgstr "Atribuições de modelos"
+msgid "blocked"
+msgstr "bloqueado"
 
-msgid "Choose image…"
-msgstr "Escolher imagem…"
+# ── Pipeline step labels (resolved by step id, not STEP_DEFS) ─────────
+msgid "Frame extraction"
+msgstr "Extração de quadros"
+
+msgid "Scene detection"
+msgstr "Detecção de cenas"
+
+msgid "Visual analysis"
+msgstr "Análise visual"
+
+msgid "Embeddings"
+msgstr "Embeddings"
+
+msgid "LLM descriptions"
+msgstr "Descrições LLM"

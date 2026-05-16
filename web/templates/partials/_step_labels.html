@@ -1,0 +1,16 @@
+{#- Human, translatable label for a pipeline step, resolved from the
+    step *id* (the STEP_DEFS / STEP_ORDER name). STEP_DEFS in
+    api/jobs.py stays byte-identical (Phase-4 STEP_ORDER/STEP_DEPS and
+    the (name,label) tuple contract are preserved); the human label is
+    produced HERE so it passes through gettext per request. Ids are the
+    canonical pipeline step names — keep this mapping in lockstep with
+    cinemateca.pipeline.STEP_ORDER. -#}
+{%- macro step_label(step_id) -%}
+{%- if step_id == 'frame_extraction' -%}{{ _("Frame extraction") }}
+{%- elif step_id == 'scene_detection' -%}{{ _("Scene detection") }}
+{%- elif step_id == 'visual_analysis' -%}{{ _("Visual analysis") }}
+{%- elif step_id == 'embeddings' -%}{{ _("Embeddings") }}
+{%- elif step_id == 'llm_description' -%}{{ _("LLM descriptions") }}
+{%- else -%}{{ step_id }}
+{%- endif -%}
+{%- endmacro -%}

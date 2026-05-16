@@ -1,13 +1,15 @@
+{% from "partials/_icons.html" import icon %}
+{% from "partials/_step_labels.html" import step_label with context %}
 <div class="pipeline-steps">
 {% for step in job.steps %}
 <div class="step-pill step-pill--{{ step.state }}">
-{% if step.state == 'done' %}<ph-icon name="check-circle" weight="fill"></ph-icon>
-{% elif step.state == 'active' %}<ph-icon name="spinner-gap" weight="light" class="spin"></ph-icon>
-{% elif step.state == 'error' %}<ph-icon name="x-circle" weight="fill"></ph-icon>
-{% elif step.state == 'blocked' %}<ph-icon name="prohibit" weight="light"></ph-icon>
-{% elif step.state == 'skipped' %}<ph-icon name="minus-circle" weight="light"></ph-icon>
-{% else %}<ph-icon name="circle" weight="light"></ph-icon>{% endif %}
-{{ step.label }}{% if step.state == 'done' and step.duration_s %} <span class="step-duration">{{ "%.0f" | format(step.duration_s) }}s</span>{% endif %}{% if step.state == 'blocked' %} <span class="step-detail text-muted">{{ _("blocked") }}{% if step.detail %}: {{ step.detail }}{% endif %}</span>{% endif %}
+{% if step.state == 'done' %}{{ icon("check-circle") }}
+{% elif step.state == 'active' %}{{ icon("spinner-gap", "spin") }}
+{% elif step.state == 'error' %}{{ icon("x-circle") }}
+{% elif step.state == 'blocked' %}{{ icon("prohibit") }}
+{% elif step.state == 'skipped' %}{{ icon("minus-circle") }}
+{% else %}{{ icon("circle") }}{% endif %}
+{{ step_label(step.name) }}{% if step.state == 'done' and step.duration_s %} <span class="step-duration">{{ "%.0f" | format(step.duration_s) }}s</span>{% endif %}{% if step.state == 'blocked' %} <span class="step-detail text-muted">{{ _("blocked") }}{% if step.detail %}: {{ step.detail }}{% endif %}</span>{% endif %}
 </div>
 {% endfor %}
 </div>
@@ -18,17 +20,17 @@
 
 {% if job.status == 'done' %}
 <p class="processing-done">
-    <ph-icon name="check-circle" weight="fill"></ph-icon>
+    {{ icon("check-circle") }}
     {{ _("Pipeline completed in") }} {{ "%.0f" | format(job.total_duration_s) }}s
 </p>
 {% elif job.status == 'error' %}
 <p class="processing-error text-error">
-    <ph-icon name="x-circle" weight="fill"></ph-icon>
+    {{ icon("x-circle") }}
     {{ _("Pipeline failed") }}{% if job.error_msg %}: {{ job.error_msg }}{% endif %}
 </p>
 {% elif job.status == 'cancelled' %}
 <p class="processing-cancelled text-muted">
-    <ph-icon name="prohibit" weight="fill"></ph-icon>
+    {{ icon("prohibit") }}
     {{ _("Pipeline cancelled") }}
 </p>
 {% endif %}

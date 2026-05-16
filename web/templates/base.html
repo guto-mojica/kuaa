@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="{{ lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,15 +7,15 @@
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/main.css') }}">
     <script src="{{ request.url_for('static', path='js/htmx.min.js') }}" defer></script>
     <script src="{{ request.url_for('static', path='js/htmx-ext-sse.js') }}" defer></script>
-    <script src="https://unpkg.com/@phosphor-icons/web@2.1.1" defer></script>
 </head>
 <body>
+{% from "partials/_icons.html" import icon %}
 <div class="shell">
 
     <!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
     <aside class="sidebar">
         <div class="sidebar-header">
-            <ph-icon name="film-reel" weight="light"></ph-icon>
+            {{ icon("film-reel") }}
             <span class="sidebar-title">Cinemateca AI</span>
         </div>
 
@@ -33,21 +33,24 @@
 
         <footer class="sidebar-footer">
             <div class="locale-switcher">
-                <ph-icon name="globe" weight="light"></ph-icon>
+                {{ icon("globe") }}
                 <a class="locale-link {% if locale == 'pt_BR' %}locale-link--active{% endif %}"
+                   href="/api/locale/pt_BR"
                    hx-get="/api/locale/pt_BR"
                    hx-swap="none">PT</a>
                 <span class="locale-sep">|</span>
                 <a class="locale-link {% if locale == 'en' %}locale-link--active{% endif %}"
+                   href="/api/locale/en"
                    hx-get="/api/locale/en"
                    hx-swap="none">EN</a>
             </div>
             <div class="sidebar-footer__row">
                 <a class="about-link"
+                   href="/about"
                    hx-get="/api/about"
                    hx-target="#modal-container"
                    hx-swap="innerHTML">
-                    <ph-icon name="info" weight="light"></ph-icon>
+                    {{ icon("info") }}
                     {{ _("About") }}
                 </a>
                 <span class="version">v0.3.0</span>
@@ -61,39 +64,43 @@
         <!-- Tab bar -->
         <nav class="tab-bar" id="tab-bar">
             <a class="tab {% if active_tab == 'search' %}tab--active{% endif %}"
+               href="/search"
                hx-get="/tab/search"
                hx-target="#tab-content"
                hx-swap="innerHTML"
                hx-push-url="/search"
                onclick="setActiveTab(this)">
-                <ph-icon name="magnifying-glass" weight="light"></ph-icon>
+                {{ icon("magnifying-glass") }}
                 {{ _("Search") }}
             </a>
             <a class="tab {% if active_tab == 'scenes' %}tab--active{% endif %}"
+               href="/scenes"
                hx-get="/tab/scenes"
                hx-target="#tab-content"
                hx-swap="innerHTML"
                hx-push-url="/scenes"
                onclick="setActiveTab(this)">
-                <ph-icon name="squares-four" weight="light"></ph-icon>
+                {{ icon("squares-four") }}
                 {{ _("Scenes") }}
             </a>
             <a class="tab {% if active_tab == 'annotate' %}tab--active{% endif %}"
+               href="/annotate"
                hx-get="/tab/annotate"
                hx-target="#tab-content"
                hx-swap="innerHTML"
                hx-push-url="/annotate"
                onclick="setActiveTab(this)">
-                <ph-icon name="tag" weight="light"></ph-icon>
+                {{ icon("tag") }}
                 {{ _("Annotate") }}
             </a>
             <a class="tab {% if active_tab == 'processing' %}tab--active{% endif %}"
+               href="/processing"
                hx-get="/tab/processing"
                hx-target="#tab-content"
                hx-swap="innerHTML"
                hx-push-url="/processing"
                onclick="setActiveTab(this)">
-                <ph-icon name="spinner-gap" weight="light"></ph-icon>
+                {{ icon("spinner-gap") }}
                 {{ _("Processing") }}
                 {% if processing_jobs %}
                 <span class="badge">{{ processing_jobs }}</span>

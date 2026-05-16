@@ -1,9 +1,17 @@
 # Cinemateca AI — English translations
+# English is the source language: each msgstr mirrors its msgid so the
+# UI renders the literal source strings (and tests that pin locale=en
+# assert on those exact strings — see tests/conftest.py).
 msgid ""
 msgstr ""
+"Project-Id-Version: cinemateca-ai 0.3.0\n"
+"Language: en\n"
+"Language-Team: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Language: en\n"
+"Generated-By: Babel 2.18.0\n"
 
 msgid "Search"
 msgstr "Search"
@@ -20,29 +28,32 @@ msgstr "Processing"
 msgid "About"
 msgstr "About"
 
-msgid "Add film"
-msgstr "Add film"
+msgid "Back"
+msgstr "Back"
+
+msgid "Close"
+msgstr "Close"
 
 msgid "Filter library"
 msgstr "Filter library"
 
-msgid "Start processing"
-msgstr "Start processing"
-
-msgid "Cancel"
-msgstr "Cancel"
-
-msgid "Done"
-msgstr "Done"
-
-msgid "scenes catalogued"
-msgstr "scenes catalogued"
-
-msgid "remaining"
-msgstr "remaining"
-
 msgid "No films in library"
 msgstr "No films in library"
+
+msgid "Model attributions"
+msgstr "Model attributions"
+
+msgid "Library processed · %(n)d scenes"
+msgstr "Library processed · %(n)d scenes"
+
+msgid "Not yet processed"
+msgstr "Not yet processed"
+
+msgid "No source video"
+msgstr "No source video"
+
+msgid "Search index missing"
+msgstr "Search index missing"
 
 msgid "Text"
 msgstr "Text"
@@ -53,17 +64,14 @@ msgstr "Image"
 msgid "two people talking outdoors"
 msgstr "two people talking outdoors"
 
-msgid "Scenes tab — coming in next iteration."
-msgstr "Scenes tab — coming in next iteration."
-
-msgid "Annotate tab — coming in next iteration."
-msgstr "Annotate tab — coming in next iteration."
-
-msgid "No active processing jobs."
-msgstr "No active processing jobs."
+msgid "Choose image…"
+msgstr "Choose image…"
 
 msgid "No search index found. Run the pipeline with the Embeddings step first."
 msgstr "No search index found. Run the pipeline with the Embeddings step first."
+
+msgid "That image could not be used. Upload a single image file under 8 MB."
+msgstr "That image could not be used. Upload a single image file under 8 MB."
 
 msgid "No results."
 msgstr "No results."
@@ -73,6 +81,24 @@ msgstr "Scene"
 
 msgid "scene"
 msgstr "scene"
+
+msgid "No scenes found. Run the pipeline with the Scene Detection step first."
+msgstr "No scenes found. Run the pipeline with the Scene Detection step first."
+
+msgid "Filter by description keyword…"
+msgstr "Filter by description keyword…"
+
+msgid "No scenes match the filters."
+msgstr "No scenes match the filters."
+
+msgid "scenes"
+msgstr "scenes"
+
+msgid "Run the Scene Detection step first."
+msgstr "Run the Scene Detection step first."
+
+msgid "All scenes have valid LLM descriptions."
+msgstr "All scenes have valid LLM descriptions."
 
 msgid "Show"
 msgstr "Show"
@@ -116,12 +142,6 @@ msgstr "Save"
 msgid "Clear"
 msgstr "Clear"
 
-msgid "Run the Scene Detection step first."
-msgstr "Run the Scene Detection step first."
-
-msgid "All scenes have valid LLM descriptions."
-msgstr "All scenes have valid LLM descriptions."
-
 msgid "Film"
 msgstr "Film"
 
@@ -131,8 +151,14 @@ msgstr "Steps"
 msgid "No video files found in the raw directory."
 msgstr "No video files found in the raw directory."
 
+msgid "Start processing"
+msgstr "Start processing"
+
 msgid "Starting…"
 msgstr "Starting…"
+
+msgid "Cancel"
+msgstr "Cancel"
 
 msgid "No active jobs."
 msgstr "No active jobs."
@@ -143,11 +169,23 @@ msgstr "Pipeline completed in"
 msgid "Pipeline failed"
 msgstr "Pipeline failed"
 
-msgid "Close"
-msgstr "Close"
+msgid "Pipeline cancelled"
+msgstr "Pipeline cancelled"
 
-msgid "Model attributions"
-msgstr "Model attributions"
+msgid "blocked"
+msgstr "blocked"
 
-msgid "Choose image…"
-msgstr "Choose image…"
+msgid "Frame extraction"
+msgstr "Frame extraction"
+
+msgid "Scene detection"
+msgstr "Scene detection"
+
+msgid "Visual analysis"
+msgstr "Visual analysis"
+
+msgid "Embeddings"
+msgstr "Embeddings"
+
+msgid "LLM descriptions"
+msgstr "LLM descriptions"

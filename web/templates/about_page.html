@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+{#- Full-page About — JS-off progressive-enhancement fallback for the
+    about modal (web/templates/partials/about_modal.html). The credits
+    content is intentionally kept in sync with the modal; this wrapper
+    just gives it a standalone page with a real back link so the
+    sidebar's <a href="/about"> works with scripting disabled. -#}
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cinemateca AI — {{ _("About") }}</title>
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/main.css') }}">
+</head>
+<body>
+{% from "partials/_icons.html" import icon %}
+<div class="shell">
+    <main class="main">
+        <div class="tab-content">
+            <div class="modal-card modal-card--page" style="margin:48px auto">
+                <a class="modal-close" href="/" title="{{ _('Close') }}">
+                    {{ icon("x") }}
+                </a>
+
+                <header class="modal-header">
+                    {{ icon("film-reel", "modal-logo") }}
+                    <h1 class="modal-title">Cinemateca AI</h1>
+                </header>
+
+                <p class="modal-version">v{{ version }}&nbsp;·&nbsp;MIT</p>
+
+                <section class="modal-section">
+                    <h2 class="modal-section-title">{{ _("Model attributions") }}</h2>
+                    <table class="model-table">
+                        <tbody>
+                            <tr>
+                                <td class="model-name">CLIP</td>
+                                <td class="model-source">OpenAI &mdash;
+                                    <a class="modal-link"
+                                       href="https://github.com/openai/CLIP"
+                                       target="_blank" rel="noopener">openai/CLIP</a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="model-name">Moondream 2</td>
+                                <td class="model-source">vikhyatk &mdash;
+                                    <a class="modal-link"
+                                       href="https://github.com/vikhyat/moondream"
+                                       target="_blank" rel="noopener">vikhyat/moondream</a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="model-name">YOLOv8</td>
+                                <td class="model-source">Ultralytics &mdash;
+                                    <a class="modal-link"
+                                       href="https://github.com/ultralytics/ultralytics"
+                                       target="_blank" rel="noopener">ultralytics/ultralytics</a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="model-name">MTCNN</td>
+                                <td class="model-source">facenet-pytorch &mdash;
+                                    <a class="modal-link"
+                                       href="https://github.com/timesler/facenet-pytorch"
+                                       target="_blank" rel="noopener">timesler/facenet-pytorch</a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
+
+                <p class="modal-section" style="margin-top:24px">
+                    <a class="modal-link" href="/">&larr; {{ _("Back") }}</a>
+                </p>
+            </div>
+        </div>
+    </main>
+</div>
+</body>
+</html>

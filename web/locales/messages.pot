@@ -1,0 +1,260 @@
+# Translations template for PROJECT.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-05-16 17:55-0400\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: web/templates/about_page.html:11 web/templates/base.html:54
+msgid "About"
+msgstr ""
+
+#: web/templates/about_page.html:20 web/templates/partials/about_modal.html:6
+msgid "Close"
+msgstr ""
+
+#: web/templates/about_page.html:32 web/templates/partials/about_modal.html:18
+msgid "Model attributions"
+msgstr ""
+
+#: web/templates/about_page.html:72
+msgid "Back"
+msgstr ""
+
+#: web/templates/base.html:25
+msgid "Filter library"
+msgstr ""
+
+#: web/templates/base.html:74
+msgid "Search"
+msgstr ""
+
+#: web/templates/base.html:84
+msgid "Scenes"
+msgstr ""
+
+#: web/templates/base.html:94
+msgid "Annotate"
+msgstr ""
+
+#: web/templates/base.html:104
+msgid "Processing"
+msgstr ""
+
+#: web/templates/partials/_step_labels.html:9
+msgid "Frame extraction"
+msgstr ""
+
+#: web/templates/partials/_step_labels.html:10
+msgid "Scene detection"
+msgstr ""
+
+#: web/templates/partials/_step_labels.html:11
+msgid "Visual analysis"
+msgstr ""
+
+#: web/templates/partials/_step_labels.html:12
+msgid "Embeddings"
+msgstr ""
+
+#: web/templates/partials/_step_labels.html:13
+msgid "LLM descriptions"
+msgstr ""
+
+#: web/templates/partials/annotate.html:4
+msgid "Run the Scene Detection step first."
+msgstr ""
+
+#: web/templates/partials/annotate.html:7
+msgid "All scenes have valid LLM descriptions."
+msgstr ""
+
+#: web/templates/partials/annotate.html:13
+msgid "Show"
+msgstr ""
+
+#: web/templates/partials/annotate.html:20
+msgid "Without LLM description"
+msgstr ""
+
+#: web/templates/partials/annotate.html:28
+msgid "All scenes"
+msgstr ""
+
+#: web/templates/partials/annotate.html:31
+#: web/templates/partials/scenes_grid.html:4
+msgid "scenes"
+msgstr ""
+
+#: web/templates/partials/annotate.html:31
+msgid "annotated"
+msgstr ""
+
+#: web/templates/partials/annotate.html:48
+#: web/templates/partials/annotate_scene.html:43
+#: web/templates/partials/scenes_grid.html:12
+#: web/templates/partials/search_results.html:21
+msgid "Scene"
+msgstr ""
+
+#: web/templates/partials/annotate.html:61
+msgid "No scenes match the current filter."
+msgstr ""
+
+#: web/templates/partials/annotate_scene.html:4
+msgid "tag(s) saved"
+msgstr ""
+
+#: web/templates/partials/annotate_scene.html:8
+msgid "Tags cleared"
+msgstr ""
+
+#: web/templates/partials/annotate_scene.html:58
+msgid "LLM description"
+msgstr ""
+
+#: web/templates/partials/annotate_scene.html:69
+msgid "No LLM description"
+msgstr ""
+
+#: web/templates/partials/annotate_scene.html:74
+msgid "Manual tags"
+msgstr ""
+
+#: web/templates/partials/annotate_scene.html:85
+msgid "rural, exterior, horse, single-person"
+msgstr ""
+
+#: web/templates/partials/annotate_scene.html:88
+msgid "Use hyphens for compound tags: two-people, night-scene"
+msgstr ""
+
+#: web/templates/partials/annotate_scene.html:91
+msgid "Save"
+msgstr ""
+
+#: web/templates/partials/annotate_scene.html:98
+msgid "Clear"
+msgstr ""
+
+#: web/templates/partials/library_tree.html:12
+#, python-format
+msgid "Library processed · %(n)d scenes"
+msgstr ""
+
+#: web/templates/partials/library_tree.html:17
+msgid "Not yet processed"
+msgstr ""
+
+#: web/templates/partials/library_tree.html:22
+msgid "No source video"
+msgstr ""
+
+#: web/templates/partials/library_tree.html:26
+msgid "Search index missing"
+msgstr ""
+
+#: web/templates/partials/library_tree.html:39
+msgid "No films in library"
+msgstr ""
+
+#: web/templates/partials/processing.html:13
+msgid "Film"
+msgstr ""
+
+#: web/templates/partials/processing.html:22
+msgid "No video files found in the raw directory."
+msgstr ""
+
+#: web/templates/partials/processing.html:27
+msgid "Steps"
+msgstr ""
+
+#: web/templates/partials/processing.html:40
+msgid "Start processing"
+msgstr ""
+
+#: web/templates/partials/processing.html:43
+msgid "Starting…"
+msgstr ""
+
+#: web/templates/partials/processing.html:57
+msgid "No active jobs."
+msgstr ""
+
+#: web/templates/partials/processing_job.html:15
+msgid "Cancel"
+msgstr ""
+
+#: web/templates/partials/processing_stepper.html:12
+msgid "blocked"
+msgstr ""
+
+#: web/templates/partials/processing_stepper.html:24
+msgid "Pipeline completed in"
+msgstr ""
+
+#: web/templates/partials/processing_stepper.html:29
+msgid "Pipeline failed"
+msgstr ""
+
+#: web/templates/partials/processing_stepper.html:34
+msgid "Pipeline cancelled"
+msgstr ""
+
+#: web/templates/partials/scenes.html:5
+msgid "No scenes found. Run the pipeline with the Scene Detection step first."
+msgstr ""
+
+#: web/templates/partials/scenes.html:21
+msgid "Filter by description keyword…"
+msgstr ""
+
+#: web/templates/partials/scenes_grid.html:2
+msgid "No scenes match the filters."
+msgstr ""
+
+#: web/templates/partials/search.html:5
+msgid "Text"
+msgstr ""
+
+#: web/templates/partials/search.html:6
+msgid "Image"
+msgstr ""
+
+#: web/templates/partials/search.html:19
+msgid "two people talking outdoors"
+msgstr ""
+
+#: web/templates/partials/search.html:41 web/templates/partials/search.html:43
+msgid "Choose image…"
+msgstr ""
+
+#: web/templates/partials/search_results.html:4
+msgid "No search index found. Run the pipeline with the Embeddings step first."
+msgstr ""
+
+#: web/templates/partials/search_results.html:10
+msgid "That image could not be used. Upload a single image file under 8 MB."
+msgstr ""
+
+#: web/templates/partials/search_results.html:14
+msgid "No results."
+msgstr ""
+
+#: web/templates/partials/search_results.html:27
+msgid "scene"
+msgstr ""
+
