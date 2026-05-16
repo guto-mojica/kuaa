@@ -25,6 +25,42 @@ Funcionalidades planejadas para as próximas versões:
   Dependências de desenvolvimento movidas para `[dependency-groups]`
   (PEP 735). Backend de build (`setuptools`) inalterado. Lockfile
   (`uv.lock`) adiado — instalação via `pip` continua funcionando.
+- Configuração de `ruff[lint]` e correções de lint associadas; cobertura de
+  testes ampliada de 18 para **208** testes (0 xfailed).
+
+### Recuperação de regressões da interface FastAPI (v0.3.0)
+
+Esforço de estabilização da migração Streamlit → FastAPI antes do lançamento.
+Resultados visíveis para o usuário:
+
+#### Corrigido
+
+- **Páginas diretas** (`/search`, `/scenes`, `/annotate`, `/processing`,
+  `/about`) voltam a renderizar a página completa, em paridade com a troca de
+  abas via HTMX — não mais um fragmento solto.
+- **Aba Processamento** voltou a renderizar (correção do filtro `split` no
+  template e do checklist de etapas).
+- **Filtro de tags em Cenas** passa a casar corretamente quando o id da cena é
+  inteiro, string ou misto (normalização consistente).
+- **Streaming de Processamento (SSE)** encerra de forma limpa: sequência tipada
+  `update` → `done`, frame único de `error`/`cancelled`, sem reconexão infinita.
+
+#### Adicionado / Melhorado
+
+- Camada de serviços extraída para `api/services/` (catálogo, anotações, busca)
+  com salvamento atômico de anotações, validação/cache por mtime do índice e
+  checagens de upload de imagem.
+- Cancelamento de job no pipeline, integrado ao bloqueio por dependências
+  descrito em **Alterado** (etapa anterior que falha bloqueia as seguintes com
+  motivo explícito; sem saída parcial apresentada como sucesso).
+- **Acervo de um único filme** honesto na barra lateral (estado global real;
+  suporte a múltiplos filmes permanece adiado, ver lista acima).
+- **i18n / acessibilidade / offline**: rótulos de etapas traduzíveis, idioma e
+  caminho cientes da localidade, `href`s reais para navegação sem JS, ícones
+  Phosphor e fontes IBM Plex vendorizados (sem CDN, funciona totalmente offline).
+
+Checklist de verificação manual pré-lançamento em
+`docs/RELEASE_VERIFICATION.md`.
 
 ### Alterado
 

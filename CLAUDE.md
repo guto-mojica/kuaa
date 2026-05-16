@@ -276,6 +276,7 @@ Last updated: in the commit message that touched CLAUDE.md.
 - [x] i18n PT/EN extracted and translated
 - [x] Streamlit parity confirmed → tagged `v0.2.1-streamlit-final`
 - [x] uv adopted for env/deps (config-only, lockfile deferred — see docs/superpowers/specs/2026-05-16-uv-migration-scaffold-design.md)
+- [x] FastAPI regression recovery (Phases 0–8): regressions fixed (full-page parity, Processing render, scene-id tag filtering, SSE close), service layer, pipeline gating/cancellation, single-film v0.3 (multi-film deferred), i18n/a11y/offline, tests 18→208 — see docs/RELEASE_VERIFICATION.md
 
 Keep this list updated as steps complete.
 
