@@ -38,9 +38,15 @@ The main branch is currently **migrating from v0.2.1 (Streamlit) to v0.3.0
 - No React, Vue, Svelte, or any SPA framework with a build step. HTMX is the deliberate choice.
 - No npm or node as a project dependency. Python + static HTML + vendored JS only.
 - No cloud APIs for inference. All models run locally.
-- No rewriting `src/cinemateca/*` during the migration — it's the working core.
 
 If you think one of these should change, open an Issue before touching anything.
+
+`src/cinemateca/*` may be modified during the FastAPI regression-recovery work
+(maintainer-approved 2026-05-16). The earlier "do not rewrite the core" rule is
+lifted for this effort. The artefact-safety rule still applies independently:
+changes that alter AI-model behaviour, prompts, or dependency versions can
+invalidate generated artefacts — see "Constraints and care" and ask before
+applying those.
 
 ---
 
