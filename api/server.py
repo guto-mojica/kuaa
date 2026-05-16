@@ -76,31 +76,42 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     it would as a standalone ``/tab/<x>`` fragment.
     """
     cfg = get_config()
-    from cinemateca.library import scan_library
+    from cinemateca.library import library_state, scan_library
 
-    # Base scan feeds the sidebar library tree. The search/scenes/annotate tab
-    # builders do not re-supply `films`, so this scan is the only source for
-    # their sidebar. Do NOT remove it: the `processing` builder intentionally
-    # overrides `films` (see the merge below), but the other three depend on
-    # this scan. On /processing both scans run -- a known, harmless redundancy.
+    # Base scan feeds the sidebar inventory + honest global state. The
+    # search/scenes/annotate tab builders do not re-supply `films`, so this
+    # is the only source for their sidebar. Do NOT remove it: the
+    # `processing` builder intentionally overrides `films` (see the merge
+    # below), but the other three depend on this scan.
     #
-    # Phase-3a decision: this double scan is NOT de-duplicated here. The
-    # catalog service / FilmContext extracted in Phase 3a is single-film/
-    # global and deliberately does NOT model the library FILM LIST (that is
-    # `scan_library`, owned by the Phase-5 library / per-film data model).
-    # Routing the sidebar scan through a shared object would require that
-    # Phase-5 abstraction; folding it in now would be scope bleed and would
-    # entangle this refactor with an unresolved product decision. Left as-is
-    # intentionally; Phase 5 owns collapsing it.
+    # Phase-5 decision (single-film recovery): v0.3 is SINGLE-FILM with an
+    # honest library placeholder — `scan_library` returns a plain inventory
+    # (no fabricated per-film counts/processed) and `library_state` reports
+    # the ONE global artifact set. The Phase-1a/3a double-scan on
+    # /processing (this scan + the processing builder's own) was tracked
+    # here as "Phase 5 owns collapsing it"; it is NOT cleanly removable by
+    # the single-film simplification: the processing builder still owns the
+    # pipeline video dropdown and re-scans `raw_dir` for that, independently
+    # of the sidebar. Folding both through one shared scan would require a
+    # request-scoped library object — that abstraction belongs to the
+    # post-recovery multi-film epic, not this single-film honesty pass.
+    # Left as-is intentionally; it is harmless (one extra raw_dir listing
+    # on /processing). The misleading per-film STATE is what Phase 5
+    # removes, not this redundancy.
     films = scan_library(
         raw_dir=Path(cfg.paths.raw_dir),
         metadata_dir=Path(cfg.paths.metadata_dir),
+    )
+    state = library_state(
+        raw_dir=Path(cfg.paths.raw_dir),
+        metadata_dir=Path(cfg.paths.metadata_dir),
+        embeddings_index_path=Path(cfg.paths.embeddings_dir) / cfg.embeddings.filename,
     )
     base_ctx = {
         "active_tab": active_tab,
         "processing_jobs": 0,
         "films": films,
-        "selected_slug": films[0].slug if films else None,
+        "library_state": state,
     }
     # `{**base_ctx, **tab_ctx}`: tab_ctx wins on key collisions. The
     # `processing` builder deliberately re-supplies `films`, overriding the

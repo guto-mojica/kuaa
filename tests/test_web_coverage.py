@@ -27,9 +27,13 @@ Groups:
      lower-kebab tag normalization / empty-fragment drop are produced
      ROUTE-SIDE (``api/routes/annotate.py``), not by ``annotator.save``
      (which only ``json.dump``s the dict it is handed).
-  4. Library filter / select — asserts the ACTUAL current behaviour
-     (select is a known Phase-5 placeholder; the test documents that
-     so Phase 5 has a tripwire, it does not pre-implement it).
+  4. Library inventory / honest global state — v0.3 is SINGLE-FILM
+     (Phase-5 maintainer decision). The sidebar is a plain raw-video
+     inventory plus ONE honest global artifact-state summary; there is
+     no per-film selection and no fabricated per-file scene counts. The
+     old Phase-2 tripwire that pinned the misleading ``{slug}/select``
+     placeholder is CONVERTED here to assert the new honest contract
+     (the route is gone; the inventory carries no clickable select).
   5. Corrupt index — embeddings row count != mapping row count. Current
      code does NOT validate this; the search path crashes. Captured via
      ``xfail(strict=True)`` so Phase 3c flips it.
@@ -283,14 +287,14 @@ class TestAnnotationSaveClear:
 # ── Group 4: library filter / select ──────────────────────────────────────────
 
 class TestLibrary:
-    """``/api/library/filter`` and ``/api/library/{slug}/select``.
+    """``/api/library/filter`` + the honest single-film sidebar contract.
 
-    These assert CURRENT behaviour. ``scan_library`` lists video files
-    in raw_dir; the empty temp raw_dir → no films. ``{slug}/select`` is
-    a known Phase-5 placeholder: it ignores the slug entirely and just
-    re-renders the search partial. The tests document exactly that so
-    Phase 5 (per-film data model) has a behavioural tripwire — they do
-    NOT pre-implement Phase 5.
+    v0.3 is SINGLE-FILM (Phase-5 maintainer decision). ``scan_library``
+    returns the raw videos as a PLAIN inventory (no fabricated per-file
+    scene counts / processed flags); ``library_state`` reports the ONE
+    global artifact set. There is NO ``/api/library/{slug}/select``
+    route — selecting a film would not change context in v0.3, so the
+    misleading affordance was removed, not faked.
     """
 
     def test_filter_empty_library_shows_no_films(self, client):
@@ -316,19 +320,67 @@ class TestLibrary:
         assert "Limite" in r.text
         assert "Jeca Tatu" not in r.text
 
-    def test_select_is_phase5_placeholder_renders_search_partial(self, client):
-        """CURRENT behaviour: select ignores the slug and returns the
-        Search tab partial verbatim — it does NOT load that film's data
-        (no per-film model yet). Phase 5 owns making this real; if Phase
-        5 changes the response this test fails and must be updated then.
+    def test_inventory_is_not_clickable_and_carries_no_fake_per_film_state(
+        self, client, seed_metadata
+    ):
+        """CONVERTED Phase-2 tripwire (was
+        ``test_select_is_phase5_placeholder_renders_search_partial``).
+
+        Old contract (now removed, NOT faked): a clickable per-film
+        ``hx-get="/api/library/<slug>/select"`` that ignored the slug
+        and re-rendered Search — an affordance implying multi-film
+        navigation that did not exist.
+
+        New honest single-film contract, asserted genuinely here:
+          * the misleading select route is GONE (404, not a fake 200);
+          * the inventory entry is NOT clickable (no ``/select`` link,
+            no ``hx-get`` on the film row);
+          * even with a SEEDED global dataset the per-film row shows
+            NO fabricated scene-count badge — processed state is
+            reported once, globally, not per video.
         """
-        r = client.get("/api/library/does-not-exist/select")
+        # Seeded dataset → a global processed artifact set exists.
+        seed_metadata(scenes=[{"scene_id": i} for i in (1, 2, 3)])
+        cfg = _cfg_from_client()
+        (Path(cfg.paths.raw_dir) / "jeca_tatu.mp4").touch()
+
+        # The misleading multi-film affordance no longer exists.
+        gone = client.get("/api/library/jeca_tatu/select")
+        assert gone.status_code == 404
+
+        r = client.get("/api/library/filter")
         assert r.status_code == 200, r.text[:300]
-        # search.html partial markers; no full HTML doc, no film name.
-        assert 'class="tab-panel"' in r.text
-        assert "search-mode-toggle" in r.text
-        assert "<!DOCTYPE html>" not in r.text
-        assert "does-not-exist" not in r.text
+        assert "Jeca Tatu" in r.text  # listed as inventory
+        # No clickable select affordance anywhere in the sidebar.
+        assert "/select" not in r.text
+        assert "hx-get" not in r.text
+        # No fabricated per-film count badge on the film row even though
+        # 3 global scenes were seeded (the per-file badge is gone).
+        assert 'class="tree-node__count"' not in r.text
+        assert "tree-node--active" not in r.text
+
+    def test_sidebar_reports_honest_global_state(self, client, seed_metadata):
+        """The sidebar surfaces the ONE global artifact state, derived
+        from the real ``keyframes_metadata.json`` (not per-file)."""
+        # No raw video, no metadata → "no source video".
+        r0 = client.get("/api/library/filter")
+        assert r0.status_code == 200
+        assert "No source video" in r0.text
+
+        cfg = _cfg_from_client()
+        (Path(cfg.paths.raw_dir) / "jeca_tatu.mp4").touch()
+        # Raw present but unprocessed → "not yet processed".
+        r1 = client.get("/api/library/filter")
+        assert "Not yet processed" in r1.text
+        assert "Library processed" not in r1.text
+
+        # Seed a global processed dataset → honest processed state with
+        # the REAL global scene count.
+        seed_metadata(scenes=[{"scene_id": i} for i in (1, 2, 3, 4)])
+        r2 = client.get("/api/library/filter")
+        assert "Library processed" in r2.text
+        assert "4" in r2.text  # the true global scene count
+        assert "Not yet processed" not in r2.text
 
 
 def _cfg_from_client():

@@ -83,7 +83,7 @@ def test_tab_processing_empty_has_no_active_jobs(client):
 class TestFullPageContextDivergence:
     """
     ``_base_page()`` in api/server.py supplies only
-    ``active_tab, processing_jobs, films, selected_slug``. ``base.html``
+    ``active_tab, processing_jobs, films, library_state``. ``base.html``
     then ``{% include %}``s the tab partials, which need far more
     context. So a direct GET of a full-page route renders a degraded /
     incomplete panel compared to the dedicated ``/tab/*`` route.

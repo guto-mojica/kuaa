@@ -1,15 +1,38 @@
+{# v0.3 is SINGLE-FILM: this is an HONEST global-artifact summary plus a
+   plain raw-video inventory. There is NO per-film selection (selecting a
+   film would not change context in v0.3, so the affordance is gone) and
+   NO fabricated per-file scene counts / processed badges — processed
+   state is GLOBAL, reported once below. #}
+{% if library_state %}
+<div class="library-state" id="library-state">
+    {% if library_state.is_processed %}
+    <span class="library-state__badge library-state__badge--ok">
+        <ph-icon name="check-circle" weight="light"></ph-icon>
+        {{ _("Library processed") }} · {{ library_state.scene_count }} {{ _("scenes") }}
+    </span>
+    {% elif library_state.raw_present %}
+    <span class="library-state__badge library-state__badge--pending">
+        <ph-icon name="circle-dashed" weight="light"></ph-icon>
+        {{ _("Not yet processed") }}
+    </span>
+    {% else %}
+    <span class="library-state__badge library-state__badge--empty">
+        <ph-icon name="circle" weight="light"></ph-icon>
+        {{ _("No source video") }}
+    </span>
+    {% endif %}
+    {% if not library_state.index_present and library_state.is_processed %}
+    <span class="library-state__hint">{{ _("Search index missing") }}</span>
+    {% endif %}
+</div>
+{% endif %}
+
 {% if films %}
     {% for film in films %}
-    <a class="tree-node {% if selected_slug == film.slug %}tree-node--active{% endif %}"
-       hx-get="/api/library/{{ film.slug }}/select"
-       hx-target="#tab-content"
-       hx-swap="innerHTML">
+    <div class="tree-node tree-node--inventory">
         <ph-icon name="film-strip" weight="light"></ph-icon>
         <span class="tree-node__title">{{ film.title }}</span>
-        {% if film.scene_count %}
-        <span class="tree-node__count">{{ film.scene_count }}</span>
-        {% endif %}
-    </a>
+    </div>
     {% endfor %}
 {% else %}
     <p class="tree-empty">{{ _("No films in library") }}</p>
