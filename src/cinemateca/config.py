@@ -12,9 +12,8 @@ Uso típico:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -77,8 +76,8 @@ class _Namespace:
 # ─── API pública ──────────────────────────────────────────────────────────────
 
 def load_config(
-    user_config: Optional[str | Path] = None,
-    project_root: Optional[str | Path] = None,
+    user_config: str | Path | None = None,
+    project_root: str | Path | None = None,
 ) -> _Namespace:
     """
     Carrega a configuração, mesclando defaults com o arquivo do usuário.

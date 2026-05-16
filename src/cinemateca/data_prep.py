@@ -12,7 +12,6 @@ import json
 import logging
 import subprocess
 from pathlib import Path
-from typing import List, Optional
 
 import cv2
 import numpy as np
@@ -34,7 +33,7 @@ class VideoInspector:
         self.video_path = Path(video_path)
         if not self.video_path.exists():
             raise FileNotFoundError(f"Vídeo não encontrado: {self.video_path}")
-        self._properties: Optional[dict] = None
+        self._properties: dict | None = None
 
     @property
     def properties(self) -> dict:
@@ -134,7 +133,7 @@ class FrameExtractor:
         video_path: str | Path,
         output_dir: str | Path,
         clean_existing: bool = True,
-    ) -> List[Path]:
+    ) -> list[Path]:
         """
         Extrai frames do vídeo para output_dir.
 
@@ -226,7 +225,7 @@ class FrameQualityAnalyzer:
             "contrast": float(img.std()),
         }
 
-    def analyze_batch(self, frame_paths: List[Path]) -> List[dict]:
+    def analyze_batch(self, frame_paths: list[Path]) -> list[dict]:
         """Analisa uma lista de frames, retorna lista de dicts com métricas."""
         results = []
         for p in frame_paths:
@@ -236,7 +235,7 @@ class FrameQualityAnalyzer:
         logger.info("Qualidade analisada: %d frames", len(results))
         return results
 
-    def summary(self, metrics: List[dict]) -> dict:
+    def summary(self, metrics: list[dict]) -> dict:
         """Estatísticas agregadas sobre um batch de métricas."""
         if not metrics:
             return {}

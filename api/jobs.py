@@ -41,7 +41,6 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +155,7 @@ class JobRegistry:
         self._max_terminal = max_terminal
 
     # ── Reads ─────────────────────────────────────────────────────────
-    def get(self, job_id: str) -> Optional[JobState]:
+    def get(self, job_id: str) -> JobState | None:
         with self._lock:
             return self._jobs.get(job_id)
 
@@ -166,7 +165,7 @@ class JobRegistry:
                 j for j in self._jobs.values() if j.status == STATUS_RUNNING
             ]
 
-    def _active_locked(self) -> Optional[JobState]:
+    def _active_locked(self) -> JobState | None:
         for j in self._jobs.values():
             if j.status == STATUS_RUNNING:
                 return j
@@ -245,47 +244,52 @@ class JobRegistry:
         logger.info("Cancellation requested for job %s", job_id)
         return True
 
+    # ── Test isolation ────────────────────────────────────────────────
+    def reset(self) -> None:
+        """Drop every tracked job, under the registry lock.
 
-# Process-global registry instance. ``conftest.py`` and ``test_sse.py``
-# reset hermeticity via ``monkeypatch.setattr(jobs, "_jobs", {})``; the
-# module-level ``_jobs`` name below is kept as a thin alias bound to the
-# live registry's dict so that existing reset pattern keeps working
-# without touching every test.
+        Test-only hermeticity hook: each test gets a pristine registry
+        (no leaked ``JobState`` from a prior test). Clearing happens
+        behind ``_lock`` so it can never race a concurrent insert/evict
+        from a still-running worker thread, and the ``_jobs`` *container*
+        identity is preserved (``.clear()`` not reassignment) so any
+        alias still observes the empty dict.
+        """
+        with self._lock:
+            self._jobs.clear()
+
+    def add(self, job: JobState) -> None:
+        """Insert a pre-built :class:`JobState`, under the lock.
+
+        Test-only hook: tests that need a job in a specific state
+        (e.g. a running job for SSE/processing assertions) construct
+        it directly and register it here, rather than going through
+        :meth:`start` which spawns a real worker thread. Lock-guarded
+        for the same race-freedom as the rest of the registry.
+        """
+        with self._lock:
+            self._jobs[job.id] = job
+
+
+# Process-global registry instance. Tests isolate state by calling
+# ``jobs._registry.reset()`` (a lock-guarded clear) and seed jobs via
+# ``jobs._registry.add(job)`` — see ``tests/conftest.py``.
 _registry = JobRegistry()
-_jobs: dict[str, JobState] = _registry._jobs
 
 
-def _sync_registry_dict() -> None:
-    """Re-point the registry at the current module-level ``_jobs``.
-
-    Tests do ``monkeypatch.setattr(jobs, "_jobs", {})`` to isolate the
-    registry. That rebinds the module name but not the registry's
-    internal dict, so the public helpers must read whatever ``_jobs``
-    currently is. Calling this at the top of each public function keeps
-    the registry and the (possibly monkeypatched) module global in sync
-    without changing the long-standing test reset idiom.
-    """
-    if _registry._jobs is not _jobs:
-        _registry._jobs = _jobs
-
-
-def get_job(job_id: str) -> Optional[JobState]:
-    _sync_registry_dict()
+def get_job(job_id: str) -> JobState | None:
     return _registry.get(job_id)
 
 
 def active_jobs() -> list[JobState]:
-    _sync_registry_dict()
     return _registry.active()
 
 
 def cancel_job(job_id: str) -> bool:
-    _sync_registry_dict()
     return _registry.cancel(job_id)
 
 
 def _prune_registry() -> None:
-    _sync_registry_dict()
     _registry.prune()
 
 
@@ -295,7 +299,6 @@ def start_job(video_path: str, enabled_steps: set[str], cfg) -> str:
     Raises :class:`ConcurrencyRejected` if a job is already running
     (single-global-active-job policy).
     """
-    _sync_registry_dict()
     return _registry.start(video_path, enabled_steps, cfg)
 
 

@@ -39,10 +39,9 @@ from fastapi.testclient import TestClient
 # generator never touches config or the data dir) and does NOT depend
 # on conftest's ``tmp_config``/``client`` — conftest is not in this
 # fixture's path. ``sse_client`` SELF-RESETS the job registry via its
-# own ``monkeypatch.setattr(jobs, "_jobs", {})``; that line is the only
-# thing keeping these tests hermetic, so do not delete it on the
-# assumption conftest already cleared the registry (it does not run
-# for this fixture).
+# own ``jobs._registry.reset()``; that line is the only thing keeping
+# these tests hermetic, so do not delete it on the assumption conftest
+# already cleared the registry (it does not run for this fixture).
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -59,7 +58,7 @@ def sse_client(monkeypatch):
     """
     import api.jobs as jobs
 
-    monkeypatch.setattr(jobs, "_jobs", {})
+    jobs._registry.reset()
 
     job = jobs.JobState(
         id="ssejob",
@@ -69,11 +68,11 @@ def sse_client(monkeypatch):
             for name, label in jobs.STEP_DEFS
         ],
     )
-    jobs._jobs[job.id] = job
+    jobs._registry.add(job)
 
     import api.routes.processing as processing
 
-    monkeypatch.setattr(processing, "get_job", lambda jid: jobs._jobs.get(jid))
+    monkeypatch.setattr(processing, "get_job", jobs.get_job)
 
     from api.server import app
 

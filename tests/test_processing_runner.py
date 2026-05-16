@@ -249,11 +249,11 @@ def test_run_steps_raises_on_cancel_between_steps(tmp_path):
 
 
 @pytest.fixture()
-def jobs_mod(monkeypatch):
+def jobs_mod():
     import api.jobs as jobs
 
     # Fresh registry per test (mirror conftest's reset idiom).
-    monkeypatch.setattr(jobs, "_jobs", {})
+    jobs._registry.reset()
     return jobs
 
 
@@ -438,3 +438,41 @@ def test_registry_thread_safe_concurrent_access(jobs_mod, monkeypatch):
         for t in threads:
             t.join(timeout=2)
     assert not errors, errors
+
+
+# ── reset()/add() test-isolation hooks (Phase 7) ──────────────────────────────
+
+
+def test_registry_reset_clears_jobs_preserving_container(jobs_mod):
+    """``reset()`` empties the registry without swapping the dict object.
+
+    Hermeticity contract for conftest/test_sse: after ``reset()`` no
+    prior ``JobState`` is visible, and the ``_jobs`` container identity
+    is preserved (``.clear()``, not reassignment) so any code holding a
+    reference to it observes the empty state too.
+    """
+    reg = jobs_mod._registry
+    job = jobs_mod.JobState(id="resetme", video_path="v.mp4")
+    reg.add(job)
+    assert reg.get("resetme") is job
+
+    container_before = reg._jobs
+    reg.reset()
+
+    assert reg.get("resetme") is None
+    assert reg.all() == []
+    assert reg._jobs is container_before  # cleared in place, not rebound
+
+
+def test_registry_add_inserts_under_lock(jobs_mod):
+    """``add()`` registers a pre-built job retrievable via the public API."""
+    reg = jobs_mod._registry
+    reg.reset()
+    job = jobs_mod.JobState(id="addme", video_path="v.mp4")
+    job.steps = [
+        jobs_mod.StepInfo(name=n, label=lbl) for n, lbl in jobs_mod.STEP_DEFS
+    ]
+    reg.add(job)
+
+    assert jobs_mod.get_job("addme") is job
+    assert job in reg.all()

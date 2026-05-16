@@ -1,5 +1,5 @@
 """FastAPI dependency providers."""
-from functools import lru_cache
+from functools import cache, lru_cache
 from pathlib import Path
 
 from fastapi import Request
@@ -26,7 +26,7 @@ def get_config():
     return load_config(str(local) if local.exists() else None)
 
 
-@lru_cache(maxsize=None)
+@cache
 def _get_translations(locale: str):
     from babel.support import Translations
 

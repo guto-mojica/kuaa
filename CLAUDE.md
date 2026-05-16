@@ -174,6 +174,10 @@ uv run python -m cinemateca process --video data/raw/jeca_tatu.mp4 --steps scene
 uv run pybabel extract -F web/babel.cfg -o web/locales/messages.pot web/
 uv run pybabel update -i web/locales/messages.pot -d web/locales/
 uv run pybabel compile -d web/locales/
+# NOTE: `pybabel compile` rewrites every .mo with a fresh POT-Creation-Date
+# header even when no translation changed, so it always dirties the tree.
+# Only recompile when a .po actually changed. A .mo diff that is timestamp-
+# header-only (identical msgstrs) is noise — discard it, don't commit it.
 
 # Lint / format / typecheck (run before committing)
 uv run black .

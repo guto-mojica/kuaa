@@ -11,14 +11,13 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 # PySceneDetect — importação diferida para não quebrar se não instalado
 try:
-    from scenedetect import open_video, SceneManager
-    from scenedetect.detectors import ContentDetector, AdaptiveDetector
+    from scenedetect import SceneManager, open_video
+    from scenedetect.detectors import AdaptiveDetector, ContentDetector
     from scenedetect.scene_manager import save_images
     _SCENEDETECT_AVAILABLE = True
 except ImportError:
@@ -26,7 +25,7 @@ except ImportError:
     logger.warning("PySceneDetect não instalado. Instale com: pip install scenedetect[opencv]")
 
 
-SceneList = List[Tuple]   # list of (FrameTimecode, FrameTimecode)
+SceneList = list[tuple]   # list of (FrameTimecode, FrameTimecode)
 
 
 class SceneDetector:
@@ -127,7 +126,7 @@ class SceneDetector:
         scene_list: SceneList,
         video_path: str | Path,
         output_dir: str | Path,
-    ) -> List[Path]:
+    ) -> list[Path]:
         """
         Extrai keyframes representativos de cada cena.
 
@@ -193,7 +192,7 @@ class SceneDetector:
     def export_metadata(
         self,
         scene_list: SceneList,
-        keyframe_paths: List[Path],
+        keyframe_paths: list[Path],
         output_path: str | Path,
     ) -> Path:
         """

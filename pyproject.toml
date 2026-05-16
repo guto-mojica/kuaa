@@ -95,6 +95,10 @@ target-version = ["py310", "py311", "py312"]
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
+# Same rule selection as before; moved under [tool.ruff.lint] per the
+# current ruff schema (top-level select/ignore is deprecated).
 select = ["E", "F", "I", "UP"]
 ignore = ["E501"]  # linha longa (black já cuida)
 

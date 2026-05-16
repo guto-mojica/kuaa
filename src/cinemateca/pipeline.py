@@ -140,7 +140,7 @@ class PipelineResult:
             elif step.success:
                 status = f"✓  OK ({step.duration_s:.1f}s)"
             else:
-                status = f"✗  ERRO"
+                status = "✗  ERRO"
             lines.append(f"  {step.name:<25} {status}")
             if step.error:
                 lines.append(f"    → {step.error}")
@@ -180,7 +180,7 @@ class CatalogPipeline:
     # ─── Etapas individuais ───────────────────────────────────────────────────
 
     def _step_frame_extraction(self, video_path: Path) -> StepResult:
-        from cinemateca.data_prep import VideoInspector, FrameExtractor
+        from cinemateca.data_prep import FrameExtractor, VideoInspector
 
         name = "frame_extraction"
         output_dir = self.cfg.paths.frames_dir / "sample"
@@ -266,6 +266,7 @@ class CatalogPipeline:
 
     def _step_embeddings(self, metadata_path: Path) -> StepResult:
         import pandas as pd
+
         from cinemateca.embeddings import CLIPEmbedder
 
         name = "embeddings"
@@ -308,6 +309,7 @@ class CatalogPipeline:
 
     def _step_llm_description(self, metadata_path: Path) -> StepResult:
         import pandas as pd
+
         from cinemateca.llm_describer import LLMDescriber
 
         name = "llm_description"

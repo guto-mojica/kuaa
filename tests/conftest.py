@@ -144,9 +144,12 @@ def tmp_config(tmp_path, monkeypatch):
             )
 
     # Reset the in-memory job registry so processing tests are hermetic.
+    # ``reset()`` clears the live registry's ``_jobs`` under its lock
+    # (no race with a still-running worker) and preserves the container
+    # identity, so any code holding the registry sees the empty dict.
     import api.jobs as jobs
 
-    monkeypatch.setattr(jobs, "_jobs", {})
+    jobs._registry.reset()
 
     # Hermeticity guard, checked WHILE the temp config is active (not at
     # teardown — monkeypatch is undone before autouse post-yield runs, so
@@ -360,9 +363,10 @@ def inject_job():
     """Insert one running ``JobState`` into the registry and return it.
 
     Depends on nothing but the registry; tests that also need an
-    isolated config simply request ``client`` too (which resets
-    ``jobs._jobs`` via ``tmp_config``). ``test_sse.py`` builds its own
-    lighter variant on this same registry contract.
+    isolated config simply request ``client`` too (which resets the
+    registry via ``tmp_config``'s ``jobs._registry.reset()``).
+    ``test_sse.py`` builds its own lighter variant on this same
+    registry contract.
     """
     import api.jobs as jobs
 
@@ -376,7 +380,7 @@ def inject_job():
             ],
         )
         job.steps[0].state = "active"
-        jobs._jobs[job.id] = job
+        jobs._registry.add(job)
         return job
 
     return _inject

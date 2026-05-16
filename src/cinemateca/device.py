@@ -11,13 +11,16 @@ from __future__ import annotations
 
 import logging
 from functools import lru_cache
-from typing import Optional
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import torch
 
 logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
-def get_device(preference: str = "auto") -> "torch.device":
+def get_device(preference: str = "auto") -> torch.device:
     """
     Retorna o melhor device disponível.
 
@@ -67,7 +70,7 @@ def get_device(preference: str = "auto") -> "torch.device":
     return device
 
 
-def device_from_config(cfg) -> "torch.device":
+def device_from_config(cfg) -> torch.device:
     """
     Atalho para ler a preferência de device direto da config.
 

@@ -5,7 +5,6 @@ Smoke tests básicos: verificam que os módulos importam corretamente
 e que a configuração funciona, SEM precisar de GPU ou arquivos de vídeo.
 """
 
-import json
 import sys
 from pathlib import Path
 
@@ -39,6 +38,7 @@ def test_config_resolves_paths(tmp_path):
 def test_config_user_override(tmp_path):
     """Config do usuário sobrescreve valores específicos."""
     import yaml
+
     from cinemateca.config import load_config
 
     user_cfg = tmp_path / "local.yaml"
@@ -84,7 +84,7 @@ def test_device_from_config(tmp_path):
 # ─── Módulos — importação ─────────────────────────────────────────────────────
 
 def test_import_data_prep():
-    from cinemateca.data_prep import VideoInspector, FrameExtractor, FrameQualityAnalyzer
+    from cinemateca.data_prep import VideoInspector
     assert VideoInspector is not None
 
 
@@ -94,12 +94,12 @@ def test_import_scene_detector():
 
 
 def test_import_visual_analyzer():
-    from cinemateca.visual_analyzer import VisualAnalyzer, FaceDetector, ObjectDetector
+    from cinemateca.visual_analyzer import VisualAnalyzer
     assert VisualAnalyzer is not None
 
 
 def test_import_embeddings():
-    from cinemateca.embeddings import CLIPEmbedder, SemanticSearch
+    from cinemateca.embeddings import CLIPEmbedder
     assert CLIPEmbedder is not None
 
 
@@ -109,7 +109,7 @@ def test_import_llm_describer():
 
 
 def test_import_pipeline():
-    from cinemateca.pipeline import CatalogPipeline, PipelineResult, StepResult
+    from cinemateca.pipeline import CatalogPipeline
     assert CatalogPipeline is not None
 
 

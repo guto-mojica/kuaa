@@ -130,6 +130,12 @@ O que `-e ".[full]"` significa:
 Este comando vai baixar aproximadamente **2–4 GB** de pacotes na
 primeira vez. As execuções seguintes são instantâneas.
 
+> **Não rode comandos `uv` que mutam o ambiente em paralelo.** Um
+> `uv sync`/`uv venv` concorrente com outro `uv run` pode deixar o
+> `.venv` num estado parcial (ex.: avisos de `RECORD` ausente). Se isso
+> acontecer, rode `uv sync --extra full --group dev` novamente de forma
+> isolada para reparar o ambiente.
+
 **Se você não precisa de todos os módulos** (por exemplo, só quer a
 busca semântica sem o módulo LLM):
 ```bash

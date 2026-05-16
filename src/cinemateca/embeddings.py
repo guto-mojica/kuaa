@@ -14,7 +14,6 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import List, Optional
 
 import numpy as np
 import pandas as pd
@@ -62,7 +61,6 @@ class CLIPEmbedder:
                 "open_clip não instalado. Execute: pip install open-clip-torch"
             )
 
-        import torch
 
         logger.info("Carregando CLIP %s (%s)...", self.model_name, self.pretrained)
         t0 = time.time()
@@ -76,7 +74,7 @@ class CLIPEmbedder:
 
         logger.info("✓ CLIP carregado em %.1fs | device=%s", time.time() - t0, self._device)
 
-    def encode_images(self, image_paths: List[Path]) -> np.ndarray:
+    def encode_images(self, image_paths: list[Path]) -> np.ndarray:
         """
         Gera embeddings normalizados para uma lista de imagens.
 
@@ -339,8 +337,8 @@ class SemanticSearch:
     def combined(
         self,
         query: str,
-        filter_tags: Optional[List[str]] = None,
-        tag_index: Optional[dict] = None,
+        filter_tags: list[str] | None = None,
+        tag_index: dict | None = None,
         top_k: int = 8,
     ) -> pd.DataFrame:
         """

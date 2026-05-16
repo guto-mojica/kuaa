@@ -1,46 +1,118 @@
-# Python
+# ─── Python ───────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
+*$py.class
 *.pyo
 *.pyd
-.Python
+*.so
+*.egg
 *.egg-info/
+.Python
 dist/
 build/
 .eggs/
+.installed.cfg
+MANIFEST
 
-# Virtual environments
+# ─── Virtual environments ─────────────────────────────────────────────────────
 .venv/
 venv/
 env/
+ENV/
+.env/
 
-# Jupyter
-.ipynb_checkpoints/
-
-# Data & models (large files)
-data/raw/
-data/frames/
-data/embeddings/
-*.pt
-*.pth
-*.onnx
-
-# Logs
-logs/
-
-# Env / secrets
-.env
-*.env
-
-# OS
-.DS_Store
-Thumbs.db
-
-# IDE
-.vscode/
-.idea/
-
-# uv — lockfile deliberately not committed (config-only uv adoption).
+# ─── uv ───────────────────────────────────────────────────────────────────────
+# Lockfile deliberately not committed (config-only uv adoption — see
+# docs/superpowers/specs/2026-05-16-uv-migration-scaffold-design.md).
 # Local `uv sync` creates an untracked uv.lock; that is expected.
 # To start committing locks: delete the next line, run `uv lock`.
 uv.lock
+
+# ─── Dados e acervo — NUNCA commitar vídeos ou frames ─────────────────────────
+# Os dados são locais em cada instituição e podem ter GBs ou TBs.
+# Somente os metadados gerados (JSON) são versionados, se desejado.
+data/raw/
+data/frames/
+data/embeddings/
+
+# Metadados gerados — opcional versionar, mas costumam ser grandes.
+# Para versionar metadados de um filme específico, remova a linha abaixo
+# e use: git add data/metadata/jeca_tatu/
+data/metadata/
+
+# ─── Modelos ──────────────────────────────────────────────────────────────────
+# Modelos são baixados automaticamente na primeira execução.
+# Não devem ser commitados (são GBs e têm suas próprias licenças).
+models/
+*.pt
+*.pth
+*.onnx
+*.bin
+*.safetensors
+*.ckpt
+*.gguf
+
+# ─── Outputs ──────────────────────────────────────────────────────────────────
+outputs/
+logs/
+
+# ─── Configuração local — NUNCA commitar ──────────────────────────────────────
+# config/local.yaml contém caminhos e possivelmente chaves de API específicas
+# de cada máquina. Cada instalação tem o seu.
+config/local.yaml
+config/*.local.yaml
+.env
+*.env
+.env.*
+!.env.example
+
+# ─── IDEs e editores ──────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ─── Jupyter ──────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ─── Pytest e cobertura ───────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# ─── Mypy e type checkers ─────────────────────────────────────────────────────
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ─── Ruff ─────────────────────────────────────────────────────────────────────
+.ruff_cache/
+
+# ─── Uploads temporários do Streamlit (legacy) ────────────────────────────────
+# Streamlit salva uploads em /tmp — não commitar se redirecionar para o projeto.
+data/raw/_query_*
+data/raw/_upload_*
+
+# ─── Agent / Claude Code workspace ────────────────────────────────────────────
+# Nothing under .claude/ is tracked (worktrees, local settings, transcripts).
+.claude/
+
+# ─── Sistema operacional ──────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+desktop.ini
+ehthumbs.db
+Thumbs.db

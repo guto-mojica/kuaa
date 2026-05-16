@@ -58,7 +58,8 @@ def _load_json(path: Path) -> list | dict | None:
 
 def _load_merged_tags(metadata_dir: Path) -> dict:
     """Carrega scene_tags.json e mescla com manual_annotations.json."""
-    from cinemateca.annotator import load as load_annotations, merge_tag_index
+    from cinemateca.annotator import load as load_annotations
+    from cinemateca.annotator import merge_tag_index
     llm_tags = _load_json(metadata_dir / "scene_tags.json") or {}
     annotations = load_annotations(metadata_dir)
     return merge_tag_index(llm_tags, annotations)
@@ -422,7 +423,8 @@ with tab_annotate:
     st.header("Anotar cenas")
     st.write("Adicione tags manualmente a cenas sem descrição LLM ou com metadados incompletos.")
 
-    from cinemateca.annotator import load as _load_annotations, save as _save_annotations
+    from cinemateca.annotator import load as _load_annotations
+    from cinemateca.annotator import save as _save_annotations
 
     _meta_dir = cfg.paths.metadata_dir
     _kf_meta  = _load_json(_meta_dir / "keyframes_metadata.json")

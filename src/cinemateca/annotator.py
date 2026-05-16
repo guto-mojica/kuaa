@@ -21,14 +21,13 @@ import os
 import stat
 import tempfile
 from pathlib import Path
-from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
 FILENAME = "manual_annotations.json"
 
 
-def load(metadata_dir: str | Path) -> Dict[str, List[str]]:
+def load(metadata_dir: str | Path) -> dict[str, list[str]]:
     """
     Carrega anotações manuais do disco.
 
@@ -44,7 +43,7 @@ def load(metadata_dir: str | Path) -> Dict[str, List[str]]:
     return data
 
 
-def save(metadata_dir: str | Path, annotations: Dict[str, List[str]]) -> Path:
+def save(metadata_dir: str | Path, annotations: dict[str, list[str]]) -> Path:
     """
     Persiste o dict de anotações no disco.
 
@@ -119,9 +118,9 @@ def save(metadata_dir: str | Path, annotations: Dict[str, List[str]]) -> Path:
 
 
 def merge_tag_index(
-    llm_tag_index: Dict[str, List[str]] | None,
-    annotations: Dict[str, List[str]],
-) -> Dict[str, List[str]]:
+    llm_tag_index: dict[str, list[str]] | None,
+    annotations: dict[str, list[str]],
+) -> dict[str, list[str]]:
     """
     Mescla o índice de tags do LLM com as anotações manuais.
 
@@ -134,7 +133,7 @@ def merge_tag_index(
     Returns:
         Índice mesclado no formato { "tag": [scene_ids] }.
     """
-    merged: Dict[str, List[str]] = {}
+    merged: dict[str, list[str]] = {}
 
     # Copiar tags do LLM
     if llm_tag_index:

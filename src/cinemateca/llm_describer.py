@@ -21,7 +21,6 @@ import re
 import time
 from collections import defaultdict
 from pathlib import Path
-from typing import List, Optional
 
 import numpy as np
 import pandas as pd
@@ -108,7 +107,7 @@ def _parse_num_people(text: str) -> int:
     return -1
 
 
-def _parse_objects(text: str) -> List[str]:
+def _parse_objects(text: str) -> list[str]:
     """Converte a string de objetos em lista normalizada (máx. 6 itens)."""
     if not text or text.startswith("ERROR"):
         return []
@@ -123,7 +122,7 @@ def _parse_objects(text: str) -> List[str]:
     return objects[:6]
 
 
-def _generate_tags(parsed: dict) -> List[str]:
+def _generate_tags(parsed: dict) -> list[str]:
     """Gera lista de tags kebab-case a partir dos campos parseados."""
     tags = set()
 
@@ -294,9 +293,9 @@ class LLMDescriber:
     def describe_keyframes(
         self,
         keyframes_df: pd.DataFrame,
-        existing_results: Optional[List[dict]] = None,
-        checkpoint_path: Optional[Path] = None,
-    ) -> List[dict]:
+        existing_results: list[dict] | None = None,
+        checkpoint_path: Path | None = None,
+    ) -> list[dict]:
         """
         Processa todos os keyframes, gerando metadados descritivos.
 
@@ -374,7 +373,7 @@ class LLMDescriber:
         return all_results
 
     @staticmethod
-    def build_tag_index(results: List[dict]) -> dict:
+    def build_tag_index(results: list[dict]) -> dict:
         """
         Constrói índice invertido: tag → [scene_ids].
 
@@ -392,7 +391,7 @@ class LLMDescriber:
 
     def save(
         self,
-        results: List[dict],
+        results: list[dict],
         tag_index: dict,
         output_dir: str | Path,
     ) -> tuple[Path, Path]:
@@ -417,7 +416,7 @@ class LLMDescriber:
         return desc_path, tags_path
 
     @staticmethod
-    def load(descriptions_path: str | Path, tags_path: str | Path) -> tuple[List[dict], dict]:
+    def load(descriptions_path: str | Path, tags_path: str | Path) -> tuple[list[dict], dict]:
         """Carrega descrições e índice de tags do disco."""
         with open(descriptions_path, encoding="utf-8") as f:
             results = json.load(f)

@@ -12,10 +12,8 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import List, Optional
 
 import cv2
-import numpy as np
 from PIL import Image
 
 logger = logging.getLogger(__name__)
@@ -97,7 +95,7 @@ class FaceDetector:
 
         return {"num_faces": len(faces), "faces": faces}
 
-    def detect_batch(self, image_paths: List[Path]) -> List[dict]:
+    def detect_batch(self, image_paths: list[Path]) -> list[dict]:
         results = []
         for p in image_paths:
             r = self.detect(p)
@@ -180,7 +178,7 @@ class ObjectDetector:
             "class_counts": class_counts,
         }
 
-    def detect_batch(self, image_paths: List[Path]) -> List[dict]:
+    def detect_batch(self, image_paths: list[Path]) -> list[dict]:
         results = []
         for p in image_paths:
             r = self.detect(p)
@@ -257,7 +255,7 @@ class EnvironmentClassifier:
             "edge_density": edge_density,
         }
 
-    def classify_batch(self, image_paths: List[Path]) -> List[dict]:
+    def classify_batch(self, image_paths: list[Path]) -> list[dict]:
         results = []
         for p in image_paths:
             r = self.classify(p)
@@ -299,9 +297,9 @@ class VisualAnalyzer:
 
     def analyze_keyframes(
         self,
-        keyframe_paths: List[Path],
-        max_frames: Optional[int] = None,
-    ) -> List[dict]:
+        keyframe_paths: list[Path],
+        max_frames: int | None = None,
+    ) -> list[dict]:
         """
         Analisa uma lista de keyframes.
 
@@ -327,7 +325,7 @@ class VisualAnalyzer:
         logger.info("✓ Análise visual concluída: %d frames", len(results))
         return results
 
-    def save_metadata(self, results: List[dict], output_path: str | Path) -> Path:
+    def save_metadata(self, results: list[dict], output_path: str | Path) -> Path:
         """Salva os resultados consolidados em JSON."""
         out = Path(output_path)
         out.parent.mkdir(parents=True, exist_ok=True)
