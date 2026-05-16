@@ -1,7 +1,7 @@
 <div class="processing-job" id="job-{{ job.id }}">
     <p class="processing-job__title text-muted">
         <ph-icon name="film-strip" weight="light"></ph-icon>
-        {{ job.video_path | replace('\\', '/') | split('/') | last }}
+        {{ job.video_name }}
     </p>
 
     <!-- SSE connection — swaps inner div on each "message" event -->

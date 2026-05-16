@@ -262,40 +262,80 @@ class TestProcessingSplitFilterCrash:
     job, so injecting one job and GETting the tab must trip the crash.
     """
 
-    @pytest.mark.xfail(
-        reason="Phase 0 documents bug; fixed in Phase 1b "
-        "(processing_job.html uses non-existent `split` filter)",
-        strict=True,
-    )
     def test_tab_processing_with_active_job_renders(self, client, inject_job):
         inject_job()
         r = client.get("/tab/processing")
-        # BUG: this raises TemplateAssertionError (No filter named
-        # 'split') inside the TestClient, surfacing as a 500 / exception.
         assert r.status_code == 200, r.text[:500]
-        # If the split filter existed, the basename would appear.
+        # Phase 1b: the display filename is computed in Python (no Jinja
+        # `split` filter), so the basename appears in the rendered job.
         assert "jeca_tatu.mp4" in r.text
 
-    def test_split_filter_is_genuinely_absent(self):
-        """
-        Sanity probe (NOT xfail): proves the crash is a real missing
-        filter, so the xfail above is not passing/failing for an
-        unrelated reason. Rendering the template directly must raise
-        with the exact 'No filter named' message.
-        """
-        import jinja2
+    def test_processing_full_page_with_active_job_renders(self, client, inject_job):
+        """Phase 1a merged build_processing_context() into the full-page
+        path, so a direct GET /processing must include the active job
+        and render it without the (removed) `split` filter crash."""
+        inject_job()
+        r = client.get("/processing")
+        assert r.status_code == 200, r.text[:500]
+        assert "<!DOCTYPE html>" in r.text
+        assert "jeca_tatu.mp4" in r.text
+        # The stepper renders on first paint (initial include path), not
+        # only via SSE: the step labels and progress track must be present.
+        assert "pipeline-steps" in r.text
+        assert "progress-fill" in r.text
 
+    def test_active_job_windows_path_basename(self, client, inject_job):
+        """A Windows-style video_path (backslashes) must still render
+        just the basename — proving the Python-side filename fix
+        normalizes separators regardless of host OS."""
+        inject_job(video_path=r"C:\\archive\\raw\\jeca_tatu.mp4")
+        r = client.get("/tab/processing")
+        assert r.status_code == 200, r.text[:500]
+        assert "jeca_tatu.mp4" in r.text
+        # No path prefix / separators should leak into the title.
+        assert "C:" not in r.text
+        assert "archive" not in r.text
+
+    def test_errored_job_renders_error_branch(self, inject_job):
+        """A job in the error state must render the stepper's error
+        branch (status == 'error' + error_msg). Exercised through the
+        same single-object contract the initial include uses.
+
+        NOTE: this renders the partial directly rather than via
+        /tab/processing because active_jobs() only surfaces
+        status == 'running' jobs — broadening that filter is a job
+        lifecycle change owned by a later phase, out of scope here."""
         from api.jobs import STEP_DEFS, JobState, StepInfo
         from api.templates import templates
 
         job = JobState(
-            id="probe",
+            id="errjob",
             video_path="data/raw/jeca_tatu.mp4",
             steps=[StepInfo(name=n, label=lbl) for n, lbl in STEP_DEFS],
         )
-        # Jinja resolves filter names at *compile* time, so the
-        # TemplateAssertionError fires on get_template(), before render.
-        with pytest.raises(jinja2.exceptions.TemplateAssertionError) as exc:
-            tmpl = templates.env.get_template("partials/processing_job.html")
-            tmpl.render(job=job)
-        assert "No filter named 'split'" in str(exc.value)
+        job.status = "error"
+        job.error_msg = "boom: model not found"
+        job.steps[0].state = "error"
+        html = templates.env.get_template(
+            "partials/processing_job.html"
+        ).render(job=job)
+        assert "jeca_tatu.mp4" in html
+        # Direct env render uses the default pt_BR catalog (the "Pipeline
+        # failed" msgid is translated), so assert locale-agnostic markup
+        # plus the untranslated error message.
+        assert "processing-error" in html
+        assert "boom: model not found" in html
+        assert "step-pill--error" in html
+
+    def test_stepper_sse_render_helper_matches_initial_contract(self, inject_job):
+        """The SSE path (_render_stepper) and the initial {% include %}
+        must use the identical single-object contract. Render via the
+        helper and assert it produces the same step/progress markup."""
+        from api.routes.processing import _render_stepper
+
+        job = inject_job()
+        job.progress = 0.4
+        html = _render_stepper(job)
+        assert "pipeline-steps" in html
+        assert "progress-fill" in html
+        assert "step-pill--active" in html

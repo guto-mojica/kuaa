@@ -21,12 +21,7 @@ router = APIRouter()
 def _render_stepper(job: JobState) -> str:
     """Render the stepper HTML fragment for SSE (no request context needed)."""
     html = templates.env.get_template("partials/processing_stepper.html").render(
-        steps=job.steps,
-        progress=job.progress,
-        status=job.status,
-        error_msg=job.error_msg,
-        total_duration_s=job.total_duration_s,
-        job_id=job.id,
+        job=job,
     )
     return html.replace("\n", " ").strip()
 

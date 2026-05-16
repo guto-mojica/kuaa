@@ -7,7 +7,7 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -42,6 +42,18 @@ class JobState:
     events: queue.Queue = field(default_factory=queue.Queue)
     error_msg: str = ""
     total_duration_s: float = 0.0
+
+    @property
+    def video_name(self) -> str:
+        """Display basename of the source video.
+
+        Computed in Python so the template needs no custom Jinja
+        filter. Backslashes are normalized to ``/`` before splitting so
+        a Windows-style path (``C:\\archive\\film.mp4``) yields the bare
+        filename even when the server runs on POSIX — ``pathlib.Path``
+        alone would not treat ``\\`` as a separator on Linux.
+        """
+        return PurePosixPath(self.video_path.replace("\\", "/")).name
 
 
 def get_job(job_id: str) -> Optional[JobState]:

@@ -1,5 +1,5 @@
 <div class="pipeline-steps">
-{% for step in steps %}
+{% for step in job.steps %}
 <div class="step-pill step-pill--{{ step.state }}">
 {% if step.state == 'done' %}<ph-icon name="check-circle" weight="fill"></ph-icon>
 {% elif step.state == 'active' %}<ph-icon name="spinner-gap" weight="light" class="spin"></ph-icon>
@@ -12,17 +12,17 @@
 </div>
 
 <div class="progress-track" style="margin-top: 12px">
-    <div class="progress-fill" style="width: {{ (progress * 100) | int }}%"></div>
+    <div class="progress-fill" style="width: {{ (job.progress * 100) | int }}%"></div>
 </div>
 
-{% if status == 'done' %}
+{% if job.status == 'done' %}
 <p class="processing-done">
     <ph-icon name="check-circle" weight="fill"></ph-icon>
-    {{ _("Pipeline completed in") }} {{ "%.0f" | format(total_duration_s) }}s
+    {{ _("Pipeline completed in") }} {{ "%.0f" | format(job.total_duration_s) }}s
 </p>
-{% elif status == 'error' %}
+{% elif job.status == 'error' %}
 <p class="processing-error text-error">
     <ph-icon name="x-circle" weight="fill"></ph-icon>
-    {{ _("Pipeline failed") }}{% if error_msg %}: {{ error_msg }}{% endif %}
+    {{ _("Pipeline failed") }}{% if job.error_msg %}: {{ job.error_msg }}{% endif %}
 </p>
 {% endif %}
