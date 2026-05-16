@@ -19,6 +19,13 @@ Funcionalidades planejadas para as próximas versões:
 - Docker image para instalação sem dependências manuais
 - Testes de integração com vídeo de referência
 
+### Ferramentas de desenvolvimento
+
+- Adoção do **uv** para gerenciamento de ambiente e dependências.
+  Dependências de desenvolvimento movidas para `[dependency-groups]`
+  (PEP 735). Backend de build (`setuptools`) inalterado. Lockfile
+  (`uv.lock`) adiado — instalação via `pip` continua funcionando.
+
 ---
 
 ## [0.1.0-alpha] — 2025
