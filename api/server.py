@@ -68,6 +68,13 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     cfg = get_config()
     from cinemateca.library import scan_library
 
+    # Base scan feeds the sidebar library tree. The search/scenes/annotate tab
+    # builders do not re-supply `films`, so this scan is the only source for
+    # their sidebar. Do NOT remove it: the `processing` builder intentionally
+    # overrides `films` (see the merge below), but the other three depend on
+    # this scan. On /processing both scans run -- a known, harmless redundancy
+    # tracked for the Phase 3 catalog-service extraction; do not "optimize" it
+    # away by deleting this base scan.
     films = scan_library(
         raw_dir=Path(cfg.paths.raw_dir),
         metadata_dir=Path(cfg.paths.metadata_dir),
@@ -78,6 +85,9 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
         "films": films,
         "selected_slug": films[0].slug if films else None,
     }
+    # `{**base_ctx, **tab_ctx}`: tab_ctx wins on key collisions. The
+    # `processing` builder deliberately re-supplies `films`, overriding the
+    # base value here; that override is intended, not a bug.
     tab_ctx = _TAB_CONTEXT_BUILDERS[active_tab]()
     return templates.TemplateResponse(
         request,
