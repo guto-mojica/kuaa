@@ -121,8 +121,13 @@ def _keyframe_url(fp: Path, data_dir: Path) -> Optional[str]:
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
-@router.get("/tab/scenes", response_class=HTMLResponse)
-async def tab_scenes(request: Request) -> HTMLResponse:
+def build_scenes_context() -> dict:
+    """Build the template context the scenes tab partial needs.
+
+    Shared by the ``/tab/scenes`` HTMX fragment and the ``/scenes``
+    full-page route so both render identical markup (including the
+    empty-state hint when no keyframes exist).
+    """
     cfg = get_config()
     meta_dir = Path(cfg.paths.metadata_dir)
     data_dir = Path(cfg.paths.data_dir).resolve()
@@ -131,10 +136,15 @@ async def tab_scenes(request: Request) -> HTMLResponse:
     available_tags = sorted(tag_index.keys())
     cards = _build_cards(kf_meta, desc_by_scene, vis_by_scene, tag_index, data_dir, [], "")
 
+    return {"cards": cards, "available_tags": available_tags, "no_data": not kf_meta}
+
+
+@router.get("/tab/scenes", response_class=HTMLResponse)
+async def tab_scenes(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "partials/scenes.html",
-        make_ctx(request, cards=cards, available_tags=available_tags, no_data=not kf_meta),
+        make_ctx(request, **build_scenes_context()),
     )
 
 

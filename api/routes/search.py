@@ -65,15 +65,24 @@ def _results_to_dicts(results_df, data_dir: Path) -> list[dict]:
     ]
 
 
-@router.get("/tab/search", response_class=HTMLResponse)
-async def tab_search(request: Request) -> HTMLResponse:
+def build_search_context() -> dict:
+    """Build the template context the search tab partial needs.
+
+    Shared by the ``/tab/search`` HTMX fragment and the ``/search``
+    full-page route so both render identical markup.
+    """
     cfg = get_config()
     tag_index = _load_tag_index(Path(cfg.paths.metadata_dir))
     available_tags = sorted(tag_index.keys()) if tag_index else []
+    return {"available_tags": available_tags}
+
+
+@router.get("/tab/search", response_class=HTMLResponse)
+async def tab_search(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "partials/search.html",
-        make_ctx(request, available_tags=available_tags),
+        make_ctx(request, **build_search_context()),
     )
 
 

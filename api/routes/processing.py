@@ -33,8 +33,13 @@ def _render_stepper(job: JobState) -> str:
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
-@router.get("/tab/processing", response_class=HTMLResponse)
-async def tab_processing(request: Request) -> HTMLResponse:
+def build_processing_context() -> dict:
+    """Build the template context the processing tab partial needs.
+
+    Shared by the ``/tab/processing`` HTMX fragment and the
+    ``/processing`` full-page route so both render the step checklist
+    and active-job list identically.
+    """
     cfg = get_config()
     from cinemateca.library import scan_library
 
@@ -44,10 +49,15 @@ async def tab_processing(request: Request) -> HTMLResponse:
     )
     jobs = active_jobs()
 
+    return {"films": films, "step_defs": STEP_DEFS, "jobs": jobs}
+
+
+@router.get("/tab/processing", response_class=HTMLResponse)
+async def tab_processing(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "partials/processing.html",
-        make_ctx(request, films=films, step_defs=STEP_DEFS, jobs=jobs),
+        make_ctx(request, **build_processing_context()),
     )
 
 

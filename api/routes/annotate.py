@@ -109,26 +109,43 @@ def _keyframe_url(fp: Path, data_dir: Path) -> Optional[str]:
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
+def build_annotate_context(
+    filter_mode: str = "no_llm", scene_id: int | None = None
+) -> dict:
+    """Build the template context the annotate tab partial needs.
+
+    Shared by the ``/tab/annotate`` HTMX fragment and the ``/annotate``
+    full-page route so both render identical markup (including the
+    no_data / all_done empty-state branches).
+    """
+    cfg = get_config()
+    meta_dir = Path(cfg.paths.metadata_dir)
+    data_dir = Path(cfg.paths.data_dir).resolve()
+
+    no_data = not bool(_load_json(meta_dir / "keyframes_metadata.json"))
+    scenes, desc_by_scene, annotations = _build_scene_list(meta_dir, filter_mode)
+    all_done = (not no_data) and (not scenes) and filter_mode == "no_llm"
+
+    ctx = _scene_context(scenes, scene_id, data_dir, desc_by_scene, annotations)
+
+    return {
+        "filter": filter_mode,
+        "no_data": no_data,
+        "all_done": all_done,
+        **ctx,
+    }
+
+
 @router.get("/tab/annotate", response_class=HTMLResponse)
 async def tab_annotate(
     request: Request,
     filter: str = Query(default="no_llm"),
     id: Optional[int] = Query(default=None),
 ) -> HTMLResponse:
-    cfg = get_config()
-    meta_dir = Path(cfg.paths.metadata_dir)
-    data_dir = Path(cfg.paths.data_dir).resolve()
-
-    no_data = not bool(_load_json(meta_dir / "keyframes_metadata.json"))
-    scenes, desc_by_scene, annotations = _build_scene_list(meta_dir, filter)
-    all_done = (not no_data) and (not scenes) and filter == "no_llm"
-
-    ctx = _scene_context(scenes, id, data_dir, desc_by_scene, annotations)
-
     return templates.TemplateResponse(
         request,
         "partials/annotate.html",
-        make_ctx(request, filter=filter, no_data=no_data, all_done=all_done, **ctx),
+        make_ctx(request, **build_annotate_context(filter, id)),
     )
 
 

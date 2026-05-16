@@ -46,7 +46,25 @@ app.include_router(about.router)
 app.include_router(library.router)
 
 
-async def _base_page(request: Request, active_tab: str) -> HTMLResponse:
+# Each tab's full context is built by the SAME function the matching
+# `/tab/<x>` route uses, so a direct full-page GET renders identical tab
+# markup (modulo the surrounding base chrome). See api/routes/*.py.
+_TAB_CONTEXT_BUILDERS = {
+    "search": search.build_search_context,
+    "scenes": scenes.build_scenes_context,
+    "annotate": annotate.build_annotate_context,
+    "processing": processing.build_processing_context,
+}
+
+
+def render_page(request: Request, active_tab: str) -> HTMLResponse:
+    """Render a full page with base chrome + the active tab's full context.
+
+    Builds the base context (library tree, processing badge) and merges
+    in the active tab's context via that tab's shared builder, so the
+    included partial in ``base.html`` receives exactly the same variables
+    it would as a standalone ``/tab/<x>`` fragment.
+    """
     cfg = get_config()
     from cinemateca.library import scan_library
 
@@ -54,39 +72,40 @@ async def _base_page(request: Request, active_tab: str) -> HTMLResponse:
         raw_dir=Path(cfg.paths.raw_dir),
         metadata_dir=Path(cfg.paths.metadata_dir),
     )
+    base_ctx = {
+        "active_tab": active_tab,
+        "processing_jobs": 0,
+        "films": films,
+        "selected_slug": films[0].slug if films else None,
+    }
+    tab_ctx = _TAB_CONTEXT_BUILDERS[active_tab]()
     return templates.TemplateResponse(
         request,
         "base.html",
-        make_ctx(
-            request,
-            active_tab=active_tab,
-            processing_jobs=0,
-            films=films,
-            selected_slug=films[0].slug if films else None,
-        ),
+        make_ctx(request, **{**base_ctx, **tab_ctx}),
     )
 
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request) -> HTMLResponse:
-    return await _base_page(request, "search")
+    return render_page(request, "search")
 
 
 @app.get("/search", response_class=HTMLResponse)
 async def page_search(request: Request) -> HTMLResponse:
-    return await _base_page(request, "search")
+    return render_page(request, "search")
 
 
 @app.get("/scenes", response_class=HTMLResponse)
 async def page_scenes(request: Request) -> HTMLResponse:
-    return await _base_page(request, "scenes")
+    return render_page(request, "scenes")
 
 
 @app.get("/annotate", response_class=HTMLResponse)
 async def page_annotate(request: Request) -> HTMLResponse:
-    return await _base_page(request, "annotate")
+    return render_page(request, "annotate")
 
 
 @app.get("/processing", response_class=HTMLResponse)
 async def page_processing(request: Request) -> HTMLResponse:
-    return await _base_page(request, "processing")
+    return render_page(request, "processing")

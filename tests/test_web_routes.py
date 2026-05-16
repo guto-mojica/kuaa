@@ -197,11 +197,6 @@ class TestFullPageContextDivergence:
     the documented bug.
     """
 
-    @pytest.mark.xfail(
-        reason="Phase 0 documents bug; fixed in Phase 1a "
-        "(/scenes full page lacks no_data -> empty-state markup)",
-        strict=True,
-    )
     def test_scenes_full_page_matches_tab_empty_state(self, client):
         tab = client.get("/tab/scenes")
         assert tab.status_code == 200
@@ -215,11 +210,6 @@ class TestFullPageContextDivergence:
         # branch is falsy and the empty-state hint never renders.
         assert marker in full.text
 
-    @pytest.mark.xfail(
-        reason="Phase 0 documents bug; fixed in Phase 1a "
-        "(/processing full page lacks step_defs -> steps checklist empty)",
-        strict=True,
-    )
     def test_processing_full_page_steps_checklist_not_empty(self, client):
         # NOTE: the "No active jobs." line is NOT a usable discriminator
         # here — on the full page `jobs` is *undefined*, which Jinja
@@ -235,11 +225,6 @@ class TestFullPageContextDivergence:
         body = full.text.split('pipeline-steps-check">', 1)[1].split("</div>", 1)[0]
         assert body.strip() != "", "steps checklist rendered empty"
 
-    @pytest.mark.xfail(
-        reason="Phase 0 documents bug; fixed in Phase 1a "
-        "(/processing full page lacks step_defs -> steps checklist gone)",
-        strict=True,
-    )
     def test_processing_full_page_renders_step_checklist(self, client):
         tab = client.get("/tab/processing")
         full = client.get("/processing")
@@ -249,11 +234,6 @@ class TestFullPageContextDivergence:
         assert tab.text.count("tag-pill") > 0, "precondition"
         assert full.text.count("tag-pill") == tab.text.count("tag-pill")
 
-    @pytest.mark.xfail(
-        reason="Phase 0 documents bug; fixed in Phase 1a "
-        "(/annotate full page lacks no_data/all_done/total/etc.)",
-        strict=True,
-    )
     def test_annotate_full_page_matches_tab(self, client):
         tab = client.get("/tab/annotate")
         assert tab.status_code == 200
