@@ -26,6 +26,20 @@ Funcionalidades planejadas para as próximas versões:
   (PEP 735). Backend de build (`setuptools`) inalterado. Lockfile
   (`uv.lock`) adiado — instalação via `pip` continua funcionando.
 
+### Alterado
+
+- A execução do pipeline pela aba **Processamento** agora usa
+  **bloqueio por dependências**: uma etapa cujos pré-requisitos falharam,
+  foram bloqueados ou cujos artefatos de entrada estão ausentes é marcada
+  como `blocked` (com o motivo) e não é executada, em vez de consultar
+  `pipeline.stop_on_error`. Isso elimina o defeito histórico em que uma
+  falha em `scene_detection` ainda permitia `embeddings`/`llm_description`
+  rodarem sobre um `keyframes_metadata.json` obsoleto. O comportamento
+  padrão não muda (`stop_on_error: false`); a chave
+  `pipeline.stop_on_error` continua valendo para o CLI
+  `python -m cinemateca process`, que mantém a parada no primeiro erro
+  quando habilitada.
+
 ---
 
 ## [0.1.0-alpha] — 2025

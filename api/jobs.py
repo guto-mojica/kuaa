@@ -133,9 +133,21 @@ class ConcurrencyRejected(Exception):
 class JobRegistry:
     """Thread-safe job registry with bounded retention.
 
-    All mutation/read of the underlying dict happens under ``_lock`` so
-    the SSE stream thread, the worker threads and request handlers never
-    observe a torn state.
+    ``_lock`` serializes all mutation/read of the ``_jobs`` *container*,
+    so lookups and the retention sweep never race with insert/evict. Each
+    job additionally carries its own ``queue.Queue`` event channel, which
+    is itself thread-safe; the SSE stream is driven by that queue, not by
+    polling :class:`JobState` fields.
+
+    Scope of the guarantee: this is *container* consistency plus a
+    thread-safe per-job event channel. It is NOT a claim of atomic
+    multi-field snapshots of a :class:`JobState` — the worker thread
+    writes individual fields (``status`` / ``steps`` / ``progress`` /
+    ``error_msg``) without a per-job lock, and request handlers read them
+    lock-free, so a concurrent multi-field read may observe a partially
+    applied progress update. This is acceptable here because SSE
+    consumers react to discrete queue events rather than to a sampled
+    field tuple.
     """
 
     def __init__(self, max_terminal: int = MAX_RETAINED_TERMINAL_JOBS):

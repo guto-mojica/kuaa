@@ -23,9 +23,10 @@ from __future__ import annotations
 import json
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +90,7 @@ class StepRun:
     name: str
     state: str
     duration_s: float = 0.0
-    error: Optional[str] = None
+    error: str | None = None
     output: Any = None
 
 
@@ -98,7 +99,7 @@ class StepResults:
     """Aggregate result of a selected-step run."""
 
     video_path: str
-    runs: List[StepRun] = field(default_factory=list)
+    runs: list[StepRun] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -113,14 +114,14 @@ class StepResult:
     skipped: bool = False
     duration_s: float = 0.0
     output: Any = None
-    error: Optional[str] = None
+    error: str | None = None
 
 
 @dataclass
 class PipelineResult:
     """Resultado completo de uma execução do pipeline."""
     video_path: str
-    steps: List[StepResult] = field(default_factory=list)
+    steps: list[StepResult] = field(default_factory=list)
     total_duration_s: float = 0.0
 
     @property
@@ -469,8 +470,8 @@ class CatalogPipeline:
         self,
         video_path: str | Path,
         steps: list[str],
-        progress_cb: Optional[Callable[[str, str, "StepRun | None"], None]] = None,
-        cancel_check: Optional[Callable[[], bool]] = None,
+        progress_cb: Callable[[str, str, StepRun | None], None] | None = None,
+        cancel_check: Callable[[], bool] | None = None,
     ) -> StepResults:
         """Execute the requested ``steps`` for ``video_path``.
 
@@ -523,7 +524,7 @@ class CatalogPipeline:
         # Track per-step outcome for in-run dependency gating.
         outcome: dict[str, str] = {}
 
-        def _emit(name: str, phase: str, run: "StepRun | None") -> None:
+        def _emit(name: str, phase: str, run: StepRun | None) -> None:
             if progress_cb is not None:
                 progress_cb(name, phase, run)
 
