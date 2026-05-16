@@ -87,7 +87,9 @@ async def api_pipeline_stream(job_id: str) -> StreamingResponse:
     async def generator():
         job = get_job(job_id)
         if not job:
-            yield "data: <p class='text-error'>Job not found.</p>\n\n"
+            # Typed terminal frame so the client closes (and does NOT
+            # reconnect) on an unknown job id.
+            yield "event: error\ndata: <p class='text-error'>Job not found.</p>\n\n"
             return
 
         while True:
@@ -96,19 +98,26 @@ async def api_pipeline_stream(job_id: str) -> StreamingResponse:
             except Exception:
                 # Queue empty — wait, send keepalive
                 if job.status in ("done", "error"):
-                    break
+                    # Status flipped without a queued terminal signal
+                    # (defensive): emit the matching terminal frame and
+                    # stop so the stream never loops forever.
+                    event = "done" if job.status == "done" else "error"
+                    yield f"event: {event}\ndata: {_render_stepper(job)}\n\n"
+                    return
                 await asyncio.sleep(0.4)
                 yield ": keepalive\n\n"
                 continue
 
             html = _render_stepper(job)
-            yield f"data: {html}\n\n"
 
             if signal in ("done", "error"):
-                break
+                # Exactly one terminal typed frame carrying the final
+                # rendered stepper, then close the stream.
+                yield f"event: {signal}\ndata: {html}\n\n"
+                return
 
-        # Final state flush
-        yield f"data: {_render_stepper(job)}\n\n"
+            # Progress / intermediate frame.
+            yield f"event: update\ndata: {html}\n\n"
 
     return StreamingResponse(
         generator(),

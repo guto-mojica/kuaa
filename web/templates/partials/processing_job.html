@@ -4,11 +4,16 @@
         {{ job.video_name }}
     </p>
 
-    <!-- SSE connection — swaps inner div on each "message" event -->
+    <!-- SSE connection — the server emits typed events: "update" for
+         progress frames and exactly one terminal "done" or "error"
+         frame. sse-swap listens to all three so the final stepper
+         (done/error state) is rendered into the DOM, and sse-close
+         closes the EventSource on the terminal events so it does NOT
+         reconnect after the job finishes. -->
     <div hx-ext="sse"
          sse-connect="/api/pipeline/stream/{{ job.id }}"
          sse-close="done,error">
-        <div sse-swap="message" hx-swap="innerHTML">
+        <div sse-swap="update,done,error" hx-swap="innerHTML">
             {% include "partials/processing_stepper.html" with context %}
         </div>
     </div>

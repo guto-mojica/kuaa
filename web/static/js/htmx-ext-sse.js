@@ -234,14 +234,21 @@ This extension adds support for Server Sent Events to htmx.  See /www/extensions
 
     var closeAttribute = api.getAttributeValue(elt, "sse-close");
     if (closeAttribute) {
-      // close eventsource when this message is received
-      source.addEventListener(closeAttribute, function() {
-        api.triggerEvent(elt, 'htmx:sseClose', {
-          source,
-          type: 'message',
-        })
-        source.close()
-      });
+      // close eventsource when any of these (comma-separated) events is
+      // received. Split like `sse-swap` so `sse-close="done,error"`
+      // registers one listener per event name instead of a single
+      // listener for an event literally named "done,error".
+      var closeEventNames = closeAttribute.split(',')
+      for (var ci = 0; ci < closeEventNames.length; ci++) {
+        var closeEventName = closeEventNames[ci].trim()
+        source.addEventListener(closeEventName, function() {
+          api.triggerEvent(elt, 'htmx:sseClose', {
+            source,
+            type: 'message',
+          })
+          source.close()
+        });
+      }
     }
   }
 
