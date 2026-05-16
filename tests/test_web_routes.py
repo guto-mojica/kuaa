@@ -218,7 +218,7 @@ class TestFullPageContextDivergence:
         # {% for name, label in step_defs %} loop iterates an undefined
         # (Jinja silently yields nothing) and the checklist div is empty.
         assert '<div class="pipeline-steps-check">' in full.text
-        body = full.split('pipeline-steps-check">', 1)[1].split("</div>", 1)[0]
+        body = full.text.split('pipeline-steps-check">', 1)[1].split("</div>", 1)[0]
         assert body.strip() != "", "steps checklist rendered empty"
 
     @pytest.mark.xfail(
