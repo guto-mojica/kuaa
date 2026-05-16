@@ -78,7 +78,7 @@ def test_tab_processing_empty_has_no_active_jobs(client):
     assert "No active jobs." in r.text
 
 
-# ── Group 2a: full-page vs tab context divergence (xfail, strict) ─────────────
+# ── Group 2a: full-page vs tab context parity — Phase-1a regression lock ──────
 
 class TestFullPageContextDivergence:
     """
@@ -150,7 +150,7 @@ class TestFullPageContextDivergence:
         assert marker in full.text
 
 
-# ── Group 2b: Processing `split` filter crash (xfail, strict) ─────────────────
+# ── Group 2b: Processing `split` filter fix — Phase-1b regression lock ────────
 
 class TestProcessingSplitFilterCrash:
     """
