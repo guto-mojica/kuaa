@@ -1,7 +1,6 @@
 """Annotate tab routes — manual scene tagging."""
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
 from typing import Optional
@@ -10,6 +9,7 @@ from fastapi import APIRouter, Form, Query, Request
 from fastapi.responses import HTMLResponse
 
 from api.deps import get_config, make_ctx
+from api.services.catalog import keyframe_url, load_json
 from api.templates import templates
 
 logger = logging.getLogger(__name__)
@@ -19,20 +19,19 @@ _BROKEN_LLM = "One or two sentences about subject"
 
 
 # ── Data helpers ──────────────────────────────────────────────────────────────
-
-def _load_json(path: Path):
-    if path.exists():
-        with open(path, encoding="utf-8") as f:
-            return json.load(f)
-    return None
-
+#
+# JSON-load and keyframe-URL primitives now come from the catalog
+# service (``api/services/catalog.py``, Phase 3a) — annotate consumes
+# the shared functions instead of keeping its own copies. The
+# annotate-specific scene-list / scene-context builders below stay here
+# until the dedicated annotations service (Phase 3b).
 
 def _build_scene_list(meta_dir: Path, filter_mode: str) -> tuple[list, dict, dict]:
     """Return (scene_list, desc_by_scene, annotations)."""
     from cinemateca.annotator import load as load_annotations
 
-    kf_meta = _load_json(meta_dir / "keyframes_metadata.json") or []
-    descriptions = _load_json(meta_dir / "scene_descriptions.json") or []
+    kf_meta = load_json(meta_dir / "keyframes_metadata.json") or []
+    descriptions = load_json(meta_dir / "scene_descriptions.json") or []
     annotations = load_annotations(meta_dir)
 
     desc_by_scene = {d["scene_id"]: d for d in descriptions if "scene_id" in d}
@@ -81,7 +80,7 @@ def _scene_context(
     return {
         "scene": scene,
         "scene_id": scene_id,
-        "img_url": _keyframe_url(fp, data_dir),
+        "img_url": keyframe_url(fp, data_dir),
         "start_s": start_s,
         "end_s": end_s,
         "duration_s": end_s - start_s,
@@ -95,16 +94,6 @@ def _scene_context(
         "annotated_count": annotated_count,
         "scene_list": scenes,
     }
-
-
-def _keyframe_url(fp: Path, data_dir: Path) -> Optional[str]:
-    for candidate in (fp, Path.cwd() / fp):
-        try:
-            rel = candidate.resolve().relative_to(data_dir.resolve())
-            return f"/media/{rel.as_posix()}"
-        except ValueError:
-            continue
-    return None
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -122,7 +111,7 @@ def build_annotate_context(
     meta_dir = Path(cfg.paths.metadata_dir)
     data_dir = Path(cfg.paths.data_dir).resolve()
 
-    no_data = not bool(_load_json(meta_dir / "keyframes_metadata.json"))
+    no_data = not bool(load_json(meta_dir / "keyframes_metadata.json"))
     scenes, desc_by_scene, annotations = _build_scene_list(meta_dir, filter_mode)
     all_done = (not no_data) and (not scenes) and filter_mode == "no_llm"
 

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import tempfile
 from functools import lru_cache
@@ -12,6 +11,8 @@ from fastapi import APIRouter, File, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse
 
 from api.deps import get_config, make_ctx
+from api.services.catalog import keyframe_url, load_tag_index
+from api.services.film_context import FilmContext
 from api.templates import templates
 
 logger = logging.getLogger(__name__)
@@ -34,33 +35,9 @@ def _load_index(embeddings_dir: str, mapping_filename: str, embeddings_filename:
     return embeddings, kf_df, embedder
 
 
-def _load_tag_index(metadata_dir: Path) -> dict:
-    from cinemateca.annotator import load as load_annotations, merge_tag_index
-
-    tags_path = metadata_dir / "scene_tags.json"
-    llm_tags: dict = {}
-    if tags_path.exists():
-        with open(tags_path, encoding="utf-8") as f:
-            llm_tags = json.load(f)
-    annotations = load_annotations(metadata_dir)
-    return merge_tag_index(llm_tags, annotations)
-
-
-def _keyframe_url(filepath: str, data_dir: Path) -> str | None:
-    """Convert a stored filepath to a /media/... URL."""
-    fp = Path(filepath)
-    for candidate in (fp, Path.cwd() / fp):
-        try:
-            rel = candidate.resolve().relative_to(data_dir.resolve())
-            return f"/media/{rel.as_posix()}"
-        except ValueError:
-            continue
-    return None
-
-
 def _results_to_dicts(results_df, data_dir: Path) -> list[dict]:
     return [
-        {**row, "img_url": _keyframe_url(str(row["filepath"]), data_dir)}
+        {**row, "img_url": keyframe_url(str(row["filepath"]), data_dir)}
         for row in results_df.to_dict("records")
     ]
 
@@ -69,10 +46,13 @@ def build_search_context() -> dict:
     """Build the template context the search tab partial needs.
 
     Shared by the ``/tab/search`` HTMX fragment and the ``/search``
-    full-page route so both render identical markup.
+    full-page route so both render identical markup. The tag index is
+    loaded via the catalog service's shared primitive (raw merged shape
+    — only the keys feed ``available_tags``; identical either way).
+    The deeper search-index seam is Phase 3c.
     """
-    cfg = get_config()
-    tag_index = _load_tag_index(Path(cfg.paths.metadata_dir))
+    ctx = FilmContext.from_config(get_config())
+    tag_index = load_tag_index(ctx.metadata_dir)
     available_tags = sorted(tag_index.keys()) if tag_index else []
     return {"available_tags": available_tags}
 
@@ -118,7 +98,7 @@ async def api_search(
     data_dir = Path(cfg.paths.data_dir).resolve()
 
     if tags:
-        tag_index = _load_tag_index(Path(cfg.paths.metadata_dir))
+        tag_index = load_tag_index(Path(cfg.paths.metadata_dir))
         results_df = await loop.run_in_executor(
             None, lambda: searcher.combined(q, tags, tag_index, top_k)
         )
