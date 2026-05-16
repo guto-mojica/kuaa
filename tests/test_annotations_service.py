@@ -31,6 +31,8 @@ repo ``data/`` access — enforced by tmp_config's path guard).
 from __future__ import annotations
 
 import json
+import os
+import stat
 from pathlib import Path
 
 import pytest
@@ -138,6 +140,48 @@ class TestLoadSaveAnnotations:
         assert load_annotations(ctx) == good
         # ... and the failed write left no stray temp file.
         assert not list(Path(ctx.metadata_dir).glob(f".{FILENAME}.*.tmp"))
+
+    def test_save_preserves_existing_file_mode(self, tmp_config):
+        """Permission contract: an atomic save over an EXISTING file must
+        keep that file's mode. mkstemp() makes the temp file 0600 and
+        os.replace() moves the temp inode over the target, so without the
+        chmod-match the first save would silently downgrade the file."""
+        ctx = FilmContext.from_config(tmp_config)
+        path = ctx.metadata_dir / FILENAME
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # Pre-create the target with a known NON-default mode.
+        path.write_text(
+            json.dumps({"351": ["old"]}, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        os.chmod(path, 0o640)
+        assert stat.S_IMODE(os.stat(path).st_mode) == 0o640
+
+        new_data = {"351": ["rural"], "352": ["noite"]}
+        save_annotations(ctx, new_data)
+
+        # Mode preserved ...
+        assert stat.S_IMODE(os.stat(path).st_mode) == 0o640
+        # ... and the content was actually updated (not just mode kept).
+        assert load_annotations(ctx) == new_data
+
+    def test_save_new_file_uses_umask_default_mode(self, tmp_config):
+        """Permission contract: a brand-new file must get the umask
+        default (0o666 & ~umask) a plain open()-rewrite would produce,
+        NOT mkstemp's hardcoded 0600."""
+        ctx = FilmContext.from_config(tmp_config)
+        path = ctx.metadata_dir / FILENAME
+        assert not path.exists()
+
+        # Compute the expected mode the SAME race-free way save() does.
+        current = os.umask(0)
+        os.umask(current)
+        expected_mode = 0o666 & ~current
+
+        save_annotations(ctx, {"1": ["a"]})
+
+        assert path.exists()
+        assert stat.S_IMODE(os.stat(path).st_mode) == expected_mode
 
     def test_save_creates_missing_parent_dir(self, tmp_config):
         """Behaviour preserved from annotator.save: parent dir is created

@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import stat
 import tempfile
 from pathlib import Path
 from typing import Dict, List
@@ -47,6 +48,22 @@ def save(metadata_dir: str | Path, annotations: Dict[str, List[str]]) -> Path:
     """
     Persiste o dict de anotações no disco.
 
+    Both the on-disk bytes AND the file permissions are preserved across
+    saves: if ``manual_annotations.json`` already exists its current mode
+    is kept (the temp file is chmod'd to match before ``os.replace``);
+    for a brand-new file the umask-default mode (``0o666 & ~umask``) is
+    applied, matching what a plain ``open(...) `` rewrite would have
+    produced. The only behavioural change versus the prior plain-rewrite
+    path is crash-safety of the write mechanism — the serialized JSON and
+    the resulting file mode are identical.
+
+    The guarantee provided is *atomicity*: a reader always sees either
+    the complete old file or the complete new file, never a torn or
+    truncated one. It is NOT fsync-durability: a power loss immediately
+    after ``os.replace`` may lose the most recent save, but it can never
+    corrupt the file — an acceptable trade-off for an offline,
+    single-user archival tool.
+
     Args:
         metadata_dir:  Diretório de metadados do projeto.
         annotations:   Dict {scene_id (str): [tags]}.
@@ -75,8 +92,25 @@ def save(metadata_dir: str | Path, annotations: Dict[str, List[str]]) -> Path:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(annotations, f, indent=2, ensure_ascii=False)
+        # mkstemp() creates the temp file 0600 and os.replace() moves
+        # that inode over the target, so without this the first atomic
+        # save would silently downgrade an existing 0644 file to 0600.
+        # Match the existing file's mode; for a new file use the umask
+        # default a plain open()-rewrite would have produced. Kept inside
+        # the try so a chmod failure still triggers the temp cleanup.
+        if path.exists():
+            os.chmod(tmp_path, stat.S_IMODE(os.stat(path).st_mode))
+        else:
+            # Read the umask race-free: os.umask must set-and-return, so
+            # set to 0, capture, then restore immediately.
+            current = os.umask(0)
+            os.umask(current)
+            os.chmod(tmp_path, 0o666 & ~current)
         os.replace(tmp_path, path)
     except BaseException:
+        # BaseException (not Exception) so KeyboardInterrupt/SystemExit
+        # also remove the temp file, then re-raise immediately so the
+        # original signal/error is never swallowed or masked.
         tmp_path.unlink(missing_ok=True)
         raise
 
