@@ -81,25 +81,26 @@ cinemateca-ai/
 só para este projeto, que não interfere com o Python do sistema.
 
 ```bash
-# Criar ambiente virtual (faça isso UMA vez, dentro da pasta do projeto)
-python3 -m venv .venv
+# uv cria e gerencia o ambiente automaticamente (faça isso UMA vez):
+uv venv
+# uv usa a versão fixada em .python-version (3.11). Se não tiver o
+# Python 3.11, o uv baixa automaticamente.
 
-# Ativar o ambiente
+# Não é necessário "ativar" o ambiente: use `uv run <comando>`.
+# Se preferir ativar manualmente mesmo assim:
 # macOS / Linux:
 source .venv/bin/activate
-
-# Você verá (.venv) aparecer no início do seu prompt:
-# (.venv) usuario@maquina:~/cinemateca-ai$
 ```
 
-**Importante:** você precisa ativar o ambiente toda vez que abrir
-um novo terminal para trabalhar no projeto:
+**Com uv não é necessário ativar o ambiente:** basta prefixar os
+comandos com `uv run` (ex.: `uv run python ...`). Se preferir ativar
+manualmente, lembre de reativar a cada novo terminal:
 ```bash
 cd cinemateca-ai
-source .venv/bin/activate
+source .venv/bin/activate   # opcional — só se não usar `uv run`
 ```
 
-Para desativar quando terminar:
+Para desativar um ambiente ativado manualmente:
 ```bash
 deactivate
 ```
@@ -108,11 +109,16 @@ deactivate
 
 ## 4. Instalar dependências
 
-Com o ambiente virtual ativado:
+Com o ambiente criado (`uv venv`):
 
 ```bash
-# Instalar o pacote em modo desenvolvimento + todas as dependências
-pip install -e ".[full]"
+# Instalar o pacote + todas as dependências (extra "full") + ferramentas
+# de desenvolvimento (grupo "dev"):
+uv sync --extra full --group dev
+
+# Sem uv (alternativa — funciona porque não há lockfile):
+#   python3 -m venv .venv && source .venv/bin/activate
+#   pip install -e ".[full]" && pip install pytest pytest-cov black ruff mypy
 ```
 
 O que `-e ".[full]"` significa:
@@ -127,13 +133,13 @@ primeira vez. As execuções seguintes são instantâneas.
 **Se você não precisa de todos os módulos** (por exemplo, só quer a
 busca semântica sem o módulo LLM):
 ```bash
-pip install -e ".[search]"    # só CLIP e busca
-pip install -e ".[gui]"       # só Streamlit
+uv sync --extra search    # só CLIP e busca
+uv sync --extra gui       # só Streamlit
 ```
 
 **Verificar instalação:**
 ```bash
-python -c "import cinemateca; print(cinemateca.__version__)"
+uv run python -c "import cinemateca; print(cinemateca.__version__)"
 # Deve imprimir: 0.1.0-alpha
 ```
 
@@ -361,9 +367,9 @@ lsof -i :8501
 
 **Se você clonou do GitHub:**
 ```bash
-# Dentro da pasta do projeto, com .venv ativo:
+# Dentro da pasta do projeto:
 git pull origin main
-pip install -e ".[full]"   # reinstalar caso pyproject.toml tenha mudado
+uv sync --extra full --group dev   # re-sincroniza caso pyproject.toml tenha mudado
 ```
 
 **Verificar o que mudou antes de atualizar:**
