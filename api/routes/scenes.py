@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse
 
 from api.deps import get_config, make_ctx
 from api.templates import templates
+from cinemateca.scene_ids import scene_id_key
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -28,6 +29,7 @@ def _load_json(path: Path) -> list | dict | None:
 def _load_metadata(metadata_dir: Path) -> tuple[list, dict, dict, dict]:
     """Return (kf_meta, desc_by_scene, vis_by_scene, tag_index)."""
     from cinemateca.annotator import load as load_annotations, merge_tag_index
+    from cinemateca.scene_ids import normalize_tag_index
 
     kf_meta = _load_json(metadata_dir / "keyframes_metadata.json") or []
     descriptions = _load_json(metadata_dir / "scene_descriptions.json") or []
@@ -35,9 +37,12 @@ def _load_metadata(metadata_dir: Path) -> tuple[list, dict, dict, dict]:
     visual_data = _load_json(metadata_dir / "visual_analysis.json") or []
     annotations = load_annotations(metadata_dir)
 
-    desc_by_scene = {str(d["scene_id"]): d for d in descriptions if "scene_id" in d}
-    vis_by_scene = {str(v["scene_id"]): v for v in visual_data if "scene_id" in v}
-    tag_index = merge_tag_index(llm_tags, annotations)
+    desc_by_scene = {scene_id_key(d["scene_id"]): d for d in descriptions if "scene_id" in d}
+    vis_by_scene = {scene_id_key(v["scene_id"]): v for v in visual_data if "scene_id" in v}
+    # merge_tag_index yields a hybrid index with mixed int (LLM) / str
+    # (manual) value types. Normalize to canonical str ids here so every
+    # downstream membership test is str-vs-str.
+    tag_index = normalize_tag_index(merge_tag_index(llm_tags, annotations))
 
     return kf_meta, desc_by_scene, vis_by_scene, tag_index
 
@@ -54,19 +59,21 @@ def _build_cards(
     """Filter kf_meta and build scene card dicts for the template."""
     scenes = list(kf_meta)
 
-    # Tag filter — intersect scene_ids across all selected tags
+    # Tag filter — intersect scene_ids across all selected tags.
+    # tag_index is already normalized to {tag: {canonical str id}} by
+    # _load_metadata, so the membership test is str-vs-str.
     if selected_tags and tag_index:
-        valid_ids = set(tag_index.get(selected_tags[0], []))
+        valid_ids = set(tag_index.get(selected_tags[0], set()))
         for tag in selected_tags[1:]:
-            valid_ids &= set(tag_index.get(tag, []))
-        scenes = [s for s in scenes if str(s.get("scene_id", "")) in valid_ids]
+            valid_ids &= set(tag_index.get(tag, set()))
+        scenes = [s for s in scenes if scene_id_key(s.get("scene_id", "")) in valid_ids]
 
     # Keyword filter — search description text blob
     if keyword:
         kw = keyword.lower()
         filtered = []
         for s in scenes:
-            sid = str(s.get("scene_id", ""))
+            sid = scene_id_key(s.get("scene_id", ""))
             desc = desc_by_scene.get(sid, {})
             blob = " ".join(str(v) for v in desc.values()).lower()
             if kw in blob:
@@ -75,15 +82,16 @@ def _build_cards(
 
     cards = []
     for s in scenes:
-        sid = str(s.get("scene_id", ""))
+        sid = scene_id_key(s.get("scene_id", ""))
         fp = Path(s.get("filepath", ""))
         img_url = _keyframe_url(fp, data_dir)
         tc = s.get("timecode_start") or s.get("start_timecode", "")
 
-        # Tags from tag_index (inverted lookup)
+        # Tags from tag_index (inverted lookup). tag_index ids are already
+        # canonical str keys, so this is a direct str-vs-str membership.
         scene_tags = sorted({
             tag for tag, ids in tag_index.items()
-            if sid in [str(i) for i in ids]
+            if sid in ids
         })
 
         # Visual analysis summary

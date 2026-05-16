@@ -356,12 +356,21 @@ class SemanticSearch:
             DataFrame com colunas: rank, scene_id, similarity, filepath.
         """
         if filter_tags and tag_index:
-            # Intersecção dos scene_ids de todas as tags
-            valid_ids = set(tag_index.get(filter_tags[0], []))
-            for tag in filter_tags[1:]:
-                valid_ids &= set(tag_index.get(tag, []))
+            # The tag index is a hybrid with mixed int (LLM) / str (manual)
+            # ids. Normalize it AND the df scene_id column to the canonical
+            # string key so the membership test is provably str-vs-str.
+            # The .map() is a local computation only — the stored
+            # keyframes_df dtype is left untouched (callers downstream read
+            # row["scene_id"] for display, which str()-renders identically).
+            from cinemateca.scene_ids import normalize_tag_index, scene_id_key
 
-            mask = self.keyframes_df["scene_id"].isin(valid_ids)
+            norm_index = normalize_tag_index(tag_index)
+            valid_ids = set(norm_index.get(filter_tags[0], set()))
+            for tag in filter_tags[1:]:
+                valid_ids &= set(norm_index.get(tag, set()))
+
+            scene_id_keys = self.keyframes_df["scene_id"].map(scene_id_key)
+            mask = scene_id_keys.isin(valid_ids)
             kf_subset = self.keyframes_df[mask].reset_index(drop=True)
             emb_subset = self.embeddings[self.keyframes_df[mask].index]
             logger.info(
