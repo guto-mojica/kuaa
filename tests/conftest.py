@@ -17,6 +17,11 @@ Fixtures provided:
   * ``tmp_config``  — a ``Config`` whose every ``paths.*`` entry is a
     fresh tmp subdir; also clears the relevant ``lru_cache``s and
     rebinds ``get_config`` in every route module that imported it.
+    The route modules are *discovered dynamically* (``pkgutil`` over
+    the ``api.routes`` package, plus ``api.server``) rather than read
+    off a hand-maintained list, so a newly added ``api/routes/*.py``
+    that imports ``get_config`` is patched + asserted automatically;
+    no fixture edit is needed and none can be forgotten.
   * ``client``      — an empty-data ``TestClient`` (locale pinned ``en``)
     built on ``tmp_config``.
   * ``seed_metadata`` — factory that writes a realistic minimal dataset
@@ -101,20 +106,30 @@ def tmp_config(tmp_path, monkeypatch):
 
     search_route._load_index.cache_clear()
 
-    import api.server as server
-    from api.routes import annotate, library, processing, scenes, search
+    # Dynamic hermeticity guard. The routes do `from api.deps import
+    # get_config`, binding a *local* name in each module; patching only
+    # api.deps is not enough. Rather than trust a hand-maintained list
+    # (which drifted before — see test_web_routes' guard comment), we
+    # DISCOVER every module under the api.routes package plus api.server,
+    # import each, and for every one that bound a `get_config` name we
+    # rebind it AND assert it now resolves to the temp cfg. A new
+    # api/routes/*.py that imports get_config is therefore covered
+    # automatically; if discovery can't reach a module that needs it,
+    # the assert below fires loudly at fixture-construction time instead
+    # of letting that module silently read the real repo data/.
+    import importlib
+    import pkgutil
 
-    patched = (server, scenes, search, annotate, processing, library)
-    for mod in patched:
+    import api.routes as routes_pkg
+    import api.server as server
+
+    mods = [server]
+    for info in pkgutil.iter_modules(routes_pkg.__path__):
+        mods.append(importlib.import_module(f"{routes_pkg.__name__}.{info.name}"))
+
+    for mod in mods:
         if hasattr(mod, "get_config"):
             monkeypatch.setattr(mod, "get_config", lambda: cfg)
-
-    # Structural guard: the patch list is maintained by hand and has
-    # drifted before. Fail loudly here if any module that imports
-    # get_config was not rebound — converts "added a route module,
-    # forgot the fixture" into an immediate fixture-time error.
-    for mod in patched:
-        if hasattr(mod, "get_config"):
             assert mod.get_config() is cfg, (
                 f"{mod.__name__}.get_config was not rebound to the temp "
                 f"config — this module would read the real repo data/"
@@ -129,8 +144,10 @@ def tmp_config(tmp_path, monkeypatch):
     # teardown — monkeypatch is undone before autouse post-yield runs, so
     # a teardown check would always see the real cached config and false-
     # positive). Every data path the routes will touch must resolve
-    # OUTSIDE the repo root. This, plus the per-route-module rebinding
-    # assertion above, is the proof no test mutates the real data/.
+    # OUTSIDE the repo root. This, plus the dynamic per-module
+    # rebinding assertion above (every discovered api.routes module +
+    # api.server that bound get_config is rebound and verified), is the
+    # proof no test mutates the real data/.
     repo = REPO.resolve()
     for name in _PATH_NAMES:
         p = Path(getattr(cfg.paths, name)).resolve()
@@ -192,7 +209,13 @@ def seed_metadata(tmp_config):
         which is ``int(...)``; round-tripped through JSON they stay int
         list-values).
       * ``manual_annotations.json`` — JSON object => STRING scene-id
-        keys (annotator.FILENAME / annotator.save schema).
+        keys. The filename is ``annotator.FILENAME`` and ``annotator``
+        is what *reads* it (``annotator.load``); the STR-key shape and
+        any lower-kebab tag normalization are produced by the SAVE
+        ROUTE (``api/routes/annotate.py`` does
+        ``ann[str(scene_id)] = [t.strip().lower()...]``), not by
+        ``annotator.save`` which only ``json.dump``s the dict it gets.
+        This seed writes that on-disk shape directly.
       * ``scene_descriptions.json`` — list with ``scene_id`` +
         ``description`` (read by scenes keyword filter / annotate llm).
       * ``visual_analysis.json`` — scenes.py reads ``scene_id``,

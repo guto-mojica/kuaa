@@ -34,10 +34,15 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-# sys.path bootstrap lives in tests/conftest.py. ``sse_client`` stays a
+# sys.path bootstrap lives in tests/conftest.py. ``sse_client`` is a
 # deliberately lighter fixture than the shared ``client`` (the stream
-# generator never touches config or the data dir), but the job-registry
-# reset it relies on is now also guaranteed by conftest's machinery.
+# generator never touches config or the data dir) and does NOT depend
+# on conftest's ``tmp_config``/``client`` — conftest is not in this
+# fixture's path. ``sse_client`` SELF-RESETS the job registry via its
+# own ``monkeypatch.setattr(jobs, "_jobs", {})``; that line is the only
+# thing keeping these tests hermetic, so do not delete it on the
+# assumption conftest already cleared the registry (it does not run
+# for this fixture).
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────

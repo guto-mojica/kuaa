@@ -23,7 +23,10 @@ Groups:
   2. Seeded scenes — the generic ``seed_metadata`` dataset renders
      cards / tags through the scenes route.
   3. Annotation save & clear — exercises the POST routes and asserts the
-     on-disk ``manual_annotations.json`` (STR keys, tag normalization).
+     on-disk ``manual_annotations.json``. The STR scene-id keys and the
+     lower-kebab tag normalization / empty-fragment drop are produced
+     ROUTE-SIDE (``api/routes/annotate.py``), not by ``annotator.save``
+     (which only ``json.dump``s the dict it is handed).
   4. Library filter / select — asserts the ACTUAL current behaviour
      (select is a known Phase-5 placeholder; the test documents that
      so Phase 5 has a tripwire, it does not pre-implement it).
@@ -178,6 +181,12 @@ class TestSeededScenes:
 class TestAnnotationSaveClear:
     """The POST save/clear routes and the resulting on-disk JSON.
 
+    The on-disk shape (STR scene-id key, lower-kebab tags, empty
+    fragments dropped) is produced by the *route*
+    (``api/routes/annotate.py``: ``ann[str(scene_id)] = [...]`` with the
+    normalizing list-comp); ``cinemateca.annotator.save`` just
+    ``json.dump``s. These tests assert that route-side contract.
+
     Hermetic: the annotations file lives in the temp metadata dir
     (asserted outside the repo by tmp_config's guard). filter is forced
     to ``"all"`` so the saved scene stays in the scene_list and the
@@ -189,21 +198,31 @@ class TestAnnotationSaveClear:
     def test_save_writes_normalized_tags_to_disk(self, seed_metadata, client):
         manual_path: Path = seed_metadata["manual_path"]
 
+        # Input has an empty fragment (",,") and a trailing comma so the
+        # route's ``if t.strip()`` drop branch is exercised by data, not
+        # just by claim.
         r = client.post(
             "/api/annotate/save",
             data={
                 "scene_id": 351,
                 "filter": "all",
-                "tags": "Rural, Open Field , exterior",
+                "tags": "Rural,, Open Field , exterior,",
             },
         )
         assert r.status_code == 200, r.text[:300]
 
         on_disk = json.loads(manual_path.read_text())
-        # STRING key (annotator schema), normalized lower-kebab tags,
-        # empty fragments dropped.
+        # The scene-id key is a STRING (annotator just json.dumps the
+        # dict the route built with ``ann[str(scene_id)] = ...``). The
+        # lower-kebab normalization and empty-fragment drop happen
+        # ROUTE-SIDE (api/routes/annotate.py:
+        # ``[t.strip().lower().replace(" ", "-") for t in
+        # tags.split(",") if t.strip()]``); ``annotator.save`` does no
+        # transformation.
         assert "351" in on_disk
         assert on_disk["351"] == ["rural", "open-field", "exterior"]
+        # The empty fragments were dropped (not stored as "").
+        assert "" not in on_disk["351"]
         # Pre-existing seeded annotation for scene 352 must survive.
         assert on_disk["352"] == ["manual-only", "noite"]
 

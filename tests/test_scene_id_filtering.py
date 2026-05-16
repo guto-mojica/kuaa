@@ -86,19 +86,23 @@ class TestSceneIdKey:
 # ── Shared fixture: isolated client with seeded metadata ──────────────────────
 
 @pytest.fixture()
-def seeded_client(tmp_config, client):
+def seeded_client(client):
     """Shared isolated ``client`` + metadata seeded for the tag tests.
 
-    Builds on the consolidated ``tmp_config``/``client`` fixtures
-    (conftest.py): the config rebasing, per-route-module ``get_config``
-    monkeypatching, lru-cache clears and job-registry reset are all
-    done there. This fixture only writes the *specific* 3-scene tag
-    dataset these tests assert on (deliberately different from the
-    generic ``seed_metadata``: 3 scenes 351/352/353, no timecode so the
-    grid falls back to the per-scene "scene <id>" marker the
-    ``_scene_ids`` parser keys on).
+    Depends only on ``client`` (conftest.py), which itself layers on
+    ``tmp_config`` — so the config rebasing, dynamic per-module
+    ``get_config`` monkeypatching, lru-cache clears and job-registry
+    reset are all already done. The temp config is fetched via the
+    rebound ``api.deps.get_config()`` (same accessor the route code
+    uses, so no need to also request ``tmp_config`` here). This fixture
+    only writes the *specific* 3-scene tag dataset these tests assert
+    on (deliberately different from the generic ``seed_metadata``: 3
+    scenes 351/352/353, no timecode so the grid falls back to the
+    per-scene "scene <id>" marker the ``_scene_ids`` parser keys on).
     """
-    meta_dir = Path(tmp_config.paths.metadata_dir)
+    import api.deps as deps
+
+    meta_dir = Path(deps.get_config().paths.metadata_dir)
 
     # Three keyframes / scenes. No timecode_start so the grid template
     # falls back to rendering "scene <id>" — a precise per-scene marker
