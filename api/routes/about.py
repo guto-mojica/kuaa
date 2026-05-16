@@ -79,8 +79,11 @@ async def page_about(request: Request) -> HTMLResponse:
     """Full-page About — progressive-enhancement fallback for the modal.
 
     JS-off users follow the sidebar's real ``href="/about"`` here and
-    get the same credits content the modal shows (it reuses the about
-    modal partial / context), wrapped so the page stands alone.
+    get the same credits content the modal shows: both this page and
+    the modal ``{% include %}`` the shared
+    ``partials/_about_credits.html`` partial, so they are
+    content-identical by construction. This template just wraps that
+    partial so the page stands alone.
     """
     return templates.TemplateResponse(
         request,
@@ -96,7 +99,7 @@ async def api_set_locale(request: Request, code: str) -> Response:
     The redirect target is the sanitized ``Referer`` (open-redirect
     safe — see :func:`_safe_return_path`), so switching language no
     longer resets the active tab/page back to ``/``. Works for both
-    HTMX (``HX-Redirect``) and a plain JS-off navigation (302 to the
+    HTMX (``HX-Redirect``) and a plain JS-off navigation (303 to the
     same path).
     """
     supported = {"pt_BR", "en"}

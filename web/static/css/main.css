@@ -812,6 +812,12 @@ body {
     position: relative;
 }
 
+/* Full-page About (/about, JS-off fallback): same card, but standalone
+   in the main column instead of centered by a flex backdrop. */
+.modal-card--page {
+    margin: 48px auto;
+}
+
 .modal-close {
     position: absolute;
     top: 14px;

@@ -122,6 +122,21 @@ def test_about_full_page_localized_pt(raw_client):
     assert '<html lang="pt-BR">' in r.text
 
 
+def test_about_modal_and_page_share_credits(raw_client):
+    """Modal (/api/about) and full page (/about) emit the same credits.
+
+    Both {% include %} the shared partials/_about_credits.html, so the
+    model attributions must appear identically on both surfaces.
+    """
+    raw_client.cookies.set("locale", "en")
+    modal = raw_client.get("/api/about").text
+    page = raw_client.get("/about").text
+    for needle in ("Moondream 2", "CLIP", "YOLOv8", "MTCNN",
+                   "Model attributions"):
+        assert needle in modal, needle
+        assert needle in page, needle
+
+
 # ── Locale switch preserves path + open-redirect safety ───────────────
 
 

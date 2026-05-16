@@ -12,46 +12,6 @@
             <h1 class="modal-title">Cinemateca AI</h1>
         </header>
 
-        <p class="modal-version">v{{ version }}&nbsp;·&nbsp;MIT</p>
-
-        <section class="modal-section">
-            <h2 class="modal-section-title">{{ _("Model attributions") }}</h2>
-            <table class="model-table">
-                <tbody>
-                    <tr>
-                        <td class="model-name">CLIP</td>
-                        <td class="model-source">OpenAI &mdash;
-                            <a class="modal-link"
-                               href="https://github.com/openai/CLIP"
-                               target="_blank" rel="noopener">openai/CLIP</a>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="model-name">Moondream 2</td>
-                        <td class="model-source">vikhyatk &mdash;
-                            <a class="modal-link"
-                               href="https://github.com/vikhyat/moondream"
-                               target="_blank" rel="noopener">vikhyat/moondream</a>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="model-name">YOLOv8</td>
-                        <td class="model-source">Ultralytics &mdash;
-                            <a class="modal-link"
-                               href="https://github.com/ultralytics/ultralytics"
-                               target="_blank" rel="noopener">ultralytics/ultralytics</a>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="model-name">MTCNN</td>
-                        <td class="model-source">facenet-pytorch &mdash;
-                            <a class="modal-link"
-                               href="https://github.com/timesler/facenet-pytorch"
-                               target="_blank" rel="noopener">timesler/facenet-pytorch</a>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </section>
+        {% include "partials/_about_credits.html" %}
     </div>
 </div>
