@@ -33,6 +33,12 @@ Groups:
   5. Corrupt index — embeddings row count != mapping row count. Current
      code does NOT validate this; the search path crashes. Captured via
      ``xfail(strict=True)`` so Phase 3c flips it.
+  6. Image-upload rejection — a POST to /api/search/image whose body
+     ``validate_upload`` rejects must degrade to HTTP 200 + the
+     upload-error notice (the ``{% elif upload_error %}`` branch), not
+     500. This is the only Phase-3c behaviour without a route-level
+     test; it pins the full multipart -> validate_upload ->
+     UploadRejected -> upload_error context -> template wiring.
 """
 
 from __future__ import annotations
@@ -370,12 +376,17 @@ class _StubEmbedder:
 
 @pytest.fixture()
 def stub_search_embedder(monkeypatch):
-    """Make the search route's ``_load_index`` build a stub embedder.
+    """Make the search service build a CLIP-free embedder on the OK path.
 
-    ``api.routes.search._load_index`` does ``embedder = CLIPEmbedder()``
-    and the route then calls ``searcher.by_text`` → ``encode_text`` →
-    real ``_load_model()``. Patch ``CLIPEmbedder`` *in the embeddings
-    module* (where _load_index resolves it via ``from
+    ``api.services.search._load_and_validate`` does ``embedder =
+    CLIPEmbedder()`` on a well-formed index, and the route then calls
+    ``searcher.by_text`` → ``encode_text`` → real ``_load_model()``.
+    (The on-disk index is loaded/validated by the mtime/size-keyed
+    cache in ``api/services/search.py``; ``tmp_config`` /
+    ``clear_index_cache()`` keep that cache from leaking across tests —
+    there is no ``search._load_index`` seam any more, it was extracted
+    into the service in Phase 3c.) Patch ``CLIPEmbedder`` *in the
+    embeddings module* (where the service resolves it via ``from
     cinemateca.embeddings import CLIPEmbedder``) so ``.load`` keeps its
     real (defective, no-validation) behaviour but the constructed
     embedder is CLIP-free."""
@@ -474,3 +485,70 @@ def test_corrupt_index_root_defect_still_in_ai_core_but_caught_by_service(
     )
     assert index.status is IndexStatus.CORRUPT
     assert not index.ok
+
+
+# ── Group 6: image-upload rejection (Phase 3c route-level coverage) ────────────
+
+# The exact string from the ``{% elif upload_error %}`` branch of
+# web/templates/partials/search_results.html — kept here as the single
+# canonical marker, same convention as SEARCH_NO_INDEX above.
+SEARCH_UPLOAD_ERROR = (
+    "That image could not be used. Upload a single image file under 8 MB."
+)
+
+
+def _write_wellformed_index(cfg):
+    """A coherent 2-row index so ``load_index`` returns ``IndexStatus.OK``.
+
+    ``/api/search/image`` calls ``load_index`` BEFORE ``validate_upload``
+    (api/routes/search.py): a MISSING/CORRUPT index would short-circuit
+    to the no-index state and the upload-rejection branch under test
+    would never be reached. So a well-formed index must exist on disk.
+    Shape mirrors ``test_search_service._write_index``: N embedding rows
+    == N keyframe/scene-id mapping rows == declared total_vectors.
+    """
+    emb_dir = Path(cfg.paths.embeddings_dir)
+    np.save(emb_dir / cfg.embeddings.filename, np.eye(4, dtype="float32")[:2])
+    mapping = {
+        "model": "stub",
+        "dimension": 4,
+        "total_vectors": 2,
+        "normalized": True,
+        "keyframe_paths": ["frames/a.jpg", "frames/b.jpg"],
+        "scene_ids": [1, 2],
+    }
+    (emb_dir / cfg.embeddings.mapping_filename).write_text(json.dumps(mapping))
+
+
+def test_image_search_rejected_upload_degrades_gracefully(
+    client, stub_search_embedder
+):
+    """A POST to /api/search/image that ``validate_upload`` rejects must
+    return HTTP 200 + the upload-error notice, NOT 500.
+
+    Pins the full Phase-3c wiring end to end: multipart body ->
+    ``search_service.validate_upload`` -> ``UploadRejected`` ->
+    ``upload_error`` template context -> the
+    ``{% elif upload_error %}`` branch of search_results.html. The
+    rejection is deterministic: a ``text/plain`` body with a ``.txt``
+    suffix fails the content-type/suffix guard.
+
+    Hermetic with no CLIP forward pass: ``validate_upload`` raises
+    BEFORE the ``run_in_executor`` offload (api/routes/search.py), so
+    ``search_image``/``encode_*`` is never called. ``load_index`` DOES
+    run first and constructs ``CLIPEmbedder()`` on the OK path, so a
+    well-formed index plus the ``stub_search_embedder`` fixture (real
+    ``.load``, CLIP-free constructed embedder) keeps it model-free."""
+    cfg = _cfg_from_client()
+    _write_wellformed_index(cfg)
+
+    r = client.post(
+        "/api/search/image",
+        files={"file": ("note.txt", b"not an image", "text/plain")},
+    )
+    assert r.status_code == 200, r.text[:300]
+    assert SEARCH_UPLOAD_ERROR in r.text
+    # Not the no-index branch and not a results card — the upload-error
+    # branch specifically.
+    assert SEARCH_NO_INDEX not in r.text
+    assert "scene-card" not in r.text

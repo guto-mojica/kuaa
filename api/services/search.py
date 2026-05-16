@@ -19,6 +19,12 @@ explicitly a validation phase per the plan):
      embeddings + mapping file paths AND their ``(st_mtime_ns, st_size)``
      stat signature. A regenerated index (different size/mtime) is
      re-loaded automatically — no restart, no manual ``cache_clear``.
+     Acknowledged blind spot: an index regenerated to a byte-identical
+     ``st_size`` AND an identical ``st_mtime_ns`` would not be detected;
+     this is practically impossible on a real regeneration (the writer
+     touches mtime and the content/size changes), and a content hash is
+     the only complete fix — deliberately not done, out of scope for a
+     single-worker dev server.
 
   2. **Index shape validation.** ``CLIPEmbedder.load`` performs NO
      row-count consistency check (see its docstring — it just
