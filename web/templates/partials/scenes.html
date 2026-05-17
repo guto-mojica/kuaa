@@ -30,7 +30,7 @@
     {% if available_tags %}
     <div class="tag-filter-section">
         <div id="tag-filter-pills">
-            {% for page_tags in available_tags | batch(16) %}
+            {% for page_tags in available_tags | batch(45) %}
             <div class="tag-page"{% if not loop.first %} style="display:none"{% endif %}>
                 {% for tag in page_tags %}
                 <label class="tag-pill">
@@ -41,12 +41,12 @@
             </div>
             {% endfor %}
         </div>
-        {% if available_tags | length > 16 %}
+        {% if available_tags | length > 45 %}
         <div class="tag-page-nav">
             <button type="button" class="btn-ghost tag-page-btn" id="tag-prev"
                     onclick="tagNav(-1)" disabled aria-label="{{ _('Previous tag page') }}">‹</button>
             <span class="text-muted tag-page-lbl" id="tag-page-lbl">
-                1 / {{ ((available_tags | length - 1) // 16) + 1 }}
+                1 / {{ ((available_tags | length - 1) // 45) + 1 }}
             </span>
             <button type="button" class="btn-ghost tag-page-btn" id="tag-next"
                     onclick="tagNav(1)" aria-label="{{ _('Next tag page') }}">›</button>
@@ -101,12 +101,17 @@
         });
     }
 
-    // Click — delegated on the stable #scenes-grid container
+    // Click — toggle: selecting the same card again deselects it
     var grid = document.getElementById('scenes-grid');
     if (grid) {
         grid.addEventListener('click', function (e) {
             var card = e.target.closest('.scene-card[data-scene-id]');
-            if (card) selectCard(card);
+            if (!card) return;
+            if (card.classList.contains('is-selected')) {
+                card.classList.remove('is-selected');
+            } else {
+                selectCard(card);
+            }
         });
     }
 
