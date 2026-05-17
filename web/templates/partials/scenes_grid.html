@@ -4,7 +4,9 @@
 <p class="text-muted scenes-count">{{ cards | length }} {{ _("scenes") }}</p>
 
 {% for card in cards %}
-<div class="scene-card">
+<div class="scene-card"
+     id="scene-card-{{ card.scene_id }}"
+     data-scene-id="{{ card.scene_id }}">
 
     {% if card.img_url %}
     <img class="scene-card__keyframe"
@@ -36,6 +38,20 @@
         {% endfor %}
     </div>
     {% endif %}
+
+    <!-- Expanded: full description + all tags. Revealed by .is-selected -->
+    <div class="scene-card__expanded">
+        {% if card.full_description %}
+        <p class="scene-card__full-desc">{{ card.full_description }}</p>
+        {% endif %}
+        {% if card.all_tags %}
+        <div class="scene-card__all-tags">
+            {% for tag in card.all_tags %}
+            <span class="tag">{{ tag }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
 
 </div>
 {% endfor %}

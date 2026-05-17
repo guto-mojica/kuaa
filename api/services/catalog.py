@@ -202,6 +202,7 @@ def build_cards(
         # Tags from tag_index (inverted lookup). tag_index ids are
         # already canonical str keys, so this is direct str-vs-str.
         all_scene_tags = list({tag for tag, ids in tag_index.items() if sid in ids})
+        all_tags_sorted = sorted(all_scene_tags, key=lambda t: len(tag_index.get(t, [])))
         scene_tags = _select_tags_by_frequency(all_scene_tags, tag_index)
 
         # Visual analysis summary
@@ -222,9 +223,11 @@ def build_cards(
                 "img_url": img_url,
                 "timecode": tc,
                 "tags": scene_tags,
+                "all_tags": all_tags_sorted,
                 "environment": " · ".join(env_parts),
                 "num_people": num_people,
                 "description": description[:120] if description else "",
+                "full_description": description,
             }
         )
 

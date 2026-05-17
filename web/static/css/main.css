@@ -343,12 +343,38 @@ body {
 
 .scene-card {
     background: var(--c-bg-raised);
-    border: 1px solid var(--c-bg-border);
+    border: 2px solid transparent;
     border-radius: 8px;
     overflow: hidden;
-    transition: border-color 150ms ease;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+    cursor: pointer;
 }
-.scene-card:hover { border-color: rgba(200, 150, 62, 0.3); }
+.scene-card:hover { border-color: rgba(200, 150, 62, 0.35); }
+.scene-card.is-selected {
+    border-color: var(--c-accent);
+    box-shadow: 0 0 0 1px var(--c-accent-dim);
+}
+
+/* Expanded section: hidden by default, shown when selected */
+.scene-card__expanded { display: none; padding: 0 8px 10px; }
+.scene-card.is-selected .scene-card__expanded { display: block; }
+
+/* When selected, swap truncated desc → full desc, sampled tags → all tags */
+.scene-card.is-selected .scene-card__desc  { display: none; }
+.scene-card.is-selected .scene-card__tags  { display: none; }
+
+.scene-card__full-desc {
+    font-size: 0.8125rem;
+    color: var(--c-text-primary);
+    line-height: 1.55;
+    margin-bottom: 8px;
+}
+
+.scene-card__all-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
 
 .scene-card__keyframe {
     aspect-ratio: 4/3;
@@ -663,19 +689,45 @@ body {
 
 /* ── Scenes filter bar ─────────────────────────────────────────────────────── */
 .scenes-filter-bar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
     margin-bottom: 12px;
 }
 
 .scenes-keyword {
-    width: 100%;
+    flex: 1;
     max-width: 400px;
 }
+
+.scenes-jump {
+    width: 96px;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    text-align: center;
+}
+/* Hide the browser number spinner arrows */
+.scenes-jump::-webkit-inner-spin-button,
+.scenes-jump::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.scenes-jump[type=number] { -moz-appearance: textfield; }
+
+.scenes-jump--not-found {
+    border-color: var(--c-error) !important;
+    animation: scenes-jump-shake 0.3s;
+}
+@keyframes scenes-jump-shake {
+    0%, 100% { transform: translateX(0); }
+    25%       { transform: translateX(-4px); }
+    75%       { transform: translateX(4px); }
+}
+
+.tag-filter-section { margin-bottom: 16px; }
 
 .tag-filter-pills {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    margin-bottom: 16px;
+    margin-bottom: 6px;
 }
 
 .tag-pill {
@@ -705,6 +757,18 @@ body {
     border-color: var(--c-accent);
     color: var(--c-accent-text);
 }
+
+.tag-page-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.tag-page-btn {
+    padding: 2px 8px;
+    font-size: 1rem;
+    line-height: 1;
+}
+.tag-page-lbl { font-size: 0.6875rem; }
 
 .scenes-count {
     margin-bottom: 12px;

@@ -212,12 +212,16 @@ class TestBuildCards:
             "img_url",
             "timecode",
             "tags",
+            "all_tags",
             "environment",
             "num_people",
             "description",
+            "full_description",
         }
         assert len(c["description"]) == 120
+        assert c["full_description"] == "x" * 200
         assert len(c["tags"]) == 16  # capped from 20 via frequency sampling
+        assert len(c["all_tags"]) == 20  # uncapped
         assert c["environment"] == "exterior · dia"
         assert c["num_people"] == 3
         assert c["timecode"] == "00:01:23"

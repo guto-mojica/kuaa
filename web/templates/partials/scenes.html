@@ -19,16 +19,39 @@
                type="text"
                class="filter-input scenes-keyword"
                placeholder="{{ _('Filter by description keyword…') }}">
+        <input id="scenes-jump"
+               type="number"
+               class="filter-input scenes-jump"
+               placeholder="{{ _('↵ scene #') }}"
+               min="1"
+               title="{{ _('Type a scene number and press Enter to jump to it') }}">
     </div>
 
     {% if available_tags %}
-    <div class="tag-filter-pills">
-        {% for tag in available_tags %}
-        <label class="tag-pill">
-            <input type="checkbox" name="tags" value="{{ tag }}">
-            {{ tag }}
-        </label>
-        {% endfor %}
+    <div class="tag-filter-section">
+        <div id="tag-filter-pills">
+            {% for page_tags in available_tags | batch(16) %}
+            <div class="tag-page"{% if not loop.first %} style="display:none"{% endif %}>
+                {% for tag in page_tags %}
+                <label class="tag-pill">
+                    <input type="checkbox" name="tags" value="{{ tag }}">
+                    {{ tag }}
+                </label>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+        {% if available_tags | length > 16 %}
+        <div class="tag-page-nav">
+            <button type="button" class="btn-ghost tag-page-btn" id="tag-prev"
+                    onclick="tagNav(-1)" disabled aria-label="{{ _('Previous tag page') }}">‹</button>
+            <span class="text-muted tag-page-lbl" id="tag-page-lbl">
+                1 / {{ ((available_tags | length - 1) // 16) + 1 }}
+            </span>
+            <button type="button" class="btn-ghost tag-page-btn" id="tag-next"
+                    onclick="tagNav(1)" aria-label="{{ _('Next tag page') }}">›</button>
+        </div>
+        {% endif %}
     </div>
     {% endif %}
 
@@ -41,3 +64,88 @@
 
 {% endif %}
 </div>
+
+<script>
+(function () {
+    // ── Tag page navigation ───────────────────────────────────────────────────
+    var tagPages = Array.from(document.querySelectorAll('#tag-filter-pills .tag-page'));
+    if (tagPages.length > 1) {
+        var tagCur = 0;
+        window.tagNav = function (dir) {
+            tagPages[tagCur].style.display = 'none';
+            tagCur = Math.max(0, Math.min(tagPages.length - 1, tagCur + dir));
+            tagPages[tagCur].style.display = '';
+            document.getElementById('tag-prev').disabled = tagCur === 0;
+            document.getElementById('tag-next').disabled = tagCur === tagPages.length - 1;
+            document.getElementById('tag-page-lbl').textContent =
+                (tagCur + 1) + ' / ' + tagPages.length;
+        };
+    }
+
+    // ── Scene card selection ──────────────────────────────────────────────────
+    function getCards() {
+        var g = document.getElementById('scenes-grid');
+        return g ? Array.from(g.querySelectorAll('.scene-card[data-scene-id]')) : [];
+    }
+
+    function selectCard(card) {
+        if (!card) return;
+        getCards().forEach(function (c) { c.classList.remove('is-selected'); });
+        card.classList.add('is-selected');
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function selectedIdx() {
+        return getCards().findIndex(function (c) {
+            return c.classList.contains('is-selected');
+        });
+    }
+
+    // Click — delegated on the stable #scenes-grid container
+    var grid = document.getElementById('scenes-grid');
+    if (grid) {
+        grid.addEventListener('click', function (e) {
+            var card = e.target.closest('.scene-card[data-scene-id]');
+            if (card) selectCard(card);
+        });
+    }
+
+    // Keyboard arrows — deregister previous handler first (tab re-load guard)
+    if (window._scenesKbd) document.removeEventListener('keydown', window._scenesKbd);
+    window._scenesKbd = function (e) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        var cards = getCards();
+        if (!cards.length) return;
+        var idx = selectedIdx();
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            selectCard(cards[Math.min(idx < 0 ? 0 : idx + 1, cards.length - 1)]);
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (idx > 0) selectCard(cards[idx - 1]);
+        }
+    };
+    document.addEventListener('keydown', window._scenesKbd);
+
+    // Scene # jump input
+    var jump = document.getElementById('scenes-jump');
+    if (jump) {
+        jump.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            var n = parseInt(this.value, 10);
+            this.value = '';
+            if (isNaN(n)) return;
+            var card = getCards().find(function (c) {
+                return parseInt(c.dataset.sceneId, 10) === n;
+            });
+            if (card) {
+                selectCard(card);
+            } else {
+                jump.classList.add('scenes-jump--not-found');
+                setTimeout(function () { jump.classList.remove('scenes-jump--not-found'); }, 600);
+            }
+        });
+    }
+})();
+</script>
