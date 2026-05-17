@@ -37,7 +37,7 @@ def _resolve_steps(steps_arg: str) -> set[str]:
         elif tok in full:
             out.add(tok)
         else:
-            raise SystemExit(
+            raise ValueError(
                 f"--steps: valor desconhecido {tok!r}. "
                 f"Use: {','.join(_STEP_ALIASES)}"
             )
@@ -63,7 +63,11 @@ def cmd_process(args) -> int:
 
     # Sobrescrever etapas se --steps fornecido
     if args.steps:
-        enabled = _resolve_steps(args.steps)
+        try:
+            enabled = _resolve_steps(args.steps)
+        except ValueError as exc:
+            print(f"✗ Erro: {exc}", file=sys.stderr)
+            return 1
         for step in _STEP_ALIASES.values():
             setattr(cfg.pipeline.steps, step, step in enabled)
 

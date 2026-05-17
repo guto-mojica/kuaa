@@ -188,3 +188,5 @@ def test_steps_alias_maps_to_full_names():
         "frame_extraction", "scene_detection",
     }
     assert _resolve_steps("llm_description") == {"llm_description"}  # full name OK
+    with pytest.raises(ValueError):
+        _resolve_steps("bogus")
