@@ -16,9 +16,8 @@ class MTCNNFaceDetector:
         self._model = None
         self._device = device
 
-        va_cfg = getattr(cfg, "visual_analysis", None) if cfg is not None else None
-        fd_cfg = getattr(va_cfg, "face_detection", None) if va_cfg is not None else None
-        if fd_cfg is not None:
+        if cfg is not None:
+            fd_cfg = cfg.visual_analysis.face_detection
             self.enabled = fd_cfg.enabled
             self.min_face_size = fd_cfg.min_face_size
             self.thresholds = list(fd_cfg.thresholds)

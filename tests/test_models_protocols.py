@@ -1,6 +1,8 @@
 """Protocol + registry conformance (no model load, no GPU, hermetic)."""
 from __future__ import annotations
 
+import types
+
 import numpy as np
 
 
@@ -205,6 +207,36 @@ def test_by_image_uses_encode_image_single(monkeypatch, tmp_path):
     assert list(out["scene_id"]) == [1, 2]
 
 
+def _full_cfg(**model_overrides):
+    """Hermetic cfg stub with every sub-section the real backend
+    constructors read (no filesystem, no load_config)."""
+    sn = types.SimpleNamespace
+    models = sn(
+        image_embedder="clip_openclip",
+        face_detector="mtcnn_pytorch",
+        object_detector="yolov8",
+        scene_describer="moondream_gguf",
+        environment_classifier="opencv_heuristic",
+    )
+    for k, v in model_overrides.items():
+        setattr(models, k, v)
+    return sn(
+        models=models,
+        embeddings=sn(model="ViT-B-32", pretrained="openai", batch_size=16),
+        visual_analysis=sn(
+            face_detection=sn(enabled=True, min_face_size=20,
+                              thresholds=[0.6, 0.7, 0.7]),
+            object_detection=sn(enabled=True, model="yolov8n.pt",
+                                confidence=0.30),
+            environment=sn(enabled=True, brightness_threshold=100,
+                           edge_density_threshold=0.05),
+        ),
+        llm=sn(checkpoint_interval=25, process_limit=None,
+               descriptions_filename="scene_descriptions.json",
+               tags_filename="scene_tags.json"),
+    )
+
+
 def test_registry_returns_correct_types():
     from cinemateca.models import registry
     from cinemateca.models.base import (
@@ -215,17 +247,7 @@ def test_registry_returns_correct_types():
         SceneDescriber,
     )
 
-    class _M:
-        image_embedder = "clip_openclip"
-        face_detector = "mtcnn_pytorch"
-        object_detector = "yolov8"
-        scene_describer = "moondream_gguf"
-        environment_classifier = "opencv_heuristic"
-
-    class _Cfg:
-        models = _M()
-
-    cfg = _Cfg()
+    cfg = _full_cfg()
     assert isinstance(registry.get_image_embedder(cfg), ImageEmbedder)
     assert isinstance(registry.get_face_detector(cfg), FaceDetector)
     assert isinstance(registry.get_object_detector(cfg), ObjectDetector)
@@ -240,9 +262,6 @@ def test_registry_unknown_name_raises():
 
     from cinemateca.models import registry
 
-    class _Cfg:
-        class models:
-            image_embedder = "nope"
-
+    cfg = _full_cfg(image_embedder="nope")
     with pytest.raises(ValueError):
-        registry.get_image_embedder(_Cfg())
+        registry.get_image_embedder(cfg)

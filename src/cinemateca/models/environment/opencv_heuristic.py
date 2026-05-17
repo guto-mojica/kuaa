@@ -13,9 +13,8 @@ class OpenCVEnvironmentClassifier:
     """Classifies scene environment via brightness + edge-density heuristics."""
 
     def __init__(self, cfg=None):
-        va_cfg = getattr(cfg, "visual_analysis", None) if cfg is not None else None
-        env_cfg = getattr(va_cfg, "environment", None) if va_cfg is not None else None
-        if env_cfg is not None:
+        if cfg is not None:
+            env_cfg = cfg.visual_analysis.environment
             self.enabled = env_cfg.enabled
             self.brightness_threshold = env_cfg.brightness_threshold
             self.edge_density_threshold = env_cfg.edge_density_threshold
