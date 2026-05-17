@@ -8,6 +8,7 @@ itself lives in cinemateca.models.clip.openclip.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -41,14 +42,14 @@ class SemanticSearch:
 
     def by_image(
         self,
-        image_path,
+        image_path: str | Path,
         top_k: int = 8,
         exclude_self: bool = True,
     ) -> pd.DataFrame:
         img_emb = self.embedder.encode_image_single(image_path)
 
         similarities = (self.embeddings @ img_emb).flatten()
-        sorted_indices: list[int] = list(np.argsort(similarities)[::-1])
+        sorted_indices = list(np.argsort(similarities)[::-1])
 
         if exclude_self:
             query_str = str(image_path)
