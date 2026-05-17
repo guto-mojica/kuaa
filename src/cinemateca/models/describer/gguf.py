@@ -110,7 +110,7 @@ class MoondreamGGUFDescriber:
             len(to_process), len(processed_ids), len(keyframes_df),
         )
 
-        for i, row in to_process.iterrows():
+        for count, (_, row) in enumerate(to_process.iterrows(), start=1):
             try:
                 raw = {}
                 self._load_model()
@@ -120,7 +120,6 @@ class MoondreamGGUFDescriber:
                     except Exception as e:  # noqa: BLE001
                         raw[field] = f"ERROR: {e}"
                 meta = build_metadata(row, raw)
-                meta["scene_id"] = int(row.get("scene_id", -1))
                 all_results.append(meta)
             except Exception as e:  # noqa: BLE001 - whole-frame failure
                 all_results.append({
@@ -132,7 +131,6 @@ class MoondreamGGUFDescriber:
                 })
                 logger.error("Erro cena %s: %s", row.get("scene_id"), e)
 
-            count = i + 1
             if checkpoint_path and count % self.checkpoint_interval == 0:
                 self._save_json(all_results, checkpoint_path)
                 logger.info("Checkpoint: %d/%d", count, len(to_process))

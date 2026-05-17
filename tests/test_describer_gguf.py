@@ -4,6 +4,7 @@ from __future__ import annotations
 import pandas as pd
 
 from cinemateca.models.base import SceneDescriber
+from cinemateca.models.describer._common import PROMPTS
 
 
 class _FakeLlama:
@@ -68,3 +69,28 @@ def test_describe_batch_resume_excludes_error_rows(monkeypatch):
     ids = sorted(r["scene_id"] for r in out)
     assert ids == [1, 2]
     assert any("error" not in r and r["scene_id"] == 1 for r in out)
+
+
+def test_describe_batch_resume_preserves_good_rows(monkeypatch):
+    """Good existing rows must be skipped (not reprocessed) and preserved."""
+    backend, fake = _backend_with_fake(monkeypatch)
+    df = pd.DataFrame([
+        {"filepath": "a.jpg", "scene_id": 1},
+        {"filepath": "b.jpg", "scene_id": 2},
+    ])
+    good_row = {
+        "scene_id": 1,
+        "description": "prior good",
+        "tags": ["exterior"],
+        "objects": [],
+    }
+    calls_before = fake.calls
+    out = backend.describe_batch(df, existing_results=[good_row])
+    # Only scene 2 was queried (len(PROMPTS) answers); scene 1 was skipped.
+    assert fake.calls == calls_before + len(PROMPTS)
+    ids = sorted(r["scene_id"] for r in out)
+    assert ids == [1, 2]
+    # The exact prior good row object is preserved, not rebuilt.
+    assert any(
+        r["scene_id"] == 1 and r.get("description") == "prior good" for r in out
+    )
