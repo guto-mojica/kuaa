@@ -19,6 +19,7 @@ from api.services.annotations import (
     load_annotations,
     normalize_tags,
     save_annotations,
+    save_description,
 )
 from api.services.film_context import FilmContext
 from api.templates import templates
@@ -78,6 +79,46 @@ async def api_annotate_save(
         request,
         "partials/annotate_scene.html",
         make_ctx(request, filter=filter, saved=True, **ctx),
+    )
+
+
+@router.get("/api/annotate/description/edit", response_class=HTMLResponse)
+async def api_annotate_description_edit(
+    request: Request,
+    scene_id: int = Query(...),
+    filter: str = Query(default="no_llm"),
+) -> HTMLResponse:
+    from api.services.catalog import load_json
+
+    fctx = _ctx()
+    descriptions = load_json(fctx.metadata_dir / "scene_descriptions.json") or []
+    current = next(
+        (d.get("description", "") for d in descriptions if d.get("scene_id") == scene_id),
+        "",
+    )
+    return templates.TemplateResponse(
+        request,
+        "partials/annotate_desc_edit.html",
+        make_ctx(request, scene_id=scene_id, filter=filter, current_description=current),
+    )
+
+
+@router.post("/api/annotate/description", response_class=HTMLResponse)
+async def api_annotate_description_save(
+    request: Request,
+    scene_id: int = Form(...),
+    filter: str = Form(default="no_llm"),
+    description: str = Form(default=""),
+) -> HTMLResponse:
+    fctx = _ctx()
+    save_description(fctx, scene_id, description.strip())
+    logger.info("Description updated for scene %s", scene_id)
+
+    ctx = build_scene_panel(fctx, scene_id, filter)
+    return templates.TemplateResponse(
+        request,
+        "partials/annotate_scene.html",
+        make_ctx(request, filter=filter, desc_saved=True, **ctx),
     )
 
 

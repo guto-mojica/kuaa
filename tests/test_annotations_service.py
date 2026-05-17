@@ -45,6 +45,7 @@ from api.services.annotations import (
     load_annotations,
     normalize_tags,
     save_annotations,
+    save_description,
     scene_context,
 )
 from api.services.film_context import FilmContext
@@ -390,3 +391,81 @@ class TestBuildAnnotateContext:
         out = build_annotate_context(ctx, "all", 352)
         assert out["scene_id"] == 352
         assert out["current_idx"] == 1
+
+
+# ── save_description ──────────────────────────────────────────────────────────
+
+class TestSaveDescription:
+    def test_updates_existing_entry(self, tmp_config, seed_metadata):
+        seed_metadata()
+        ctx = FilmContext.from_config(tmp_config)
+        save_description(ctx, 351, "manually edited text")
+
+        import json
+        records = json.loads((ctx.metadata_dir / "scene_descriptions.json").read_text())
+        entry = next(r for r in records if r["scene_id"] == 351)
+        assert entry["description"] == "manually edited text"
+
+    def test_preserves_other_fields(self, tmp_config, seed_metadata):
+        seed_metadata(
+            descriptions=[
+                {"scene_id": 351, "description": "original", "objects": ["tree"]},
+                {"scene_id": 352, "description": "other"},
+            ]
+        )
+        ctx = FilmContext.from_config(tmp_config)
+        save_description(ctx, 351, "updated")
+
+        import json
+        records = json.loads((ctx.metadata_dir / "scene_descriptions.json").read_text())
+        entry = next(r for r in records if r["scene_id"] == 351)
+        assert entry["description"] == "updated"
+        assert entry["objects"] == ["tree"]
+
+    def test_appends_new_entry_when_scene_not_found(self, tmp_config, seed_metadata):
+        seed_metadata(descriptions=[{"scene_id": 351, "description": "exists"}])
+        ctx = FilmContext.from_config(tmp_config)
+        save_description(ctx, 999, "brand new")
+
+        import json
+        records = json.loads((ctx.metadata_dir / "scene_descriptions.json").read_text())
+        ids = {r["scene_id"] for r in records}
+        assert 999 in ids
+        entry = next(r for r in records if r["scene_id"] == 999)
+        assert entry["description"] == "brand new"
+
+    def test_creates_file_when_none_exists(self, tmp_config):
+        ctx = FilmContext.from_config(tmp_config)
+        assert not (ctx.metadata_dir / "scene_descriptions.json").exists()
+        save_description(ctx, 351, "first description")
+
+        import json
+        records = json.loads((ctx.metadata_dir / "scene_descriptions.json").read_text())
+        assert records == [{"scene_id": 351, "description": "first description"}]
+
+    def test_leaves_no_temp_file(self, tmp_config, seed_metadata):
+        seed_metadata()
+        ctx = FilmContext.from_config(tmp_config)
+        save_description(ctx, 351, "clean")
+
+        leftovers = list(ctx.metadata_dir.glob(".scene_descriptions.*.tmp"))
+        assert leftovers == []
+
+    def test_overwrite_does_not_duplicate_entry(self, tmp_config, seed_metadata):
+        seed_metadata()
+        ctx = FilmContext.from_config(tmp_config)
+        save_description(ctx, 351, "first edit")
+        save_description(ctx, 351, "second edit")
+
+        import json
+        records = json.loads((ctx.metadata_dir / "scene_descriptions.json").read_text())
+        entries = [r for r in records if r["scene_id"] == 351]
+        assert len(entries) == 1
+        assert entries[0]["description"] == "second edit"
+
+    def test_scene_panel_reflects_update(self, tmp_config, seed_metadata):
+        seed_metadata()
+        ctx = FilmContext.from_config(tmp_config)
+        save_description(ctx, 351, "rewritten by user")
+        panel = build_scene_panel(ctx, 351, "all")
+        assert panel["llm"]["description"] == "rewritten by user"

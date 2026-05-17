@@ -558,6 +558,20 @@ body {
     letter-spacing: 0.05em;
 }
 .annotate-llm { margin-bottom: 16px; }
+.annotate-llm__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+.annotate-llm__header .annotate-section-label { margin-bottom: 0; }
+.annotate-edit-trigger {
+    font-size: 0.6875rem;
+    color: var(--c-text-muted);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+.annotate-edit-trigger:hover { color: var(--c-accent-text); }
 .annotate-llm__text {
     font-size: 0.875rem;
     color: var(--c-text-primary);
@@ -565,7 +579,34 @@ body {
 }
 .annotate-no-llm {
     font-style: italic;
-    margin-bottom: 16px;
+    margin-bottom: 0;
+}
+.annotate-edit-warning {
+    background: rgba(200, 150, 62, 0.12);
+    border: 1px solid var(--c-accent-dim);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.8125rem;
+    color: var(--c-accent-text);
+    margin: 10px 0 8px;
+}
+.annotate-desc-textarea {
+    width: 100%;
+    background: var(--c-bg-base);
+    border: 1px solid var(--c-bg-border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--c-text-primary);
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    line-height: 1.6;
+    resize: vertical;
+    margin-bottom: 0;
+}
+.annotate-desc-textarea:focus {
+    outline: none;
+    border-color: var(--c-accent);
+    box-shadow: 0 0 0 2px rgba(200, 150, 62, 0.25);
 }
 .annotate-divider {
     height: 1px;

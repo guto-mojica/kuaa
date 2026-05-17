@@ -7,6 +7,10 @@
 <div class="annotate-feedback annotate-feedback--success">
     ✓ {{ _("Tags cleared") }}
 </div>
+{% elif desc_saved %}
+<div class="annotate-feedback annotate-feedback--success">
+    ✓ {{ _("Description saved") }}
+</div>
 {% endif %}
 
 <!-- Prev / next navigation -->
@@ -55,7 +59,13 @@
 
         {% if llm %}
         <div class="annotate-llm">
-            <p class="annotate-section-label">{{ _("LLM description") }}</p>
+            <div class="annotate-llm__header">
+                <p class="annotate-section-label">{{ _("LLM description") }}</p>
+                <button class="btn-ghost annotate-edit-trigger"
+                        hx-get="/api/annotate/description/edit?scene_id={{ scene_id }}&filter={{ filter }}"
+                        hx-target="#annotate-llm-edit"
+                        hx-swap="innerHTML">{{ _("Edit") }}</button>
+            </div>
             <p class="annotate-llm__text">{{ llm.description }}</p>
             {% if llm.tags %}
             <div class="scene-card__tags" style="margin-top: 8px">
@@ -66,8 +76,15 @@
             {% endif %}
         </div>
         {% else %}
-        <p class="text-muted annotate-no-llm">{{ _("No LLM description") }}</p>
+        <div class="annotate-llm__header">
+            <p class="text-muted annotate-no-llm">{{ _("No LLM description") }}</p>
+            <button class="btn-ghost annotate-edit-trigger"
+                    hx-get="/api/annotate/description/edit?scene_id={{ scene_id }}&filter={{ filter }}"
+                    hx-target="#annotate-llm-edit"
+                    hx-swap="innerHTML">{{ _("Add description") }}</button>
+        </div>
         {% endif %}
+        <div id="annotate-llm-edit"></div>
 
         <div class="annotate-divider"></div>
 

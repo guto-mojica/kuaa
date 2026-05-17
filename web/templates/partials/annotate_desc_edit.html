@@ -1,0 +1,20 @@
+<form hx-post="/api/annotate/description"
+      hx-target="#annotate-scene"
+      hx-swap="innerHTML">
+    <input type="hidden" name="scene_id" value="{{ scene_id }}">
+    <input type="hidden" name="filter" value="{{ filter }}">
+    <div class="annotate-edit-warning">
+        ⚠ {{ _("You are about to overwrite the LLM-generated description. This cannot be undone.") }}
+    </div>
+    <textarea class="annotate-desc-textarea"
+              name="description"
+              rows="4">{{ current_description }}</textarea>
+    <div class="annotate-actions" style="margin-top: 8px">
+        <button type="submit" class="btn-primary">{{ _("Overwrite & Save") }}</button>
+        <button type="button"
+                class="btn-secondary"
+                hx-get="/api/annotate/scene?id={{ scene_id }}&filter={{ filter }}"
+                hx-target="#annotate-scene"
+                hx-swap="innerHTML">{{ _("Cancel") }}</button>
+    </div>
+</form>
