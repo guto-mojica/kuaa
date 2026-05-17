@@ -181,12 +181,7 @@ def build_cards(
 
         # Tags from tag_index (inverted lookup). tag_index ids are
         # already canonical str keys, so this is direct str-vs-str.
-        # Filter out LLM error sentinel tags — they are processing
-        # artifacts, not meaningful content labels.
-        scene_tags = sorted(
-            {tag for tag, ids in tag_index.items()
-             if sid in ids and not tag.startswith("error:")}
-        )
+        scene_tags = sorted({tag for tag, ids in tag_index.items() if sid in ids})
 
         # Visual analysis summary
         vis = vis_by_scene.get(sid, {})
@@ -196,10 +191,9 @@ def build_cards(
         ]
         num_people = vis.get("num_faces")
 
-        # Description one-liner — suppress LLM error sentinels.
+        # Description one-liner
         desc = desc_by_scene.get(sid, {})
-        raw_desc = desc.get("description") or ""
-        description = "" if raw_desc.upper().startswith("ERROR") else raw_desc
+        description = desc.get("description") or ""
 
         cards.append(
             {

@@ -126,9 +126,7 @@ def build_scene_list(
     valid_desc_ids = {
         d["scene_id"]
         for d in descriptions
-        if "error" not in d
-        and _BROKEN_LLM not in d.get("description", "")
-        and not d.get("description", "").upper().startswith("ERROR")
+        if "error" not in d and _BROKEN_LLM not in d.get("description", "")
     }
 
     if filter_mode == "no_llm":
@@ -171,11 +169,7 @@ def scene_context(
     end_s = float(scene.get("end_time_s", 0))
 
     llm = desc_by_scene.get(scene_id)
-    has_llm = bool(
-        llm
-        and _BROKEN_LLM not in llm.get("description", "")
-        and not llm.get("description", "").upper().startswith("ERROR")
-    )
+    has_llm = bool(llm and _BROKEN_LLM not in llm.get("description", ""))
 
     existing_tags = annotations.get(str(scene_id), [])
     annotated_count = sum(1 for s in scenes if str(s["scene_id"]) in annotations)
