@@ -15,6 +15,34 @@ from __future__ import annotations
 import argparse
 import sys
 
+_STEP_ALIASES = {
+    "frames": "frame_extraction",
+    "scenes": "scene_detection",
+    "visual": "visual_analysis",
+    "embeddings": "embeddings",
+    "llm": "llm_description",
+}
+
+
+def _resolve_steps(steps_arg: str) -> set[str]:
+    """Map documented short aliases (and full names) to canonical step names."""
+    full = set(_STEP_ALIASES.values())
+    out = set()
+    for tok in steps_arg.split(","):
+        tok = tok.strip()
+        if not tok:
+            continue
+        if tok in _STEP_ALIASES:
+            out.add(_STEP_ALIASES[tok])
+        elif tok in full:
+            out.add(tok)
+        else:
+            raise SystemExit(
+                f"--steps: valor desconhecido {tok!r}. "
+                f"Use: {','.join(_STEP_ALIASES)}"
+            )
+    return out
+
 
 def _print_banner():
     print("""
@@ -35,12 +63,8 @@ def cmd_process(args) -> int:
 
     # Sobrescrever etapas se --steps fornecido
     if args.steps:
-        enabled = set(args.steps.split(","))
-        all_steps = [
-            "frame_extraction", "scene_detection",
-            "visual_analysis", "embeddings", "llm_description"
-        ]
-        for step in all_steps:
+        enabled = _resolve_steps(args.steps)
+        for step in _STEP_ALIASES.values():
             setattr(cfg.pipeline.steps, step, step in enabled)
 
     _print_banner()

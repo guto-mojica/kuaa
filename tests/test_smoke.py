@@ -178,3 +178,13 @@ def test_pipeline_result_summary():
     assert "frame_extraction" in summary
     assert "scene_detection" in summary
     assert "FFmpeg missing" in summary
+
+
+def test_steps_alias_maps_to_full_names():
+    from cinemateca.__main__ import _resolve_steps
+
+    assert _resolve_steps("llm") == {"llm_description"}
+    assert _resolve_steps("frames,scenes") == {
+        "frame_extraction", "scene_detection",
+    }
+    assert _resolve_steps("llm_description") == {"llm_description"}  # full name OK
