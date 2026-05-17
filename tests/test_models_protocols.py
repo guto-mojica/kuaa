@@ -210,6 +210,7 @@ def test_by_image_uses_encode_image_single(monkeypatch, tmp_path):
 def _full_cfg(**model_overrides):
     """Hermetic cfg stub with every sub-section the real backend
     constructors read (no filesystem, no load_config)."""
+    # Mirrors config/default.yaml shape — update both when a constructor reads a new field.
     sn = types.SimpleNamespace
     models = sn(
         image_embedder="clip_openclip",

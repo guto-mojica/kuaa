@@ -261,8 +261,8 @@ class CatalogPipeline:
                 raise FileNotFoundError(f"Nenhum keyframe em: {keyframes_dir}")
 
             analyzer = VisualAnalyzer(
-                face_detector=get_face_detector(self.cfg),
-                object_detector=get_object_detector(self.cfg),
+                face_detector=get_face_detector(self.cfg, self.device),
+                object_detector=get_object_detector(self.cfg, self.device),
                 env_classifier=get_environment_classifier(self.cfg),
             )
             results = analyzer.analyze_keyframes(keyframes)
@@ -298,7 +298,7 @@ class CatalogPipeline:
             kf_df["exists"] = kf_df["filepath"].apply(lambda x: Path(x).exists())
             valid_kf = kf_df[kf_df["exists"]].reset_index(drop=True)
 
-            embedder = get_image_embedder(self.cfg)
+            embedder = get_image_embedder(self.cfg, self.device)
             self._embedder = embedder  # reutilizar no step seguinte se necessário
 
             image_paths = [Path(p) for p in valid_kf["filepath"]]
@@ -355,7 +355,7 @@ class CatalogPipeline:
                     existing = json.load(f)
                 logger.info("Retomando: %d cenas já descritas", len(existing))
 
-            describer = get_scene_describer(self.cfg)
+            describer = get_scene_describer(self.cfg, self.device)
             results = describer.describe_batch(
                 valid_kf,
                 existing_results=existing,
@@ -384,7 +384,6 @@ class CatalogPipeline:
             PipelineResult com o status de cada etapa.
         """
         video_path = Path(video_path)
-        self.cfg._device = self.device
         pipeline_start = time.time()
 
         logger.info("=" * 60)
