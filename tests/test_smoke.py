@@ -105,9 +105,9 @@ def test_import_embeddings():
     assert OpenClipEmbedder is not None
 
 
-def test_import_llm_describer():
-    from cinemateca.llm_describer import LLMDescriber
-    assert LLMDescriber is not None
+def test_import_describer():
+    from cinemateca.models.describer.gguf import MoondreamGGUFDescriber
+    assert MoondreamGGUFDescriber is not None
 
 
 def test_import_pipeline():
@@ -118,7 +118,7 @@ def test_import_pipeline():
 # ─── LLM parsing — sem modelo ────────────────────────────────────────────────
 
 def test_parse_num_people():
-    from cinemateca.llm_describer import _parse_num_people
+    from cinemateca.models.describer._common import _parse_num_people
     assert _parse_num_people("no people visible") == 0
     assert _parse_num_people("two people talking") == 2
     assert _parse_num_people("a man standing") == 1
@@ -127,7 +127,7 @@ def test_parse_num_people():
 
 
 def test_parse_objects():
-    from cinemateca.llm_describer import _parse_objects
+    from cinemateca.models.describer._common import _parse_objects
     result = _parse_objects("tree, wooden fence, hat, dirt road")
     assert "tree" in result
     assert "wooden fence" in result
@@ -135,7 +135,7 @@ def test_parse_objects():
 
 
 def test_generate_tags():
-    from cinemateca.llm_describer import _generate_tags
+    from cinemateca.models.describer._common import _generate_tags
     tags = _generate_tags({
         "location": "exterior",
         "time_of_day": "dia",

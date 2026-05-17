@@ -317,7 +317,7 @@ class CatalogPipeline:
     def _step_llm_description(self, metadata_path: Path) -> StepResult:
         import pandas as pd
 
-        from cinemateca.llm_describer import LLMDescriber
+        from cinemateca.models.describer.gguf import MoondreamGGUFDescriber
 
         name = "llm_description"
         llm_cfg = self.cfg.llm
@@ -353,8 +353,8 @@ class CatalogPipeline:
                     existing = json.load(f)
                 logger.info("Retomando: %d cenas já descritas", len(existing))
 
-            describer = LLMDescriber(self.cfg, self.device)
-            results = describer.describe_keyframes(
+            describer = MoondreamGGUFDescriber(self.cfg, self.device)
+            results = describer.describe_batch(
                 valid_kf,
                 existing_results=existing,
                 checkpoint_path=desc_path,

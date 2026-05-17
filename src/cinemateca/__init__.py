@@ -10,7 +10,7 @@ Módulos principais:
     scene_detector  — Detecção de cenas e extração de keyframes (PySceneDetect)
     visual_analyzer — Detecção facial, objetos e ambiente (MTCNN + YOLOv8)
     embeddings      — Embeddings visuais e busca semântica (CLIP)
-    llm_describer   — Geração de metadados descritivos (Moondream 2)
+    models.describer — Geração de metadados descritivos (Moondream 2 GGUF)
     pipeline        — Orquestrador do pipeline completo
 
 Uso rápido:
