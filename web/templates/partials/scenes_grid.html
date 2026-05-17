@@ -18,7 +18,9 @@
     {% endif %}
 
     <div class="scene-card__meta">
-        <span class="scene-card__timecode">{{ card.timecode or ("scene " ~ card.scene_id) }}</span>
+        <span class="scene-card__timecode">
+            {%- if card.timecode %}{{ card.timecode }} · {% endif %}{{ _("scene") }} {{ card.scene_id -}}
+        </span>
         {% if card.environment %}
         <span class="scene-card__env">{{ card.environment }}</span>
         {% endif %}

@@ -34,12 +34,15 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+import pandas as pd
+
 from api.services.film_context import FilmContext
 from api.services.search import (
     IndexStatus,
     UploadRejected,
     clear_index_cache,
     load_index,
+    results_to_dicts,
     validate_upload,
 )
 
@@ -241,3 +244,47 @@ class TestValidateUpload:
 
     def test_content_type_with_charset_param_ok(self):
         assert validate_upload("x.png", "image/png; charset=binary", b"d") == ".png"
+
+
+# ── results_to_dicts timecode enrichment ─────────────────────────────────────
+
+class TestResultsToDicts:
+    def _df(self, scene_id: int, filepath: str, similarity: float = 0.9):
+        return pd.DataFrame([{
+            "rank": 1, "scene_id": scene_id,
+            "filepath": filepath, "similarity": similarity,
+        }])
+
+    def test_no_meta_no_timecode_key(self, tmp_path):
+        df = self._df(1, str(tmp_path / "frames" / "s1.jpg"))
+        rows = results_to_dicts(df, tmp_path)
+        assert "timecode" not in rows[0]
+
+    def test_with_meta_adds_smpte_timecode(self, tmp_path):
+        (tmp_path / "frames").mkdir()
+        kf = tmp_path / "frames" / "s1.jpg"
+        kf.touch()
+        df = self._df(1, str(kf))
+        meta_by_scene = {1: {"scene_id": 1, "start_time_s": 83.0, "start_frame": 1992}}
+        rows = results_to_dicts(df, tmp_path, meta_by_scene, fps=24.0)
+        assert rows[0]["timecode"] == "00:01:23:00"
+
+    def test_with_meta_zero_start_time_empty_timecode(self, tmp_path):
+        df = self._df(1, str(tmp_path / "s1.jpg"))
+        meta_by_scene = {1: {"scene_id": 1, "start_time_s": 0.0, "start_frame": 0}}
+        rows = results_to_dicts(df, tmp_path, meta_by_scene, fps=24.0)
+        assert rows[0]["timecode"] == ""
+
+    def test_with_meta_missing_scene_no_timecode(self, tmp_path):
+        df = self._df(99, str(tmp_path / "s99.jpg"))
+        meta_by_scene = {1: {"scene_id": 1, "start_time_s": 10.0}}
+        rows = results_to_dicts(df, tmp_path, meta_by_scene, fps=24.0)
+        assert "timecode" not in rows[0]
+
+    def test_img_url_still_resolved(self, tmp_path):
+        (tmp_path / "frames").mkdir()
+        kf = tmp_path / "frames" / "s1.jpg"
+        kf.touch()
+        df = self._df(1, str(kf))
+        rows = results_to_dicts(df, tmp_path)
+        assert rows[0]["img_url"] == "/media/frames/s1.jpg"

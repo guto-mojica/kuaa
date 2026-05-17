@@ -18,7 +18,7 @@ from fastapi.responses import HTMLResponse
 
 from api.deps import get_config, make_ctx
 from api.services import search as search_service
-from api.services.catalog import load_tag_index
+from api.services.catalog import derive_fps, load_json, load_tag_index
 from api.services.film_context import FilmContext
 from api.templates import templates
 
@@ -33,6 +33,14 @@ def build_search_context() -> dict:
     """Build the search-tab partial context (delegates to the service)."""
     ctx = FilmContext.from_config(get_config())
     return search_service.build_search_context(ctx)
+
+
+def _kf_meta(ctx: FilmContext) -> tuple[dict, float]:
+    """Return ``(meta_by_scene, fps)`` from ``keyframes_metadata.json``."""
+    kf_meta = load_json(ctx.metadata_dir / "keyframes_metadata.json") or []
+    fps = derive_fps(kf_meta)
+    meta_by_scene = {e["scene_id"]: e for e in kf_meta if "scene_id" in e}
+    return meta_by_scene, fps
 
 
 def _no_index_response(request: Request) -> HTMLResponse:
@@ -80,12 +88,15 @@ async def api_search(
         None, search_service.search_text, index, q, tags, tag_index, top_k
     )
 
+    meta_by_scene, fps = _kf_meta(ctx)
     return templates.TemplateResponse(
         request,
         "partials/search_results.html",
         make_ctx(
             request,
-            results=search_service.results_to_dicts(results_df, ctx.data_dir),
+            results=search_service.results_to_dicts(
+                results_df, ctx.data_dir, meta_by_scene, fps
+            ),
             no_index=False,
         ),
     )
@@ -132,12 +143,15 @@ async def api_search_image(
     finally:
         tmp_path.unlink(missing_ok=True)
 
+    meta_by_scene, fps = _kf_meta(ctx)
     return templates.TemplateResponse(
         request,
         "partials/search_results.html",
         make_ctx(
             request,
-            results=search_service.results_to_dicts(results_df, ctx.data_dir),
+            results=search_service.results_to_dicts(
+                results_df, ctx.data_dir, meta_by_scene, fps
+            ),
             no_index=False,
         ),
     )

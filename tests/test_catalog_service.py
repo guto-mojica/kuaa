@@ -27,10 +27,12 @@ from api.services.catalog import (
     build_cards,
     build_scenes_context,
     build_scenes_grid,
+    derive_fps,
     keyframe_url,
     load_json,
     load_metadata,
     load_tag_index,
+    to_smpte,
 )
 from api.services.film_context import FilmContext
 
@@ -252,3 +254,96 @@ class TestSceneContextBuilders:
         out = build_scenes_grid(ctx, ["dia"], "")
         assert set(out) == {"cards"}
         assert [c["scene_id"] for c in out["cards"]] == [351]
+
+
+# ── SMPTE timecode utilities ──────────────────────────────────────────────────
+
+class TestToSmpte:
+    def test_zero(self):
+        assert to_smpte(0.0) == "00:00:00:00"
+
+    def test_one_second(self):
+        assert to_smpte(1.0, 24.0) == "00:00:01:00"
+
+    def test_sub_second_frames(self):
+        # 0.5 s * 24 fps = 12 total frames → 00:00:00:12
+        assert to_smpte(0.5, 24.0) == "00:00:00:12"
+
+    def test_minutes_and_frames(self):
+        # 83 s * 24 fps = 1992 frames; 1992 // 24 = 83 s; 83 s = 1 m 23 s
+        assert to_smpte(83.0, 24.0) == "00:01:23:00"
+
+    def test_ntsc_approx(self):
+        # real data: scene_id=2 start_frame=2535 start_time_s=105.73
+        # fps ≈ 23.976; to_smpte should give sensible HH:MM:SS:FF
+        tc = to_smpte(105.73, 23.976)
+        hh, mm, ss, ff = tc.split(":")
+        assert hh == "00" and mm == "01" and ss == "45"
+        assert 0 <= int(ff) < 24
+
+    def test_hours_boundary(self):
+        # exactly 1 hour at 25 fps
+        tc = to_smpte(3600.0, 25.0)
+        assert tc == "01:00:00:00"
+
+    def test_fps_rounded_to_int(self):
+        # fps=23.976 rounds to 24 for frame arithmetic
+        assert to_smpte(0.0, 23.976) == "00:00:00:00"
+
+
+class TestDeriveFps:
+    def test_derives_from_second_entry(self):
+        meta = [
+            {"scene_id": 1, "start_frame": 0, "start_time_s": 0.0},
+            {"scene_id": 2, "start_frame": 2535, "start_time_s": 105.73},
+        ]
+        fps = derive_fps(meta)
+        assert abs(fps - 23.976) < 0.01
+
+    def test_falls_back_to_24_when_no_valid_entry(self):
+        assert derive_fps([]) == 24.0
+        assert derive_fps([{"scene_id": 1, "start_frame": 0, "start_time_s": 0.0}]) == 24.0
+
+    def test_uses_first_nonzero_entry(self):
+        meta = [
+            {"scene_id": 1, "start_frame": 600, "start_time_s": 25.0},
+            {"scene_id": 2, "start_frame": 1200, "start_time_s": 50.0},
+        ]
+        fps = derive_fps(meta)
+        assert fps == 24.0  # 600/25.0 == 24.0
+
+
+class TestBuildCardsSmpte:
+    def test_smpte_computed_from_start_time_s(self, tmp_config, seed_metadata):
+        """When ``start_time_s`` is present the timecode is SMPTE HH:MM:SS:FF."""
+        seed_metadata(
+            scenes=[
+                {"scene_id": 351, "filepath": "frames/s351.jpg",
+                 "start_time_s": 83.0, "start_frame": 1992},
+                {"scene_id": 352, "filepath": "frames/s352.jpg",
+                 "start_time_s": 105.73, "start_frame": 2535},
+            ],
+            descriptions=None, llm_tags=None, manual=None, visual=None,
+        )
+        ctx = FilmContext.from_config(tmp_config)
+        kf, desc, vis, tags = load_metadata(ctx.metadata_dir)
+        cards = build_cards(kf, desc, vis, tags, ctx.data_dir, [], "")
+        tcs = [c["timecode"] for c in cards]
+        assert tcs[0] == "00:01:23:00"      # 83 s * 24 fps
+        # timecode has HH:MM:SS:FF shape
+        for tc in tcs:
+            parts = tc.split(":")
+            assert len(parts) == 4 and all(len(p) == 2 for p in parts)
+
+    def test_fallback_to_timecode_start_string(self, tmp_config, seed_metadata):
+        """When ``start_time_s`` is absent the raw ``timecode_start`` string
+        is preserved (backward-compat for test fixtures and older metadata)."""
+        seed_metadata(
+            scenes=[{"scene_id": 351, "filepath": "frames/s351.jpg",
+                     "timecode_start": "00:01:23"}],
+            descriptions=None, llm_tags=None, manual=None, visual=None,
+        )
+        ctx = FilmContext.from_config(tmp_config)
+        kf, desc, vis, tags = load_metadata(ctx.metadata_dir)
+        cards = build_cards(kf, desc, vis, tags, ctx.data_dir, [], "")
+        assert cards[0]["timecode"] == "00:01:23"

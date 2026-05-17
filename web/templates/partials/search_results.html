@@ -24,7 +24,9 @@
     <div class="scene-card__keyframe scene-card__keyframe--missing"></div>
     {% endif %}
     <div class="scene-card__meta">
-        <span class="scene-card__timecode">{{ _("scene") }} {{ r.scene_id }}</span>
+        <span class="scene-card__timecode">
+            {%- if r.timecode %}{{ r.timecode }} · {% endif %}{{ _("scene") }} {{ r.scene_id -}}
+        </span>
         <span class="scene-card__score">{{ "%.3f" | format(r.similarity) }}</span>
     </div>
 </div>

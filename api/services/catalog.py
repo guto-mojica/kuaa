@@ -129,6 +129,36 @@ def load_metadata(metadata_dir: Path) -> tuple[list, dict, dict, dict]:
     return kf_meta, desc_by_scene, vis_by_scene, tag_index
 
 
+# ── SMPTE timecode utilities ──────────────────────────────────────────────────
+
+def to_smpte(seconds: float, fps: float = 24.0) -> str:
+    """Convert a time-in-seconds to SMPTE ``HH:MM:SS:FF`` notation."""
+    fps_int = max(1, round(fps))
+    total_frames = int(seconds * fps)
+    ff = total_frames % fps_int
+    rest = total_frames // fps_int
+    ss = rest % 60
+    mm = (rest // 60) % 60
+    hh = rest // 3600
+    return f"{hh:02d}:{mm:02d}:{ss:02d}:{ff:02d}"
+
+
+def derive_fps(kf_meta: list) -> float:
+    """Infer original video FPS from keyframe metadata entries.
+
+    Uses the first entry where both ``start_frame`` and ``start_time_s``
+    are positive (the first scene always starts at 0 s / frame 0, so it
+    is useless for derivation). Falls back to 24.0 when no suitable
+    entry exists.
+    """
+    for entry in kf_meta:
+        t = float(entry.get("start_time_s") or 0.0)
+        f = int(entry.get("start_frame") or 0)
+        if t > 0 and f > 0:
+            return f / t
+    return 24.0
+
+
 # ── Scene-card construction ───────────────────────────────────────────────────
 
 def _select_tags_by_frequency(
@@ -168,6 +198,7 @@ def build_cards(
     (as :func:`load_metadata` returns it).
     """
     scenes = list(kf_meta)
+    fps = derive_fps(kf_meta)
 
     # Tag filter — intersect scene_ids across all selected tags.
     # tag_index is already normalized to {tag: {canonical str id}}, so
@@ -197,7 +228,11 @@ def build_cards(
         sid = scene_id_key(s.get("scene_id", ""))
         fp = Path(s.get("filepath", ""))
         img_url = keyframe_url(fp, data_dir)
-        tc = s.get("timecode_start") or s.get("start_timecode", "")
+        start_s = float(s.get("start_time_s") or 0.0)
+        if start_s > 0:
+            tc = to_smpte(start_s, fps)
+        else:
+            tc = s.get("timecode_start") or s.get("start_timecode", "")
 
         # Tags from tag_index (inverted lookup). tag_index ids are
         # already canonical str keys, so this is direct str-vs-str.

@@ -59,7 +59,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from api.services.catalog import keyframe_url, load_tag_index
+from api.services.catalog import keyframe_url, load_tag_index, to_smpte
 from api.services.film_context import FilmContext
 
 logger = logging.getLogger(__name__)
@@ -236,16 +236,29 @@ def clear_index_cache() -> None:
 
 # ── Result conversion ─────────────────────────────────────────────────────────
 
-def results_to_dicts(results_df, data_dir: Path) -> list[dict]:
+def results_to_dicts(
+    results_df,
+    data_dir: Path,
+    meta_by_scene: dict | None = None,
+    fps: float = 24.0,
+) -> list[dict]:
     """Convert a search result DataFrame to the template's card dicts.
 
-    Byte-equivalent to the prior route ``_results_to_dicts``: each row
-    gains an ``img_url`` resolved via the shared catalog primitive.
+    When ``meta_by_scene`` is supplied (a ``{scene_id: kf_entry}`` dict
+    from ``keyframes_metadata.json``), each result row is enriched with a
+    SMPTE ``timecode`` field computed from ``start_time_s``. Without it
+    the behaviour is byte-equivalent to the prior route implementation.
     """
-    return [
-        {**row, "img_url": keyframe_url(str(row["filepath"]), data_dir)}
-        for row in results_df.to_dict("records")
-    ]
+    out = []
+    for row in results_df.to_dict("records"):
+        d = {**row, "img_url": keyframe_url(str(row["filepath"]), data_dir)}
+        if meta_by_scene is not None:
+            meta = meta_by_scene.get(row.get("scene_id"))
+            if meta:
+                start_s = float(meta.get("start_time_s") or 0.0)
+                d["timecode"] = to_smpte(start_s, fps) if start_s > 0 else ""
+        out.append(d)
+    return out
 
 
 # ── Upload validation ─────────────────────────────────────────────────────────
