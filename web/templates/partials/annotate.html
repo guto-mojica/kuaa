@@ -3,10 +3,11 @@
 {% if no_data %}
 <p class="text-muted">{{ _("Run the Scene Detection step first.") }}</p>
 
-{% elif all_done %}
-<p class="annotate-all-done text-muted">{{ _("All scenes have valid LLM descriptions.") }}</p>
-
 {% else %}
+
+{% if all_done %}
+<p class="annotate-all-done text-muted">{{ _("All scenes have valid LLM descriptions. You can still add manual tags below.") }}</p>
+{% endif %}
 
 <!-- Filter -->
 <div class="annotate-filter">

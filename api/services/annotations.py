@@ -212,6 +212,13 @@ def build_annotate_context(
     scenes, desc_by_scene, annotations = build_scene_list(ctx, filter_mode)
     all_done = (not no_data) and (not scenes) and filter_mode == "no_llm"
 
+    # When all scenes have LLM descriptions the no_llm filter returns nothing.
+    # Fall back to showing all scenes so the user can still add manual tags —
+    # all_done is kept True so the template can display the informational notice.
+    if all_done:
+        scenes, desc_by_scene, annotations = build_scene_list(ctx, "all")
+        filter_mode = "all"
+
     panel = scene_context(ctx, scenes, scene_id, desc_by_scene, annotations)
 
     return {

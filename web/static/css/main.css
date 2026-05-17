@@ -691,6 +691,23 @@ body {
     color: var(--c-text-muted);
 }
 
+.tag--more {
+    opacity: 0.6;
+    font-style: italic;
+}
+
+.scene-card__desc {
+    font-size: 0.75rem;
+    color: var(--c-text-muted);
+    line-height: 1.4;
+    padding: 4px 8px 2px;
+    margin: 0;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
 /* ── Search results ────────────────────────────────────────────────────────── */
 .scene-card__keyframe--missing {
     background: var(--c-bg-overlay);

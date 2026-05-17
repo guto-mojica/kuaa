@@ -359,14 +359,18 @@ class TestBuildAnnotateContext:
     def test_all_done_when_every_scene_has_valid_llm(
         self, tmp_config, seed_metadata
     ):
-        # Both seeded scenes have valid descriptions → no_llm filter
-        # empties the list while data exists → all_done.
+        # Both seeded scenes have valid descriptions → no_llm filter empties
+        # the list while data exists → all_done is flagged, but the service
+        # falls back to filter="all" so the annotation UI stays usable.
         seed_metadata()
         ctx = FilmContext.from_config(tmp_config)
         out = build_annotate_context(ctx, "no_llm")
         assert out["no_data"] is False
         assert out["all_done"] is True
-        assert out["scene"] is None
+        # Fell back to "all" — scene panel is populated, not blocked
+        assert out["filter"] == "all"
+        assert out["scene"] is not None
+        assert out["total"] == 2
 
     def test_populated_panel_with_all_filter(
         self, tmp_config, seed_metadata
