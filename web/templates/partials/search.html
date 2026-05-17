@@ -8,15 +8,34 @@
 
     <!-- ── Text search ────────────────────────────────────────────────────── -->
     <div id="search-text-panel">
-        <form hx-get="/api/search"
-              hx-trigger="keyup changed delay:500ms from:#search-input, change from:.search-tag-filter input, submit"
+        <!--
+            Two-level HTMX pattern:
+            • The INPUT owns hx-get for as-you-type (keyup delay, no from: needed).
+              hx-include="closest form" pulls in tag checkboxes from the form.
+            • The FORM owns hx-get for submit (Enter key or button click) and for
+              tag-checkbox changes. A visible submit button ensures the browser
+              always fires the submit event on Enter, regardless of form field count.
+        -->
+        <form id="search-text-form"
+              hx-get="/api/search"
+              hx-trigger="submit, change from:.search-tag-filter input"
               hx-target="#search-results">
-            <input id="search-input"
-                   class="search-input"
-                   type="text"
-                   name="q"
-                   autocomplete="off"
-                   placeholder="{{ _('two people talking outdoors') }}">
+
+            <div class="search-container">
+                <input id="search-input"
+                       class="search-input"
+                       type="text"
+                       name="q"
+                       autocomplete="off"
+                       placeholder="{{ _('two people talking outdoors') }}"
+                       hx-get="/api/search"
+                       hx-trigger="keyup changed delay:500ms"
+                       hx-target="#search-results"
+                       hx-include="closest form">
+                <button type="submit"
+                        class="search-submit-btn"
+                        aria-label="{{ _('Search') }}">→</button>
+            </div>
 
             {% if available_tags %}
             <div class="search-tag-filter tag-filter">
