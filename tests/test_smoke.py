@@ -99,8 +99,10 @@ def test_import_visual_analyzer():
 
 
 def test_import_embeddings():
-    from cinemateca.embeddings import CLIPEmbedder
-    assert CLIPEmbedder is not None
+    from cinemateca.embeddings import SemanticSearch
+    from cinemateca.models.clip.openclip import OpenClipEmbedder
+    assert SemanticSearch is not None
+    assert OpenClipEmbedder is not None
 
 
 def test_import_llm_describer():

@@ -442,9 +442,9 @@ def stub_search_embedder(monkeypatch):
     cinemateca.embeddings import CLIPEmbedder``) so ``.load`` keeps its
     real (defective, no-validation) behaviour but the constructed
     embedder is CLIP-free."""
-    import cinemateca.embeddings as emb
+    import cinemateca.models.clip.openclip as oc
 
-    real_load = emb.CLIPEmbedder.load
+    real_load = oc.OpenClipEmbedder.load
 
     class _PatchedEmbedder:
         def __init__(self, *a, **k):
@@ -455,7 +455,7 @@ def stub_search_embedder(monkeypatch):
         def encode_text(self, query):
             return np.ones(4, dtype="float32")
 
-    monkeypatch.setattr(emb, "CLIPEmbedder", _PatchedEmbedder)
+    monkeypatch.setattr(oc, "OpenClipEmbedder", _PatchedEmbedder)
     return _PatchedEmbedder
 
 
@@ -506,14 +506,15 @@ def test_corrupt_index_root_defect_still_in_ai_core_but_caught_by_service(
 
     from api.services.film_context import FilmContext
     from api.services.search import IndexStatus, load_index
-    from cinemateca.embeddings import CLIPEmbedder, SemanticSearch
+    from cinemateca.embeddings import SemanticSearch
+    from cinemateca.models.clip.openclip import OpenClipEmbedder
 
     cfg = _cfg_from_client()
     _write_corrupt_index(cfg)
 
     emb_path = Path(cfg.paths.embeddings_dir) / cfg.embeddings.filename
     map_path = Path(cfg.paths.embeddings_dir) / cfg.embeddings.mapping_filename
-    embeddings, _mapping, kf_df = CLIPEmbedder.load(emb_path, map_path)
+    embeddings, _mapping, kf_df = OpenClipEmbedder.load(emb_path, map_path)
     # AI core load() still silently accepts the mismatch — unchanged.
     assert embeddings.shape[0] == 3
     assert len(kf_df) == 2

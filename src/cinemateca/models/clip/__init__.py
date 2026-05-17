@@ -1,0 +1,1 @@
+"""CLIP embedder backends."""

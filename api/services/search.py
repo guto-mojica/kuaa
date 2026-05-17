@@ -148,10 +148,10 @@ def _load_and_validate(emb_path: Path, map_path: Path) -> SearchIndex:
         logger.warning("Search index not found at %s", emb_path.parent)
         return SearchIndex(IndexStatus.MISSING, detail="index files absent")
 
-    from cinemateca.embeddings import CLIPEmbedder
+    from cinemateca.models.clip.openclip import OpenClipEmbedder
 
     try:
-        embeddings, mapping, kf_df = CLIPEmbedder.load(emb_path, map_path)
+        embeddings, mapping, kf_df = OpenClipEmbedder.load(emb_path, map_path)
     except Exception as exc:  # malformed .npy / .json, missing keys, etc.
         logger.warning("Search index unreadable (%s): %s", emb_path.parent, exc)
         return SearchIndex(IndexStatus.CORRUPT, detail=f"unreadable: {exc}")
@@ -186,7 +186,7 @@ def _load_and_validate(emb_path: Path, map_path: Path) -> SearchIndex:
             ),
         )
 
-    embedder = CLIPEmbedder()
+    embedder = OpenClipEmbedder()
     logger.info("Search index loaded: %d vectors", n_map)
     return SearchIndex(
         IndexStatus.OK, embeddings=embeddings, kf_df=kf_df, embedder=embedder

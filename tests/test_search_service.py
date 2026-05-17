@@ -57,10 +57,10 @@ def _isolate_cache():
 
 @pytest.fixture()
 def clipfree(monkeypatch):
-    """Patch CLIPEmbedder so construction is CLIP-free; .load stays real."""
-    import cinemateca.embeddings as emb
+    """Patch OpenClipEmbedder so construction is CLIP-free; .load stays real."""
+    import cinemateca.models.clip.openclip as oc
 
-    real_load = emb.CLIPEmbedder.load
+    real_load = oc.OpenClipEmbedder.load
 
     class _PatchedEmbedder:
         def __init__(self, *a, **k):
@@ -71,7 +71,7 @@ def clipfree(monkeypatch):
         def encode_text(self, query):
             return np.ones(4, dtype="float32")
 
-    monkeypatch.setattr(emb, "CLIPEmbedder", _PatchedEmbedder)
+    monkeypatch.setattr(oc, "OpenClipEmbedder", _PatchedEmbedder)
     return _PatchedEmbedder
 
 

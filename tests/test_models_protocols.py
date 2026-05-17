@@ -174,3 +174,32 @@ def test_visual_analyzer_injection():
     assert va.face_detector is fd
     assert va.object_detector is od
     assert va.env_classifier is ec
+
+
+def test_openclip_embedder_conforms():
+    from cinemateca.models.base import ImageEmbedder
+    from cinemateca.models.clip.openclip import OpenClipEmbedder
+
+    assert isinstance(OpenClipEmbedder(), ImageEmbedder)
+
+
+def test_by_image_uses_encode_image_single(monkeypatch, tmp_path):
+    """by_image must call embedder.encode_image_single, not embedder privates."""
+    import numpy as np
+    import pandas as pd
+
+    from cinemateca.embeddings import SemanticSearch
+
+    calls = {}
+
+    class FakeEmbedder:
+        def encode_image_single(self, image_path):
+            calls["path"] = str(image_path)
+            return np.array([1.0, 0.0], dtype="float32")
+
+    emb = np.array([[1.0, 0.0], [0.0, 1.0]], dtype="float32")
+    df = pd.DataFrame({"filepath": ["a.jpg", "b.jpg"], "scene_id": [1, 2]})
+    s = SemanticSearch(emb, df, FakeEmbedder())
+    out = s.by_image("query.jpg", top_k=2, exclude_self=False)
+    assert calls["path"] == "query.jpg"
+    assert list(out["scene_id"]) == [1, 2]

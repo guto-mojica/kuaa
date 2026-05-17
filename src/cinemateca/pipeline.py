@@ -274,7 +274,7 @@ class CatalogPipeline:
     def _step_embeddings(self, metadata_path: Path) -> StepResult:
         import pandas as pd
 
-        from cinemateca.embeddings import CLIPEmbedder
+        from cinemateca.models.clip.openclip import OpenClipEmbedder
 
         name = "embeddings"
         emb_cfg = self.cfg.embeddings
@@ -296,7 +296,7 @@ class CatalogPipeline:
             kf_df["exists"] = kf_df["filepath"].apply(lambda x: Path(x).exists())
             valid_kf = kf_df[kf_df["exists"]].reset_index(drop=True)
 
-            embedder = CLIPEmbedder(self.cfg, self.device)
+            embedder = OpenClipEmbedder(self.cfg, self.device)
             self._embedder = embedder  # reutilizar no step seguinte se necessário
 
             image_paths = [Path(p) for p in valid_kf["filepath"]]
