@@ -240,9 +240,11 @@ class CatalogPipeline:
             return StepResult(name=name, success=False, duration_s=time.time() - t0, error=str(e))
 
     def _step_visual_analysis(self, keyframes_dir: Path) -> StepResult:
-        from cinemateca.models.environment.opencv_heuristic import OpenCVEnvironmentClassifier
-        from cinemateca.models.face.mtcnn import MTCNNFaceDetector
-        from cinemateca.models.objects.yolov8 import YOLOv8ObjectDetector
+        from cinemateca.models.registry import (
+            get_environment_classifier,
+            get_face_detector,
+            get_object_detector,
+        )
         from cinemateca.visual_analyzer import VisualAnalyzer
 
         name = "visual_analysis"
@@ -259,9 +261,9 @@ class CatalogPipeline:
                 raise FileNotFoundError(f"Nenhum keyframe em: {keyframes_dir}")
 
             analyzer = VisualAnalyzer(
-                face_detector=MTCNNFaceDetector(self.cfg, self.device),
-                object_detector=YOLOv8ObjectDetector(self.cfg, self.device),
-                env_classifier=OpenCVEnvironmentClassifier(self.cfg),
+                face_detector=get_face_detector(self.cfg),
+                object_detector=get_object_detector(self.cfg),
+                env_classifier=get_environment_classifier(self.cfg),
             )
             results = analyzer.analyze_keyframes(keyframes)
             analyzer.save_metadata(results, output_path)
@@ -274,7 +276,7 @@ class CatalogPipeline:
     def _step_embeddings(self, metadata_path: Path) -> StepResult:
         import pandas as pd
 
-        from cinemateca.models.clip.openclip import OpenClipEmbedder
+        from cinemateca.models.registry import get_image_embedder
 
         name = "embeddings"
         emb_cfg = self.cfg.embeddings
@@ -296,7 +298,7 @@ class CatalogPipeline:
             kf_df["exists"] = kf_df["filepath"].apply(lambda x: Path(x).exists())
             valid_kf = kf_df[kf_df["exists"]].reset_index(drop=True)
 
-            embedder = OpenClipEmbedder(self.cfg, self.device)
+            embedder = get_image_embedder(self.cfg)
             self._embedder = embedder  # reutilizar no step seguinte se necessário
 
             image_paths = [Path(p) for p in valid_kf["filepath"]]
@@ -317,7 +319,7 @@ class CatalogPipeline:
     def _step_llm_description(self, metadata_path: Path) -> StepResult:
         import pandas as pd
 
-        from cinemateca.models.describer.gguf import MoondreamGGUFDescriber
+        from cinemateca.models.registry import get_scene_describer
 
         name = "llm_description"
         llm_cfg = self.cfg.llm
@@ -353,7 +355,7 @@ class CatalogPipeline:
                     existing = json.load(f)
                 logger.info("Retomando: %d cenas já descritas", len(existing))
 
-            describer = MoondreamGGUFDescriber(self.cfg, self.device)
+            describer = get_scene_describer(self.cfg)
             results = describer.describe_batch(
                 valid_kf,
                 existing_results=existing,
@@ -382,6 +384,7 @@ class CatalogPipeline:
             PipelineResult com o status de cada etapa.
         """
         video_path = Path(video_path)
+        self.cfg._device = self.device
         pipeline_start = time.time()
 
         logger.info("=" * 60)

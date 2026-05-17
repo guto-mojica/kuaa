@@ -14,8 +14,9 @@ class YOLOv8ObjectDetector:
         self._model = None
         self._device = device
 
-        if cfg is not None:
-            od_cfg = cfg.visual_analysis.object_detection
+        va_cfg = getattr(cfg, "visual_analysis", None) if cfg is not None else None
+        od_cfg = getattr(va_cfg, "object_detection", None) if va_cfg is not None else None
+        if od_cfg is not None:
             self.enabled = od_cfg.enabled
             self.model_name = od_cfg.model
             self.confidence = od_cfg.confidence

@@ -22,8 +22,8 @@ class OpenClipEmbedder:
         self._tokenizer = None
         self._device = device
 
-        if cfg is not None:
-            emb = cfg.embeddings
+        emb = getattr(cfg, "embeddings", None) if cfg is not None else None
+        if emb is not None:
             self.model_name = emb.model
             self.pretrained = emb.pretrained
             self.batch_size = emb.batch_size

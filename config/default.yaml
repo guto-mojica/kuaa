@@ -83,6 +83,14 @@ llm:
   descriptions_filename: "scene_descriptions.json"
   tags_filename: "scene_tags.json"
 
+# ── Model backends (pluggable — see docs/PROTOCOL_OPTION.md) ──────────────────
+models:
+  image_embedder: clip_openclip            # clip_openclip
+  face_detector: mtcnn_pytorch             # mtcnn_pytorch
+  object_detector: yolov8                  # yolov8
+  scene_describer: moondream_gguf          # moondream_gguf (keyless, offline)
+  environment_classifier: opencv_heuristic # opencv_heuristic
+
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 pipeline:
   # Quais módulos rodar (desative para pular etapas já concluídas)

@@ -203,3 +203,46 @@ def test_by_image_uses_encode_image_single(monkeypatch, tmp_path):
     out = s.by_image("query.jpg", top_k=2, exclude_self=False)
     assert calls["path"] == "query.jpg"
     assert list(out["scene_id"]) == [1, 2]
+
+
+def test_registry_returns_correct_types():
+    from cinemateca.models import registry
+    from cinemateca.models.base import (
+        EnvironmentClassifier,
+        FaceDetector,
+        ImageEmbedder,
+        ObjectDetector,
+        SceneDescriber,
+    )
+
+    class _M:
+        image_embedder = "clip_openclip"
+        face_detector = "mtcnn_pytorch"
+        object_detector = "yolov8"
+        scene_describer = "moondream_gguf"
+        environment_classifier = "opencv_heuristic"
+
+    class _Cfg:
+        models = _M()
+
+    cfg = _Cfg()
+    assert isinstance(registry.get_image_embedder(cfg), ImageEmbedder)
+    assert isinstance(registry.get_face_detector(cfg), FaceDetector)
+    assert isinstance(registry.get_object_detector(cfg), ObjectDetector)
+    assert isinstance(registry.get_scene_describer(cfg), SceneDescriber)
+    assert isinstance(
+        registry.get_environment_classifier(cfg), EnvironmentClassifier
+    )
+
+
+def test_registry_unknown_name_raises():
+    import pytest
+
+    from cinemateca.models import registry
+
+    class _Cfg:
+        class models:
+            image_embedder = "nope"
+
+    with pytest.raises(ValueError):
+        registry.get_image_embedder(_Cfg())
