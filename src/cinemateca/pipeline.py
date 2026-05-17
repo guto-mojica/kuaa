@@ -240,6 +240,9 @@ class CatalogPipeline:
             return StepResult(name=name, success=False, duration_s=time.time() - t0, error=str(e))
 
     def _step_visual_analysis(self, keyframes_dir: Path) -> StepResult:
+        from cinemateca.models.environment.opencv_heuristic import OpenCVEnvironmentClassifier
+        from cinemateca.models.face.mtcnn import MTCNNFaceDetector
+        from cinemateca.models.objects.yolov8 import YOLOv8ObjectDetector
         from cinemateca.visual_analyzer import VisualAnalyzer
 
         name = "visual_analysis"
@@ -255,7 +258,11 @@ class CatalogPipeline:
             if not keyframes:
                 raise FileNotFoundError(f"Nenhum keyframe em: {keyframes_dir}")
 
-            analyzer = VisualAnalyzer(self.cfg, self.device)
+            analyzer = VisualAnalyzer(
+                face_detector=MTCNNFaceDetector(self.cfg, self.device),
+                object_detector=YOLOv8ObjectDetector(self.cfg, self.device),
+                env_classifier=OpenCVEnvironmentClassifier(self.cfg),
+            )
             results = analyzer.analyze_keyframes(keyframes)
             analyzer.save_metadata(results, output_path)
             return StepResult(

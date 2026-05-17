@@ -135,4 +135,42 @@ def test_protocols_isinstance_structural():
     assert isinstance(_GoodClassifier(), EnvironmentClassifier) is True
     assert isinstance(_BadClassifier(), EnvironmentClassifier) is False
     _env_members = {m for m in vars(EnvironmentClassifier) if not m.startswith("_")}
+
     assert {"classify", "classify_batch"}.issubset(_env_members)
+
+
+def test_detector_backends_conform():
+    from cinemateca.models.base import (
+        EnvironmentClassifier,
+        FaceDetector,
+        ObjectDetector,
+    )
+    from cinemateca.models.environment.opencv_heuristic import (
+        OpenCVEnvironmentClassifier,
+    )
+    from cinemateca.models.face.mtcnn import MTCNNFaceDetector
+    from cinemateca.models.objects.yolov8 import YOLOv8ObjectDetector
+
+    assert isinstance(MTCNNFaceDetector(), FaceDetector)
+    assert isinstance(YOLOv8ObjectDetector(), ObjectDetector)
+    assert isinstance(OpenCVEnvironmentClassifier(), EnvironmentClassifier)
+
+
+def test_visual_analyzer_injection():
+    """VisualAnalyzer accepts injected backends and exposes them."""
+    from cinemateca.models.environment.opencv_heuristic import (
+        OpenCVEnvironmentClassifier,
+    )
+    from cinemateca.models.face.mtcnn import MTCNNFaceDetector
+    from cinemateca.models.objects.yolov8 import YOLOv8ObjectDetector
+    from cinemateca.visual_analyzer import VisualAnalyzer
+
+    fd, od, ec = (
+        MTCNNFaceDetector(),
+        YOLOv8ObjectDetector(),
+        OpenCVEnvironmentClassifier(),
+    )
+    va = VisualAnalyzer(face_detector=fd, object_detector=od, env_classifier=ec)
+    assert va.face_detector is fd
+    assert va.object_detector is od
+    assert va.env_classifier is ec
