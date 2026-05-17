@@ -43,7 +43,9 @@ data/metadata/
 # ─── Modelos ──────────────────────────────────────────────────────────────────
 # Modelos são baixados automaticamente na primeira execução.
 # Não devem ser commitados (são GBs e têm suas próprias licenças).
-models/
+/models/
+# src/cinemateca/models/ is Python source code — must be tracked.
+!src/cinemateca/models/
 *.pt
 *.pth
 *.onnx
