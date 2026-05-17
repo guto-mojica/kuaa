@@ -1045,8 +1045,14 @@ body {
 }
 .image-upload-label input[type="file"] { display: none; }
 
+.search-tag-section {
+    border-top: 1px solid var(--c-bg-border);
+    margin-top: 24px;
+    padding-top: 16px;
+}
+
 .search-tag-filter {
-    margin-top: 12px;
+    margin-top: 0;
 }
 
 /* ── Locale switcher ───────────────────────────────────────────────────────── */

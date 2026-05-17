@@ -6,20 +6,19 @@
         <button type="button" onclick="setSearchMode('image')">{{ _("Image") }}</button>
     </div>
 
-    <!-- ── Text search ────────────────────────────────────────────────────── -->
+    <!-- ── Text search input ─────────────────────────────────────────────────── -->
     <div id="search-text-panel">
         <!--
-            Two-level HTMX pattern:
-            • The INPUT owns hx-get for as-you-type (keyup delay, no from: needed).
-              hx-include="closest form" pulls in tag checkboxes from the form.
-            • The FORM owns hx-get for submit (Enter key or button click) and for
-              tag-checkbox changes. A visible submit button ensures the browser
-              always fires the submit event on Enter, regardless of form field count.
+            Tags live in a separate element (#search-tag-panel) so results can sit
+            between the input and the tag list. Every search request uses
+            hx-include="#search-text-form, #search-tag-panel" to pull both the
+            query string and any checked tag checkboxes into the GET params.
         -->
         <form id="search-text-form"
               hx-get="/api/search"
-              hx-trigger="submit, change from:.search-tag-filter input"
-              hx-target="#search-results">
+              hx-trigger="submit"
+              hx-target="#search-results"
+              hx-include="#search-text-form, #search-tag-panel">
 
             <div class="search-container">
                 <input id="search-input"
@@ -31,25 +30,15 @@
                        hx-get="/api/search"
                        hx-trigger="keyup changed delay:500ms"
                        hx-target="#search-results"
-                       hx-include="closest form">
+                       hx-include="#search-text-form, #search-tag-panel">
                 <button type="submit"
                         class="search-submit-btn"
                         aria-label="{{ _('Search') }}">→</button>
             </div>
-
-            {% if available_tags %}
-            <div class="search-tag-filter tag-filter">
-                {% for tag in available_tags %}
-                <label class="tag-pill">
-                    <input type="checkbox" name="tags" value="{{ tag }}">{{ tag }}
-                </label>
-                {% endfor %}
-            </div>
-            {% endif %}
         </form>
     </div>
 
-    <!-- ── Image search ───────────────────────────────────────────────────── -->
+    <!-- ── Image search input ────────────────────────────────────────────────── -->
     <div id="search-image-panel" style="display:none">
         <form hx-post="/api/search/image"
               hx-encoding="multipart/form-data"
@@ -64,13 +53,34 @@
         </form>
     </div>
 
+    <!-- ── Results: directly below the search input ──────────────────────────── -->
     <div id="search-results" class="scene-grid"></div>
+
+    <!-- ── Tag filter: bottom of tab (hidden in image mode) ──────────────────── -->
+    {% if available_tags %}
+    <div id="search-tag-panel" class="search-tag-section">
+        <div class="search-tag-filter tag-filter"
+             hx-get="/api/search"
+             hx-trigger="change from:input"
+             hx-target="#search-results"
+             hx-include="#search-text-form, #search-tag-panel">
+            {% for tag in available_tags %}
+            <label class="tag-pill">
+                <input type="checkbox" name="tags" value="{{ tag }}">{{ tag }}
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
 </div>
 
 <script>
 function setSearchMode(mode) {
     document.getElementById('search-text-panel').style.display  = mode === 'text'  ? '' : 'none';
     document.getElementById('search-image-panel').style.display = mode === 'image' ? '' : 'none';
+    var tagPanel = document.getElementById('search-tag-panel');
+    if (tagPanel) tagPanel.style.display = mode === 'text' ? '' : 'none';
     document.querySelectorAll('.search-mode-toggle button').forEach(function(b, i) {
         b.classList.toggle('active', (mode === 'text' && i === 0) || (mode === 'image' && i === 1));
     });
