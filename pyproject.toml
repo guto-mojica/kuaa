@@ -31,7 +31,7 @@ full = [
     "scenedetect>=0.6",
     "ultralytics>=8.0",
     "facenet-pytorch>=2.5",
-    "transformers>=4.35",
+    "llama-cpp-python>=0.3,<0.4",
     "rich>=13.0",
     # v0.3.0 web stack
     "fastapi>=0.110",
