@@ -131,6 +131,25 @@ def load_metadata(metadata_dir: Path) -> tuple[list, dict, dict, dict]:
 
 # ── Scene-card construction ───────────────────────────────────────────────────
 
+def _select_tags_by_frequency(
+    scene_tags: list[str], tag_index: dict, n: int = 16
+) -> list[str]:
+    """Return up to n tags sampled across the global-frequency spectrum.
+
+    Tags are sorted ascending by corpus frequency (rare → common). When
+    the scene has ≤ n tags all are returned in that order. When it has
+    more, n tags are picked at evenly-spaced positions from the sorted
+    list so the selection spans the full diversity: from the most
+    scene-specific labels (low frequency) to the most generic ones
+    (high frequency), rather than taking the first n alphabetically.
+    """
+    by_freq = sorted(scene_tags, key=lambda t: len(tag_index.get(t, [])))
+    if len(by_freq) <= n:
+        return by_freq
+    total = len(by_freq)
+    return [by_freq[i * total // n] for i in range(n)]
+
+
 def build_cards(
     kf_meta: list,
     desc_by_scene: dict,
@@ -142,10 +161,11 @@ def build_cards(
 ) -> list[dict]:
     """Filter ``kf_meta`` and build scene-card dicts for the template.
 
-    Verbatim port of ``scenes._build_cards`` — same filter semantics
-    (tag intersection then keyword blob match), same card shape and
-    truncations, so the rendered grid is byte-identical. ``tag_index``
-    is expected normalized (as :func:`load_metadata` returns it).
+    Tag filter: intersect scene_ids across all selected tags. Keyword
+    filter: search the description text blob. Tags on each card are
+    selected by :func:`_select_tags_by_frequency` (up to 16, sampled
+    across the frequency spectrum). ``tag_index`` is expected normalized
+    (as :func:`load_metadata` returns it).
     """
     scenes = list(kf_meta)
 
@@ -181,7 +201,8 @@ def build_cards(
 
         # Tags from tag_index (inverted lookup). tag_index ids are
         # already canonical str keys, so this is direct str-vs-str.
-        scene_tags = sorted({tag for tag, ids in tag_index.items() if sid in ids})
+        all_scene_tags = list({tag for tag, ids in tag_index.items() if sid in ids})
+        scene_tags = _select_tags_by_frequency(all_scene_tags, tag_index)
 
         # Visual analysis summary
         vis = vis_by_scene.get(sid, {})
@@ -200,7 +221,7 @@ def build_cards(
                 "scene_id": s.get("scene_id"),
                 "img_url": img_url,
                 "timecode": tc,
-                "tags": scene_tags[:8],
+                "tags": scene_tags,
                 "environment": " · ".join(env_parts),
                 "num_people": num_people,
                 "description": description[:120] if description else "",

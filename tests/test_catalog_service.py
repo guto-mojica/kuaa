@@ -180,10 +180,10 @@ class TestBuildCards:
 
     def test_card_shape_and_truncation(self, tmp_config, seed_metadata):
         """Card keys/values match the template contract; description is
-        capped at 120 chars and tags at 8."""
+        capped at 120 chars and tags at 16 (frequency-sampled)."""
         seed_metadata(
             descriptions=[{"scene_id": 351, "description": "x" * 200}],
-            llm_tags={f"t{i}": [351] for i in range(12)},
+            llm_tags={f"t{i}": [351] for i in range(20)},
             manual=None,
             visual=[
                 {
@@ -217,7 +217,7 @@ class TestBuildCards:
             "description",
         }
         assert len(c["description"]) == 120
-        assert len(c["tags"]) == 8  # capped from 12
+        assert len(c["tags"]) == 16  # capped from 20 via frequency sampling
         assert c["environment"] == "exterior · dia"
         assert c["num_people"] == 3
         assert c["timecode"] == "00:01:23"

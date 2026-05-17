@@ -31,12 +31,9 @@
 
     {% if card.tags %}
     <div class="scene-card__tags">
-        {% for tag in card.tags[:4] %}
+        {% for tag in card.tags %}
         <span class="tag">{{ tag }}</span>
         {% endfor %}
-        {% if card.tags | length > 4 %}
-        <span class="tag tag--more">+{{ card.tags | length - 4 }}</span>
-        {% endif %}
     </div>
     {% endif %}
 
