@@ -76,6 +76,50 @@ Checklist de verificação manual pré-lançamento em
   `python -m cinemateca process`, que mantém a parada no primeiro erro
   quando habilitada.
 
+### Backends de modelo plugáveis (PROTOCOL_OPTION Passos 1–2)
+
+Refatoração que torna cada papel de modelo do pipeline substituível por
+configuração. Ver `docs/PROTOCOL_OPTION.md` e
+`docs/superpowers/specs/2026-05-17-pluggable-model-backends-design.md`.
+
+#### Adicionado / Melhorado
+
+- **5 `Protocol`s tipados** (`ImageEmbedder`, `FaceDetector`,
+  `ObjectDetector`, `SceneDescriber`, `EnvironmentClassifier`) com um
+  **registry orientado por configuração** em `src/cinemateca/models/`.
+  O pipeline importa apenas dos Protocols / do registry, nunca de um
+  backend concreto.
+- **`by_image`** desacoplado dos internos do embedder via
+  `encode_image_single`.
+- **Knob de offload de GPU orientado por configuração** (`llm.gpu_layers`,
+  padrão `-1`) e log por cena (resposta + tags) no describer GGUF.
+
+#### Corrigido
+
+- **Descritor de cenas keyless e offline**: `transformers` e o Moondream
+  sobre PyTorch foram removidos; o describer agora usa **Moondream 2 GGUF**
+  via `llama-cpp-python` (sem chave de API, sem nuvem). `pyvips`/`einops`
+  deixam de ser necessários — isso corrige a falha original
+  `"No module named 'pyvips'"`.
+- **Aliases de `--steps`**: as formas curtas
+  `frames`/`scenes`/`visual`/`embeddings`/`llm` voltam a resolver para os
+  nomes canônicos das etapas.
+
+#### Notas técnicas
+
+- Artefatos LLM de **Jeca Tatu (1959)** regenerados integralmente pelo novo
+  caminho do registry GGUF: **412 cenas, 0 linhas de erro, 0 descrições
+  vazias, 737 tags** (gate de aceitação aprovado). Isso também validou a
+  correção do bug de resume sobre o arquivo real corrompido (275 erros).
+- **Limitação conhecida — aceleração por GPU não está ativa.** Compilar um
+  `llama-cpp-python` com CUDA nesta máquina está bloqueado por uma
+  incompatibilidade glibc 2.43 (Fedora 44) ↔ CUDA 13.0.2 (conflito de
+  exception-spec em `rsqrt`/`rsqrtf` no `crt/math_functions.h` da CUDA,
+  corrigido pela NVIDIA apenas na CUDA 13.1, indisponível aqui). O knob
+  `llm.gpu_layers` já está implementado e ativará a GPU sem nenhuma
+  mudança de código assim que um build de `llama-cpp-python` com
+  CUDA ≥ 13.1 for instalado. A regeneração rodou em CPU.
+
 ---
 
 ## [0.1.0-alpha] — 2025
