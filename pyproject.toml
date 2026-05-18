@@ -15,6 +15,17 @@ keywords = ["computer-vision", "cinemateca", "film-archive", "AI", "catalogaçã
 # Dependências mínimas — modelos ML são opcionais para não forçar download
 dependencies = [
     "pyyaml>=6.0",
+    # numpy<2 is DELIBERATE — not stale. The default torch (>=2.0 in the
+    # `full` extra) resolves to ~2.2, which is compiled against NumPy 1.x;
+    # NumPy 2.x's C-API change makes every CLIP search crash with
+    # "RuntimeError: Numpy is not available" (commit e3ed9da). <2 pins
+    # numpy 1.26.4 and restores search. Do NOT drop the cap without a
+    # paired torch>=2.4 bump (an AI-stack change that may invalidate
+    # embeddings — deliberately deferred). The from-source CUDA GPU build
+    # (docs/GPU_LLAMA_CPP_CUDA_BUILD.md) floats numpy to 2.x via its
+    # re-resolve; that is harmless (torch 2.12+cu130 supports 1.x and 2.x)
+    # and a `uv sync` downgrading it back to 1.26.4 only clobbers the
+    # llama-cpp CUDA build, which ensure_gpu_llama.sh already repairs.
     "numpy>=1.24,<2",
     "pandas>=2.0",
     "Pillow>=10.0",
