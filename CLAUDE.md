@@ -199,6 +199,16 @@ uv run mypy src
 For quick development checks, use the test film **Jeca Tatu (1959)** already
 processed in `data/`. Artefacts persist across runs.
 
+**GPU acceleration for the GGUF describer** — the slow CPU runs above become
+~10–25× faster on the local NVIDIA GPU, but `llama-cpp-python` must be built
+from source with CUDA, which requires a non-obvious toolchain workaround on
+this machine (a one-line CUDA-header patch + `gcc15`). Full rationale, apply
+/ verify / revert steps, and what to redo after a driver/kernel/CUDA/glibc
+update are documented in **`docs/GPU_LLAMA_CPP_CUDA_BUILD.md`**. Read that
+before touching the CUDA toolchain or rebuilding `llama-cpp-python`. The
+describer's `config/default.yaml` → `llm.gpu_layers: -1` knob is a no-op on a
+CPU-only build, so it is safe to leave enabled either way.
+
 **Never modify without explicit instruction:**
 
 - `config/local.yaml` — machine-specific, contains real paths.
