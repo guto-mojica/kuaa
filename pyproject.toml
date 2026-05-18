@@ -32,6 +32,7 @@ full = [
     "ultralytics>=8.0",
     "facenet-pytorch>=2.5",
     "llama-cpp-python>=0.3,<0.4",
+    "huggingface-hub>=0.20",
     "rich>=13.0",
     # v0.3.0 web stack
     "fastapi>=0.110",

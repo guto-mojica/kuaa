@@ -38,14 +38,14 @@ def get_config(config_path: str | None = None):
 @st.cache_resource
 def load_search_index(embeddings_dir: str):
     """Carrega embeddings e índice para busca. Cacheado por diretório."""
-    from cinemateca.embeddings import CLIPEmbedder
+    from cinemateca.models.clip.openclip import OpenClipEmbedder
     emb_dir = Path(embeddings_dir)
     emb_path = emb_dir / "keyframe_embeddings.npy"
     map_path = emb_dir / "index_mapping.json"
     if not emb_path.exists() or not map_path.exists():
         return None, None, None
-    embeddings, mapping, kf_df = CLIPEmbedder.load(emb_path, map_path)
-    embedder = CLIPEmbedder()
+    embeddings, mapping, kf_df = OpenClipEmbedder.load(emb_path, map_path)
+    embedder = OpenClipEmbedder()
     return embeddings, kf_df, embedder
 
 
