@@ -284,6 +284,32 @@ class TestAnnotationSaveClear:
         assert on_disk == {"352": ["manual-only", "noite"]}
 
 
+class TestAnnotateSceneEmptyFilterRegression:
+    """Regression lock: ``/api/annotate/scene`` must not 500 when the
+    default ``no_llm`` filter empties the scene list.
+
+    Both seeded scenes have valid LLM descriptions, so the route's
+    default ``filter=no_llm`` yields an empty list. ``build_annotate_context``
+    (the /tab/annotate path) already falls back to ``filter=all`` in that
+    case, but ``build_scene_panel`` (the /api/annotate/scene HTMX-nav path)
+    did not — so ``scene_context`` returned the empty-shape dict WITHOUT
+    ``current_idx`` and ``annotate_scene.html`` raised
+    ``jinja2.UndefinedError: 'current_idx' is undefined`` → HTTP 500.
+    Surfaced by a full-library regen (every scene then has a description).
+    """
+
+    def test_annotate_scene_default_filter_does_not_500(
+        self, seed_metadata, client
+    ):
+        seed_metadata()
+        r = client.get("/api/annotate/scene?id=351")
+        assert r.status_code == 200, r.text[:300]
+        # Renders a real scene panel via the all_done→"all" fallback,
+        # not the undefined-variable crash.
+        assert "annotate-nav__pos" in r.text
+        assert "1 / 2" in r.text
+
+
 # ── Group 4: library filter / select ──────────────────────────────────────────
 
 class TestLibrary:

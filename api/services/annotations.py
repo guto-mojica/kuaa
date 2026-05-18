@@ -256,17 +256,9 @@ def build_annotate_context(
     all_done empty-state branches). Same keys/values the templates
     already consume.
     """
-    no_data = not bool(load_json(ctx.metadata_dir / "keyframes_metadata.json"))
-    scenes, desc_by_scene, annotations = build_scene_list(ctx, filter_mode)
-    all_done = (not no_data) and (not scenes) and filter_mode == "no_llm"
-
-    # When all scenes have LLM descriptions the no_llm filter returns nothing.
-    # Fall back to showing all scenes so the user can still add manual tags —
-    # all_done is kept True so the template can display the informational notice.
-    if all_done:
-        scenes, desc_by_scene, annotations = build_scene_list(ctx, "all")
-        filter_mode = "all"
-
+    scenes, desc_by_scene, annotations, filter_mode, all_done, no_data = (
+        _scene_list_with_fallback(ctx, filter_mode)
+    )
     panel = scene_context(ctx, scenes, scene_id, desc_by_scene, annotations)
 
     return {
@@ -277,14 +269,46 @@ def build_annotate_context(
     }
 
 
+def _scene_list_with_fallback(
+    ctx: FilmContext, filter_mode: str
+) -> tuple[list, dict, dict, str, bool, bool]:
+    """Filtered scene list with the ``no_llm`` → ``all`` fallback applied.
+
+    When every scene already has a valid LLM description the ``no_llm``
+    filter returns nothing while data still exists. Both annotate render
+    paths must then fall back to ``filter="all"`` so the user can still
+    add manual tags AND the scene panel stays renderable —
+    ``annotate_scene.html`` unconditionally reads ``current_idx`` /
+    ``total``, so an empty list would raise ``jinja2.UndefinedError``
+    (HTTP 500). Returns the (possibly re-queried) scene data plus the
+    resolved ``filter_mode``, the ``all_done`` flag, and ``no_data``.
+
+    Shared by :func:`build_annotate_context` (the ``/tab/annotate`` path)
+    and :func:`build_scene_panel` (the ``/api/annotate/scene`` HTMX-nav
+    path) so the two cannot drift apart again.
+    """
+    no_data = not bool(load_json(ctx.metadata_dir / "keyframes_metadata.json"))
+    scenes, desc_by_scene, annotations = build_scene_list(ctx, filter_mode)
+    all_done = (not no_data) and (not scenes) and filter_mode == "no_llm"
+    if all_done:
+        scenes, desc_by_scene, annotations = build_scene_list(ctx, "all")
+        filter_mode = "all"
+    return scenes, desc_by_scene, annotations, filter_mode, all_done, no_data
+
+
 def build_scene_panel(
     ctx: FilmContext, scene_id: int | None, filter_mode: str
 ) -> dict:
     """Build the scene-panel context for the ``/api/annotate/scene`` route.
 
     Convenience composition of :func:`build_scene_list` +
-    :func:`scene_context` so the route stays a thin parse+render. Same
-    keys ``annotate_scene.html`` already consumes.
+    :func:`scene_context` so the route stays a thin parse+render. Applies
+    the same ``no_llm`` → ``all`` fallback as :func:`build_annotate_context`
+    (via :func:`_scene_list_with_fallback`) so the HTMX-nav endpoint never
+    renders ``annotate_scene.html`` with an empty list. Same keys
+    ``annotate_scene.html`` already consumes.
     """
-    scenes, desc_by_scene, annotations = build_scene_list(ctx, filter_mode)
+    scenes, desc_by_scene, annotations, _filter, _all_done, _no_data = (
+        _scene_list_with_fallback(ctx, filter_mode)
+    )
     return scene_context(ctx, scenes, scene_id, desc_by_scene, annotations)

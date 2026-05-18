@@ -345,6 +345,22 @@ class TestSceneContext:
         via_panel = build_scene_panel(ctx, 352, "all")
         assert via_panel == manual
 
+    def test_build_scene_panel_no_llm_all_described_stays_renderable(
+        self, tmp_config, seed_metadata
+    ):
+        # Regression (annotate-panel 500): both seeded scenes have valid LLM
+        # descriptions, so the default no_llm filter empties the scene list.
+        # build_scene_panel must apply the same all_done→"all" fallback as
+        # build_annotate_context so the /api/annotate/scene route can render
+        # annotate_scene.html — which unconditionally reads current_idx/total
+        # — instead of raising jinja2 UndefinedError (HTTP 500).
+        seed_metadata()
+        ctx = FilmContext.from_config(tmp_config)
+        out = build_scene_panel(ctx, None, "no_llm")
+        assert out["scene"] is not None
+        assert out["current_idx"] == 0
+        assert out["total"] == 2
+
 
 # ── build_annotate_context ────────────────────────────────────────────────────
 
