@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from cinemateca.models.base import SceneDescriber
 from cinemateca.models.describer._common import PROMPTS
@@ -98,8 +99,7 @@ def test_describe_batch_resume_preserves_good_rows(monkeypatch):
 
 def _force_offload(monkeypatch, value: bool):
     """Hermetically pin llama_cpp's GPU-offload capability flag."""
-    import llama_cpp.llama_cpp as core
-
+    core = pytest.importorskip("llama_cpp.llama_cpp")
     monkeypatch.setattr(core, "llama_supports_gpu_offload", lambda: value)
 
 
