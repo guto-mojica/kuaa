@@ -79,6 +79,9 @@ llm:
   # Processamento
   checkpoint_interval: 25   # salvar progresso a cada N frames
   process_limit: null       # null = tudo; int = limitar (para testes)
+  # GGUF GPU offload: -1 = todas as camadas na GPU (sem efeito num build
+  # CPU-only do llama-cpp-python; aí roda em CPU). 0 = forçar CPU.
+  gpu_layers: -1
   # Saída
   descriptions_filename: "scene_descriptions.json"
   tags_filename: "scene_tags.json"

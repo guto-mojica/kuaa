@@ -79,7 +79,12 @@ class SceneDescriber(Protocol):
 
 @runtime_checkable
 class EnvironmentClassifier(Protocol):
-    """Heuristic or model-based environment classification."""
+    """Heuristic or model-based environment classification.
+
+    Note: the bundled OpenCV backend is an approximate heuristic based on
+    simple brightness and edge-density metrics. For production use, train
+    an institution-specific classifier on the archive's own collection.
+    """
 
     def classify(self, image_path: str | Path) -> dict:
         """Returns {"time_of_day","brightness_score","location","edge_density"}."""

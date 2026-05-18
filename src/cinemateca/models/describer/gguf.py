@@ -36,11 +36,15 @@ class MoondreamGGUFDescriber:
             self.process_limit = cfg.llm.process_limit
             self.descriptions_filename = cfg.llm.descriptions_filename
             self.tags_filename = cfg.llm.tags_filename
+            # -1 = offload every layer to GPU. Harmless on a CPU-only
+            # llama-cpp-python build (no CUDA → it silently runs on CPU).
+            self.n_gpu_layers = getattr(cfg.llm, "gpu_layers", -1)
         else:
             self.checkpoint_interval = 25
             self.process_limit = None
             self.descriptions_filename = "scene_descriptions.json"
             self.tags_filename = "scene_tags.json"
+            self.n_gpu_layers = -1
 
     def _load_model(self):
         if self._llm is not None:
@@ -58,9 +62,14 @@ class MoondreamGGUFDescriber:
             chat_handler=handler,
             n_ctx=2048,
             logits_all=True,
+            n_gpu_layers=self.n_gpu_layers,
             verbose=False,
         )
-        logger.info("✓ Moondream GGUF carregado em %.1fs", time.time() - t0)
+        logger.info(
+            "✓ Moondream GGUF carregado em %.1fs (n_gpu_layers=%d)",
+            time.time() - t0,
+            self.n_gpu_layers,
+        )
 
     def _answer(self, image_path, prompt: str, max_tokens: int) -> str:
         """One image+prompt -> stripped model text. Re-embeds per call."""
@@ -121,6 +130,14 @@ class MoondreamGGUFDescriber:
                         raw[field] = f"ERROR: {e}"
                 meta = build_metadata(row, raw)
                 all_results.append(meta)
+                logger.info(
+                    "cena %s [%d/%d]: %s | tags=%s",
+                    meta.get("scene_id"),
+                    count,
+                    len(to_process),
+                    str(meta.get("description", ""))[:70],
+                    meta.get("tags", []),
+                )
             except Exception as e:  # noqa: BLE001 - whole-frame failure
                 all_results.append({
                     "scene_id": int(row.get("scene_id", -1)),

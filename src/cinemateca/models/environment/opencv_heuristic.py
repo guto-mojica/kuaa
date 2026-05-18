@@ -10,7 +10,12 @@ logger = logging.getLogger(__name__)
 
 
 class OpenCVEnvironmentClassifier:
-    """Classifies scene environment via brightness + edge-density heuristics."""
+    """Classifies scene environment via brightness + edge-density heuristics.
+
+    AVISO: Esta é uma implementação aproximada baseada em métricas simples de
+    brilho e densidade de bordas. Para uso em produção, recomenda-se treinar
+    um classificador específico para o acervo da instituição.
+    """
 
     def __init__(self, cfg=None):
         if cfg is not None:
