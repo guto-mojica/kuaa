@@ -94,3 +94,73 @@ def test_describe_batch_resume_preserves_good_rows(monkeypatch):
     assert any(
         r["scene_id"] == 1 and r.get("description") == "prior good" for r in out
     )
+
+
+def _force_offload(monkeypatch, value: bool):
+    """Hermetically pin llama_cpp's GPU-offload capability flag."""
+    import llama_cpp.llama_cpp as core
+
+    monkeypatch.setattr(core, "llama_supports_gpu_offload", lambda: value)
+
+
+def test_warn_if_cpu_build_warns_when_gpu_present_but_cpu_only(monkeypatch, caplog):
+    """GPU requested + NVIDIA GPU present + CPU-only build → loud WARNING."""
+    from cinemateca.models.describer import gguf
+
+    backend = gguf.MoondreamGGUFDescriber()
+    backend.n_gpu_layers = -1
+    monkeypatch.setattr(gguf.shutil, "which", lambda _name: "/usr/bin/nvidia-smi")
+    _force_offload(monkeypatch, False)
+
+    with caplog.at_level("WARNING"):
+        backend._warn_if_cpu_build()
+
+    assert any(
+        "CPU-only" in r.message and "GPU_LLAMA_CPP_CUDA_BUILD.md" in r.message
+        for r in caplog.records
+    )
+
+
+def test_warn_if_cpu_build_silent_when_gpu_offload_available(monkeypatch, caplog):
+    """A genuine CUDA build (offload available) must NOT warn."""
+    from cinemateca.models.describer import gguf
+
+    backend = gguf.MoondreamGGUFDescriber()
+    backend.n_gpu_layers = -1
+    monkeypatch.setattr(gguf.shutil, "which", lambda _name: "/usr/bin/nvidia-smi")
+    _force_offload(monkeypatch, True)
+
+    with caplog.at_level("WARNING"):
+        backend._warn_if_cpu_build()
+
+    assert not caplog.records
+
+
+def test_warn_if_cpu_build_silent_without_nvidia_gpu(monkeypatch, caplog):
+    """No nvidia-smi → CPU-only build is expected, stay silent."""
+    from cinemateca.models.describer import gguf
+
+    backend = gguf.MoondreamGGUFDescriber()
+    backend.n_gpu_layers = -1
+    monkeypatch.setattr(gguf.shutil, "which", lambda _name: None)
+    _force_offload(monkeypatch, False)
+
+    with caplog.at_level("WARNING"):
+        backend._warn_if_cpu_build()
+
+    assert not caplog.records
+
+
+def test_warn_if_cpu_build_silent_when_gpu_layers_zero(monkeypatch, caplog):
+    """gpu_layers=0 means CPU was explicitly chosen → no warning."""
+    from cinemateca.models.describer import gguf
+
+    backend = gguf.MoondreamGGUFDescriber()
+    backend.n_gpu_layers = 0
+    monkeypatch.setattr(gguf.shutil, "which", lambda _name: "/usr/bin/nvidia-smi")
+    _force_offload(monkeypatch, False)
+
+    with caplog.at_level("WARNING"):
+        backend._warn_if_cpu_build()
+
+    assert not caplog.records

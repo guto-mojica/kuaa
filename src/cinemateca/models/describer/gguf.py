@@ -8,6 +8,7 @@ vikhyatk/moondream2 repo at that revision. No transformers, no API key.
 from __future__ import annotations
 
 import logging
+import shutil
 import time
 from pathlib import Path
 
@@ -46,9 +47,39 @@ class MoondreamGGUFDescriber:
             self.tags_filename = "scene_tags.json"
             self.n_gpu_layers = -1
 
+    def _warn_if_cpu_build(self) -> None:
+        """Loud, self-announcing diagnostic for the silent GPU regression.
+
+        GPU offload was requested (``gpu_layers != 0``) and an NVIDIA GPU is
+        present, but the installed ``llama-cpp-python`` is a CPU-only build —
+        so runs are ~25x slower with no other symptom. This commonly happens
+        because ``uv sync``/``uv run`` replaces the from-source CUDA build
+        with the cached CPU wheel. Never raises: a diagnostic must not break
+        model loading.
+        """
+        if self.n_gpu_layers == 0:
+            return
+        if not shutil.which("nvidia-smi"):
+            return  # no NVIDIA GPU → a CPU-only build is expected, not a bug
+        try:
+            from llama_cpp import llama_cpp as _core
+
+            gpu_ok = _core.llama_supports_gpu_offload()
+        except Exception:  # noqa: BLE001 - diagnostic must never break loading
+            return
+        if not gpu_ok:
+            logger.warning(
+                "llm.gpu_layers=%d e há GPU NVIDIA, mas llama-cpp-python é um "
+                "build CPU-only — a descrição roda ~25x mais devagar. "
+                "Reconstrua com CUDA: docs/GPU_LLAMA_CPP_CUDA_BUILD.md "
+                "(ou rode scripts/ensure_gpu_llama.sh).",
+                self.n_gpu_layers,
+            )
+
     def _load_model(self):
         if self._llm is not None:
             return
+        self._warn_if_cpu_build()
         from huggingface_hub import hf_hub_download
         from llama_cpp import Llama
         from llama_cpp.llama_chat_format import MoondreamChatHandler
