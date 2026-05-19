@@ -5,6 +5,7 @@ Keyless, offline Moondream 2 scene describer via llama-cpp-python.
 Loads the 2025-01-09 GGUF pair (text model + mmproj) from the
 vikhyatk/moondream2 repo at that revision. No transformers, no API key.
 """
+
 from __future__ import annotations
 
 import logging
@@ -32,7 +33,7 @@ class MoondreamGGUFDescriber:
 
     def __init__(self, cfg=None, device=None):
         self._llm = None
-        if cfg is not None and hasattr(cfg, "llm"):
+        if cfg is not None and getattr(cfg, "llm", None) is not None:
             self.checkpoint_interval = cfg.llm.checkpoint_interval
             self.process_limit = cfg.llm.process_limit
             self.descriptions_filename = cfg.llm.descriptions_filename
@@ -106,13 +107,15 @@ class MoondreamGGUFDescriber:
         """One image+prompt -> stripped model text. Re-embeds per call."""
         uri = Path(image_path).resolve().as_uri()
         resp = self._llm.create_chat_completion(
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "image_url", "image_url": {"url": uri}},
-                    {"type": "text", "text": prompt},
-                ],
-            }],
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "image_url", "image_url": {"url": uri}},
+                        {"type": "text", "text": prompt},
+                    ],
+                }
+            ],
             max_tokens=max_tokens,
         )
         return resp["choices"][0]["message"]["content"].strip()
@@ -139,15 +142,17 @@ class MoondreamGGUFDescriber:
         existing = list(existing_results or [])
         processed_ids = {r["scene_id"] for r in existing if "error" not in r}
         all_results = [r for r in existing if "error" not in r]
-        to_process = keyframes_df[
-            ~keyframes_df["scene_id"].isin(processed_ids)
-        ].reset_index(drop=True)
+        to_process = keyframes_df[~keyframes_df["scene_id"].isin(processed_ids)].reset_index(
+            drop=True
+        )
         if self.process_limit:
             to_process = to_process.head(self.process_limit)
 
         logger.info(
             "LLM(GGUF): %d a processar (%d já ok, %d total)",
-            len(to_process), len(processed_ids), len(keyframes_df),
+            len(to_process),
+            len(processed_ids),
+            len(keyframes_df),
         )
 
         for count, (_, row) in enumerate(to_process.iterrows(), start=1):
@@ -170,13 +175,15 @@ class MoondreamGGUFDescriber:
                     meta.get("tags", []),
                 )
             except Exception as e:  # noqa: BLE001 - whole-frame failure
-                all_results.append({
-                    "scene_id": int(row.get("scene_id", -1)),
-                    "keyframe_path": str(row["filepath"]),
-                    "error": str(e),
-                    "tags": [],
-                    "objects": [],
-                })
+                all_results.append(
+                    {
+                        "scene_id": int(row.get("scene_id", -1)),
+                        "keyframe_path": str(row["filepath"]),
+                        "error": str(e),
+                        "tags": [],
+                        "objects": [],
+                    }
+                )
                 logger.error("Erro cena %s: %s", row.get("scene_id"), e)
 
             if checkpoint_path and count % self.checkpoint_interval == 0:

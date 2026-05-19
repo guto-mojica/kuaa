@@ -208,9 +208,7 @@ def test_encode_called_once_per_frame_via_describe_batch(monkeypatch):
         self._model = _FakeModel()
         self._tokenizer = object()
 
-    monkeypatch.setattr(
-        transformers_hf.MoondreamTransformersDescriber, "_load_model", _fake_load
-    )
+    monkeypatch.setattr(transformers_hf.MoondreamTransformersDescriber, "_load_model", _fake_load)
     import PIL.Image as _PILImage
 
     class _StubImg:
@@ -234,7 +232,8 @@ def test_registry_returns_transformers_backend(monkeypatch):
     from cinemateca.models.describer import transformers_hf
 
     monkeypatch.setattr(
-        transformers_hf.MoondreamTransformersDescriber, "_load_model",
+        transformers_hf.MoondreamTransformersDescriber,
+        "_load_model",
         lambda self: None,
     )
 
@@ -250,6 +249,8 @@ def test_registry_returns_transformers_backend(monkeypatch):
 
 
 def test_registry_rejects_unknown_describer():
+    import pytest
+
     from cinemateca.models import registry
 
     class _Models:
@@ -258,8 +259,5 @@ def test_registry_rejects_unknown_describer():
     class _Cfg:
         models = _Models()
 
-    try:
+    with pytest.raises(ValueError, match="nope"):
         registry.get_scene_describer(_Cfg(), device=None)
-        raise AssertionError("expected ValueError")
-    except ValueError as e:
-        assert "nope" in str(e)

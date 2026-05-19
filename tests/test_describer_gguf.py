@@ -1,4 +1,5 @@
 """GGUF describer unit tests — llama-cpp fully mocked, hermetic."""
+
 from __future__ import annotations
 
 import pandas as pd
@@ -34,11 +35,14 @@ def _backend_with_fake(monkeypatch):
 
     fake = _FakeLlama()
     monkeypatch.setattr(
-        gguf.MoondreamGGUFDescriber, "_answer",
+        gguf.MoondreamGGUFDescriber,
+        "_answer",
         lambda self, image_path, prompt, max_tokens: fake.answer(prompt),
     )
     monkeypatch.setattr(
-        gguf.MoondreamGGUFDescriber, "_load_model", lambda self: None,
+        gguf.MoondreamGGUFDescriber,
+        "_load_model",
+        lambda self: None,
     )
     return gguf.MoondreamGGUFDescriber(), fake
 
@@ -61,10 +65,12 @@ def test_describe_single_builds_metadata(monkeypatch):
 def test_describe_batch_resume_excludes_error_rows(monkeypatch):
     """Regression: error rows must NOT count as processed (the resume bug)."""
     backend, fake = _backend_with_fake(monkeypatch)
-    df = pd.DataFrame([
-        {"filepath": "a.jpg", "scene_id": 1},
-        {"filepath": "b.jpg", "scene_id": 2},
-    ])
+    df = pd.DataFrame(
+        [
+            {"filepath": "a.jpg", "scene_id": 1},
+            {"filepath": "b.jpg", "scene_id": 2},
+        ]
+    )
     existing = [{"scene_id": 1, "error": "boom", "tags": [], "objects": []}]
     out = backend.describe_batch(df, existing_results=existing)
     ids = sorted(r["scene_id"] for r in out)
@@ -75,10 +81,12 @@ def test_describe_batch_resume_excludes_error_rows(monkeypatch):
 def test_describe_batch_resume_preserves_good_rows(monkeypatch):
     """Good existing rows must be skipped (not reprocessed) and preserved."""
     backend, fake = _backend_with_fake(monkeypatch)
-    df = pd.DataFrame([
-        {"filepath": "a.jpg", "scene_id": 1},
-        {"filepath": "b.jpg", "scene_id": 2},
-    ])
+    df = pd.DataFrame(
+        [
+            {"filepath": "a.jpg", "scene_id": 1},
+            {"filepath": "b.jpg", "scene_id": 2},
+        ]
+    )
     good_row = {
         "scene_id": 1,
         "description": "prior good",
@@ -92,9 +100,7 @@ def test_describe_batch_resume_preserves_good_rows(monkeypatch):
     ids = sorted(r["scene_id"] for r in out)
     assert ids == [1, 2]
     # The exact prior good row object is preserved, not rebuilt.
-    assert any(
-        r["scene_id"] == 1 and r.get("description") == "prior good" for r in out
-    )
+    assert any(r["scene_id"] == 1 and r.get("description") == "prior good" for r in out)
 
 
 def _force_offload(monkeypatch, value: bool):
@@ -164,3 +170,18 @@ def test_warn_if_cpu_build_silent_when_gpu_layers_zero(monkeypatch, caplog):
         backend._warn_if_cpu_build()
 
     assert not caplog.records
+
+
+def test_gguf_init_defaults_when_llm_is_none():
+    """Guard: cfg present but cfg.llm is None → hardcoded defaults, no AttributeError."""
+    from cinemateca.models.describer.gguf import MoondreamGGUFDescriber
+
+    class _Cfg:
+        llm = None
+
+    backend = MoondreamGGUFDescriber(_Cfg())
+    assert backend.checkpoint_interval == 25
+    assert backend.descriptions_filename == "scene_descriptions.json"
+    assert backend.tags_filename == "scene_tags.json"
+    assert backend.process_limit is None
+    assert backend.n_gpu_layers == -1

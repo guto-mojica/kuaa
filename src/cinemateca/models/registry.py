@@ -50,6 +50,7 @@ def get_object_detector(cfg, device=None):
 
 def get_scene_describer(cfg, device=None):
     name = _name(cfg, "scene_describer")
+    # Order is load-bearing: moondream_transformers is the default backend.
     if name == "moondream_transformers":
         from cinemateca.models.describer.transformers_hf import (
             MoondreamTransformersDescriber,
