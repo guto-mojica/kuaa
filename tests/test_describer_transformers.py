@@ -9,6 +9,7 @@ from __future__ import annotations
 import pandas as pd
 
 from cinemateca.models.base import SceneDescriber
+from cinemateca.models.describer._common import PROMPTS
 
 
 def _answer_for(prompt: str) -> str:
@@ -25,9 +26,21 @@ def _answer_for(prompt: str) -> str:
     return "A man stands in a field."
 
 
+class _FakeAnswerer:
+    """Call counter for the patched _answer method."""
+
+    def __init__(self):
+        self.calls = 0
+
+    def answer(self, prompt: str) -> str:
+        self.calls += 1
+        return _answer_for(prompt)
+
+
 def _backend_with_fake(monkeypatch):
     from cinemateca.models.describer import transformers_hf
 
+    fake = _FakeAnswerer()
     monkeypatch.setattr(
         transformers_hf.MoondreamTransformersDescriber,
         "_load_model",
@@ -36,18 +49,18 @@ def _backend_with_fake(monkeypatch):
     monkeypatch.setattr(
         transformers_hf.MoondreamTransformersDescriber,
         "_answer",
-        lambda self, image_path, prompt, max_tokens: _answer_for(prompt),
+        lambda self, image_path, prompt, max_tokens: fake.answer(prompt),
     )
-    return transformers_hf.MoondreamTransformersDescriber()
+    return transformers_hf.MoondreamTransformersDescriber(), fake
 
 
 def test_transformers_describer_conforms(monkeypatch):
-    backend = _backend_with_fake(monkeypatch)
+    backend, _ = _backend_with_fake(monkeypatch)
     assert isinstance(backend, SceneDescriber)
 
 
 def test_describe_single_builds_metadata(monkeypatch):
-    backend = _backend_with_fake(monkeypatch)
+    backend, _ = _backend_with_fake(monkeypatch)
     meta = backend.describe("frame.jpg")
     assert meta["location"] == "exterior"
     assert meta["time_of_day"] == "dia"
@@ -58,7 +71,7 @@ def test_describe_single_builds_metadata(monkeypatch):
 
 def test_describe_batch_resume_excludes_error_rows(monkeypatch):
     """Regression: error rows must NOT count as processed (the resume bug)."""
-    backend = _backend_with_fake(monkeypatch)
+    backend, _ = _backend_with_fake(monkeypatch)
     df = pd.DataFrame([
         {"filepath": "a.jpg", "scene_id": 1},
         {"filepath": "b.jpg", "scene_id": 2},
@@ -72,7 +85,7 @@ def test_describe_batch_resume_excludes_error_rows(monkeypatch):
 
 def test_describe_batch_resume_preserves_good_rows(monkeypatch):
     """Good existing rows must be skipped (not reprocessed) and preserved."""
-    backend = _backend_with_fake(monkeypatch)
+    backend, fake = _backend_with_fake(monkeypatch)
     df = pd.DataFrame([
         {"filepath": "a.jpg", "scene_id": 1},
         {"filepath": "b.jpg", "scene_id": 2},
@@ -83,7 +96,10 @@ def test_describe_batch_resume_preserves_good_rows(monkeypatch):
         "tags": ["exterior"],
         "objects": [],
     }
+    calls_before = fake.calls
     out = backend.describe_batch(df, existing_results=[good_row])
+    # Only scene 2 was queried (len(PROMPTS) answers); scene 1 was skipped.
+    assert fake.calls == calls_before + len(PROMPTS)
     ids = sorted(r["scene_id"] for r in out)
     assert ids == [1, 2]
     assert any(
