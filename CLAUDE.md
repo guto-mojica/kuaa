@@ -199,6 +199,10 @@ uv run mypy src
 For quick development checks, use the test film **Jeca Tatu (1959)** already
 processed in `data/`. Artefacts persist across runs.
 
+**Note:** the default describer is now HF-transformers Moondream2 (GPU via a
+prebuilt PyTorch CUDA/MPS wheel — no source build). The GGUF describer below
+is the opt-in alternative (`scene_describer: moondream_gguf`).
+
 **GPU acceleration for the GGUF describer** — the slow CPU runs above become
 ~10–25× faster on the local NVIDIA GPU, but `llama-cpp-python` must be built
 from source with CUDA, which requires a non-obvious toolchain workaround on
@@ -291,6 +295,11 @@ Last updated: in the commit message that touched CLAUDE.md.
   registry, all roles moved, hard cutover (no shims), describer replaced
   with keyless offline Moondream-2 GGUF (transformers removed) — see
   docs/superpowers/specs/2026-05-17-pluggable-model-backends-design.md
+- [x] Describer default reverted to HF transformers Moondream2 @2025-01-09
+  (deployment ease: keyless, GPU via prebuilt PyTorch wheels on Win/Mac/Linux,
+  no source build). GGUF kept opt-in. transformers pinned >=4.44,<5 (tf5
+  hard-fails for every moondream2 revision, verified). uv.lock now committed.
+  See docs/superpowers/plans/2026-05-18-transformers-describer-default.md
 
 Keep this list updated as steps complete.
 

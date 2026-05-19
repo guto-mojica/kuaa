@@ -146,3 +146,5 @@ addopts = "-v --tb=short"
 # index has no Linux x86_64 wheel for the resolved torch, breaking Linux
 # installs (the opposite of this project's deployment-ease goal). GPU users
 # get the CUDA-enabled PyPI manylinux torch automatically; no override needed.
+# Note: CPU-only Linux users also receive this CUDA-enabled manylinux wheel —
+# PyPI ships no CPU-only Linux torch wheel; this is an accepted limitation.
