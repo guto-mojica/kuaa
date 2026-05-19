@@ -45,7 +45,7 @@ class MoondreamTransformersDescriber:
         self._tokenizer = None
         self._enc_cache: tuple[str, object] | None = None
         self._device = device
-        if cfg is not None and hasattr(cfg, "llm"):
+        if cfg is not None and getattr(cfg, "llm", None) is not None:
             self.model_id = cfg.llm.model_id
             self.revision = cfg.llm.revision
             self.checkpoint_interval = cfg.llm.checkpoint_interval

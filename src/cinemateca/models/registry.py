@@ -7,6 +7,7 @@ from here, never from a concrete backend module.
 Device is passed explicitly by the caller; this module never reads it
 from cfg.
 """
+
 from __future__ import annotations
 
 
@@ -24,6 +25,7 @@ def get_image_embedder(cfg, device=None):
     name = _name(cfg, "image_embedder")
     if name == "clip_openclip":
         from cinemateca.models.clip.openclip import OpenClipEmbedder
+
         return OpenClipEmbedder(cfg, device)
     raise ValueError(f"Unknown image_embedder: {name!r}")
 
@@ -32,6 +34,7 @@ def get_face_detector(cfg, device=None):
     name = _name(cfg, "face_detector")
     if name == "mtcnn_pytorch":
         from cinemateca.models.face.mtcnn import MTCNNFaceDetector
+
         return MTCNNFaceDetector(cfg, device)
     raise ValueError(f"Unknown face_detector: {name!r}")
 
@@ -40,14 +43,22 @@ def get_object_detector(cfg, device=None):
     name = _name(cfg, "object_detector")
     if name == "yolov8":
         from cinemateca.models.objects.yolov8 import YOLOv8ObjectDetector
+
         return YOLOv8ObjectDetector(cfg, device)
     raise ValueError(f"Unknown object_detector: {name!r}")
 
 
 def get_scene_describer(cfg, device=None):
     name = _name(cfg, "scene_describer")
+    if name == "moondream_transformers":
+        from cinemateca.models.describer.transformers_hf import (
+            MoondreamTransformersDescriber,
+        )
+
+        return MoondreamTransformersDescriber(cfg, device)
     if name == "moondream_gguf":
         from cinemateca.models.describer.gguf import MoondreamGGUFDescriber
+
         return MoondreamGGUFDescriber(cfg, device)
     raise ValueError(f"Unknown scene_describer: {name!r}")
 
@@ -58,6 +69,7 @@ def get_environment_classifier(cfg):
         from cinemateca.models.environment.opencv_heuristic import (
             OpenCVEnvironmentClassifier,
         )
+
         # device-agnostic: OpenCV heuristic, no device parameter
         return OpenCVEnvironmentClassifier(cfg)
     raise ValueError(f"Unknown environment_classifier: {name!r}")

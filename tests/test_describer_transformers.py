@@ -226,3 +226,40 @@ def test_encode_called_once_per_frame_via_describe_batch(monkeypatch):
     out = backend.describe_batch(df)
     assert len(out) == 1 and out[0]["scene_id"] == 1
     assert calls["encode"] == 1, f"encoded {calls['encode']}x, expected 1"
+
+
+def test_registry_returns_transformers_backend(monkeypatch):
+    """registry.get_scene_describer resolves 'moondream_transformers'."""
+    from cinemateca.models import registry
+    from cinemateca.models.describer import transformers_hf
+
+    monkeypatch.setattr(
+        transformers_hf.MoondreamTransformersDescriber, "_load_model",
+        lambda self: None,
+    )
+
+    class _Models:
+        scene_describer = "moondream_transformers"
+
+    class _Cfg:
+        models = _Models()
+        llm = None  # exercises the cfg-without-llm default branch
+
+    backend = registry.get_scene_describer(_Cfg(), device=None)
+    assert isinstance(backend, transformers_hf.MoondreamTransformersDescriber)
+
+
+def test_registry_rejects_unknown_describer():
+    from cinemateca.models import registry
+
+    class _Models:
+        scene_describer = "nope"
+
+    class _Cfg:
+        models = _Models()
+
+    try:
+        registry.get_scene_describer(_Cfg(), device=None)
+        raise AssertionError("expected ValueError")
+    except ValueError as e:
+        assert "nope" in str(e)
