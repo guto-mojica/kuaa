@@ -119,17 +119,20 @@ def scan_library(
         for film_dir in sorted(films_dir.iterdir()):
             if not film_dir.is_dir() or film_dir.name.startswith("."):
                 continue
-            slug = film_dir.name
-
             # film.json is required — orphan pipeline dirs (no registration)
             # are skipped so they don't pollute the library list.
             film_json = film_dir / "film.json"
             if not film_json.exists():
                 continue
+            # Use slug from film.json if present; fall back to lowercased dir
+            # name so that dirs with unusual casing (e.g. Chronopolis_1982)
+            # produce a canonical slug that matches _register_film output.
+            slug = film_dir.name.lower()
             title: str | None = None
             raw_path: Path | None = None
             try:
                 meta = json.loads(film_json.read_text(encoding="utf-8"))
+                slug = meta.get("slug") or slug
                 title = meta.get("title")
                 rp = meta.get("raw_path")
                 raw_path = Path(rp) if rp else None
