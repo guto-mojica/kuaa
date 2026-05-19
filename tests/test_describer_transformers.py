@@ -105,3 +105,48 @@ def test_describe_batch_resume_preserves_good_rows(monkeypatch):
     assert any(
         r["scene_id"] == 1 and r.get("description") == "prior good" for r in out
     )
+
+
+def _patch_cuda(monkeypatch, available: bool):
+    import torch
+
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: available)
+
+
+def test_warn_if_cpu_torch_warns_when_gpu_present_but_cpu_build(monkeypatch, caplog):
+    """NVIDIA GPU present + CPU-only torch → loud WARNING."""
+    from cinemateca.models.describer import transformers_hf
+
+    backend = transformers_hf.MoondreamTransformersDescriber()
+    monkeypatch.setattr(
+        transformers_hf.shutil, "which", lambda _n: "/usr/bin/nvidia-smi"
+    )
+    _patch_cuda(monkeypatch, available=False)
+    with caplog.at_level("WARNING"):
+        backend._warn_if_cpu_torch()
+    assert any("CPU-only" in r.message for r in caplog.records)
+
+
+def test_warn_if_cpu_torch_silent_when_cuda_available(monkeypatch, caplog):
+    """A genuine CUDA torch build must NOT warn."""
+    from cinemateca.models.describer import transformers_hf
+
+    backend = transformers_hf.MoondreamTransformersDescriber()
+    monkeypatch.setattr(
+        transformers_hf.shutil, "which", lambda _n: "/usr/bin/nvidia-smi"
+    )
+    _patch_cuda(monkeypatch, available=True)
+    with caplog.at_level("WARNING"):
+        backend._warn_if_cpu_torch()
+    assert not caplog.records
+
+
+def test_warn_if_cpu_torch_silent_without_nvidia_gpu(monkeypatch, caplog):
+    """No nvidia-smi → CPU is expected, stay silent."""
+    from cinemateca.models.describer import transformers_hf
+
+    backend = transformers_hf.MoondreamTransformersDescriber()
+    monkeypatch.setattr(transformers_hf.shutil, "which", lambda _n: None)
+    with caplog.at_level("WARNING"):
+        backend._warn_if_cpu_torch()
+    assert not caplog.records
