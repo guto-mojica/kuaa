@@ -147,6 +147,7 @@ def test_warn_if_cpu_torch_silent_without_nvidia_gpu(monkeypatch, caplog):
 
     backend = transformers_hf.MoondreamTransformersDescriber()
     monkeypatch.setattr(transformers_hf.shutil, "which", lambda _n: None)
+    _patch_cuda(monkeypatch, available=False)
     with caplog.at_level("WARNING"):
         backend._warn_if_cpu_torch()
     assert not caplog.records
