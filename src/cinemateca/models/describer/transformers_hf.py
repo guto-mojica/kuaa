@@ -43,6 +43,7 @@ class MoondreamTransformersDescriber:
     def __init__(self, cfg=None, device=None):
         self._model = None
         self._tokenizer = None
+        self._enc_cache: tuple[str, object] | None = None
         self._device = device
         if cfg is not None and hasattr(cfg, "llm"):
             self.model_id = cfg.llm.model_id
@@ -123,7 +124,14 @@ class MoondreamTransformersDescriber:
         logger.info("✓ Moondream 2 carregado em %.1fs", time.time() - t0)
 
     def _encode(self, image_path):
-        """Open, RGB, pre-resize, and run the SigLIP encoder once."""
+        """Open, RGB, pre-resize, run the SigLIP encoder once per frame.
+
+        Single-entry cache keyed by resolved path: describe()/describe_batch
+        ask 6 prompts about the same image; the encoder must run once.
+        """
+        key = str(Path(image_path).resolve())
+        if self._enc_cache is not None and self._enc_cache[0] == key:
+            return self._enc_cache[1]
         from PIL import Image
 
         img = (
@@ -131,10 +139,12 @@ class MoondreamTransformersDescriber:
             .convert("RGB")
             .resize((_INPUT_SIZE, _INPUT_SIZE), Image.Resampling.BILINEAR)
         )
-        return self._model.encode_image(img)
+        enc = self._model.encode_image(img)
+        self._enc_cache = (key, enc)
+        return enc
 
     def _answer(self, image_path, prompt: str, max_tokens: int) -> str:
-        """One image+prompt -> stripped model text. Re-encodes per call."""
+        """One image+prompt -> stripped model text (encoder cached per frame)."""
         enc = self._encode(image_path)
         return self._model.answer_question(
             enc, prompt, self._tokenizer, max_new_tokens=max_tokens

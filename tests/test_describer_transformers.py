@@ -72,10 +72,12 @@ def test_describe_single_builds_metadata(monkeypatch):
 def test_describe_batch_resume_excludes_error_rows(monkeypatch):
     """Regression: error rows must NOT count as processed (the resume bug)."""
     backend, _ = _backend_with_fake(monkeypatch)
-    df = pd.DataFrame([
-        {"filepath": "a.jpg", "scene_id": 1},
-        {"filepath": "b.jpg", "scene_id": 2},
-    ])
+    df = pd.DataFrame(
+        [
+            {"filepath": "a.jpg", "scene_id": 1},
+            {"filepath": "b.jpg", "scene_id": 2},
+        ]
+    )
     existing = [{"scene_id": 1, "error": "boom", "tags": [], "objects": []}]
     out = backend.describe_batch(df, existing_results=existing)
     ids = sorted(r["scene_id"] for r in out)
@@ -86,10 +88,12 @@ def test_describe_batch_resume_excludes_error_rows(monkeypatch):
 def test_describe_batch_resume_preserves_good_rows(monkeypatch):
     """Good existing rows must be skipped (not reprocessed) and preserved."""
     backend, fake = _backend_with_fake(monkeypatch)
-    df = pd.DataFrame([
-        {"filepath": "a.jpg", "scene_id": 1},
-        {"filepath": "b.jpg", "scene_id": 2},
-    ])
+    df = pd.DataFrame(
+        [
+            {"filepath": "a.jpg", "scene_id": 1},
+            {"filepath": "b.jpg", "scene_id": 2},
+        ]
+    )
     good_row = {
         "scene_id": 1,
         "description": "prior good",
@@ -102,9 +106,7 @@ def test_describe_batch_resume_preserves_good_rows(monkeypatch):
     assert fake.calls == calls_before + len(PROMPTS)
     ids = sorted(r["scene_id"] for r in out)
     assert ids == [1, 2]
-    assert any(
-        r["scene_id"] == 1 and r.get("description") == "prior good" for r in out
-    )
+    assert any(r["scene_id"] == 1 and r.get("description") == "prior good" for r in out)
 
 
 def _patch_cuda(monkeypatch, available: bool):
@@ -118,9 +120,7 @@ def test_warn_if_cpu_torch_warns_when_gpu_present_but_cpu_build(monkeypatch, cap
     from cinemateca.models.describer import transformers_hf
 
     backend = transformers_hf.MoondreamTransformersDescriber()
-    monkeypatch.setattr(
-        transformers_hf.shutil, "which", lambda _n: "/usr/bin/nvidia-smi"
-    )
+    monkeypatch.setattr(transformers_hf.shutil, "which", lambda _n: "/usr/bin/nvidia-smi")
     _patch_cuda(monkeypatch, available=False)
     with caplog.at_level("WARNING"):
         backend._warn_if_cpu_torch()
@@ -132,9 +132,7 @@ def test_warn_if_cpu_torch_silent_when_cuda_available(monkeypatch, caplog):
     from cinemateca.models.describer import transformers_hf
 
     backend = transformers_hf.MoondreamTransformersDescriber()
-    monkeypatch.setattr(
-        transformers_hf.shutil, "which", lambda _n: "/usr/bin/nvidia-smi"
-    )
+    monkeypatch.setattr(transformers_hf.shutil, "which", lambda _n: "/usr/bin/nvidia-smi")
     _patch_cuda(monkeypatch, available=True)
     with caplog.at_level("WARNING"):
         backend._warn_if_cpu_torch()
@@ -151,3 +149,41 @@ def test_warn_if_cpu_torch_silent_without_nvidia_gpu(monkeypatch, caplog):
     with caplog.at_level("WARNING"):
         backend._warn_if_cpu_torch()
     assert not caplog.records
+
+
+def test_encode_called_once_per_frame(monkeypatch):
+    """describe() runs len(PROMPTS) prompts but encodes the image once."""
+    from cinemateca.models.describer import transformers_hf
+
+    backend = transformers_hf.MoondreamTransformersDescriber()
+
+    calls = {"encode": 0}
+
+    class _FakeModel:
+        def encode_image(self, img):
+            calls["encode"] += 1
+            return object()
+
+        def answer_question(self, enc, prompt, tok, max_new_tokens):
+            return _answer_for(prompt)
+
+    def _fake_load(self):
+        self._model = _FakeModel()
+        self._tokenizer = object()
+
+    monkeypatch.setattr(transformers_hf.MoondreamTransformersDescriber, "_load_model", _fake_load)
+    # Make PIL Image.open/convert/resize a no-op-ish pass-through.
+    import PIL.Image as _PILImage
+
+    class _StubImg:
+        def convert(self, _m):
+            return self
+
+        def resize(self, _s, _r):
+            return self
+
+    monkeypatch.setattr(_PILImage, "open", lambda _p: _StubImg())
+
+    meta = backend.describe("frame.jpg")
+    assert meta["num_people"] == 2
+    assert calls["encode"] == 1, f"encoded {calls['encode']}x, expected 1"
