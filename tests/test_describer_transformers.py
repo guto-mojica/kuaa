@@ -187,3 +187,42 @@ def test_encode_called_once_per_frame(monkeypatch):
     meta = backend.describe("frame.jpg")
     assert meta["num_people"] == 2
     assert calls["encode"] == 1, f"encoded {calls['encode']}x, expected 1"
+
+
+def test_encode_called_once_per_frame_via_describe_batch(monkeypatch):
+    """describe_batch encodes each frame once across all prompts (cache hit)."""
+    from cinemateca.models.describer import transformers_hf
+
+    backend = transformers_hf.MoondreamTransformersDescriber()
+    calls = {"encode": 0}
+
+    class _FakeModel:
+        def encode_image(self, img):
+            calls["encode"] += 1
+            return object()
+
+        def answer_question(self, enc, prompt, tok, max_new_tokens):
+            return _answer_for(prompt)
+
+    def _fake_load(self):
+        self._model = _FakeModel()
+        self._tokenizer = object()
+
+    monkeypatch.setattr(
+        transformers_hf.MoondreamTransformersDescriber, "_load_model", _fake_load
+    )
+    import PIL.Image as _PILImage
+
+    class _StubImg:
+        def convert(self, _m):
+            return self
+
+        def resize(self, _s, _r):
+            return self
+
+    monkeypatch.setattr(_PILImage, "open", lambda _p: _StubImg())
+
+    df = pd.DataFrame([{"filepath": "only.jpg", "scene_id": 1}])
+    out = backend.describe_batch(df)
+    assert len(out) == 1 and out[0]["scene_id"] == 1
+    assert calls["encode"] == 1, f"encoded {calls['encode']}x, expected 1"
