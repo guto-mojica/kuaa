@@ -56,6 +56,7 @@ def build_processing_context() -> dict:
     films = scan_library(
         raw_dir=Path(cfg.paths.raw_dir),
         metadata_dir=Path(cfg.paths.metadata_dir),
+        films_dir=Path(cfg.paths.data_dir) / "films",
     )
     jobs = active_jobs()
 
