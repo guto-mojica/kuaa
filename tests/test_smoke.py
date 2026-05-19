@@ -110,6 +110,13 @@ def test_import_describer():
     assert MoondreamGGUFDescriber is not None
 
 
+def test_import_describer_transformers():
+    from cinemateca.models.describer.transformers_hf import (
+        MoondreamTransformersDescriber,
+    )
+    assert MoondreamTransformersDescriber is not None
+
+
 def test_import_pipeline():
     from cinemateca.pipeline import CatalogPipeline
     assert CatalogPipeline is not None
