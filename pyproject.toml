@@ -42,7 +42,13 @@ full = [
     "scenedetect>=0.6",
     "ultralytics>=8.0",
     "facenet-pytorch>=2.5",
+    # GGUF describer (opt-in, keyless/offline) — see docs/GPU_LLAMA_CPP_CUDA_BUILD.md
     "llama-cpp-python>=0.3,<0.4",
+    # transformers describer (DEFAULT) — Moondream2 @2025-01-09 is transformers-4
+    # only: tf5 hard-fails for EVERY moondream2 revision (verified 2026-05-18).
+    # Do NOT widen to <6 / >=5 without re-verifying the model loads.
+    "transformers>=4.44,<5",
+    "einops>=0.7",
     "huggingface-hub>=0.20",
     "rich>=13.0",
     # v0.3.0 web stack
