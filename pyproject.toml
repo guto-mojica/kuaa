@@ -50,6 +50,10 @@ full = [
     "transformers>=4.44,<5",
     "einops>=0.7",
     "huggingface-hub>=0.20",
+    # pyvips[binary] — moondream2's trust_remote_code module (image_crops.py) does
+    # `import pyvips` at model-load time; [binary] bundles libvips so no system
+    # libvips is required (matches the cross-platform / no-source-build goal).
+    "pyvips[binary]>=2.2.1",
     "rich>=13.0",
     # v0.3.0 web stack
     "fastapi>=0.110",
