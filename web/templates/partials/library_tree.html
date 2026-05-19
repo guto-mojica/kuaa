@@ -30,9 +30,19 @@
          hx-swap="none">
         {{ icon("film-strip") }}
         <span class="tree-node__title">{{ film.title }}</span>
-        {% if film.scene_count > 0 %}
-        <span class="tree-node__count">{{ film.scene_count }}</span>
-        {% endif %}
+        <span class="tree-node__trailing">
+            {% if film.scene_count > 0 %}
+            <span class="tree-node__count">{{ film.scene_count }}</span>
+            {% endif %}
+            {% if film.is_registered %}
+            <span class="tree-node__remove"
+                  hx-get="/api/library/remove-confirm/{{ film.slug }}"
+                  hx-target="closest .tree-node"
+                  hx-swap="outerHTML"
+                  hx-trigger="click consume"
+                  title="{{ _('Remove') }}">×</span>
+            {% endif %}
+        </span>
     </div>
     {% endfor %}
 {% else %}

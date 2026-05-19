@@ -42,6 +42,7 @@ class Film:
     raw_path: Path
     scene_count: int = 0
     is_processed: bool = False
+    is_registered: bool = False  # True when film.json exists in films_dir
 
 
 @dataclass
@@ -120,18 +121,20 @@ def scan_library(
                 continue
             slug = film_dir.name
 
-            # Optional film.json carries a custom title + raw_path.
+            # film.json is required — orphan pipeline dirs (no registration)
+            # are skipped so they don't pollute the library list.
             film_json = film_dir / "film.json"
+            if not film_json.exists():
+                continue
             title: str | None = None
             raw_path: Path | None = None
-            if film_json.exists():
-                try:
-                    meta = json.loads(film_json.read_text(encoding="utf-8"))
-                    title = meta.get("title")
-                    rp = meta.get("raw_path")
-                    raw_path = Path(rp) if rp else None
-                except (json.JSONDecodeError, OSError) as exc:
-                    logger.warning("Unreadable film.json for %s: %s", slug, exc)
+            try:
+                meta = json.loads(film_json.read_text(encoding="utf-8"))
+                title = meta.get("title")
+                rp = meta.get("raw_path")
+                raw_path = Path(rp) if rp else None
+            except (json.JSONDecodeError, OSError) as exc:
+                logger.warning("Unreadable film.json for %s: %s", slug, exc)
 
             if title is None:
                 title = slug.replace("_", " ").title()
@@ -145,6 +148,7 @@ def scan_library(
                 raw_path=raw_path,
                 scene_count=scene_count,
                 is_processed=scene_count > 0,
+                is_registered=True,
             ))
             registered.add(slug)
             logger.debug("Registered film: %s (%d scenes)", slug, scene_count)

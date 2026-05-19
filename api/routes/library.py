@@ -1,9 +1,9 @@
 """Library sidebar routes — per-film inventory, selection, and registration."""
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
+import shutil
 from pathlib import Path
 
 from fastapi import APIRouter, Form, Request
@@ -103,72 +103,83 @@ async def api_library_cancel_add(request: Request) -> HTMLResponse:
     return HTMLResponse("")
 
 
-@router.get("/api/library/pick-file", response_class=HTMLResponse)
-async def api_library_pick_file(request: Request) -> HTMLResponse:
-    """Open a macOS native file-picker dialog and register the chosen film.
-
-    Runs ``osascript`` asynchronously (the browser tab shows a loading
-    spinner while the dialog is open).  On cancel or failure the form is
-    restored; on success the library tree refreshes with the new entry.
-    """
-    script = (
-        "POSIX path of (choose file "
-        'with prompt "Select video file" '
-        'of type {"public.movie"})'
-    )
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            "osascript", "-e", script,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, _ = await proc.communicate()
-    except FileNotFoundError:
-        return _form_error(request, "File picker unavailable (osascript not found).")
-
-    if proc.returncode != 0:
-        # User pressed Cancel — silently restore the tree.
-        return templates.TemplateResponse(
-            request, "partials/library_tree.html", _library_ctx(request)
-        )
-
-    vp = Path(stdout.decode().strip())
-    if not vp.is_file() or vp.suffix.lower() not in _VIDEO_EXTENSIONS:
-        return _form_error(
-            request,
-            f"Unsupported format: {vp.suffix or '(no extension)'}",
-        )
-
-    cfg = get_config()
-    _register_film(cfg, vp)
-    return templates.TemplateResponse(
-        request, "partials/library_tree.html", _library_ctx(request)
-    )
-
-
 @router.post("/api/library/add", response_class=HTMLResponse)
 async def api_library_add(
     request: Request,
     video_path: str = Form(...),
     title: str = Form(default=""),
 ) -> HTMLResponse:
-    """Register a film from a typed/pasted path."""
+    """Register a film from a typed or pasted path.
+
+    Only the file extension is validated at registration time — the file
+    does not need to be currently accessible (e.g. path to an external
+    drive that may be unmounted).  A bare filename (no directory
+    component) is resolved against ``raw_dir`` as a convenience.
+    """
     cfg = get_config()
     vp = Path(video_path.strip()).expanduser()
 
-    # Accept bare filenames relative to raw_dir.
-    if not vp.is_file():
-        candidate = Path(cfg.paths.raw_dir) / vp.name
-        if candidate.is_file():
+    # Bare filename → try raw_dir
+    if len(vp.parts) == 1:
+        candidate = Path(cfg.paths.raw_dir) / vp
+        if candidate.exists() or candidate.is_symlink():
             vp = candidate
 
-    if not vp.is_file() or vp.suffix.lower() not in _VIDEO_EXTENSIONS:
+    if not vp.suffix or vp.suffix.lower() not in _VIDEO_EXTENSIONS:
         return _form_error(
             request,
-            f"File not found or unsupported format: {vp.name or video_path}",
+            f"Unsupported format: {vp.suffix or '(no extension)'} — "
+            f"accepted: {', '.join(sorted(_VIDEO_EXTENSIONS))}",
         )
 
     _register_film(cfg, vp, title)
+    return templates.TemplateResponse(
+        request, "partials/library_tree.html", _library_ctx(request)
+    )
+
+
+@router.get("/api/library/remove-confirm/{slug}", response_class=HTMLResponse)
+async def api_library_remove_confirm(request: Request, slug: str) -> HTMLResponse:
+    """Return an inline confirmation strip that replaces the film row."""
+    cfg = get_config()
+    film_json = Path(cfg.paths.data_dir) / "films" / slug / "film.json"
+    title = slug.replace("_", " ").title()
+    if film_json.exists():
+        try:
+            meta = json.loads(film_json.read_text(encoding="utf-8"))
+            title = meta.get("title", title)
+        except (json.JSONDecodeError, OSError):
+            pass
+    return templates.TemplateResponse(
+        request,
+        "partials/remove_film_confirm.html",
+        make_ctx(request, slug=slug, film_title=title),
+    )
+
+
+@router.post("/api/library/remove/{slug}", response_class=HTMLResponse)
+async def api_library_remove(
+    request: Request,
+    slug: str,
+    wipe: str = Form(default=""),
+) -> HTMLResponse:
+    """Remove a film entry.  If ``wipe`` is non-empty, delete the full
+    per-film data directory; otherwise just remove ``film.json`` so the
+    processed artefacts are kept but the film no longer appears in the
+    library list."""
+    cfg = get_config()
+    film_dir = Path(cfg.paths.data_dir) / "films" / slug
+
+    if wipe:
+        if film_dir.exists():
+            shutil.rmtree(film_dir)
+            logger.info("Wiped film dir for %r", slug)
+    else:
+        film_json = film_dir / "film.json"
+        if film_json.exists():
+            film_json.unlink()
+            logger.info("Removed film.json for %r (data kept)", slug)
+
     return templates.TemplateResponse(
         request, "partials/library_tree.html", _library_ctx(request)
     )

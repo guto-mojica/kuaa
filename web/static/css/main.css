@@ -168,7 +168,6 @@ body {
 .tree-node__title { font-family: var(--font-serif); }
 
 .tree-node__count {
-    margin-left: auto;
     font-size: 0.825rem;
     color: var(--c-text-muted);
     font-family: var(--font-sans);
@@ -214,19 +213,64 @@ button.tree-node {
     padding: 2px 0;
     margin: 0;
 }
-.add-film-form__sep {
-    font-size: 0.75rem;
-    color: var(--c-text-muted);
-    text-align: center;
-    margin: 2px 0;
-}
-/* Spinner shown by HTMX while the osascript dialog is open. */
-.add-film-form__spinner {
+/* trailing slot: scene count + remove button, pushed right */
+.tree-node__trailing {
     margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
-.htmx-indicator { display: none; }
-.htmx-request .htmx-indicator,
-.htmx-request.htmx-indicator { display: inline-flex; }
+/* override the old standalone margin-left:auto on count */
+.tree-node__count { margin-left: 0; }
+
+.tree-node__remove {
+    opacity: 0;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0 1px;
+    color: var(--c-text-muted);
+    transition: opacity 0.15s, color 0.15s;
+    cursor: pointer;
+}
+.tree-node:hover .tree-node__remove { opacity: 0.5; }
+.tree-node__remove:hover { opacity: 1 !important; color: var(--c-error); }
+
+/* inline remove-confirm strip (replaces a film row via outerHTML swap) */
+.tree-node--confirm {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 6px;
+    background: color-mix(in srgb, var(--c-error) 8%, transparent);
+    border-left-color: var(--c-error);
+    cursor: default;
+}
+.tree-node--confirm:hover { background: color-mix(in srgb, var(--c-error) 8%, transparent); }
+.remove-confirm__label {
+    font-size: 0.82rem;
+    color: var(--c-text-secondary);
+}
+.remove-confirm__label em { font-style: normal; font-weight: 600; color: var(--c-text); }
+.remove-confirm__actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+.remove-btn {
+    font-size: 0.72rem;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px solid var(--c-border);
+    background: transparent;
+    color: var(--c-text-secondary);
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1.4;
+}
+.remove-btn:hover { border-color: var(--c-text-muted); color: var(--c-text); }
+.remove-btn--wipe { border-color: var(--c-error); color: var(--c-error); }
+.remove-btn--wipe:hover { background: color-mix(in srgb, var(--c-error) 12%, transparent); }
+.remove-btn--cancel { border-color: transparent; color: var(--c-text-muted); }
 
 .tree-empty {
     font-size: 0.9rem;
