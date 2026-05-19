@@ -261,3 +261,20 @@ def test_registry_rejects_unknown_describer():
 
     with pytest.raises(ValueError, match="nope"):
         registry.get_scene_describer(_Cfg(), device=None)
+
+
+def test_default_config_selects_transformers_backend(tmp_path, monkeypatch):
+    """The shipped default config must resolve to the transformers backend."""
+    from cinemateca.config import load_config
+    from cinemateca.models import registry
+    from cinemateca.models.describer import transformers_hf
+
+    monkeypatch.setattr(
+        transformers_hf.MoondreamTransformersDescriber,
+        "_load_model",
+        lambda self: None,
+    )
+    cfg = load_config(project_root=tmp_path)
+    assert cfg.models.scene_describer == "moondream_transformers"
+    backend = registry.get_scene_describer(cfg, device=None)
+    assert isinstance(backend, transformers_hf.MoondreamTransformersDescriber)

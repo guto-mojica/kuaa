@@ -91,7 +91,11 @@ models:
   image_embedder: clip_openclip            # clip_openclip
   face_detector: mtcnn_pytorch             # mtcnn_pytorch
   object_detector: yolov8                  # yolov8
-  scene_describer: moondream_gguf          # moondream_gguf (keyless, offline)
+  # Default: keyless, offline Moondream 2 via HF transformers. GPU comes from
+  # the installed PyTorch wheel (CUDA/MPS) — no source build, works on
+  # Linux/Windows/macOS. Opt-in alternative: moondream_gguf (llama-cpp-python;
+  # GPU needs a from-source CUDA build — see docs/GPU_LLAMA_CPP_CUDA_BUILD.md).
+  scene_describer: moondream_transformers  # moondream_transformers | moondream_gguf
   environment_classifier: opencv_heuristic # opencv_heuristic
 
 # ── Pipeline ──────────────────────────────────────────────────────────────────
