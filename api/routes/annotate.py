@@ -12,7 +12,7 @@ import logging
 from fastapi import APIRouter, Form, Query, Request
 from fastapi.responses import HTMLResponse
 
-from api.deps import get_config, make_ctx
+from api.deps import film_ctx, get_config, make_ctx
 from api.services.annotations import (
     build_annotate_context,
     build_scene_panel,
@@ -21,15 +21,10 @@ from api.services.annotations import (
     save_annotations,
     save_description,
 )
-from api.services.film_context import FilmContext
 from api.templates import templates
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-
-def _ctx() -> FilmContext:
-    return FilmContext.from_config(get_config())
 
 
 @router.get("/tab/annotate", response_class=HTMLResponse)
@@ -41,7 +36,7 @@ async def tab_annotate(
     return templates.TemplateResponse(
         request,
         "partials/annotate.html",
-        make_ctx(request, **build_annotate_context(_ctx(), filter, id)),
+        make_ctx(request, **build_annotate_context(film_ctx(request), filter, id)),
     )
 
 
@@ -51,7 +46,7 @@ async def api_annotate_scene(
     id: int = Query(...),
     filter: str = Query(default="no_llm"),
 ) -> HTMLResponse:
-    ctx = build_scene_panel(_ctx(), id, filter)
+    ctx = build_scene_panel(film_ctx(request), id, filter)
     return templates.TemplateResponse(
         request,
         "partials/annotate_scene.html",
@@ -66,7 +61,7 @@ async def api_annotate_save(
     filter: str = Form(default="no_llm"),
     tags: str = Form(default=""),
 ) -> HTMLResponse:
-    fctx = _ctx()
+    fctx = film_ctx(request)
 
     new_tags = normalize_tags(tags)
     ann = load_annotations(fctx)
@@ -90,7 +85,7 @@ async def api_annotate_description_edit(
 ) -> HTMLResponse:
     from api.services.catalog import load_json
 
-    fctx = _ctx()
+    fctx = film_ctx(request)
     descriptions = load_json(fctx.metadata_dir / "scene_descriptions.json") or []
     current = next(
         (d.get("description", "") for d in descriptions if d.get("scene_id") == scene_id),
@@ -110,7 +105,7 @@ async def api_annotate_description_save(
     filter: str = Form(default="no_llm"),
     description: str = Form(default=""),
 ) -> HTMLResponse:
-    fctx = _ctx()
+    fctx = film_ctx(request)
     save_description(fctx, scene_id, description.strip())
     logger.info("Description updated for scene %s", scene_id)
 
@@ -128,7 +123,7 @@ async def api_annotate_clear(
     scene_id: int = Form(...),
     filter: str = Form(default="no_llm"),
 ) -> HTMLResponse:
-    fctx = _ctx()
+    fctx = film_ctx(request)
 
     ann = load_annotations(fctx)
     ann.pop(str(scene_id), None)

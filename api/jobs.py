@@ -313,11 +313,22 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
     cooperative: ``run_steps`` polls ``cancel_check`` between steps and
     raises ``StepCancelled`` when the job's cancel flag is set.
     """
+    from pathlib import PurePosixPath
+
+    from api.services.film_context import FilmContext
     from cinemateca.pipeline import CatalogPipeline, StepCancelled
 
     t_start = time.time()
     job.status = STATUS_RUNNING
-    pipeline = CatalogPipeline(cfg)
+
+    # Route pipeline output to data/films/{slug}/ for per-film isolation.
+    slug = PurePosixPath(job.video_path.replace("\\", "/")).stem.lower().replace(" ", "_")
+    ctx = FilmContext.for_film(cfg, slug)
+    ctx.metadata_dir.mkdir(parents=True, exist_ok=True)
+    ctx.frames_dir.mkdir(parents=True, exist_ok=True)
+    ctx.embeddings_dir.mkdir(parents=True, exist_ok=True)
+
+    pipeline = CatalogPipeline(cfg, ctx=ctx)
 
     by_name: dict[str, StepInfo] = {s.name: s for s in job.steps}
 

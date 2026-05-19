@@ -13,11 +13,10 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from api.deps import get_config, make_ctx
+from api.deps import film_ctx, get_config, make_ctx
 from api.routes import about, annotate, library, processing, scenes, search, tabs
 from api.services.annotations import build_annotate_context
 from api.services.catalog import build_scenes_context
-from api.services.film_context import FilmContext
 from api.templates import templates
 
 logger = logging.getLogger(__name__)
@@ -60,10 +59,10 @@ app.include_router(library.router)
 # other two builders still live in their route modules (Phase 3c/4
 # extract them) and remain zero-arg.
 _TAB_CONTEXT_BUILDERS = {
-    "search": search.build_search_context,
-    "scenes": lambda: build_scenes_context(FilmContext.from_config(get_config())),
-    "annotate": lambda: build_annotate_context(FilmContext.from_config(get_config())),
-    "processing": processing.build_processing_context,
+    "search": lambda req: search.build_search_context(req),
+    "scenes": lambda req: build_scenes_context(film_ctx(req)),
+    "annotate": lambda req: build_annotate_context(film_ctx(req)),
+    "processing": lambda _: processing.build_processing_context(),
 }
 
 
@@ -84,23 +83,14 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     # `processing` builder intentionally overrides `films` (see the merge
     # below), but the other three depend on this scan.
     #
-    # Phase-5 decision (single-film recovery): v0.3 is SINGLE-FILM with an
-    # honest library placeholder — `scan_library` returns a plain inventory
-    # (no fabricated per-film counts/processed) and `library_state` reports
-    # the ONE global artifact set. The Phase-1a/3a double-scan on
-    # /processing (this scan + the processing builder's own) was tracked
-    # here as "Phase 5 owns collapsing it"; it is NOT cleanly removable by
-    # the single-film simplification: the processing builder still owns the
-    # pipeline video dropdown and re-scans `raw_dir` for that, independently
-    # of the sidebar. Folding both through one shared scan would require a
-    # request-scoped library object — that abstraction belongs to the
-    # post-recovery multi-film epic, not this single-film honesty pass.
-    # Left as-is intentionally; it is harmless (one extra raw_dir listing
-    # on /processing). The misleading per-film STATE is what Phase 5
-    # removes, not this redundancy.
+    # Multi-film: pass films_dir so registered per-film dirs get real scene
+    # counts.  The processing builder still re-scans raw_dir independently
+    # for the video dropdown — that redundancy is intentional (two separate
+    # concerns) and harmless.
     films = scan_library(
         raw_dir=Path(cfg.paths.raw_dir),
         metadata_dir=Path(cfg.paths.metadata_dir),
+        films_dir=Path(cfg.paths.data_dir) / "films",
     )
     state = library_state(
         raw_dir=Path(cfg.paths.raw_dir),
@@ -116,7 +106,7 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     # `{**base_ctx, **tab_ctx}`: tab_ctx wins on key collisions. The
     # `processing` builder deliberately re-supplies `films`, overriding the
     # base value here; that override is intended, not a bug.
-    tab_ctx = _TAB_CONTEXT_BUILDERS[active_tab]()
+    tab_ctx = _TAB_CONTEXT_BUILDERS[active_tab](request)
     return templates.TemplateResponse(
         request,
         "base.html",

@@ -266,7 +266,7 @@ class _StubPipeline:
 
     behavior = "ok"  # ok | fail | block | hang
 
-    def __init__(self, cfg):
+    def __init__(self, cfg, ctx=None):
         self.cfg = cfg
 
     def run_steps(self, video_path, steps, progress_cb=None, cancel_check=None):
@@ -302,9 +302,18 @@ class _StubPipeline:
 
 def _patch_pipeline(jobs_mod, monkeypatch, behavior="ok"):
     import cinemateca.pipeline as pl
+    from api.services.film_context import FilmContext
 
     _StubPipeline.behavior = behavior
     monkeypatch.setattr(pl, "CatalogPipeline", _StubPipeline)
+
+    # _run_pipeline now creates a FilmContext before CatalogPipeline; tests
+    # that pass object() as cfg don't have real paths, so stub for_film out.
+    _noop = types.SimpleNamespace(mkdir=lambda **_: None)
+    _stub_ctx = types.SimpleNamespace(
+        metadata_dir=_noop, frames_dir=_noop, embeddings_dir=_noop
+    )
+    monkeypatch.setattr(FilmContext, "for_film", lambda cfg, slug: _stub_ctx)
 
 
 def _wait_terminal(job, timeout=5.0):

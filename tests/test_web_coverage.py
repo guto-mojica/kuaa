@@ -313,14 +313,13 @@ class TestAnnotateSceneEmptyFilterRegression:
 # ── Group 4: library filter / select ──────────────────────────────────────────
 
 class TestLibrary:
-    """``/api/library/filter`` + the honest single-film sidebar contract.
+    """``/api/library/filter`` + the multi-film sidebar contract.
 
-    v0.3 is SINGLE-FILM (Phase-5 maintainer decision). ``scan_library``
-    returns the raw videos as a PLAIN inventory (no fabricated per-file
-    scene counts / processed flags); ``library_state`` reports the ONE
-    global artifact set. There is NO ``/api/library/{slug}/select``
-    route — selecting a film would not change context in v0.3, so the
-    misleading affordance was removed, not faked.
+    Multi-film (recovered): film nodes are clickable via
+    ``/api/library/select/{slug}``; per-film scene counts come from
+    the per-film ``keyframes_metadata.json`` (honest, not fabricated);
+    the active-film cookie drives the ``tree-node--active`` highlight.
+    ``library_state`` still reports the ONE global artifact state.
     """
 
     def test_filter_empty_library_shows_no_films(self, client):
@@ -346,44 +345,39 @@ class TestLibrary:
         assert "Limite" in r.text
         assert "Jeca Tatu" not in r.text
 
-    def test_inventory_is_not_clickable_and_carries_no_fake_per_film_state(
+    def test_film_nodes_are_clickable_and_count_badge_reflects_per_film_state(
         self, client, seed_metadata
     ):
-        """CONVERTED Phase-2 tripwire (was
-        ``test_select_is_phase5_placeholder_renders_search_partial``).
+        """Multi-film sidebar contract.
 
-        Old contract (now removed, NOT faked): a clickable per-film
-        ``hx-get="/api/library/<slug>/select"`` that ignored the slug
-        and re-rendered Search — an affordance implying multi-film
-        navigation that did not exist.
-
-        New honest single-film contract, asserted genuinely here:
-          * the misleading select route is GONE (404, not a fake 200);
-          * the inventory entry is NOT clickable (no ``/select`` link,
-            no ``hx-get`` on the film row);
-          * even with a SEEDED global dataset the per-film row shows
-            NO fabricated scene-count badge — processed state is
-            reported once, globally, not per video.
+          * ``/api/library/select/{slug}`` exists (200); the old-format
+            ``/api/library/{slug}/select`` is still 404.
+          * Film rows carry ``hx-get="/api/library/select/{slug}"``.
+          * An unregistered (raw-dir-only) film has no count badge — no
+            per-film metadata to read from.
+          * When the ``active_film`` cookie matches a slug, that row
+            carries the ``tree-node--active`` class.
         """
-        # Seeded dataset → a global processed artifact set exists.
-        seed_metadata(scenes=[{"scene_id": i} for i in (1, 2, 3)])
         cfg = _cfg_from_client()
         (Path(cfg.paths.raw_dir) / "jeca_tatu.mp4").touch()
 
-        # The misleading multi-film affordance no longer exists.
-        gone = client.get("/api/library/jeca_tatu/select")
-        assert gone.status_code == 404
+        # Old-format URL is still gone; new-format URL exists.
+        assert client.get("/api/library/jeca_tatu/select").status_code == 404
+        assert client.get("/api/library/select/jeca_tatu").status_code == 200
 
         r = client.get("/api/library/filter")
         assert r.status_code == 200, r.text[:300]
-        assert "Jeca Tatu" in r.text  # listed as inventory
-        # No clickable select affordance anywhere in the sidebar.
-        assert "/select" not in r.text
-        assert "hx-get" not in r.text
-        # No fabricated per-film count badge on the film row even though
-        # 3 global scenes were seeded (the per-file badge is gone).
+        assert "Jeca Tatu" in r.text
+        # Film rows are clickable.
+        assert 'hx-get="/api/library/select/jeca_tatu"' in r.text
+        # Unregistered film (raw-dir only) has no per-film metadata → no badge.
         assert 'class="tree-node__count"' not in r.text
-        assert "tree-node--active" not in r.text
+
+        # Active-film cookie triggers the active highlight.
+        r_active = client.get(
+            "/api/library/filter", cookies={"active_film": "jeca_tatu"}
+        )
+        assert "tree-node--active" in r_active.text
 
     def test_sidebar_reports_honest_global_state(self, client, seed_metadata):
         """The sidebar surfaces the ONE global artifact state, derived

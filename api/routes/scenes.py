@@ -12,9 +12,8 @@ import logging
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse
 
-from api.deps import get_config, make_ctx
+from api.deps import film_ctx, get_config, make_ctx
 from api.services.catalog import build_scenes_context, build_scenes_grid
-from api.services.film_context import FilmContext
 from api.templates import templates
 
 logger = logging.getLogger(__name__)
@@ -23,7 +22,7 @@ router = APIRouter()
 
 @router.get("/tab/scenes", response_class=HTMLResponse)
 async def tab_scenes(request: Request) -> HTMLResponse:
-    ctx = FilmContext.from_config(get_config())
+    ctx = film_ctx(request)
     return templates.TemplateResponse(
         request,
         "partials/scenes.html",
@@ -37,7 +36,7 @@ async def api_scenes(
     tags: list[str] = Query(default=[]),
     q: str = "",
 ) -> HTMLResponse:
-    ctx = FilmContext.from_config(get_config())
+    ctx = film_ctx(request)
     return templates.TemplateResponse(
         request,
         "partials/scenes_grid.html",

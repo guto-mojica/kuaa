@@ -1,21 +1,22 @@
 {% from "partials/_icons.html" import icon %}
 <div class="processing-job" id="job-{{ job.id }}">
-    <p class="processing-job__title text-muted">
-        {{ icon("film-strip") }}
-        {{ job.video_name }}
-    </p>
 
-    {% if job.status in ('running', 'created') %}
-    <p class="processing-job__actions">
+    <div class="processing-job__header">
+        <span class="processing-job__title text-muted">
+            {{ icon("film-strip") }}
+            {{ job.video_name }}
+        </span>
+        {% if job.status in ('running', 'created') %}
         <button type="button"
-                class="btn-secondary btn-cancel"
+                class="processing-job__cancel"
                 hx-post="/api/pipeline/cancel/{{ job.id }}"
                 hx-target="#job-{{ job.id }}"
                 hx-swap="outerHTML">
+            {{ icon("x-circle") }}
             {{ _("Cancel") }}
         </button>
-    </p>
-    {% endif %}
+        {% endif %}
+    </div>
 
     <!-- SSE connection — the server emits typed events: "update" for
          progress frames and exactly one terminal "done", "error" or
@@ -34,4 +35,5 @@
             {% include "partials/processing_stepper.html" with context %}
         </div>
     </div>
+
 </div>

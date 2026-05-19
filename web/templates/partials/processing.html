@@ -1,41 +1,34 @@
+{% from "partials/_icons.html" import icon %}
 {% from "partials/_step_labels.html" import step_label with context %}
 <div class="tab-panel">
 
-<!-- Start form -->
-<form class="pipeline-form"
+<!-- Launch bar -->
+<form class="pipeline-launch-bar"
       hx-post="/api/pipeline/start"
       hx-target="#processing-job"
       hx-swap="innerHTML"
       hx-indicator="#start-spinner">
 
     {% if films %}
-    <div class="pipeline-form__row">
-        <label class="pipeline-form__label">{{ _("Film") }}</label>
-        <select name="video_path" class="jump-select pipeline-form__select">
-            {% for film in films %}
-            <option value="{{ film.raw_path }}">{{ film.title }}</option>
-            {% endfor %}
-        </select>
-    </div>
+    <select name="video_path" class="jump-select">
+        {% for film in films %}
+        <option value="{{ film.raw_path }}">{{ film.title }}</option>
+        {% endfor %}
+    </select>
     {% else %}
-    <p class="text-muted" style="margin-bottom:16px">
-        {{ _("No video files found in the raw directory.") }}
-    </p>
+    <span class="text-muted" style="font-size:0.8125rem">{{ _("No video files found in the raw directory.") }}</span>
     {% endif %}
 
-    <div class="pipeline-form__row">
-        <label class="pipeline-form__label">{{ _("Steps") }}</label>
-        <div class="pipeline-steps-check">
-            {% for name, label in step_defs %}
-            <label class="tag-pill">
-                <input type="checkbox" name="steps" value="{{ name }}" checked>
-                {{ step_label(name) }}
-            </label>
-            {% endfor %}
-        </div>
+    <div class="pipeline-steps-check">
+        {% for name, label in step_defs %}
+        <label class="tag-pill">
+            <input type="checkbox" name="steps" value="{{ name }}" checked>
+            {{ step_label(name) }}
+        </label>
+        {% endfor %}
     </div>
 
-    <div class="pipeline-form__actions">
+    <div class="pipeline-launch-bar__action">
         <button type="submit" class="btn-primary" {% if not films %}disabled{% endif %}>
             {{ _("Start processing") }}
         </button>
@@ -43,6 +36,7 @@
             {{ _("Starting…") }}
         </span>
     </div>
+
 </form>
 
 <div class="pipeline-divider"></div>

@@ -100,7 +100,7 @@
                hx-swap="innerHTML"
                hx-push-url="/processing"
                onclick="setActiveTab(this)">
-                {{ icon("spinner-gap") }}
+                {{ icon("spinner-gap", "spin" if processing_jobs else "") }}
                 {{ _("Processing") }}
                 {% if processing_jobs %}
                 <span class="badge">{{ processing_jobs }}</span>

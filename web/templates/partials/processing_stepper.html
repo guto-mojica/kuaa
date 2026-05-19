@@ -1,20 +1,33 @@
 {% from "partials/_icons.html" import icon %}
 {% from "partials/_step_labels.html" import step_label with context %}
-<div class="pipeline-steps">
+
+<div class="stepper">
 {% for step in job.steps %}
-<div class="step-pill step-pill--{{ step.state }}">
-{% if step.state == 'done' %}{{ icon("check-circle") }}
-{% elif step.state == 'active' %}{{ icon("spinner-gap", "spin") }}
-{% elif step.state == 'error' %}{{ icon("x-circle") }}
-{% elif step.state == 'blocked' %}{{ icon("prohibit") }}
-{% elif step.state == 'skipped' %}{{ icon("minus-circle") }}
-{% else %}{{ icon("circle") }}{% endif %}
-{{ step_label(step.name) }}{% if step.state == 'done' and step.duration_s %} <span class="step-duration">{{ "%.0f" | format(step.duration_s) }}s</span>{% endif %}{% if step.state == 'blocked' %} <span class="step-detail text-muted">{{ _("blocked") }}{% if step.detail %}: {{ step.detail }}{% endif %}</span>{% endif %}
+<div class="stepper__item stepper__item--{{ step.state }}">
+    <div class="stepper__node stepper__node--{{ step.state }}">
+        {%- if step.state == 'done' -%}{{ icon("check-circle") }}
+        {%- elif step.state == 'active' -%}{{ icon("spinner-gap", "spin") }}
+        {%- elif step.state == 'error' -%}{{ icon("x-circle") }}
+        {%- elif step.state == 'blocked' -%}{{ icon("prohibit") }}
+        {%- elif step.state == 'skipped' -%}{{ icon("minus-circle") }}
+        {%- else -%}{{ icon("circle") }}{%- endif -%}
+    </div>
+    <div class="stepper__body">
+        <div class="stepper__row">
+            <span class="stepper__label stepper__label--{{ step.state }}">{{ step_label(step.name) }}</span>
+            {%- if step.state == 'done' and step.duration_s -%}
+            <span class="stepper__duration">{{ "%.0f" | format(step.duration_s) }}s</span>
+            {%- endif -%}
+        </div>
+        {%- if step.state in ('blocked', 'error') and step.detail -%}
+        <p class="stepper__detail">{{ step.detail }}</p>
+        {%- endif -%}
+    </div>
 </div>
 {% endfor %}
 </div>
 
-<div class="progress-track" style="margin-top: 12px">
+<div class="progress-track" style="margin-top: 10px; margin-bottom: 12px">
     <div class="progress-fill" style="width: {{ (job.progress * 100) | int }}%"></div>
 </div>
 
@@ -29,7 +42,7 @@
     {{ _("Pipeline failed") }}{% if job.error_msg %}: {{ job.error_msg }}{% endif %}
 </p>
 {% elif job.status == 'cancelled' %}
-<p class="processing-cancelled text-muted">
+<p class="processing-cancelled">
     {{ icon("prohibit") }}
     {{ _("Pipeline cancelled") }}
 </p>

@@ -164,11 +164,44 @@ class CatalogPipeline:
     Cada etapa pode ser pulada (skip_existing=True ou step desativado na config).
     """
 
-    def __init__(self, cfg):
+    def __init__(self, cfg, ctx=None):
+        """Initialise the pipeline.
+
+        Args:
+            cfg: Loaded ``Config`` object.
+            ctx: Optional :class:`~api.services.film_context.FilmContext`
+                for per-film output-directory routing.  When provided,
+                ``ctx.metadata_dir``, ``ctx.frames_dir``, and
+                ``ctx.embeddings_dir`` override the global ``cfg.paths``
+                equivalents so all artefacts are written to
+                ``data/films/{slug}/``.  The caller must create those
+                directories before running the pipeline.
+        """
         self.cfg = cfg
+        self._pipeline_ctx = ctx
         self._device = None
         self._embedder = None
         self._describer = None
+
+    # ── Per-film path overrides ───────────────────────────────────────────────
+
+    @property
+    def _metadata_dir(self) -> Path:
+        if self._pipeline_ctx is not None:
+            return self._pipeline_ctx.metadata_dir
+        return Path(self.cfg.paths.metadata_dir)
+
+    @property
+    def _frames_dir(self) -> Path:
+        if self._pipeline_ctx is not None:
+            return self._pipeline_ctx.frames_dir
+        return Path(self.cfg.paths.frames_dir)
+
+    @property
+    def _embeddings_dir(self) -> Path:
+        if self._pipeline_ctx is not None:
+            return self._pipeline_ctx.embeddings_dir
+        return Path(self.cfg.paths.embeddings_dir)
 
     @property
     def device(self):
@@ -183,7 +216,7 @@ class CatalogPipeline:
         from cinemateca.data_prep import FrameExtractor, VideoInspector
 
         name = "frame_extraction"
-        output_dir = self.cfg.paths.frames_dir / "sample"
+        output_dir = self._frames_dir / "sample"
 
         # Skip se já existirem frames
         existing = sorted(output_dir.glob("*.jpg"))
@@ -195,7 +228,7 @@ class CatalogPipeline:
         try:
             inspector = VideoInspector(video_path)
             inspector.save_metadata(
-                self.cfg.paths.metadata_dir / "video_properties.json"
+                self._metadata_dir / "video_properties.json"
             )
             extractor = FrameExtractor(self.cfg)
             frames = extractor.extract(video_path, output_dir)
@@ -209,8 +242,8 @@ class CatalogPipeline:
         from cinemateca.scene_detector import SceneDetector
 
         name = "scene_detection"
-        metadata_path = self.cfg.paths.metadata_dir / "keyframes_metadata.json"
-        keyframes_dir = self.cfg.paths.frames_dir / "scenes" / "keyframes_content"
+        metadata_path = self._metadata_dir / "keyframes_metadata.json"
+        keyframes_dir = self._frames_dir / "scenes" / "keyframes_content"
 
         if self.cfg.pipeline.skip_existing and metadata_path.exists():
             logger.info("↷ Pulando scene_detection (metadados existentes)")
@@ -248,7 +281,7 @@ class CatalogPipeline:
         from cinemateca.visual_analyzer import VisualAnalyzer
 
         name = "visual_analysis"
-        output_path = self.cfg.paths.metadata_dir / "visual_analysis.json"
+        output_path = self._metadata_dir / "visual_analysis.json"
 
         if self.cfg.pipeline.skip_existing and output_path.exists():
             logger.info("↷ Pulando visual_analysis (metadados existentes)")
@@ -280,8 +313,8 @@ class CatalogPipeline:
 
         name = "embeddings"
         emb_cfg = self.cfg.embeddings
-        emb_path = self.cfg.paths.embeddings_dir / emb_cfg.filename
-        map_path = self.cfg.paths.embeddings_dir / emb_cfg.mapping_filename
+        emb_path = self._embeddings_dir / emb_cfg.filename
+        map_path = self._embeddings_dir / emb_cfg.mapping_filename
 
         if self.cfg.pipeline.skip_existing and emb_path.exists():
             logger.info("↷ Pulando embeddings (arquivo existente)")
@@ -305,7 +338,7 @@ class CatalogPipeline:
             embeddings = embedder.encode_images(image_paths)
             emb_path, map_path = embedder.save(
                 embeddings, valid_kf,
-                self.cfg.paths.embeddings_dir,
+                self._embeddings_dir,
                 emb_cfg.filename,
                 emb_cfg.mapping_filename,
             )
@@ -323,8 +356,8 @@ class CatalogPipeline:
 
         name = "llm_description"
         llm_cfg = self.cfg.llm
-        desc_path = self.cfg.paths.metadata_dir / llm_cfg.descriptions_filename
-        tags_path = self.cfg.paths.metadata_dir / llm_cfg.tags_filename
+        desc_path = self._metadata_dir / llm_cfg.descriptions_filename
+        tags_path = self._metadata_dir / llm_cfg.tags_filename
 
         t0 = time.time()
         try:
@@ -362,7 +395,7 @@ class CatalogPipeline:
                 checkpoint_path=desc_path,
             )
             tag_index = describer.build_tag_index(results)
-            describer.save(results, tag_index, self.cfg.paths.metadata_dir)
+            describer.save(results, tag_index, self._metadata_dir)
 
             return StepResult(
                 name=name, success=True, duration_s=time.time() - t0,
@@ -392,8 +425,8 @@ class CatalogPipeline:
 
         result = PipelineResult(video_path=str(video_path))
         steps_cfg = self.cfg.pipeline.steps
-        keyframes_dir = self.cfg.paths.frames_dir / "scenes" / "keyframes_content"
-        metadata_path = self.cfg.paths.metadata_dir / "keyframes_metadata.json"
+        keyframes_dir = self._frames_dir / "scenes" / "keyframes_content"
+        metadata_path = self._metadata_dir / "keyframes_metadata.json"
 
         # ── Etapa 1: Extração de frames ───────────────────────────────────────
         if steps_cfg.frame_extraction:
@@ -457,10 +490,10 @@ class CatalogPipeline:
     # ─── Public selected-step API (Phase 4) ───────────────────────────────────
 
     def _keyframes_dir(self) -> Path:
-        return self.cfg.paths.frames_dir / "scenes" / "keyframes_content"
+        return self._frames_dir / "scenes" / "keyframes_content"
 
     def _keyframes_metadata_path(self) -> Path:
-        return self.cfg.paths.metadata_dir / "keyframes_metadata.json"
+        return self._metadata_dir / "keyframes_metadata.json"
 
     def _inputs_available(self, step: str, keyframes_dir: Path) -> bool:
         """Return True if ``step``'s required input artefacts exist on disk.

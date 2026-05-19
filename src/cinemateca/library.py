@@ -1,22 +1,20 @@
-"""cinemateca.library — Film inventory + honest global artifact state.
+"""cinemateca.library — Film inventory + per-film artifact state.
 
-v0.3 is SINGLE-FILM / FLAT: there is exactly ONE global artifact set
-(``metadata_dir/keyframes_metadata.json``, the embeddings index, etc.)
-shared by whatever video sits in ``raw_dir``. There is no per-film data
-model yet (that is the post-recovery multi-film epic; see
-``api.services.film_context.FilmContext`` for the extension seam).
+Multi-film layout (v0.3+): each processed film lives under
+``data/films/{slug}/`` with its own ``metadata/``, ``frames/``,
+and ``embeddings/`` subdirectories.  :func:`scan_library` merges:
 
-Accordingly this module does NOT pretend each raw video has independent
-scene counts or its own processed state:
+  1. Registered films — subdirectories in ``films_dir`` (``data/films/``).
+     Each may have an optional ``film.json`` carrying a custom title and
+     raw-video path; otherwise the title is derived from the slug and the
+     raw path is located by stem-match in ``raw_dir``.
+  2. Unregistered raw videos — video files in ``raw_dir`` whose stem does
+     not already appear in ``films_dir``.
 
-  * :func:`scan_library` returns the raw videos as a plain INVENTORY.
-    Every ``Film`` has ``scene_count == 0`` and ``is_processed is False``
-    — those per-film fields are kept on the dataclass only for a stable
-    signature (callers/tests depend on the shape) but are deliberately
-    never populated, because per-film state does not exist in v0.3.
-  * :func:`library_state` reports the REAL, GLOBAL artifact state once:
-    is a raw video present, is the search index present, and the single
-    global scene count from ``keyframes_metadata.json``.
+Per-film scene counts are read from
+``films_dir/{slug}/metadata/keyframes_metadata.json`` and are therefore
+honest, not fabricated.  :func:`library_state` still reports the ONE
+global artifact set (used as fallback when no film is selected).
 """
 from __future__ import annotations
 
@@ -32,12 +30,11 @@ _VIDEO_EXTENSIONS = {".mp4", ".mkv", ".avi", ".mov", ".m4v", ".webm"}
 
 @dataclass
 class Film:
-    """One raw video file in the inventory.
+    """One film in the library.
 
-    ``scene_count`` / ``is_processed`` exist for signature stability only
-    and are ALWAYS ``0`` / ``False`` in v0.3 — there is no per-film
-    processed state under the flat single-film layout. Read global
-    processing state from :func:`library_state` instead.
+    ``scene_count`` and ``is_processed`` reflect per-film state when the
+    film has a directory under ``films_dir``; they remain ``0`` /
+    ``False`` for unregistered raw-only entries.
     """
 
     slug: str
@@ -49,15 +46,14 @@ class Film:
 
 @dataclass
 class LibraryState:
-    """Honest GLOBAL artifact state for the single-film v0.3 layout.
+    """Honest GLOBAL artifact state (used when no film is selected).
 
     Attributes:
         raw_present: At least one raw video file exists in ``raw_dir``.
         index_present: The CLIP embeddings index file exists.
-        scene_count: Number of scenes in the single global
+        scene_count: Number of scenes in the global flat
             ``keyframes_metadata.json`` (0 if absent/empty).
-        is_processed: ``scene_count > 0`` — the library has a processed
-            artifact set. Global, NOT per-film.
+        is_processed: ``scene_count > 0``.
     """
 
     raw_present: bool
@@ -69,33 +65,104 @@ class LibraryState:
         return self.scene_count > 0
 
 
-def scan_library(raw_dir: Path, metadata_dir: Path) -> list[Film]:
-    """Return the raw videos in ``raw_dir`` as a plain inventory.
+def _read_scene_count(metadata_dir: Path) -> int:
+    """Return the number of scenes in ``metadata_dir/keyframes_metadata.json``."""
+    kf_path = metadata_dir / "keyframes_metadata.json"
+    if not kf_path.exists():
+        return 0
+    try:
+        with open(kf_path, encoding="utf-8") as f:
+            data = json.load(f)
+        return len(data) if isinstance(data, list) else 0
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Unreadable keyframes_metadata.json: %s", exc)
+        return 0
 
-    ``metadata_dir`` is accepted for signature stability (callers pass it)
-    but is intentionally NOT consulted: per-film scene counts / processed
-    flags do not exist in the flat single-film v0.3 layout, so fabricating
-    them per video would be dishonest. Every returned ``Film`` therefore
-    has ``scene_count == 0`` and ``is_processed is False``. Use
-    :func:`library_state` for the real global artifact state.
+
+def _find_raw_video(raw_dir: Path, slug: str) -> Path:
+    """Return the raw video file whose stem slug matches ``slug``.
+
+    Handles names with spaces or mixed case (e.g. ``Soluçonfonia.mp4``
+    whose slug is ``soluçonfonia``).  Falls back to a synthesised path
+    (``raw_dir / slug``) when no file is found so callers always get a
+    ``Path`` object.
     """
-    if not raw_dir.exists():
-        logger.warning("raw_dir not found: %s", raw_dir)
-        return []
+    if raw_dir.exists():
+        for f in raw_dir.iterdir():
+            if f.suffix.lower() in _VIDEO_EXTENSIONS:
+                if f.stem.lower().replace(" ", "_") == slug:
+                    return f
+    return raw_dir / slug
 
+
+def scan_library(
+    raw_dir: Path,
+    metadata_dir: Path,
+    films_dir: Path | None = None,
+) -> list[Film]:
+    """Return the film inventory.
+
+    When ``films_dir`` is provided (and exists), registered per-film
+    directories are enumerated first (with real scene counts); then any
+    raw video whose slug is not already represented is appended as an
+    unregistered entry (scene_count=0).
+
+    When ``films_dir`` is omitted or absent, only ``raw_dir`` is scanned
+    — identical to the old single-film behaviour.
+    """
     films: list[Film] = []
-    for video_path in sorted(raw_dir.iterdir()):
-        if video_path.suffix.lower() not in _VIDEO_EXTENSIONS:
-            continue
-        slug = video_path.stem.lower().replace(" ", "_")
-        films.append(
-            Film(
+    registered: set[str] = set()
+
+    # ── Registered per-film dirs ──────────────────────────────────────
+    if films_dir and films_dir.exists():
+        for film_dir in sorted(films_dir.iterdir()):
+            if not film_dir.is_dir() or film_dir.name.startswith("."):
+                continue
+            slug = film_dir.name
+
+            # Optional film.json carries a custom title + raw_path.
+            film_json = film_dir / "film.json"
+            title: str | None = None
+            raw_path: Path | None = None
+            if film_json.exists():
+                try:
+                    meta = json.loads(film_json.read_text(encoding="utf-8"))
+                    title = meta.get("title")
+                    rp = meta.get("raw_path")
+                    raw_path = Path(rp) if rp else None
+                except (json.JSONDecodeError, OSError) as exc:
+                    logger.warning("Unreadable film.json for %s: %s", slug, exc)
+
+            if title is None:
+                title = slug.replace("_", " ").title()
+            if raw_path is None:
+                raw_path = _find_raw_video(raw_dir, slug)
+
+            scene_count = _read_scene_count(film_dir / "metadata")
+            films.append(Film(
+                slug=slug,
+                title=title,
+                raw_path=raw_path,
+                scene_count=scene_count,
+                is_processed=scene_count > 0,
+            ))
+            registered.add(slug)
+            logger.debug("Registered film: %s (%d scenes)", slug, scene_count)
+
+    # ── Unregistered raw videos ───────────────────────────────────────
+    if raw_dir.exists():
+        for video_path in sorted(raw_dir.iterdir()):
+            if video_path.suffix.lower() not in _VIDEO_EXTENSIONS:
+                continue
+            slug = video_path.stem.lower().replace(" ", "_")
+            if slug in registered:
+                continue
+            films.append(Film(
                 slug=slug,
                 title=video_path.stem.replace("_", " ").title(),
                 raw_path=video_path,
-            )
-        )
-        logger.debug("Inventory film: %s", slug)
+            ))
+            logger.debug("Unregistered film: %s", slug)
 
     return films
 
@@ -105,17 +172,9 @@ def library_state(
     metadata_dir: Path,
     embeddings_index_path: Path | None = None,
 ) -> LibraryState:
-    """Report the honest GLOBAL artifact state (single-film v0.3 layout).
+    """Report the honest GLOBAL artifact state.
 
-    There is exactly one of each artifact, shared globally:
-
-      * ``raw_present`` — any video file in ``raw_dir``.
-      * ``scene_count`` — length of the single global
-        ``metadata_dir/keyframes_metadata.json`` (0 if absent/empty/
-        malformed).
-      * ``index_present`` — ``embeddings_index_path`` exists (when the
-        caller supplies it; ``None`` → reported as absent, callers that
-        do not know the embeddings filename simply omit it).
+    Used as a fallback when no film is selected (global flat layout).
     """
     raw_present = False
     if raw_dir.exists():
@@ -123,16 +182,7 @@ def library_state(
             p.suffix.lower() in _VIDEO_EXTENSIONS for p in raw_dir.iterdir()
         )
 
-    scene_count = 0
-    kf_path = metadata_dir / "keyframes_metadata.json"
-    if kf_path.exists():
-        try:
-            with open(kf_path, encoding="utf-8") as f:
-                kf_meta = json.load(f)
-            if isinstance(kf_meta, list):
-                scene_count = len(kf_meta)
-        except (json.JSONDecodeError, OSError) as exc:
-            logger.warning("Unreadable keyframes_metadata.json: %s", exc)
+    scene_count = _read_scene_count(metadata_dir)
 
     index_present = bool(
         embeddings_index_path is not None and embeddings_index_path.exists()

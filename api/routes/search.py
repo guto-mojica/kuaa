@@ -16,7 +16,7 @@ from pathlib import Path
 from fastapi import APIRouter, File, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse
 
-from api.deps import get_config, make_ctx
+from api.deps import film_ctx, get_config, make_ctx
 from api.services import search as search_service
 from api.services.catalog import derive_fps, load_json, load_tag_index
 from api.services.film_context import FilmContext
@@ -26,12 +26,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# Re-exported so api/server.py's tab-context map (``"search":
-# search.build_search_context``) keeps working without churn; the
-# implementation now lives in the service.
-def build_search_context() -> dict:
+# Re-exported so api/server.py's tab-context map keeps working.
+def build_search_context(request=None) -> dict:
     """Build the search-tab partial context (delegates to the service)."""
-    ctx = FilmContext.from_config(get_config())
+    if request is not None:
+        ctx = film_ctx(request)
+    else:
+        ctx = FilmContext.from_config(get_config())
     return search_service.build_search_context(ctx)
 
 
@@ -57,7 +58,7 @@ async def tab_search(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "partials/search.html",
-        make_ctx(request, **build_search_context()),
+        make_ctx(request, **build_search_context(request)),
     )
 
 
@@ -73,7 +74,7 @@ async def api_search(
         return HTMLResponse("")
 
     cfg = get_config()
-    ctx = FilmContext.from_config(cfg)
+    ctx = film_ctx(request, cfg)
     index = search_service.load_index(
         ctx,
         mapping_filename=cfg.embeddings.mapping_filename,
@@ -109,7 +110,7 @@ async def api_search_image(
     top_k: int = 8,
 ) -> HTMLResponse:
     cfg = get_config()
-    ctx = FilmContext.from_config(cfg)
+    ctx = film_ctx(request, cfg)
     index = search_service.load_index(
         ctx,
         mapping_filename=cfg.embeddings.mapping_filename,

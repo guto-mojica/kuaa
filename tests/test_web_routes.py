@@ -234,7 +234,7 @@ class TestProcessingSplitFilterCrash:
         # plus the untranslated error message.
         assert "processing-error" in html
         assert "boom: model not found" in html
-        assert "step-pill--error" in html
+        assert "stepper__item--error" in html
 
     def test_stepper_sse_render_helper_matches_initial_contract(self, inject_job):
         """The SSE path (_render_stepper) and the initial {% include %}
@@ -245,6 +245,6 @@ class TestProcessingSplitFilterCrash:
         job = inject_job()
         job.progress = 0.4
         html = _render_stepper(job)
-        assert "pipeline-steps" in html
+        assert "stepper" in html
         assert "progress-fill" in html
-        assert "step-pill--active" in html
+        assert "stepper__item--active" in html
