@@ -181,6 +181,11 @@ class MoondreamGGUFDescriber:
 
             if checkpoint_path and count % self.checkpoint_interval == 0:
                 self._save_json(all_results, checkpoint_path)
+                tags_path = checkpoint_path.parent / self.tags_filename
+                tag_idx = self.build_tag_index(all_results)
+                with open(tags_path, "w", encoding="utf-8") as _tf:
+                    import json as _json
+                    _json.dump(tag_idx, _tf, indent=2, ensure_ascii=False)
                 logger.info("Checkpoint: %d/%d", count, len(to_process))
 
         return all_results
