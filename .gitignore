@@ -22,11 +22,8 @@ ENV/
 .env/
 
 # ─── uv ───────────────────────────────────────────────────────────────────────
-# Lockfile deliberately not committed (config-only uv adoption — see
-# docs/superpowers/specs/2026-05-16-uv-migration-scaffold-design.md).
-# Local `uv sync` creates an untracked uv.lock; that is expected.
-# To start committing locks: delete the next line, run `uv lock`.
-uv.lock
+# Lockfile is now committed (see docs/superpowers/specs/2026-05-16-uv-migration-scaffold-design.md).
+# uv.lock is tracked — do not add it back to .gitignore.
 
 # ─── Dados e acervo — NUNCA commitar vídeos ou frames ─────────────────────────
 # Os dados são locais em cada instituição e podem ter GBs ou TBs.

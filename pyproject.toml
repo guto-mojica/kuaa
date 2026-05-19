@@ -103,6 +103,10 @@ dev = [
     "black>=23.0",
     "ruff>=0.1",
     "mypy>=1.5",
+    # httpx is required by FastAPI's TestClient (starlette.testclient) — was
+    # previously satisfied by system-Python leak; made explicit when uv.lock
+    # enforces a clean isolated venv.
+    "httpx>=0.25",
 ]
 
 # ── Ferramentas de desenvolvimento ────────────────────────────────────────────
@@ -131,17 +135,14 @@ addopts = "-v --tb=short"
 
 # ── uv ────────────────────────────────────────────────────────────────────────
 [tool.uv]
-# No uv.lock is committed yet (config-only adoption — see
-# docs/superpowers/specs/2026-05-16-uv-migration-scaffold-design.md).
-#
-# When a committed lockfile is wanted, the torch stack needs an explicit CPU
-# (or CUDA) index to keep the lock reproducible and small. Fill in then:
-#
-# [[tool.uv.index]]
-# name = "pytorch-cpu"
-# url = "https://download.pytorch.org/whl/cpu"
-# explicit = true
-#
-# [tool.uv.sources]
-# torch = { index = "pytorch-cpu" }
-# torchvision = { index = "pytorch-cpu" }
+# Committed lockfile (was deferred during config-only uv adoption — see
+# docs/superpowers/specs/2026-05-16-uv-migration-scaffold-design.md). Root
+# cause of the original install rot was an unbounded transformers floor with
+# NO committed lock, so resolvers drifted to transformers 5.x per machine.
+# The fix is the bounded pin (transformers>=4.44,<5) PLUS this committed
+# lock. torch is intentionally locked from PyPI (default index): PyPI ships
+# cross-platform wheels (Linux manylinux / macOS / Windows) so `uv sync`
+# works everywhere. A pytorch-cpu-index pin was tried and rejected — that
+# index has no Linux x86_64 wheel for the resolved torch, breaking Linux
+# installs (the opposite of this project's deployment-ease goal). GPU users
+# get the CUDA-enabled PyPI manylinux torch automatically; no override needed.
