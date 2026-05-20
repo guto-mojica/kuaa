@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -175,3 +176,41 @@ def save_registry(library_dir: Path, registry: dict[str, dict]) -> None:
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(registry, f, indent=2, ensure_ascii=False, sort_keys=True)
     tmp.replace(final)
+
+
+def register_film(
+    library_dir: Path,
+    *,
+    slug: str,
+    title: str,
+    year: int | None,
+    raw_filename: str,
+) -> None:
+    """Add a film to the registry. Duplicate slug → ``ValueError``."""
+    registry = load_registry(library_dir)
+    if slug in registry:
+        raise ValueError(f"Slug {slug!r} already registered")
+    registry[slug] = {
+        "slug": slug,
+        "title": title,
+        "year": year,
+        "raw_filename": raw_filename,
+        "added_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+    save_registry(library_dir, registry)
+    logger.info("Registered film: %s (%s)", slug, title)
+
+
+def delete_film(library_dir: Path, *, slug: str) -> None:
+    """Remove a film from the registry. Unknown slug → ``KeyError``.
+
+    Does NOT delete the film's on-disk artefacts — that is the caller's
+    decision (idempotent re-add must be possible after a metadata-only
+    delete).
+    """
+    registry = load_registry(library_dir)
+    if slug not in registry:
+        raise KeyError(f"Slug {slug!r} not in registry")
+    del registry[slug]
+    save_registry(library_dir, registry)
+    logger.info("Deleted film: %s", slug)
