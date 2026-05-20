@@ -10,15 +10,17 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ## [Não lançado]
 
-Funcionalidades planejadas para as próximas versões:
+---
 
-- Descritor de cenas padrão agora é Moondream 2 via transformers (GPU por
-  wheel PyTorch pré-compilado em Linux/Windows/macOS, sem build de fonte);
-  backend GGUF mantido como opção (`scene_describer: moondream_gguf`).
-  transformers fixado em `>=4.44,<5`; uv.lock passa a ser versionado.
+## [0.3.0] — 2026-05-20
+
+Conclusão da migração Streamlit → FastAPI, com paridade funcional confirmada,
+estabilização da interface e backends de modelo plugáveis.
+
+### Planejado (próximas versões)
+
 - Exportação de catálogo em CSV e JSON estruturado
 - Interface para comparar resultados de diferentes thresholds de detecção
-- Suporte a múltiplos vídeos no mesmo acervo indexado
 - Detector de ambiente baseado em modelo treinado (substituir heurística atual)
 - Docker image para instalação sem dependências manuais
 - Testes de integração com vídeo de referência
