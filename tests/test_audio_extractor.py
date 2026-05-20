@@ -122,13 +122,23 @@ def test_extract_propagates_ffmpeg_failure(monkeypatch, tmp_path):
 
     def boom(cmd, **kwargs):
         import subprocess as sp
-
-        raise sp.CalledProcessError(returncode=1, cmd=cmd, stderr="bad")
+        raise sp.CalledProcessError(returncode=1, cmd=cmd, stderr="codec error")
 
     monkeypatch.setattr(audio_extractor.subprocess, "run", boom)
     extractor = audio_extractor.SceneAudioExtractor(_cfg(skip_existing=False))
-    with pytest.raises(Exception) as exc:
+    with pytest.raises(RuntimeError, match="FFmpeg falhou"):
         extractor.extract(tmp_path / "v.mp4", _scenes()[:1], tmp_path / "out")
-    assert (
-        "ffmpeg" in str(exc.value).lower() or exc.value.__class__.__name__ == "CalledProcessError"
-    )
+
+
+def test_extract_raises_friendly_error_when_ffmpeg_binary_missing(
+    monkeypatch, tmp_path
+):
+    from cinemateca import audio_extractor
+
+    def boom(cmd, **kwargs):
+        raise FileNotFoundError(2, "No such file or directory", "ffmpeg")
+
+    monkeypatch.setattr(audio_extractor.subprocess, "run", boom)
+    extractor = audio_extractor.SceneAudioExtractor(_cfg(skip_existing=False))
+    with pytest.raises(RuntimeError, match="FFmpeg não encontrado"):
+        extractor.extract(tmp_path / "v.mp4", _scenes()[:1], tmp_path / "out")
