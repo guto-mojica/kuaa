@@ -60,7 +60,10 @@ app.include_router(library.router)
 # other two builders still live in their route modules (Phase 3c/4
 # extract them) and remain zero-arg.
 _TAB_CONTEXT_BUILDERS = {
-    "search": search.build_search_context,
+    # ``"search"`` is intentionally not in this map — its builder is
+    # slug-aware (per-film vs aggregate tag vocabulary), so render_page
+    # calls ``search.build_search_context(current_slug)`` directly after
+    # parsing ``?film=<slug>``.
     # Full-page /scenes uses the same aggregate builder as /tab/scenes (no slug
     # → aggregate across all films). Previously used FilmContext.from_config
     # which reads the FLAT metadata_dir, breaking Phase-1a parity with the
@@ -105,15 +108,20 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
         "films": films,
         "library_state": state,
     }
-    # `{**base_ctx, **tab_ctx}`: tab_ctx wins on key collisions. The
-    # `processing` builder deliberately re-supplies `films`, overriding the
-    # base value here; that override is intended, not a bug.
-    tab_ctx = _TAB_CONTEXT_BUILDERS[active_tab]()
     # HTMX-driven film switches issue full-page GETs with ?film=<slug>
     # (the selector's hx-push-url propagates the slug into the URL bar),
     # so render_page must read it back so the sidebar selector keeps
-    # the right option marked selected on the response.
+    # the right option marked selected on the response. Read it BEFORE
+    # building tab_ctx so slug-aware builders (search) can scope their
+    # tag vocabulary to the active film.
     current_slug = request.query_params.get("film") or None
+    # `{**base_ctx, **tab_ctx}`: tab_ctx wins on key collisions. The
+    # `processing` builder deliberately re-supplies `films`, overriding the
+    # base value here; that override is intended, not a bug.
+    if active_tab == "search":
+        tab_ctx = search.build_search_context(current_slug)
+    else:
+        tab_ctx = _TAB_CONTEXT_BUILDERS[active_tab]()
     return templates.TemplateResponse(
         request,
         "base.html",

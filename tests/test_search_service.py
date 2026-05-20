@@ -287,3 +287,87 @@ class TestResultsToDicts:
         df = self._df(1, str(kf))
         rows = results_to_dicts(df, tmp_path)
         assert rows[0]["img_url"] == "/media/frames/s1.jpg"
+
+
+# ── Degenerate-tag display filter ─────────────────────────────────────────────
+
+
+class TestDegenerateTagFilter:
+    """``_filter_degenerate_tags`` drops raw model-output strings that
+    leak into ``scene_tags.json`` (full captions, stuck-token repetitions,
+    numeric-only, sentence fragments) so the search-tab pill grid stays
+    legible without rewriting the underlying tag_index."""
+
+    def _kept(self, tags):
+        from api.services.search import _filter_degenerate_tags
+
+        return _filter_degenerate_tags(tags)
+
+    def test_keeps_short_curated_tags(self):
+        good = ["dia", "exterior", "interior", "man", "woman", "tree", "sky"]
+        assert self._kept(good) == good
+
+    def test_keeps_trailing_period_tags(self):
+        # ``rural-field.`` / ``farm.`` are corpus-frequent in jeca_tatu and
+        # carry signal; only mid-string ``.`` indicates a sentence fragment.
+        assert self._kept(["farm.", "rural-field."]) == ["farm.", "rural-field."]
+
+    def test_drops_full_caption_tags(self):
+        long = "a-rural-field-with-a-wooden-fence-and-a-person-riding-a-horse."
+        assert self._kept([long, "dia"]) == ["dia"]
+
+    def test_drops_repeated_token_tags(self):
+        # 3+ consecutive identical tokens — Moondream stuck-token output.
+        bad = [
+            "fence-gate-gate-gate-gate-gate-gate",
+            "gate-gate-gate",
+            "fence-gate-gate-gate",
+        ]
+        assert self._kept(bad) == []
+
+    def test_drops_pure_digit_tags(self):
+        assert self._kept(["1", "42", "man"]) == ["man"]
+
+    def test_drops_sentence_fragments_with_internal_period(self):
+        # The ``.`` is mid-string, not trailing → sentence fragment.
+        bad = ["the-setting-is-a-farm.-with-cows", "dia.exterior"]
+        assert self._kept(bad) == []
+
+    def test_drops_article_led_period_terminated_tags(self):
+        # Trailing ``.`` is OK on bare nouns (``farm.``); paired with an
+        # article prefix it signals a caption fragment leak.
+        bad = [
+            "a-baby-in-a-basket.",
+            "a-rural-field.",
+            "a-tree.",
+            "the-setting.",
+        ]
+        assert self._kept(bad) == []
+
+    def test_drops_long_but_otherwise_innocent_tags(self):
+        # 21 chars → over the 20-char threshold even without obvious garbage.
+        too_long = "a" * 21
+        assert self._kept([too_long, "ok"]) == ["ok"]
+
+    def test_drops_digit_led_enumeration_prefix(self):
+        # Moondream's "N-<thing>" listing pattern.
+        bad = ["1-cow", "2-buildings", "3-sky", "1-man-wearing-hat"]
+        assert self._kept(bad) == []
+
+    def test_drops_de_dup_numeric_suffix(self):
+        # "-<digit>" suffix marks Moondream's per-image dedupe.
+        bad = ["man-in-hat-2", "woman-in-dress-3", "man-on-horse-5"]
+        assert self._kept(bad) == []
+        # Sanity: the unsuffixed forms survive.
+        assert self._kept(["man-in-hat", "woman-in-dress"]) == [
+            "man-in-hat",
+            "woman-in-dress",
+        ]
+
+    def test_drops_excess_hyphens(self):
+        # Curated tags have 0-2 hyphens; >2 = multi-clause sentence garbage.
+        bad = ["man-in-plaid-shirt", "person-walking-in-woods"]
+        assert self._kept(bad) == []
+
+    def test_empty_input_returns_empty(self):
+        assert self._kept([]) == []

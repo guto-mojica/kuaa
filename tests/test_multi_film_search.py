@@ -188,6 +188,141 @@ def test_aggregate_text_search_returns_results_from_both_films(
     assert all(abs(r["score"] - 1.0) < 1e-6 for r in results)
 
 
+def _write_tag_index(library_dir: Path, slug: str, tag_to_scene_ids: dict[str, list[int]]) -> None:
+    """Overwrite a film's ``scene_tags.json`` with the supplied tag index."""
+    (library_dir / slug / "metadata" / "scene_tags.json").write_text(
+        json.dumps(tag_to_scene_ids)
+    )
+
+
+def test_aggregate_search_filters_by_tags_per_film(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``aggregate_search(..., tags=[t])`` restricts hits to scenes whose
+    ``scene_id`` is in EVERY selected tag's list, mirroring
+    ``SemanticSearch.combined``'s per-film semantics.
+
+    Setup: film A has tag ``floor`` covering only scene_id=0 (the LOW-score
+    scene against the query); without the tag filter, scene_id=1 (score 1.0)
+    would win. With ``tags=["floor"]``, scene_id=1 is excluded — the only
+    hit is scene_id=0.
+    """
+    library_dir = tmp_path / "library"
+    library_dir.mkdir()
+    register_film(library_dir, slug="a", title="A", year=2000, raw_filename="a.mp4")
+    _make_film_with_embeddings(library_dir, "a", [[0.0, 1.0], [1.0, 0.0]])
+    _write_tag_index(library_dir, "a", {"floor": [0]})
+
+    class StubEmbedder:
+        def encode_text(self, q: str) -> np.ndarray:
+            return np.array([1.0, 0.0], dtype=np.float32)
+
+    monkeypatch.setattr(
+        "api.services.search._get_embedder", lambda cfg: StubEmbedder()
+    )
+
+    results = aggregate_search(
+        _cfg(library_dir), query="anything", modality="text", top_k=8,
+        tags=["floor"],
+    )
+
+    assert len(results) == 1
+    assert results[0]["scene_id"] == 0
+    assert results[0]["film_slug"] == "a"
+
+
+def test_aggregate_search_skips_films_missing_selected_tag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A film that lacks ANY selected tag contributes zero hits, leaving
+    the merged result list scoped to films that have all the requested tags."""
+    library_dir = tmp_path / "library"
+    library_dir.mkdir()
+    register_film(library_dir, slug="a", title="A", year=2000, raw_filename="a.mp4")
+    register_film(library_dir, slug="b", title="B", year=2001, raw_filename="b.mp4")
+    _make_film_with_embeddings(library_dir, "a", [[1.0, 0.0]])
+    _make_film_with_embeddings(library_dir, "b", [[1.0, 0.0]])
+    # Only film A carries the ``floor`` tag.
+    _write_tag_index(library_dir, "a", {"floor": [0]})
+    _write_tag_index(library_dir, "b", {"sky": [0]})
+
+    class StubEmbedder:
+        def encode_text(self, q: str) -> np.ndarray:
+            return np.array([1.0, 0.0], dtype=np.float32)
+
+    monkeypatch.setattr(
+        "api.services.search._get_embedder", lambda cfg: StubEmbedder()
+    )
+
+    results = aggregate_search(
+        _cfg(library_dir), query="anything", modality="text", top_k=8,
+        tags=["floor"],
+    )
+
+    assert {r["film_slug"] for r in results} == {"a"}
+
+
+def test_aggregate_search_no_tags_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Passing ``tags=None`` / ``tags=[]`` is a no-op — the loader does
+    NOT touch each film's tag_index, preserving the prior fast path."""
+    library_dir = tmp_path / "library"
+    library_dir.mkdir()
+    register_film(library_dir, slug="a", title="A", year=2000, raw_filename="a.mp4")
+    _make_film_with_embeddings(library_dir, "a", [[1.0, 0.0]])
+
+    class StubEmbedder:
+        def encode_text(self, q: str) -> np.ndarray:
+            return np.array([1.0, 0.0], dtype=np.float32)
+
+    monkeypatch.setattr(
+        "api.services.search._get_embedder", lambda cfg: StubEmbedder()
+    )
+
+    results_default = aggregate_search(
+        _cfg(library_dir), query="anything", modality="text", top_k=8
+    )
+    results_empty = aggregate_search(
+        _cfg(library_dir), query="anything", modality="text", top_k=8, tags=[],
+    )
+    assert len(results_default) == 1
+    assert len(results_empty) == 1
+    assert results_default[0]["scene_id"] == results_empty[0]["scene_id"] == 0
+
+
+def test_build_search_context_aggregate_unions_and_filters(
+    tmp_path: Path,
+) -> None:
+    """The aggregate context unions tag-index keys across films AND drops
+    degenerate-looking strings (sentence fragments, repeated tokens, etc.).
+    """
+    from api.services.search import build_search_context_aggregate
+
+    library_dir = tmp_path / "library"
+    library_dir.mkdir()
+    register_film(library_dir, slug="a", title="A", year=2000, raw_filename="a.mp4")
+    register_film(library_dir, slug="b", title="B", year=2001, raw_filename="b.mp4")
+    (library_dir / "a" / "metadata").mkdir(parents=True)
+    (library_dir / "b" / "metadata").mkdir(parents=True)
+    (library_dir / "a" / "raw").mkdir()
+    (library_dir / "b" / "raw").mkdir()
+    _write_tag_index(library_dir, "a", {
+        "dia": [0, 1],
+        "exterior": [0],
+        "fence-gate-gate-gate-gate-gate-gate": [1],  # garbage → drop
+    })
+    _write_tag_index(library_dir, "b", {
+        "noite": [0],
+        "exterior": [0],  # also in A → unioned, not duplicated
+        "a-rural-field-with-a-fence.": [0],  # full-caption garbage → drop
+    })
+
+    out = build_search_context_aggregate(_cfg(library_dir))
+
+    assert out["available_tags"] == sorted(["dia", "exterior", "noite"])
+
+
 def test_aggregate_search_includes_timecode_per_hit(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

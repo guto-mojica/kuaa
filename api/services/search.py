@@ -54,6 +54,7 @@ correctness-preserving lock.
 from __future__ import annotations
 
 import logging
+import re
 import threading
 from dataclasses import dataclass
 from enum import Enum
@@ -72,6 +73,68 @@ from api.services.catalog import (
 from api.services.film_context import FilmContext
 
 logger = logging.getLogger(__name__)
+
+# ── Degenerate-tag display filter ─────────────────────────────────────────────
+# scene_tags.json carries raw model-output fragments alongside the curated
+# tag vocabulary — full captions, stuck-token repetitions, enumerated lists.
+# They explode the visible tag-pill grid and add no signal (the long-tail
+# entries cover 1–2 scenes each), so the displayed vocabulary drops them.
+# Filtering is DISPLAY-ONLY: the underlying tag_index is unmodified, so a
+# search request that arrives with a degenerate-looking ``tags=...`` query
+# (manually crafted URL) still works on the per-film path.
+_DEGENERATE_TAG_MAX_LEN = 20
+_DEGENERATE_TAG_MAX_HYPHENS = 2
+_REPEATED_TOKEN_RE = re.compile(r"\b(\w+)(?:[-\s]\1\b){2,}", re.IGNORECASE)
+_TRAILING_NUMBER_RE = re.compile(r"-\d+$")
+_DIGIT_LED_RE = re.compile(r"^\d+-")
+_ARTICLE_LED_RE = re.compile(r"^(a|the)-", re.IGNORECASE)
+
+
+def _is_degenerate_tag(tag: str) -> bool:
+    """True when ``tag`` looks like raw model output, not a curated label.
+
+    Filters target the specific patterns Moondream leaks into
+    ``scene_tags.json``:
+      * empty / pure digit (``"1"``, ``"42"``)
+      * longer than ``_DEGENERATE_TAG_MAX_LEN`` chars (full captions)
+      * embedded ``.`` mid-string (sentence fragments)
+      * trailing ``.`` paired with an article-led prefix
+        (``"a-baby-in-a-basket."`` / ``"the-setting-is-a-farm."``).
+        Bare trailing ``.`` survives (``"farm."``, ``"rural-field."``).
+      * repeated-token sequences (``"gate-gate-gate"``)
+      * digit-led enumeration prefix (``"1-cow"``, ``"3-sky"``)
+      * de-dup numeric suffix (``"man-in-hat-2"``, ``"woman-in-dress-3"``)
+      * >``_DEGENERATE_TAG_MAX_HYPHENS`` hyphens (curated tags are 0-2;
+        more means multi-clause sentence fragments)
+
+    Display-only — the underlying ``tag_index`` is unmodified, so a user
+    who types a filtered tag into the URL still gets a working filter on
+    the per-film search path.
+    """
+    if not tag:
+        return True
+    if tag.isdigit():
+        return True
+    if len(tag) > _DEGENERATE_TAG_MAX_LEN:
+        return True
+    if "." in tag.rstrip("."):
+        return True
+    if tag.endswith(".") and _ARTICLE_LED_RE.match(tag):
+        return True
+    if _REPEATED_TOKEN_RE.search(tag):
+        return True
+    if tag.count("-") > _DEGENERATE_TAG_MAX_HYPHENS:
+        return True
+    if _DIGIT_LED_RE.match(tag):
+        return True
+    if _TRAILING_NUMBER_RE.search(tag):
+        return True
+    return False
+
+
+def _filter_degenerate_tags(tags) -> list[str]:
+    """Drop degenerate-looking tag strings from the displayed vocabulary."""
+    return [t for t in tags if not _is_degenerate_tag(t)]
 
 # Server-side upload guards for image search. The cap is intentionally
 # generous for a still frame (a 4K JPEG is well under this) while still
@@ -303,6 +366,7 @@ def aggregate_search(
     query: str,
     modality: str,
     top_k: int,
+    tags: list[str] | None = None,
 ) -> list[dict]:
     """Run per-film search and merge top results by score.
 
@@ -310,8 +374,14 @@ def aggregate_search(
     modalities are wired in Plans 3-5. The merger is a plain sort by
     cosine score across films — comparable because every film uses the
     same CLIP backbone (registry default).
+
+    When ``tags`` is non-empty, each film's hits are restricted to scenes
+    whose ``scene_id`` is in EVERY selected tag's list (AND intersection),
+    mirroring ``SemanticSearch.combined``'s per-film semantics. A film
+    that lacks any of the selected tags contributes zero hits.
     """
     from cinemateca.library import scan_library
+    from cinemateca.scene_ids import normalize_tag_index, scene_id_key
 
     if modality != "text":
         raise NotImplementedError(
@@ -331,6 +401,8 @@ def aggregate_search(
     text_vec: np.ndarray = embedder.encode_text(query)  # type: ignore[union-attr]
     norm = float(np.linalg.norm(text_vec))
     text_vec = text_vec / (norm + 1e-12)
+
+    selected_tags = list(tags) if tags else []
 
     all_hits: list[dict] = []
     for film in films:
@@ -359,10 +431,26 @@ def aggregate_search(
         fps = derive_fps(kf_meta)
         meta_by_scene = {e["scene_id"]: e for e in kf_meta if "scene_id" in e}
 
+        # Tag pre-filter (AND intersection across selected tags). Mirrors
+        # SemanticSearch.combined: normalize the raw tag_index to canonical
+        # str scene ids, intersect membership sets, skip the film entirely
+        # if any selected tag is missing or the intersection is empty.
+        allowed_scene_keys: set[str] | None = None
+        if selected_tags:
+            raw_index = load_tag_index(ctx.metadata_dir)
+            norm_index = normalize_tag_index(raw_index)
+            allowed_scene_keys = set(norm_index.get(selected_tags[0], set()))
+            for t in selected_tags[1:]:
+                allowed_scene_keys &= set(norm_index.get(t, set()))
+            if not allowed_scene_keys:
+                continue
+
         scores: np.ndarray = idx.embeddings @ text_vec  # type: ignore[operator]
         for i, score in enumerate(scores):
             row = idx.kf_df.iloc[i]  # type: ignore[union-attr]
             scene_id = int(row["scene_id"])
+            if allowed_scene_keys is not None and scene_id_key(scene_id) not in allowed_scene_keys:
+                continue
             meta = meta_by_scene.get(scene_id)
             start_s = float(meta.get("start_time_s") or 0.0) if meta else 0.0
             timecode = to_smpte(start_s, fps) if start_s > 0 else ""
@@ -478,13 +566,36 @@ def search_image(index: SearchIndex, image_path: Path, top_k: int):
 
 
 def build_search_context(ctx: FilmContext) -> dict:
-    """Build the search-tab partial context (the ``available_tags`` list).
+    """Build the per-film search-tab partial context.
 
-    Moved verbatim from ``api/routes/search.build_search_context`` so the
-    ``/tab/search`` fragment and the ``/search`` full page keep rendering
-    identical markup. Uses the RAW merged tag index (only its keys feed
-    ``available_tags`` — identical to the normalized index's keys).
+    Uses the RAW merged tag index (only its keys feed ``available_tags``
+    — identical to the normalized index's keys) and runs them through
+    ``_filter_degenerate_tags`` so the pill grid stays clean even when
+    ``scene_tags.json`` carries leaked caption fragments.
     """
     tag_index = load_tag_index(ctx.metadata_dir)
-    available_tags = sorted(tag_index.keys()) if tag_index else []
-    return {"available_tags": available_tags}
+    raw_tags = sorted(tag_index.keys()) if tag_index else []
+    return {"available_tags": _filter_degenerate_tags(raw_tags)}
+
+
+def build_search_context_aggregate(cfg: Any) -> dict:
+    """Build the aggregate search-tab context (union across all films).
+
+    Mirrors :func:`api.services.catalog.build_scenes_context_aggregate`'s
+    tag-union pattern: walks the library registry, unions every film's
+    tag-index keys, filters degenerate entries, and returns the same
+    ``available_tags`` key the per-film builder exposes — so the
+    ``partials/search.html`` template renders identically in either mode.
+    """
+    from cinemateca.library import scan_library
+
+    library_dir = Path(cfg.paths.library_dir)
+    all_tags: set[str] = set()
+    for film in scan_library(library_dir):
+        try:
+            ctx = FilmContext.for_film(cfg, film.slug)
+        except ValueError:
+            continue
+        tag_index = load_tag_index(ctx.metadata_dir)
+        all_tags.update(tag_index.keys())
+    return {"available_tags": _filter_degenerate_tags(sorted(all_tags))}

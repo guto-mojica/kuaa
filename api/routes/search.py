@@ -35,10 +35,18 @@ router = APIRouter()
 # Re-exported so api/server.py's tab-context map (``"search":
 # search.build_search_context``) keeps working without churn; the
 # implementation now lives in the service.
-def build_search_context() -> dict:
-    """Build the search-tab partial context (delegates to the service)."""
-    ctx = FilmContext.from_config(get_config())
-    return search_service.build_search_context(ctx)
+def build_search_context(slug: str | None = None) -> dict:
+    """Build the search-tab partial context (delegates to the service).
+
+    With ``slug`` set, the per-film tag vocabulary is used; with
+    ``slug=None`` the aggregate (cross-film) union is used so the tag
+    pills shown match the search scope. Both paths drop degenerate-looking
+    entries via ``_filter_degenerate_tags`` (display-only).
+    """
+    cfg = get_config()
+    if slug is not None:
+        return search_service.build_search_context(FilmContext.for_film(cfg, slug))
+    return search_service.build_search_context_aggregate(cfg)
 
 
 def _kf_meta(ctx: FilmContext) -> tuple[dict, float]:
@@ -66,7 +74,7 @@ async def tab_search(
     return templates.TemplateResponse(
         request,
         "partials/search.html",
-        make_ctx(request, current_slug=slug, **build_search_context()),
+        make_ctx(request, current_slug=slug, **build_search_context(slug)),
     )
 
 
@@ -95,7 +103,7 @@ async def api_search(
             hits = await loop.run_in_executor(
                 None,
                 lambda: search_service.aggregate_search(
-                    cfg, query=q, modality="text", top_k=top_k
+                    cfg, query=q, modality="text", top_k=top_k, tags=tags
                 ),
             )
         except NotImplementedError:
