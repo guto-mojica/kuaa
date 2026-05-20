@@ -28,6 +28,18 @@ Funcionalidades planejadas para as próximas versões:
 Plano completo em
 `docs/superpowers/specs/2026-05-19-multimodal-retrieval-and-launch-design.md`.
 
+#### Adicionado (implementado — branch `feat/multi-film-library`)
+
+- **Acervo multi-filme (T1–T11)** — registry em `data/library/films.json`,
+  layout per-film em `data/library/<slug>/{raw,frames,metadata,embeddings}/`,
+  busca/navegação cross-film via `?film=<slug>`, seletor lateral em HTMX,
+  script de migração `scripts/migrate_flat_to_library.py` (idempotente),
+  pipeline com flag `--slug` que escreve sob `library/<slug>/` e registra
+  o filme automaticamente. Plano detalhado em
+  `docs/superpowers/plans/2026-05-20-multi-film-library.md`. Suite de
+  testes: 265 → 332 passando, 0 falhas. T12 (migração da Jeca Tatu real)
+  pendente como ação manual.
+
 #### Adicionado (planejado)
 
 - **Acervo multi-filme** — busca e navegação atravessam todos os filmes do

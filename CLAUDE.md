@@ -315,7 +315,11 @@ transition. Scope is locked; if risks fire, timeline extends rather than
 features cut.
 
 ### Month 1 — Foundation
-- [ ] Multi-film library (`films.json` registry; cross-film search/browse)
+- [x] **Multi-film library** — `films.json` registry; per-film `data/library/<slug>/`
+  layout; cross-film search/browse + sidebar selector. Implemented across
+  T1–T11 of `docs/superpowers/plans/2026-05-20-multi-film-library.md`
+  (33 commits on `feat/multi-film-library`; suite 265 → 332 passing).
+  Acceptance migration of real Jeca Tatu data still pending (T12, manual).
 - [ ] Docker image, one-command run (CPU-default, GPU-optional)
 - [ ] Hosted demo skeleton on HuggingFace Spaces (CPU tier)
 - [ ] CLAP integration kickoff (`AudioEmbedder` Protocol)
