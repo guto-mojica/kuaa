@@ -360,6 +360,30 @@ def _get_search_index(cfg: Any, slug: str) -> SearchIndex:
     )
 
 
+def has_indexed_films(cfg: Any) -> bool:
+    """``True`` iff at least one registered film has an OK :class:`SearchIndex`.
+
+    Lets the route distinguish two empty-hit cases:
+
+      * library has no indexed films yet → render "No search index found"
+        (user needs to run the embeddings pipeline);
+      * library has indexed films but the query produced zero hits above
+        ``min_similarity`` → render "No results" (the query simply didn't
+        match anything in the corpus — a normal outcome, not a setup error).
+    """
+    from cinemateca.library import scan_library
+
+    library_dir = Path(cfg.paths.library_dir)
+    for film in scan_library(library_dir):
+        try:
+            idx = _get_search_index(cfg, film.slug)
+        except ValueError:
+            continue
+        if idx.status is IndexStatus.OK:
+            return True
+    return False
+
+
 def aggregate_search(
     cfg: Any,
     *,
@@ -367,6 +391,7 @@ def aggregate_search(
     modality: str,
     top_k: int,
     tags: list[str] | None = None,
+    min_similarity: float = 0.0,
 ) -> list[dict]:
     """Run per-film search and merge top results by score.
 
@@ -379,6 +404,13 @@ def aggregate_search(
     whose ``scene_id`` is in EVERY selected tag's list (AND intersection),
     mirroring ``SemanticSearch.combined``'s per-film semantics. A film
     that lacks any of the selected tags contributes zero hits.
+
+    ``min_similarity`` is a cosine-score floor applied per hit before the
+    cross-film merge. CLIP returns top-K nearest neighbours unconditionally,
+    so unrelated queries used to surface 8 noise scenes — the threshold
+    drops anything below it. A query whose top result is under the floor
+    returns ``[]`` (the route renders the no-index UI state, which the
+    template now also covers for "no results above threshold").
     """
     from cinemateca.library import scan_library
     from cinemateca.scene_ids import normalize_tag_index, scene_id_key
@@ -447,6 +479,8 @@ def aggregate_search(
 
         scores: np.ndarray = idx.embeddings @ text_vec  # type: ignore[operator]
         for i, score in enumerate(scores):
+            if float(score) < min_similarity:
+                continue
             row = idx.kf_df.iloc[i]  # type: ignore[union-attr]
             scene_id = int(row["scene_id"])
             if allowed_scene_keys is not None and scene_id_key(scene_id) not in allowed_scene_keys:
@@ -539,7 +573,7 @@ def validate_upload(filename: str | None, content_type: str | None,
 # ── Search orchestration ──────────────────────────────────────────────────────
 
 def search_text(index: SearchIndex, query: str, tags: list[str],
-                 tag_index: dict, top_k: int):
+                 tag_index: dict, top_k: int, min_similarity: float = 0.0):
     """Run a text (optionally tag-filtered) semantic search.
 
     Mirrors the prior route logic exactly: with ``tags`` it calls
@@ -548,13 +582,22 @@ def search_text(index: SearchIndex, query: str, tags: list[str],
     tags it calls ``by_text``. Caller (route) is responsible for running
     this in an executor — kept sync here so the service stays
     framework-agnostic and unit-testable without an event loop.
+
+    ``min_similarity`` post-filters the result DataFrame (CLIP returns
+    top-K unconditionally, so unrelated queries surface noise scenes;
+    the threshold drops anything below the cosine floor). 0.0 disables
+    the filter (default for back-compat with unit tests).
     """
     from cinemateca.embeddings import SemanticSearch
 
     searcher = SemanticSearch(index.embeddings, index.kf_df, index.embedder)
     if tags:
-        return searcher.combined(query, tags, tag_index, top_k)
-    return searcher.by_text(query, top_k)
+        df = searcher.combined(query, tags, tag_index, top_k)
+    else:
+        df = searcher.by_text(query, top_k)
+    if min_similarity > 0.0 and not df.empty and "similarity" in df.columns:
+        df = df[df["similarity"] >= min_similarity].reset_index(drop=True)
+    return df
 
 
 def search_image(index: SearchIndex, image_path: Path, top_k: int):

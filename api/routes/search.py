@@ -91,6 +91,7 @@ async def api_search(
         return HTMLResponse("")
 
     cfg = get_config()
+    min_sim = float(getattr(cfg.embeddings, "min_similarity", 0.0) or 0.0)
 
     if slug is None:
         # Aggregate search: run per-film text search across all registered
@@ -103,13 +104,29 @@ async def api_search(
             hits = await loop.run_in_executor(
                 None,
                 lambda: search_service.aggregate_search(
-                    cfg, query=q, modality="text", top_k=top_k, tags=tags
+                    cfg,
+                    query=q,
+                    modality="text",
+                    top_k=top_k,
+                    tags=tags,
+                    min_similarity=min_sim,
                 ),
             )
         except NotImplementedError:
             return _no_index_response(request)
         if not hits:
-            return _no_index_response(request)
+            # Empty hits is ambiguous: either no films are indexed (the
+            # user needs to run the pipeline), or every per-film hit was
+            # below ``min_similarity`` (the query simply matched nothing).
+            # ``has_indexed_films`` distinguishes them so the message
+            # matches the real cause.
+            if not search_service.has_indexed_films(cfg):
+                return _no_index_response(request)
+            return templates.TemplateResponse(
+                request,
+                "partials/search_results.html",
+                make_ctx(request, current_slug=slug, results=[], no_index=False),
+            )
         # Convert aggregate hit dicts → template-compatible result dicts.
         # aggregate_search returns plain dicts (not DataFrames), so
         # results_to_dicts is not applicable; build the img_url here.
@@ -155,7 +172,7 @@ async def api_search(
     tag_index = load_tag_index(ctx.metadata_dir) if tags else {}
     loop = asyncio.get_event_loop()
     results_df = await loop.run_in_executor(
-        None, search_service.search_text, index, q, tags, tag_index, top_k
+        None, search_service.search_text, index, q, tags, tag_index, top_k, min_sim
     )
 
     meta_by_scene, fps = _kf_meta(ctx)

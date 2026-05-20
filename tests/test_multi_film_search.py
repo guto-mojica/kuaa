@@ -360,3 +360,48 @@ def test_aggregate_search_includes_timecode_per_hit(
     # derive_fps's fallback (24.0); just assert it's a populated string.
     assert by_scene[1]["timecode"] != ""
     assert ":" in by_scene[1]["timecode"]
+
+
+def test_aggregate_search_drops_below_min_similarity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``min_similarity`` filters per-hit scores BEFORE the top-K merge.
+
+    Setup: vector [0.5, 0.5] (normalised) yields cosine 0.707 against
+    query [1, 0]; vector [1.0, 0.0] yields 1.0. With
+    ``min_similarity=0.8`` only the perfect-match hit survives.
+    """
+    library_dir = tmp_path / "library"
+    library_dir.mkdir()
+    register_film(library_dir, slug="a", title="A", year=2000, raw_filename="a.mp4")
+    _make_film_with_embeddings(library_dir, "a", [[1.0, 0.0], [0.5, 0.5]])
+
+    class StubEmbedder:
+        def encode_text(self, q: str) -> np.ndarray:
+            return np.array([1.0, 0.0], dtype=np.float32)
+
+    monkeypatch.setattr(
+        "api.services.search._get_embedder", lambda cfg: StubEmbedder()
+    )
+
+    # No threshold → both hits returned.
+    no_floor = aggregate_search(
+        _cfg(library_dir), query="x", modality="text", top_k=8,
+    )
+    assert len(no_floor) == 2
+
+    # 0.8 floor → only the score=1.0 hit survives.
+    above = aggregate_search(
+        _cfg(library_dir), query="x", modality="text", top_k=8,
+        min_similarity=0.8,
+    )
+    assert len(above) == 1
+    assert above[0]["scene_id"] == 0
+    assert above[0]["score"] >= 0.8
+
+    # Floor above every score → empty.
+    none = aggregate_search(
+        _cfg(library_dir), query="x", modality="text", top_k=8,
+        min_similarity=1.5,
+    )
+    assert none == []

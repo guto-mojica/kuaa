@@ -371,3 +371,76 @@ class TestDegenerateTagFilter:
 
     def test_empty_input_returns_empty(self):
         assert self._kept([]) == []
+
+
+# ── search_text similarity floor ──────────────────────────────────────────────
+
+
+class TestSearchTextMinSimilarity:
+    """``search_text(..., min_similarity=X)`` drops result rows whose
+    cosine score is below the threshold. CLIP returns top_k unconditionally,
+    so without this filter, unrelated queries surface noise scenes
+    ('airplane' in a 1959 rural film) at score ~0.22–0.25.
+    """
+
+    def _index(self, vectors: list[list[float]]):
+        """Build a SearchIndex over L2-normalised ``vectors``."""
+        from api.services.search import IndexStatus, SearchIndex
+
+        arr = np.array(vectors, dtype="float32")
+        arr /= np.linalg.norm(arr, axis=1, keepdims=True)
+        kf_df = pd.DataFrame(
+            [
+                {"scene_id": i, "filepath": f"frames/s{i}.jpg"}
+                for i in range(len(vectors))
+            ]
+        )
+
+        class _Embedder:
+            def encode_text(self, q):
+                # Query vector: [1, 0] — cosine matches each row's first comp.
+                return np.array([1.0, 0.0], dtype="float32")
+
+        return SearchIndex(
+            status=IndexStatus.OK,
+            embeddings=arr,
+            kf_df=kf_df,
+            embedder=_Embedder(),
+        )
+
+    def test_no_floor_returns_all_top_k(self):
+        from api.services.search import search_text
+
+        index = self._index([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]])
+        df = search_text(index, "x", tags=[], tag_index={}, top_k=8)
+        assert len(df) == 3
+        assert df["similarity"].iloc[0] >= df["similarity"].iloc[-1]
+
+    def test_floor_filters_low_scores(self):
+        from api.services.search import search_text
+
+        index = self._index([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]])
+        # [1,0]→1.0, [0.5,0.5]→0.707, [0,1]→0.0. Floor 0.8 keeps only the
+        # perfect match.
+        df = search_text(index, "x", tags=[], tag_index={}, top_k=8,
+                          min_similarity=0.8)
+        assert len(df) == 1
+        assert df["scene_id"].iloc[0] == 0
+        assert float(df["similarity"].iloc[0]) >= 0.8
+
+    def test_floor_above_everything_returns_empty_df(self):
+        from api.services.search import search_text
+
+        index = self._index([[1.0, 0.0], [0.0, 1.0]])
+        df = search_text(index, "x", tags=[], tag_index={}, top_k=8,
+                          min_similarity=2.0)
+        assert df.empty
+
+    def test_floor_zero_is_a_noop(self):
+        """``min_similarity=0.0`` is the back-compat default — no rows dropped."""
+        from api.services.search import search_text
+
+        index = self._index([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]])
+        df = search_text(index, "x", tags=[], tag_index={}, top_k=8,
+                          min_similarity=0.0)
+        assert len(df) == 3
