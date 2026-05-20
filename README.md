@@ -39,9 +39,9 @@ a video and produces:
 - **Researchers** who need to find visual moments inside long-form footage.
 - **Applied AI reviewers** who want to inspect a realistic local multimodal system rather than a hosted API demo.
 
-Future domain packs are planned for adjacent private visual-search workflows,
-such as media asset review and inspection footage. The current implemented
-product remains archive-first.
+Domain packs support adjacent private visual-search workflows, with
+`media_broadcast` as the first implemented example. The current product remains
+archive-first.
 
 ### Current status
 
@@ -52,14 +52,25 @@ Implemented now:
 - Text search, image search, scene browsing, and manual annotation.
 - Configurable local model backends using typed Protocols.
 - Offline-oriented static assets and local artifact storage.
+- Reproducible public-demo scaffold using Library of Congress footage.
+- Retrieval evaluation runner with JSON/Markdown reports.
+- Domain-pack configuration for archive and media-broadcast metadata.
+- Domain-aware JSON/CSV catalog exports.
+- Run manifests with input, config, model, domain, step, and artifact
+  provenance.
+- Launch package docs: case study, communication plan, video scripts, release
+  notes draft, resume bullets, and a launch verifier.
 - Regression tests for the web/service/pipeline surfaces.
 
 Planned next:
 
-- Reproducible public demo data and precomputed artifacts.
-- Retrieval and metadata-quality evaluation.
-- Domain pack configuration, starting with the current archive domain.
-- Structured exports, run manifests, API docs, and stronger packaging.
+- Publish the final precomputed demo artifact bundle.
+- Run and publish metrics against the final demo bundle.
+- Capture populated screenshots and release walkthrough videos.
+- Fill release notes with final artifact URL, checksums, metrics, and manifest
+  excerpt.
+- Multi-film storage and Docker packaging after the single-film release path is
+  stable.
 
 ### Project docs
 
@@ -78,6 +89,13 @@ portfolio roadmap:
 | [Demo walkthrough](docs/DEMO_WALKTHROUGH.md) | Two-minute public demo script |
 | [Evaluation](docs/EVALUATION.md) | Query schema, retrieval metrics, and annotation-correction stats |
 | [Domain packs](docs/DOMAIN_PACKS.md) | Domain schema, archive and media-broadcast packs, prompt/export mapping |
+| [API reference](docs/API.md) | Local FastAPI/HTMX routes plus JSON/CSV export endpoints |
+| [Operations](docs/OPERATIONS.md) | Run manifests, exports, failure behavior, release gates, and constraints |
+| [Case study](docs/CASE_STUDY.md) | Recruiter-readable project narrative and evidence map |
+| [Launch plan](docs/LAUNCH_PLAN.md) | Public post sequence, asset map, and launch checklist |
+| [Demo video scripts](docs/DEMO_VIDEO_SCRIPT.md) | Two-minute demo and technical walkthrough scripts |
+| [Release notes draft](docs/RELEASE_NOTES_DRAFT.md) | GitHub release copy, demo artifact slots, and verification notes |
+| [Resume bullets](docs/RESUME_BULLETS.md) | Role-specific hiring copy and interview talking points |
 | [Portfolio implementation plan](docs/PORTFOLIO_IMPLEMENTATION_PLAN.md) | Phased plan for demo, evaluation, domain packs, and launch |
 | [Task breakdown](docs/TASK_BREAKDOWN.md) | Issue-sized tasks derived from the implementation plan |
 | [Roadmap](docs/ROADMAP.md) | Short public roadmap snapshot |
@@ -121,6 +139,22 @@ format.
 Domain packs live under `config/domains/`. The default `archive` pack preserves
 the current demo behavior; `media_broadcast` shows how the same pipeline can
 drive a different prompt set and export shape.
+
+Structured exports are available when the app is running:
+
+```bash
+curl -L http://localhost:8501/api/export/catalog.json -o catalog_export.json
+curl -L http://localhost:8501/api/export/catalog.csv -o catalog_export.csv
+```
+
+Every pipeline run writes `run_manifest.json` beside the metadata outputs.
+See [docs/API.md](docs/API.md) and [docs/OPERATIONS.md](docs/OPERATIONS.md).
+
+Before a public launch, validate the launch docs:
+
+```bash
+uv run python scripts/check_launch_package.py
+```
 
 The web interface (FastAPI + HTMX) has these tabs:
 

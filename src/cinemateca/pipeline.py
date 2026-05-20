@@ -235,6 +235,25 @@ class CatalogPipeline:
             self._film_paths.frames_dir.mkdir(parents=True, exist_ok=True)
             self._film_paths.embeddings_dir.mkdir(parents=True, exist_ok=True)
 
+    def _write_run_manifest(
+        self,
+        video_path: Path,
+        result: PipelineResult,
+        started_at_epoch: float,
+    ) -> None:
+        """Best-effort provenance write; processing result remains authoritative."""
+        try:
+            from cinemateca.run_manifest import write_run_manifest
+
+            write_run_manifest(
+                self.cfg,
+                video_path,
+                result,
+                started_at_epoch=started_at_epoch,
+            )
+        except Exception as exc:  # noqa: BLE001 - manifest must not mask pipeline result
+            logger.warning("Could not write run manifest: %s", exc)
+
     @property
     def device(self):
         if self._device is None:
@@ -487,6 +506,7 @@ class CatalogPipeline:
             if not step.success and self.cfg.pipeline.stop_on_error:
                 logger.error("Pipeline interrompido na etapa: %s", step.name)
                 result.total_duration_s = time.time() - pipeline_start
+                self._write_run_manifest(video_path, result, pipeline_start)
                 return result
         else:
             result.steps.append(StepResult(name="frame_extraction", success=True, skipped=True))
@@ -502,6 +522,7 @@ class CatalogPipeline:
             if not step.success and self.cfg.pipeline.stop_on_error:
                 logger.error("Pipeline interrompido na etapa: %s", step.name)
                 result.total_duration_s = time.time() - pipeline_start
+                self._write_run_manifest(video_path, result, pipeline_start)
                 return result
         else:
             result.steps.append(StepResult(name="scene_detection", success=True, skipped=True))
@@ -513,6 +534,7 @@ class CatalogPipeline:
             if not step.success and self.cfg.pipeline.stop_on_error:
                 logger.error("Pipeline interrompido na etapa: %s", step.name)
                 result.total_duration_s = time.time() - pipeline_start
+                self._write_run_manifest(video_path, result, pipeline_start)
                 return result
         else:
             result.steps.append(StepResult(name="visual_analysis", success=True, skipped=True))
@@ -524,6 +546,7 @@ class CatalogPipeline:
             if not step.success and self.cfg.pipeline.stop_on_error:
                 logger.error("Pipeline interrompido na etapa: %s", step.name)
                 result.total_duration_s = time.time() - pipeline_start
+                self._write_run_manifest(video_path, result, pipeline_start)
                 return result
         else:
             result.steps.append(StepResult(name="embeddings", success=True, skipped=True))
@@ -539,12 +562,10 @@ class CatalogPipeline:
         logger.info(result.summary())
 
         # ── Per-film registration ─────────────────────────────────────────────
-        # Only register films whose pipelines actually succeeded. Registering
-        # a partially-failed run (stop_on_error=False with mid-pipeline crash)
-        # would mark an incomplete film as available in the registry.
         if self.slug is not None and result.success:
             self._ensure_registered(video_path)
 
+        self._write_run_manifest(video_path, result, pipeline_start)
         return result
 
     def _ensure_registered(self, video_path: Path) -> None:

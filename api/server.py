@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from api.deps import get_config, make_ctx
-from api.routes import about, annotate, library, processing, scenes, search, tabs
+from api.routes import about, annotate, export, library, processing, scenes, search, tabs
 from api.services.annotations import build_annotate_context
 from api.services.catalog import build_scenes_context_aggregate
 from api.services.film_context import FilmContext
@@ -54,6 +54,7 @@ app.include_router(annotate.router)
 app.include_router(processing.router)
 app.include_router(about.router)
 app.include_router(library.router)
+app.include_router(export.router)
 
 
 # Each tab's full context is built by the SAME code path the matching
