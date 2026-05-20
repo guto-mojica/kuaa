@@ -8,6 +8,7 @@ import numpy as np
 
 def test_base_protocols_exist_and_are_runtime_checkable():
     from cinemateca.models.base import (
+        AudioEmbedder,
         EnvironmentClassifier,
         FaceDetector,
         ImageEmbedder,
@@ -17,7 +18,7 @@ def test_base_protocols_exist_and_are_runtime_checkable():
 
     for proto in (
         ImageEmbedder, FaceDetector, ObjectDetector,
-        SceneDescriber, EnvironmentClassifier,
+        SceneDescriber, EnvironmentClassifier, AudioEmbedder,
     ):
         assert getattr(proto, "_is_runtime_protocol", False), proto
 
@@ -139,6 +140,32 @@ def test_protocols_isinstance_structural():
     _env_members = {m for m in vars(EnvironmentClassifier) if not m.startswith("_")}
 
     assert {"classify", "classify_batch"}.issubset(_env_members)
+
+    # ------------------------------------------------------------------ #
+    # AudioEmbedder
+    # ------------------------------------------------------------------ #
+    from cinemateca.models.base import AudioEmbedder
+
+    class _GoodAudio:
+        def encode_audio(self, wav_paths):
+            return np.zeros((len(wav_paths), 4), dtype="float32")
+
+        def encode_text(self, text):
+            return np.zeros(4, dtype="float32")
+
+        def encode_audio_single(self, wav_path):
+            return np.zeros(4, dtype="float32")
+
+    class _BadAudio:
+        def encode_audio(self, wav_paths):
+            return np.zeros((len(wav_paths), 4), dtype="float32")
+        # missing encode_text + encode_audio_single
+
+    assert isinstance(_GoodAudio(), AudioEmbedder) is True
+    assert isinstance(_BadAudio(), AudioEmbedder) is False
+
+    _audio_members = {m for m in vars(AudioEmbedder) if not m.startswith("_")}
+    assert {"encode_audio", "encode_text", "encode_audio_single"}.issubset(_audio_members)
 
 
 def test_detector_backends_conform():
