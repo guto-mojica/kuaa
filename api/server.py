@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from api.deps import get_config, make_ctx
 from api.routes import about, annotate, library, processing, scenes, search, tabs
 from api.services.annotations import build_annotate_context
-from api.services.catalog import build_scenes_context
+from api.services.catalog import build_scenes_context_aggregate
 from api.services.film_context import FilmContext
 from api.templates import templates
 
@@ -61,7 +61,15 @@ app.include_router(library.router)
 # extract them) and remain zero-arg.
 _TAB_CONTEXT_BUILDERS = {
     "search": search.build_search_context,
-    "scenes": lambda: build_scenes_context(FilmContext.from_config(get_config())),
+    # Full-page /scenes uses the same aggregate builder as /tab/scenes (no slug
+    # → aggregate across all films). Previously used FilmContext.from_config
+    # which reads the FLAT metadata_dir, breaking Phase-1a parity with the
+    # HTMX tab path after T9 introduced library-tree routing.
+    "scenes": lambda: build_scenes_context_aggregate(get_config()),
+    # Annotate stays single-film (from_config) intentionally: an aggregate
+    # annotate view (write-path, scene-by-scene editing across all films) is
+    # deferred to a later plan (T9 docstring). /tab/annotate with slug=None also
+    # uses from_config, so /annotate full-page and /tab/annotate are consistent.
     "annotate": lambda: build_annotate_context(FilmContext.from_config(get_config())),
     "processing": processing.build_processing_context,
 }
@@ -101,10 +109,13 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     # `processing` builder deliberately re-supplies `films`, overriding the
     # base value here; that override is intended, not a bug.
     tab_ctx = _TAB_CONTEXT_BUILDERS[active_tab]()
+    # Full-page routes are always aggregate (no ?film= on direct GET /scenes
+    # etc.), so current_slug is always None here.  T10 sidebar uses this to
+    # highlight no film as "active" on full-page loads.
     return templates.TemplateResponse(
         request,
         "base.html",
-        make_ctx(request, **{**base_ctx, **tab_ctx}),
+        make_ctx(request, current_slug=None, **{**base_ctx, **tab_ctx}),
     )
 
 

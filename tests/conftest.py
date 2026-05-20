@@ -369,7 +369,9 @@ def seed_metadata(tmp_config):
         per_film_raw = library_dir / "default" / "raw"
         per_film_raw.mkdir(parents=True, exist_ok=True)
         (per_film_raw / "default.mp4").touch()
-        # Mirror the scenes + tags to per-film metadata.
+        # Mirror ALL artefacts to per-film metadata (including manual
+        # annotations so aggregate routes see the same tag data as the flat
+        # single-film path).
         per_film_meta = library_dir / "default" / "metadata"
         per_film_meta.mkdir(parents=True, exist_ok=True)
         if scenes_v is not None:
@@ -378,6 +380,10 @@ def seed_metadata(tmp_config):
             )
         if llm_v is not None:
             (per_film_meta / "scene_tags.json").write_text(json.dumps(llm_v))
+        if manual_v is not None:
+            (per_film_meta / "manual_annotations.json").write_text(
+                json.dumps(manual_v)
+            )
         if desc_v is not None:
             (per_film_meta / "scene_descriptions.json").write_text(
                 json.dumps(desc_v)
