@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from cinemateca.config import load_config
@@ -11,8 +13,9 @@ from cinemateca.domain import (
     prompt_dict,
     resolve_domain_pack_path,
 )
-from cinemateca.models.describer._common import PROMPTS
 from cinemateca.eval.datasets import load_dataset
+from cinemateca.models.describer._common import PROMPTS
+from cinemateca.models.describer.domain_prompts import prompts_from_config
 
 
 def test_archive_domain_loads_and_matches_current_prompt_keys():
@@ -122,3 +125,79 @@ domain:
     cfg = load_config(cfg_path, project_root=tmp_path)
 
     assert load_domain_from_config(cfg, project_root=tmp_path).id == "custom"
+
+
+def test_prompts_from_config_uses_selected_domain_pack(tmp_path):
+    media_pack = Path("config/domains/media_broadcast.yaml").resolve()
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text(
+        f"""
+domain:
+  path: {media_pack}
+""",
+        encoding="utf-8",
+    )
+    cfg = load_config(cfg_path, project_root=tmp_path)
+
+    prompts = prompts_from_config(cfg)
+
+    assert "shot_type" in prompts
+    assert "location" not in prompts
+
+
+def test_transformers_describer_uses_domain_prompts(monkeypatch, tmp_path):
+    from cinemateca.models.describer import transformers_hf
+
+    media_pack = Path("config/domains/media_broadcast.yaml").resolve()
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text(
+        f"""
+domain:
+  path: {media_pack}
+""",
+        encoding="utf-8",
+    )
+    cfg = load_config(cfg_path, project_root=tmp_path)
+    monkeypatch.setattr(
+        transformers_hf.MoondreamTransformersDescriber,
+        "_load_model",
+        lambda self: None,
+    )
+    monkeypatch.setattr(
+        transformers_hf.MoondreamTransformersDescriber,
+        "_answer",
+        lambda self, image_path, prompt, max_tokens: "camera",
+    )
+
+    backend = transformers_hf.MoondreamTransformersDescriber(cfg)
+    meta = backend.describe("frame.jpg")
+
+    assert "shot_type" in meta["_raw_responses"]
+    assert "licensing_notes" in meta["_raw_responses"]
+
+
+def test_gguf_describer_uses_domain_prompts(monkeypatch, tmp_path):
+    from cinemateca.models.describer import gguf
+
+    media_pack = Path("config/domains/media_broadcast.yaml").resolve()
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text(
+        f"""
+domain:
+  path: {media_pack}
+""",
+        encoding="utf-8",
+    )
+    cfg = load_config(cfg_path, project_root=tmp_path)
+    monkeypatch.setattr(gguf.MoondreamGGUFDescriber, "_load_model", lambda self: None)
+    monkeypatch.setattr(
+        gguf.MoondreamGGUFDescriber,
+        "_answer",
+        lambda self, image_path, prompt, max_tokens: "camera",
+    )
+
+    backend = gguf.MoondreamGGUFDescriber(cfg)
+    meta = backend.describe("frame.jpg")
+
+    assert "shot_type" in meta["_raw_responses"]
+    assert "reusable_broll_score" in meta["_raw_responses"]
