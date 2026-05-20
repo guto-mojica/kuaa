@@ -1,0 +1,69 @@
+# Cinemateca imgsearch — M1 reproducible public demo config.
+#
+# This file is intentionally separate from config/local.yaml. Launch with:
+#
+#   uv run app.py --config config/demo.yaml
+#
+# The precomputed artifact bundle is expected under data/demo/runtime/ after
+# running scripts/prepare_demo.py.
+
+project:
+  name: "Cinemateca imgsearch demo"
+  version: "0.3.0-demo-m1"
+
+paths:
+  data_dir: "data/demo/runtime"
+  raw_dir: "data/demo/runtime/raw"
+  frames_dir: "data/demo/runtime/frames"
+  metadata_dir: "data/demo/runtime/metadata"
+  embeddings_dir: "data/demo/runtime/embeddings"
+  models_dir: "models"
+  outputs_dir: "data/demo/runtime/outputs"
+  logs_dir: "data/demo/runtime/logs"
+
+hardware:
+  device: "cpu"
+  force_cpu: true
+
+frame_extraction:
+  fps: 1
+  target_height: 360
+  quality: 4
+  sample_duration: 180
+
+scene_detection:
+  detector: "content"
+  content_threshold: 24.0
+  min_scene_len: 12
+  keyframes_per_scene: 1
+  keyframe_height: 360
+
+visual_analysis:
+  face_detection:
+    enabled: false
+  object_detection:
+    enabled: false
+  environment:
+    enabled: true
+
+embeddings:
+  model: "ViT-B-32"
+  pretrained: "openai"
+  batch_size: 8
+  filename: "keyframe_embeddings.npy"
+  mapping_filename: "index_mapping.json"
+
+llm:
+  process_limit: 32
+  descriptions_filename: "scene_descriptions.json"
+  tags_filename: "scene_tags.json"
+
+pipeline:
+  skip_existing: true
+  stop_on_error: false
+
+logging:
+  level: "INFO"
+  to_file: true
+  filename: "cinemateca-demo.log"
+

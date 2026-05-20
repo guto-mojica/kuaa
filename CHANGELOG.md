@@ -12,6 +12,10 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 Funcionalidades planejadas para as próximas versões:
 
+- M1 reproducible demo scaffold:
+  `config/demo.yaml`, explicit `app.py --config` / `CINEMATECA_CONFIG`
+  selection, `scripts/prepare_demo.py`, `data/demo/manifest.json`, and demo
+  docs for provenance, verification, walkthrough, and artifact layout.
 - Descritor de cenas padrão agora é Moondream 2 via transformers (GPU por
   wheel PyTorch pré-compilado em Linux/Windows/macOS, sem build de fonte);
   backend GGUF mantido como opção (`scene_describer: moondream_gguf`).

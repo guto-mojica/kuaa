@@ -72,6 +72,10 @@ portfolio roadmap:
 | [Architecture](docs/ARCHITECTURE.md) | Pipeline, web app, model registry, artifacts, and constraints |
 | [Model inventory](docs/MODEL_INVENTORY.md) | Model roles, backends, licenses, download behavior, and risks |
 | [Offline and privacy notes](docs/PRIVACY_OFFLINE.md) | What stays local, when network access may happen, and safe public claims |
+| [Reproducible demo](docs/DEMO.md) | Public demo quickstart using precomputed artifacts |
+| [Demo data](docs/DEMO_DATA.md) | Provenance, rights notes, artifact policy, and regional context |
+| [Demo verification](docs/DEMO_VERIFICATION.md) | Release-bundle and browser verification checklist |
+| [Demo walkthrough](docs/DEMO_WALKTHROUGH.md) | Two-minute public demo script |
 | [Portfolio implementation plan](docs/PORTFOLIO_IMPLEMENTATION_PLAN.md) | Phased plan for demo, evaluation, domain packs, and launch |
 | [Task breakdown](docs/TASK_BREAKDOWN.md) | Issue-sized tasks derived from the implementation plan |
 | [Roadmap](docs/ROADMAP.md) | Short public roadmap snapshot |
@@ -86,6 +90,19 @@ uv sync --extra full --group dev
 uv run app.py                 # FastAPI + HTMX, opens at http://localhost:8501
 # Legacy Streamlit UI (during migration): uv run streamlit run app_streamlit.py
 ```
+
+### Public demo quickstart
+
+The M1 demo uses public Library of Congress footage and a precomputed artifact
+bundle so reviewers can open a populated UI quickly:
+
+```bash
+uv run python scripts/prepare_demo.py --download
+uv run app.py --config config/demo.yaml
+```
+
+See [docs/DEMO.md](docs/DEMO.md) for the artifact layout, validation command,
+and full processing path.
 
 The web interface (FastAPI + HTMX) has these tabs:
 
@@ -312,6 +329,11 @@ scene_detection:
 ---
 
 ## Filme de teste
+
+The public M1 demo is based on Library of Congress item `00694220`,
+*The Great Train Robbery* (1903). It is the default source for public screenshots
+and release artifacts because it avoids private institutional data. See
+[Demo data](docs/DEMO_DATA.md).
 
 O desenvolvimento usa **Jeca Tatu (1959)** de Amácio Mazzaropi como referência:
 

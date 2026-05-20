@@ -212,22 +212,26 @@ local em cada máquina. O `.gitignore` já está configurado para isso.
 Com o ambiente virtual ativado e dependências instaladas:
 
 ```bash
-# Iniciar a interface Streamlit (usa config/default.yaml)
-streamlit run app.py
+# Demo público M1 com artefatos pré-computados
+uv run python scripts/prepare_demo.py --download
+uv run app.py --config config/demo.yaml
+
+# Interface principal FastAPI + HTMX
+uv run app.py
 
 # Ou com seu arquivo de configuração local:
-streamlit run app.py
-# e configure os caminhos dentro da interface
+uv run app.py --config config/local.yaml
 ```
 
-O Streamlit abrirá automaticamente no navegador padrão.
-Se não abrir, acesse manualmente: **http://localhost:8501**
+Acesse manualmente: **http://localhost:8501**
+
+Para detalhes do demo público, veja `docs/DEMO.md`.
 
 **Para rodar em uma máquina remota** (servidor da cinemateca) e
 acessar do seu computador:
 ```bash
 # Na máquina remota:
-streamlit run app.py --server.address 0.0.0.0 --server.port 8501
+uv run app.py --host 0.0.0.0 --port 8501
 
 # No seu navegador local:
 # http://IP-DA-MAQUINA-REMOTA:8501
@@ -236,10 +240,10 @@ streamlit run app.py --server.address 0.0.0.0 --server.port 8501
 **Para manter rodando após fechar o terminal** (em servidores):
 ```bash
 # Usando nohup (simples):
-nohup streamlit run app.py --server.address 0.0.0.0 > logs/streamlit.log 2>&1 &
+nohup uv run app.py --host 0.0.0.0 --port 8501 > logs/cinemateca-web.log 2>&1 &
 
 # O processo continua mesmo após logout. Para parar:
-pkill -f "streamlit run app.py"
+pkill -f "uv run app.py"
 ```
 
 ---

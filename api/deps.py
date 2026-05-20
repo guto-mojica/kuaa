@@ -1,8 +1,11 @@
 """FastAPI dependency providers."""
+import os
 from functools import cache, lru_cache
 from pathlib import Path
 
 from fastapi import Request
+
+CONFIG_ENV_VAR = "CINEMATECA_CONFIG"
 
 _LOCALES_DIR = Path(__file__).parent.parent / "web" / "locales"
 _SUPPORTED_LOCALES = {"pt_BR", "en"}
@@ -18,12 +21,30 @@ def locale_to_lang(locale: str) -> str:
     return _LOCALE_LANG.get(locale, _DEFAULT_LANG)
 
 
+def selected_config_path() -> Path | None:
+    """Return the config override path, preserving the historical fallback.
+
+    Precedence is:
+
+    1. ``CINEMATECA_CONFIG`` environment variable, set by ``app.py --config``.
+    2. ``config/local.yaml`` when present.
+    3. ``None`` so ``cinemateca.config.load_config`` uses defaults only.
+    """
+    explicit = os.environ.get(CONFIG_ENV_VAR)
+    if explicit:
+        return Path(explicit).expanduser()
+
+    local = Path("config/local.yaml")
+    return local if local.exists() else None
+
+
 @lru_cache(maxsize=1)
 def get_config():
     from cinemateca.config import load_config
 
-    local = Path("config/local.yaml")
-    return load_config(str(local) if local.exists() else None)
+    selected = selected_config_path()
+    return load_config(str(selected) if selected is not None else None)
+
 
 
 @cache
