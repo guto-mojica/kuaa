@@ -127,6 +127,31 @@ def _make_film_with_embeddings(
     )
 
 
+def test_aggregate_search_empty_library_does_not_load_embedder(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """aggregate_search returns [] immediately when the library has no films.
+
+    _get_embedder must NOT be called — loading the CLIP model (~4 s) is
+    expensive and pointless when there are no indexed films to search.
+    """
+    library_dir = tmp_path / "library"
+    library_dir.mkdir()
+    # No register_film call → scan_library returns [].
+
+    def _should_not_load(cfg: object) -> object:
+        raise AssertionError(
+            "_get_embedder was called on an empty library — CLIP eager-load bug"
+        )
+
+    monkeypatch.setattr("api.services.search._get_embedder", _should_not_load)
+
+    result = aggregate_search(
+        _cfg(library_dir), query="anything", modality="text", top_k=10
+    )
+    assert result == []
+
+
 def test_aggregate_text_search_returns_results_from_both_films(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

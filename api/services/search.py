@@ -313,6 +313,13 @@ def aggregate_search(
         )
 
     library_dir = Path(cfg.paths.library_dir)
+    # Materialise the film list BEFORE loading the embedder.  When the library
+    # is empty (0 registered films) we return early and avoid the ~4 s CLIP
+    # model initialisation that _get_embedder triggers.
+    films = list(scan_library(library_dir))
+    if not films:
+        return []
+
     embedder = _get_embedder(cfg)
 
     text_vec: np.ndarray = embedder.encode_text(query)  # type: ignore[union-attr]
@@ -320,7 +327,7 @@ def aggregate_search(
     text_vec = text_vec / (norm + 1e-12)
 
     all_hits: list[dict] = []
-    for film in scan_library(library_dir):
+    for film in films:
         try:
             idx = _get_search_index(cfg, film.slug)
         except ValueError as exc:
