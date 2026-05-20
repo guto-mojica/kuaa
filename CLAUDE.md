@@ -300,6 +300,9 @@ Last updated: in the commit message that touched CLAUDE.md.
   no source build). GGUF kept opt-in. transformers pinned >=4.44,<5 (tf5
   hard-fails for every moondream2 revision, verified). uv.lock now committed.
   See docs/superpowers/plans/2026-05-18-transformers-describer-default.md
+- [x] Multi-film library: per-film dirs, native file picker, film registration
+  and removal, `scan_library` multi-film aware, Processing dropdown synced to
+  active-film cookie, slug read from `film.json`
 
 Keep this list updated as steps complete.
 
