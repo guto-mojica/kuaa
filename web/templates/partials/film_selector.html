@@ -1,0 +1,49 @@
+{# Film selector — sidebar widget (T10).
+   Emits an HTMX-driven <select> that reloads the full page at the
+   current path with the chosen ?film=<slug> query parameter.
+
+   Context requirements (injected by every route via make_ctx + T9):
+     films        — list[Film] from scan_library; may be empty.
+     current_slug — str | None; None == aggregate / "Acervo inteiro".
+     request      — FastAPI Request object (provides request.url.path).
+
+   HTMX semantics:
+     hx-get        — re-requests the CURRENT page path on change.
+     name="film"   — HTMX appends ?film=<value> automatically when
+                     the select triggers (the element's own value is
+                     included in the request; no hx-include needed).
+     hx-target     — swaps the full <body> so the new ?film= context
+                     is reflected everywhere (sidebar state, tab content,
+                     active-tab highlight, etc.).
+     hx-swap       — "outerHTML show:window:top" replaces <body> and
+                     scrolls to the top, matching a full-page navigation.
+     hx-push-url   — updates the browser URL bar with the new ?film=.
+
+   i18n: "Filme" and "Acervo inteiro" are new keys. Extraction deferred
+   to T13; Babel msgid fall-through works in the meantime (the msgid IS
+   the English string).
+   # TODO(T13): run pybabel extract to pick up "Filme" and "Acervo inteiro"
+#}
+{% if films %}
+<div class="film-selector">
+  <label class="film-selector__label" for="film-select">{{ _("Filme") }}</label>
+  <select id="film-select"
+          name="film"
+          class="film-selector__select"
+          hx-get="{{ request.url.path }}"
+          hx-target="body"
+          hx-swap="outerHTML show:window:top"
+          hx-push-url="true"
+          hx-trigger="change">
+    <option value="" {% if not current_slug %}selected{% endif %}>
+      {{ _("Acervo inteiro") }}
+    </option>
+    {% for f in films %}
+      <option value="{{ f.slug }}"
+              {% if f.slug == current_slug %}selected{% endif %}>
+        {{ f.title }}{% if f.year %} ({{ f.year }}){% endif %}
+      </option>
+    {% endfor %}
+  </select>
+</div>
+{% endif %}
