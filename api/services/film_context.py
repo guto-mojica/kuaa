@@ -104,6 +104,11 @@ class FilmContext:
             all live under ``<library_dir>/<slug>/...`` and are returned
             un-resolved, matching the flat-context contract byte-for-byte.
         """
+        # Reject traversal slugs (e.g. "../secret") before any disk math runs.
+        # `Path(slug).name` strips directory components, so a clean slug equals
+        # its own .name; "../secret" becomes "secret" and the comparison fails.
+        if not slug or slug != Path(slug).name:
+            raise ValueError(f"Invalid slug: {slug!r}")
         library_dir = Path(cfg.paths.library_dir)
         film_dir = library_dir / slug
         if not film_dir.is_dir():
