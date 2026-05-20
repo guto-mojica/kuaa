@@ -12,6 +12,39 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ---
 
+## [0.4.0-beta] — 2026-05-20
+
+Acervo multi-filme completo (T1–T11), CLI unificada, busca aprimorada,
+domain packs, framework de avaliação e demo scaffold.
+
+### Adicionado
+
+- **Acervo multi-filme (T1–T11)** — registry em `data/library/films.json`,
+  layout por filme em `data/library/<slug>/`, busca e navegação cross-film,
+  seletor de filme no sidebar (HTMX), script de migração idempotente
+  (`scripts/migrate_flat_to_library.py`), pipeline com `--slug`.
+- **CLI unificada** — todos os pontos de entrada sob um único app Typer
+  (`cinemateca serve / process / info / library / reembed-all / config`).
+- **Domain packs** — `archive` e `media_broadcast` com prompts específicos
+  por domínio para os describers transformers e GGUF.
+- **Framework de avaliação** — métricas de retrieval (`Recall@k`, `MRR`,
+  `nDCG@10`), datasets de eval, relatório JSON/Markdown via `scripts/run_eval.py`.
+- **Demo scaffold** — `config/demo.yaml`, `scripts/prepare_demo.py`,
+  `data/demo/manifest.json`, docs de proveniência e verificação.
+- **Busca aprimorada** — densidade 3× no índice (1:N keyframe/cena),
+  deduplicação de cenas, filtro de tags agregado, observabilidade de busca.
+- **Docs públicos** — ARCHITECTURE, ROADMAP, PROJECT_BRIEF, MODEL_INVENTORY,
+  PRIVACY_OFFLINE, EVALUATION, DOMAIN_PACKS, TASK_BREAKDOWN.
+- Estatísticas de correção de anotações.
+
+### Corrigido
+
+- Propagação de `?film=<slug>` do sidebar para formulário de busca e nav de abas.
+- `aggregate_search` pula filmes com diretório deletado.
+- Slug sanitizado na entrada do pipeline; guard para slug vazio.
+
+---
+
 ## [0.3.0] — 2026-05-20
 
 Conclusão da migração Streamlit → FastAPI, com paridade funcional confirmada,
