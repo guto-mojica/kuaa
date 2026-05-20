@@ -313,13 +313,40 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
     cooperative: ``run_steps`` polls ``cancel_check`` between steps and
     raises ``StepCancelled`` when the job's cancel flag is set.
     """
-    from cinemateca.pipeline import CatalogPipeline, StepCancelled
+    from cinemateca.pipeline import CatalogPipeline, StepCancelled, StepResults, StepRun
+    from cinemateca.run_manifest import write_run_manifest
 
     t_start = time.time()
     job.status = STATUS_RUNNING
     pipeline = CatalogPipeline(cfg)
 
     by_name: dict[str, StepInfo] = {s.name: s for s in job.steps}
+
+    def _snapshot_job_steps() -> StepResults:
+        runs = [
+            StepRun(
+                name=s.name,
+                state=s.state,
+                duration_s=s.duration_s,
+                error=s.detail or None,
+            )
+            for s in job.steps
+            if s.name in enabled_steps
+        ]
+        return StepResults(video_path=job.video_path, runs=runs)
+
+    def _write_manifest(result=None, *, status: str | None = None, error: str | None = None) -> None:
+        try:
+            write_run_manifest(
+                cfg,
+                job.video_path,
+                result,
+                status=status,
+                started_at_epoch=t_start,
+                error=error,
+            )
+        except Exception as exc:  # noqa: BLE001 - manifest must not mask job result
+            logger.warning("Could not write run manifest for job %s: %s", job.id, exc)
 
     # Steps not selected are immediately marked skipped (parity with the
     # old runner, which skipped unselected steps before the loop body).
@@ -370,6 +397,11 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
         job.total_duration_s = time.time() - t_start
         if not job.error_msg:
             job.error_msg = "Cancelled by user."
+        _write_manifest(
+            _snapshot_job_steps(),
+            status=STATUS_CANCELLED,
+            error=job.error_msg,
+        )
         job.events.put("cancelled")
         logger.info("Job %s cancelled after %.1fs", job.id, job.total_duration_s)
         _prune_registry()
@@ -380,6 +412,7 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
         job.status = STATUS_ERROR
         _recompute_progress()
         job.total_duration_s = time.time() - t_start
+        _write_manifest(status=STATUS_ERROR, error=job.error_msg)
         job.events.put("error")
         logger.exception("Job %s crashed in run_steps", job.id)
         _prune_registry()
@@ -391,6 +424,11 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
     job.status = STATUS_ERROR if had_error else STATUS_DONE
     job.progress = 1.0
     job.total_duration_s = time.time() - t_start
+    _write_manifest(
+        results,
+        status=job.status,
+        error=job.error_msg or None,
+    )
     job.events.put("error" if had_error else "done")
     logger.info(
         "Job %s finished — %.1fs, status=%s",
