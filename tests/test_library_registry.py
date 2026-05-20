@@ -1,10 +1,7 @@
 """Library registry CRUD + film scanning tests."""
 from __future__ import annotations
 
-import json
 from pathlib import Path
-
-import pytest
 
 from cinemateca.library import load_registry, save_registry
 
