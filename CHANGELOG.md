@@ -29,6 +29,11 @@ Funcionalidades planejadas para as próximas versões:
   `run_manifest.json` provenance for CLI and Processing-tab runs, API docs, and
   operations notes for failure behavior, release gates, exports, and current
   single-film constraints.
+- M5 launch-package scaffold:
+  public case study, launch plan, two-minute and technical demo video scripts,
+  GitHub release notes draft, resume/hiring copy, and
+  `scripts/check_launch_package.py` with tests for required launch docs,
+  sections, links, and unresolved placeholder tokens.
 - Descritor de cenas padrão agora é Moondream 2 via transformers (GPU por
   wheel PyTorch pré-compilado em Linux/Windows/macOS, sem build de fonte);
   backend GGUF mantido como opção (`scene_describer: moondream_gguf`).

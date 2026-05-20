@@ -39,9 +39,9 @@ a video and produces:
 - **Researchers** who need to find visual moments inside long-form footage.
 - **Applied AI reviewers** who want to inspect a realistic local multimodal system rather than a hosted API demo.
 
-Future domain packs are planned for adjacent private visual-search workflows,
-such as media asset review and inspection footage. The current implemented
-product remains archive-first.
+Domain packs support adjacent private visual-search workflows, with
+`media_broadcast` as the first implemented example. The current product remains
+archive-first.
 
 ### Current status
 
@@ -58,14 +58,17 @@ Implemented now:
 - Domain-aware JSON/CSV catalog exports.
 - Run manifests with input, config, model, domain, step, and artifact
   provenance.
+- Launch package docs: case study, communication plan, video scripts, release
+  notes draft, resume bullets, and a launch verifier.
 - Regression tests for the web/service/pipeline surfaces.
 
 Planned next:
 
 - Publish the final precomputed demo artifact bundle.
 - Run and publish metrics against the final demo bundle.
-- Capture populated screenshots and release walkthrough video.
-- Package a launch case study and public release notes.
+- Capture populated screenshots and release walkthrough videos.
+- Fill release notes with final artifact URL, checksums, metrics, and manifest
+  excerpt.
 - Multi-film storage and Docker packaging after the single-film release path is
   stable.
 
@@ -88,6 +91,11 @@ portfolio roadmap:
 | [Domain packs](docs/DOMAIN_PACKS.md) | Domain schema, archive and media-broadcast packs, prompt/export mapping |
 | [API reference](docs/API.md) | Local FastAPI/HTMX routes plus JSON/CSV export endpoints |
 | [Operations](docs/OPERATIONS.md) | Run manifests, exports, failure behavior, release gates, and constraints |
+| [Case study](docs/CASE_STUDY.md) | Recruiter-readable project narrative and evidence map |
+| [Launch plan](docs/LAUNCH_PLAN.md) | Public post sequence, asset map, and launch checklist |
+| [Demo video scripts](docs/DEMO_VIDEO_SCRIPT.md) | Two-minute demo and technical walkthrough scripts |
+| [Release notes draft](docs/RELEASE_NOTES_DRAFT.md) | GitHub release copy, demo artifact slots, and verification notes |
+| [Resume bullets](docs/RESUME_BULLETS.md) | Role-specific hiring copy and interview talking points |
 | [Portfolio implementation plan](docs/PORTFOLIO_IMPLEMENTATION_PLAN.md) | Phased plan for demo, evaluation, domain packs, and launch |
 | [Task breakdown](docs/TASK_BREAKDOWN.md) | Issue-sized tasks derived from the implementation plan |
 | [Roadmap](docs/ROADMAP.md) | Short public roadmap snapshot |
@@ -141,6 +149,12 @@ curl -L http://localhost:8501/api/export/catalog.csv -o catalog_export.csv
 
 Every pipeline run writes `run_manifest.json` beside the metadata outputs.
 See [docs/API.md](docs/API.md) and [docs/OPERATIONS.md](docs/OPERATIONS.md).
+
+Before a public launch, validate the launch docs:
+
+```bash
+uv run python scripts/check_launch_package.py
+```
 
 The web interface (FastAPI + HTMX) has these tabs:
 
