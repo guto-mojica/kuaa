@@ -32,6 +32,11 @@ import soundfile as sf
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_MODEL_ID = "laion/larger_clap_general"
+_DEFAULT_BATCH_SIZE = 8
+_DEFAULT_CHUNK_SECONDS = 10.0
+_DEFAULT_SAMPLE_RATE = 48000
+
 
 class ClapHFEmbedder:
     """HF-transformers CLAP audio embedder."""
@@ -39,21 +44,15 @@ class ClapHFEmbedder:
     def __init__(self, cfg=None, device=None) -> None:
         self._cfg = cfg
         self._device = device
-        # Lazy-loaded HF objects. Typed as Any because transformers stubs are
-        # incomplete and the methods we call (get_audio_features, etc.) aren't
-        # in the published typeshed.
+        # transformers stubs are incomplete (no get_audio_features/etc.).
         self._model: Any = None
         self._processor: Any = None
 
         ae = getattr(cfg, "audio_embeddings", None) if cfg else None
-        self._model_id = (
-            getattr(ae, "model_id", "laion/larger_clap_general")
-            if ae
-            else "laion/larger_clap_general"
-        )
-        self._batch_size = int(getattr(ae, "batch_size", 8)) if ae else 8
-        self._chunk_seconds = float(getattr(ae, "chunk_seconds", 10.0)) if ae else 10.0
-        self._sample_rate = int(getattr(ae, "sample_rate", 48000)) if ae else 48000
+        self._model_id = str(getattr(ae, "model_id", _DEFAULT_MODEL_ID))
+        self._batch_size = int(getattr(ae, "batch_size", _DEFAULT_BATCH_SIZE))
+        self._chunk_seconds = float(getattr(ae, "chunk_seconds", _DEFAULT_CHUNK_SECONDS))
+        self._sample_rate = int(getattr(ae, "sample_rate", _DEFAULT_SAMPLE_RATE))
 
     # ── Lazy load ─────────────────────────────────────────────────────────
 
@@ -61,15 +60,16 @@ class ClapHFEmbedder:
         if self._model is not None:
             return
         try:
-            import torch
             from transformers import ClapModel, ClapProcessor
         except ImportError as exc:
             raise RuntimeError(
-                "CLAP backend requires the 'full' extras. " "Install with: uv sync --extra full"
+                "CLAP backend requires the 'full' extras. Install with: uv sync --extra full"
             ) from exc
 
         if self._device is None:
-            self._device = "cuda" if torch.cuda.is_available() else "cpu"
+            from cinemateca.device import get_device
+
+            self._device = str(get_device("auto"))
 
         logger.info("Carregando CLAP: %s (device=%s)", self._model_id, self._device)
         self._processor = ClapProcessor.from_pretrained(self._model_id)
@@ -80,18 +80,17 @@ class ClapHFEmbedder:
     def _chunk_audio(self, wav: np.ndarray, sr: int) -> list[np.ndarray]:
         """Split a 1-D waveform into non-overlapping ``chunk_seconds`` slices.
 
-        The trailing partial chunk is kept if it is at least 1 sample long
-        (CLAP's processor pads to the model's required length).
+        The trailing partial chunk is kept (CLAP's processor pads to the
+        model's required length).
         """
         chunk_samples = int(self._chunk_seconds * sr)
         if wav.shape[0] <= chunk_samples:
             return [wav]
-        chunks = []
-        for start in range(0, wav.shape[0], chunk_samples):
-            chunk = wav[start : start + chunk_samples]
-            if chunk.shape[0] > 0:
-                chunks.append(chunk)
-        return chunks
+        return [
+            wav[s : s + chunk_samples]
+            for s in range(0, wav.shape[0], chunk_samples)
+            if wav[s : s + chunk_samples].shape[0] > 0
+        ]
 
     def _embed_chunks(self, chunks: list[np.ndarray]) -> np.ndarray:
         """Encode chunks with the underlying CLAP model. Returns (n_chunks, D)."""
@@ -108,43 +107,59 @@ class ClapHFEmbedder:
             feats = self._model.get_audio_features(**inputs)
         return feats.detach().cpu().numpy().astype("float32")
 
-    @staticmethod
-    def _l2_normalise(v: np.ndarray) -> np.ndarray:
-        """Row-wise L2-normalise. Zero rows are left as zero (no NaN)."""
-        if v.ndim == 1:
-            n = float(np.linalg.norm(v))
-            return v if n == 0.0 else (v / n).astype("float32")
-        norms = np.linalg.norm(v, axis=1, keepdims=True)
-        norms = np.where(norms == 0, 1.0, norms)
-        return (v / norms).astype("float32")
+    def _load_wav(self, wav_path: str | Path) -> np.ndarray:
+        wav, sr = sf.read(str(wav_path), dtype="float32")
+        if wav.ndim > 1:
+            wav = wav.mean(axis=1)
+        if sr != self._sample_rate:
+            raise ValueError(
+                f"WAV sample rate {sr} != configured {self._sample_rate}. "
+                f"Re-extract via SceneAudioExtractor before encoding."
+            )
+        return wav
 
     # ── Public API (AudioEmbedder Protocol) ──────────────────────────────
 
     def encode_audio_single(self, wav_path: str | Path) -> np.ndarray:
         self._load_model()
-        wav, sr = sf.read(str(wav_path), dtype="float32")
-        if wav.ndim > 1:
-            wav = wav.mean(axis=1)  # downmix to mono
-        if sr != self._sample_rate:
-            raise ValueError(
-                f"WAV sample rate {sr} != configured {self._sample_rate}. "
-                f"Re-extract via SceneAudioExtractor (which writes at the "
-                f"configured rate) before encoding."
-            )
-        chunks = self._chunk_audio(wav, sr)
-        chunk_vecs = self._embed_chunks(chunks)  # (n_chunks, D)
-        pooled = chunk_vecs.mean(axis=0)  # (D,)
-        return self._l2_normalise(pooled)
+        chunks = self._chunk_audio(self._load_wav(wav_path), self._sample_rate)
+        pooled = self._embed_chunks(chunks).mean(axis=0)
+        norm = float(np.linalg.norm(pooled)) or 1.0
+        return (pooled / norm).astype("float32")
 
     def encode_audio(self, wav_paths: list[Path]) -> np.ndarray:
+        """Encode multiple WAVs. Chunks are batched across scenes to amortise
+        GPU launch overhead — 412 scenes × 1 chunk each goes from 412 forward
+        passes to ~52 (at batch_size=8).
+        """
         if not wav_paths:
-            # 512 matches every CLAP variant in current LAION lineup; if a
-            # future config swaps to a non-512 model, hoist this to read
-            # ``self._model.config.projection_dim`` (requires _load_model()).
+            # 512 matches every CLAP variant in the current LAION lineup; if
+            # a future model uses a different dim, this path needs to load
+            # the model first to read ``model.config.projection_dim``.
             return np.zeros((0, 512), dtype="float32")
+
         self._load_model()
-        vecs = [self.encode_audio_single(p) for p in wav_paths]
-        return np.stack(vecs, axis=0).astype("float32")
+
+        all_chunks: list[np.ndarray] = []
+        chunks_per_scene: list[int] = []
+        for p in wav_paths:
+            scene_chunks = self._chunk_audio(self._load_wav(p), self._sample_rate)
+            all_chunks.extend(scene_chunks)
+            chunks_per_scene.append(len(scene_chunks))
+
+        chunk_vecs_parts: list[np.ndarray] = []
+        for i in range(0, len(all_chunks), self._batch_size):
+            chunk_vecs_parts.append(self._embed_chunks(all_chunks[i : i + self._batch_size]))
+        chunk_vecs = np.vstack(chunk_vecs_parts) if chunk_vecs_parts else np.empty((0, 512))
+
+        out = np.empty((len(wav_paths), chunk_vecs.shape[1]), dtype="float32")
+        offset = 0
+        for row_idx, n in enumerate(chunks_per_scene):
+            pooled = chunk_vecs[offset : offset + n].mean(axis=0)
+            norm = float(np.linalg.norm(pooled)) or 1.0
+            out[row_idx] = pooled / norm
+            offset += n
+        return out
 
     def encode_text(self, text: str) -> np.ndarray:
         import torch
@@ -155,7 +170,8 @@ class ClapHFEmbedder:
             inputs = {k: v.to(self._device) for k, v in inputs.items()}
             feats = self._model.get_text_features(**inputs)
         v = feats.detach().cpu().numpy().astype("float32").squeeze(0)
-        return self._l2_normalise(v)
+        norm = float(np.linalg.norm(v)) or 1.0
+        return (v / norm).astype("float32")
 
     # ── Save helper (parallel to OpenClipEmbedder.save) ──────────────────
 
@@ -169,9 +185,8 @@ class ClapHFEmbedder:
     ) -> tuple[Path, Path]:
         """Persist embeddings + parallel-array mapping JSON.
 
-        ``rows`` carries one dict per row index, with keys
-        ``scene_id`` / ``wav_path`` / ``start_time_s`` / ``end_time_s`` /
-        ``chunks_per_scene``.
+        ``rows`` carries one dict per row index with keys
+        ``scene_id`` / ``wav_path`` / ``start_time_s`` / ``end_time_s``.
         """
         import json
 
@@ -191,7 +206,6 @@ class ClapHFEmbedder:
             "wav_paths": [r["wav_path"] for r in rows],
             "start_times_s": [r["start_time_s"] for r in rows],
             "end_times_s": [r["end_time_s"] for r in rows],
-            "chunks_per_scene": [r["chunks_per_scene"] for r in rows],
         }
         map_path = out / mapping_filename
         with open(map_path, "w", encoding="utf-8") as f:

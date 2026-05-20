@@ -51,6 +51,7 @@ def slugify(text: str) -> str:
     text = re.sub(r"[^a-z0-9_-]", "", text)
     return text
 
+
 # Canonical pipeline step order. The single source of truth for which
 # steps exist and in what order they run.
 STEP_ORDER: tuple[str, ...] = (
@@ -140,6 +141,7 @@ class StepResults:
 @dataclass
 class StepResult:
     """Resultado de uma etapa do pipeline."""
+
     name: str
     success: bool
     skipped: bool = False
@@ -151,6 +153,7 @@ class StepResult:
 @dataclass
 class PipelineResult:
     """Resultado completo de uma execução do pipeline."""
+
     video_path: str
     steps: list[StepResult] = field(default_factory=list)
     total_duration_s: float = 0.0
@@ -252,6 +255,7 @@ class CatalogPipeline:
     def device(self):
         if self._device is None:
             from cinemateca.device import device_from_config
+
             self._device = device_from_config(self.cfg)
         return self._device
 
@@ -303,14 +307,10 @@ class CatalogPipeline:
         t0 = time.time()
         try:
             inspector = VideoInspector(video_path)
-            inspector.save_metadata(
-                self._metadata_dir() / "video_properties.json"
-            )
+            inspector.save_metadata(self._metadata_dir() / "video_properties.json")
             extractor = FrameExtractor(self.cfg)
             frames = extractor.extract(video_path, output_dir)
-            return StepResult(
-                name=name, success=True, duration_s=time.time() - t0, output=frames
-            )
+            return StepResult(name=name, success=True, duration_s=time.time() - t0, output=frames)
         except Exception as e:
             return StepResult(name=name, success=False, duration_s=time.time() - t0, error=str(e))
 
@@ -324,8 +324,10 @@ class CatalogPipeline:
         if self.cfg.pipeline.skip_existing and metadata_path.exists():
             logger.info("↷ Pulando scene_detection (metadados existentes)")
             return StepResult(
-                name=name, success=True, skipped=True,
-                output={"metadata_path": metadata_path, "keyframes_dir": keyframes_dir}
+                name=name,
+                success=True,
+                skipped=True,
+                output={"metadata_path": metadata_path, "keyframes_dir": keyframes_dir},
             )
 
         t0 = time.time()
@@ -342,8 +344,10 @@ class CatalogPipeline:
                 len(keyframes),
             )
             return StepResult(
-                name=name, success=True, duration_s=time.time() - t0,
-                output={"metadata_path": metadata_path, "keyframes": keyframes, "stats": stats}
+                name=name,
+                success=True,
+                duration_s=time.time() - t0,
+                output={"metadata_path": metadata_path, "keyframes": keyframes, "stats": stats},
             )
         except Exception as e:
             return StepResult(name=name, success=False, duration_s=time.time() - t0, error=str(e))
@@ -395,8 +399,10 @@ class CatalogPipeline:
         if self.cfg.pipeline.skip_existing and emb_path.exists():
             logger.info("↷ Pulando embeddings (arquivo existente)")
             return StepResult(
-                name=name, success=True, skipped=True,
-                output={"embeddings_path": emb_path, "mapping_path": map_path}
+                name=name,
+                success=True,
+                skipped=True,
+                output={"embeddings_path": emb_path, "mapping_path": map_path},
             )
 
         t0 = time.time()
@@ -413,14 +419,17 @@ class CatalogPipeline:
             image_paths = [Path(p) for p in valid_kf["filepath"]]
             embeddings = embedder.encode_images(image_paths)
             emb_path, map_path = embedder.save(
-                embeddings, valid_kf,
+                embeddings,
+                valid_kf,
                 self._embeddings_dir(),
                 emb_cfg.filename,
                 emb_cfg.mapping_filename,
             )
             return StepResult(
-                name=name, success=True, duration_s=time.time() - t0,
-                output={"embeddings_path": emb_path, "mapping_path": map_path}
+                name=name,
+                success=True,
+                duration_s=time.time() - t0,
+                output={"embeddings_path": emb_path, "mapping_path": map_path},
             )
         except Exception as e:
             return StepResult(name=name, success=False, duration_s=time.time() - t0, error=str(e))
@@ -450,10 +459,15 @@ class CatalogPipeline:
                 described_ids = {r["scene_id"] for r in existing_check if "error" not in r}
                 pending = len(valid_kf[~valid_kf["scene_id"].isin(described_ids)])
                 if pending == 0:
-                    logger.info("↷ Pulando llm_description (todas as %d cenas já descritas)", len(described_ids))
+                    logger.info(
+                        "↷ Pulando llm_description (todas as %d cenas já descritas)",
+                        len(described_ids),
+                    )
                     return StepResult(
-                        name=name, success=True, skipped=True,
-                        output={"descriptions_path": desc_path, "tags_path": tags_path}
+                        name=name,
+                        success=True,
+                        skipped=True,
+                        output={"descriptions_path": desc_path, "tags_path": tags_path},
                     )
                 logger.info("↷ llm_description: %d cenas pendentes, retomando...", pending)
 
@@ -474,46 +488,37 @@ class CatalogPipeline:
             describer.save(results, tag_index, self._metadata_dir())
 
             return StepResult(
-                name=name, success=True, duration_s=time.time() - t0,
-                output={"descriptions_path": desc_path, "tags_path": tags_path}
+                name=name,
+                success=True,
+                duration_s=time.time() - t0,
+                output={"descriptions_path": desc_path, "tags_path": tags_path},
             )
         except Exception as e:
             return StepResult(name=name, success=False, duration_s=time.time() - t0, error=str(e))
 
     def _step_audio_extract(self, metadata_path: Path, video_path: Path) -> StepResult:
-        from cinemateca.audio_extractor import SceneAudioExtractor
+        from cinemateca.audio_extractor import SceneAudioExtractor, unique_scenes
 
         name = "audio_extract"
         segments_dir = self._audio_dir() / "segments"
 
-        # Skip if every expected WAV already exists.
         with open(metadata_path, encoding="utf-8") as f:
             scenes_all = json.load(f)
-        unique_ids = sorted({int(r["scene_id"]) for r in scenes_all})
-        expected = [segments_dir / f"scene_{sid:04d}.wav" for sid in unique_ids]
-        if (
-            self.cfg.pipeline.skip_existing
-            and expected
-            and all(p.exists() for p in expected)
-        ):
+        scene_rows = unique_scenes(scenes_all)
+        expected = [segments_dir / f"scene_{r['scene_id']:04d}.wav" for r in scene_rows]
+        if self.cfg.pipeline.skip_existing and expected and all(p.exists() for p in expected):
             logger.info("↷ Pulando audio_extract (%d WAVs existentes)", len(expected))
-            return StepResult(
-                name=name, success=True, skipped=True, output=expected
-            )
+            return StepResult(name=name, success=True, skipped=True, output=expected)
 
         t0 = time.time()
         try:
-            extractor = SceneAudioExtractor(self.cfg)
-            wavs = extractor.extract(video_path, scenes_all, segments_dir)
-            return StepResult(
-                name=name, success=True, duration_s=time.time() - t0, output=wavs
-            )
+            wavs = SceneAudioExtractor(self.cfg).extract(video_path, scenes_all, segments_dir)
+            return StepResult(name=name, success=True, duration_s=time.time() - t0, output=wavs)
         except Exception as e:
-            return StepResult(
-                name=name, success=False, duration_s=time.time() - t0, error=str(e)
-            )
+            return StepResult(name=name, success=False, duration_s=time.time() - t0, error=str(e))
 
     def _step_audio_embed(self, metadata_path: Path) -> StepResult:
+        from cinemateca.audio_extractor import unique_scenes
         from cinemateca.models.registry import get_audio_embedder
 
         name = "audio_embed"
@@ -521,13 +526,14 @@ class CatalogPipeline:
         emb_path = out_dir / "clap_embeddings.npy"
         map_path = out_dir / "audio_mapping.json"
 
-        # Stricter than _step_embeddings' single-file check: a half-written
-        # .npy without its mapping is unusable for retrieval, so require
-        # both artefacts before declaring skip.
+        # Require BOTH artefacts before declaring skip — a half-written .npy
+        # without its mapping is unusable for retrieval.
         if self.cfg.pipeline.skip_existing and emb_path.exists() and map_path.exists():
             logger.info("↷ Pulando audio_embed (arquivo existente)")
             return StepResult(
-                name=name, success=True, skipped=True,
+                name=name,
+                success=True,
+                skipped=True,
                 output={"embeddings_path": emb_path, "mapping_path": map_path},
             )
 
@@ -536,61 +542,40 @@ class CatalogPipeline:
             with open(metadata_path, encoding="utf-8") as f:
                 scenes_all = json.load(f)
 
-            # Dedup by scene_id, preserve start/end times from first row.
-            unique: dict[int, dict] = {}
-            for row in scenes_all:
-                sid = int(row["scene_id"])
-                if sid not in unique:
-                    unique[sid] = {
-                        "scene_id": sid,
-                        "start_time_s": float(row["start_time_s"]),
-                        "end_time_s": float(row["end_time_s"]),
-                    }
-            scene_rows = [unique[sid] for sid in sorted(unique)]
+            scene_rows = unique_scenes(scenes_all)
             segments_dir = out_dir / "segments"
-            wav_paths = [segments_dir / f"scene_{r['scene_id']:04d}.wav"
-                         for r in scene_rows]
+            wav_paths = [segments_dir / f"scene_{r['scene_id']:04d}.wav" for r in scene_rows]
 
             missing = [p for p in wav_paths if not p.exists()]
             if missing:
                 raise FileNotFoundError(
-                    f"audio_embed: {len(missing)} expected WAV(s) missing "
-                    f"(first: {missing[0]})"
+                    f"audio_embed: {len(missing)} expected WAV(s) missing " f"(first: {missing[0]})"
                 )
 
             embedder = get_audio_embedder(self.cfg, self.device)
             embeddings = embedder.encode_audio(wav_paths)
 
-            # Chunks-per-scene reflects how many CLAP windows each scene
-            # spanned. We compute it from start/end + configured chunk
-            # length rather than asking the backend so the mapping stays
-            # backend-agnostic.
-            chunk_sec = float(getattr(self.cfg.audio_embeddings, "chunk_seconds", 10.0))
-            # Path stored in the mapping is relative to the film directory
-            # (one level above ``audio/``), so the mapping is portable across
-            # filesystems — same convention you'd want to extend to CLIP in
-            # the future. ``self._audio_dir().parent`` == film dir.
+            # wav_path stored relative to the film dir for portability.
             film_dir = self._audio_dir().parent
-            rows = []
-            for r, wp in zip(scene_rows, wav_paths):
-                dur = max(0.0, r["end_time_s"] - r["start_time_s"])
-                rows.append({
+            rows = [
+                {
                     "scene_id": r["scene_id"],
                     "wav_path": str(wp.relative_to(film_dir)),
                     "start_time_s": r["start_time_s"],
                     "end_time_s": r["end_time_s"],
-                    "chunks_per_scene": max(1, int((dur + chunk_sec - 1e-9) // chunk_sec)),
-                })
+                }
+                for r, wp in zip(scene_rows, wav_paths)
+            ]
 
             emb_path, map_path = embedder.save(embeddings, rows, out_dir)
             return StepResult(
-                name=name, success=True, duration_s=time.time() - t0,
+                name=name,
+                success=True,
+                duration_s=time.time() - t0,
                 output={"embeddings_path": emb_path, "mapping_path": map_path},
             )
         except Exception as e:
-            return StepResult(
-                name=name, success=False, duration_s=time.time() - t0, error=str(e)
-            )
+            return StepResult(name=name, success=False, duration_s=time.time() - t0, error=str(e))
 
     # ─── Orquestrador principal ───────────────────────────────────────────────
 
@@ -632,9 +617,11 @@ class CatalogPipeline:
             step = self._step_scene_detection(video_path)
             result.steps.append(step)
             if step.success and not step.skipped:
-                keyframes_dir = Path(
-                    step.output.get("keyframes_dir", keyframes_dir)
-                ) if isinstance(step.output, dict) else keyframes_dir
+                keyframes_dir = (
+                    Path(step.output.get("keyframes_dir", keyframes_dir))
+                    if isinstance(step.output, dict)
+                    else keyframes_dir
+                )
             if not step.success and self.cfg.pipeline.stop_on_error:
                 logger.error("Pipeline interrompido na etapa: %s", step.name)
                 result.total_duration_s = time.time() - pipeline_start
@@ -842,28 +829,19 @@ class CatalogPipeline:
             for dep in STEP_DEPS[name]:
                 if dep in outcome and outcome[dep] not in ("done", "skipped"):
                     blocked_reason = (
-                        f"prerequisite '{dep}' did not succeed "
-                        f"(state: {outcome[dep]})"
+                        f"prerequisite '{dep}' did not succeed " f"(state: {outcome[dep]})"
                     )
                     break
-            if blocked_reason is None and not self._inputs_available(
-                name, keyframes_dir
-            ):
-                blocked_reason = (
-                    f"required input artefacts for '{name}' are missing"
-                )
+            if blocked_reason is None and not self._inputs_available(name, keyframes_dir):
+                blocked_reason = f"required input artefacts for '{name}' are missing"
 
             if blocked_reason is not None:
-                run = StepRun(
-                    name=name, state="blocked", error=blocked_reason
-                )
+                run = StepRun(name=name, state="blocked", error=blocked_reason)
                 outcome[name] = "blocked"
                 results.runs.append(run)
                 _emit(name, "start", None)
                 _emit(name, "finish", run)
-                logger.warning(
-                    "Step %s blocked: %s", name, blocked_reason
-                )
+                logger.warning("Step %s blocked: %s", name, blocked_reason)
                 continue
 
             _emit(name, "start", None)

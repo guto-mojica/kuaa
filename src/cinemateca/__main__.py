@@ -20,6 +20,7 @@ Tree:
 Each subcommand has its own ``--help``. ``cinemateca`` alone prints
 the command tree.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -38,16 +39,14 @@ app = typer.Typer(
 
 library_app = typer.Typer(
     name="library",
-    help="Operations across the registered film library "
-         "(data/library/films.json).",
+    help="Operations across the registered film library " "(data/library/films.json).",
     no_args_is_help=True,
     rich_markup_mode="rich",
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 config_app = typer.Typer(
     name="config",
-    help="Inspect the merged effective configuration "
-         "(default.yaml ⊕ local.yaml).",
+    help="Inspect the merged effective configuration " "(default.yaml ⊕ local.yaml).",
     no_args_is_help=True,
     rich_markup_mode="rich",
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -64,11 +63,16 @@ _STEP_ALIASES: dict[str, str] = {
     "visual": "visual_analysis",
     "embeddings": "embeddings",
     "llm": "llm_description",
-    # Audio steps — full names only (no short alias for now; M2 may add
-    # ``audio`` and ``clap`` as ergonomic shortcuts once retrieval lands).
-    "audio_extract": "audio_extract",
-    "audio_embed": "audio_embed",
 }
+_STEP_FULL_NAMES: tuple[str, ...] = (
+    "frame_extraction",
+    "scene_detection",
+    "visual_analysis",
+    "embeddings",
+    "llm_description",
+    "audio_extract",
+    "audio_embed",
+)
 
 
 def _resolve_steps(steps_arg: str) -> set[str]:
@@ -77,7 +81,7 @@ def _resolve_steps(steps_arg: str) -> set[str]:
     Raises ``typer.BadParameter`` with a clear message on unknown tokens so
     the CLI surfaces the error inline instead of crashing with a stack trace.
     """
-    full = set(_STEP_ALIASES.values())
+    full = set(_STEP_FULL_NAMES)
     out: set[str] = set()
     for raw in steps_arg.split(","):
         tok = raw.strip()
@@ -88,9 +92,9 @@ def _resolve_steps(steps_arg: str) -> set[str]:
         elif tok in full:
             out.add(tok)
         else:
+            known = ",".join(list(_STEP_ALIASES) + list(_STEP_FULL_NAMES))
             raise typer.BadParameter(
-                f"valor desconhecido {tok!r}. "
-                f"Use: {','.join(_STEP_ALIASES)}",
+                f"valor desconhecido {tok!r}. Use: {known}",
                 param_hint="--steps",
             )
     return out
@@ -109,12 +113,14 @@ def _print_banner() -> None:
 
 # ─── cinemateca serve ────────────────────────────────────────────────────────
 
+
 @app.command()
 def serve(
     host: Annotated[str, typer.Option(help="Bind address.")] = "127.0.0.1",
     port: Annotated[int, typer.Option(help="Bind port.")] = 8501,
     reload: Annotated[
-        bool, typer.Option(
+        bool,
+        typer.Option(
             "--reload/--no-reload",
             help="Auto-reload on code changes (dev mode).",
         ),
@@ -132,12 +138,15 @@ def serve(
 
 # ─── cinemateca info ─────────────────────────────────────────────────────────
 
+
 @app.command()
 def info(
     video: Annotated[
         Path,
         typer.Argument(
-            exists=True, dir_okay=False, readable=True,
+            exists=True,
+            dir_okay=False,
+            readable=True,
             help="Caminho do arquivo de vídeo.",
         ),
     ],
@@ -166,12 +175,15 @@ def info(
 
 # ─── cinemateca process ──────────────────────────────────────────────────────
 
+
 @app.command()
 def process(
     video: Annotated[
         Path,
         typer.Argument(
-            exists=True, dir_okay=False, readable=True,
+            exists=True,
+            dir_okay=False,
+            readable=True,
             help="Caminho do arquivo de vídeo.",
         ),
     ],
@@ -179,17 +191,17 @@ def process(
         str | None,
         typer.Option(
             help="Identificador do filme na biblioteca (ex: jeca_tatu). "
-                 "Padrão: stem do nome do vídeo, slugificado. "
-                 "Saída em data/library/<slug>/.",
+            "Padrão: stem do nome do vídeo, slugificado. "
+            "Saída em data/library/<slug>/.",
         ),
     ] = None,
     steps: Annotated[
         str | None,
         typer.Option(
             help="Etapas a executar, separadas por vírgula. "
-                 "Valores: frames, scenes, visual, embeddings, llm, "
-                 "audio_extract, audio_embed. "
-                 "Padrão: todas as etapas habilitadas na config.",
+            "Valores: frames, scenes, visual, embeddings, llm, "
+            "audio_extract, audio_embed. "
+            "Padrão: todas as etapas habilitadas na config.",
         ),
     ] = None,
     config: Annotated[
@@ -213,7 +225,7 @@ def process(
 
     if steps:
         enabled = _resolve_steps(steps)
-        for step in _STEP_ALIASES.values():
+        for step in _STEP_FULL_NAMES:
             setattr(cfg.pipeline.steps, step, step in enabled)
 
     # Always slugify — applies to user-provided --slug too — so a hostile
@@ -235,6 +247,7 @@ def process(
 
 # ─── cinemateca library list ─────────────────────────────────────────────────
 
+
 @library_app.command("list")
 def library_list(
     config: Annotated[
@@ -252,8 +265,7 @@ def library_list(
 
     if not films:
         print(
-            f"Nenhum filme registrado em "
-            f"{Path(cfg.paths.library_dir)/'films.json'}",
+            f"Nenhum filme registrado em " f"{Path(cfg.paths.library_dir)/'films.json'}",
         )
         return
 
@@ -270,6 +282,7 @@ def library_list(
 
 # ─── cinemateca library reembed ──────────────────────────────────────────────
 
+
 @library_app.command("reembed")
 def library_reembed(
     only: Annotated[
@@ -283,8 +296,8 @@ def library_reembed(
         str,
         typer.Option(
             help="Etapas a executar, separadas por vírgula. "
-                 "Valores: frames, scenes, visual, embeddings, llm, "
-                 "audio_extract, audio_embed.",
+            "Valores: frames, scenes, visual, embeddings, llm, "
+            "audio_extract, audio_embed.",
         ),
     ] = "embeddings",
     keep_existing: Annotated[
@@ -292,7 +305,7 @@ def library_reembed(
         typer.Option(
             "--keep-existing",
             help="Não apaga .npy / index_mapping.json antes de re-rodar. "
-                 "Padrão: apaga, evitando que skip_existing pule a etapa.",
+            "Padrão: apaga, evitando que skip_existing pule a etapa.",
         ),
     ] = False,
     config: Annotated[
@@ -317,7 +330,7 @@ def library_reembed(
     setup_logging(cfg)
 
     enabled = _resolve_steps(steps)
-    for step in _STEP_ALIASES.values():
+    for step in _STEP_FULL_NAMES:
         setattr(cfg.pipeline.steps, step, step in enabled)
 
     library_dir = Path(cfg.paths.library_dir)
@@ -357,19 +370,16 @@ def library_reembed(
             summary.append((film.slug, "skipped (no raw)", 0.0))
             continue
 
-        if not keep_existing and "embeddings" in enabled:
-            emb_dir = library_dir / film.slug / "embeddings"
-            for fname in ("keyframe_embeddings.npy", "index_mapping.json"):
-                p = emb_dir / fname
-                if p.exists():
-                    p.unlink()
-
-        if not keep_existing and "audio_embed" in enabled:
-            audio_dir = library_dir / film.slug / "audio"
-            for fname in ("clap_embeddings.npy", "audio_mapping.json"):
-                p = audio_dir / fname
-                if p.exists():
-                    p.unlink()
+        if not keep_existing:
+            stale: list[tuple[str, tuple[str, ...]]] = []
+            if "embeddings" in enabled:
+                stale.append(("embeddings", ("keyframe_embeddings.npy", "index_mapping.json")))
+            if "audio_embed" in enabled:
+                stale.append(("audio", ("clap_embeddings.npy", "audio_mapping.json")))
+            for subdir, files in stale:
+                for fname in files:
+                    p = library_dir / film.slug / subdir / fname
+                    p.unlink(missing_ok=True)
 
         print(f"━━━ {film.slug} ━━━", flush=True)
         pipeline = CatalogPipeline(cfg, slug=film.slug)
@@ -391,6 +401,7 @@ def library_reembed(
 
 # ─── cinemateca library delete ───────────────────────────────────────────────
 
+
 @library_app.command("delete")
 def library_delete(
     slug: Annotated[
@@ -400,7 +411,8 @@ def library_delete(
     yes: Annotated[
         bool,
         typer.Option(
-            "--yes", "-y",
+            "--yes",
+            "-y",
             help="Confirma sem prompt interativo (use em scripts).",
         ),
     ] = False,
@@ -448,6 +460,7 @@ def library_delete(
 
 # ─── cinemateca config show ──────────────────────────────────────────────────
 
+
 @config_app.command("show")
 def config_show(
     config: Annotated[
@@ -477,6 +490,7 @@ def config_show(
 
 
 # ─── Entry point ─────────────────────────────────────────────────────────────
+
 
 def main() -> None:
     """Console-script entry (``[project.scripts]`` → ``cinemateca``)."""

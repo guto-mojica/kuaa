@@ -200,7 +200,7 @@ def test_encode_audio_single_raises_on_sample_rate_mismatch(monkeypatch, tmp_pat
 
 
 def test_save_writes_npy_and_mapping_with_all_keys(monkeypatch, tmp_path):
-    """save() must persist .npy + JSON mapping with all 9 schema keys."""
+    """save() must persist .npy + JSON mapping with all schema keys."""
     import json
 
     backend, _ = _backend_with_fakes(monkeypatch)
@@ -211,14 +211,12 @@ def test_save_writes_npy_and_mapping_with_all_keys(monkeypatch, tmp_path):
             "wav_path": "audio/segments/scene_0001.wav",
             "start_time_s": 0.0,
             "end_time_s": 5.0,
-            "chunks_per_scene": 1,
         },
         {
             "scene_id": 2,
             "wav_path": "audio/segments/scene_0002.wav",
             "start_time_s": 5.0,
             "end_time_s": 12.5,
-            "chunks_per_scene": 1,
         },
     ]
     out_dir = tmp_path / "audio"
@@ -241,7 +239,6 @@ def test_save_writes_npy_and_mapping_with_all_keys(monkeypatch, tmp_path):
         "wav_paths",
         "start_times_s",
         "end_times_s",
-        "chunks_per_scene",
     }
     assert m["model"] == "laion/larger_clap_general"
     assert m["dimension"] == 512
