@@ -3,16 +3,20 @@
 Shows the registry-backed film list (films.json) filtered by name.
 Per-film scene counts and processed state are REAL (read from
 ``<library_dir>/<slug>/metadata/keyframes_metadata.json``).
-Full per-film selection affordances land in T9/T10.
+
+T9: ``/api/library/filter`` accepts an optional ``?film=<slug>`` query
+parameter (wired for completeness; the filter route always returns the
+full library tree, not a per-film subtree).
 """
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
-from api.deps import get_config, make_ctx
+from api.deps import film_slug_query, get_config, make_ctx
 from api.templates import templates
 
 router = APIRouter()
@@ -35,7 +39,11 @@ def _library_ctx(request: Request, q: str = "") -> dict:
 
 
 @router.get("/api/library/filter", response_class=HTMLResponse)
-async def api_library_filter(request: Request, q: str = "") -> HTMLResponse:
+async def api_library_filter(
+    request: Request,
+    q: str = "",
+    slug: Optional[str] = Depends(film_slug_query),
+) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "partials/library_tree.html",

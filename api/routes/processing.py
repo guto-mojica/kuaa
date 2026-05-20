@@ -1,14 +1,20 @@
-"""Processing tab routes — pipeline start, SSE stream, status."""
+"""Processing tab routes — pipeline start, SSE stream, status.
+
+T9: ``/tab/processing`` accepts an optional ``?film=<slug>`` query
+parameter (wired for completeness; the processing tab itself always
+shows the global job queue, not per-film-filtered jobs).
+"""
 from __future__ import annotations
 
 import asyncio
 import logging
 from pathlib import Path
+from typing import Optional
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 
-from api.deps import get_config, make_ctx
+from api.deps import film_slug_query, get_config, make_ctx
 from api.jobs import (
     STEP_DEFS,
     ConcurrencyRejected,
@@ -60,7 +66,10 @@ def build_processing_context() -> dict:
 
 
 @router.get("/tab/processing", response_class=HTMLResponse)
-async def tab_processing(request: Request) -> HTMLResponse:
+async def tab_processing(
+    request: Request,
+    slug: Optional[str] = Depends(film_slug_query),
+) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "partials/processing.html",

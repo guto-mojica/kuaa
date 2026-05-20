@@ -261,10 +261,18 @@ def seed_metadata(tmp_config):
       * ``visual_analysis.json`` — scenes.py reads ``scene_id``,
         ``environment.location``, ``environment.time_of_day``,
         ``num_faces`` (the per-scene flattened shape the route expects).
+
+    T9 addendum: also populates the per-film library layout under
+    ``cfg.paths.library_dir`` so that aggregate-view routes
+    (``/tab/scenes`` without ``?film=``) find the seeded dataset.
+    The film is registered with slug ``"default"`` and title
+    ``"Default Film"``.  The same scene list, tags, descriptions and
+    visual data are written to ``library_dir/default/metadata/``.
     """
     cfg = tmp_config
     meta_dir = Path(cfg.paths.metadata_dir)
     frames_dir = Path(cfg.paths.frames_dir)
+    library_dir = Path(cfg.paths.library_dir)
 
     _SENTINEL = object()
 
@@ -285,6 +293,10 @@ def seed_metadata(tmp_config):
         ``filepath`` points at a real on-disk placeholder, exactly as
         before. Pass an arg explicitly (including ``None`` to skip
         writing that file) to override.
+
+        Also registers slug ``"default"`` in ``library_dir`` (T9) and
+        mirrors the ``scenes`` list to the per-film metadata dir so
+        aggregate-view routes see the same data.
         """
         kf_file = frames_dir / keyframe_file_name
         kf_file.touch()  # placeholder; no route opens it on these paths
@@ -339,6 +351,41 @@ def seed_metadata(tmp_config):
             (meta_dir / "scene_descriptions.json").write_text(json.dumps(desc_v))
         if visual_v is not None:
             (meta_dir / "visual_analysis.json").write_text(json.dumps(visual_v))
+
+        # ── T9: also populate library_dir so aggregate routes see the data ──
+        # Register slug "default" (idempotent: skip if already registered).
+        from cinemateca.library import load_registry, register_film
+
+        registry = load_registry(library_dir)
+        if "default" not in registry:
+            register_film(
+                library_dir,
+                slug="default",
+                title="Default Film",
+                year=None,
+                raw_filename="default.mp4",
+            )
+        # Create per-film raw stub so library_state.raw_present is True.
+        per_film_raw = library_dir / "default" / "raw"
+        per_film_raw.mkdir(parents=True, exist_ok=True)
+        (per_film_raw / "default.mp4").touch()
+        # Mirror the scenes + tags to per-film metadata.
+        per_film_meta = library_dir / "default" / "metadata"
+        per_film_meta.mkdir(parents=True, exist_ok=True)
+        if scenes_v is not None:
+            (per_film_meta / "keyframes_metadata.json").write_text(
+                json.dumps(scenes_v)
+            )
+        if llm_v is not None:
+            (per_film_meta / "scene_tags.json").write_text(json.dumps(llm_v))
+        if desc_v is not None:
+            (per_film_meta / "scene_descriptions.json").write_text(
+                json.dumps(desc_v)
+            )
+        if visual_v is not None:
+            (per_film_meta / "visual_analysis.json").write_text(
+                json.dumps(visual_v)
+            )
 
         scene_ids = (
             [s["scene_id"] for s in scenes_v if "scene_id" in s]
