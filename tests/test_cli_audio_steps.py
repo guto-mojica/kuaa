@@ -1,7 +1,6 @@
 """CLI surface coverage for audio_extract / audio_embed."""
-from __future__ import annotations
 
-from pathlib import Path
+from __future__ import annotations
 
 import pytest
 from typer.testing import CliRunner
@@ -21,6 +20,7 @@ def test_resolve_steps_accepts_mixed_with_legacy_aliases():
 
 def test_resolve_steps_rejects_unknown():
     import typer
+
     with pytest.raises(typer.BadParameter):
         _resolve_steps("audio_extract,nope")
 

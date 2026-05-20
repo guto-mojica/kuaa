@@ -100,13 +100,10 @@ class SceneAudioExtractor:
             try:
                 subprocess.run(cmd, check=True, capture_output=True, text=True)
             except subprocess.CalledProcessError as e:
-                raise RuntimeError(
-                    f"FFmpeg falhou em scene_{sid:04d}:\n{e.stderr}"
-                ) from e
+                raise RuntimeError(f"FFmpeg falhou em scene_{sid:04d}:\n{e.stderr}") from e
             except FileNotFoundError as e:
                 raise RuntimeError(
-                    "FFmpeg não encontrado. Instale o FFmpeg: "
-                    "https://ffmpeg.org/download.html"
+                    "FFmpeg não encontrado. Instale o FFmpeg: " "https://ffmpeg.org/download.html"
                 ) from e
             results.append(out_path)
 

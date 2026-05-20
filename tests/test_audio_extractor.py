@@ -122,6 +122,7 @@ def test_extract_propagates_ffmpeg_failure(monkeypatch, tmp_path):
 
     def boom(cmd, **kwargs):
         import subprocess as sp
+
         raise sp.CalledProcessError(returncode=1, cmd=cmd, stderr="codec error")
 
     monkeypatch.setattr(audio_extractor.subprocess, "run", boom)
@@ -130,9 +131,7 @@ def test_extract_propagates_ffmpeg_failure(monkeypatch, tmp_path):
         extractor.extract(tmp_path / "v.mp4", _scenes()[:1], tmp_path / "out")
 
 
-def test_extract_raises_friendly_error_when_ffmpeg_binary_missing(
-    monkeypatch, tmp_path
-):
+def test_extract_raises_friendly_error_when_ffmpeg_binary_missing(monkeypatch, tmp_path):
     from cinemateca import audio_extractor
 
     def boom(cmd, **kwargs):

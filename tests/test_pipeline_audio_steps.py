@@ -2,6 +2,7 @@
 
 Hermetic: ffmpeg + CLAP fully mocked. No model load, no real WAV decode.
 """
+
 from __future__ import annotations
 
 import json
@@ -20,16 +21,29 @@ def _seed_film(tmp_path: Path):
     (film_dir / "embeddings").mkdir(parents=True)
     # Two scenes, dup keyframe rows per scene.
     scenes = [
-        {"scene_id": 1, "filepath": "k1.jpg", "start_time_s": 0.0,
-         "end_time_s": 5.0, "keyframe_id": "k1"},
-        {"scene_id": 1, "filepath": "k1b.jpg", "start_time_s": 0.0,
-         "end_time_s": 5.0, "keyframe_id": "k1b"},
-        {"scene_id": 2, "filepath": "k2.jpg", "start_time_s": 5.0,
-         "end_time_s": 12.5, "keyframe_id": "k2"},
+        {
+            "scene_id": 1,
+            "filepath": "k1.jpg",
+            "start_time_s": 0.0,
+            "end_time_s": 5.0,
+            "keyframe_id": "k1",
+        },
+        {
+            "scene_id": 1,
+            "filepath": "k1b.jpg",
+            "start_time_s": 0.0,
+            "end_time_s": 5.0,
+            "keyframe_id": "k1b",
+        },
+        {
+            "scene_id": 2,
+            "filepath": "k2.jpg",
+            "start_time_s": 5.0,
+            "end_time_s": 12.5,
+            "keyframe_id": "k2",
+        },
     ]
-    (film_dir / "metadata" / "keyframes_metadata.json").write_text(
-        json.dumps(scenes)
-    )
+    (film_dir / "metadata" / "keyframes_metadata.json").write_text(json.dumps(scenes))
     video = film_dir / "raw" / "demo.mp4"
     video.parent.mkdir(parents=True)
     video.write_bytes(b"")
@@ -59,7 +73,9 @@ def _build_cfg(tmp_path: Path):
             audio_embedder="clap_hf",
         ),
         embeddings=sn(
-            model="ViT-B-32", pretrained="openai", batch_size=16,
+            model="ViT-B-32",
+            pretrained="openai",
+            batch_size=16,
             filename="keyframe_embeddings.npy",
             mapping_filename="index_mapping.json",
         ),
@@ -69,24 +85,29 @@ def _build_cfg(tmp_path: Path):
             chunk_seconds=10.0,
             sample_rate=48000,
         ),
-        llm=sn(checkpoint_interval=25, process_limit=None,
-               descriptions_filename="scene_descriptions.json",
-               tags_filename="scene_tags.json",
-               gpu_layers=-1, model_id="x", revision="x"),
+        llm=sn(
+            checkpoint_interval=25,
+            process_limit=None,
+            descriptions_filename="scene_descriptions.json",
+            tags_filename="scene_tags.json",
+            gpu_layers=-1,
+            model_id="x",
+            revision="x",
+        ),
         visual_analysis=sn(
-            face_detection=sn(enabled=True, min_face_size=20,
-                              thresholds=[0.6, 0.7, 0.7]),
-            object_detection=sn(enabled=True, model="yolov8n.pt",
-                                confidence=0.30),
-            environment=sn(enabled=True, brightness_threshold=100,
-                           edge_density_threshold=0.05),
+            face_detection=sn(enabled=True, min_face_size=20, thresholds=[0.6, 0.7, 0.7]),
+            object_detection=sn(enabled=True, model="yolov8n.pt", confidence=0.30),
+            environment=sn(enabled=True, brightness_threshold=100, edge_density_threshold=0.05),
         ),
         pipeline=sn(
             steps=sn(
-                frame_extraction=False, scene_detection=False,
-                visual_analysis=False, embeddings=False,
+                frame_extraction=False,
+                scene_detection=False,
+                visual_analysis=False,
+                embeddings=False,
                 llm_description=False,
-                audio_extract=True, audio_embed=True,
+                audio_extract=True,
+                audio_embed=True,
             ),
             skip_existing=True,
             stop_on_error=False,
@@ -100,12 +121,15 @@ def _build_cfg(tmp_path: Path):
 
 def _patch_ffmpeg(monkeypatch):
     """Make subprocess.run create the output WAV without real ffmpeg."""
+
     def fake_run(cmd, **kwargs):
         out = Path(cmd[-1])
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_bytes(b"RIFF\x00\x00\x00\x00WAVE")
         return types.SimpleNamespace(returncode=0, stdout="", stderr="")
+
     from cinemateca import audio_extractor
+
     monkeypatch.setattr(audio_extractor.subprocess, "run", fake_run)
 
 
@@ -121,9 +145,7 @@ def _patch_clap(monkeypatch, dim=512):
         return v
 
     monkeypatch.setattr(clap_hf.ClapHFEmbedder, "_load_model", lambda self: None)
-    monkeypatch.setattr(
-        clap_hf.ClapHFEmbedder, "encode_audio_single", fake_encode_audio_single
-    )
+    monkeypatch.setattr(clap_hf.ClapHFEmbedder, "encode_audio_single", fake_encode_audio_single)
 
 
 def test_audio_extract_step_writes_one_wav_per_scene(monkeypatch, tmp_path):
@@ -237,9 +259,7 @@ def test_step_order_includes_new_steps_at_end():
     assert STEP_DEPS["audio_embed"] == ("audio_extract",)
 
 
-def test_audio_embed_errors_with_descriptive_message_when_wav_missing(
-    monkeypatch, tmp_path
-):
+def test_audio_embed_errors_with_descriptive_message_when_wav_missing(monkeypatch, tmp_path):
     """If metadata names 3 scenes but only 2 WAVs exist, audio_embed must
     surface a clear error pointing at the first missing path — the gate is
     permissive (one WAV present), so this is the load-bearing check."""
@@ -253,8 +273,13 @@ def test_audio_embed_errors_with_descriptive_message_when_wav_missing(
     meta = film_dir / "metadata" / "keyframes_metadata.json"
     scenes = json.loads(meta.read_text())
     scenes.append(
-        {"scene_id": 3, "filepath": "k3.jpg", "start_time_s": 12.5,
-         "end_time_s": 18.0, "keyframe_id": "k3"}
+        {
+            "scene_id": 3,
+            "filepath": "k3.jpg",
+            "start_time_s": 12.5,
+            "end_time_s": 18.0,
+            "keyframe_id": "k3",
+        }
     )
     meta.write_text(json.dumps(scenes))
 

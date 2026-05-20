@@ -1,4 +1,5 @@
 """CLAP HF-transformers backend unit tests — model fully mocked, hermetic."""
+
 from __future__ import annotations
 
 import types
@@ -30,12 +31,14 @@ class _FakeAudioModel:
 
     def get_text_features(self, **inputs):
         import torch
+
         self.calls["text"] += 1
         n = inputs["input_ids"].shape[0]
         return torch.zeros((n, self.dim))
 
     def get_audio_features(self, **inputs):
         import torch
+
         # Each call is one chunk; CLAP returns one vec per item.
         self.calls["audio"] += 1
         n = inputs["input_features"].shape[0]
@@ -52,13 +55,18 @@ class _FakeAudioModel:
 class _FakeProcessor:
     """Stand-in for transformers ClapProcessor."""
 
-    def __call__(self, *, text=None, audios=None, sampling_rate=None, return_tensors="pt", padding=True):
+    def __call__(
+        self, *, text=None, audios=None, sampling_rate=None, return_tensors="pt", padding=True
+    ):
         import torch
+
         if text is not None:
             if isinstance(text, str):
                 text = [text]
-            return {"input_ids": torch.zeros((len(text), 1), dtype=torch.long),
-                    "attention_mask": torch.ones((len(text), 1), dtype=torch.long)}
+            return {
+                "input_ids": torch.zeros((len(text), 1), dtype=torch.long),
+                "attention_mask": torch.ones((len(text), 1), dtype=torch.long),
+            }
         if audios is not None:
             return {"input_features": torch.zeros((len(audios), 64, 100))}
         raise ValueError("FakeProcessor: pass text or audios")

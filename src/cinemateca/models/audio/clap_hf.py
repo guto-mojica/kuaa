@@ -20,10 +20,12 @@ attention-pool in a follow-up.
 Model load is lazy: instantiating the backend is cheap (no GPU init);
 the first call to ``encode_*`` triggers ``_load_model()``.
 """
+
 from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import soundfile as sf
@@ -37,11 +39,18 @@ class ClapHFEmbedder:
     def __init__(self, cfg=None, device=None) -> None:
         self._cfg = cfg
         self._device = device
-        self._model = None
-        self._processor = None
+        # Lazy-loaded HF objects. Typed as Any because transformers stubs are
+        # incomplete and the methods we call (get_audio_features, etc.) aren't
+        # in the published typeshed.
+        self._model: Any = None
+        self._processor: Any = None
 
         ae = getattr(cfg, "audio_embeddings", None) if cfg else None
-        self._model_id = getattr(ae, "model_id", "laion/larger_clap_general") if ae else "laion/larger_clap_general"
+        self._model_id = (
+            getattr(ae, "model_id", "laion/larger_clap_general")
+            if ae
+            else "laion/larger_clap_general"
+        )
         self._batch_size = int(getattr(ae, "batch_size", 8)) if ae else 8
         self._chunk_seconds = float(getattr(ae, "chunk_seconds", 10.0)) if ae else 10.0
         self._sample_rate = int(getattr(ae, "sample_rate", 48000)) if ae else 48000
@@ -56,8 +65,7 @@ class ClapHFEmbedder:
             from transformers import ClapModel, ClapProcessor
         except ImportError as exc:
             raise RuntimeError(
-                "CLAP backend requires the 'full' extras. "
-                "Install with: uv sync --extra full"
+                "CLAP backend requires the 'full' extras. " "Install with: uv sync --extra full"
             ) from exc
 
         if self._device is None:
@@ -80,7 +88,7 @@ class ClapHFEmbedder:
             return [wav]
         chunks = []
         for start in range(0, wav.shape[0], chunk_samples):
-            chunk = wav[start:start + chunk_samples]
+            chunk = wav[start : start + chunk_samples]
             if chunk.shape[0] > 0:
                 chunks.append(chunk)
         return chunks
@@ -124,8 +132,8 @@ class ClapHFEmbedder:
                 f"configured rate) before encoding."
             )
         chunks = self._chunk_audio(wav, sr)
-        chunk_vecs = self._embed_chunks(chunks)         # (n_chunks, D)
-        pooled = chunk_vecs.mean(axis=0)                 # (D,)
+        chunk_vecs = self._embed_chunks(chunks)  # (n_chunks, D)
+        pooled = chunk_vecs.mean(axis=0)  # (D,)
         return self._l2_normalise(pooled)
 
     def encode_audio(self, wav_paths: list[Path]) -> np.ndarray:
@@ -172,8 +180,7 @@ class ClapHFEmbedder:
 
         emb_path = out / embeddings_filename
         np.save(emb_path, embeddings)
-        logger.info("✓ CLAP embeddings: %s | %.2f MB",
-                    emb_path, emb_path.stat().st_size / 1e6)
+        logger.info("✓ CLAP embeddings: %s | %.2f MB", emb_path, emb_path.stat().st_size / 1e6)
 
         mapping = {
             "model": self._model_id,
