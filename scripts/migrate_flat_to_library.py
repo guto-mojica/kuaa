@@ -6,7 +6,11 @@ Usage:
         --library-dir data/library \\
         --slug jeca_tatu --title "Jeca Tatu" --year 1959
 
-Idempotent: re-running with the same args is a no-op (after first success).
+Idempotent in *outcome*: re-running with the same args produces the same
+final state. Note: ``shutil.copytree`` unconditionally overwrites every
+destination file even if identical, so a re-run on a large library
+re-copies every byte. Run once and then leave alone.
+
 Copies (does NOT delete) the flat artefacts. Manual cleanup of the legacy
 ``data/{raw,frames,metadata,embeddings}/`` dirs is the operator's choice
 after they verify the new layout works.
@@ -45,13 +49,24 @@ def migrate_flat_to_library(
         ``FileNotFoundError`` otherwise.
     """
     flat_raw = flat_root / "raw"
-    raw_videos = (
+    raw_videos = sorted(
         [p for p in flat_raw.iterdir() if p.suffix.lower() in _VIDEO_EXTENSIONS]
         if flat_raw.exists()
         else []
     )
     if not raw_videos:
-        raise FileNotFoundError(f"No raw video files in {flat_raw}")
+        raise FileNotFoundError(
+            f"No raw video files in {flat_raw}. "
+            f"Accepted extensions: {sorted(_VIDEO_EXTENSIONS)}"
+        )
+    if len(raw_videos) > 1:
+        logger.warning(
+            "Multiple videos in %s; picking %s (alphabetical first). "
+            "Other candidates: %s",
+            flat_raw,
+            raw_videos[0].name,
+            [p.name for p in raw_videos[1:]],
+        )
 
     raw_filename = raw_videos[0].name
 
@@ -62,7 +77,7 @@ def migrate_flat_to_library(
         src = flat_root / sub
         dst = film_dir / sub
         if not src.exists():
-            logger.info("Skip absent source: %s", src)
+            logger.warning("Skip absent source: %s", src)
             dst.mkdir(parents=True, exist_ok=True)
             continue
         shutil.copytree(src, dst, dirs_exist_ok=True)
