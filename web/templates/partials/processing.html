@@ -12,7 +12,7 @@
     {% if films %}
     <select name="video_path" class="jump-select">
         {% for film in films %}
-        <option value="{{ film.raw_path }}">{{ film.title }}</option>
+        <option value="{{ film.raw_path }}"{% if film.slug == active_film %} selected{% endif %}>{{ film.title }}</option>
         {% endfor %}
     </select>
     {% else %}
