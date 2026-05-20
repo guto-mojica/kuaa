@@ -526,11 +526,26 @@ def aggregate_search(
         per_film_kept += film_added
 
     all_hits.sort(key=lambda h: -h["score"])
-    result = all_hits[:top_k]
+    # Dedupe by (film_slug, scene_id). With multiple keyframes per scene
+    # (Phase-1 density fix) the same scene can rank N times in a row.
+    # Keeping the first occurrence per scene preserves the highest-score
+    # keyframe (the list is sorted descending). Result: at most one card
+    # per scene in the UI, and the displayed keyframe is the one that
+    # actually matches the query — not always the middle frame.
+    seen: set[tuple[str, int]] = set()
+    deduped: list[dict] = []
+    for h in all_hits:
+        key = (h["film_slug"], h["scene_id"])
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(h)
+    result = deduped[:top_k]
     logger.info(
-        "aggregate_search: query=%r total_kept=%d returned=%d top_score=%.3f",
+        "aggregate_search: query=%r raw_kept=%d dedup_kept=%d returned=%d top_score=%.3f",
         query,
         per_film_kept,
+        len(deduped),
         len(result),
         float(result[0]["score"]) if result else 0.0,
     )
@@ -625,33 +640,59 @@ def search_text(index: SearchIndex, query: str, tags: list[str],
     from cinemateca.embeddings import SemanticSearch
 
     searcher = SemanticSearch(index.embeddings, index.kf_df, index.embedder)
+    # The underlying searcher returns the global top-K by similarity; with
+    # multiple keyframes per scene that top-K may concentrate inside one
+    # scene's keyframe block, starving other scenes. Ask for a wider
+    # window (top_k * kf_per_scene) so the post-dedupe top-K still has
+    # ``top_k`` distinct scenes to choose from. The wider window only
+    # affects ranking, not embedding cost.
+    raw_k = top_k * 4  # 4× is the configured ceiling for keyframes_per_scene
     if tags:
-        df = searcher.combined(query, tags, tag_index, top_k)
+        df = searcher.combined(query, tags, tag_index, raw_k)
     else:
-        df = searcher.by_text(query, top_k)
+        df = searcher.by_text(query, raw_k)
     n_raw = len(df)
     top_raw = float(df["similarity"].iloc[0]) if n_raw and "similarity" in df.columns else 0.0
     if min_similarity > 0.0 and not df.empty and "similarity" in df.columns:
         df = df[df["similarity"] >= min_similarity].reset_index(drop=True)
+    # Dedupe by scene_id (Phase-1 density fix). The DataFrame is already
+    # ordered by similarity descending, so ``drop_duplicates`` keeps the
+    # first occurrence per scene = the best-matching keyframe of that
+    # scene. Trim to ``top_k`` AFTER dedup so the UI gets the requested
+    # number of *scenes*, not keyframes.
+    n_after_floor = len(df)
+    if not df.empty and "scene_id" in df.columns:
+        df = df.drop_duplicates(subset="scene_id", keep="first").reset_index(drop=True)
+    df = df.head(top_k).reset_index(drop=True)
     logger.info(
-        "search_text: query=%r top_k=%d tags=%s min_sim=%.3f raw_hits=%d top_score=%.3f kept=%d",
+        "search_text: query=%r top_k=%d tags=%s min_sim=%.3f "
+        "raw_hits=%d top_score=%.3f kept_after_floor=%d dedup_kept=%d",
         query,
         top_k,
         tags or None,
         min_similarity,
         n_raw,
         top_raw,
+        n_after_floor,
         len(df),
     )
     return df
 
 
 def search_image(index: SearchIndex, image_path: Path, top_k: int):
-    """Run an image-similarity semantic search (sync; see :func:`search_text`)."""
+    """Run an image-similarity semantic search (sync; see :func:`search_text`).
+
+    Applies the same scene_id dedupe as :func:`search_text` so the UI
+    receives at most one card per scene, displaying the best-matching
+    keyframe (rather than three near-duplicate rows from the same shot).
+    """
     from cinemateca.embeddings import SemanticSearch
 
     searcher = SemanticSearch(index.embeddings, index.kf_df, index.embedder)
-    return searcher.by_image(image_path, top_k)
+    df = searcher.by_image(image_path, top_k * 4)
+    if not df.empty and "scene_id" in df.columns:
+        df = df.drop_duplicates(subset="scene_id", keep="first").reset_index(drop=True)
+    return df.head(top_k).reset_index(drop=True)
 
 
 def build_search_context(ctx: FilmContext) -> dict:

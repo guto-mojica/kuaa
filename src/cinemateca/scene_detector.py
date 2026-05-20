@@ -209,26 +209,35 @@ class SceneDetector:
         Returns:
             Path do arquivo JSON criado.
         """
-        # Mapear um keyframe por cena (alinha por índice, ajusta se sobrarem)
-        # PySceneDetect pode gerar nomes como Scene-001-01.jpg
+        # Emit one metadata row per saved keyframe (1:N), not per scene.
+        # PySceneDetect already wrote N keyframes per scene to disk
+        # (positions distributed across the scene's duration); the prior
+        # 1:1 logic picked only the middle one and discarded the rest,
+        # which under-represents long scenes — a 5.5-minute tableau shot
+        # ended up as a single CLIP vector. Embedding all N triples the
+        # index density at zero extraction cost.
+        #
+        # The N rows for scene `idx` share scene_id and the scene-level
+        # time/frame fields; they differ in keyframe_id ("scene_NNNN_kf_KK")
+        # and filepath. Downstream code (search) deduplicates back to one
+        # result per scene at query time using max(similarity).
         kf_per_scene = max(1, self.keyframes_per_scene)
         scenes_data = []
 
         for idx, (start, end) in enumerate(scene_list):
-            # Pegar o keyframe do meio desta cena
-            kf_idx = idx * kf_per_scene + (kf_per_scene // 2)
-            kf_path = str(keyframe_paths[kf_idx]) if kf_idx < len(keyframe_paths) else ""
-
-            scenes_data.append({
-                "scene_id": idx + 1,
-                "keyframe_id": f"scene_{idx+1:04d}",
-                "filepath": kf_path,
-                "start_time_s": start.get_seconds(),
-                "end_time_s": end.get_seconds(),
-                "duration_s": (end - start).get_seconds(),
-                "start_frame": start.get_frames(),
-                "end_frame": end.get_frames(),
-            })
+            scene_id = idx + 1
+            scene_block = keyframe_paths[idx * kf_per_scene : (idx + 1) * kf_per_scene]
+            for kf_pos, kf_path in enumerate(scene_block, start=1):
+                scenes_data.append({
+                    "scene_id": scene_id,
+                    "keyframe_id": f"scene_{scene_id:04d}_kf_{kf_pos:02d}",
+                    "filepath": str(kf_path),
+                    "start_time_s": start.get_seconds(),
+                    "end_time_s": end.get_seconds(),
+                    "duration_s": (end - start).get_seconds(),
+                    "start_frame": start.get_frames(),
+                    "end_frame": end.get_frames(),
+                })
 
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
