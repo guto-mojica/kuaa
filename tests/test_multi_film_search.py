@@ -100,14 +100,17 @@ def _make_film_with_embeddings(
     arr /= np.linalg.norm(arr, axis=1, keepdims=True)
     np.save(emb_dir / "keyframe_embeddings.npy", arr)
 
-    mapping = [
-        {
-            "keyframe_index": i,
-            "scene_id": i,
-            "keyframe_path": f"data/library/{slug}/frames/keyframes/{i}.jpg",
-        }
+    # Dict format expected by OpenClipEmbedder.load
+    kf_paths = [
+        f"data/library/{slug}/frames/keyframes/{i}.jpg"
         for i in range(len(vectors))
     ]
+    mapping = {
+        "total_vectors": len(vectors),
+        "keyframe_paths": kf_paths,
+        "scene_ids": list(range(len(vectors))),
+        "keyframe_ids": list(range(len(vectors))),
+    }
     (emb_dir / "index_mapping.json").write_text(json.dumps(mapping))
     # Stub keyframes_metadata.json so build_cards in the result-merger works:
     (md / "keyframes_metadata.json").write_text(
@@ -115,7 +118,7 @@ def _make_film_with_embeddings(
             [
                 {
                     "scene_id": i,
-                    "filepath": mapping[i]["keyframe_path"],
+                    "filepath": kf_paths[i],
                     "start_time_s": float(i),
                 }
                 for i in range(len(vectors))
@@ -132,8 +135,10 @@ def test_aggregate_text_search_returns_results_from_both_films(
     library_dir.mkdir()
     register_film(library_dir, slug="a", title="A", year=2000, raw_filename="a.mp4")
     register_film(library_dir, slug="b", title="B", year=2001, raw_filename="b.mp4")
-    # Film A: best match at index 1; Film B: best match at index 0.
-    _make_film_with_embeddings(library_dir, "a", [[0.1, 0.0], [1.0, 0.0], [0.5, 0.5]])
+    # Film A: best match at index 1 (score 1.0); film B: best match at index 0.
+    # Using [0.0, 1.0] as the low-scoring A scene (score 0.0 vs query [1,0])
+    # so the top-2 overall are A[1,0] and B[1,0], one from each film.
+    _make_film_with_embeddings(library_dir, "a", [[0.0, 1.0], [1.0, 0.0], [0.5, 0.5]])
     _make_film_with_embeddings(library_dir, "b", [[1.0, 0.0], [0.0, 1.0]])
 
     # Stub the CLIP text-encoder so we don't need a real model in tests.

@@ -58,6 +58,9 @@ import threading
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from typing import Any
+
+import numpy as np
 
 from api.services.catalog import keyframe_url, load_tag_index, to_smpte
 from api.services.film_context import FilmContext
@@ -111,10 +114,12 @@ class UploadRejected(Exception):
 
 # ── mtime/size-aware index cache ──────────────────────────────────────────────
 
-# key: (embeddings_path_str, mapping_path_str)
-# value: (signature, SearchIndex) where signature is the stat tuple of
+# key: (slug_or_none, embeddings_path_str, mapping_path_str)
+# value: (signature, SearchIndex) where signature is the combined stat tuple of
 # both files at load time. A changed signature => reload.
-_index_cache: dict[tuple[str, str], tuple[tuple, SearchIndex]] = {}
+# The slug component isolates each film's cache slot so per-film indices
+# never collide (two films that happen to share a path string are distinct).
+_index_cache: dict[tuple[str | None, str, str], tuple[tuple, SearchIndex]] = {}
 _cache_lock = threading.Lock()
 
 
@@ -210,7 +215,7 @@ def load_index(ctx: FilmContext, *, mapping_filename: str,
     """
     emb_path = ctx.embeddings_dir / embeddings_filename
     map_path = ctx.embeddings_dir / mapping_filename
-    key = (str(emb_path), str(map_path))
+    key = (ctx.slug, str(emb_path), str(map_path))
     sig = (_stat_sig(emb_path), _stat_sig(map_path))
 
     with _cache_lock:
@@ -232,6 +237,113 @@ def clear_index_cache() -> None:
     """
     with _cache_lock:
         _index_cache.clear()
+
+
+# ── Per-film helpers + aggregate search ───────────────────────────────────────
+
+# Canonical filenames for the per-film CLIP index.  These mirror the
+# ``config/default.yaml`` → ``embeddings.*`` values and are used as
+# defaults when ``cfg.embeddings`` is not present (e.g. in unit tests
+# that supply a minimal SimpleNamespace config).
+_DEFAULT_EMBEDDINGS_FILENAME = "keyframe_embeddings.npy"
+_DEFAULT_MAPPING_FILENAME = "index_mapping.json"
+
+
+def _get_embedder(cfg: Any) -> object:
+    """Return a fresh ``OpenClipEmbedder`` instance.
+
+    Extracted to module scope so unit tests can monkeypatch
+    ``api.services.search._get_embedder`` to avoid loading the real CLIP
+    model. The ``cfg`` argument is accepted for API consistency and future
+    use (e.g. routing to a different backend via cfg) but is currently
+    ignored.
+    """
+    from cinemateca.models.clip.openclip import OpenClipEmbedder
+
+    return OpenClipEmbedder()
+
+
+def _get_search_index(cfg: Any, slug: str) -> SearchIndex:
+    """Return the (cached) :class:`SearchIndex` for the film identified by *slug*.
+
+    Resolves the per-film embeddings directory via
+    :meth:`FilmContext.for_film`, then delegates to :func:`load_index`
+    with the canonical filenames (read from ``cfg.embeddings`` when
+    available, falling back to the constants above for test configs that
+    only supply ``paths.library_dir``).
+    """
+    emb_cfg = getattr(cfg, "embeddings", None)
+    embeddings_filename = (
+        getattr(emb_cfg, "filename", _DEFAULT_EMBEDDINGS_FILENAME)
+        if emb_cfg is not None
+        else _DEFAULT_EMBEDDINGS_FILENAME
+    )
+    mapping_filename = (
+        getattr(emb_cfg, "mapping_filename", _DEFAULT_MAPPING_FILENAME)
+        if emb_cfg is not None
+        else _DEFAULT_MAPPING_FILENAME
+    )
+    ctx = FilmContext.for_film(cfg, slug)
+    return load_index(
+        ctx,
+        embeddings_filename=embeddings_filename,
+        mapping_filename=mapping_filename,
+    )
+
+
+def aggregate_search(
+    cfg: Any,
+    *,
+    query: str,
+    modality: str,
+    top_k: int,
+) -> list[dict]:
+    """Run per-film search and merge top results by score.
+
+    For ``modality == "text"`` only in this plan; image / audio / fusion
+    modalities are wired in Plans 3-5. The merger is a plain sort by
+    cosine score across films — comparable because every film uses the
+    same CLIP backbone (registry default).
+    """
+    from cinemateca.library import scan_library
+
+    if modality != "text":
+        raise NotImplementedError(
+            f"modality={modality!r} lands in a later plan; only 'text' is supported here"
+        )
+
+    library_dir = Path(cfg.paths.library_dir)
+    embedder = _get_embedder(cfg)
+
+    text_vec: np.ndarray = embedder.encode_text(query)  # type: ignore[union-attr]
+    norm = float(np.linalg.norm(text_vec))
+    text_vec = text_vec / (norm + 1e-12)
+
+    all_hits: list[dict] = []
+    for film in scan_library(library_dir):
+        idx = _get_search_index(cfg, film.slug)
+        if idx.status is not IndexStatus.OK:
+            logger.info(
+                "aggregate_search: skip film %s — index status %s",
+                film.slug,
+                idx.status,
+            )
+            continue
+        scores: np.ndarray = idx.embeddings @ text_vec  # type: ignore[operator]
+        for i, score in enumerate(scores):
+            row = idx.kf_df.iloc[i]  # type: ignore[union-attr]
+            all_hits.append(
+                {
+                    "film_slug": film.slug,
+                    "film_title": film.title,
+                    "scene_id": int(row["scene_id"]),
+                    "score": float(score),
+                    "keyframe_path": str(row["filepath"]),
+                }
+            )
+
+    all_hits.sort(key=lambda h: -h["score"])
+    return all_hits[:top_k]
 
 
 # ── Result conversion ─────────────────────────────────────────────────────────
