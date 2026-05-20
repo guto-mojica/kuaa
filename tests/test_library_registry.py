@@ -8,6 +8,7 @@ import pytest
 
 from cinemateca.library import (
     delete_film,
+    library_state,
     load_registry,
     register_film,
     save_registry,
@@ -123,3 +124,18 @@ def test_scan_library_reads_registry_and_disk(tmp_path: Path) -> None:
 
 def test_scan_library_returns_empty_on_missing_dir(tmp_path: Path) -> None:
     assert scan_library(tmp_path / "library_does_not_exist") == []
+
+
+def test_library_state_aggregates_across_films(tmp_path: Path) -> None:
+    library_dir = tmp_path / "library"
+    library_dir.mkdir()
+    register_film(library_dir, slug="a", title="A", year=2000, raw_filename="a.mp4")
+    register_film(library_dir, slug="b", title="B", year=2001, raw_filename="b.mp4")
+    _make_film_layout(library_dir, "a", scene_count=5)
+    _make_film_layout(library_dir, "b", scene_count=3)
+    # Mark "a" indexed:
+    (library_dir / "a" / "embeddings" / "keyframe_embeddings.npy").write_bytes(b"x")
+    state = library_state(library_dir)
+    assert state.raw_present is True
+    assert state.index_present is True
+    assert state.scene_count == 8
