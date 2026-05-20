@@ -110,45 +110,30 @@ def scan_library(library_dir: Path) -> list[Film]:
     return films
 
 
-def library_state(
-    raw_dir: Path,
-    metadata_dir: Path,
-    embeddings_index_path: Path | None = None,
-) -> LibraryState:
-    """Report the aggregate global artifact state.
+def library_state(library_dir: Path) -> LibraryState:
+    """Aggregate state across all films in the registry.
 
-    In the legacy flat layout (pre-multi-film migration) this reads the
-    single global ``metadata_dir/keyframes_metadata.json``. T4 will
-    supersede this with a registry-aware aggregate. Until then the
-    signature is unchanged so existing callers keep working.
+    Replaces the v0.3 single-film/global state. Fields now mean:
 
-      * ``raw_present`` — any video file in ``raw_dir``.
-      * ``scene_count`` — length of ``metadata_dir/keyframes_metadata.json``
-        (0 if absent/empty/malformed).
-      * ``index_present`` — ``embeddings_index_path`` exists (``None``
-        → reported as absent).
+      * ``raw_present`` — at least one film has a raw video on disk.
+      * ``index_present`` — at least one film has a per-film embeddings index
+        at ``<library_dir>/<slug>/embeddings/keyframe_embeddings.npy``
+        (canonical filename from ``config/default.yaml → embeddings.filename``).
+      * ``scene_count`` — SUM of scene counts across all films.
+
+    The old signature ``(raw_dir, metadata_dir, embeddings_index_path)`` is
+    removed. API callers in ``api/server.py`` and ``api/routes/library.py``
+    are updated in the companion caller-update commit.
     """
-    raw_present = False
-    if raw_dir.exists():
-        raw_present = any(
-            p.suffix.lower() in _VIDEO_EXTENSIONS for p in raw_dir.iterdir()
-        )
-
-    scene_count = 0
-    kf_path = metadata_dir / "keyframes_metadata.json"
-    if kf_path.exists():
-        try:
-            with open(kf_path, encoding="utf-8") as f:
-                kf_meta = json.load(f)
-            if isinstance(kf_meta, list):
-                scene_count = len(kf_meta)
-        except (json.JSONDecodeError, OSError) as exc:
-            logger.warning("Unreadable keyframes_metadata.json: %s", exc)
-
-    index_present = bool(
-        embeddings_index_path is not None and embeddings_index_path.exists()
+    films = scan_library(library_dir)
+    if not films:
+        return LibraryState(raw_present=False, index_present=False, scene_count=0)
+    raw_present = any(f.raw_path.exists() for f in films)
+    index_present = any(
+        (library_dir / f.slug / "embeddings" / "keyframe_embeddings.npy").exists()
+        for f in films
     )
-
+    scene_count = sum(f.scene_count for f in films)
     return LibraryState(
         raw_present=raw_present,
         index_present=index_present,
