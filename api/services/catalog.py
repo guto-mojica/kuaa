@@ -28,6 +28,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from typing import Any
 
 from api.services.film_context import FilmContext
 from cinemateca.scene_ids import scene_id_key
@@ -307,3 +308,37 @@ def build_scenes_grid(ctx: FilmContext, tags: list[str], keyword: str) -> dict:
         kf_meta, desc_by_scene, vis_by_scene, tag_index, ctx.data_dir, tags, keyword
     )
     return {"cards": cards}
+
+
+def build_scenes_context_aggregate(cfg: Any) -> dict:
+    """Build the scenes context across ALL films in the library.
+
+    For each film: load its per-film metadata, build cards from its
+    artefacts (path math through ``FilmContext.for_film``), annotate
+    each card with ``film_slug`` + ``film_title`` for the template
+    grouping, and concatenate. ``available_tags`` is the union of
+    per-film tags. ``no_data`` is True when no card was produced.
+    """
+    from cinemateca.library import scan_library
+
+    library_dir = Path(cfg.paths.library_dir)
+    all_cards: list[dict] = []
+    all_tags: set[str] = set()
+    for film in scan_library(library_dir):
+        ctx = FilmContext.for_film(cfg, film.slug)
+        kf_meta, desc_by_scene, vis_by_scene, tag_index = load_metadata(
+            ctx.metadata_dir
+        )
+        cards = build_cards(
+            kf_meta, desc_by_scene, vis_by_scene, tag_index, ctx.data_dir, [], ""
+        )
+        for c in cards:
+            c["film_slug"] = film.slug
+            c["film_title"] = film.title
+        all_cards.extend(cards)
+        all_tags.update(tag_index.keys())
+    return {
+        "cards": all_cards,
+        "available_tags": sorted(all_tags),
+        "no_data": not all_cards,
+    }
