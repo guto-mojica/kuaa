@@ -15,7 +15,6 @@ film context.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse
@@ -36,7 +35,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _ctx(slug: Optional[str] = None) -> FilmContext:
+def _ctx(slug: str | None = None) -> FilmContext:
     cfg = get_config()
     if slug is not None:
         return FilmContext.for_film(cfg, slug)
@@ -48,7 +47,7 @@ async def tab_annotate(
     request: Request,
     filter: str = Query(default="no_llm"),
     id: int | None = Query(default=None),
-    slug: Optional[str] = Depends(film_slug_query),
+    slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
@@ -62,7 +61,7 @@ async def api_annotate_scene(
     request: Request,
     id: int = Query(...),
     filter: str = Query(default="no_llm"),
-    slug: Optional[str] = Depends(film_slug_query),
+    slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
     ctx = build_scene_panel(_ctx(slug), id, filter)
     return templates.TemplateResponse(
@@ -78,7 +77,7 @@ async def api_annotate_save(
     scene_id: int = Form(...),
     filter: str = Form(default="no_llm"),
     tags: str = Form(default=""),
-    slug: Optional[str] = Depends(film_slug_query),
+    slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
     fctx = _ctx(slug)
 
@@ -101,7 +100,7 @@ async def api_annotate_description_edit(
     request: Request,
     scene_id: int = Query(...),
     filter: str = Query(default="no_llm"),
-    slug: Optional[str] = Depends(film_slug_query),
+    slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
     from api.services.catalog import load_json
 
@@ -124,7 +123,7 @@ async def api_annotate_description_save(
     scene_id: int = Form(...),
     filter: str = Form(default="no_llm"),
     description: str = Form(default=""),
-    slug: Optional[str] = Depends(film_slug_query),
+    slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
     fctx = _ctx(slug)
     save_description(fctx, scene_id, description.strip())
@@ -143,7 +142,7 @@ async def api_annotate_clear(
     request: Request,
     scene_id: int = Form(...),
     filter: str = Form(default="no_llm"),
-    slug: Optional[str] = Depends(film_slug_query),
+    slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
     fctx = _ctx(slug)
 

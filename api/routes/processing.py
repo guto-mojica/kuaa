@@ -9,7 +9,6 @@ from __future__ import annotations
 import asyncio
 import logging
 from pathlib import Path
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
@@ -68,7 +67,7 @@ def build_processing_context() -> dict:
 @router.get("/tab/processing", response_class=HTMLResponse)
 async def tab_processing(
     request: Request,
-    slug: Optional[str] = Depends(film_slug_query),
+    slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
     return templates.TemplateResponse(
         request,

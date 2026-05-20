@@ -22,7 +22,6 @@ from pathlib import Path
 
 import pytest
 
-
 # ── Two-film fixture helpers ──────────────────────────────────────────────────
 
 def _seed_film(library_dir: Path, slug: str, title: str, scene_ids: list[int]) -> None:

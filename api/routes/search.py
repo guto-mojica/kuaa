@@ -18,7 +18,6 @@ import asyncio
 import logging
 import tempfile
 from pathlib import Path
-from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse
@@ -62,7 +61,7 @@ def _no_index_response(request: Request) -> HTMLResponse:
 @router.get("/tab/search", response_class=HTMLResponse)
 async def tab_search(
     request: Request,
-    slug: Optional[str] = Depends(film_slug_query),
+    slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
@@ -77,7 +76,7 @@ async def api_search(
     q: str = "",
     tags: list[str] = Query(default=[]),
     top_k: int = 8,
-    slug: Optional[str] = Depends(film_slug_query),
+    slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
     q = q.strip()
     if len(q) < 2:
@@ -155,7 +154,7 @@ async def api_search_image(
     request: Request,
     file: UploadFile = File(...),
     top_k: int = 8,
-    slug: Optional[str] = Depends(film_slug_query),
+    slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
     """Image-similarity search.
 

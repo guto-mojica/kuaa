@@ -12,7 +12,6 @@ T9: Routes accept an optional ``?film=<slug>`` query parameter.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
@@ -30,7 +29,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _film_ctx(cfg, slug: Optional[str]) -> FilmContext:
+def _film_ctx(cfg, slug: str | None) -> FilmContext:
     """Return a ``FilmContext`` for *slug* (per-film) or flat config (no slug)."""
     if slug is not None:
         return FilmContext.for_film(cfg, slug)
@@ -40,7 +39,7 @@ def _film_ctx(cfg, slug: Optional[str]) -> FilmContext:
 @router.get("/tab/scenes", response_class=HTMLResponse)
 async def tab_scenes(
     request: Request,
-    slug: Optional[str] = Depends(film_slug_query),
+    slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
     cfg = get_config()
     if slug is None:
@@ -59,7 +58,7 @@ async def api_scenes(
     request: Request,
     tags: list[str] = Query(default=[]),
     q: str = "",
-    slug: Optional[str] = Depends(film_slug_query),
+    slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
     cfg = get_config()
     ctx = _film_ctx(cfg, slug)

@@ -11,7 +11,6 @@ full library tree, not a per-film subtree).
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
@@ -42,7 +41,7 @@ def _library_ctx(request: Request, q: str = "") -> dict:
 async def api_library_filter(
     request: Request,
     q: str = "",
-    slug: Optional[str] = Depends(film_slug_query),
+    slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
     return templates.TemplateResponse(
         request,

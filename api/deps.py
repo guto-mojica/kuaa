@@ -1,7 +1,6 @@
 """FastAPI dependency providers."""
 from functools import cache, lru_cache
 from pathlib import Path
-from typing import Optional
 
 from fastapi import Query, Request
 
@@ -37,11 +36,11 @@ def _get_translations(locale: str):
 
 
 def film_slug_query(
-    film: Optional[str] = Query(
+    film: str | None = Query(
         default=None,
         description="Slug filter; omit for aggregate view",
     ),
-) -> Optional[str]:
+) -> str | None:
     """Extract the ``?film=<slug>`` query param.
 
     Returns ``None`` when the parameter is absent, meaning "aggregate
