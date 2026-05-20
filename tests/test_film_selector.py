@@ -157,6 +157,82 @@ class TestFilmSelectorSelection:
         assert re.search(r'value="film_b"\s+selected', r.text)
 
 
+# ── Selection persistence across the page (form + tab nav) ───────────────────
+
+class TestFilmSlugPropagation:
+    """The current_slug must propagate into every HTMX request that the
+    page makes — otherwise the sidebar shows a film selected while the
+    search form / tab nav silently reverts to aggregate.
+    """
+
+    def test_search_form_carries_film_hidden_input(self, two_film_client):
+        """/search?film=<slug> embeds a hidden name="film" inside the
+        search form, so the form's hx-include picks it up and /api/search
+        receives ?film=<slug>."""
+        import re
+        r = two_film_client.get("/search?film=film_a")
+        assert r.status_code == 200
+        # Hidden input must sit INSIDE #search-text-form (hx-include only
+        # walks elements selected by the include CSS selector). Pattern
+        # tolerates any attribute order.
+        assert re.search(
+            r'<form\s+id="search-text-form"[^>]*>[^<]*'
+            r'(?:<[^>]+>[^<]*)*?'
+            r'<input[^>]*type="hidden"[^>]*name="film"[^>]*value="film_a"',
+            r.text,
+            re.DOTALL,
+        ), "search form must contain a hidden film=film_a input"
+
+    def test_search_form_omits_hidden_input_for_aggregate(self, two_film_client):
+        """No ?film= → the hidden input is absent (an empty film= would
+        turn into the literal string "" downstream, breaking the
+        ``if slug is None`` aggregate branch in the route)."""
+        r = two_film_client.get("/search")
+        assert r.status_code == 200
+        # Specifically: NO hidden film input ANYWHERE in the search form area.
+        # Other forms (sidebar selector) DO have name="film" on a <select>
+        # but never type="hidden".
+        assert 'type="hidden" name="film"' not in r.text
+        assert 'name="film" type="hidden"' not in r.text
+
+    def test_image_search_url_carries_film_slug(self, two_film_client):
+        """/search?film=<slug> embeds the slug in the image POST URL so
+        the route's Query(...) dependency picks it up (a hidden form
+        field would land in multipart body, which Query ignores)."""
+        r = two_film_client.get("/search?film=film_a")
+        assert r.status_code == 200
+        assert 'hx-post="/api/search/image?film=film_a"' in r.text
+
+    def test_image_search_url_unscoped_for_aggregate(self, two_film_client):
+        """No ?film= → image POST URL has no query string."""
+        r = two_film_client.get("/search")
+        assert r.status_code == 200
+        assert 'hx-post="/api/search/image"' in r.text
+
+    def test_tab_nav_preserves_slug(self, two_film_client):
+        """Every tab nav link preserves ?film=<slug> on hx-get / hx-push-url
+        / href so picking a film then clicking Scenes → Search doesn't
+        revert the selection to aggregate."""
+        r = two_film_client.get("/search?film=film_a")
+        assert r.status_code == 200
+        for path in ("/tab/search", "/tab/scenes", "/tab/annotate", "/tab/processing"):
+            assert f'hx-get="{path}?film=film_a"' in r.text, (
+                f"tab nav lost ?film=film_a on {path}"
+            )
+        for path in ("/search", "/scenes", "/annotate", "/processing"):
+            assert f'hx-push-url="{path}?film=film_a"' in r.text
+            assert f'href="{path}?film=film_a"' in r.text
+
+    def test_tab_nav_no_slug_when_aggregate(self, two_film_client):
+        """Aggregate mode (no ?film=) → tab nav links carry no query string."""
+        r = two_film_client.get("/search")
+        assert r.status_code == 200
+        # The literal hrefs are bare paths in aggregate mode.
+        for path in ("/search", "/scenes", "/annotate", "/processing"):
+            assert f'href="{path}"' in r.text
+            assert f'hx-get="/tab{path}"' in r.text
+
+
 # ── Empty library suppresses the selector ────────────────────────────────────
 
 class TestFilmSelectorEmpty:

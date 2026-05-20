@@ -63,44 +63,50 @@
     <!-- ── Main ────────────────────────────────────────────────────────────── -->
     <main class="main">
 
+        {# Tab nav. Every tab link preserves the active film slug
+           (?film=<slug>) on hx-get, hx-push-url, and href so navigation
+           across tabs does not silently drop the sidebar selection —
+           otherwise picking a film then clicking Scenes → Search would
+           revert the search to aggregate. #}
+        {% set film_qs = "?film=" ~ current_slug if current_slug else "" %}
         <!-- Tab bar -->
         <nav class="tab-bar" id="tab-bar">
             <a class="tab {% if active_tab == 'search' %}tab--active{% endif %}"
-               href="/search"
-               hx-get="/tab/search"
+               href="/search{{ film_qs }}"
+               hx-get="/tab/search{{ film_qs }}"
                hx-target="#tab-content"
                hx-swap="innerHTML"
-               hx-push-url="/search"
+               hx-push-url="/search{{ film_qs }}"
                onclick="setActiveTab(this)">
                 {{ icon("magnifying-glass") }}
                 {{ _("Search") }}
             </a>
             <a class="tab {% if active_tab == 'scenes' %}tab--active{% endif %}"
-               href="/scenes"
-               hx-get="/tab/scenes"
+               href="/scenes{{ film_qs }}"
+               hx-get="/tab/scenes{{ film_qs }}"
                hx-target="#tab-content"
                hx-swap="innerHTML"
-               hx-push-url="/scenes"
+               hx-push-url="/scenes{{ film_qs }}"
                onclick="setActiveTab(this)">
                 {{ icon("squares-four") }}
                 {{ _("Scenes") }}
             </a>
             <a class="tab {% if active_tab == 'annotate' %}tab--active{% endif %}"
-               href="/annotate"
-               hx-get="/tab/annotate"
+               href="/annotate{{ film_qs }}"
+               hx-get="/tab/annotate{{ film_qs }}"
                hx-target="#tab-content"
                hx-swap="innerHTML"
-               hx-push-url="/annotate"
+               hx-push-url="/annotate{{ film_qs }}"
                onclick="setActiveTab(this)">
                 {{ icon("tag") }}
                 {{ _("Annotate") }}
             </a>
             <a class="tab {% if active_tab == 'processing' %}tab--active{% endif %}"
-               href="/processing"
-               hx-get="/tab/processing"
+               href="/processing{{ film_qs }}"
+               hx-get="/tab/processing{{ film_qs }}"
                hx-target="#tab-content"
                hx-swap="innerHTML"
-               hx-push-url="/processing"
+               hx-push-url="/processing{{ film_qs }}"
                onclick="setActiveTab(this)">
                 {{ icon("spinner-gap") }}
                 {{ _("Processing") }}
