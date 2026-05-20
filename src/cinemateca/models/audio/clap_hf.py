@@ -51,8 +51,14 @@ class ClapHFEmbedder:
     def _load_model(self) -> None:
         if self._model is not None:
             return
-        import torch
-        from transformers import ClapModel, ClapProcessor
+        try:
+            import torch
+            from transformers import ClapModel, ClapProcessor
+        except ImportError as exc:
+            raise RuntimeError(
+                "CLAP backend requires the 'full' extras. "
+                "Install with: uv sync --extra full"
+            ) from exc
 
         if self._device is None:
             self._device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -124,6 +130,9 @@ class ClapHFEmbedder:
 
     def encode_audio(self, wav_paths: list[Path]) -> np.ndarray:
         if not wav_paths:
+            # 512 matches every CLAP variant in current LAION lineup; if a
+            # future config swaps to a non-512 model, hoist this to read
+            # ``self._model.config.projection_dim`` (requires _load_model()).
             return np.zeros((0, 512), dtype="float32")
         self._load_model()
         vecs = [self.encode_audio_single(p) for p in wav_paths]

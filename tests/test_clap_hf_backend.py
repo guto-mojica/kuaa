@@ -134,3 +134,113 @@ def test_encode_audio_empty_list_returns_empty_array(monkeypatch):
     out = backend.encode_audio([])
     assert out.shape == (0, 512)
     assert out.dtype == np.float32
+
+
+def test_encode_audio_single_downmixes_stereo(monkeypatch, tmp_path):
+    """Stereo WAV must be downmixed to mono via mean over channel axis."""
+    from cinemateca.models.audio import clap_hf
+
+    sr = 48000
+
+    # Capture what the chunker receives so we can assert it is 1-D.
+    captured = {}
+
+    real_chunk = clap_hf.ClapHFEmbedder._chunk_audio
+
+    def spy_chunk(self, wav, sr):
+        captured["ndim"] = wav.ndim
+        captured["shape"] = wav.shape
+        return real_chunk(self, wav, sr)
+
+    monkeypatch.setattr(clap_hf.ClapHFEmbedder, "_chunk_audio", spy_chunk)
+
+    backend, _ = _backend_with_fakes(monkeypatch)
+    monkeypatch.setattr(
+        clap_hf.sf,
+        "read",
+        lambda path, dtype="float32": (
+            np.zeros((int(2.0 * sr), 2), dtype=np.float32),
+            sr,
+        ),
+    )
+
+    wav = tmp_path / "stereo.wav"
+    wav.touch()
+    backend.encode_audio_single(wav)
+    assert captured["ndim"] == 1
+    assert captured["shape"] == (int(2.0 * sr),)
+
+
+def test_encode_audio_single_raises_on_sample_rate_mismatch(monkeypatch, tmp_path):
+    """Sample rate other than configured 48000 must raise ValueError."""
+    from cinemateca.models.audio import clap_hf
+
+    backend, _ = _backend_with_fakes(monkeypatch)
+    monkeypatch.setattr(
+        clap_hf.sf,
+        "read",
+        lambda path, dtype="float32": (
+            np.zeros(int(1.0 * 22050), dtype=np.float32),
+            22050,
+        ),
+    )
+
+    wav = tmp_path / "wrongrate.wav"
+    wav.touch()
+    with pytest.raises(ValueError, match="22050"):
+        backend.encode_audio_single(wav)
+
+
+def test_save_writes_npy_and_mapping_with_all_keys(monkeypatch, tmp_path):
+    """save() must persist .npy + JSON mapping with all 9 schema keys."""
+    import json
+
+    backend, _ = _backend_with_fakes(monkeypatch)
+    embeddings = np.ones((2, 512), dtype="float32")
+    rows = [
+        {
+            "scene_id": 1,
+            "wav_path": "audio/segments/scene_0001.wav",
+            "start_time_s": 0.0,
+            "end_time_s": 5.0,
+            "chunks_per_scene": 1,
+        },
+        {
+            "scene_id": 2,
+            "wav_path": "audio/segments/scene_0002.wav",
+            "start_time_s": 5.0,
+            "end_time_s": 12.5,
+            "chunks_per_scene": 1,
+        },
+    ]
+    out_dir = tmp_path / "audio"
+    emb_path, map_path = backend.save(embeddings, rows, out_dir)
+
+    assert emb_path.exists() and emb_path.name == "clap_embeddings.npy"
+    assert map_path.exists() and map_path.name == "audio_mapping.json"
+
+    loaded_emb = np.load(emb_path)
+    assert loaded_emb.shape == (2, 512)
+    assert loaded_emb.dtype == np.float32
+
+    m = json.loads(map_path.read_text())
+    assert set(m.keys()) == {
+        "model",
+        "dimension",
+        "total_vectors",
+        "normalized",
+        "scene_ids",
+        "wav_paths",
+        "start_times_s",
+        "end_times_s",
+        "chunks_per_scene",
+    }
+    assert m["model"] == "laion/larger_clap_general"
+    assert m["dimension"] == 512
+    assert m["total_vectors"] == 2
+    assert m["normalized"] is True
+    assert m["scene_ids"] == [1, 2]
+    assert m["wav_paths"] == [
+        "audio/segments/scene_0001.wav",
+        "audio/segments/scene_0002.wav",
+    ]
