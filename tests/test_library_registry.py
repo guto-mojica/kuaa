@@ -126,6 +126,16 @@ def test_scan_library_returns_empty_on_missing_dir(tmp_path: Path) -> None:
     assert scan_library(tmp_path / "library_does_not_exist") == []
 
 
+def test_library_state_empty_library_returns_zero_state(tmp_path: Path) -> None:
+    """Empty registry returns LibraryState(False, False, 0) without scanning."""
+    library_dir = tmp_path / "library"
+    library_dir.mkdir()
+    from cinemateca.library import LibraryState
+
+    state = library_state(library_dir)
+    assert state == LibraryState(raw_present=False, index_present=False, scene_count=0)
+
+
 def test_library_state_aggregates_across_films(tmp_path: Path) -> None:
     library_dir = tmp_path / "library"
     library_dir.mkdir()

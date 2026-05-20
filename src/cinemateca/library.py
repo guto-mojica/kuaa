@@ -23,6 +23,11 @@ logger = logging.getLogger(__name__)
 
 _VIDEO_EXTENSIONS = {".mp4", ".mkv", ".avi", ".mov", ".m4v", ".webm"}
 
+# Must stay in sync with ``config/default.yaml`` → ``embeddings.filename``.
+# Threaded here instead of through ``cfg`` to keep :func:`library_state`'s
+# API surface a single argument; the cost is this one cross-file invariant.
+_KEYFRAME_EMBEDDINGS_FILENAME = "keyframe_embeddings.npy"
+
 
 @dataclass
 class Film:
@@ -47,10 +52,10 @@ class LibraryState:
     """Aggregate artifact state across all registered films.
 
     Attributes:
-        raw_present: At least one raw video file exists.
-        index_present: The CLIP embeddings index file exists.
-        scene_count: Total scene count across all films (or the global
-            single ``keyframes_metadata.json`` in the legacy flat layout).
+        raw_present: At least one registered film has a raw video on disk.
+        index_present: At least one registered film has a per-film embeddings
+            index (``<library_dir>/<slug>/embeddings/keyframe_embeddings.npy``).
+        scene_count: Total scene count summed across all films.
         is_processed: ``scene_count > 0`` — at least one film has been
             processed.
     """
@@ -130,7 +135,7 @@ def library_state(library_dir: Path) -> LibraryState:
         return LibraryState(raw_present=False, index_present=False, scene_count=0)
     raw_present = any(f.raw_path.exists() for f in films)
     index_present = any(
-        (library_dir / f.slug / "embeddings" / "keyframe_embeddings.npy").exists()
+        (library_dir / f.slug / "embeddings" / _KEYFRAME_EMBEDDINGS_FILENAME).exists()
         for f in films
     )
     scene_count = sum(f.scene_count for f in films)

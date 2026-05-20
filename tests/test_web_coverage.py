@@ -387,7 +387,15 @@ class TestLibrary:
 
     def test_sidebar_reports_honest_global_state(self, client, seed_metadata):
         """The sidebar surfaces the ONE global artifact state, derived
-        from the real ``keyframes_metadata.json`` (not per-file)."""
+        from the real ``keyframes_metadata.json`` (not per-file).
+
+        BROKEN by T4 (multi-film library_state). The OLD library_state scanned
+        ``cfg.paths.raw_dir`` for any video file; the NEW one requires a
+        registered film. Fixing this test means seeding the registry via
+        ``register_film`` and writing the raw video under the per-film
+        ``<slug>/raw/`` directory. Scheduled with the other TestLibrary
+        failures for T9 fixture rework (after T5 lands ``cfg.paths.library_dir``).
+        """
         # No raw video, no metadata → "no source video".
         r0 = client.get("/api/library/filter")
         assert r0.status_code == 200
