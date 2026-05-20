@@ -119,8 +119,9 @@ async def api_search(
             make_ctx(request, results=results, no_index=False),
         )
 
-    # Per-film search: load the specific film's index.
-    ctx = FilmContext.from_config(cfg) if slug is None else FilmContext.for_film(cfg, slug)
+    # Per-film search: slug is guaranteed non-None here (aggregate path
+    # returned above), so resolve the per-film context directly.
+    ctx = FilmContext.for_film(cfg, slug)
     index = search_service.load_index(
         ctx,
         mapping_filename=cfg.embeddings.mapping_filename,
