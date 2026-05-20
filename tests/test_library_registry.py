@@ -39,7 +39,7 @@ def test_save_then_load_registry_roundtrip(tmp_path: Path) -> None:
 
 
 def test_register_film_adds_entry(tmp_path: Path) -> None:
-    """register_film writes a new entry; duplicate slug raises."""
+    """register_film persists all fields to films.json."""
     library_dir = tmp_path / "library"
     library_dir.mkdir()
     register_film(
@@ -50,17 +50,23 @@ def test_register_film_adds_entry(tmp_path: Path) -> None:
         raw_filename="jeca_tatu.mp4",
     )
     reg = load_registry(library_dir)
+    assert reg["jeca_tatu"]["slug"] == "jeca_tatu"
     assert reg["jeca_tatu"]["title"] == "Jeca Tatu"
     assert reg["jeca_tatu"]["year"] == 1959
+    assert reg["jeca_tatu"]["raw_filename"] == "jeca_tatu.mp4"
     assert "added_at" in reg["jeca_tatu"]
 
 
 def test_register_film_duplicate_slug_raises(tmp_path: Path) -> None:
+    """Duplicate slug raises ValueError; original entry is preserved."""
     library_dir = tmp_path / "library"
     library_dir.mkdir()
     register_film(library_dir, slug="x", title="X", year=2000, raw_filename="x.mp4")
     with pytest.raises(ValueError, match="already registered"):
         register_film(library_dir, slug="x", title="X2", year=2001, raw_filename="x.mp4")
+    reg = load_registry(library_dir)
+    assert len(reg) == 1
+    assert reg["x"]["title"] == "X"
 
 
 def test_delete_film_removes_entry(tmp_path: Path) -> None:
