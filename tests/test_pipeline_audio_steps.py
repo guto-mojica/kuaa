@@ -271,3 +271,18 @@ def test_audio_embed_errors_with_descriptive_message_when_wav_missing(
     assert run.state == "error"
     assert "missing" in (run.error or "").lower()
     assert "scene_0003.wav" in (run.error or "")
+
+
+def test_default_config_has_audio_section_and_defaults():
+    from cinemateca.config import load_config
+
+    cfg = load_config()
+    assert cfg.models.audio_embedder == "clap_hf"
+    assert cfg.audio_embeddings.model_id == "laion/larger_clap_general"
+    assert cfg.audio_embeddings.batch_size == 8
+    assert cfg.audio_embeddings.chunk_seconds == 10.0
+    assert cfg.audio_embeddings.sample_rate == 48000
+    # New pipeline flags exist, both off by default (opt-in for M1
+    # scaffold; M2 retrieval work flips them on).
+    assert cfg.pipeline.steps.audio_extract is False
+    assert cfg.pipeline.steps.audio_embed is False

@@ -86,6 +86,20 @@ embeddings:
   # before tuning this back up.
   min_similarity: 0.0
 
+# ── Audio embeddings (NB06 / Month-1 of v1.0 retrieval) ──────────────────────
+audio_embeddings:
+  # HF Hub id. laion/larger_clap_general is keyless, MIT-licensed, joint
+  # text+audio space (~1.7 GB on first download).
+  model_id: "laion/larger_clap_general"
+  batch_size: 8
+  # CLAP's native context is ~10 s @ 48 kHz. Scenes longer than this are
+  # split into non-overlapping chunks and mean-pooled.
+  chunk_seconds: 10.0
+  sample_rate: 48000
+  # Output filenames (relative to data/library/<slug>/audio/)
+  filename: "clap_embeddings.npy"
+  mapping_filename: "audio_mapping.json"
+
 # ── Descrição LLM (NB05) ──────────────────────────────────────────────────────
 llm:
   model_id: "vikhyatk/moondream2"
@@ -111,6 +125,9 @@ models:
   # GPU needs a from-source CUDA build — see docs/GPU_LLAMA_CPP_CUDA_BUILD.md).
   scene_describer: moondream_transformers  # moondream_transformers | moondream_gguf
   environment_classifier: opencv_heuristic # opencv_heuristic
+  # Default keyless, offline CLAP via HF transformers. Lazy load on first
+  # use; ~1.7 GB weights cached under HF_HOME on first encode.
+  audio_embedder: clap_hf                  # clap_hf
 
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 pipeline:
@@ -121,6 +138,10 @@ pipeline:
     visual_analysis: true
     embeddings: true
     llm_description: true
+    # New audio steps — opt-in via CLI ``--steps audio_extract,audio_embed``
+    # until M2 audio-search work lands; then this defaults flip to true.
+    audio_extract: false
+    audio_embed: false
   # Comportamento
   skip_existing: true       # pular etapas se outputs já existirem
   stop_on_error: false      # false = continua mesmo com erros não-fatais
