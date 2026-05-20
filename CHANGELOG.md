@@ -12,6 +12,19 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ---
 
+## [0.5.0-beta] — 2026-05-20
+
+Sinais de produção, pacote de lançamento e proveniência de execução.
+
+### Adicionado
+
+- **Exportações estruturadas** — catálogo em JSON e CSV via pipeline e endpoints FastAPI.
+- **Run manifests** — `run_manifest.json` por execução CLI e aba Processing, com proveniência completa (versão, passos, duração, artefatos).
+- **Pacote de lançamento** — case study público, kit de comunicações, scripts de vídeo demo, notas de release, `scripts/check_launch_package.py` com testes de completude.
+- **Demo bundle builder** — `scripts/prepare_demo.py` empacota catálogo pré-indexado para distribuição.
+
+---
+
 ## [0.4.0-beta] — 2026-05-20
 
 Acervo multi-filme completo (T1–T11), CLI unificada, busca aprimorada,
