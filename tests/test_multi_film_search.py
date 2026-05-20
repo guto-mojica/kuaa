@@ -186,3 +186,42 @@ def test_aggregate_text_search_returns_results_from_both_films(
     slugs_in_top2 = {r["film_slug"] for r in results}
     assert slugs_in_top2 == {"a", "b"}
     assert all(abs(r["score"] - 1.0) < 1e-6 for r in results)
+
+
+def test_aggregate_search_includes_timecode_per_hit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Each hit carries a SMPTE ``timecode`` computed from its film's
+    ``keyframes_metadata.json``. The scene at ``start_time_s=0`` gets ""
+    (template hides the span); a positive ``start_time_s`` produces a
+    non-empty SMPTE string.
+    """
+    library_dir = tmp_path / "library"
+    library_dir.mkdir()
+    register_film(library_dir, slug="a", title="A", year=2000, raw_filename="a.mp4")
+    # _make_film_with_embeddings writes scene_id i → start_time_s=i; scene 0
+    # has start_time_s=0 (timecode ""), scene 1 has start_time_s=1.0
+    # (timecode non-empty). The CLIP stub picks vector [1,0] (scene 1) as
+    # the top match.
+    _make_film_with_embeddings(library_dir, "a", [[0.0, 1.0], [1.0, 0.0]])
+
+    class StubEmbedder:
+        def encode_text(self, q: str) -> np.ndarray:
+            return np.array([1.0, 0.0], dtype=np.float32)
+
+    monkeypatch.setattr(
+        "api.services.search._get_embedder", lambda cfg: StubEmbedder()
+    )
+
+    results = aggregate_search(
+        _cfg(library_dir), query="anything", modality="text", top_k=2
+    )
+
+    by_scene = {r["scene_id"]: r for r in results}
+    # Scene 0 (start_time_s=0) → empty timecode by the "> 0" guard the
+    # per-film path also uses (matches results_to_dicts behaviour).
+    assert by_scene[0]["timecode"] == ""
+    # Scene 1 (start_time_s=1.0) → non-empty SMPTE. Exact value depends on
+    # derive_fps's fallback (24.0); just assert it's a populated string.
+    assert by_scene[1]["timecode"] != ""
+    assert ":" in by_scene[1]["timecode"]

@@ -62,7 +62,13 @@ from typing import Any
 
 import numpy as np
 
-from api.services.catalog import keyframe_url, load_tag_index, to_smpte
+from api.services.catalog import (
+    derive_fps,
+    keyframe_url,
+    load_json,
+    load_tag_index,
+    to_smpte,
+)
 from api.services.film_context import FilmContext
 
 logger = logging.getLogger(__name__)
@@ -344,16 +350,30 @@ def aggregate_search(
                 idx.status,
             )
             continue
+        # Load the film's keyframe metadata ONCE per film so timecode lookup
+        # is O(1) per hit. ``meta_by_scene`` may be empty (unprocessed film
+        # or missing JSON) — in that case timecode falls back to "" and the
+        # template hides the span.
+        ctx = FilmContext.for_film(cfg, film.slug)
+        kf_meta = load_json(ctx.metadata_dir / "keyframes_metadata.json") or []
+        fps = derive_fps(kf_meta)
+        meta_by_scene = {e["scene_id"]: e for e in kf_meta if "scene_id" in e}
+
         scores: np.ndarray = idx.embeddings @ text_vec  # type: ignore[operator]
         for i, score in enumerate(scores):
             row = idx.kf_df.iloc[i]  # type: ignore[union-attr]
+            scene_id = int(row["scene_id"])
+            meta = meta_by_scene.get(scene_id)
+            start_s = float(meta.get("start_time_s") or 0.0) if meta else 0.0
+            timecode = to_smpte(start_s, fps) if start_s > 0 else ""
             all_hits.append(
                 {
                     "film_slug": film.slug,
                     "film_title": film.title,
-                    "scene_id": int(row["scene_id"]),
+                    "scene_id": scene_id,
                     "score": float(score),
                     "keyframe_path": str(row["filepath"]),
+                    "timecode": timecode,
                 }
             )
 

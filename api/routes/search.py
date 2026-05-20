@@ -105,11 +105,25 @@ async def api_search(
         # Convert aggregate hit dicts → template-compatible result dicts.
         # aggregate_search returns plain dicts (not DataFrames), so
         # results_to_dicts is not applicable; build the img_url here.
-        library_dir = Path(cfg.paths.library_dir).resolve()
+        # data_dir must be the media-mount root (cfg.paths.data_dir), NOT
+        # library_dir — otherwise keyframe_url's relative_to() check fails
+        # for filepaths stored under data/frames/... or data/library/<slug>/...
+        # and the template gets img_url=None for every row.
+        data_dir = Path(cfg.paths.data_dir).resolve()
         results = [
             {
-                **h,
-                "img_url": search_service.keyframe_url(h["keyframe_path"], library_dir),
+                "film_slug": h["film_slug"],
+                "film_title": h["film_title"],
+                "scene_id": h["scene_id"],
+                # Template uses ``r.similarity``; aggregate_search emits
+                # ``score`` (cosine over the per-film index). Alias here so
+                # the same partial works for per-film and aggregate paths.
+                "similarity": h["score"],
+                "img_url": search_service.keyframe_url(h["keyframe_path"], data_dir),
+                # ``aggregate_search`` loads each film's keyframes_metadata
+                # once and computes SMPTE per hit; empty string when the
+                # film has no metadata (template hides the span).
+                "timecode": h["timecode"],
             }
             for h in hits
         ]

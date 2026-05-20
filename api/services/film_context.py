@@ -97,9 +97,14 @@ class FilmContext:
         — that directory is the boundary of all per-film artefacts.
 
         Path semantics under the per-film layout:
-          * ``data_dir`` is the LIBRARY root, ``.resolve()``-d (the ``/media``
-            mount serves the whole library tree, and keyframe URLs are
-            rendered relative to it: ``/media/<slug>/frames/keyframes/...``).
+          * ``data_dir`` is the media-mount root (``cfg.paths.data_dir``),
+            ``.resolve()``-d. It must match the directory mounted at
+            ``/media`` in :mod:`api.server` so keyframe URLs resolve to
+            files the static-files handler actually serves. For real
+            metadata that still carries pre-migration absolute paths
+            under ``data/frames/...`` this lets URLs resolve to the
+            still-present flat files; for relative or new per-film
+            absolute paths it resolves to ``/media/library/<slug>/...``.
           * ``raw_path`` / ``metadata_dir`` / ``frames_dir`` / ``embeddings_dir``
             all live under ``<library_dir>/<slug>/...`` and are returned
             un-resolved, matching the flat-context contract byte-for-byte.
@@ -113,10 +118,13 @@ class FilmContext:
         film_dir = library_dir / slug
         if not film_dir.is_dir():
             raise ValueError(f"No such film directory: {film_dir}")
+        # data_dir defaults to library_dir for test configs that don't supply
+        # cfg.paths.data_dir; real configs always carry data_dir (default.yaml).
+        data_dir_str = getattr(cfg.paths, "data_dir", None) or str(library_dir)
         return cls(
             slug=slug,
             raw_path=film_dir / "raw",
-            data_dir=library_dir.resolve(),
+            data_dir=Path(data_dir_str).resolve(),
             metadata_dir=film_dir / "metadata",
             frames_dir=film_dir / "frames",
             embeddings_dir=film_dir / "embeddings",
