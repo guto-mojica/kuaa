@@ -316,8 +316,24 @@ def build_scenes_context_aggregate(cfg: Any) -> dict:
     For each film: load its per-film metadata, build cards from its
     artefacts (path math through ``FilmContext.for_film``), annotate
     each card with ``film_slug`` + ``film_title`` for the template
-    grouping, and concatenate. ``available_tags`` is the union of
-    per-film tags. ``no_data`` is True when no card was produced.
+    grouping, and concatenate.
+
+    Tolerates registered-but-unprocessed films (no ``metadata/`` dir):
+    ``load_metadata`` returns empty containers and the film contributes
+    zero cards without raising.
+
+    ``available_tags`` is the union of per-film tag-index keys, already
+    in their normalized form (matching ``build_scenes_context``'s shape).
+
+    ``no_data`` is True iff no card was produced across all films. This
+    diverges intentionally from ``build_scenes_context``'s ``not kf_meta``
+    test: at the aggregate level "no data" means the whole library has
+    nothing renderable, not that any one film lacks keyframes. Callers
+    in T9 must surface this distinction in copy.
+
+    Performance: loads all per-film metadata from disk on every call.
+    For large libraries (~100+ films) consider a request-scoped cache
+    alongside the per-film search index cache T8 introduces.
     """
     from cinemateca.library import scan_library
 

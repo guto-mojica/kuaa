@@ -56,3 +56,22 @@ def test_aggregate_scenes_context_empty_when_no_films(tmp_path: Path) -> None:
     ctx = build_scenes_context_aggregate(_cfg(library_dir))
     assert ctx["cards"] == []
     assert ctx["no_data"] is True
+
+
+def test_aggregate_tolerates_unprocessed_film(tmp_path: Path) -> None:
+    """A registered film with no metadata/ dir contributes 0 cards (no crash)."""
+    library_dir = tmp_path / "library"
+    library_dir.mkdir()
+    register_film(library_dir, slug="a", title="A", year=2000, raw_filename="a.mp4")
+    register_film(library_dir, slug="unproc", title="Unprocessed", year=2001, raw_filename="u.mp4")
+    _make_film(library_dir, "a", [0, 1, 2])
+    # Create just the film_dir for unproc (so FilmContext.for_film doesn't raise),
+    # but skip metadata/ — emulates a freshly-registered, never-processed film.
+    (library_dir / "unproc" / "raw").mkdir(parents=True)
+    (library_dir / "unproc" / "raw" / "u.mp4").write_bytes(b"")
+
+    ctx = build_scenes_context_aggregate(_cfg(library_dir))
+
+    assert len(ctx["cards"]) == 3  # only film "a"
+    assert {c["film_slug"] for c in ctx["cards"]} == {"a"}
+    assert ctx["no_data"] is False
