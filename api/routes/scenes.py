@@ -21,6 +21,7 @@ from api.services.catalog import (
     build_scenes_context,
     build_scenes_context_aggregate,
     build_scenes_grid,
+    build_scenes_grid_aggregate,
 )
 from api.services.film_context import FilmContext
 from api.templates import templates
@@ -49,7 +50,7 @@ async def tab_scenes(
     return templates.TemplateResponse(
         request,
         "partials/scenes.html",
-        make_ctx(request, **context),
+        make_ctx(request, current_slug=slug, **context),
     )
 
 
@@ -61,9 +62,12 @@ async def api_scenes(
     slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
     cfg = get_config()
-    ctx = _film_ctx(cfg, slug)
+    if slug is None:
+        grid = build_scenes_grid_aggregate(cfg, tags, q)
+    else:
+        grid = build_scenes_grid(FilmContext.for_film(cfg, slug), tags, q)
     return templates.TemplateResponse(
         request,
         "partials/scenes_grid.html",
-        make_ctx(request, **build_scenes_grid(ctx, tags, q)),
+        make_ctx(request, current_slug=slug, **grid),
     )

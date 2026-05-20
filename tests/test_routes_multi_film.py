@@ -111,6 +111,59 @@ class TestScenesRouteMultiFilm:
             two_film_client.get("/tab/scenes?film=ghost")
 
 
+class TestScenesGridAggregate:
+    """/api/scenes (no ?film=) uses the aggregate grid path."""
+
+    def test_aggregate_grid_returns_all_scenes(self, two_film_client):
+        """No slug → all 5 scenes from both films are returned."""
+        r = two_film_client.get("/api/scenes")
+        assert r.status_code == 200, r.text[:300]
+        # film_a has 3 scenes, film_b has 2 → 5 cards total.
+        assert "5 scenes" in r.text
+        # Cards from both films appear: scene IDs 1-3 from film_a (scene_id
+        # 1, 2, 3) and 4-5 from film_b → check several scene-card ids.
+        assert 'data-scene-id="1"' in r.text
+        assert 'data-scene-id="4"' in r.text
+
+    def test_per_film_grid_filters_to_film_a(self, two_film_client):
+        r = two_film_client.get("/api/scenes", params={"film": "film_a"})
+        assert r.status_code == 200, r.text[:300]
+        assert "3 scenes" in r.text
+        # scene_ids 4 and 5 belong to film_b and must be absent.
+        assert 'data-scene-id="4"' not in r.text
+        assert 'data-scene-id="5"' not in r.text
+
+    def test_per_film_grid_filters_to_film_b(self, two_film_client):
+        r = two_film_client.get("/api/scenes", params={"film": "film_b"})
+        assert r.status_code == 200, r.text[:300]
+        assert "2 scenes" in r.text
+        # scene_ids 1-3 belong to film_a and must be absent.
+        assert 'data-scene-id="1"' not in r.text
+
+    def test_aggregate_grid_with_tag_filter(self, two_film_client):
+        """Tag filter in aggregate mode: both films seeded with 'outdoor' on
+        all scenes, so ?tags=outdoor should return all 5 scenes."""
+        r = two_film_client.get("/api/scenes", params={"tags": "outdoor"})
+        assert r.status_code == 200, r.text[:300]
+        # outdoor tag matches all scenes in both films → still 5 scenes.
+        assert "5 scenes" in r.text
+
+    def test_current_slug_no_crash_on_aggregate(self, two_film_client):
+        """Aggregate /api/scenes (no film param) must return 200 without crash.
+
+        current_slug=None is injected into context but the template does
+        not render it yet (T10 adds sidebar highlighting). Key contract:
+        no 500.
+        """
+        r = two_film_client.get("/api/scenes")
+        assert r.status_code == 200, r.text[:300]
+
+    def test_current_slug_no_crash_on_per_film(self, two_film_client):
+        """Per-film /api/scenes injects current_slug — no crash."""
+        r = two_film_client.get("/api/scenes", params={"film": "film_a"})
+        assert r.status_code == 200, r.text[:300]
+
+
 # ── Library filter ────────────────────────────────────────────────────────────
 
 class TestLibraryFilterMultiFilm:

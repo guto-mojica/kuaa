@@ -310,6 +310,41 @@ def build_scenes_grid(ctx: FilmContext, tags: list[str], keyword: str) -> dict:
     return {"cards": cards}
 
 
+def build_scenes_grid_aggregate(cfg: Any, tags: list[str], keyword: str) -> dict:
+    """Build the filtered scenes-grid context across ALL films.
+
+    Filter-aware sibling of :func:`build_scenes_context_aggregate` for
+    the ``/api/scenes`` grid-refresh endpoint (HTMX tag/keyword changes).
+
+    Walks the library the same way the aggregate context builder does,
+    but applies *tags* and *keyword* filters per film via
+    :func:`build_cards`.  Each card is annotated with ``film_slug`` and
+    ``film_title`` so the template can group by film when desired.
+
+    Returns ``{"cards": all_cards}`` — matching the per-film
+    :func:`build_scenes_grid` return shape — so the same
+    ``scenes_grid.html`` partial works in both modes.
+    """
+    from cinemateca.library import scan_library
+
+    library_dir = Path(cfg.paths.library_dir)
+    all_cards: list[dict] = []
+    for film in scan_library(library_dir):
+        ctx = FilmContext.for_film(cfg, film.slug)
+        kf_meta, desc_by_scene, vis_by_scene, tag_index = load_metadata(
+            ctx.metadata_dir
+        )
+        cards = build_cards(
+            kf_meta, desc_by_scene, vis_by_scene, tag_index, ctx.data_dir,
+            tags, keyword,
+        )
+        for c in cards:
+            c["film_slug"] = film.slug
+            c["film_title"] = film.title
+        all_cards.extend(cards)
+    return {"cards": all_cards}
+
+
 def build_scenes_context_aggregate(cfg: Any) -> dict:
     """Build the scenes context across ALL films in the library.
 
