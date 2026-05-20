@@ -116,6 +116,9 @@ def test_scan_library_reads_registry_and_disk(tmp_path: Path) -> None:
     assert by_slug["a"].is_processed is True
     assert by_slug["b"].scene_count == 0
     assert by_slug["b"].is_processed is False
+    assert by_slug["a"].title == "A"
+    assert by_slug["a"].year == 2000
+    assert by_slug["a"].raw_path == library_dir / "a" / "raw" / "a.mp4"
 
 
 def test_scan_library_returns_empty_on_missing_dir(tmp_path: Path) -> None:

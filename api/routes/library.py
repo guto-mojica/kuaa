@@ -23,6 +23,7 @@ def _library_ctx(request: Request, q: str = "") -> dict:
     from cinemateca.library import library_state, scan_library
 
     cfg = get_config()
+    # TODO(T5): switch to cfg.paths.library_dir once the config knob lands.
     library_dir = Path(cfg.paths.data_dir)
     raw_dir = Path(cfg.paths.raw_dir)
     metadata_dir = Path(cfg.paths.metadata_dir)
