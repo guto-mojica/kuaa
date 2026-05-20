@@ -20,7 +20,6 @@ import pytest
 
 from cinemateca.pipeline import CatalogPipeline, StepResult
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
@@ -251,6 +250,7 @@ def test_cli_slug_default_is_slugified_stem(tmp_path, monkeypatch):
 def test_cli_explicit_slug_is_forwarded(tmp_path, monkeypatch):
     """An explicit ``--slug`` is passed through to ``CatalogPipeline``."""
     import sys
+
     from cinemateca import __main__ as main_mod
 
     cfg = _fake_cfg(tmp_path)

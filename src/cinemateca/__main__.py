@@ -7,6 +7,7 @@ Uso:
     python -m cinemateca process --video data/raw/jeca_tatu.mp4
     python -m cinemateca process --video data/raw/filme.mp4 --config config/local.yaml
     python -m cinemateca process --video data/raw/filme.mp4 --steps frames,scenes
+    python -m cinemateca process --video data/raw/filme.mp4 --slug meu_filme
     python -m cinemateca info --video data/raw/filme.mp4
 """
 
@@ -14,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
 _STEP_ALIASES = {
     "frames": "frame_extraction",
@@ -56,7 +58,7 @@ def _print_banner():
 def cmd_process(args) -> int:
     """Executa o pipeline completo (ou etapas selecionadas)."""
     from cinemateca.config import load_config, setup_logging
-    from cinemateca.pipeline import CatalogPipeline
+    from cinemateca.pipeline import CatalogPipeline, slugify
 
     cfg = load_config(args.config)
     setup_logging(cfg)
@@ -71,13 +73,17 @@ def cmd_process(args) -> int:
         for step in _STEP_ALIASES.values():
             setattr(cfg.pipeline.steps, step, step in enabled)
 
+    # Derive slug: explicit --slug overrides; otherwise slugify the video stem.
+    slug = args.slug if args.slug else slugify(Path(args.video).stem)
+
     _print_banner()
     print(f"  Vídeo  : {args.video}")
+    print(f"  Slug   : {slug}")
     print(f"  Config : {args.config or 'default'}")
     print(f"  Device : {cfg.hardware.device}")
     print()
 
-    pipeline = CatalogPipeline(cfg)
+    pipeline = CatalogPipeline(cfg, slug=slug)
     result = pipeline.run(args.video)
 
     print(result.summary())
@@ -125,6 +131,13 @@ def main():
         help="Etapas a executar, separadas por vírgula. "
              "Ex: frames,scenes,embeddings. "
              "Valores: frames,scenes,visual,embeddings,llm",
+    )
+    p_process.add_argument(
+        "--slug",
+        default=None,
+        help="Identificador do filme na biblioteca (ex: jeca_tatu). "
+             "Padrão: stem do nome do vídeo, slugificado. "
+             "Saída em data/library/<slug>/.",
     )
     p_process.set_defaults(func=cmd_process)
 
