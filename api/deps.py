@@ -1,8 +1,9 @@
 """FastAPI dependency providers."""
 from functools import cache, lru_cache
 from pathlib import Path
+from typing import Optional
 
-from fastapi import Request
+from fastapi import Query, Request
 
 _LOCALES_DIR = Path(__file__).parent.parent / "web" / "locales"
 _SUPPORTED_LOCALES = {"pt_BR", "en"}
@@ -33,6 +34,20 @@ def _get_translations(locale: str):
     if locale not in _SUPPORTED_LOCALES:
         locale = "pt_BR"
     return Translations.load(str(_LOCALES_DIR), [locale])
+
+
+def film_slug_query(
+    film: Optional[str] = Query(
+        default=None,
+        description="Slug filter; omit for aggregate view",
+    ),
+) -> Optional[str]:
+    """Extract the ``?film=<slug>`` query param.
+
+    Returns ``None`` when the parameter is absent, meaning "aggregate
+    across all registered films". Returns the slug string when present.
+    """
+    return film
 
 
 def make_ctx(request: Request, **kwargs) -> dict:
