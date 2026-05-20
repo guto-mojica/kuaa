@@ -19,6 +19,7 @@ from cinemateca.models.describer._common import (
     PROMPTS,
     build_metadata,
 )
+from cinemateca.models.describer.domain_prompts import prompts_from_config
 
 logger = logging.getLogger(__name__)
 
@@ -41,12 +42,14 @@ class MoondreamGGUFDescriber:
             # -1 = offload every layer to GPU. Harmless on a CPU-only
             # llama-cpp-python build (no CUDA → it silently runs on CPU).
             self.n_gpu_layers = getattr(cfg.llm, "gpu_layers", -1)
+            self.prompts = prompts_from_config(cfg)
         else:
             self.checkpoint_interval = 25
             self.process_limit = None
             self.descriptions_filename = "scene_descriptions.json"
             self.tags_filename = "scene_tags.json"
             self.n_gpu_layers = -1
+            self.prompts = dict(PROMPTS)
 
     def _warn_if_cpu_build(self) -> None:
         """Loud, self-announcing diagnostic for the silent GPU regression.
@@ -123,7 +126,7 @@ class MoondreamGGUFDescriber:
     def describe(self, image_path) -> dict:
         self._load_model()
         raw = {}
-        for field, (prompt, max_tokens) in PROMPTS.items():
+        for field, (prompt, max_tokens) in self.prompts.items():
             try:
                 raw[field] = self._answer(image_path, prompt, max_tokens)
             except Exception as e:  # noqa: BLE001 - per-field resilience
@@ -159,7 +162,7 @@ class MoondreamGGUFDescriber:
             try:
                 raw = {}
                 self._load_model()
-                for field, (prompt, mx) in PROMPTS.items():
+                for field, (prompt, mx) in self.prompts.items():
                     try:
                         raw[field] = self._answer(row["filepath"], prompt, mx)
                     except Exception as e:  # noqa: BLE001

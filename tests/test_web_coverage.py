@@ -312,14 +312,37 @@ class TestAnnotateSceneEmptyFilterRegression:
 
 # ── Group 4: library filter / select ──────────────────────────────────────────
 
-class TestLibrary:
-    """``/api/library/filter`` + the multi-film sidebar contract.
+def _register_film_in_tmp(library_dir: Path, slug: str, title: str) -> Path:
+    """Register a film and create its per-film ``raw/`` directory layout.
 
-    Multi-film (recovered): film nodes are clickable via
-    ``/api/library/select/{slug}``; per-film scene counts come from
-    the per-film ``keyframes_metadata.json`` (honest, not fabricated);
-    the active-film cookie drives the ``tree-node--active`` highlight.
-    ``library_state`` still reports the ONE global artifact state.
+    Returns the created per-film raw video path.  The video file is
+    ``touch``ed (0 bytes) — no route opens it for these sidebar tests.
+    """
+    from cinemateca.library import register_film
+
+    register_film(
+        library_dir,
+        slug=slug,
+        title=title,
+        year=None,
+        raw_filename=f"{slug}.mp4",
+    )
+    raw_dir = library_dir / slug / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    raw_video = raw_dir / f"{slug}.mp4"
+    raw_video.touch()
+    return raw_video
+
+
+class TestLibrary:
+    """``/api/library/filter`` + the multi-film library sidebar contract.
+
+    T9 rewrote this class to use the registry-backed multi-film layout.
+    ``scan_library`` reads ``films.json``; ``library_state`` aggregates
+    across all registered films. Films are registered via
+    ``_register_film_in_tmp``; per-film artefacts live under
+    ``library_dir/<slug>/``. There is NO ``/api/library/{slug}/select``
+    route — the per-film affordance is deferred to T10.
     """
 
     def test_filter_empty_library_shows_no_films(self, client):
@@ -329,77 +352,101 @@ class TestLibrary:
 
     def test_filter_lists_video_in_raw_dir(self, client):
         cfg = _cfg_from_client()
-        (Path(cfg.paths.raw_dir) / "jeca_tatu.mp4").touch()
+        _register_film_in_tmp(
+            Path(cfg.paths.library_dir), slug="jeca_tatu", title="Jeca Tatu"
+        )
         r = client.get("/api/library/filter")
         assert r.status_code == 200, r.text[:300]
-        # scan_library titleizes the stem: "jeca_tatu" -> "Jeca Tatu".
+        # The title was explicitly registered as "Jeca Tatu".
         assert "Jeca Tatu" in r.text
         assert LIBRARY_NO_FILMS not in r.text
 
     def test_filter_query_narrows_results(self, client):
         cfg = _cfg_from_client()
-        for stem in ("jeca_tatu", "limite"):
-            (Path(cfg.paths.raw_dir) / f"{stem}.mp4").touch()
+        library_dir = Path(cfg.paths.library_dir)
+        _register_film_in_tmp(library_dir, slug="jeca_tatu", title="Jeca Tatu")
+        _register_film_in_tmp(library_dir, slug="limite", title="Limite")
         r = client.get("/api/library/filter", params={"q": "limite"})
         assert r.status_code == 200, r.text[:300]
         assert "Limite" in r.text
         assert "Jeca Tatu" not in r.text
 
-    def test_film_nodes_are_clickable_and_count_badge_reflects_per_film_state(
-        self, client, seed_metadata
+    def test_inventory_is_not_clickable_and_carries_no_fake_per_film_state(
+        self, client
     ):
-        """Multi-film sidebar contract.
+        """T9 update of the CONVERTED Phase-2 tripwire.
 
-          * ``/api/library/select/{slug}`` exists (200); the old-format
-            ``/api/library/{slug}/select`` is still 404.
-          * Film rows carry ``hx-get="/api/library/select/{slug}"``.
-          * An unregistered (raw-dir-only) film has no count badge — no
-            per-film metadata to read from.
-          * When the ``active_film`` cookie matches a slug, that row
-            carries the ``tree-node--active`` class.
+        Old contract (v0.3 single-film, now removed): no clickable per-film
+        ``hx-get="/api/library/<slug>/select"``; processed state reported
+        globally, not per video.
+
+        New multi-film contract (T9), asserted here:
+          * the select route is GONE (404, not a fake 200);
+          * the inventory row is NOT clickable (no ``/select`` link,
+            no ``hx-get`` on the film row);
+          * even with scenes in the per-film metadata the row shows
+            NO fabricated per-film scene-count badge — processed state
+            is reported once at the global library level.
         """
         cfg = _cfg_from_client()
-        (Path(cfg.paths.raw_dir) / "jeca_tatu.mp4").touch()
+        library_dir = Path(cfg.paths.library_dir)
+        _register_film_in_tmp(library_dir, slug="jeca_tatu", title="Jeca Tatu")
 
-        # Old-format URL is still gone; new-format URL exists.
-        assert client.get("/api/library/jeca_tatu/select").status_code == 404
-        assert client.get("/api/library/select/jeca_tatu").status_code == 200
+        # Write per-film metadata so library_state.is_processed is True.
+        meta_dir = library_dir / "jeca_tatu" / "metadata"
+        meta_dir.mkdir(parents=True, exist_ok=True)
+        (meta_dir / "keyframes_metadata.json").write_text(
+            json.dumps([{"scene_id": i} for i in (1, 2, 3)])
+        )
+
+        # The per-film select route does not exist.
+        gone = client.get("/api/library/jeca_tatu/select")
+        assert gone.status_code == 404
 
         r = client.get("/api/library/filter")
         assert r.status_code == 200, r.text[:300]
-        assert "Jeca Tatu" in r.text
-        # Film rows are clickable.
-        assert 'hx-get="/api/library/select/jeca_tatu"' in r.text
-        # Unregistered film (raw-dir only) has no per-film metadata → no badge.
+        assert "Jeca Tatu" in r.text  # listed as inventory
+        # No clickable per-film affordance.
+        assert "/select" not in r.text
+        assert "hx-get" not in r.text
+        # No fabricated per-film count badge on the film row.
         assert 'class="tree-node__count"' not in r.text
+        assert "tree-node--active" not in r.text
 
-        # Active-film cookie triggers the active highlight.
-        r_active = client.get(
-            "/api/library/filter", cookies={"active_film": "jeca_tatu"}
-        )
-        assert "tree-node--active" in r_active.text
+    def test_sidebar_reports_honest_global_state(self, client):
+        """The sidebar surfaces the AGGREGATE artifact state derived from
+        per-film ``keyframes_metadata.json`` files (not fabricated).
 
-    def test_sidebar_reports_honest_global_state(self, client, seed_metadata):
-        """The sidebar surfaces the ONE global artifact state, derived
-        from the real ``keyframes_metadata.json`` (not per-file)."""
-        # No raw video, no metadata → "no source video".
+        T9 fixture rework: registers a film via the registry and uses the
+        per-film directory layout instead of the flat raw_dir/metadata_dir.
+        Three states are verified in order:
+          1. No films registered → "No source video".
+          2. Film registered + raw video on disk, no metadata → "Not yet processed".
+          3. Metadata seeded with 4 scenes → "Library processed · 4 scenes".
+        """
+        # No registered films → "no source video".
         r0 = client.get("/api/library/filter")
         assert r0.status_code == 200
         assert "No source video" in r0.text
 
         cfg = _cfg_from_client()
-        (Path(cfg.paths.raw_dir) / "jeca_tatu.mp4").touch()
-        # Raw present but unprocessed → "not yet processed".
+        library_dir = Path(cfg.paths.library_dir)
+        _register_film_in_tmp(library_dir, slug="jeca_tatu", title="Jeca Tatu")
+
+        # Raw video present but unprocessed → "not yet processed".
         r1 = client.get("/api/library/filter")
         assert "Not yet processed" in r1.text
         assert "Library processed" not in r1.text
 
-        # Seed a global processed dataset → honest processed state with
-        # the REAL global scene count.
-        seed_metadata(scenes=[{"scene_id": i} for i in (1, 2, 3, 4)])
+        # Write per-film keyframes_metadata.json with 4 scenes → processed.
+        meta_dir = library_dir / "jeca_tatu" / "metadata"
+        meta_dir.mkdir(parents=True, exist_ok=True)
+        (meta_dir / "keyframes_metadata.json").write_text(
+            json.dumps([{"scene_id": i} for i in (1, 2, 3, 4)])
+        )
         r2 = client.get("/api/library/filter")
         assert "Library processed" in r2.text
-        assert "4" in r2.text  # the true global scene count
+        assert "4" in r2.text  # the true aggregate scene count
         assert "Not yet processed" not in r2.text
 
 

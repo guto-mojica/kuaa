@@ -8,8 +8,16 @@ project:
   name: "Cinemateca AI"
   version: "0.1.0-alpha"
 
+# ── Domain pack ───────────────────────────────────────────────────────────────
+# Domain packs define prompts, metadata fields, filters, taxonomy, and export
+# mapping. The archive pack preserves current behavior.
+domain:
+  pack: "archive"
+  packs_dir: "config/domains"
+
 # ── Caminhos ─────────────────────────────────────────────────────────────────
 paths:
+  library_dir: "data/library"   # root of the per-film layout (multi-film epic)
   data_dir: "data"
   raw_dir: "data/raw"
   frames_dir: "data/frames"
@@ -71,6 +79,19 @@ embeddings:
   # Arquivo de saída (relativo a embeddings_dir)
   filename: "keyframe_embeddings.npy"
   mapping_filename: "index_mapping.json"
+  # Cosine-similarity floor for text search. Empirically, ViT-B-32/openai's
+  # score band on this archival corpus is too narrow to be separated by a
+  # single absolute floor: "men"/"dog"/"a man" cluster at 0.22–0.25, and so
+  # does off-distribution noise like "airplane"/"smartphone". Any floor
+  # high enough to cut the noise also cuts real signal.
+  #
+  # Default 0.0 disables the floor — recall over precision, since a user
+  # can dismiss weak hits visually but cannot dismiss results they do not
+  # see. Keep the knob: a future multilingual model + reranker (Month-2)
+  # may widen the gap and let a meaningful floor come back. Use the new
+  # INFO logs on /api/search to inspect the actual score distribution
+  # before tuning this back up.
+  min_similarity: 0.0
 
 # ── Descrição LLM (NB05) ──────────────────────────────────────────────────────
 llm:

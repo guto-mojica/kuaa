@@ -99,10 +99,17 @@ def seeded_client(client):
     on (deliberately different from the generic ``seed_metadata``: 3
     scenes 351/352/353, no timecode so the grid falls back to the
     per-scene "scene <id>" marker the ``_scene_ids`` parser keys on).
+
+    T9 fix: also registers a "default" film in library_dir and mirrors the
+    dataset to its per-film metadata dir so that /api/scenes (now using the
+    aggregate grid path when no ?film= is given) reads from the library tree.
     """
     import api.deps as deps
+    from cinemateca.library import load_registry, register_film
 
-    meta_dir = Path(deps.get_config().paths.metadata_dir)
+    cfg = deps.get_config()
+    meta_dir = Path(cfg.paths.metadata_dir)
+    library_dir = Path(cfg.paths.library_dir)
 
     # Three keyframes / scenes. No timecode_start so the grid template
     # falls back to rendering "scene <id>" — a precise per-scene marker
@@ -126,6 +133,27 @@ def seeded_client(client):
 
     descriptions = [{"scene_id": s, "description": f"scene {s}"} for s in (351, 352, 353)]
     (meta_dir / "scene_descriptions.json").write_text(json.dumps(descriptions))
+
+    # Register the film and mirror data to per-film paths so the aggregate
+    # route (/api/scenes without ?film=) finds the dataset via scan_library.
+    registry = load_registry(library_dir)
+    if "default" not in registry:
+        register_film(
+            library_dir,
+            slug="default",
+            title="Default Film",
+            year=None,
+            raw_filename="default.mp4",
+        )
+    per_film_raw = library_dir / "default" / "raw"
+    per_film_raw.mkdir(parents=True, exist_ok=True)
+    (per_film_raw / "default.mp4").touch()
+    per_film_meta = library_dir / "default" / "metadata"
+    per_film_meta.mkdir(parents=True, exist_ok=True)
+    (per_film_meta / "keyframes_metadata.json").write_text(json.dumps(kf_meta))
+    (per_film_meta / "scene_tags.json").write_text(json.dumps(llm_tags))
+    (per_film_meta / "manual_annotations.json").write_text(json.dumps(manual))
+    (per_film_meta / "scene_descriptions.json").write_text(json.dumps(descriptions))
 
     return client
 

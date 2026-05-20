@@ -188,6 +188,8 @@ def test_pipeline_result_summary():
 
 
 def test_steps_alias_maps_to_full_names():
+    import click
+
     from cinemateca.__main__ import _resolve_steps
 
     assert _resolve_steps("llm") == {"llm_description"}
@@ -195,5 +197,9 @@ def test_steps_alias_maps_to_full_names():
         "frame_extraction", "scene_detection",
     }
     assert _resolve_steps("llm_description") == {"llm_description"}  # full name OK
-    with pytest.raises(ValueError):
+    # In the Typer CLI, bad --steps values raise ``typer.BadParameter`` which
+    # subclasses ``click.UsageError``. The contract here is "unknown step
+    # surfaces an inline CLI error, not a stack trace" — checking the
+    # subclass keeps the regression coverage without binding to typer.
+    with pytest.raises(click.UsageError):
         _resolve_steps("bogus")

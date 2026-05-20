@@ -154,21 +154,37 @@ uv sync --extra full --group dev   # full extra + dev tooling group
 #   python3 -m venv .venv && source .venv/bin/activate
 #   pip install -e ".[full]" && pip install pytest pytest-cov black ruff mypy
 
+# Unified CLI (Typer) — discoverable via --help at every level.
+uv run cinemateca --help                       # command tree
+uv run cinemateca <cmd> --help                 # flags for any subcommand
+
 # Run the FastAPI interface (v0.3.0+)
-uv run app.py
-# Opens at http://localhost:8501
+uv run cinemateca serve                        # http://127.0.0.1:8501 (--reload by default)
+uv run cinemateca serve --port 9000 --no-reload
+# Legacy `uv run app.py` still works (delegates to `cinemateca serve`).
 
 # Run the legacy Streamlit interface (during migration)
 uv run streamlit run app_streamlit.py
 
 # Tests
 uv run pytest tests/ -q
-uv run pytest tests/test_smoke.py -v   # smoke only, no heavy models
+uv run pytest tests/test_smoke.py -v           # smoke only, no heavy models
 
-# CLI
-uv run python -m cinemateca info --video data/raw/jeca_tatu.mp4
-uv run python -m cinemateca process --video data/raw/jeca_tatu.mp4
-uv run python -m cinemateca process --video data/raw/jeca_tatu.mp4 --steps scenes,embeddings
+# Single-film pipeline
+uv run cinemateca info data/raw/jeca_tatu.mp4
+uv run cinemateca process data/raw/jeca_tatu.mp4
+uv run cinemateca process data/raw/jeca_tatu.mp4 --steps scenes,embeddings
+uv run cinemateca process data/raw/jeca_tatu.mp4 --slug jeca_tatu   # match an existing slug
+
+# Library-wide operations (use the REGISTERED slug — no filename→slug drift)
+uv run cinemateca library list                            # registered films + state
+uv run cinemateca library reembed                          # all films, --steps embeddings
+uv run cinemateca library reembed --only jeca_tatu --steps embeddings,visual
+uv run cinemateca library reembed --keep-existing          # partial reruns
+uv run cinemateca library delete <slug> [--yes]            # destructive
+
+# Config introspection
+uv run cinemateca config show                              # merged effective YAML
 
 # i18n
 uv run pybabel extract -F web/babel.cfg -o web/locales/messages.pot web/
@@ -191,8 +207,8 @@ uv run mypy src
 
 **Expensive operations — require explicit user confirmation before running:**
 
-- `python -m cinemateca process` on any video (~60–120min on CPU).
-- Embedding regeneration (`--steps embeddings`) for the full library.
+- `cinemateca process <video>` on any new video (~60–120min on CPU).
+- Embedding regeneration (`cinemateca library reembed`) for the full library.
 - LLM description regeneration (`--steps llm`) — slowest pipeline step.
 - First-time model downloads (~2GB for Moondream).
 
@@ -303,6 +319,53 @@ Last updated: in the commit message that touched CLAUDE.md.
 - [x] Multi-film library: per-film dirs, native file picker, film registration
   and removal, `scan_library` multi-film aware, Processing dropdown synced to
   active-film cookie, slug read from `film.json`
+
+Keep this list updated as steps complete.
+
+---
+
+## v0.3.0 → v1.0.0 launch tracker
+
+4-month effort starting 2026-05-19. Full spec:
+`docs/superpowers/specs/2026-05-19-multimodal-retrieval-and-launch-design.md`.
+Dual purpose: take the project to a credible public v1.0 launch, and produce
+a portfolio piece for the maintainer's applied-ML / retrieval career
+transition. Scope is locked; if risks fire, timeline extends rather than
+features cut.
+
+### Month 1 — Foundation
+- [x] **Multi-film library** — `films.json` registry; per-film `data/library/<slug>/`
+  layout; cross-film search/browse + sidebar selector. Implemented across
+  T1–T11 of `docs/superpowers/plans/2026-05-20-multi-film-library.md`
+  (33 commits on `feat/multi-film-library`; suite 265 → 332 passing).
+  Acceptance migration of real Jeca Tatu data still pending (T12, manual).
+- [ ] Docker image, one-command run (CPU-default, GPU-optional)
+- [ ] Hosted demo skeleton on HuggingFace Spaces (CPU tier)
+- [ ] CLAP integration kickoff (`AudioEmbedder` Protocol)
+- [ ] Eval annotation tool (FastAPI page behind admin flag; 5-sample validation)
+- [ ] Pre-launch LinkedIn "I'm building this" post
+
+### Month 2 — Retrieval depth + audio (HARD FREEZE on new features)
+- [ ] CLAP audio embeddings complete; audio-only search in UI
+- [ ] Whisper transcripts indexed (faster-whisper, `Transcriber` Protocol)
+- [ ] Hybrid search (CLIP ⊕ BM25, Reciprocal Rank Fusion)
+- [ ] Cross-encoder reranker (text default; VLM-as-judge opt-in)
+- [ ] Multilingual visual model (SigLIP-multilingual; M-CLIP fallback)
+- [ ] CLAP archival-audio sanity check (pre-commit gate on Jeca Tatu)
+
+### Month 3 — Fusion + visual rhymes + eval annotation
+- [ ] Cross-modal CLIP × CLAP fusion search
+- [ ] Visual rhymes (cross-film kNN + MMR diversity)
+- [ ] 50–100 curator-annotated eval pairs
+- [ ] Landing-page README draft; blog post outline
+
+### Month 4 — Eval + writeup + launch
+- [ ] Ablation table + per-modality breakdown
+- [ ] Failure-mode analysis (5–10 queries explained)
+- [ ] Technical blog post published (own domain + LinkedIn article)
+- [ ] 90-second demo video published
+- [ ] README + GitHub polish + `v1.0.0` release tag
+- [ ] LinkedIn launch post
 
 Keep this list updated as steps complete.
 

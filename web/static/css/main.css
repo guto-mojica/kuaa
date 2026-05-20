@@ -278,6 +278,42 @@ button.tree-node {
     padding: 8px 6px;
 }
 
+/* ── Film selector (T10) ───────────────────────────────────────────────────── */
+/* Sidebar widget: a labelled <select> for switching between registered films
+   or the aggregate "Acervo inteiro" view.  Only rendered when films.length > 0
+   (controlled in film_selector.html). */
+.film-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.film-selector__label {
+    font-size: 0.6875rem;
+    color: var(--c-text-muted);
+    font-family: var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.film-selector__select {
+    width: 100%;
+    background: var(--c-bg-base);
+    border: 1px solid var(--c-bg-border);
+    border-radius: 6px;
+    padding: 5px 8px;
+    color: var(--c-text-primary);
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    cursor: pointer;
+    appearance: auto; /* keep native OS arrow — no-build-step constraint */
+}
+.film-selector__select:focus {
+    outline: none;
+    border-color: var(--c-accent);
+    box-shadow: 0 0 0 2px rgba(200, 150, 62, 0.25);
+}
+
 /* Honest GLOBAL artifact-state summary (v0.3 single-film). */
 .library-state {
     padding: 6px;

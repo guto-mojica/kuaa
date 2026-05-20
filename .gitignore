@@ -31,11 +31,20 @@ ENV/
 data/raw/
 data/frames/
 data/embeddings/
+data/library/
+data/_test*
 
 # Metadados gerados — opcional versionar, mas costumam ser grandes.
 # Para versionar metadados de um filme específico, remova a linha abaixo
 # e use: git add data/metadata/jeca_tatu/
 data/metadata/
+
+# Public-demo runtime artifacts are downloaded/generated, not committed.
+# Keep data/demo/README.md and data/demo/manifest.json tracked.
+data/demo/runtime/
+
+# Evaluation reports are generated runtime output; source query YAML is tracked.
+data/eval/reports/
 
 # ─── Modelos ──────────────────────────────────────────────────────────────────
 # Modelos são baixados automaticamente na primeira execução.

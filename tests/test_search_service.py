@@ -32,9 +32,8 @@ import json
 from pathlib import Path
 
 import numpy as np
-import pytest
-
 import pandas as pd
+import pytest
 
 from api.services.film_context import FilmContext
 from api.services.search import (
@@ -288,3 +287,438 @@ class TestResultsToDicts:
         df = self._df(1, str(kf))
         rows = results_to_dicts(df, tmp_path)
         assert rows[0]["img_url"] == "/media/frames/s1.jpg"
+
+
+# ── Degenerate-tag display filter ─────────────────────────────────────────────
+
+
+class TestDegenerateTagFilter:
+    """``_filter_degenerate_tags`` drops raw model-output strings that
+    leak into ``scene_tags.json`` (full captions, stuck-token repetitions,
+    numeric-only, sentence fragments) so the search-tab pill grid stays
+    legible without rewriting the underlying tag_index."""
+
+    def _kept(self, tags):
+        from api.services.search import _filter_degenerate_tags
+
+        return _filter_degenerate_tags(tags)
+
+    def test_keeps_short_curated_tags(self):
+        good = ["dia", "exterior", "interior", "man", "woman", "tree", "sky"]
+        assert self._kept(good) == good
+
+    def test_keeps_trailing_period_tags(self):
+        # ``rural-field.`` / ``farm.`` are corpus-frequent in jeca_tatu and
+        # carry signal; only mid-string ``.`` indicates a sentence fragment.
+        assert self._kept(["farm.", "rural-field."]) == ["farm.", "rural-field."]
+
+    def test_drops_full_caption_tags(self):
+        long = "a-rural-field-with-a-wooden-fence-and-a-person-riding-a-horse."
+        assert self._kept([long, "dia"]) == ["dia"]
+
+    def test_drops_repeated_token_tags(self):
+        # 3+ consecutive identical tokens — Moondream stuck-token output.
+        bad = [
+            "fence-gate-gate-gate-gate-gate-gate",
+            "gate-gate-gate",
+            "fence-gate-gate-gate",
+        ]
+        assert self._kept(bad) == []
+
+    def test_drops_pure_digit_tags(self):
+        assert self._kept(["1", "42", "man"]) == ["man"]
+
+    def test_drops_sentence_fragments_with_internal_period(self):
+        # The ``.`` is mid-string, not trailing → sentence fragment.
+        bad = ["the-setting-is-a-farm.-with-cows", "dia.exterior"]
+        assert self._kept(bad) == []
+
+    def test_drops_article_led_period_terminated_tags(self):
+        # Trailing ``.`` is OK on bare nouns (``farm.``); paired with an
+        # article prefix it signals a caption fragment leak.
+        bad = [
+            "a-baby-in-a-basket.",
+            "a-rural-field.",
+            "a-tree.",
+            "the-setting.",
+        ]
+        assert self._kept(bad) == []
+
+    def test_drops_long_but_otherwise_innocent_tags(self):
+        # 21 chars → over the 20-char threshold even without obvious garbage.
+        too_long = "a" * 21
+        assert self._kept([too_long, "ok"]) == ["ok"]
+
+    def test_drops_digit_led_enumeration_prefix(self):
+        # Moondream's "N-<thing>" listing pattern.
+        bad = ["1-cow", "2-buildings", "3-sky", "1-man-wearing-hat"]
+        assert self._kept(bad) == []
+
+    def test_drops_de_dup_numeric_suffix(self):
+        # "-<digit>" suffix marks Moondream's per-image dedupe.
+        bad = ["man-in-hat-2", "woman-in-dress-3", "man-on-horse-5"]
+        assert self._kept(bad) == []
+        # Sanity: the unsuffixed forms survive.
+        assert self._kept(["man-in-hat", "woman-in-dress"]) == [
+            "man-in-hat",
+            "woman-in-dress",
+        ]
+
+    def test_drops_excess_hyphens(self):
+        # Curated tags have 0-2 hyphens; >2 = multi-clause sentence garbage.
+        bad = ["man-in-plaid-shirt", "person-walking-in-woods"]
+        assert self._kept(bad) == []
+
+    def test_empty_input_returns_empty(self):
+        assert self._kept([]) == []
+
+
+# ── search_text similarity floor ──────────────────────────────────────────────
+
+
+class TestSearchTextMinSimilarity:
+    """``search_text(..., min_similarity=X)`` drops result rows whose
+    cosine score is below the threshold. CLIP returns top_k unconditionally,
+    so without this filter, unrelated queries surface noise scenes
+    ('airplane' in a 1959 rural film) at score ~0.22–0.25.
+    """
+
+    def _index(self, vectors: list[list[float]]):
+        """Build a SearchIndex over L2-normalised ``vectors``."""
+        from api.services.search import IndexStatus, SearchIndex
+
+        arr = np.array(vectors, dtype="float32")
+        arr /= np.linalg.norm(arr, axis=1, keepdims=True)
+        kf_df = pd.DataFrame(
+            [
+                {"scene_id": i, "filepath": f"frames/s{i}.jpg"}
+                for i in range(len(vectors))
+            ]
+        )
+
+        class _Embedder:
+            def encode_text(self, q):
+                # Query vector: [1, 0] — cosine matches each row's first comp.
+                return np.array([1.0, 0.0], dtype="float32")
+
+        return SearchIndex(
+            status=IndexStatus.OK,
+            embeddings=arr,
+            kf_df=kf_df,
+            embedder=_Embedder(),
+        )
+
+    def test_no_floor_returns_all_top_k(self):
+        from api.services.search import search_text
+
+        index = self._index([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]])
+        df = search_text(index, "x", tags=[], tag_index={}, top_k=8)
+        assert len(df) == 3
+        assert df["similarity"].iloc[0] >= df["similarity"].iloc[-1]
+
+    def test_floor_filters_low_scores(self):
+        from api.services.search import search_text
+
+        index = self._index([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]])
+        # [1,0]→1.0, [0.5,0.5]→0.707, [0,1]→0.0. Floor 0.8 keeps only the
+        # perfect match.
+        df = search_text(index, "x", tags=[], tag_index={}, top_k=8,
+                          min_similarity=0.8)
+        assert len(df) == 1
+        assert df["scene_id"].iloc[0] == 0
+        assert float(df["similarity"].iloc[0]) >= 0.8
+
+    def test_floor_above_everything_returns_empty_df(self):
+        from api.services.search import search_text
+
+        index = self._index([[1.0, 0.0], [0.0, 1.0]])
+        df = search_text(index, "x", tags=[], tag_index={}, top_k=8,
+                          min_similarity=2.0)
+        assert df.empty
+
+    def test_floor_zero_is_a_noop(self):
+        """``min_similarity=0.0`` is the back-compat default — no rows dropped."""
+        from api.services.search import search_text
+
+        index = self._index([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]])
+        df = search_text(index, "x", tags=[], tag_index={}, top_k=8,
+                          min_similarity=0.0)
+        assert len(df) == 3
+
+
+class TestSceneDedup:
+    """``search_text`` and ``aggregate_search`` collapse multi-keyframe-
+    per-scene results to one entry per scene, keeping the highest-score
+    keyframe. This is the Phase-1 density fix's downstream contract: the
+    UI still receives scene-shaped results even though the index now has
+    N rows per scene.
+    """
+
+    def _multi_kf_index(self):
+        """3 scenes × 2 keyframes each = 6 vectors.
+
+        Vector layout (rows L2-normalised after build):
+            row 0: scene 1, kf 1 — vec=[1, 0]      similarity to [1,0] = 1.0
+            row 1: scene 1, kf 2 — vec=[0.6, 0.8]                       = 0.6
+            row 2: scene 2, kf 1 — vec=[0.8, 0.6]                       = 0.8
+            row 3: scene 2, kf 2 — vec=[0.4, 0.9]                       ~ 0.41
+            row 4: scene 3, kf 1 — vec=[0.3, 1.0]                       ~ 0.29
+            row 5: scene 3, kf 2 — vec=[0.1, 1.0]                       ~ 0.10
+        Expected dedup order: scene 1 (1.0) > scene 2 (0.8) > scene 3 (0.29).
+        And specifically: kf 1 wins both for scene 1 and scene 2.
+        """
+        from api.services.search import IndexStatus, SearchIndex
+
+        vectors = [
+            [1.0, 0.0], [0.6, 0.8],
+            [0.8, 0.6], [0.4, 0.9],
+            [0.3, 1.0], [0.1, 1.0],
+        ]
+        arr = np.array(vectors, dtype="float32")
+        arr /= np.linalg.norm(arr, axis=1, keepdims=True)
+        kf_df = pd.DataFrame([
+            {"scene_id": 1, "keyframe_id": "scene_0001_kf_01", "filepath": "s1_k1.jpg"},
+            {"scene_id": 1, "keyframe_id": "scene_0001_kf_02", "filepath": "s1_k2.jpg"},
+            {"scene_id": 2, "keyframe_id": "scene_0002_kf_01", "filepath": "s2_k1.jpg"},
+            {"scene_id": 2, "keyframe_id": "scene_0002_kf_02", "filepath": "s2_k2.jpg"},
+            {"scene_id": 3, "keyframe_id": "scene_0003_kf_01", "filepath": "s3_k1.jpg"},
+            {"scene_id": 3, "keyframe_id": "scene_0003_kf_02", "filepath": "s3_k2.jpg"},
+        ])
+
+        class _Embedder:
+            def encode_text(self, q):
+                return np.array([1.0, 0.0], dtype="float32")
+
+        return SearchIndex(
+            status=IndexStatus.OK,
+            embeddings=arr,
+            kf_df=kf_df,
+            embedder=_Embedder(),
+        )
+
+    def test_search_text_dedupes_by_scene_id(self):
+        """3 scenes × 2 keyframes → at most 3 result rows, one per scene."""
+        from api.services.search import search_text
+
+        index = self._multi_kf_index()
+        df = search_text(index, "x", tags=[], tag_index={}, top_k=8)
+        assert len(df) == 3, (
+            f"expected 3 deduped rows (one per scene), got {len(df)}\n{df}"
+        )
+        scene_ids = df["scene_id"].tolist()
+        assert sorted(scene_ids) == [1, 2, 3]
+        # Best-matching keyframe per scene wins (kf 1 for both 1 and 2).
+        # SemanticSearch.by_text emits only scene_id/filepath/similarity,
+        # so we verify the winning keyframe via filepath.
+        fp_by_scene = dict(zip(df["scene_id"], df["filepath"]))
+        assert fp_by_scene[1] == "s1_k1.jpg"
+        assert fp_by_scene[2] == "s2_k1.jpg"
+
+    def test_search_text_top_k_trims_after_dedup(self):
+        """``top_k=2`` returns 2 *scenes*, not 2 keyframes from the same scene."""
+        from api.services.search import search_text
+
+        index = self._multi_kf_index()
+        df = search_text(index, "x", tags=[], tag_index={}, top_k=2)
+        assert len(df) == 2
+        assert df["scene_id"].tolist() == [1, 2]
+
+    def test_search_text_dedup_with_min_similarity(self):
+        """Dedup composes with the min_similarity floor; the floor is
+        applied first (to the raw keyframes), then dedup."""
+        from api.services.search import search_text
+
+        index = self._multi_kf_index()
+        # Floor 0.5: keeps scene1/kf1 (1.0), scene1/kf2 (0.6), scene2/kf1 (0.8).
+        # After dedup: scenes 1 and 2 survive.
+        df = search_text(index, "x", tags=[], tag_index={}, top_k=8,
+                         min_similarity=0.5)
+        assert len(df) == 2
+        assert sorted(df["scene_id"].tolist()) == [1, 2]
+
+    def test_search_image_dedupes_by_scene_id(self):
+        """Image search follows the same dedup contract as text search."""
+        from api.services.search import search_image
+
+        index = self._multi_kf_index()
+
+        # Patch the searcher's by_image to use the same vector logic.
+        # (The real by_image needs a JPEG on disk; we stub it out.)
+        class _Searcher:
+            def __init__(self, embeddings, kf_df, embedder):
+                self.embeddings = embeddings
+                self.kf_df = kf_df
+            def by_image(self, image_path, top_k):
+                qv = np.array([1.0, 0.0], dtype="float32")
+                scores = self.embeddings @ qv
+                order = np.argsort(-scores)
+                rows = self.kf_df.iloc[order[:top_k]].copy()
+                rows["similarity"] = scores[order[:top_k]]
+                return rows.reset_index(drop=True)
+
+        # Monkeypatch SemanticSearch inside search_image's local import.
+        import cinemateca.embeddings as _emb
+        _orig = _emb.SemanticSearch
+        _emb.SemanticSearch = _Searcher
+        try:
+            from pathlib import Path
+            df = search_image(index, Path("/tmp/fake.jpg"), top_k=8)
+        finally:
+            _emb.SemanticSearch = _orig
+
+        assert len(df) == 3, f"expected 3 deduped rows, got {len(df)}"
+        assert sorted(df["scene_id"].tolist()) == [1, 2, 3]
+
+
+class TestAggregateSearchDedup:
+    """``aggregate_search`` dedupes by (film_slug, scene_id) post-merge.
+
+    With multiple keyframes per scene the same scene can rank multiple
+    times before the global sort; the dedup keeps only the best-scoring
+    keyframe per scene so each result card maps to one scene.
+    """
+
+    def test_aggregate_dedupes_by_film_scene(self, tmp_path, monkeypatch):
+        """Two films × multiple keyframes-per-scene → at most one hit
+        per (film_slug, scene_id) in the final result."""
+        from types import SimpleNamespace
+
+        from api.services import search as svc
+        from cinemateca.library import register_film
+
+        # ── Two-film library with 3 keyframes per scene each ──
+        library_dir = tmp_path / "library"
+        for slug, title in (("film_a", "Film A"), ("film_b", "Film B")):
+            register_film(library_dir, slug=slug, title=title, year=None,
+                          raw_filename=f"{slug}.mp4")
+            film_dir = library_dir / slug
+            (film_dir / "metadata").mkdir(parents=True, exist_ok=True)
+            (film_dir / "embeddings").mkdir(parents=True, exist_ok=True)
+            # 2 scenes × 3 keyframes each — metadata 1:N rows.
+            kf_meta = []
+            for scene_id in (1, 2):
+                for kf_pos in (1, 2, 3):
+                    kf_meta.append({
+                        "scene_id": scene_id,
+                        "keyframe_id": f"scene_{scene_id:04d}_kf_{kf_pos:02d}",
+                        "filepath": f"library/{slug}/frames/{scene_id}_{kf_pos}.jpg",
+                        "start_time_s": float(scene_id * 10),
+                        "end_time_s": float(scene_id * 10 + 5),
+                    })
+            (film_dir / "metadata" / "keyframes_metadata.json").write_text(
+                json.dumps(kf_meta)
+            )
+
+        cfg = SimpleNamespace(
+            paths=SimpleNamespace(library_dir=str(library_dir)),
+            embeddings=SimpleNamespace(
+                filename="keyframe_embeddings.npy",
+                mapping_filename="index_mapping.json",
+            ),
+        )
+
+        # ── Stub _get_search_index to return a 6-vector index per film ──
+        from api.services.search import IndexStatus, SearchIndex
+
+        # Each film has 6 rows: 2 scenes × 3 keyframes. Scene 1's first
+        # keyframe scores highest in both films.
+        vectors = np.array([
+            [1.0, 0.0], [0.6, 0.8], [0.4, 0.9],  # scene 1 (kf 1/2/3)
+            [0.8, 0.6], [0.3, 1.0], [0.1, 1.0],  # scene 2 (kf 1/2/3)
+        ], dtype="float32")
+        vectors /= np.linalg.norm(vectors, axis=1, keepdims=True)
+
+        def fake_index(_cfg, slug):
+            kf_df = pd.DataFrame([
+                {"scene_id": 1, "filepath": f"{slug}_s1_kf1.jpg"},
+                {"scene_id": 1, "filepath": f"{slug}_s1_kf2.jpg"},
+                {"scene_id": 1, "filepath": f"{slug}_s1_kf3.jpg"},
+                {"scene_id": 2, "filepath": f"{slug}_s2_kf1.jpg"},
+                {"scene_id": 2, "filepath": f"{slug}_s2_kf2.jpg"},
+                {"scene_id": 2, "filepath": f"{slug}_s2_kf3.jpg"},
+            ])
+            return SearchIndex(
+                status=IndexStatus.OK,
+                embeddings=vectors,
+                kf_df=kf_df,
+                embedder=None,
+            )
+
+        class _Embedder:
+            def encode_text(self, q):
+                return np.array([1.0, 0.0], dtype="float32")
+
+        monkeypatch.setattr(svc, "_get_search_index", fake_index)
+        monkeypatch.setattr(svc, "_get_embedder", lambda _cfg: _Embedder())
+
+        # ── Run aggregate search ──
+        hits = svc.aggregate_search(cfg, query="x", modality="text", top_k=10)
+
+        # 2 films × 2 scenes = 4 dedup'd hits max.
+        assert len(hits) == 4, f"expected 4 deduped hits, got {len(hits)}\n{hits}"
+        keys = {(h["film_slug"], h["scene_id"]) for h in hits}
+        assert keys == {("film_a", 1), ("film_a", 2),
+                        ("film_b", 1), ("film_b", 2)}
+
+    def test_aggregate_dedup_picks_best_keyframe_per_scene(
+        self, tmp_path, monkeypatch
+    ):
+        """The kept keyframe per (film, scene) is the one with the
+        highest cosine score in that scene."""
+        from types import SimpleNamespace
+
+        from api.services import search as svc
+        from api.services.search import IndexStatus, SearchIndex
+        from cinemateca.library import register_film
+
+        library_dir = tmp_path / "library"
+        register_film(library_dir, slug="film_a", title="Film A", year=None,
+                      raw_filename="film_a.mp4")
+        film_dir = library_dir / "film_a"
+        (film_dir / "metadata").mkdir(parents=True, exist_ok=True)
+        (film_dir / "embeddings").mkdir(parents=True, exist_ok=True)
+        (film_dir / "metadata" / "keyframes_metadata.json").write_text(
+            json.dumps([
+                {"scene_id": 1, "filepath": "f1.jpg", "start_time_s": 0.0},
+            ])
+        )
+
+        cfg = SimpleNamespace(
+            paths=SimpleNamespace(library_dir=str(library_dir)),
+            embeddings=SimpleNamespace(
+                filename="keyframe_embeddings.npy",
+                mapping_filename="index_mapping.json",
+            ),
+        )
+
+        # One scene, 3 keyframes; only the second one has the best score.
+        vectors = np.array([
+            [0.6, 0.8],  # kf 1 → cos 0.6
+            [1.0, 0.0],  # kf 2 → cos 1.0 (winner)
+            [0.4, 0.9],  # kf 3 → cos 0.4
+        ], dtype="float32")
+        vectors /= np.linalg.norm(vectors, axis=1, keepdims=True)
+
+        def fake_index(_cfg, slug):
+            kf_df = pd.DataFrame([
+                {"scene_id": 1, "filepath": "kf_01.jpg"},
+                {"scene_id": 1, "filepath": "kf_02.jpg"},  # winner
+                {"scene_id": 1, "filepath": "kf_03.jpg"},
+            ])
+            return SearchIndex(
+                status=IndexStatus.OK, embeddings=vectors, kf_df=kf_df,
+                embedder=None,
+            )
+
+        class _Embedder:
+            def encode_text(self, q):
+                return np.array([1.0, 0.0], dtype="float32")
+
+        monkeypatch.setattr(svc, "_get_search_index", fake_index)
+        monkeypatch.setattr(svc, "_get_embedder", lambda _cfg: _Embedder())
+
+        hits = svc.aggregate_search(cfg, query="x", modality="text", top_k=10)
+        assert len(hits) == 1
+        assert hits[0]["keyframe_path"] == "kf_02.jpg", (
+            f"expected best-matching keyframe (kf_02), got {hits[0]['keyframe_path']}"
+        )

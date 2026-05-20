@@ -19,6 +19,15 @@
               hx-trigger="submit"
               hx-target="#search-results"
               hx-include="#search-text-form, #search-tag-panel">
+            {# Carry the active film slug into the search GET so the API
+               scopes results to the selected film instead of falling back
+               to aggregate. Without this the form's hx-include only pulls
+               q + tags and the URL-bar ?film=<slug> never reaches the API.
+               Omitted entirely for aggregate (current_slug=None) so an
+               empty film= does not turn into the literal string "". #}
+            {% if current_slug %}
+            <input type="hidden" name="film" value="{{ current_slug }}">
+            {% endif %}
 
             <div class="search-container">
                 <input id="search-input"
@@ -40,7 +49,10 @@
 
     <!-- ── Image search input ────────────────────────────────────────────────── -->
     <div id="search-image-panel" style="display:none">
-        <form hx-post="/api/search/image"
+        {# Image POST goes per-film only; the route reads ?film=<slug> via
+           Query(...), so the slug must be in the URL (a hidden form field
+           would land in multipart body, which the Query dependency ignores). #}
+        <form hx-post="/api/search/image{% if current_slug %}?film={{ current_slug }}{% endif %}"
               hx-encoding="multipart/form-data"
               hx-trigger="change from:#image-input"
               hx-target="#search-results">

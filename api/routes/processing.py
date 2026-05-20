@@ -1,14 +1,19 @@
-"""Processing tab routes — pipeline start, SSE stream, status."""
+"""Processing tab routes — pipeline start, SSE stream, status.
+
+T9: ``/tab/processing`` accepts an optional ``?film=<slug>`` query
+parameter (wired for completeness; the processing tab itself always
+shows the global job queue, not per-film-filtered jobs).
+"""
 from __future__ import annotations
 
 import asyncio
 import logging
 from pathlib import Path
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 
-from api.deps import get_config, make_ctx
+from api.deps import film_slug_query, get_config, make_ctx
 from api.jobs import (
     STEP_DEFS,
     ConcurrencyRejected,
@@ -53,22 +58,21 @@ def build_processing_context() -> dict:
     cfg = get_config()
     from cinemateca.library import scan_library
 
-    films = scan_library(
-        raw_dir=Path(cfg.paths.raw_dir),
-        metadata_dir=Path(cfg.paths.metadata_dir),
-        films_dir=Path(cfg.paths.data_dir) / "films",
-    )
+    films = scan_library(Path(cfg.paths.library_dir))
     jobs = active_jobs()
 
     return {"films": films, "step_defs": STEP_DEFS, "jobs": jobs}
 
 
 @router.get("/tab/processing", response_class=HTMLResponse)
-async def tab_processing(request: Request) -> HTMLResponse:
+async def tab_processing(
+    request: Request,
+    slug: str | None = Depends(film_slug_query),
+) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "partials/processing.html",
-        make_ctx(request, **build_processing_context()),
+        make_ctx(request, current_slug=slug, **build_processing_context()),
     )
 
 

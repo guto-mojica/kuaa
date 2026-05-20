@@ -1,0 +1,35 @@
+{
+  "version": "demo-m1-v1",
+  "slug": "loc-great-train-robbery-1903",
+  "source": {
+    "title": "The Great Train Robbery",
+    "year": 1903,
+    "creator": "Edwin S. Porter; Edison Manufacturing Co.",
+    "repository": "Library of Congress Motion Picture, Broadcasting, and Recorded Sound Division",
+    "loc_item_id": "00694220",
+    "loc_item_url": "https://www.loc.gov/item/00694220/",
+    "loc_item_json_url": "https://www.loc.gov/item/00694220/?fo=json",
+    "source_video_filename": "the-great-train-robbery-1903.mp4",
+    "source_video_url": null,
+    "source_video_sha256": null,
+    "rights_note": "Library of Congress reports no known U.S. copyright or other restrictions for the vast majority of motion pictures in these collections, absent rare exceptions; rights assessment remains the user's responsibility.",
+    "credit_line": "Library of Congress, Motion Picture, Broadcasting, and Recorded Sound Division"
+  },
+  "artifact_bundle": {
+    "filename": "cinemateca-demo-m1-v1.zip",
+    "url": "https://github.com/guto-mojica/cinemateca-imgsearch/releases/download/demo-m1-v1/cinemateca-demo-m1-v1.zip",
+    "sha256": null,
+    "root": "data/demo/runtime"
+  },
+  "expected": {
+    "min_keyframes": 1,
+    "required_metadata": [
+      "keyframes_metadata.json",
+      "scene_descriptions.json",
+      "scene_tags.json",
+      "visual_analysis.json"
+    ]
+  },
+  "checksums": {}
+}
+

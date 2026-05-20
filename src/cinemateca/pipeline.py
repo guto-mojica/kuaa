@@ -11,17 +11,19 @@ Uso via código:
     from cinemateca.pipeline import CatalogPipeline
 
     cfg = load_config("config/local.yaml")
-    pipeline = CatalogPipeline(cfg)
-    results = pipeline.run("data/raw/meu_filme.mp4")
+    pipeline = CatalogPipeline(cfg, slug="meu_filme")
+    results = pipeline.run("data/library/meu_filme/raw/meu_filme.mp4")
 
 Uso via CLI:
-    python -m cinemateca process --video data/raw/meu_filme.mp4
+    python -m cinemateca process --video data/raw/meu_filme.mp4 --slug meu_filme
+    python -m cinemateca process --video data/raw/meu_filme.mp4  # slug defaults to stem
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -29,6 +31,25 @@ from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+def slugify(text: str) -> str:
+    """Convert an arbitrary string into a safe slug.
+
+    Rules: lowercase, spaces → underscores, drop everything that is not
+    ``[a-z0-9_-]``. Suitable for deriving a slug from a video filename
+    stem.
+
+    Examples::
+
+        slugify("Jeca Tatu")        → "jeca_tatu"
+        slugify("My Film (1959)")   → "my_film_1959"
+        slugify("../secret")        → "secret"
+    """
+    text = text.lower()
+    text = text.replace(" ", "_")
+    text = re.sub(r"[^a-z0-9_-]", "", text)
+    return text
 
 # Canonical pipeline step order. The single source of truth for which
 # steps exist and in what order they run.
@@ -150,6 +171,16 @@ class PipelineResult:
         return "\n".join(lines)
 
 
+@dataclass
+class _FilmPaths:
+    """Resolved per-film output directories (used when a slug is set)."""
+
+    library_dir: Path
+    metadata_dir: Path
+    frames_dir: Path
+    embeddings_dir: Path
+
+
 class CatalogPipeline:
     """
     Executa o pipeline completo de catalogação audiovisual.
@@ -162,46 +193,47 @@ class CatalogPipeline:
         5. llm_description    — Geração de metadados com Moondream 2
 
     Cada etapa pode ser pulada (skip_existing=True ou step desativado na config).
+
+    Per-film layout
+    ---------------
+    When *slug* is supplied the pipeline routes all outputs to
+    ``cfg.paths.library_dir/<slug>/...`` and registers the film in
+    ``films.json`` after a successful run.  If *slug* is ``None`` the
+    legacy flat ``cfg.paths.{metadata,frames,embeddings}_dir`` layout is
+    used (backward-compatible).
     """
 
-    def __init__(self, cfg, ctx=None):
-        """Initialise the pipeline.
-
-        Args:
-            cfg: Loaded ``Config`` object.
-            ctx: Optional :class:`~api.services.film_context.FilmContext`
-                for per-film output-directory routing.  When provided,
-                ``ctx.metadata_dir``, ``ctx.frames_dir``, and
-                ``ctx.embeddings_dir`` override the global ``cfg.paths``
-                equivalents so all artefacts are written to
-                ``data/films/{slug}/``.  The caller must create those
-                directories before running the pipeline.
-        """
+    def __init__(self, cfg, *, slug: str | None = None):
         self.cfg = cfg
-        self._pipeline_ctx = ctx
+        # Guard against degenerate slugs (empty string after sanitization).
+        # ``film_dir = library_dir / ""`` equals ``library_dir`` itself, which
+        # would scatter artefacts at the registry root and produce a corrupt
+        # films.json["": {...}] entry. Reject early with a clear error.
+        if slug is not None and not slug:
+            raise ValueError(
+                "Slug is empty (sanitization stripped all characters). "
+                "Pass --slug explicitly with a non-empty value."
+            )
+        self.slug = slug
         self._device = None
         self._embedder = None
         self._describer = None
 
-    # ── Per-film path overrides ───────────────────────────────────────────────
-
-    @property
-    def _metadata_dir(self) -> Path:
-        if self._pipeline_ctx is not None:
-            return self._pipeline_ctx.metadata_dir
-        return Path(self.cfg.paths.metadata_dir)
-
-    @property
-    def _frames_dir(self) -> Path:
-        if self._pipeline_ctx is not None:
-            return self._pipeline_ctx.frames_dir
-        return Path(self.cfg.paths.frames_dir)
-
-    @property
-    def _embeddings_dir(self) -> Path:
-        if self._pipeline_ctx is not None:
-            return self._pipeline_ctx.embeddings_dir
-        return Path(self.cfg.paths.embeddings_dir)
+        # Build per-film resolved path struct (None in legacy mode).
+        self._film_paths: _FilmPaths | None = None
+        if slug is not None:
+            library_dir = Path(cfg.paths.library_dir)
+            film_dir = library_dir / slug
+            film_dir.mkdir(parents=True, exist_ok=True)
+            self._film_paths = _FilmPaths(
+                library_dir=library_dir,
+                metadata_dir=film_dir / "metadata",
+                frames_dir=film_dir / "frames",
+                embeddings_dir=film_dir / "embeddings",
+            )
+            self._film_paths.metadata_dir.mkdir(parents=True, exist_ok=True)
+            self._film_paths.frames_dir.mkdir(parents=True, exist_ok=True)
+            self._film_paths.embeddings_dir.mkdir(parents=True, exist_ok=True)
 
     @property
     def device(self):
@@ -210,13 +242,33 @@ class CatalogPipeline:
             self._device = device_from_config(self.cfg)
         return self._device
 
+    # ─── Path helpers (per-film or legacy flat) ───────────────────────────────
+
+    def _metadata_dir(self) -> Path:
+        """Return the metadata directory for this run (per-film or legacy)."""
+        if self._film_paths is not None:
+            return self._film_paths.metadata_dir
+        return Path(self.cfg.paths.metadata_dir)
+
+    def _frames_dir(self) -> Path:
+        """Return the frames root directory for this run."""
+        if self._film_paths is not None:
+            return self._film_paths.frames_dir
+        return Path(self.cfg.paths.frames_dir)
+
+    def _embeddings_dir(self) -> Path:
+        """Return the embeddings directory for this run."""
+        if self._film_paths is not None:
+            return self._film_paths.embeddings_dir
+        return Path(self.cfg.paths.embeddings_dir)
+
     # ─── Etapas individuais ───────────────────────────────────────────────────
 
     def _step_frame_extraction(self, video_path: Path) -> StepResult:
         from cinemateca.data_prep import FrameExtractor, VideoInspector
 
         name = "frame_extraction"
-        output_dir = self._frames_dir / "sample"
+        output_dir = self._frames_dir() / "sample"
 
         # Skip se já existirem frames
         existing = sorted(output_dir.glob("*.jpg"))
@@ -228,7 +280,7 @@ class CatalogPipeline:
         try:
             inspector = VideoInspector(video_path)
             inspector.save_metadata(
-                self._metadata_dir / "video_properties.json"
+                self._metadata_dir() / "video_properties.json"
             )
             extractor = FrameExtractor(self.cfg)
             frames = extractor.extract(video_path, output_dir)
@@ -242,8 +294,8 @@ class CatalogPipeline:
         from cinemateca.scene_detector import SceneDetector
 
         name = "scene_detection"
-        metadata_path = self._metadata_dir / "keyframes_metadata.json"
-        keyframes_dir = self._frames_dir / "scenes" / "keyframes_content"
+        metadata_path = self._metadata_dir() / "keyframes_metadata.json"
+        keyframes_dir = self._frames_dir() / "scenes" / "keyframes_content"
 
         if self.cfg.pipeline.skip_existing and metadata_path.exists():
             logger.info("↷ Pulando scene_detection (metadados existentes)")
@@ -281,7 +333,7 @@ class CatalogPipeline:
         from cinemateca.visual_analyzer import VisualAnalyzer
 
         name = "visual_analysis"
-        output_path = self._metadata_dir / "visual_analysis.json"
+        output_path = self._metadata_dir() / "visual_analysis.json"
 
         if self.cfg.pipeline.skip_existing and output_path.exists():
             logger.info("↷ Pulando visual_analysis (metadados existentes)")
@@ -313,8 +365,8 @@ class CatalogPipeline:
 
         name = "embeddings"
         emb_cfg = self.cfg.embeddings
-        emb_path = self._embeddings_dir / emb_cfg.filename
-        map_path = self._embeddings_dir / emb_cfg.mapping_filename
+        emb_path = self._embeddings_dir() / emb_cfg.filename
+        map_path = self._embeddings_dir() / emb_cfg.mapping_filename
 
         if self.cfg.pipeline.skip_existing and emb_path.exists():
             logger.info("↷ Pulando embeddings (arquivo existente)")
@@ -338,7 +390,7 @@ class CatalogPipeline:
             embeddings = embedder.encode_images(image_paths)
             emb_path, map_path = embedder.save(
                 embeddings, valid_kf,
-                self._embeddings_dir,
+                self._embeddings_dir(),
                 emb_cfg.filename,
                 emb_cfg.mapping_filename,
             )
@@ -356,8 +408,8 @@ class CatalogPipeline:
 
         name = "llm_description"
         llm_cfg = self.cfg.llm
-        desc_path = self._metadata_dir / llm_cfg.descriptions_filename
-        tags_path = self._metadata_dir / llm_cfg.tags_filename
+        desc_path = self._metadata_dir() / llm_cfg.descriptions_filename
+        tags_path = self._metadata_dir() / llm_cfg.tags_filename
 
         t0 = time.time()
         try:
@@ -395,7 +447,7 @@ class CatalogPipeline:
                 checkpoint_path=desc_path,
             )
             tag_index = describer.build_tag_index(results)
-            describer.save(results, tag_index, self._metadata_dir)
+            describer.save(results, tag_index, self._metadata_dir())
 
             return StepResult(
                 name=name, success=True, duration_s=time.time() - t0,
@@ -425,8 +477,8 @@ class CatalogPipeline:
 
         result = PipelineResult(video_path=str(video_path))
         steps_cfg = self.cfg.pipeline.steps
-        keyframes_dir = self._frames_dir / "scenes" / "keyframes_content"
-        metadata_path = self._metadata_dir / "keyframes_metadata.json"
+        keyframes_dir = self._frames_dir() / "scenes" / "keyframes_content"
+        metadata_path = self._metadata_dir() / "keyframes_metadata.json"
 
         # ── Etapa 1: Extração de frames ───────────────────────────────────────
         if steps_cfg.frame_extraction:
@@ -485,15 +537,60 @@ class CatalogPipeline:
 
         result.total_duration_s = time.time() - pipeline_start
         logger.info(result.summary())
+
+        # ── Per-film registration ─────────────────────────────────────────────
+        # Only register films whose pipelines actually succeeded. Registering
+        # a partially-failed run (stop_on_error=False with mid-pipeline crash)
+        # would mark an incomplete film as available in the registry.
+        if self.slug is not None and result.success:
+            self._ensure_registered(video_path)
+
         return result
+
+    def _ensure_registered(self, video_path: Path) -> None:
+        """Register this film in ``films.json`` if not already present.
+
+        Treats ``ValueError("Slug already registered")`` as success (idempotent).
+        Title defaults to slug with underscores replaced by spaces in Title Case.
+        Year is extracted from the video stem when a 4-digit sequence is present.
+        """
+        from cinemateca.library import register_film
+
+        assert self.slug is not None  # only called when slug is set
+        assert self._film_paths is not None
+
+        # Derive human-readable title from the slug.
+        title = self.slug.replace("_", " ").replace("-", " ").title()
+
+        # Best-effort year extraction: find last 4-digit number that looks
+        # like a year (1880–2099) in the video filename stem.
+        year: int | None = None
+        stem = video_path.stem
+        matches = re.findall(r"(?<!\d)(1[89]\d{2}|20\d{2})(?!\d)", stem)
+        if matches:
+            year = int(matches[-1])
+
+        raw_filename = video_path.name
+
+        try:
+            register_film(
+                self._film_paths.library_dir,
+                slug=self.slug,
+                title=title,
+                year=year,
+                raw_filename=raw_filename,
+            )
+        except ValueError:
+            # Already registered — idempotent.
+            logger.debug("Film %r already registered, skipping.", self.slug)
 
     # ─── Public selected-step API (Phase 4) ───────────────────────────────────
 
     def _keyframes_dir(self) -> Path:
-        return self._frames_dir / "scenes" / "keyframes_content"
+        return self._frames_dir() / "scenes" / "keyframes_content"
 
     def _keyframes_metadata_path(self) -> Path:
-        return self._metadata_dir / "keyframes_metadata.json"
+        return self._metadata_dir() / "keyframes_metadata.json"
 
     def _inputs_available(self, step: str, keyframes_dir: Path) -> bool:
         """Return True if ``step``'s required input artefacts exist on disk.

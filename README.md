@@ -1,9 +1,14 @@
-# 🎞 Cinemateca imgsearch
+# Cinemateca imgsearch
 
-**Sistema de catalogação audiovisual com modelos locais para acervos cinematográficos.**
+**Offline multimodal search and metadata generation for archival video collections.**
 
-Desenvolvido para cinematecas nacionais e arquivos públicos de filme, com foco em
-acervos históricos de diversos períodos de produção e material de baixa resolução.
+Cinemateca imgsearch is a local-first applied AI workbench that turns video files
+into searchable, human-reviewable scene catalogs. The first domain is film
+archive cataloging: historical footage, sparse metadata, unusual aspect ratios,
+and digitized material with variable quality.
+
+Portuguese context: sistema de catalogação audiovisual com modelos locais para
+cinematecas nacionais e arquivos públicos de filme.
 
 [![Licença: MIT](https://img.shields.io/badge/Licença-MIT-amber.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://python.org)
@@ -13,15 +18,69 @@ acervos históricos de diversos períodos de produção e material de baixa reso
 
 ## Overview (English)
 
-**Cinemateca imgsearch** is an open-source tool that turns a video file into a searchable, annotated scene catalog — entirely offline, with no data sent to external APIs.
+**Cinemateca imgsearch** is an open-source tool for private visual collections.
+After installation and model downloads, processing and search run locally, with
+no video, keyframes, annotations, embeddings, or search queries sent to hosted AI
+APIs.
 
-It was built for **film archives and public cinematheques** that hold large collections of historical footage with minimal metadata. The pipeline processes a video and automatically produces:
+It was built for **film archives and public cinematheques** that hold large
+collections of historical footage with minimal metadata. The pipeline processes
+a video and produces:
 
 - **Scene segmentation** — detects cuts and extracts a representative keyframe per scene
 - **Visual analysis** — detects faces, objects, and classifies environment (indoor/outdoor, day/night)
 - **Natural language descriptions** — a local vision model (Moondream 2) describes each scene in text
 - **Semantic search** — find scenes by free-text query ("two people talking outdoors") or by a reference image, without exact keywords
 - **Manual annotation** — a dedicated tab lets curators add or correct tags scene by scene, which are merged with the automated metadata for search
+
+### Who this is for
+
+- **Archivists and curators** who need a searchable first pass over digitized film collections.
+- **Researchers** who need to find visual moments inside long-form footage.
+- **Applied AI reviewers** who want to inspect a realistic local multimodal system rather than a hosted API demo.
+
+Future domain packs are planned for adjacent private visual-search workflows,
+such as media asset review and inspection footage. The current implemented
+product remains archive-first.
+
+### Current status
+
+Implemented now:
+
+- Single-machine video processing pipeline.
+- FastAPI + HTMX web interface.
+- Text search, image search, scene browsing, and manual annotation.
+- Configurable local model backends using typed Protocols.
+- Offline-oriented static assets and local artifact storage.
+- Regression tests for the web/service/pipeline surfaces.
+
+Planned next:
+
+- Reproducible public demo data and precomputed artifacts.
+- Retrieval and metadata-quality evaluation.
+- Domain pack configuration, starting with the current archive domain.
+- Structured exports, run manifests, API docs, and stronger packaging.
+
+### Project docs
+
+These documents explain the public positioning, architecture, model stack, and
+portfolio roadmap:
+
+| Document | Purpose |
+|---|---|
+| [Project brief](docs/PROJECT_BRIEF.md) | Problem framing, users, positioning, and portfolio value |
+| [Architecture](docs/ARCHITECTURE.md) | Pipeline, web app, model registry, artifacts, and constraints |
+| [Model inventory](docs/MODEL_INVENTORY.md) | Model roles, backends, licenses, download behavior, and risks |
+| [Offline and privacy notes](docs/PRIVACY_OFFLINE.md) | What stays local, when network access may happen, and safe public claims |
+| [Reproducible demo](docs/DEMO.md) | Public demo quickstart using precomputed artifacts |
+| [Demo data](docs/DEMO_DATA.md) | Provenance, rights notes, artifact policy, and regional context |
+| [Demo verification](docs/DEMO_VERIFICATION.md) | Release-bundle and browser verification checklist |
+| [Demo walkthrough](docs/DEMO_WALKTHROUGH.md) | Two-minute public demo script |
+| [Evaluation](docs/EVALUATION.md) | Query schema, retrieval metrics, and annotation-correction stats |
+| [Domain packs](docs/DOMAIN_PACKS.md) | Domain schema, archive and media-broadcast packs, prompt/export mapping |
+| [Portfolio implementation plan](docs/PORTFOLIO_IMPLEMENTATION_PLAN.md) | Phased plan for demo, evaluation, domain packs, and launch |
+| [Task breakdown](docs/TASK_BREAKDOWN.md) | Issue-sized tasks derived from the implementation plan |
+| [Roadmap](docs/ROADMAP.md) | Short public roadmap snapshot |
 
 ### Quick start
 
@@ -34,6 +93,35 @@ uv run app.py                 # FastAPI + HTMX, opens at http://localhost:8501
 # Legacy Streamlit UI (during migration): uv run streamlit run app_streamlit.py
 ```
 
+### Public demo quickstart
+
+The M1 demo uses public Library of Congress footage and a precomputed artifact
+bundle so reviewers can open a populated UI quickly:
+
+```bash
+uv run python scripts/prepare_demo.py --download
+uv run app.py --config config/demo.yaml
+```
+
+See [docs/DEMO.md](docs/DEMO.md) for the artifact layout, validation command,
+and full processing path.
+
+To measure the prepared demo index:
+
+```bash
+uv run python scripts/run_eval.py \
+  --config config/demo.yaml \
+  --queries data/eval/archive_demo_queries.yaml \
+  --output-dir data/eval/reports
+```
+
+See [docs/EVALUATION.md](docs/EVALUATION.md) for metric definitions and report
+format.
+
+Domain packs live under `config/domains/`. The default `archive` pack preserves
+the current demo behavior; `media_broadcast` shows how the same pipeline can
+drive a different prompt set and export shape.
+
 The web interface (FastAPI + HTMX) has these tabs:
 
 | Tab | Purpose |
@@ -43,7 +131,9 @@ The web interface (FastAPI + HTMX) has these tabs:
 | **Anotar** | Manually add or correct tags on individual scenes |
 | **Processamento** | Pipeline progress — appears only while a video is processing |
 
-Designed for **digitised archival footage** — various production periods, variable quality, unusual aspect ratios. Runs on CPU; Apple Silicon M1+ or NVIDIA GPU recommended for the LLM step.
+Designed for **digitized archival footage**: various production periods,
+variable quality, unusual aspect ratios. Runs on CPU; Apple Silicon M1+ or an
+NVIDIA GPU is recommended for the vision-language model step.
 
 ---
 
@@ -60,7 +150,9 @@ automaticamente um catálogo pesquisável com:
 - **Metadados estruturados** — timecodes, tags, contagem de pessoas, objetos — prontos para
   integração com sistemas de gestão de acervo
 
-Tudo roda **localmente**, sem enviar dados para APIs externas.
+Após instalação e download dos modelos, o processamento e a busca rodam
+**localmente**. Vídeos, keyframes, anotações, embeddings e consultas não precisam
+ser enviados para APIs externas.
 
 ---
 
@@ -168,7 +260,9 @@ print(result.summary())
 
 ## Arquitetura
 
-O sistema é organizado em módulos independentes que podem ser usados separadamente:
+O sistema é organizado em módulos independentes que podem ser usados separadamente.
+Os backends de modelo ficam atrás de `Protocol`s tipados e são selecionados por
+configuração em `src/cinemateca/models/registry.py`.
 
 ```
 src/cinemateca/
@@ -176,9 +270,14 @@ src/cinemateca/
 ├── device.py           Detecção de hardware (CPU / CUDA / MPS)
 ├── data_prep.py        Inspeção de vídeo e extração de frames (FFmpeg)
 ├── scene_detector.py   Detecção de cenas (PySceneDetect)
-├── visual_analyzer.py  Detecção facial + objetos + ambiente (MTCNN + YOLOv8)
-├── embeddings.py       Embeddings visuais e busca semântica (CLIP)
-├── llm_describer.py    Descrições em linguagem natural (Moondream 2)
+├── visual_analyzer.py  Fachada de análise visual com backends injetados
+├── embeddings.py       Busca semântica NumPy sobre embeddings CLIP
+├── models/             Protocols + registry + backends concretos
+│   ├── clip/            OpenCLIP
+│   ├── describer/       Moondream 2 via transformers ou GGUF
+│   ├── environment/     Heurística OpenCV
+│   ├── face/            MTCNN
+│   └── objects/         YOLOv8
 └── pipeline.py         Orquestrador do pipeline completo
 ```
 
@@ -204,17 +303,17 @@ Vídeo
 
 ## Modelos utilizados
 
-| Modelo | Tarefa | Licença | Tamanho |
+| Modelo | Tarefa | Backend atual | Observação |
 |---|---|---|---|
-| [CLIP ViT-B/32](https://github.com/mlfoundations/open_clip) | Embeddings visuais e busca semântica | MIT | ~150 MB |
-| [Moondream 2](https://github.com/vikhyatk/moondream) | Descrição de cenas em linguagem natural | Apache 2.0 | ~1.9 GB |
-| [YOLOv8n](https://github.com/ultralytics/ultralytics) | Detecção de objetos | **AGPL-3.0** | ~6 MB |
-| [MTCNN](https://github.com/timesler/facenet-pytorch) | Detecção facial | MIT | ~2 MB |
+| [CLIP ViT-B/32](https://github.com/mlfoundations/open_clip) | Embeddings visuais e busca semântica | OpenCLIP | Pesos podem baixar no primeiro uso |
+| [Moondream 2](https://huggingface.co/vikhyatk/moondream2) | Descrição de cenas em linguagem natural | transformers por padrão; GGUF opcional | Revisão fixada em config para reprodutibilidade |
+| [YOLOv8n](https://github.com/ultralytics/ultralytics) | Detecção de objetos | Ultralytics | Licença AGPL/Enterprise exige atenção |
+| [MTCNN](https://github.com/timesler/facenet-pytorch) | Detecção facial/contagem | facenet-pytorch | Detecção, não reconhecimento de identidade |
 
 > **Nota sobre o YOLOv8:** a Ultralytics usa licença AGPL-3.0.
-> Para uso interno em instituições (sem redistribuição pública do software),
-> isso geralmente não impõe obrigações adicionais. Consulte [SETUP.md](SETUP.md)
-> para alternativas se necessário.
+> Para publicação, redistribuição, uso institucional ou uso comercial, verifique
+> as obrigações da licença, obtenha a licença adequada ou substitua/desative esse
+> backend. Veja também [Model inventory](docs/MODEL_INVENTORY.md).
 
 ---
 
@@ -249,10 +348,16 @@ scene_detection:
 
 ## Filme de teste
 
+The public M1 demo is based on Library of Congress item `00694220`,
+*The Great Train Robbery* (1903). It is the default source for public screenshots
+and release artifacts because it avoids private institutional data. See
+[Demo data](docs/DEMO_DATA.md).
+
 O desenvolvimento usa **Jeca Tatu (1959)** de Amácio Mazzaropi como referência:
 
 - Formato: P&B, ~90 minutos
-- Fonte: [Internet Archive](https://archive.org/details/paixaoflix_mazzaropi__jeca_tatu) (~~domínio público~~)
+- Fonte de desenvolvimento: [Internet Archive](https://archive.org/details/paixaoflix_mazzaropi__jeca_tatu)
+- Status de direitos: verificar antes de redistribuir vídeo, keyframes ou artefatos derivados
 - Escolhido por representar os desafios típicos de acervo: qualidade de digitalização
   variável, variedade de ambientes (rural/urbano, interno/externo)
 
@@ -260,25 +365,16 @@ O desenvolvimento usa **Jeca Tatu (1959)** de Amácio Mazzaropi como referência
 
 ## Roadmap
 
-### v0.1.x (correções)
-- [ ] Testes de integração com vídeo de referência
-- [ ] Tratamento de erros mais detalhado na interface
-- [ ] Documentação de API dos módulos
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the current public roadmap and
+[docs/PORTFOLIO_IMPLEMENTATION_PLAN.md](docs/PORTFOLIO_IMPLEMENTATION_PLAN.md)
+for the portfolio-oriented implementation plan.
 
-### v0.2.0
-- [ ] Exportação de catálogo em CSV e JSON estruturado para integração com sistemas externos
-- [ ] Suporte a múltiplos vídeos no mesmo índice de busca
-- [ ] Interface para comparar resultados de detecção com diferentes thresholds
+Near-term focus:
 
-### v0.3.0
-- [ ] Docker image para instalação sem dependências manuais
-- [ ] Classificador de ambiente treinado (substituir heurística atual)
-- [ ] Suporte a legendas/intertítulos (filmes silenciosos)
-
-### v1.0.0
-- [ ] API REST para integração com sistemas de gestão de acervo existentes
-- [ ] Suporte a múltiplos idiomas nos prompts do LLM
-- [ ] Documentação completa em português e inglês
+- reproducible public demo data,
+- evaluation metrics for retrieval and metadata quality,
+- domain pack configuration,
+- structured exports and run manifests.
 
 ---
 
@@ -300,7 +396,8 @@ uv run pytest tests/
 MIT — veja [LICENSE](LICENSE) para o texto completo.
 
 Nota: o módulo de detecção de objetos usa YOLOv8 (AGPL-3.0).
-Veja [LICENSE](LICENSE) para detalhes sobre dependências.
+Veja [LICENSE](LICENSE) e [Model inventory](docs/MODEL_INVENTORY.md) para
+detalhes sobre dependências.
 
 ---
 

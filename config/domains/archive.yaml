@@ -1,0 +1,124 @@
+id: archive
+label: Film archive
+description: >
+  Catalog historical and archival film scenes for search, review, and
+  preservation workflows. This pack mirrors the current Cinemateca metadata
+  behavior.
+
+metadata_fields:
+  - name: description
+    label: Description
+    type: text
+    required: true
+    help: One or two sentences about the visible subject, action, and setting.
+  - name: location
+    label: Interior/exterior
+    type: enum
+    values: [interior, exterior, desconhecido]
+    required: true
+  - name: setting
+    label: Setting
+    type: short_text
+    required: false
+  - name: time_of_day
+    label: Time of day
+    type: enum
+    values: [dia, noite, desconhecido]
+    required: false
+  - name: num_people
+    label: Visible people
+    type: integer
+    required: false
+  - name: people_action
+    label: People and action
+    type: short_text
+    required: false
+  - name: objects
+    label: Notable objects
+    type: list
+    item_type: string
+    required: false
+  - name: tags
+    label: Search tags
+    type: tag_list
+    required: false
+
+prompt_templates:
+  description:
+    prompt: "Describe this film scene in one or two sentences. Focus on the main subject, action, and setting."
+    max_new_tokens: 80
+  location:
+    prompt: "Is this scene indoors or outdoors? Answer with one word: indoor or outdoor."
+    max_new_tokens: 10
+  setting:
+    prompt: "Describe the setting in 2-4 words. Examples: urban street, rural field, farm, village."
+    max_new_tokens: 20
+  time_of_day:
+    prompt: "What time of day is this scene? Answer with one word: day, night, or unknown."
+    max_new_tokens: 10
+  people_and_action:
+    prompt: "How many people are visible and what are they doing? Answer briefly, e.g.: 2 people talking."
+    max_new_tokens: 30
+  objects:
+    prompt: "List the most notable objects in this scene, comma-separated. Maximum 6 items."
+    max_new_tokens: 40
+
+taxonomy:
+  location:
+    - interior
+    - exterior
+    - desconhecido
+  time_of_day:
+    - dia
+    - noite
+    - desconhecido
+  common_tags:
+    - interior
+    - exterior
+    - dia
+    - noite
+    - sem-pessoas
+    - pessoa-unica
+    - duas-pessoas
+    - multiplas-pessoas
+
+filters:
+  - name: location
+    label: Location
+    source: location
+    type: enum
+  - name: time_of_day
+    label: Time of day
+    source: time_of_day
+    type: enum
+  - name: tags
+    label: Tags
+    source: tags
+    type: tag_multi_select
+
+export_mapping:
+  scene_id: scene_id
+  keyframe_id: keyframe_id
+  keyframe_path: keyframe_path
+  start_time_s: start_time_s
+  end_time_s: end_time_s
+  duration_s: duration_s
+  description: description
+  location: location
+  setting: setting
+  time_of_day: time_of_day
+  num_people: num_people
+  people_action: people_action
+  objects: objects
+  tags: tags
+
+sample_outputs:
+  - scene_id: 1
+    description: "A railroad office scene with people gathered around a desk."
+    location: interior
+    setting: railroad office
+    time_of_day: dia
+    tags: [interior, dia, multiplas-pessoas]
+
+evaluation:
+  queries: data/eval/archive_demo_queries.yaml

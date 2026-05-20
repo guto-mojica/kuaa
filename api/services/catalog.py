@@ -28,6 +28,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from typing import Any
 
 from api.services.film_context import FilmContext
 from cinemateca.scene_ids import scene_id_key
@@ -307,3 +308,88 @@ def build_scenes_grid(ctx: FilmContext, tags: list[str], keyword: str) -> dict:
         kf_meta, desc_by_scene, vis_by_scene, tag_index, ctx.data_dir, tags, keyword
     )
     return {"cards": cards}
+
+
+def build_scenes_grid_aggregate(cfg: Any, tags: list[str], keyword: str) -> dict:
+    """Build the filtered scenes-grid context across ALL films.
+
+    Filter-aware sibling of :func:`build_scenes_context_aggregate` for
+    the ``/api/scenes`` grid-refresh endpoint (HTMX tag/keyword changes).
+
+    Walks the library the same way the aggregate context builder does,
+    but applies *tags* and *keyword* filters per film via
+    :func:`build_cards`.  Each card is annotated with ``film_slug`` and
+    ``film_title`` so the template can group by film when desired.
+
+    Returns ``{"cards": all_cards}`` — matching the per-film
+    :func:`build_scenes_grid` return shape — so the same
+    ``scenes_grid.html`` partial works in both modes.
+    """
+    from cinemateca.library import scan_library
+
+    library_dir = Path(cfg.paths.library_dir)
+    all_cards: list[dict] = []
+    for film in scan_library(library_dir):
+        ctx = FilmContext.for_film(cfg, film.slug)
+        kf_meta, desc_by_scene, vis_by_scene, tag_index = load_metadata(
+            ctx.metadata_dir
+        )
+        cards = build_cards(
+            kf_meta, desc_by_scene, vis_by_scene, tag_index, ctx.data_dir,
+            tags, keyword,
+        )
+        for c in cards:
+            c["film_slug"] = film.slug
+            c["film_title"] = film.title
+        all_cards.extend(cards)
+    return {"cards": all_cards}
+
+
+def build_scenes_context_aggregate(cfg: Any) -> dict:
+    """Build the scenes context across ALL films in the library.
+
+    For each film: load its per-film metadata, build cards from its
+    artefacts (path math through ``FilmContext.for_film``), annotate
+    each card with ``film_slug`` + ``film_title`` for the template
+    grouping, and concatenate.
+
+    Tolerates registered-but-unprocessed films (no ``metadata/`` dir):
+    ``load_metadata`` returns empty containers and the film contributes
+    zero cards without raising.
+
+    ``available_tags`` is the union of per-film tag-index keys, already
+    in their normalized form (matching ``build_scenes_context``'s shape).
+
+    ``no_data`` is True iff no card was produced across all films. This
+    diverges intentionally from ``build_scenes_context``'s ``not kf_meta``
+    test: at the aggregate level "no data" means the whole library has
+    nothing renderable, not that any one film lacks keyframes. Callers
+    in T9 must surface this distinction in copy.
+
+    Performance: loads all per-film metadata from disk on every call.
+    For large libraries (~100+ films) consider a request-scoped cache
+    alongside the per-film search index cache T8 introduces.
+    """
+    from cinemateca.library import scan_library
+
+    library_dir = Path(cfg.paths.library_dir)
+    all_cards: list[dict] = []
+    all_tags: set[str] = set()
+    for film in scan_library(library_dir):
+        ctx = FilmContext.for_film(cfg, film.slug)
+        kf_meta, desc_by_scene, vis_by_scene, tag_index = load_metadata(
+            ctx.metadata_dir
+        )
+        cards = build_cards(
+            kf_meta, desc_by_scene, vis_by_scene, tag_index, ctx.data_dir, [], ""
+        )
+        for c in cards:
+            c["film_slug"] = film.slug
+            c["film_title"] = film.title
+        all_cards.extend(cards)
+        all_tags.update(tag_index.keys())
+    return {
+        "cards": all_cards,
+        "available_tags": sorted(all_tags),
+        "no_data": not all_cards,
+    }

@@ -76,8 +76,9 @@ class FilmContext:
             ``Path(cfg.paths.metadata_dir)`` was passed un-resolved to
             ``_load_metadata``).
 
-        This is the global/flat constructor (``slug=None``). Use
-        :meth:`for_film` for per-film resolution into ``data/films/{slug}/``.
+        This is the only constructor v0.3 provides; ``slug`` is
+        ``None`` (global). A future multi-film epic adds the per-film
+        variant.
         """
         return cls(
             slug=None,
@@ -89,22 +90,41 @@ class FilmContext:
         )
 
     @classmethod
-    def for_film(cls, cfg: Any, slug: str) -> "FilmContext":
-        """Build a per-film context whose artefact dirs live under
-        ``data/films/{slug}/``.
+    def for_film(cls, cfg: Any, slug: str) -> FilmContext:
+        """Build a per-film context from a loaded ``Config`` and a slug.
 
-        The global ``data_dir`` is preserved (it is the root served at
-        ``/media``); only the per-artefact subdirectories change.  The
-        caller is responsible for creating those directories before
-        running the pipeline (e.g. ``ctx.metadata_dir.mkdir(parents=True,
-        exist_ok=True)``).
+        The film must exist as a directory under ``cfg.paths.library_dir/``
+        — that directory is the boundary of all per-film artefacts.
+
+        Path semantics under the per-film layout:
+          * ``data_dir`` is the media-mount root (``cfg.paths.data_dir``),
+            ``.resolve()``-d. It must match the directory mounted at
+            ``/media`` in :mod:`api.server` so keyframe URLs resolve to
+            files the static-files handler actually serves. For real
+            metadata that still carries pre-migration absolute paths
+            under ``data/frames/...`` this lets URLs resolve to the
+            still-present flat files; for relative or new per-film
+            absolute paths it resolves to ``/media/library/<slug>/...``.
+          * ``raw_path`` / ``metadata_dir`` / ``frames_dir`` / ``embeddings_dir``
+            all live under ``<library_dir>/<slug>/...`` and are returned
+            un-resolved, matching the flat-context contract byte-for-byte.
         """
-        data_dir = Path(cfg.paths.data_dir).resolve()
-        film_dir = data_dir / "films" / slug
+        # Reject traversal slugs (e.g. "../secret") before any disk math runs.
+        # `Path(slug).name` strips directory components, so a clean slug equals
+        # its own .name; "../secret" becomes "secret" and the comparison fails.
+        if not slug or slug != Path(slug).name:
+            raise ValueError(f"Invalid slug: {slug!r}")
+        library_dir = Path(cfg.paths.library_dir)
+        film_dir = library_dir / slug
+        if not film_dir.is_dir():
+            raise ValueError(f"No such film directory: {film_dir}")
+        # data_dir defaults to library_dir for test configs that don't supply
+        # cfg.paths.data_dir; real configs always carry data_dir (default.yaml).
+        data_dir_str = getattr(cfg.paths, "data_dir", None) or str(library_dir)
         return cls(
             slug=slug,
-            raw_path=Path(cfg.paths.raw_dir),
-            data_dir=data_dir,
+            raw_path=film_dir / "raw",
+            data_dir=Path(data_dir_str).resolve(),
             metadata_dir=film_dir / "metadata",
             frames_dir=film_dir / "frames",
             embeddings_dir=film_dir / "embeddings",

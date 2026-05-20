@@ -25,6 +25,67 @@ estabilização da interface e backends de modelo plugáveis.
 - Docker image para instalação sem dependências manuais
 - Testes de integração com vídeo de referência
 
+### v1.0.0 — Lançamento público multimodal (planejado, 4 meses a partir de 2026-05-19)
+
+Plano completo em
+`docs/superpowers/specs/2026-05-19-multimodal-retrieval-and-launch-design.md`.
+
+#### Adicionado (implementado — branch `feat/multi-film-library`)
+
+- **Acervo multi-filme (T1–T11)** — registry em `data/library/films.json`,
+  layout per-film em `data/library/<slug>/{raw,frames,metadata,embeddings}/`,
+  busca/navegação cross-film via `?film=<slug>`, seletor lateral em HTMX,
+  script de migração `scripts/migrate_flat_to_library.py` (idempotente),
+  pipeline com flag `--slug` que escreve sob `library/<slug>/` e registra
+  o filme automaticamente. Plano detalhado em
+  `docs/superpowers/plans/2026-05-20-multi-film-library.md`. Suite de
+  testes: 265 → 332 passando, 0 falhas. T12 (migração da Jeca Tatu real)
+  pendente como ação manual.
+
+#### Adicionado (planejado)
+
+- **Acervo multi-filme** — busca e navegação atravessam todos os filmes do
+  acervo (limitação honesta de filme único do v0.3.0 é removida).
+- **Busca multimodal** — texto, imagem, áudio (CLAP) e transcrição (Whisper).
+- **Busca híbrida** — CLIP semântico ⊕ BM25 sobre descrições/transcrições/tags
+  com Reciprocal Rank Fusion.
+- **Cross-encoder reranker** — re-ranking dos top-50 candidatos (padrão:
+  `cross-encoder/ms-marco-MiniLM-L-12-v2`; VLM-as-judge como modo opt-in).
+- **Embeddings visuais multilíngues** — consultas em PT/EN/ES, SigLIP
+  multilingual (M-CLIP como fallback).
+- **Fusão cross-modal** — consultas que combinam semântica visual e auditiva
+  ("cena tranquila com música melancólica").
+- **Rimas visuais entre filmes** — kNN sobre embeddings CLIP com restrição
+  cross-film e diversidade MMR; botão "mais como esta cena, em outros filmes".
+- **Framework de avaliação** — eval set privado de 50-100 pares
+  (consulta, cena relevante) anotados com curadores. Métricas:
+  P@5, MRR, R@20, latência por estágio, diversidade@k. Ablação completa.
+- **Demonstração hospedada** — HuggingFace Spaces (CPU) com catálogo
+  pré-indexado de filmes em domínio público.
+- **Imagem Docker** — instalação por um comando, CPU-padrão / GPU opcional.
+
+#### Novos Protocols (extensões a `models/base.py`)
+
+- `AudioEmbedder` — embedding de áudio (LAION-CLAP padrão).
+- `Transcriber` — transcrição com timestamps (faster-whisper padrão).
+
+#### Artefatos públicos do lançamento
+
+- README reescrito (herói em inglês para recrutadores; conteúdo institucional
+  PT/EN preservado abaixo da dobra).
+- Post técnico de ~2.500 palavras (domínio próprio canônico + artigo LinkedIn
+  cross-post).
+- Vídeo demo de 90 segundos (YouTube).
+- Post de lançamento no LinkedIn.
+- Tag `v1.0.0` no GitHub com notas de release.
+
+#### Não-objetivos explícitos (deferidos para v2+)
+
+OCR de legendas/intertítulos; reconhecimento facial nominal; classificador
+treinado de ambiente/tipo de plano; release público do eval set;
+mobile/browser-only; multi-tenant; treino de modelos foundation;
+indexação distribuída.
+
 ### Ferramentas de desenvolvimento
 
 - Adoção do **uv** para gerenciamento de ambiente e dependências.
