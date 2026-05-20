@@ -8,7 +8,7 @@ import os
 import tempfile
 import time
 from collections.abc import Mapping
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +20,7 @@ def _coerce_jsonable(value: Any) -> Any:
     if isinstance(value, Path):
         return str(value)
     if isinstance(value, datetime):
-        return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
+        return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     if hasattr(value, "to_dict"):
         return _coerce_jsonable(value.to_dict())
     if isinstance(value, Mapping):
@@ -57,7 +57,7 @@ def config_hash(cfg: Any) -> str:
 def _iso_from_epoch(value: float | None) -> str | None:
     if value is None:
         return None
-    return datetime.fromtimestamp(value, UTC).isoformat().replace("+00:00", "Z")
+    return datetime.fromtimestamp(value, timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def input_identity(video_path: str | Path) -> dict[str, Any]:

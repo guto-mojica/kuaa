@@ -6,7 +6,7 @@ import csv
 import io
 import json
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -189,7 +189,7 @@ def build_catalog_export(
     missing_artifacts = [
         name for name, path in paths.items() if not path.exists()
     ]
-    now = generated_at or datetime.now(UTC)
+    now = generated_at or datetime.now(timezone.utc)
 
     return CatalogExport(
         meta=CatalogExportMeta(

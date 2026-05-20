@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from io import StringIO
 
 import pytest
@@ -25,7 +25,7 @@ def test_catalog_export_builds_domain_shaped_json(tmp_config, seed_metadata):
 
     export = build_catalog_export(
         tmp_config,
-        generated_at=datetime(2026, 5, 20, 12, 0, tzinfo=UTC),
+        generated_at=datetime(2026, 5, 20, 12, 0, tzinfo=timezone.utc),
     )
     data = json.loads(catalog_export_to_json(export))
 
