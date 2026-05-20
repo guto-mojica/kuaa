@@ -155,7 +155,9 @@ def test_aggregate_text_search_returns_results_from_both_films(
     )
 
     assert len(results) == 2
-    # Top result is one of the two "[1.0, 0.0]" matches (score 1.0 in both).
-    # The next-best is film A's [0.5, 0.5] (score ≈ 0.707).
+    # Both top-2 results are the "[1.0, 0.0]" matches (score 1.0): one from
+    # film A (index 1) and one from film B (index 0). A's [0.5, 0.5] at
+    # score ~0.707 is rank-3 and is excluded by top_k=2.
     slugs_in_top2 = {r["film_slug"] for r in results}
     assert slugs_in_top2 == {"a", "b"}
+    assert all(abs(r["score"] - 1.0) < 1e-6 for r in results)

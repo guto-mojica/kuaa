@@ -321,7 +321,15 @@ def aggregate_search(
 
     all_hits: list[dict] = []
     for film in scan_library(library_dir):
-        idx = _get_search_index(cfg, film.slug)
+        try:
+            idx = _get_search_index(cfg, film.slug)
+        except ValueError as exc:
+            # Registered film whose directory has been removed manually —
+            # skip silently rather than crash the whole aggregate.
+            logger.warning(
+                "aggregate_search: skip film %s — %s", film.slug, exc
+            )
+            continue
         if idx.status is not IndexStatus.OK:
             logger.info(
                 "aggregate_search: skip film %s — index status %s",
