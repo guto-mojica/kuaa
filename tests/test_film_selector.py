@@ -104,44 +104,57 @@ class TestFilmSelectorSelection:
     """The correct <option> is marked selected based on ?film=."""
 
     def test_no_slug_selects_aggregate(self, two_film_client):
-        """No ?film= → the empty-value option (Acervo inteiro) is selected."""
+        """No ?film= → the empty-value option (Acervo inteiro) is selected.
+
+        Uses a regex so the assertion is tied to THIS option specifically
+        (not just "any option is selected somewhere") — the template
+        renders the selected attr on a new line after value="".
+        """
+        import re
         r = two_film_client.get("/scenes")
         assert r.status_code == 200
-        # The aggregate option has value="" and must carry the "selected" attr.
-        # We look for the pattern: value="" ... selected (or selected ... value="")
-        # in the rendered HTML. A simple contains check is robust here.
-        assert 'value="" ' in r.text and "selected" in r.text
+        assert re.search(r'value=""\s+selected', r.text), (
+            "Aggregate (value='') option must carry the selected attribute"
+        )
 
     def test_film_a_slug_selects_film_a_option(self, two_film_client):
-        """?film=film_a → the film_a option is marked selected."""
+        """?film=film_a → the film_a option is marked selected (and ONLY it)."""
+        import re
         r = two_film_client.get("/scenes?film=film_a")
         assert r.status_code == 200
-        # The selected option should have value="film_a".
-        assert 'value="film_a"' in r.text
-        # Crude but effective: assert the word "selected" follows film_a's value.
-        # We look for the contiguous attribute block the template renders.
-        assert 'value="film_a"\n              selected' in r.text or (
-            'value="film_a"' in r.text and "selected" in r.text
+        assert re.search(r'value="film_a"\s+selected', r.text), (
+            "film_a option must carry the selected attribute when ?film=film_a"
+        )
+        # And the aggregate option must NOT be selected.
+        assert not re.search(r'value=""\s+selected', r.text), (
+            "Aggregate option must not be selected when ?film=film_a"
         )
 
     def test_film_b_slug_selects_film_b_option(self, two_film_client):
-        """?film=film_b → the film_b option is marked selected."""
+        """?film=film_b → the film_b option is marked selected (and ONLY it)."""
+        import re
         r = two_film_client.get("/scenes?film=film_b")
         assert r.status_code == 200
-        assert 'value="film_b"' in r.text
-        assert "selected" in r.text
+        assert re.search(r'value="film_b"\s+selected', r.text), (
+            "film_b option must carry the selected attribute when ?film=film_b"
+        )
+        assert not re.search(r'value="film_a"\s+selected', r.text), (
+            "film_a option must not be selected when ?film=film_b"
+        )
 
     def test_search_tab_respects_current_slug(self, two_film_client):
         """?film= param is respected on /search too, not just /scenes."""
+        import re
         r = two_film_client.get("/search?film=film_a")
         assert r.status_code == 200
-        assert 'value="film_a"' in r.text
+        assert re.search(r'value="film_a"\s+selected', r.text)
 
     def test_annotate_tab_respects_current_slug(self, two_film_client):
         """?film= param is respected on /annotate too."""
+        import re
         r = two_film_client.get("/annotate?film=film_b")
         assert r.status_code == 200
-        assert 'value="film_b"' in r.text
+        assert re.search(r'value="film_b"\s+selected', r.text)
 
 
 # ── Empty library suppresses the selector ────────────────────────────────────

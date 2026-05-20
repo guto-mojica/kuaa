@@ -109,13 +109,15 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     # `processing` builder deliberately re-supplies `films`, overriding the
     # base value here; that override is intended, not a bug.
     tab_ctx = _TAB_CONTEXT_BUILDERS[active_tab]()
-    # Full-page routes are always aggregate (no ?film= on direct GET /scenes
-    # etc.), so current_slug is always None here.  T10 sidebar uses this to
-    # highlight no film as "active" on full-page loads.
+    # HTMX-driven film switches issue full-page GETs with ?film=<slug>
+    # (the selector's hx-push-url propagates the slug into the URL bar),
+    # so render_page must read it back so the sidebar selector keeps
+    # the right option marked selected on the response.
+    current_slug = request.query_params.get("film") or None
     return templates.TemplateResponse(
         request,
         "base.html",
-        make_ctx(request, current_slug=None, **{**base_ctx, **tab_ctx}),
+        make_ctx(request, current_slug=current_slug, **{**base_ctx, **tab_ctx}),
     )
 
 
