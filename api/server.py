@@ -89,12 +89,9 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     # from the same source; collapsing the double-scan into one request-
     # scoped library object belongs to T9/T10, not here.
     # TODO(T5): switch to cfg.paths.library_dir once the config knob lands.
-    films = scan_library(Path(cfg.paths.data_dir))
-    state = library_state(
-        raw_dir=Path(cfg.paths.raw_dir),
-        metadata_dir=Path(cfg.paths.metadata_dir),
-        embeddings_index_path=Path(cfg.paths.embeddings_dir) / cfg.embeddings.filename,
-    )
+    library_dir = Path(cfg.paths.data_dir)
+    films = scan_library(library_dir)
+    state = library_state(library_dir)
     base_ctx = {
         "active_tab": active_tab,
         "processing_jobs": 0,

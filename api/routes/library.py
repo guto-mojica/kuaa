@@ -25,19 +25,13 @@ def _library_ctx(request: Request, q: str = "") -> dict:
     cfg = get_config()
     # TODO(T5): switch to cfg.paths.library_dir once the config knob lands.
     library_dir = Path(cfg.paths.data_dir)
-    raw_dir = Path(cfg.paths.raw_dir)
-    metadata_dir = Path(cfg.paths.metadata_dir)
 
     films = scan_library(library_dir)
     if q.strip():
         needle = q.strip().lower()
         films = [f for f in films if needle in f.title.lower() or needle in f.slug.lower()]
 
-    state = library_state(
-        raw_dir=raw_dir,
-        metadata_dir=metadata_dir,
-        embeddings_index_path=Path(cfg.paths.embeddings_dir) / cfg.embeddings.filename,
-    )
+    state = library_state(library_dir)
     return make_ctx(request, films=films, library_state=state)
 
 
