@@ -5,6 +5,12 @@ All index loading (now mtime/size-cache-invalidated), shape validation,
 upload guards and result conversion live in
 ``api/services/search.py`` (Phase 3c). Path resolution flows through
 :class:`FilmContext` (consistent with scenes / annotate).
+
+T9: ``/api/search`` accepts an optional ``?film=<slug>`` query parameter.
+``slug=None`` → aggregate-search across all films (``aggregate_search``);
+``slug given`` → per-film index search (``_get_search_index`` + existing
+text-search path).  Image search is per-film only (aggregate image search
+lands in a later plan).
 """
 from __future__ import annotations
 
@@ -12,11 +18,12 @@ import asyncio
 import logging
 import tempfile
 from pathlib import Path
+from typing import Optional
 
-from fastapi import APIRouter, File, Query, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse
 
-from api.deps import get_config, make_ctx
+from api.deps import film_slug_query, get_config, make_ctx
 from api.services import search as search_service
 from api.services.catalog import derive_fps, load_json, load_tag_index
 from api.services.film_context import FilmContext
@@ -53,7 +60,10 @@ def _no_index_response(request: Request) -> HTMLResponse:
 
 
 @router.get("/tab/search", response_class=HTMLResponse)
-async def tab_search(request: Request) -> HTMLResponse:
+async def tab_search(
+    request: Request,
+    slug: Optional[str] = Depends(film_slug_query),
+) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "partials/search.html",
@@ -67,13 +77,51 @@ async def api_search(
     q: str = "",
     tags: list[str] = Query(default=[]),
     top_k: int = 8,
+    slug: Optional[str] = Depends(film_slug_query),
 ) -> HTMLResponse:
     q = q.strip()
     if len(q) < 2:
         return HTMLResponse("")
 
     cfg = get_config()
-    ctx = FilmContext.from_config(cfg)
+
+    if slug is None:
+        # Aggregate search: run per-film text search across all registered
+        # films and merge results by cosine score.  Tags are not yet
+        # supported in aggregate mode (per-film tag post-filtering lands in
+        # a later plan); fall back to no-index response when there are no
+        # indexed films.
+        loop = asyncio.get_event_loop()
+        try:
+            hits = await loop.run_in_executor(
+                None,
+                lambda: search_service.aggregate_search(
+                    cfg, query=q, modality="text", top_k=top_k
+                ),
+            )
+        except NotImplementedError:
+            return _no_index_response(request)
+        if not hits:
+            return _no_index_response(request)
+        # Convert aggregate hit dicts → template-compatible result dicts.
+        # aggregate_search returns plain dicts (not DataFrames), so
+        # results_to_dicts is not applicable; build the img_url here.
+        library_dir = Path(cfg.paths.library_dir).resolve()
+        results = [
+            {
+                **h,
+                "img_url": search_service.keyframe_url(h["keyframe_path"], library_dir),
+            }
+            for h in hits
+        ]
+        return templates.TemplateResponse(
+            request,
+            "partials/search_results.html",
+            make_ctx(request, results=results, no_index=False),
+        )
+
+    # Per-film search: load the specific film's index.
+    ctx = FilmContext.from_config(cfg) if slug is None else FilmContext.for_film(cfg, slug)
     index = search_service.load_index(
         ctx,
         mapping_filename=cfg.embeddings.mapping_filename,
@@ -107,9 +155,16 @@ async def api_search_image(
     request: Request,
     file: UploadFile = File(...),
     top_k: int = 8,
+    slug: Optional[str] = Depends(film_slug_query),
 ) -> HTMLResponse:
+    """Image-similarity search.
+
+    Always operates on a single film's index (per-film or flat
+    ``from_config`` back-compat).  Aggregate image search is deferred
+    to a later plan.
+    """
     cfg = get_config()
-    ctx = FilmContext.from_config(cfg)
+    ctx = FilmContext.for_film(cfg, slug) if slug is not None else FilmContext.from_config(cfg)
     index = search_service.load_index(
         ctx,
         mapping_filename=cfg.embeddings.mapping_filename,
