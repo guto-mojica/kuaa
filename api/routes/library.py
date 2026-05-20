@@ -1,11 +1,9 @@
-"""Library sidebar route — inventory filter only.
+"""Library sidebar route — registry filter.
 
-v0.3 is SINGLE-FILM: there is no per-film context to switch into, so
-there is no film-"select" route. The sidebar shows the honest GLOBAL
-artifact state plus the raw videos as a plain inventory; the only
-interaction is filtering that inventory by name. (A real per-film
-selection lands with the post-recovery multi-film epic; see
-``api.services.film_context.FilmContext``.)
+Shows the registry-backed film list (films.json) filtered by name.
+Per-film scene counts and processed state are REAL (read from
+``<library_dir>/<slug>/metadata/keyframes_metadata.json``).
+Full per-film selection affordances land in T9/T10.
 """
 from __future__ import annotations
 
@@ -21,14 +19,15 @@ router = APIRouter()
 
 
 def _library_ctx(request: Request, q: str = "") -> dict:
-    """Build the sidebar context: honest global state + filtered inventory."""
+    """Build the sidebar context: global state + filtered registry film list."""
     from cinemateca.library import library_state, scan_library
 
     cfg = get_config()
+    library_dir = Path(cfg.paths.data_dir)
     raw_dir = Path(cfg.paths.raw_dir)
     metadata_dir = Path(cfg.paths.metadata_dir)
 
-    films = scan_library(raw_dir=raw_dir, metadata_dir=metadata_dir)
+    films = scan_library(library_dir)
     if q.strip():
         needle = q.strip().lower()
         films = [f for f in films if needle in f.title.lower() or needle in f.slug.lower()]

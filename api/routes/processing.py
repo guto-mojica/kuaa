@@ -53,10 +53,7 @@ def build_processing_context() -> dict:
     cfg = get_config()
     from cinemateca.library import scan_library
 
-    films = scan_library(
-        raw_dir=Path(cfg.paths.raw_dir),
-        metadata_dir=Path(cfg.paths.metadata_dir),
-    )
+    films = scan_library(Path(cfg.paths.data_dir))
     jobs = active_jobs()
 
     return {"films": films, "step_defs": STEP_DEFS, "jobs": jobs}

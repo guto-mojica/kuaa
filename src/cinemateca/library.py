@@ -1,22 +1,15 @@
-"""cinemateca.library — Film inventory + honest global artifact state.
+"""cinemateca.library — Film registry + per-film artifact state.
 
-v0.3 is SINGLE-FILM / FLAT: there is exactly ONE global artifact set
-(``metadata_dir/keyframes_metadata.json``, the embeddings index, etc.)
-shared by whatever video sits in ``raw_dir``. There is no per-film data
-model yet (that is the post-recovery multi-film epic; see
-``api.services.film_context.FilmContext`` for the extension seam).
+Under the multi-film per-film layout each film lives at::
 
-Accordingly this module does NOT pretend each raw video has independent
-scene counts or its own processed state:
+    <library_dir>/<slug>/
+        raw/           — source video file(s)
+        metadata/      — keyframes_metadata.json, scene_tags.json, etc.
+        embeddings/    — per-film CLIP index
 
-  * :func:`scan_library` returns the raw videos as a plain INVENTORY.
-    Every ``Film`` has ``scene_count == 0`` and ``is_processed is False``
-    — those per-film fields are kept on the dataclass only for a stable
-    signature (callers/tests depend on the shape) but are deliberately
-    never populated, because per-film state does not exist in v0.3.
-  * :func:`library_state` reports the REAL, GLOBAL artifact state once:
-    is a raw video present, is the search index present, and the single
-    global scene count from ``keyframes_metadata.json``.
+:func:`scan_library` reads the ``films.json`` registry and populates
+REAL per-film ``scene_count`` and ``is_processed`` from disk artifacts.
+:func:`library_state` reports the aggregate global state (all films).
 """
 from __future__ import annotations
 
@@ -33,12 +26,12 @@ _VIDEO_EXTENSIONS = {".mp4", ".mkv", ".avi", ".mov", ".m4v", ".webm"}
 
 @dataclass
 class Film:
-    """One raw video file in the inventory.
+    """One registered film in the library.
 
-    ``scene_count`` / ``is_processed`` exist for signature stability only
-    and are ALWAYS ``0`` / ``False`` in v0.3 — there is no per-film
-    processed state under the flat single-film layout. Read global
-    processing state from :func:`library_state` instead.
+    ``scene_count`` reflects the actual number of detected scenes on disk
+    (length of ``<slug>/metadata/keyframes_metadata.json``). ``is_processed``
+    derives from ``scene_count > 0``. ``year`` is the production year
+    stored in ``films.json``, or ``None`` when unknown.
     """
 
     slug: str
@@ -46,19 +39,20 @@ class Film:
     raw_path: Path
     scene_count: int = 0
     is_processed: bool = False
+    year: int | None = None
 
 
 @dataclass
 class LibraryState:
-    """Honest GLOBAL artifact state for the single-film v0.3 layout.
+    """Aggregate artifact state across all registered films.
 
     Attributes:
-        raw_present: At least one raw video file exists in ``raw_dir``.
+        raw_present: At least one raw video file exists.
         index_present: The CLIP embeddings index file exists.
-        scene_count: Number of scenes in the single global
-            ``keyframes_metadata.json`` (0 if absent/empty).
-        is_processed: ``scene_count > 0`` — the library has a processed
-            artifact set. Global, NOT per-film.
+        scene_count: Total scene count across all films (or the global
+            single ``keyframes_metadata.json`` in the legacy flat layout).
+        is_processed: ``scene_count > 0`` — at least one film has been
+            processed.
     """
 
     raw_present: bool
@@ -70,34 +64,49 @@ class LibraryState:
         return self.scene_count > 0
 
 
-def scan_library(raw_dir: Path, metadata_dir: Path) -> list[Film]:
-    """Return the raw videos in ``raw_dir`` as a plain inventory.
+def scan_library(library_dir: Path) -> list[Film]:
+    """Return every registered film with REAL per-film disk state.
 
-    ``metadata_dir`` is accepted for signature stability (callers pass it)
-    but is intentionally NOT consulted: per-film scene counts / processed
-    flags do not exist in the flat single-film v0.3 layout, so fabricating
-    them per video would be dishonest. Every returned ``Film`` therefore
-    has ``scene_count == 0`` and ``is_processed is False``. Use
-    :func:`library_state` for the real global artifact state.
+    The single-film v0.3 honest-limitation (``scene_count == 0`` always,
+    ``is_processed is False`` always) is removed here: under the per-film
+    layout, ``<library_dir>/<slug>/metadata/keyframes_metadata.json`` is
+    the authoritative per-film scene count, and ``is_processed`` derives
+    from it (``scene_count > 0``).
+
+    Films appear in the result in the order ``films.json`` stores them
+    (sorted by slug, because :func:`save_registry` writes ``sort_keys=True``).
     """
-    if not raw_dir.exists():
-        logger.warning("raw_dir not found: %s", raw_dir)
+    if not library_dir.exists():
+        logger.warning("library_dir not found: %s", library_dir)
         return []
 
+    registry = load_registry(library_dir)
     films: list[Film] = []
-    for video_path in sorted(raw_dir.iterdir()):
-        if video_path.suffix.lower() not in _VIDEO_EXTENSIONS:
-            continue
-        slug = video_path.stem.lower().replace(" ", "_")
+    for slug, entry in registry.items():
+        film_dir = library_dir / slug
+        kf_path = film_dir / "metadata" / "keyframes_metadata.json"
+        scene_count = 0
+        if kf_path.exists():
+            try:
+                with open(kf_path, encoding="utf-8") as f:
+                    kf_meta = json.load(f)
+                if isinstance(kf_meta, list):
+                    scene_count = len(kf_meta)
+            except (json.JSONDecodeError, OSError) as exc:
+                logger.warning(
+                    "Unreadable keyframes_metadata.json for %s: %s", slug, exc
+                )
         films.append(
             Film(
                 slug=slug,
-                title=video_path.stem.replace("_", " ").title(),
-                raw_path=video_path,
+                title=entry.get("title", slug),
+                raw_path=film_dir / "raw" / entry.get("raw_filename", ""),
+                scene_count=scene_count,
+                is_processed=scene_count > 0,
+                year=entry.get("year"),
             )
         )
-        logger.debug("Inventory film: %s", slug)
-
+        logger.debug("Scanned film: %s (scenes=%d)", slug, scene_count)
     return films
 
 
@@ -106,17 +115,18 @@ def library_state(
     metadata_dir: Path,
     embeddings_index_path: Path | None = None,
 ) -> LibraryState:
-    """Report the honest GLOBAL artifact state (single-film v0.3 layout).
+    """Report the aggregate global artifact state.
 
-    There is exactly one of each artifact, shared globally:
+    In the legacy flat layout (pre-multi-film migration) this reads the
+    single global ``metadata_dir/keyframes_metadata.json``. T4 will
+    supersede this with a registry-aware aggregate. Until then the
+    signature is unchanged so existing callers keep working.
 
       * ``raw_present`` — any video file in ``raw_dir``.
-      * ``scene_count`` — length of the single global
-        ``metadata_dir/keyframes_metadata.json`` (0 if absent/empty/
-        malformed).
-      * ``index_present`` — ``embeddings_index_path`` exists (when the
-        caller supplies it; ``None`` → reported as absent, callers that
-        do not know the embeddings filename simply omit it).
+      * ``scene_count`` — length of ``metadata_dir/keyframes_metadata.json``
+        (0 if absent/empty/malformed).
+      * ``index_present`` — ``embeddings_index_path`` exists (``None``
+        → reported as absent).
     """
     raw_present = False
     if raw_dir.exists():
@@ -150,8 +160,9 @@ def load_registry(library_dir: Path) -> dict[str, dict]:
     """Load films.json from ``library_dir``; empty dict if absent.
 
     The registry is the single source of truth for which films exist.
-    Per-film derived state (scene_count, processed?) is NOT stored here;
-    it is read from on-disk artefacts each time via :func:`scan_library`.
+    Per-film derived state (scene_count, is_processed) is NOT stored here;
+    it is computed from on-disk artefacts each time :func:`scan_library`
+    runs.
     """
     path = library_dir / "films.json"
     if not path.exists():
