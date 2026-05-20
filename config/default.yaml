@@ -72,12 +72,19 @@ embeddings:
   # Arquivo de saída (relativo a embeddings_dir)
   filename: "keyframe_embeddings.npy"
   mapping_filename: "index_mapping.json"
-  # Cosine-similarity floor for text search. ViT-B-32/openai puts unrelated
-  # text-image pairs near 0.22–0.25, so top_k=8 always returned 8 results
-  # even for queries with no real match ("airplane" in a 1959 rural film).
-  # 0.25 drops the obvious noise; tighten if real matches start being
-  # filtered. The proper fix is a reranker (Month-2 launch tracker item).
-  min_similarity: 0.25
+  # Cosine-similarity floor for text search. Empirically, ViT-B-32/openai's
+  # score band on this archival corpus is too narrow to be separated by a
+  # single absolute floor: "men"/"dog"/"a man" cluster at 0.22–0.25, and so
+  # does off-distribution noise like "airplane"/"smartphone". Any floor
+  # high enough to cut the noise also cuts real signal.
+  #
+  # Default 0.0 disables the floor — recall over precision, since a user
+  # can dismiss weak hits visually but cannot dismiss results they do not
+  # see. Keep the knob: a future multilingual model + reranker (Month-2)
+  # may widen the gap and let a meaningful floor come back. Use the new
+  # INFO logs on /api/search to inspect the actual score distribution
+  # before tuning this back up.
+  min_similarity: 0.0
 
 # ── Descrição LLM (NB05) ──────────────────────────────────────────────────────
 llm:

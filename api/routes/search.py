@@ -92,6 +92,14 @@ async def api_search(
 
     cfg = get_config()
     min_sim = float(getattr(cfg.embeddings, "min_similarity", 0.0) or 0.0)
+    logger.info(
+        "api_search: query=%r slug=%s tags=%s top_k=%d min_sim=%.3f",
+        q,
+        slug or "(aggregate)",
+        list(tags) or None,
+        top_k,
+        min_sim,
+    )
 
     if slug is None:
         # Aggregate search: run per-film text search across all registered

@@ -436,7 +436,17 @@ def aggregate_search(
 
     selected_tags = list(tags) if tags else []
 
+    logger.info(
+        "aggregate_search: query=%r films=%d top_k=%d tags=%s min_sim=%.3f",
+        query,
+        len(films),
+        top_k,
+        selected_tags or None,
+        min_similarity,
+    )
+
     all_hits: list[dict] = []
+    per_film_kept = 0
     for film in films:
         try:
             idx = _get_search_index(cfg, film.slug)
@@ -478,6 +488,7 @@ def aggregate_search(
                 continue
 
         scores: np.ndarray = idx.embeddings @ text_vec  # type: ignore[operator]
+        film_added = 0
         for i, score in enumerate(scores):
             if float(score) < min_similarity:
                 continue
@@ -498,9 +509,32 @@ def aggregate_search(
                     "timecode": timecode,
                 }
             )
+            film_added += 1
+        # Per-film diagnostic: the score distribution is the input the
+        # threshold/reranker operates on, so log enough to tune both.
+        # n_vectors is the index size; top3 lets you see whether the
+        # query genuinely has signal in this film vs being uniform noise.
+        if scores.size:
+            top3 = np.sort(scores)[-3:][::-1]
+            logger.info(
+                "aggregate_search: film=%s n_vectors=%d top3=%s kept=%d",
+                film.slug,
+                int(scores.size),
+                [round(float(s), 3) for s in top3],
+                film_added,
+            )
+        per_film_kept += film_added
 
     all_hits.sort(key=lambda h: -h["score"])
-    return all_hits[:top_k]
+    result = all_hits[:top_k]
+    logger.info(
+        "aggregate_search: query=%r total_kept=%d returned=%d top_score=%.3f",
+        query,
+        per_film_kept,
+        len(result),
+        float(result[0]["score"]) if result else 0.0,
+    )
+    return result
 
 
 # ── Result conversion ─────────────────────────────────────────────────────────
@@ -595,8 +629,20 @@ def search_text(index: SearchIndex, query: str, tags: list[str],
         df = searcher.combined(query, tags, tag_index, top_k)
     else:
         df = searcher.by_text(query, top_k)
+    n_raw = len(df)
+    top_raw = float(df["similarity"].iloc[0]) if n_raw and "similarity" in df.columns else 0.0
     if min_similarity > 0.0 and not df.empty and "similarity" in df.columns:
         df = df[df["similarity"] >= min_similarity].reset_index(drop=True)
+    logger.info(
+        "search_text: query=%r top_k=%d tags=%s min_sim=%.3f raw_hits=%d top_score=%.3f kept=%d",
+        query,
+        top_k,
+        tags or None,
+        min_similarity,
+        n_raw,
+        top_raw,
+        len(df),
+    )
     return df
 
 

@@ -26,6 +26,13 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     cfg = get_config()
+    # CLI paths call setup_logging in their entrypoints; the FastAPI app
+    # never did, so config.logging.* (level + to_file + filename) was
+    # silently ignored under uvicorn and only the default stream handler
+    # ran. Wire it here so /logs/cinemateca.log gets web-app events too.
+    from cinemateca.config import setup_logging
+
+    setup_logging(cfg)
     data_dir = Path(cfg.paths.data_dir).resolve()
     if data_dir.exists():
         app.mount("/media", StaticFiles(directory=str(data_dir)), name="media")
