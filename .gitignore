@@ -31,6 +31,8 @@ ENV/
 data/raw/
 data/frames/
 data/embeddings/
+data/library/
+data/_test*
 
 # Metadados gerados — opcional versionar, mas costumam ser grandes.
 # Para versionar metadados de um filme específico, remova a linha abaixo
