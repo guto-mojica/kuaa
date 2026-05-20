@@ -74,3 +74,12 @@ def get_environment_classifier(cfg):
         # device-agnostic: OpenCV heuristic, no device parameter
         return OpenCVEnvironmentClassifier(cfg)
     raise ValueError(f"Unknown environment_classifier: {name!r}")
+
+
+def get_audio_embedder(cfg, device=None):
+    name = _name(cfg, "audio_embedder")
+    if name == "clap_hf":
+        from cinemateca.models.audio.clap_hf import ClapHFEmbedder
+
+        return ClapHFEmbedder(cfg, device)
+    raise ValueError(f"Unknown audio_embedder: {name!r}")
