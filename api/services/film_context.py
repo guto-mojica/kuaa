@@ -88,3 +88,31 @@ class FilmContext:
             frames_dir=Path(cfg.paths.frames_dir),
             embeddings_dir=Path(cfg.paths.embeddings_dir),
         )
+
+    @classmethod
+    def for_film(cls, cfg: Any, slug: str) -> FilmContext:
+        """Build a per-film context from a loaded ``Config`` and a slug.
+
+        The film must exist as a directory under ``cfg.paths.library_dir/``
+        — that directory is the boundary of all per-film artefacts.
+
+        Path semantics under the per-film layout:
+          * ``data_dir`` is the LIBRARY root, ``.resolve()``-d (the ``/media``
+            mount serves the whole library tree, and keyframe URLs are
+            rendered relative to it: ``/media/<slug>/frames/keyframes/...``).
+          * ``raw_path`` / ``metadata_dir`` / ``frames_dir`` / ``embeddings_dir``
+            all live under ``<library_dir>/<slug>/...`` and are returned
+            un-resolved, matching the flat-context contract byte-for-byte.
+        """
+        library_dir = Path(cfg.paths.library_dir)
+        film_dir = library_dir / slug
+        if not film_dir.is_dir():
+            raise ValueError(f"No such film directory: {film_dir}")
+        return cls(
+            slug=slug,
+            raw_path=film_dir / "raw",
+            data_dir=library_dir.resolve(),
+            metadata_dir=film_dir / "metadata",
+            frames_dir=film_dir / "frames",
+            embeddings_dir=film_dir / "embeddings",
+        )

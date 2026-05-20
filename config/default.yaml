@@ -10,6 +10,7 @@ project:
 
 # ── Caminhos ─────────────────────────────────────────────────────────────────
 paths:
+  library_dir: "data/library"   # root of the per-film layout (multi-film epic)
   data_dir: "data"
   raw_dir: "data/raw"
   frames_dir: "data/frames"
