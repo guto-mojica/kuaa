@@ -9,7 +9,6 @@ from typing import Any
 
 import yaml
 
-
 DEFAULT_DOMAIN_PACK = "archive"
 DEFAULT_DOMAIN_PACKS_DIR = "config/domains"
 
@@ -121,8 +120,13 @@ def _load_prompts(raw_prompts: Any) -> dict[str, PromptTemplate]:
         prompt_key = _require_name(key, "prompt_templates key")
         item = _require_mapping(raw, f"prompt_templates.{prompt_key}")
         prompt = _require_name(item.get("prompt"), f"prompt_templates.{prompt_key}.prompt")
+        raw_max_new_tokens = item.get("max_new_tokens")
+        if raw_max_new_tokens is None:
+            raise DomainError(
+                f"prompt_templates.{prompt_key}.max_new_tokens is required"
+            )
         try:
-            max_new_tokens = int(item.get("max_new_tokens"))
+            max_new_tokens = int(raw_max_new_tokens)
         except (TypeError, ValueError) as exc:
             raise DomainError(
                 f"prompt_templates.{prompt_key}.max_new_tokens must be an integer"

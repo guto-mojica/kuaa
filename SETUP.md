@@ -233,6 +233,20 @@ Acesse manualmente: **http://localhost:8501**
 Para detalhes do demo público, veja `docs/DEMO.md`. Para métricas de busca,
 veja `docs/EVALUATION.md`.
 
+### Domain packs
+
+O domínio padrão é `archive`, definido em `config/domains/archive.yaml`.
+Para experimentar outro domínio, aponte a configuração para um pack diferente:
+
+```yaml
+domain:
+  pack: "media_broadcast"
+  packs_dir: "config/domains"
+```
+
+Os packs mudam prompts, campos e mapeamento de exportação sem alterar o
+pipeline. Veja `docs/DOMAIN_PACKS.md`.
+
 **Para rodar em uma máquina remota** (servidor da cinemateca) e
 acessar do seu computador:
 ```bash

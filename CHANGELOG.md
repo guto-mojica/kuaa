@@ -20,6 +20,10 @@ Funcionalidades planejadas para as próximas versões:
   public demo query dataset, retrieval metrics (`Recall@5`, `Recall@10`,
   `MRR`, `nDCG@10`), JSON/Markdown report generation via
   `scripts/run_eval.py`, and annotation-correction stats for manual tags.
+- M3 domain-pack scaffold:
+  validated `archive` and `media_broadcast` domain packs, selected-domain prompt
+  loading for both scene-describer backends, export-mapping helpers, and
+  media-broadcast evaluation seed data.
 - Descritor de cenas padrão agora é Moondream 2 via transformers (GPU por
   wheel PyTorch pré-compilado em Linux/Windows/macOS, sem build de fonte);
   backend GGUF mantido como opção (`scene_describer: moondream_gguf`).

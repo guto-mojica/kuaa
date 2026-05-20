@@ -77,6 +77,7 @@ portfolio roadmap:
 | [Demo verification](docs/DEMO_VERIFICATION.md) | Release-bundle and browser verification checklist |
 | [Demo walkthrough](docs/DEMO_WALKTHROUGH.md) | Two-minute public demo script |
 | [Evaluation](docs/EVALUATION.md) | Query schema, retrieval metrics, and annotation-correction stats |
+| [Domain packs](docs/DOMAIN_PACKS.md) | Domain schema, archive and media-broadcast packs, prompt/export mapping |
 | [Portfolio implementation plan](docs/PORTFOLIO_IMPLEMENTATION_PLAN.md) | Phased plan for demo, evaluation, domain packs, and launch |
 | [Task breakdown](docs/TASK_BREAKDOWN.md) | Issue-sized tasks derived from the implementation plan |
 | [Roadmap](docs/ROADMAP.md) | Short public roadmap snapshot |
@@ -116,6 +117,10 @@ uv run python scripts/run_eval.py \
 
 See [docs/EVALUATION.md](docs/EVALUATION.md) for metric definitions and report
 format.
+
+Domain packs live under `config/domains/`. The default `archive` pack preserves
+the current demo behavior; `media_broadcast` shows how the same pipeline can
+drive a different prompt set and export shape.
 
 The web interface (FastAPI + HTMX) has these tabs:
 
