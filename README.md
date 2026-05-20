@@ -52,14 +52,22 @@ Implemented now:
 - Text search, image search, scene browsing, and manual annotation.
 - Configurable local model backends using typed Protocols.
 - Offline-oriented static assets and local artifact storage.
+- Reproducible public-demo scaffold using Library of Congress footage.
+- Retrieval evaluation runner with JSON/Markdown reports.
+- Domain-pack configuration for archive and media-broadcast metadata.
+- Domain-aware JSON/CSV catalog exports.
+- Run manifests with input, config, model, domain, step, and artifact
+  provenance.
 - Regression tests for the web/service/pipeline surfaces.
 
 Planned next:
 
-- Reproducible public demo data and precomputed artifacts.
-- Retrieval and metadata-quality evaluation.
-- Domain pack configuration, starting with the current archive domain.
-- Structured exports, run manifests, API docs, and stronger packaging.
+- Publish the final precomputed demo artifact bundle.
+- Run and publish metrics against the final demo bundle.
+- Capture populated screenshots and release walkthrough video.
+- Package a launch case study and public release notes.
+- Multi-film storage and Docker packaging after the single-film release path is
+  stable.
 
 ### Project docs
 
@@ -78,6 +86,8 @@ portfolio roadmap:
 | [Demo walkthrough](docs/DEMO_WALKTHROUGH.md) | Two-minute public demo script |
 | [Evaluation](docs/EVALUATION.md) | Query schema, retrieval metrics, and annotation-correction stats |
 | [Domain packs](docs/DOMAIN_PACKS.md) | Domain schema, archive and media-broadcast packs, prompt/export mapping |
+| [API reference](docs/API.md) | Local FastAPI/HTMX routes plus JSON/CSV export endpoints |
+| [Operations](docs/OPERATIONS.md) | Run manifests, exports, failure behavior, release gates, and constraints |
 | [Portfolio implementation plan](docs/PORTFOLIO_IMPLEMENTATION_PLAN.md) | Phased plan for demo, evaluation, domain packs, and launch |
 | [Task breakdown](docs/TASK_BREAKDOWN.md) | Issue-sized tasks derived from the implementation plan |
 | [Roadmap](docs/ROADMAP.md) | Short public roadmap snapshot |
@@ -121,6 +131,16 @@ format.
 Domain packs live under `config/domains/`. The default `archive` pack preserves
 the current demo behavior; `media_broadcast` shows how the same pipeline can
 drive a different prompt set and export shape.
+
+Structured exports are available when the app is running:
+
+```bash
+curl -L http://localhost:8501/api/export/catalog.json -o catalog_export.json
+curl -L http://localhost:8501/api/export/catalog.csv -o catalog_export.csv
+```
+
+Every pipeline run writes `run_manifest.json` beside the metadata outputs.
+See [docs/API.md](docs/API.md) and [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
 The web interface (FastAPI + HTMX) has these tabs:
 

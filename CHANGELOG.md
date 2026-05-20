@@ -24,6 +24,11 @@ Funcionalidades planejadas para as próximas versões:
   validated `archive` and `media_broadcast` domain packs, selected-domain prompt
   loading for both scene-describer backends, export-mapping helpers, and
   media-broadcast evaluation seed data.
+- M4 production-signal scaffold:
+  domain-aware JSON/CSV catalog exports, local FastAPI export endpoints,
+  `run_manifest.json` provenance for CLI and Processing-tab runs, API docs, and
+  operations notes for failure behavior, release gates, exports, and current
+  single-film constraints.
 - Descritor de cenas padrão agora é Moondream 2 via transformers (GPU por
   wheel PyTorch pré-compilado em Linux/Windows/macOS, sem build de fonte);
   backend GGUF mantido como opção (`scene_describer: moondream_gguf`).

@@ -247,6 +247,19 @@ domain:
 Os packs mudam prompts, campos e mapeamento de exportação sem alterar o
 pipeline. Veja `docs/DOMAIN_PACKS.md`.
 
+### Exports and run manifests
+
+Depois que um catálogo existir, a interface pode exportar JSON e CSV:
+
+```bash
+curl -L http://localhost:8501/api/export/catalog.json -o catalog_export.json
+curl -L http://localhost:8501/api/export/catalog.csv -o catalog_export.csv
+```
+
+Cada execução do pipeline grava `run_manifest.json` junto dos metadados,
+registrando entrada, hash de config, domínio, modelos, etapas e artefatos.
+Veja `docs/API.md` e `docs/OPERATIONS.md`.
+
 **Para rodar em uma máquina remota** (servidor da cinemateca) e
 acessar do seu computador:
 ```bash
@@ -442,7 +455,9 @@ data/
     ├── keyframes_metadata.json     ← timecodes de cada cena
     ├── visual_analysis.json        ← faces, objetos, ambiente
     ├── scene_descriptions.json     ← descrições geradas pelo LLM
-    └── scene_tags.json             ← índice invertido de tags
+    ├── scene_tags.json             ← índice invertido de tags
+    ├── manual_annotations.json     ← anotações humanas (quando houver)
+    └── run_manifest.json           ← proveniência da última execução
 ```
 
 Estes arquivos são a "memória" do sistema — uma vez gerados, a
