@@ -59,6 +59,8 @@ STEP_ORDER: tuple[str, ...] = (
     "visual_analysis",
     "embeddings",
     "llm_description",
+    "audio_extract",
+    "audio_embed",
 )
 
 # Dependency graph for step execution.
@@ -79,6 +81,12 @@ STEP_ORDER: tuple[str, ...] = (
 #     ``metadata_path.exists()``).
 #   * ``llm_description``   — same metadata prerequisite as embeddings.
 #
+# The two new audio steps slot in as a parallel branch off
+# ``scene_detection``: ``audio_extract`` reads scene boundaries from
+# ``keyframes_metadata.json`` and the source video; ``audio_embed``
+# reads the per-scene WAVs that ``audio_extract`` writes plus the
+# metadata.
+#
 # Edges encode the *producing* step. The actual gate (see
 # :meth:`CatalogPipeline.run_steps`) is INPUT-based: a downstream step is
 # only blocked when its required artefact is genuinely absent AND not
@@ -91,6 +99,8 @@ STEP_DEPS: dict[str, tuple[str, ...]] = {
     "visual_analysis": ("scene_detection",),
     "embeddings": ("scene_detection",),
     "llm_description": ("scene_detection",),
+    "audio_extract": ("scene_detection",),
+    "audio_embed": ("audio_extract",),
 }
 
 
@@ -179,6 +189,7 @@ class _FilmPaths:
     metadata_dir: Path
     frames_dir: Path
     embeddings_dir: Path
+    audio_dir: Path
 
 
 class CatalogPipeline:
@@ -230,10 +241,12 @@ class CatalogPipeline:
                 metadata_dir=film_dir / "metadata",
                 frames_dir=film_dir / "frames",
                 embeddings_dir=film_dir / "embeddings",
+                audio_dir=film_dir / "audio",
             )
             self._film_paths.metadata_dir.mkdir(parents=True, exist_ok=True)
             self._film_paths.frames_dir.mkdir(parents=True, exist_ok=True)
             self._film_paths.embeddings_dir.mkdir(parents=True, exist_ok=True)
+            self._film_paths.audio_dir.mkdir(parents=True, exist_ok=True)
 
     @property
     def device(self):
@@ -261,6 +274,17 @@ class CatalogPipeline:
         if self._film_paths is not None:
             return self._film_paths.embeddings_dir
         return Path(self.cfg.paths.embeddings_dir)
+
+    def _audio_dir(self) -> Path:
+        """Return the audio directory for this run.
+
+        Audio is per-film only — there is no legacy flat fallback because
+        no v0.2.x code wrote audio artefacts. Callers using legacy mode
+        get a sibling under ``frames_dir.parent / 'audio'``.
+        """
+        if self._film_paths is not None:
+            return self._film_paths.audio_dir
+        return Path(self.cfg.paths.frames_dir).parent / "audio"
 
     # ─── Etapas individuais ───────────────────────────────────────────────────
 
@@ -456,6 +480,115 @@ class CatalogPipeline:
         except Exception as e:
             return StepResult(name=name, success=False, duration_s=time.time() - t0, error=str(e))
 
+    def _step_audio_extract(self, metadata_path: Path, video_path: Path) -> StepResult:
+        from cinemateca.audio_extractor import SceneAudioExtractor
+
+        name = "audio_extract"
+        segments_dir = self._audio_dir() / "segments"
+
+        # Skip if every expected WAV already exists.
+        with open(metadata_path, encoding="utf-8") as f:
+            scenes_all = json.load(f)
+        unique_ids = sorted({int(r["scene_id"]) for r in scenes_all})
+        expected = [segments_dir / f"scene_{sid:04d}.wav" for sid in unique_ids]
+        if (
+            self.cfg.pipeline.skip_existing
+            and expected
+            and all(p.exists() for p in expected)
+        ):
+            logger.info("↷ Pulando audio_extract (%d WAVs existentes)", len(expected))
+            return StepResult(
+                name=name, success=True, skipped=True, output=expected
+            )
+
+        t0 = time.time()
+        try:
+            extractor = SceneAudioExtractor(self.cfg)
+            wavs = extractor.extract(video_path, scenes_all, segments_dir)
+            return StepResult(
+                name=name, success=True, duration_s=time.time() - t0, output=wavs
+            )
+        except Exception as e:
+            return StepResult(
+                name=name, success=False, duration_s=time.time() - t0, error=str(e)
+            )
+
+    def _step_audio_embed(self, metadata_path: Path) -> StepResult:
+        from cinemateca.models.registry import get_audio_embedder
+
+        name = "audio_embed"
+        out_dir = self._audio_dir()
+        emb_path = out_dir / "clap_embeddings.npy"
+        map_path = out_dir / "audio_mapping.json"
+
+        if self.cfg.pipeline.skip_existing and emb_path.exists() and map_path.exists():
+            logger.info("↷ Pulando audio_embed (arquivo existente)")
+            return StepResult(
+                name=name, success=True, skipped=True,
+                output={"embeddings_path": emb_path, "mapping_path": map_path},
+            )
+
+        t0 = time.time()
+        try:
+            with open(metadata_path, encoding="utf-8") as f:
+                scenes_all = json.load(f)
+
+            # Dedup by scene_id, preserve start/end times from first row.
+            unique: dict[int, dict] = {}
+            for row in scenes_all:
+                sid = int(row["scene_id"])
+                if sid not in unique:
+                    unique[sid] = {
+                        "scene_id": sid,
+                        "start_time_s": float(row["start_time_s"]),
+                        "end_time_s": float(row["end_time_s"]),
+                    }
+            scene_rows = [unique[sid] for sid in sorted(unique)]
+            segments_dir = out_dir / "segments"
+            wav_paths = [segments_dir / f"scene_{r['scene_id']:04d}.wav"
+                         for r in scene_rows]
+
+            missing = [p for p in wav_paths if not p.exists()]
+            if missing:
+                raise FileNotFoundError(
+                    f"audio_embed: {len(missing)} expected WAV(s) missing "
+                    f"(first: {missing[0]})"
+                )
+
+            embedder = get_audio_embedder(self.cfg, self.device)
+            embeddings = embedder.encode_audio(wav_paths)
+
+            # Chunks-per-scene reflects how many CLAP windows each scene
+            # spanned. We compute it from start/end + configured chunk
+            # length rather than asking the backend so the mapping stays
+            # backend-agnostic.
+            chunk_sec = float(getattr(self.cfg.audio_embeddings, "chunk_seconds", 10.0))
+            # Path stored in the mapping is relative to the film directory
+            # (one level above ``audio/``), so the mapping is portable across
+            # filesystems — same convention you'd want to extend to CLIP in
+            # the future. ``self._audio_dir().parent`` == film dir.
+            film_dir = self._audio_dir().parent
+            rows = []
+            for r, wp in zip(scene_rows, wav_paths):
+                dur = max(0.0, r["end_time_s"] - r["start_time_s"])
+                rows.append({
+                    "scene_id": r["scene_id"],
+                    "wav_path": str(wp.relative_to(film_dir)),
+                    "start_time_s": r["start_time_s"],
+                    "end_time_s": r["end_time_s"],
+                    "chunks_per_scene": max(1, int((dur + chunk_sec - 1e-9) // chunk_sec)),
+                })
+
+            emb_path, map_path = embedder.save(embeddings, rows, out_dir)
+            return StepResult(
+                name=name, success=True, duration_s=time.time() - t0,
+                output={"embeddings_path": emb_path, "mapping_path": map_path},
+            )
+        except Exception as e:
+            return StepResult(
+                name=name, success=False, duration_s=time.time() - t0, error=str(e)
+            )
+
     # ─── Orquestrador principal ───────────────────────────────────────────────
 
     def run(self, video_path: str | Path) -> PipelineResult:
@@ -535,6 +668,24 @@ class CatalogPipeline:
         else:
             result.steps.append(StepResult(name="llm_description", success=True, skipped=True))
 
+        # ── Etapa 6: Áudio (extração) ─────────────────────────────────────────
+        if steps_cfg.audio_extract and metadata_path.exists():
+            step = self._step_audio_extract(metadata_path, video_path)
+            result.steps.append(step)
+            if not step.success and self.cfg.pipeline.stop_on_error:
+                logger.error("Pipeline interrompido na etapa: %s", step.name)
+                result.total_duration_s = time.time() - pipeline_start
+                return result
+        else:
+            result.steps.append(StepResult(name="audio_extract", success=True, skipped=True))
+
+        # ── Etapa 7: Áudio (embeddings CLAP) ──────────────────────────────────
+        if steps_cfg.audio_embed and metadata_path.exists():
+            step = self._step_audio_embed(metadata_path)
+            result.steps.append(step)
+        else:
+            result.steps.append(StepResult(name="audio_embed", success=True, skipped=True))
+
         result.total_duration_s = time.time() - pipeline_start
         logger.info(result.summary())
 
@@ -603,8 +754,15 @@ class CatalogPipeline:
             return True
         if step == "visual_analysis":
             return bool(sorted(keyframes_dir.glob("*.jpg")))
-        if step in ("embeddings", "llm_description"):
+        if step in ("embeddings", "llm_description", "audio_extract"):
             return self._keyframes_metadata_path().exists()
+        if step == "audio_embed":
+            # Needs both the metadata (for scene ids/times) and at least
+            # one WAV produced by audio_extract.
+            if not self._keyframes_metadata_path().exists():
+                return False
+            segments_dir = self._audio_dir() / "segments"
+            return any(segments_dir.glob("*.wav")) if segments_dir.exists() else False
         return True
 
     def run_steps(
@@ -725,6 +883,10 @@ class CatalogPipeline:
                 sr = self._step_embeddings(metadata_path)
             elif name == "llm_description":
                 sr = self._step_llm_description(metadata_path)
+            elif name == "audio_extract":
+                sr = self._step_audio_extract(metadata_path, video_path)
+            elif name == "audio_embed":
+                sr = self._step_audio_embed(metadata_path)
             else:  # pragma: no cover - guarded by requested filter
                 raise ValueError(f"Unknown step: {name}")
 

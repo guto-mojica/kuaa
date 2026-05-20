@@ -45,6 +45,8 @@ def _fake_cfg(tmp_path: Path):
             visual_analysis=True,
             embeddings=True,
             llm_description=True,
+            audio_extract=True,
+            audio_embed=True,
         ),
     )
     embeddings_ns = types.SimpleNamespace(
@@ -81,6 +83,8 @@ def _stub_steps(pipeline: CatalogPipeline) -> None:
     pipeline._step_visual_analysis = _ok("visual_analysis")
     pipeline._step_embeddings = _ok("embeddings")
     pipeline._step_llm_description = _ok("llm_description")
+    pipeline._step_audio_extract = _ok("audio_extract")
+    pipeline._step_audio_embed = _ok("audio_embed")
 
 
 # ── slugify helper ────────────────────────────────────────────────────────────
