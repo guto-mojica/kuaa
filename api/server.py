@@ -88,8 +88,7 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     # scene_count/is_processed. The processing builder re-supplies `films`
     # from the same source; collapsing the double-scan into one request-
     # scoped library object belongs to T9/T10, not here.
-    # TODO(T5): switch to cfg.paths.library_dir once the config knob lands.
-    library_dir = Path(cfg.paths.data_dir)
+    library_dir = Path(cfg.paths.library_dir)
     films = scan_library(library_dir)
     state = library_state(library_dir)
     base_ctx = {

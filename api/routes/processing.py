@@ -53,8 +53,7 @@ def build_processing_context() -> dict:
     cfg = get_config()
     from cinemateca.library import scan_library
 
-    # TODO(T5): switch to cfg.paths.library_dir once the config knob lands.
-    films = scan_library(Path(cfg.paths.data_dir))
+    films = scan_library(Path(cfg.paths.library_dir))
     jobs = active_jobs()
 
     return {"films": films, "step_defs": STEP_DEFS, "jobs": jobs}

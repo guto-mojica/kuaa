@@ -69,6 +69,7 @@ _PATH_NAMES = (
     "frames_dir",
     "metadata_dir",
     "embeddings_dir",
+    "library_dir",
     "models_dir",
     "outputs_dir",
     "logs_dir",
