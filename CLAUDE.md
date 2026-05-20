@@ -305,4 +305,47 @@ Keep this list updated as steps complete.
 
 ---
 
+## v0.3.0 → v1.0.0 launch tracker
+
+4-month effort starting 2026-05-19. Full spec:
+`docs/superpowers/specs/2026-05-19-multimodal-retrieval-and-launch-design.md`.
+Dual purpose: take the project to a credible public v1.0 launch, and produce
+a portfolio piece for the maintainer's applied-ML / retrieval career
+transition. Scope is locked; if risks fire, timeline extends rather than
+features cut.
+
+### Month 1 — Foundation
+- [ ] Multi-film library (`films.json` registry; cross-film search/browse)
+- [ ] Docker image, one-command run (CPU-default, GPU-optional)
+- [ ] Hosted demo skeleton on HuggingFace Spaces (CPU tier)
+- [ ] CLAP integration kickoff (`AudioEmbedder` Protocol)
+- [ ] Eval annotation tool (FastAPI page behind admin flag; 5-sample validation)
+- [ ] Pre-launch LinkedIn "I'm building this" post
+
+### Month 2 — Retrieval depth + audio (HARD FREEZE on new features)
+- [ ] CLAP audio embeddings complete; audio-only search in UI
+- [ ] Whisper transcripts indexed (faster-whisper, `Transcriber` Protocol)
+- [ ] Hybrid search (CLIP ⊕ BM25, Reciprocal Rank Fusion)
+- [ ] Cross-encoder reranker (text default; VLM-as-judge opt-in)
+- [ ] Multilingual visual model (SigLIP-multilingual; M-CLIP fallback)
+- [ ] CLAP archival-audio sanity check (pre-commit gate on Jeca Tatu)
+
+### Month 3 — Fusion + visual rhymes + eval annotation
+- [ ] Cross-modal CLIP × CLAP fusion search
+- [ ] Visual rhymes (cross-film kNN + MMR diversity)
+- [ ] 50–100 curator-annotated eval pairs
+- [ ] Landing-page README draft; blog post outline
+
+### Month 4 — Eval + writeup + launch
+- [ ] Ablation table + per-modality breakdown
+- [ ] Failure-mode analysis (5–10 queries explained)
+- [ ] Technical blog post published (own domain + LinkedIn article)
+- [ ] 90-second demo video published
+- [ ] README + GitHub polish + `v1.0.0` release tag
+- [ ] LinkedIn launch post
+
+Keep this list updated as steps complete.
+
+---
+
 *This document is alive. When you notice it's outdated or imprecise, propose an edit.*
