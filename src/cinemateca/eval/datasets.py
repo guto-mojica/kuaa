@@ -134,8 +134,11 @@ def load_dataset(path: str | Path) -> EvaluationDataset:
     if not name:
         raise DatasetError("dataset is required")
 
+    raw_version = raw.get("version")
+    if raw_version is None:
+        raise DatasetError("version is required")
     try:
-        version = int(raw.get("version"))
+        version = int(raw_version)
     except (TypeError, ValueError) as exc:
         raise DatasetError("version must be an integer") from exc
 

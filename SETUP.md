@@ -216,6 +216,11 @@ Com o ambiente virtual ativado e dependências instaladas:
 uv run python scripts/prepare_demo.py --download
 uv run app.py --config config/demo.yaml
 
+# Avaliação M2 do índice demo preparado
+uv run python scripts/run_eval.py --config config/demo.yaml \
+  --queries data/eval/archive_demo_queries.yaml \
+  --output-dir data/eval/reports
+
 # Interface principal FastAPI + HTMX
 uv run app.py
 
@@ -225,7 +230,8 @@ uv run app.py --config config/local.yaml
 
 Acesse manualmente: **http://localhost:8501**
 
-Para detalhes do demo público, veja `docs/DEMO.md`.
+Para detalhes do demo público, veja `docs/DEMO.md`. Para métricas de busca,
+veja `docs/EVALUATION.md`.
 
 **Para rodar em uma máquina remota** (servidor da cinemateca) e
 acessar do seu computador:

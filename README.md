@@ -76,6 +76,7 @@ portfolio roadmap:
 | [Demo data](docs/DEMO_DATA.md) | Provenance, rights notes, artifact policy, and regional context |
 | [Demo verification](docs/DEMO_VERIFICATION.md) | Release-bundle and browser verification checklist |
 | [Demo walkthrough](docs/DEMO_WALKTHROUGH.md) | Two-minute public demo script |
+| [Evaluation](docs/EVALUATION.md) | Query schema, retrieval metrics, and annotation-correction stats |
 | [Portfolio implementation plan](docs/PORTFOLIO_IMPLEMENTATION_PLAN.md) | Phased plan for demo, evaluation, domain packs, and launch |
 | [Task breakdown](docs/TASK_BREAKDOWN.md) | Issue-sized tasks derived from the implementation plan |
 | [Roadmap](docs/ROADMAP.md) | Short public roadmap snapshot |
@@ -103,6 +104,18 @@ uv run app.py --config config/demo.yaml
 
 See [docs/DEMO.md](docs/DEMO.md) for the artifact layout, validation command,
 and full processing path.
+
+To measure the prepared demo index:
+
+```bash
+uv run python scripts/run_eval.py \
+  --config config/demo.yaml \
+  --queries data/eval/archive_demo_queries.yaml \
+  --output-dir data/eval/reports
+```
+
+See [docs/EVALUATION.md](docs/EVALUATION.md) for metric definitions and report
+format.
 
 The web interface (FastAPI + HTMX) has these tabs:
 
