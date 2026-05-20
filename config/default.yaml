@@ -8,6 +8,13 @@ project:
   name: "Cinemateca AI"
   version: "0.1.0-alpha"
 
+# ── Domain pack ───────────────────────────────────────────────────────────────
+# Domain packs define prompts, metadata fields, filters, taxonomy, and export
+# mapping. The archive pack preserves current behavior.
+domain:
+  pack: "archive"
+  packs_dir: "config/domains"
+
 # ── Caminhos ─────────────────────────────────────────────────────────────────
 paths:
   data_dir: "data"

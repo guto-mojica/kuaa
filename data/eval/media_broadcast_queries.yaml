@@ -1,0 +1,48 @@
+dataset: media_broadcast_sample
+version: 1
+label_status: illustrative_domain_seed
+source:
+  name: "Media broadcast sample domain"
+  identifier: "sample:media_broadcast"
+  notes: "Illustrative query schema for the M3 domain pack; not tied to a shipped video bundle yet."
+
+queries:
+  - id: mb001
+    text: "wide b-roll of commuters entering a train station"
+    intent: "Reusable b-roll search"
+    relevant_scene_ids: [102]
+    relevance:
+      "102": 3
+    notes: "Targets crowd movement and transit location."
+
+  - id: mb002
+    text: "reporter speaking outdoors on a city street"
+    intent: "Reporter standup search"
+    relevant_scene_ids: [101]
+    relevance:
+      "101": 3
+    notes: "Targets people, location, and action."
+
+  - id: mb003
+    text: "shots with readable signage or visible text"
+    intent: "Rights review search"
+    relevant_scene_ids: [102]
+    relevance:
+      "102": 3
+    notes: "Illustrates a rights-sensitive query."
+
+  - id: mb004
+    text: "footage with possible broadcaster logos"
+    intent: "Licensing risk search"
+    relevant_scene_ids: [101]
+    relevance:
+      "101": 3
+    notes: "Tests whether logo/text notes can be searched."
+
+  - id: mb005
+    text: "highly reusable crowd b-roll"
+    intent: "Editorial reuse search"
+    relevant_scene_ids: [102]
+    relevance:
+      "102": 3
+    notes: "Uses reusable b-roll language from the domain schema."

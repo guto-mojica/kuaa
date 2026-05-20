@@ -11,6 +11,10 @@ project:
   name: "Cinemateca imgsearch demo"
   version: "0.3.0-demo-m1"
 
+domain:
+  pack: "archive"
+  packs_dir: "config/domains"
+
 paths:
   data_dir: "data/demo/runtime"
   raw_dir: "data/demo/runtime/raw"
@@ -66,4 +70,3 @@ logging:
   level: "INFO"
   to_file: true
   filename: "cinemateca-demo.log"
-
