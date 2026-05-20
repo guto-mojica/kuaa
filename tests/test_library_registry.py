@@ -1,6 +1,7 @@
 """Library registry CRUD + film scanning tests."""
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,7 @@ from cinemateca.library import (
     load_registry,
     register_film,
     save_registry,
+    scan_library,
 )
 
 
@@ -82,3 +84,39 @@ def test_delete_film_unknown_slug_raises(tmp_path: Path) -> None:
     library_dir.mkdir()
     with pytest.raises(KeyError, match="not in registry"):
         delete_film(library_dir, slug="ghost")
+
+
+def _make_film_layout(library_dir: Path, slug: str, scene_count: int) -> None:
+    """Create a minimal per-film directory layout with N scenes."""
+    film_dir = library_dir / slug
+    (film_dir / "raw").mkdir(parents=True)
+    (film_dir / "metadata").mkdir(parents=True)
+    (film_dir / "embeddings").mkdir(parents=True)
+    (film_dir / "raw" / f"{slug}.mp4").write_bytes(b"")
+    if scene_count > 0:
+        kf = [{"scene_id": i} for i in range(scene_count)]
+        (film_dir / "metadata" / "keyframes_metadata.json").write_text(
+            json.dumps(kf), encoding="utf-8"
+        )
+
+
+def test_scan_library_reads_registry_and_disk(tmp_path: Path) -> None:
+    """scan_library returns one Film per registry entry with real disk state."""
+    library_dir = tmp_path / "library"
+    library_dir.mkdir()
+    register_film(library_dir, slug="a", title="A", year=2000, raw_filename="a.mp4")
+    register_film(library_dir, slug="b", title="B", year=2001, raw_filename="b.mp4")
+    _make_film_layout(library_dir, "a", scene_count=5)
+    _make_film_layout(library_dir, "b", scene_count=0)
+
+    films = scan_library(library_dir)
+    by_slug = {f.slug: f for f in films}
+    assert set(by_slug) == {"a", "b"}
+    assert by_slug["a"].scene_count == 5
+    assert by_slug["a"].is_processed is True
+    assert by_slug["b"].scene_count == 0
+    assert by_slug["b"].is_processed is False
+
+
+def test_scan_library_returns_empty_on_missing_dir(tmp_path: Path) -> None:
+    assert scan_library(tmp_path / "library_does_not_exist") == []
