@@ -205,6 +205,15 @@ class CatalogPipeline:
 
     def __init__(self, cfg, *, slug: str | None = None):
         self.cfg = cfg
+        # Guard against degenerate slugs (empty string after sanitization).
+        # ``film_dir = library_dir / ""`` equals ``library_dir`` itself, which
+        # would scatter artefacts at the registry root and produce a corrupt
+        # films.json["": {...}] entry. Reject early with a clear error.
+        if slug is not None and not slug:
+            raise ValueError(
+                "Slug is empty (sanitization stripped all characters). "
+                "Pass --slug explicitly with a non-empty value."
+            )
         self.slug = slug
         self._device = None
         self._embedder = None
@@ -530,7 +539,10 @@ class CatalogPipeline:
         logger.info(result.summary())
 
         # ── Per-film registration ─────────────────────────────────────────────
-        if self.slug is not None:
+        # Only register films whose pipelines actually succeeded. Registering
+        # a partially-failed run (stop_on_error=False with mid-pipeline crash)
+        # would mark an incomplete film as available in the registry.
+        if self.slug is not None and result.success:
             self._ensure_registered(video_path)
 
         return result

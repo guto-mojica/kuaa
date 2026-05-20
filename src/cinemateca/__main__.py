@@ -74,7 +74,9 @@ def cmd_process(args) -> int:
             setattr(cfg.pipeline.steps, step, step in enabled)
 
     # Derive slug: explicit --slug overrides; otherwise slugify the video stem.
-    slug = args.slug if args.slug else slugify(Path(args.video).stem)
+    # Always run slugify — applies to user-provided --slug too — so a hostile
+    # input like "--slug ../secret" can't escape the library root.
+    slug = slugify(args.slug) if args.slug else slugify(Path(args.video).stem)
 
     _print_banner()
     print(f"  Vídeo  : {args.video}")

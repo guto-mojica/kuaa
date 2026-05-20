@@ -104,6 +104,62 @@ def test_slugify_strips_non_alnum():
     assert slugify("../secret") == "secret"
 
 
+def test_slugify_degenerate_inputs_return_empty():
+    """Inputs that contain no slug-safe characters slugify to ''.
+
+    Combined with the empty-slug guard in CatalogPipeline.__init__, this
+    means such inputs raise loudly instead of producing a corrupt
+    library_dir/'' film entry.
+    """
+    from cinemateca.pipeline import slugify
+
+    assert slugify("") == ""
+    assert slugify("!!!") == ""
+
+
+def test_pipeline_empty_slug_raises(tmp_path):
+    """Empty slug after sanitization → ValueError (not silent corruption)."""
+    cfg = _fake_cfg(tmp_path)
+    with pytest.raises(ValueError, match="Slug is empty"):
+        CatalogPipeline(cfg, slug="")
+
+
+def test_pipeline_does_not_register_on_partial_failure(tmp_path):
+    """When a step fails (stop_on_error=False, result.success=False), the
+    film is NOT registered — partial runs leave the registry untouched."""
+    from cinemateca.library import load_registry
+
+    cfg = _fake_cfg(tmp_path)
+    p = CatalogPipeline(cfg, slug="partial")
+
+    # Stub: frame_extraction succeeds, scene_detection fails, others succeed.
+    # The pipeline's _step_* methods take (*_a, **_kw) per the _stub_steps
+    # pattern in this file. result.success becomes False because of the
+    # scene_detection failure.
+    def _ok(name):
+        def _stub(*_a, **_kw):
+            return StepResult(name=name, success=True, duration_s=0.0)
+        return _stub
+
+    def _fail(name):
+        def _stub(*_a, **_kw):
+            return StepResult(name=name, success=False, duration_s=0.0)
+        return _stub
+
+    p._step_frame_extraction = _ok("frame_extraction")
+    p._step_scene_detection = _fail("scene_detection")
+    p._step_visual_analysis = _ok("visual_analysis")
+    p._step_embeddings = _ok("embeddings")
+    p._step_llm_description = _ok("llm_description")
+
+    p.run(tmp_path / "video.mp4")
+
+    registry = load_registry(cfg.paths.library_dir)
+    assert "partial" not in registry, (
+        "Pipeline must NOT register a film whose run failed"
+    )
+
+
 # ── Per-film path routing ─────────────────────────────────────────────────────
 
 
