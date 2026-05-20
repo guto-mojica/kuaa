@@ -292,8 +292,10 @@ def test_cli_slug_default_is_slugified_stem(tmp_path, monkeypatch):
     test_video = tmp_path / "my_film_2001.mp4"
     test_video.touch()
 
+    # Typer CLI: ``video`` is a positional argument; old argparse form
+    # ``--video <path>`` was retired in the unified-CLI refactor.
     monkeypatch.setattr(sys, "argv", [
-        "cinemateca", "process", "--video", str(test_video),
+        "cinemateca", "process", str(test_video),
     ])
     with pytest.raises(SystemExit):
         main_mod.main()
@@ -333,7 +335,7 @@ def test_cli_explicit_slug_is_forwarded(tmp_path, monkeypatch):
     test_video.touch()
 
     monkeypatch.setattr(sys, "argv", [
-        "cinemateca", "process", "--video", str(test_video), "--slug", "custom_slug",
+        "cinemateca", "process", str(test_video), "--slug", "custom_slug",
     ])
     with pytest.raises(SystemExit):
         main_mod.main()

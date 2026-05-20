@@ -154,21 +154,37 @@ uv sync --extra full --group dev   # full extra + dev tooling group
 #   python3 -m venv .venv && source .venv/bin/activate
 #   pip install -e ".[full]" && pip install pytest pytest-cov black ruff mypy
 
+# Unified CLI (Typer) — discoverable via --help at every level.
+uv run cinemateca --help                       # command tree
+uv run cinemateca <cmd> --help                 # flags for any subcommand
+
 # Run the FastAPI interface (v0.3.0+)
-uv run app.py
-# Opens at http://localhost:8501
+uv run cinemateca serve                        # http://127.0.0.1:8501 (--reload by default)
+uv run cinemateca serve --port 9000 --no-reload
+# Legacy `uv run app.py` still works (delegates to `cinemateca serve`).
 
 # Run the legacy Streamlit interface (during migration)
 uv run streamlit run app_streamlit.py
 
 # Tests
 uv run pytest tests/ -q
-uv run pytest tests/test_smoke.py -v   # smoke only, no heavy models
+uv run pytest tests/test_smoke.py -v           # smoke only, no heavy models
 
-# CLI
-uv run python -m cinemateca info --video data/raw/jeca_tatu.mp4
-uv run python -m cinemateca process --video data/raw/jeca_tatu.mp4
-uv run python -m cinemateca process --video data/raw/jeca_tatu.mp4 --steps scenes,embeddings
+# Single-film pipeline
+uv run cinemateca info data/raw/jeca_tatu.mp4
+uv run cinemateca process data/raw/jeca_tatu.mp4
+uv run cinemateca process data/raw/jeca_tatu.mp4 --steps scenes,embeddings
+uv run cinemateca process data/raw/jeca_tatu.mp4 --slug jeca_tatu   # match an existing slug
+
+# Library-wide operations (use the REGISTERED slug — no filename→slug drift)
+uv run cinemateca library list                            # registered films + state
+uv run cinemateca library reembed                          # all films, --steps embeddings
+uv run cinemateca library reembed --only jeca_tatu --steps embeddings,visual
+uv run cinemateca library reembed --keep-existing          # partial reruns
+uv run cinemateca library delete <slug> [--yes]            # destructive
+
+# Config introspection
+uv run cinemateca config show                              # merged effective YAML
 
 # i18n
 uv run pybabel extract -F web/babel.cfg -o web/locales/messages.pot web/
@@ -191,8 +207,8 @@ uv run mypy src
 
 **Expensive operations — require explicit user confirmation before running:**
 
-- `python -m cinemateca process` on any video (~60–120min on CPU).
-- Embedding regeneration (`--steps embeddings`) for the full library.
+- `cinemateca process <video>` on any new video (~60–120min on CPU).
+- Embedding regeneration (`cinemateca library reembed`) for the full library.
 - LLM description regeneration (`--steps llm`) — slowest pipeline step.
 - First-time model downloads (~2GB for Moondream).
 

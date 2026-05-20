@@ -31,6 +31,12 @@ dependencies = [
     "Pillow>=10.0",
     "opencv-python>=4.8",
     "tqdm>=4.65",
+    # Typer 0.12+ bundles rich for colored, auto-generated help and ships
+    # the `cinemateca` CLI tree (`serve`, `process`, `info`, `library *`,
+    # `config show`). Kept in BASE deps (not `full`) so the CLI is
+    # always available — `cinemateca info <video>` works even without
+    # the AI-model extras installed.
+    "typer>=0.12,<0.18",
 ]
 
 [project.optional-dependencies]

@@ -1,25 +1,64 @@
 """
 cinemateca.__main__
 ~~~~~~~~~~~~~~~~~~~
-Ponto de entrada CLI.
+Unified CLI entry point (Typer).
 
-Uso:
-    python -m cinemateca process --video data/raw/jeca_tatu.mp4
-    python -m cinemateca process --video data/raw/filme.mp4 --config config/local.yaml
-    python -m cinemateca process --video data/raw/filme.mp4 --steps frames,scenes
-    python -m cinemateca process --video data/raw/filme.mp4 --slug meu_filme
-    python -m cinemateca info --video data/raw/filme.mp4
-    python -m cinemateca reembed-all
-    python -m cinemateca reembed-all --only jeca_tatu --steps embeddings,visual
+The whole tool — both the AI pipeline and the FastAPI web app — is
+driven from a single ``cinemateca`` command so options stay
+discoverable via ``--help`` at every level. There is no separate
+``app.py`` invocation to remember.
+
+Tree:
+    cinemateca serve                  # FastAPI web app (was: uv run app.py)
+    cinemateca info VIDEO             # Video properties
+    cinemateca process VIDEO ...      # Full pipeline (single film)
+    cinemateca library list           # Show registered films + state
+    cinemateca library reembed ...    # Rebuild embeddings across registry
+    cinemateca library delete SLUG    # Remove a film + artifacts
+    cinemateca config show            # Dump effective merged config
+
+Each subcommand has its own ``--help``. ``cinemateca`` alone prints
+the command tree.
 """
-
 from __future__ import annotations
 
-import argparse
-import sys
 from pathlib import Path
+from typing import Annotated
 
-_STEP_ALIASES = {
+import typer
+
+app = typer.Typer(
+    name="cinemateca",
+    help="Cinemateca AI — offline audiovisual cataloguing for film archives.",
+    no_args_is_help=True,
+    add_completion=False,  # We don't ship completion install commands — users wire it themselves.
+    rich_markup_mode="rich",
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
+
+library_app = typer.Typer(
+    name="library",
+    help="Operations across the registered film library "
+         "(data/library/films.json).",
+    no_args_is_help=True,
+    rich_markup_mode="rich",
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
+config_app = typer.Typer(
+    name="config",
+    help="Inspect the merged effective configuration "
+         "(default.yaml ⊕ local.yaml).",
+    no_args_is_help=True,
+    rich_markup_mode="rich",
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
+app.add_typer(library_app, name="library")
+app.add_typer(config_app, name="config")
+
+
+# ── Shared option / step resolution ───────────────────────────────────────────
+
+_STEP_ALIASES: dict[str, str] = {
     "frames": "frame_extraction",
     "scenes": "scene_detection",
     "visual": "visual_analysis",
@@ -29,11 +68,15 @@ _STEP_ALIASES = {
 
 
 def _resolve_steps(steps_arg: str) -> set[str]:
-    """Map documented short aliases (and full names) to canonical step names."""
+    """Map documented short aliases (and full names) to canonical step names.
+
+    Raises ``typer.BadParameter`` with a clear message on unknown tokens so
+    the CLI surfaces the error inline instead of crashing with a stack trace.
+    """
     full = set(_STEP_ALIASES.values())
-    out = set()
-    for tok in steps_arg.split(","):
-        tok = tok.strip()
+    out: set[str] = set()
+    for raw in steps_arg.split(","):
+        tok = raw.strip()
         if not tok:
             continue
         if tok in _STEP_ALIASES:
@@ -41,129 +84,265 @@ def _resolve_steps(steps_arg: str) -> set[str]:
         elif tok in full:
             out.add(tok)
         else:
-            raise ValueError(
-                f"--steps: valor desconhecido {tok!r}. "
-                f"Use: {','.join(_STEP_ALIASES)}"
+            raise typer.BadParameter(
+                f"valor desconhecido {tok!r}. "
+                f"Use: {','.join(_STEP_ALIASES)}",
+                param_hint="--steps",
             )
     return out
 
 
-def _print_banner():
-    print("""
-╔═══════════════════════════════════════════════════════╗
-║          Cinemateca AI  —  v0.1.0-alpha               ║
-║  Catalogação audiovisual com IA para acervos cinema.  ║
-╚═══════════════════════════════════════════════════════╝
-""")
+def _print_banner() -> None:
+    print(
+        "\n"
+        "╔═══════════════════════════════════════════════════════╗\n"
+        "║          Cinemateca AI  —  v0.1.0-alpha               ║\n"
+        "║  Catalogação audiovisual com IA para acervos cinema.  ║\n"
+        "╚═══════════════════════════════════════════════════════╝\n",
+        flush=True,
+    )
 
 
-def cmd_process(args) -> int:
-    """Executa o pipeline completo (ou etapas selecionadas)."""
+# ─── cinemateca serve ────────────────────────────────────────────────────────
+
+@app.command()
+def serve(
+    host: Annotated[str, typer.Option(help="Bind address.")] = "127.0.0.1",
+    port: Annotated[int, typer.Option(help="Bind port.")] = 8501,
+    reload: Annotated[
+        bool, typer.Option(
+            "--reload/--no-reload",
+            help="Auto-reload on code changes (dev mode).",
+        ),
+    ] = True,
+) -> None:
+    """Run the FastAPI web app (the v0.3+ UI).
+
+    Replaces the legacy ``uv run app.py`` invocation. Opens
+    ``http://<host>:<port>``.
+    """
+    import uvicorn
+
+    uvicorn.run("api.server:app", host=host, port=port, reload=reload)
+
+
+# ─── cinemateca info ─────────────────────────────────────────────────────────
+
+@app.command()
+def info(
+    video: Annotated[
+        Path,
+        typer.Argument(
+            exists=True, dir_okay=False, readable=True,
+            help="Caminho do arquivo de vídeo.",
+        ),
+    ],
+) -> None:
+    """Print technical properties of a video file (resolution, fps, duration)."""
+    from cinemateca.data_prep import VideoInspector
+
+    _print_banner()
+    try:
+        props = VideoInspector(str(video)).properties
+        print(f"  Arquivo   : {props['filename']}")
+        print(f"  Resolução : {props['width']}x{props['height']}")
+        print(f"  FPS       : {props['fps']:.2f}")
+        print(
+            f"  Duração   : {props['duration_minutes']:.1f} min "
+            f"({props['duration_seconds']:.1f}s)"
+        )
+        print(f"  Frames    : {props['total_frames']:,}")
+        print(f"  Codec     : {props['codec']}")
+        print(f"  Bitrate   : {props['bit_rate_mbps']:.2f} Mbps")
+        print(f"  Tamanho   : {props['file_size_gb']:.2f} GB")
+    except Exception as exc:
+        typer.echo(f"✗ Erro: {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+
+# ─── cinemateca process ──────────────────────────────────────────────────────
+
+@app.command()
+def process(
+    video: Annotated[
+        Path,
+        typer.Argument(
+            exists=True, dir_okay=False, readable=True,
+            help="Caminho do arquivo de vídeo.",
+        ),
+    ],
+    slug: Annotated[
+        str | None,
+        typer.Option(
+            help="Identificador do filme na biblioteca (ex: jeca_tatu). "
+                 "Padrão: stem do nome do vídeo, slugificado. "
+                 "Saída em data/library/<slug>/.",
+        ),
+    ] = None,
+    steps: Annotated[
+        str | None,
+        typer.Option(
+            help="Etapas a executar, separadas por vírgula. "
+                 "Valores: frames,scenes,visual,embeddings,llm. "
+                 "Padrão: todas as etapas habilitadas na config.",
+        ),
+    ] = None,
+    config: Annotated[
+        Path | None,
+        typer.Option(
+            help="Caminho do arquivo config YAML (override de config/local.yaml).",
+        ),
+    ] = None,
+) -> None:
+    """Run the full AI pipeline against a single video.
+
+    Use ``cinemateca library reembed`` if you want to re-run the same
+    steps across every registered film — that variant looks up the
+    registered slug per film and avoids filename→slug drift.
+    """
     from cinemateca.config import load_config, setup_logging
     from cinemateca.pipeline import CatalogPipeline, slugify
 
-    cfg = load_config(args.config)
+    cfg = load_config(str(config) if config else None)
     setup_logging(cfg)
 
-    # Sobrescrever etapas se --steps fornecido
-    if args.steps:
-        try:
-            enabled = _resolve_steps(args.steps)
-        except ValueError as exc:
-            print(f"✗ Erro: {exc}", file=sys.stderr)
-            return 1
+    if steps:
+        enabled = _resolve_steps(steps)
         for step in _STEP_ALIASES.values():
             setattr(cfg.pipeline.steps, step, step in enabled)
 
-    # Derive slug: explicit --slug overrides; otherwise slugify the video stem.
-    # Always run slugify — applies to user-provided --slug too — so a hostile
+    # Always slugify — applies to user-provided --slug too — so a hostile
     # input like "--slug ../secret" can't escape the library root.
-    slug = slugify(args.slug) if args.slug else slugify(Path(args.video).stem)
+    final_slug = slugify(slug) if slug else slugify(Path(video).stem)
 
     _print_banner()
-    print(f"  Vídeo  : {args.video}")
-    print(f"  Slug   : {slug}")
-    print(f"  Config : {args.config or 'default'}")
-    print(f"  Device : {cfg.hardware.device}")
-    print()
+    print(f"  Vídeo  : {video}")
+    print(f"  Slug   : {final_slug}")
+    print(f"  Config : {config or 'default'}")
+    print(f"  Device : {cfg.hardware.device}\n", flush=True)
 
-    pipeline = CatalogPipeline(cfg, slug=slug)
-    result = pipeline.run(args.video)
-
+    pipeline = CatalogPipeline(cfg, slug=final_slug)
+    result = pipeline.run(str(video))
     print(result.summary())
-    return 0 if result.success else 1
+    if not result.success:
+        raise typer.Exit(1)
 
 
-def cmd_reembed_all(args) -> int:
-    """Re-run the embeddings step (or other steps) across every registered film.
+# ─── cinemateca library list ─────────────────────────────────────────────────
 
-    Walks ``data/library/films.json`` and, for each film, drives the
-    existing :class:`CatalogPipeline` with the **registered** slug —
-    avoiding the filename-to-slug drift that bites the bare
-    ``process --video <path>`` form (a renamed file or a special-char
-    title computes a different slug than the one already in the
-    registry, the pipeline registers a NEW empty film, and every step
-    skips).
+@library_app.command("list")
+def library_list(
+    config: Annotated[
+        Path | None,
+        typer.Option(help="Caminho do arquivo config YAML."),
+    ] = None,
+) -> None:
+    """List every registered film with its current per-film state."""
+    from cinemateca.config import load_config, setup_logging
+    from cinemateca.library import scan_library
 
-    By default it clears the per-film ``.npy`` and ``index_mapping.json``
-    before running because the pipeline's ``skip_existing`` would
-    otherwise silently no-op the embeddings step when an old index
-    file is present. Pass ``--keep-existing`` to opt out (useful when
-    you only want to extend missing artifacts, not rebuild them).
+    cfg = load_config(str(config) if config else None)
+    setup_logging(cfg)
+    films = scan_library(Path(cfg.paths.library_dir))
+
+    if not films:
+        print(
+            f"Nenhum filme registrado em "
+            f"{Path(cfg.paths.library_dir)/'films.json'}",
+        )
+        return
+
+    print(f"{'SLUG':<50}  {'SCENES':>7}  {'PROCESSED':>10}  TITLE")
+    print("─" * 100)
+    for f in films:
+        proc = "✓" if f.is_processed else "—"
+        print(
+            f"{f.slug:<50}  {f.scene_count:>7}  {proc:>10}  "
+            f"{f.title}{f' ({f.year})' if f.year else ''}",
+        )
+    print(f"\n  {len(films)} filme(s) registrado(s)")
+
+
+# ─── cinemateca library reembed ──────────────────────────────────────────────
+
+@library_app.command("reembed")
+def library_reembed(
+    only: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--only",
+            help="Slug a processar (repetível). Padrão: todos os filmes registrados.",
+        ),
+    ] = None,
+    steps: Annotated[
+        str,
+        typer.Option(
+            help="Etapas a executar, separadas por vírgula. "
+                 "Valores: frames,scenes,visual,embeddings,llm.",
+        ),
+    ] = "embeddings",
+    keep_existing: Annotated[
+        bool,
+        typer.Option(
+            "--keep-existing",
+            help="Não apaga .npy / index_mapping.json antes de re-rodar. "
+                 "Padrão: apaga, evitando que skip_existing pule a etapa.",
+        ),
+    ] = False,
+    config: Annotated[
+        Path | None,
+        typer.Option(help="Caminho do arquivo config YAML."),
+    ] = None,
+) -> None:
+    """Rebuild artifacts across every registered film (or a subset via ``--only``).
+
+    Drives the pipeline with the **registered** slug from films.json,
+    avoiding the filename→slug drift that bites the bare ``process``
+    form when a filename slugifies to something different from its
+    registered slug. By default, clears the stale ``.npy`` and
+    ``index_mapping.json`` before each run because the pipeline's
+    ``skip_existing`` would otherwise silently no-op the embeddings step.
     """
     from cinemateca.config import load_config, setup_logging
     from cinemateca.library import scan_library
     from cinemateca.pipeline import CatalogPipeline
 
-    cfg = load_config(args.config)
+    cfg = load_config(str(config) if config else None)
     setup_logging(cfg)
 
-    try:
-        enabled = _resolve_steps(args.steps)
-    except ValueError as exc:
-        print(f"✗ Erro: {exc}", file=sys.stderr)
-        return 1
+    enabled = _resolve_steps(steps)
     for step in _STEP_ALIASES.values():
         setattr(cfg.pipeline.steps, step, step in enabled)
 
     library_dir = Path(cfg.paths.library_dir)
     films = scan_library(library_dir)
     if not films:
-        print(
+        typer.echo(
             f"✗ Nenhum filme registrado em {library_dir/'films.json'}",
-            file=sys.stderr,
+            err=True,
         )
-        return 1
+        raise typer.Exit(1)
 
-    only = set(args.only or [])
-    if only:
-        unknown = only - {f.slug for f in films}
+    only_set = set(only or [])
+    if only_set:
+        unknown = only_set - {f.slug for f in films}
         if unknown:
-            print(
+            typer.echo(
                 f"✗ Slugs não registrados: {', '.join(sorted(unknown))}",
-                file=sys.stderr,
+                err=True,
             )
-            return 1
-        films = [f for f in films if f.slug in only]
+            raise typer.Exit(1)
+        films = [f for f in films if f.slug in only_set]
 
-    # flush=True throughout — pipeline.run() uses logger.info() which
-    # writes to stderr (line-buffered); our stdout prints would otherwise
-    # appear AFTER the pipeline's logs in a combined 2>&1 capture even
-    # though they execute first.
     _print_banner()
-    sys.stdout.flush()
     print(f"  Filmes a reprocessar : {len(films)}", flush=True)
     print(f"  Etapas               : {','.join(sorted(enabled))}", flush=True)
-    print(f"  Config               : {args.config or 'default'}", flush=True)
-    print(f"  Apaga .npy antes     : {not args.keep_existing}", flush=True)
-    print(flush=True)
+    print(f"  Config               : {config or 'default'}", flush=True)
+    print(f"  Apaga .npy antes     : {not keep_existing}\n", flush=True)
 
     raw_dir = Path(cfg.paths.raw_dir)
     summary: list[tuple[str, str, float]] = []
     for film in films:
-        # Per-film raw layout first; fall back to the legacy data/raw/
-        # mirror so Train-Robbery-style films (registered without a
-        # per-film raw/) still rebuild correctly.
         candidates = [film.raw_path, raw_dir / film.raw_path.name]
         video = next((p for p in candidates if p.exists()), None)
         if video is None:
@@ -172,7 +351,7 @@ def cmd_reembed_all(args) -> int:
             summary.append((film.slug, "skipped (no raw)", 0.0))
             continue
 
-        if not args.keep_existing and "embeddings" in enabled:
+        if not keep_existing and "embeddings" in enabled:
             emb_dir = library_dir / film.slug / "embeddings"
             for fname in ("keyframe_embeddings.npy", "index_mapping.json"):
                 p = emb_dir / fname
@@ -189,100 +368,106 @@ def cmd_reembed_all(args) -> int:
 
     print("━" * 60, flush=True)
     print(f"  {'STATUS':<18}  {'TIME':>8}  SLUG", flush=True)
-    for slug, status, elapsed in summary:
-        print(f"  {status:<18}  {elapsed:>6.1f}s  {slug}", flush=True)
+    for slug_, status, elapsed in summary:
+        print(f"  {status:<18}  {elapsed:>6.1f}s  {slug_}", flush=True)
     n_ok = sum(1 for _, s, _ in summary if s == "OK")
     print(f"\n  {n_ok}/{len(summary)} success", flush=True)
-    return 0 if n_ok == len(summary) else 1
+    if n_ok != len(summary):
+        raise typer.Exit(1)
 
 
-def cmd_info(args) -> int:
-    """Exibe informações técnicas de um arquivo de vídeo."""
-    from cinemateca.data_prep import VideoInspector
+# ─── cinemateca library delete ───────────────────────────────────────────────
 
-    _print_banner()
-    try:
-        inspector = VideoInspector(args.video)
-        props = inspector.properties
-        print(f"  Arquivo   : {props['filename']}")
-        print(f"  Resolução : {props['width']}x{props['height']}")
-        print(f"  FPS       : {props['fps']:.2f}")
-        print(f"  Duração   : {props['duration_minutes']:.1f} min ({props['duration_seconds']:.1f}s)")
-        print(f"  Frames    : {props['total_frames']:,}")
-        print(f"  Codec     : {props['codec']}")
-        print(f"  Bitrate   : {props['bit_rate_mbps']:.2f} Mbps")
-        print(f"  Tamanho   : {props['file_size_gb']:.2f} GB")
-        return 0
-    except Exception as e:
-        print(f"✗ Erro: {e}", file=sys.stderr)
-        return 1
+@library_app.command("delete")
+def library_delete(
+    slug: Annotated[
+        str,
+        typer.Argument(help="Slug do filme a remover (ex: jeca_tatu)."),
+    ],
+    yes: Annotated[
+        bool,
+        typer.Option(
+            "--yes", "-y",
+            help="Confirma sem prompt interativo (use em scripts).",
+        ),
+    ] = False,
+    config: Annotated[
+        Path | None,
+        typer.Option(help="Caminho do arquivo config YAML."),
+    ] = None,
+) -> None:
+    """Remove a film from the registry (and delete its on-disk artifacts).
+
+    Destructive — requires explicit confirmation unless ``--yes`` is passed.
+    """
+    from cinemateca.config import load_config, setup_logging
+    from cinemateca.library import delete_film, load_registry
+
+    cfg = load_config(str(config) if config else None)
+    setup_logging(cfg)
+    library_dir = Path(cfg.paths.library_dir)
+
+    registry = load_registry(library_dir)
+    if slug not in registry:
+        typer.echo(
+            f"✗ Slug não registrado: {slug!r}. "
+            f"Disponíveis: {', '.join(sorted(registry)) or '(nenhum)'}",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    if not yes and not typer.confirm(
+        f"Remover {slug!r} e tudo em {library_dir/slug}? (irreversível)"
+    ):
+        typer.echo("Cancelado.")
+        raise typer.Exit(0)
+
+    delete_film(library_dir, slug=slug)
+    # ``delete_film`` removes the registry entry but may leave the on-disk
+    # directory; clear it ourselves so "delete" really means "delete".
+    film_dir = library_dir / slug
+    if film_dir.exists():
+        import shutil
+
+        shutil.rmtree(film_dir)
+    typer.echo(f"✓ {slug} removido.")
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        prog="cinemateca",
-        description="Cinemateca AI — Catalogação audiovisual com IA",
-    )
-    subparsers = parser.add_subparsers(dest="command", required=True)
+# ─── cinemateca config show ──────────────────────────────────────────────────
 
-    # ── cinemateca process ────────────────────────────────────────────────────
-    p_process = subparsers.add_parser(
-        "process", help="Executa o pipeline completo de catalogação"
-    )
-    p_process.add_argument("--video", required=True, help="Caminho do arquivo de vídeo")
-    p_process.add_argument("--config", default=None, help="Caminho do arquivo config YAML")
-    p_process.add_argument(
-        "--steps",
-        default=None,
-        help="Etapas a executar, separadas por vírgula. "
-             "Ex: frames,scenes,embeddings. "
-             "Valores: frames,scenes,visual,embeddings,llm",
-    )
-    p_process.add_argument(
-        "--slug",
-        default=None,
-        help="Identificador do filme na biblioteca (ex: jeca_tatu). "
-             "Padrão: stem do nome do vídeo, slugificado. "
-             "Saída em data/library/<slug>/.",
-    )
-    p_process.set_defaults(func=cmd_process)
+@config_app.command("show")
+def config_show(
+    config: Annotated[
+        Path | None,
+        typer.Option(help="Caminho do arquivo config YAML."),
+    ] = None,
+) -> None:
+    """Dump the effective merged config (default.yaml ⊕ local.yaml ⊕ --config)."""
+    import yaml
 
-    # ── cinemateca reembed-all ────────────────────────────────────────────────
-    p_re = subparsers.add_parser(
-        "reembed-all",
-        help="Reconstrói embeddings (ou outras etapas) para todos os filmes "
-             "registrados em data/library/films.json",
-    )
-    p_re.add_argument(
-        "--config", default=None, help="Caminho do arquivo config YAML",
-    )
-    p_re.add_argument(
-        "--steps", default="embeddings",
-        help="Etapas a executar, separadas por vírgula. "
-             "Default: embeddings. "
-             "Valores: frames,scenes,visual,embeddings,llm",
-    )
-    p_re.add_argument(
-        "--only", action="append", default=None,
-        help="Slug a processar (repetível). Default: todos os filmes registrados. "
-             "Ex: --only jeca_tatu --only edwin_porter-the_great_train_robbery_1903",
-    )
-    p_re.add_argument(
-        "--keep-existing", action="store_true",
-        help="Não apaga .npy / index_mapping.json antes de re-rodar. "
-             "Default: apaga, evitando que skip_existing pule a etapa.",
-    )
-    p_re.set_defaults(func=cmd_reembed_all)
+    from cinemateca.config import load_config
 
-    # ── cinemateca info ───────────────────────────────────────────────────────
-    p_info = subparsers.add_parser(
-        "info", help="Exibe informações técnicas de um vídeo"
-    )
-    p_info.add_argument("--video", required=True, help="Caminho do arquivo de vídeo")
-    p_info.set_defaults(func=cmd_info)
+    cfg = load_config(str(config) if config else None)
 
-    args = parser.parse_args()
-    sys.exit(args.func(args))
+    def _serialise(obj):
+        if hasattr(obj, "__dict__"):
+            return {k: _serialise(v) for k, v in obj.__dict__.items()}
+        if isinstance(obj, Path):
+            return str(obj)
+        if isinstance(obj, dict):
+            return {k: _serialise(v) for k, v in obj.items()}
+        if isinstance(obj, (list, tuple)):
+            return [_serialise(v) for v in obj]
+        return obj
+
+    print(yaml.safe_dump(_serialise(cfg), sort_keys=True, allow_unicode=True))
+
+
+# ─── Entry point ─────────────────────────────────────────────────────────────
+
+def main() -> None:
+    """Console-script entry (``[project.scripts]`` → ``cinemateca``)."""
+    app()
 
 
 if __name__ == "__main__":
