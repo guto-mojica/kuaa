@@ -5,7 +5,11 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
+import numpy as np
+import pytest
+
 from api.services.catalog import build_scenes_context_aggregate
+from api.services.search import aggregate_search
 from cinemateca.library import register_film
 
 
@@ -75,3 +79,78 @@ def test_aggregate_tolerates_unprocessed_film(tmp_path: Path) -> None:
     assert len(ctx["cards"]) == 3  # only film "a"
     assert {c["film_slug"] for c in ctx["cards"]} == {"a"}
     assert ctx["no_data"] is False
+
+
+# ── aggregate_search tests ────────────────────────────────────────────────────
+
+def _make_film_with_embeddings(
+    library_dir: Path, slug: str, vectors: list[list[float]]
+) -> None:
+    """Create a film with a tiny CLIP index of ``len(vectors)`` scenes."""
+    md = library_dir / slug / "metadata"
+    md.mkdir(parents=True)
+    emb_dir = library_dir / slug / "embeddings"
+    emb_dir.mkdir(parents=True)
+    (library_dir / slug / "frames" / "keyframes").mkdir(parents=True)
+    (library_dir / slug / "raw").mkdir()
+    (library_dir / slug / "raw" / f"{slug}.mp4").write_bytes(b"")
+
+    arr = np.array(vectors, dtype=np.float32)
+    # L2-normalise so cosine == dot product
+    arr /= np.linalg.norm(arr, axis=1, keepdims=True)
+    np.save(emb_dir / "keyframe_embeddings.npy", arr)
+
+    mapping = [
+        {
+            "keyframe_index": i,
+            "scene_id": i,
+            "keyframe_path": f"data/library/{slug}/frames/keyframes/{i}.jpg",
+        }
+        for i in range(len(vectors))
+    ]
+    (emb_dir / "index_mapping.json").write_text(json.dumps(mapping))
+    # Stub keyframes_metadata.json so build_cards in the result-merger works:
+    (md / "keyframes_metadata.json").write_text(
+        json.dumps(
+            [
+                {
+                    "scene_id": i,
+                    "filepath": mapping[i]["keyframe_path"],
+                    "start_time_s": float(i),
+                }
+                for i in range(len(vectors))
+            ]
+        )
+    )
+
+
+def test_aggregate_text_search_returns_results_from_both_films(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """aggregate_search merges per-film results by score, top-K overall."""
+    library_dir = tmp_path / "library"
+    library_dir.mkdir()
+    register_film(library_dir, slug="a", title="A", year=2000, raw_filename="a.mp4")
+    register_film(library_dir, slug="b", title="B", year=2001, raw_filename="b.mp4")
+    # Film A: best match at index 1; Film B: best match at index 0.
+    _make_film_with_embeddings(library_dir, "a", [[0.1, 0.0], [1.0, 0.0], [0.5, 0.5]])
+    _make_film_with_embeddings(library_dir, "b", [[1.0, 0.0], [0.0, 1.0]])
+
+    # Stub the CLIP text-encoder so we don't need a real model in tests.
+    class StubEmbedder:
+        def encode_text(self, q: str) -> np.ndarray:
+            return np.array([1.0, 0.0], dtype=np.float32)
+
+    monkeypatch.setattr(
+        "api.services.search._get_embedder", lambda cfg: StubEmbedder()
+    )
+
+    results = aggregate_search(
+        _cfg(library_dir), query="anything", modality="text", top_k=2
+    )
+
+    assert len(results) == 2
+    # Top result is one of the two "[1.0, 0.0]" matches (score 1.0 in both).
+    # The next-best is film A's [0.5, 0.5] (score ≈ 0.707).
+    slugs_in_top2 = {r["film_slug"] for r in results}
+    assert slugs_in_top2 == {"a", "b"}
