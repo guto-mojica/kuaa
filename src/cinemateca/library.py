@@ -143,3 +143,35 @@ def library_state(
         index_present=index_present,
         scene_count=scene_count,
     )
+
+
+def load_registry(library_dir: Path) -> dict[str, dict]:
+    """Load films.json from ``library_dir``; empty dict if absent.
+
+    The registry is the single source of truth for which films exist.
+    Per-film derived state (scene_count, processed?) is NOT stored here;
+    it is read from on-disk artefacts each time via :func:`scan_library`.
+    """
+    path = library_dir / "films.json"
+    if not path.exists():
+        return {}
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, dict):
+        logger.warning("films.json is not a dict; treating as empty: %s", path)
+        return {}
+    return data
+
+
+def save_registry(library_dir: Path, registry: dict[str, dict]) -> None:
+    """Atomically persist the registry to ``library_dir/films.json``.
+
+    Atomic: write to ``films.json.tmp`` then rename, so a crashed write
+    cannot truncate the file.
+    """
+    library_dir.mkdir(parents=True, exist_ok=True)
+    final = library_dir / "films.json"
+    tmp = library_dir / "films.json.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(registry, f, indent=2, ensure_ascii=False, sort_keys=True)
+    tmp.replace(final)
