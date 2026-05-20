@@ -235,3 +235,39 @@ def test_step_order_includes_new_steps_at_end():
     )
     assert STEP_DEPS["audio_extract"] == ("scene_detection",)
     assert STEP_DEPS["audio_embed"] == ("audio_extract",)
+
+
+def test_audio_embed_errors_with_descriptive_message_when_wav_missing(
+    monkeypatch, tmp_path
+):
+    """If metadata names 3 scenes but only 2 WAVs exist, audio_embed must
+    surface a clear error pointing at the first missing path — the gate is
+    permissive (one WAV present), so this is the load-bearing check."""
+    from cinemateca.pipeline import CatalogPipeline
+
+    cfg = _build_cfg(tmp_path)
+    slug, film_dir, video = _seed_film(tmp_path)
+    _patch_clap(monkeypatch)
+
+    # Add a third scene to the metadata that has NO matching WAV on disk.
+    meta = film_dir / "metadata" / "keyframes_metadata.json"
+    scenes = json.loads(meta.read_text())
+    scenes.append(
+        {"scene_id": 3, "filepath": "k3.jpg", "start_time_s": 12.5,
+         "end_time_s": 18.0, "keyframe_id": "k3"}
+    )
+    meta.write_text(json.dumps(scenes))
+
+    # Hand-seed only WAVs for scenes 1 and 2 so the input gate passes
+    # (it only requires ≥1 WAV) but the step's strict check fails.
+    segments = film_dir / "audio" / "segments"
+    segments.mkdir(parents=True)
+    (segments / "scene_0001.wav").write_bytes(b"RIFF")
+    (segments / "scene_0002.wav").write_bytes(b"RIFF")
+
+    pipe = CatalogPipeline(cfg, slug=slug)
+    result = pipe.run_steps(video, ["audio_embed"])
+    run = next(r for r in result.runs if r.name == "audio_embed")
+    assert run.state == "error"
+    assert "missing" in (run.error or "").lower()
+    assert "scene_0003.wav" in (run.error or "")

@@ -521,6 +521,9 @@ class CatalogPipeline:
         emb_path = out_dir / "clap_embeddings.npy"
         map_path = out_dir / "audio_mapping.json"
 
+        # Stricter than _step_embeddings' single-file check: a half-written
+        # .npy without its mapping is unusable for retrieval, so require
+        # both artefacts before declaring skip.
         if self.cfg.pipeline.skip_existing and emb_path.exists() and map_path.exists():
             logger.info("↷ Pulando audio_embed (arquivo existente)")
             return StepResult(
