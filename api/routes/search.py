@@ -66,7 +66,7 @@ async def tab_search(
     return templates.TemplateResponse(
         request,
         "partials/search.html",
-        make_ctx(request, **build_search_context()),
+        make_ctx(request, current_slug=slug, **build_search_context()),
     )
 
 
@@ -116,7 +116,7 @@ async def api_search(
         return templates.TemplateResponse(
             request,
             "partials/search_results.html",
-            make_ctx(request, results=results, no_index=False),
+            make_ctx(request, current_slug=slug, results=results, no_index=False),
         )
 
     # Per-film search: slug is guaranteed non-None here (aggregate path
@@ -142,6 +142,7 @@ async def api_search(
         "partials/search_results.html",
         make_ctx(
             request,
+            current_slug=slug,
             results=search_service.results_to_dicts(
                 results_df, ctx.data_dir, meta_by_scene, fps
             ),
@@ -183,7 +184,7 @@ async def api_search_image(
         return templates.TemplateResponse(
             request,
             "partials/search_results.html",
-            make_ctx(request, results=[], no_index=False, upload_error=str(exc)),
+            make_ctx(request, current_slug=slug, results=[], no_index=False, upload_error=str(exc)),
         )
 
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
@@ -204,6 +205,7 @@ async def api_search_image(
         "partials/search_results.html",
         make_ctx(
             request,
+            current_slug=slug,
             results=search_service.results_to_dicts(
                 results_df, ctx.data_dir, meta_by_scene, fps
             ),

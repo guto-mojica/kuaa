@@ -21,7 +21,7 @@ from api.templates import templates
 router = APIRouter()
 
 
-def _library_ctx(request: Request, q: str = "") -> dict:
+def _library_ctx(request: Request, q: str = "", current_slug: str | None = None) -> dict:
     """Build the sidebar context: global state + filtered registry film list."""
     from cinemateca.library import library_state, scan_library
 
@@ -34,7 +34,7 @@ def _library_ctx(request: Request, q: str = "") -> dict:
         films = [f for f in films if needle in f.title.lower() or needle in f.slug.lower()]
 
     state = library_state(library_dir)
-    return make_ctx(request, films=films, library_state=state)
+    return make_ctx(request, films=films, library_state=state, current_slug=current_slug)
 
 
 @router.get("/api/library/filter", response_class=HTMLResponse)
@@ -46,5 +46,5 @@ async def api_library_filter(
     return templates.TemplateResponse(
         request,
         "partials/library_tree.html",
-        _library_ctx(request, q),
+        _library_ctx(request, q, current_slug=slug),
     )

@@ -52,7 +52,7 @@ async def tab_annotate(
     return templates.TemplateResponse(
         request,
         "partials/annotate.html",
-        make_ctx(request, **build_annotate_context(_ctx(slug), filter, id)),
+        make_ctx(request, current_slug=slug, **build_annotate_context(_ctx(slug), filter, id)),
     )
 
 
@@ -67,7 +67,7 @@ async def api_annotate_scene(
     return templates.TemplateResponse(
         request,
         "partials/annotate_scene.html",
-        make_ctx(request, filter=filter, **ctx),
+        make_ctx(request, current_slug=slug, filter=filter, **ctx),
     )
 
 
@@ -91,7 +91,7 @@ async def api_annotate_save(
     return templates.TemplateResponse(
         request,
         "partials/annotate_scene.html",
-        make_ctx(request, filter=filter, saved=True, **ctx),
+        make_ctx(request, current_slug=slug, filter=filter, saved=True, **ctx),
     )
 
 
@@ -113,7 +113,13 @@ async def api_annotate_description_edit(
     return templates.TemplateResponse(
         request,
         "partials/annotate_desc_edit.html",
-        make_ctx(request, scene_id=scene_id, filter=filter, current_description=current),
+        make_ctx(
+            request,
+            current_slug=slug,
+            scene_id=scene_id,
+            filter=filter,
+            current_description=current,
+        ),
     )
 
 
@@ -133,7 +139,7 @@ async def api_annotate_description_save(
     return templates.TemplateResponse(
         request,
         "partials/annotate_scene.html",
-        make_ctx(request, filter=filter, desc_saved=True, **ctx),
+        make_ctx(request, current_slug=slug, filter=filter, desc_saved=True, **ctx),
     )
 
 
@@ -155,5 +161,5 @@ async def api_annotate_clear(
     return templates.TemplateResponse(
         request,
         "partials/annotate_scene.html",
-        make_ctx(request, filter=filter, cleared=True, **ctx),
+        make_ctx(request, current_slug=slug, filter=filter, cleared=True, **ctx),
     )

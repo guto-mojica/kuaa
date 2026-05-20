@@ -72,7 +72,7 @@ async def tab_processing(
     return templates.TemplateResponse(
         request,
         "partials/processing.html",
-        make_ctx(request, **build_processing_context()),
+        make_ctx(request, current_slug=slug, **build_processing_context()),
     )
 
 
