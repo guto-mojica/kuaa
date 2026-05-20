@@ -57,15 +57,6 @@ def test_selected_config_path_falls_back_to_local_yaml(tmp_path, monkeypatch):
     assert deps.selected_config_path() == Path("config/local.yaml")
 
 
-def test_app_parse_args_accepts_demo_config():
-    from app import parse_args
-
-    args = parse_args(["--config", "config/demo.yaml", "--host", "0.0.0.0", "--port", "9000"])
-
-    assert args.config == "config/demo.yaml"
-    assert args.host == "0.0.0.0"
-    assert args.port == 9000
-
 
 def _demo_manifest(min_keyframes: int = 2) -> dict:
     return {

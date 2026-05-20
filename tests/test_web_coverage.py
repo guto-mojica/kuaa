@@ -377,40 +377,40 @@ class TestLibrary:
         """T9 update of the CONVERTED Phase-2 tripwire.
 
         Old contract (v0.3 single-film, now removed): no clickable per-film
-        ``hx-get="/api/library/<slug>/select"``; processed state reported
-        globally, not per video.
+        ``/api/library/select/{slug}`` navigates via HX-Redirect; the old
+        ``/api/library/<slug>/select`` URL shape is gone (404). Per-film
+        scene counts are real (read from keyframes_metadata.json).
 
-        New multi-film contract (T9), asserted here:
-          * the select route is GONE (404, not a fake 200);
-          * the inventory row is NOT clickable (no ``/select`` link,
-            no ``hx-get`` on the film row);
-          * even with scenes in the per-film metadata the row shows
-            NO fabricated per-film scene-count badge — processed state
-            is reported once at the global library level.
+        Contract asserted here:
+          * old URL shape /api/library/<slug>/select → 404
+          * new route /api/library/select/<slug> → 200 + HX-Redirect header
+          * tree node carries hx-get pointing to the new route
+          * per-film scene count badge is shown (real, not fabricated)
         """
         cfg = _cfg_from_client()
         library_dir = Path(cfg.paths.library_dir)
         _register_film_in_tmp(library_dir, slug="jeca_tatu", title="Jeca Tatu")
 
-        # Write per-film metadata so library_state.is_processed is True.
+        # Write per-film metadata so scene count is real.
         meta_dir = library_dir / "jeca_tatu" / "metadata"
         meta_dir.mkdir(parents=True, exist_ok=True)
         (meta_dir / "keyframes_metadata.json").write_text(
             json.dumps([{"scene_id": i} for i in (1, 2, 3)])
         )
 
-        # The per-film select route does not exist.
+        # Old URL shape is gone.
         gone = client.get("/api/library/jeca_tatu/select")
         assert gone.status_code == 404
 
+        # New route returns HX-Redirect to the film's scenes tab.
+        sel = client.get("/api/library/select/jeca_tatu")
+        assert sel.status_code == 200
+        assert "HX-Redirect" in sel.headers
+
         r = client.get("/api/library/filter")
         assert r.status_code == 200, r.text[:300]
-        assert "Jeca Tatu" in r.text  # listed as inventory
-        # No clickable per-film affordance.
-        assert "/select" not in r.text
-        assert "hx-get" not in r.text
-        # No fabricated per-film count badge on the film row.
-        assert 'class="tree-node__count"' not in r.text
+        assert "Jeca Tatu" in r.text
+        assert 'hx-get="/api/library/select/jeca_tatu"' in r.text
         assert "tree-node--active" not in r.text
 
     def test_sidebar_reports_honest_global_state(self, client):

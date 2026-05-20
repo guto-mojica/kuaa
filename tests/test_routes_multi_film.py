@@ -107,7 +107,7 @@ class TestScenesRouteMultiFilm:
         default; the test uses pytest.raises to pin this behavior — an
         exception is visible, a silent wrong result is not.
         """
-        with pytest.raises(ValueError, match="No such film directory"):
+        with pytest.raises(ValueError, match="Film not registered"):
             two_film_client.get("/tab/scenes?film=ghost")
 
 

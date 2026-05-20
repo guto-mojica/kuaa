@@ -71,7 +71,7 @@ def film_slug_query(
 
 
 def make_ctx(request: Request, **kwargs) -> dict:
-    """Build a Jinja2 template context with per-request locale and active film."""
+    """Build a Jinja2 template context with per-request locale and current film."""
     locale = request.cookies.get("locale", "pt_BR")
     trans = _get_translations(locale)
     return {
@@ -79,26 +79,5 @@ def make_ctx(request: Request, **kwargs) -> dict:
         "_": trans.gettext,
         "locale": locale,
         "lang": locale_to_lang(locale),
-        "active_film": request.cookies.get("active_film", ""),
         **kwargs,
     }
-
-
-def film_ctx(request: Request, cfg=None):
-    """Return a FilmContext for the currently active film (from cookie).
-
-    Falls back to the global flat context when no film cookie is set or the
-    per-film directory does not exist yet.
-    """
-    from pathlib import Path
-
-    from api.services.film_context import FilmContext
-
-    if cfg is None:
-        cfg = get_config()
-    slug = request.cookies.get("active_film", "")
-    if slug:
-        film_dir = Path(cfg.paths.data_dir).resolve() / "films" / slug
-        if film_dir.exists():
-            return FilmContext.for_film(cfg, slug)
-    return FilmContext.from_config(cfg)
