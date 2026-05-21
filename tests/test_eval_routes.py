@@ -270,3 +270,77 @@ def test_eval_metrics_pane_zero_state(client, monkeypatch, tmp_path):
     # Save / skip action buttons.
     assert 'data-action="save-advance"' in html
     assert 'data-action="skip"' in html
+
+
+# ── Task 32: keyboard router asset wiring ─────────────────────────────────────
+
+
+def test_eval_js_asset_served(client):
+    """The eval.js router asset is served from /static/js/eval.js and
+    contains the key entry-point symbols. We assert on stable code
+    landmarks (`.ev-app` selector, `gradeRow` function) rather than
+    line counts so future polish edits don't break the test."""
+
+    r = client.get("/static/js/eval.js")
+    assert r.status_code == 200
+    body = r.text
+    assert ".ev-app" in body  # selector that bootstraps the script
+    assert "gradeRow" in body  # POST helper that wraps /api/eval/grade
+    # Keyboard contract — the four keys named in the footer legend.
+    assert "ArrowDown" in body or "'j'" in body
+    assert "/api/eval/grade" in body
+
+
+def test_eval_layout_loads_eval_js(client, monkeypatch, tmp_path):
+    """The standalone eval shell pulls in /static/js/eval.js. We also
+    confirm the script tag carries `defer` so it doesn't block the
+    initial paint and runs after the .ev-app element exists in the
+    DOM (the script's bootstrap depends on that)."""
+
+    monkeypatch.setenv("EVAL_ADMIN_TOKEN", "test-token")
+    import api.services.eval_service as eval_service
+
+    monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
+    monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
+
+    r = client.get("/eval?token=test-token")
+    assert r.status_code == 200
+    html = r.text
+    # The reference is rendered through url_for, so the host shows up too,
+    # but the path component is stable.
+    assert "js/eval.js" in html
+    # The eval.js tag must be defer-loaded (mojica.js is, eval.js follows).
+    assert 'js/eval.js" defer' in html or "js/eval.js' defer" in html
+
+
+def test_eval_grade_then_metrics_round_trip(client, monkeypatch, tmp_path):
+    """End-to-end backend round trip the JS router will issue: POST a
+    grade, then GET metrics returns a non-zero P@K. This is the
+    contract the keyboard router depends on — the JS side itself is
+    DOM-only and can't be exercised in pytest, but the network shape
+    must hold."""
+
+    monkeypatch.setenv("EVAL_ADMIN_TOKEN", "test-token")
+    import api.services.eval_service as eval_service
+
+    monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
+    monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
+
+    # Same payload shape as gradeRow() in eval.js: form-encoded POST.
+    r1 = client.post(
+        "/api/eval/grade?token=test-token",
+        data={"query_id": "q1", "scene_id": "jeca/1", "grade": "2"},
+    )
+    assert r1.status_code == 200, r1.text
+    assert r1.json()["ok"] is True
+
+    # Same GET shape as refreshMetrics() in eval.js.
+    r2 = client.get("/api/eval/metrics?query_id=q1&token=test-token")
+    assert r2.status_code == 200
+    data = r2.json()
+    # One RELEVANT grade (=2) over a single-item slate yields P@K = 1.0.
+    assert data["p_at_5"] == 1.0
+    assert data["p_at_3"] == 1.0
+    # And all four keys the JS expects are present on every response.
+    for key in ("p_at_5", "p_at_3", "ndcg_at_5", "inversions"):
+        assert key in data
