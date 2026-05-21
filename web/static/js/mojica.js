@@ -318,11 +318,23 @@ window.ToastBus = (function () {
   }
 
   // ── Help overlay state machine ──────────────────────────────────────
-  // The DOM is rendered once at page load by partials/_help_overlay.html;
-  // we just flip the [hidden] attribute on the outer #help node. Keeping
-  // the markup in place means the open path renders the legend in the
-  // same frame as the keypress, which is the whole point of a help
-  // surface bound to a one-key shortcut.
+  // State now lives in an Alpine store (``Alpine.store('help').open``)
+  // so the markup in partials/_help_overlay.html can react with
+  // ``x-show`` / ``@click`` / ``@keydown.escape.window`` directives.
+  // The functions below are thin wrappers that flip the store; we keep
+  // their named-function form because the public JS contract test
+  // (``test_mojica_js_contains_help_toggle``) and downstream call-sites
+  // (the ⌘K block, palette callbacks, future TopBar "?" button) all
+  // address them through ``window.Help.{open,close,toggle}`` rather than
+  // touching Alpine directly. Keeping the wrappers also means the file
+  // works on the rare error page that loads mojica.js without Alpine
+  // — every helper no-ops cleanly when the store is unavailable.
+  function helpStore() {
+    return window.Alpine && window.Alpine.store
+      ? window.Alpine.store('help')
+      : null;
+  }
+
   function openHelp() {
     // Mutual exclusion: only one polish surface is on screen at a time.
     // If the palette is open, dismiss it first so the help legend takes
@@ -330,50 +342,38 @@ window.ToastBus = (function () {
     if (window.Palette && typeof window.Palette.close === 'function') {
       window.Palette.close();
     }
-    var help = document.getElementById('help');
-    if (!help) return;
-    help.hidden = false;
+    var s = helpStore();
+    if (s) s.open = true;
   }
 
   function closeHelp() {
-    var help = document.getElementById('help');
-    if (!help) return;
-    help.hidden = true;
+    var s = helpStore();
+    if (s) s.open = false;
   }
 
   function toggleHelp() {
-    var help = document.getElementById('help');
-    if (!help) return;
-    if (help.hidden) openHelp();
-    else closeHelp();
+    var s = helpStore();
+    if (s) s.open = !s.open;
   }
 
-  function helpIsOpen() {
-    var help = document.getElementById('help');
-    return !!(help && !help.hidden);
-  }
-
-  // Backdrop + close-button click handler. The .kh-back element IS the
-  // backdrop, so a click whose target is the outer #help element (not
-  // a child) means the user clicked outside the panel — dismiss. The
-  // .kh-panel carries [data-prevent-close] (kept for parity with the
-  // palette scaffold even though the target check below is the actual
-  // guard) and stops events at its boundary because clicks on the panel
-  // hit one of its descendants, not #help itself.
-  document.addEventListener('click', function (e) {
-    if (!helpIsOpen()) return;
-    var help = document.getElementById('help');
-    // Backdrop click — the click event's target is the #help element
-    // itself only when nothing inside .kh-panel intercepted it.
-    if (e.target === help) {
-      closeHelp();
-      return;
-    }
-    // Explicit close button (anywhere inside the panel).
-    if (e.target.closest && e.target.closest('[data-action="close-help"]')) {
-      closeHelp();
+  // Register the store as soon as Alpine boots. ``alpine:init`` fires
+  // once, right before Alpine walks the DOM, so the store is ready by
+  // the time _help_overlay's ``x-show="$store.help.open"`` is evaluated.
+  // Deferred-script ordering guarantees mojica.js runs before
+  // DOMContentLoaded (which is when the CDN build calls Alpine.start()),
+  // so this listener is always attached in time.
+  document.addEventListener('alpine:init', function () {
+    if (window.Alpine && typeof window.Alpine.store === 'function') {
+      window.Alpine.store('help', { open: false });
     }
   });
+
+  // Backdrop click, close-button click, and Esc-to-dismiss are now
+  // declared on the overlay element itself via Alpine directives
+  // (@click.self / @click / @keydown.escape.window). The legacy
+  // document.addEventListener('click', …) handler that walked the DOM
+  // to detect backdrop vs panel clicks is gone — Alpine's $event.target
+  // check is the same logic in a clearer location.
 
   // Expose a small public surface so future flows (e.g. a "?" button on
   // the TopBar, or Task 27's palette gaining a "Show shortcuts" action)
@@ -397,14 +397,11 @@ window.ToastBus = (function () {
       return;
     }
 
-    // Esc — close help if it is the active surface. The palette installs
-    // its own Esc handler inside palette.js; this branch only fires when
-    // the palette is closed and help is open, so the two never fight.
-    if (e.key === 'Escape' && helpIsOpen()) {
-      e.preventDefault();
-      closeHelp();
-      return;
-    }
+    // Esc-when-help-open is now handled declaratively in
+    // _help_overlay.html (``@keydown.escape.window``) so the keyboard
+    // router no longer needs a branch for it. The palette still owns
+    // its own Esc handler in palette.js; mutual exclusion is preserved
+    // because openHelp/openPalette dismiss each other before opening.
 
     // Below this line: single-key shortcuts. The "in field" guard
     // suppresses them when the user is typing into an input/textarea so

@@ -33,6 +33,13 @@
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/about.css') }}">
     <script src="{{ request.url_for('static', path='js/htmx.min.js') }}" defer></script>
     <script src="{{ request.url_for('static', path='js/htmx-ext-sse.js') }}" defer></script>
+    {# Alpine.js — client-only state sprinkles (chip toggles, panel
+       visibility, modal close, file-input filename). Loaded BEFORE
+       mojica.js so any `window.Alpine.*` references in our IIFEs see
+       it; Alpine's MutationObserver picks up DOM nodes inserted by
+       htmx swaps automatically, so no extra wiring is needed for
+       fragments. Pinned to 3.14.9 (see web/static/js/alpine.min.js). #}
+    <script src="{{ request.url_for('static', path='js/alpine.min.js') }}" defer></script>
     {# mojica.js — Phase 6 seed: SSE log auto-scroll on #proc-log.
        Phase 7 (Tasks 26–28) extends the same file with the toast bus,
        command palette, and keyboard-help overlay. Single IIFE, no

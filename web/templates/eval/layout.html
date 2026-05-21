@@ -27,6 +27,9 @@
   <link rel="stylesheet" href="{{ request.url_for('static', path='css/polish.css') }}">
   <script src="{{ request.url_for('static', path='js/htmx.min.js') }}" defer></script>
   <script src="{{ request.url_for('static', path='js/htmx-ext-sse.js') }}" defer></script>
+  {# Alpine.js — must precede mojica.js so window.Alpine is ready by
+     the time mojica.js runs. See base.html for the rationale. #}
+  <script src="{{ request.url_for('static', path='js/alpine.min.js') }}" defer></script>
   <script src="{{ request.url_for('static', path='js/mojica.js') }}" defer></script>
   <script src="{{ request.url_for('static', path='js/eval.js') }}" defer></script>
 </head>
