@@ -141,8 +141,16 @@ def serve(
     ``http://<host>:<port>``.
     """
     import uvicorn
+    from pathlib import Path
 
-    uvicorn.run("api.server:app", host=host, port=port, reload=reload)
+    project_root = str(Path(__file__).parent.parent.parent)
+    uvicorn.run(
+        "api.server:app",
+        host=host,
+        port=port,
+        reload=reload,
+        app_dir=project_root,
+    )
 
 
 # ─── cinemateca info ─────────────────────────────────────────────────────────
