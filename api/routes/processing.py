@@ -13,7 +13,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 
-from api.deps import film_slug_query, get_config, make_ctx
+from api.deps import film_slug_query, get_config, make_ctx, _get_translations
 from api.jobs import (
     STEP_DEFS,
     ConcurrencyRejected,
@@ -38,10 +38,12 @@ router = APIRouter()
 
 # ── Rendering helpers ─────────────────────────────────────────────────────────
 
-def _render_stepper(job: JobState) -> str:
-    """Render the stepper HTML fragment for SSE (no request context needed)."""
+def _render_stepper(job: JobState, locale: str = "pt_BR") -> str:
+    """Render the stepper HTML fragment for SSE."""
+    trans = _get_translations(locale)
     html = templates.env.get_template("partials/processing_stepper.html").render(
         job=job,
+        _=trans.gettext,
     )
     return html.replace("\n", " ").strip()
 
@@ -136,7 +138,7 @@ async def api_pipeline_cancel(request: Request, job_id: str) -> HTMLResponse:
 
 
 @router.get("/api/pipeline/stream/{job_id}")
-async def api_pipeline_stream(job_id: str) -> StreamingResponse:
+async def api_pipeline_stream(request: Request, job_id: str) -> StreamingResponse:
     """Stream pipeline progress for a job as Server-Sent Events.
 
     Emits ``event: update`` frames carrying the rendered stepper HTML for
@@ -145,6 +147,7 @@ async def api_pipeline_stream(job_id: str) -> StreamingResponse:
     generator returns and the stream closes. An unknown ``job_id`` yields a
     single terminal ``event: error`` frame and closes immediately.
     """
+    locale = request.cookies.get("locale", "pt_BR")
 
     async def generator():
         job = get_job(job_id)
@@ -164,13 +167,13 @@ async def api_pipeline_stream(job_id: str) -> StreamingResponse:
                     # (defensive): emit the matching terminal frame and
                     # stop so the stream never loops forever. ``status``
                     # maps 1:1 onto the terminal event name.
-                    yield f"event: {job.status}\ndata: {_render_stepper(job)}\n\n"
+                    yield f"event: {job.status}\ndata: {_render_stepper(job, locale)}\n\n"
                     return
                 await asyncio.sleep(0.4)
                 yield ": keepalive\n\n"
                 continue
 
-            html = _render_stepper(job)
+            html = _render_stepper(job, locale)
 
             if signal in _TERMINAL_EVENTS:
                 # Exactly one terminal typed frame carrying the final
