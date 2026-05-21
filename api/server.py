@@ -147,9 +147,11 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     # tag vocabulary to the active film, AND before building the chrome
     # context so the LeftPane marks the .ch-film.active row correctly.
     _raw_slug = request.query_params.get("film") or request.cookies.get("active_film") or None
-    # Validate against the library directory so a stale cookie with a renamed
-    # or deleted slug doesn't propagate a ValueError into every service call.
+    # Normalise to lowercase (all registered slugs are lowercase via slugify)
+    # and validate against the library directory so a stale cookie or wrong-
+    # cased slug doesn't propagate a ValueError into every service call.
     if _raw_slug:
+        _raw_slug = _raw_slug.lower()
         _film_dir = Path(cfg.paths.library_dir) / _raw_slug
         current_slug: str | None = _raw_slug if _film_dir.is_dir() else None
     else:

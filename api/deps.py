@@ -81,9 +81,10 @@ def film_slug_query(
         return None
     from pathlib import Path
 
+    slug = film.lower()
     cfg = get_config()
-    film_dir = Path(cfg.paths.library_dir) / film
-    return film if film_dir.is_dir() else None
+    film_dir = Path(cfg.paths.library_dir) / slug
+    return slug if film_dir.is_dir() else None
 
 
 def make_ctx(request: Request, **kwargs) -> dict:
@@ -208,7 +209,7 @@ def film_ctx(request: Request, cfg=None):
 
     if cfg is None:
         cfg = get_config()
-    slug = request.cookies.get("active_film", "")
+    slug = request.cookies.get("active_film", "").lower()
     if slug:
         film_dir = Path(cfg.paths.library_dir) / slug
         if film_dir.exists():
