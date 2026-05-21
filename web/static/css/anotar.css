@@ -15,8 +15,8 @@
 
 .a-stage {
   display: flex; flex-direction: column;
+  flex: 1; min-width: 0;
   background: #000; overflow: hidden;
-  min-width: 0;
 }
 
 .a-meta {
@@ -220,8 +220,14 @@
 .a-pl .label.on { background: var(--c-hover); color: var(--c-text); }
 .a-pl .label.on .v { color: var(--c-accent); }
 
-/* Right comments pane */
+/* Right comments pane — .a-rp-mount is the HTMX swap wrapper; it must carry
+   the fixed width so swaps preserve the column width. */
+.a-rp-mount {
+  width: 380px; flex-shrink: 0;
+  overflow: hidden; display: flex; flex-direction: column;
+}
 .a-rp {
+  flex: 1; min-height: 0;
   border-left: 1px solid var(--c-border); background: var(--c-panel);
   display: flex; flex-direction: column; overflow: hidden;
 }

@@ -98,8 +98,9 @@
 /* ─── BODY LAYOUT ───────────────────────────────────────────────────── */
 .ch-body {
   display: grid; grid-template-columns: 56px 248px 1fr;
-  height: 100%; overflow: hidden;
+  flex: 1; min-height: 0; overflow: hidden;
 }
+.ch-main { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .ch-body.compact-lp {
   grid-template-columns: 56px 1fr;
 }

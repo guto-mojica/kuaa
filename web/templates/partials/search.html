@@ -238,12 +238,9 @@
 
 </section>
 
-{# ── Right inspector — Task 12 wires the real .b-rp content. The
-     partial self-guards on ``selected_scene`` so the full-page initial
-     render (no scene selected) produces nothing visible; HTMX clicks on
-     a .b-card swap the inspector into ``#right-pane`` instead, where
-     it lives at runtime. #}
-{% include "partials/search_inspector.html" %}
+{# ── Right inspector — HTMX swaps target ``#right-pane`` (innerHTML) to
+     replace the .b-rp section without touching this container. #}
+<aside id="right-pane">{% include "partials/search_inspector.html" %}</aside>
 
 </div>
 

@@ -124,14 +124,18 @@ _TAB_CONTEXT_BUILDERS = {
 # not per-request locale or film context. Phase 2+ tasks may move some of this
 # into the page templates themselves once they extend base.html directly.
 _TAB_CHROME = {
-    "search": {"active_tab": "buscar", "compact_lp": False, "has_right_pane": True},
-    "scenes": {"active_tab": "cenas", "compact_lp": False, "has_right_pane": True},
-    "annotate": {"active_tab": "anotar", "compact_lp": True, "has_right_pane": True},
+    # has_right_pane=False for every tab: each tab manages its own right pane
+    # inside .tab-panel (via .b-rp, .c-rp, .r-rp, etc.). Setting True would add
+    # an empty ch-right 380px grid column AND a duplicate id="right-pane" element,
+    # breaking HTMX targeting and stealing layout space from ch-main.
+    "search": {"active_tab": "buscar", "compact_lp": False, "has_right_pane": False},
+    "scenes": {"active_tab": "cenas", "compact_lp": False, "has_right_pane": False},
+    "annotate": {"active_tab": "anotar", "compact_lp": True, "has_right_pane": False},
     # NOTE: the body's data-active-tab uses the short slug "proc" (not the
     # full PT "processamento") so the topbar tab chip's `data-tab="proc"`
     # selector matches in CSS / JS. Task 7 wired this contract.
-    "processing": {"active_tab": "proc", "compact_lp": False, "has_right_pane": True},
-    "rimas": {"active_tab": "rimas", "compact_lp": False, "has_right_pane": True},
+    "processing": {"active_tab": "proc", "compact_lp": False, "has_right_pane": False},
+    "rimas": {"active_tab": "rimas", "compact_lp": False, "has_right_pane": False},
 }
 
 

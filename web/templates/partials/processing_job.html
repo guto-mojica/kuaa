@@ -26,7 +26,12 @@
     Until then the inner stepper is the live source of truth and the
     outer header reflects the state at GET time.
 -#}
-<article class="p-active" id="job-{{ job.id }}" data-job-id="{{ job.id }}">
+<article class="p-active" id="job-{{ job.id }}" data-job-id="{{ job.id }}"
+  {% if job.status in ('running', 'created') %}
+  hx-get="/api/pipeline/job-card/{{ job.id }}"
+  hx-trigger="every 3s"
+  hx-swap="outerHTML"
+  {% endif %}>
   <div class="head">
     <div class="l">
       {% if job.film_thumb %}

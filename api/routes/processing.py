@@ -24,6 +24,7 @@ from api.jobs import (
     get_job,
     start_job,
 )
+from api.services.chrome_service import build_chrome_context
 from api.templates import templates
 
 # Terminal SSE events: after one of these the generator emits exactly one
@@ -135,26 +136,49 @@ async def api_pipeline_start(
     try:
         job_id = start_job(str(vp), set(steps), cfg)
     except ConcurrencyRejected as exc:
-        # Single-global-active-job policy: surface a clear rejection
-        # instead of launching a second pipeline.
         return HTMLResponse(f'<p class="text-error">{exc}</p>', status_code=409)
     job = get_job(job_id)
 
-    # Enrich the freshly-started job with the display fields the
-    # ``.p-active`` card header reads (film_title / started_at_display /
-    # elapsed_display / active_step_idx). Without this the POST response
-    # would render a sparse card whereas the GET path renders the rich
-    # one.
     if job is not None:
         from api.services.processing_service import enrich_jobs  # noqa: PLC0415
 
         enrich_jobs([job])
 
-    return templates.TemplateResponse(
-        request,
-        "partials/processing_job.html",
-        make_ctx(request, job=job),
+    # Derive the slug for the film being processed so we can update
+    # active_film cookie and refresh the left-pane film list in one shot.
+    from cinemateca.library import scan_library  # noqa: PLC0415
+
+    library_dir = Path(cfg.paths.library_dir)
+    films = scan_library(library_dir)
+    vp_resolved = vp.resolve()
+    new_slug = request.cookies.get("active_film", "")
+    for film in films:
+        try:
+            if film.raw_path.resolve() == vp_resolved:
+                new_slug = film.slug
+                break
+            if film.raw_path.name == vp_resolved.name:
+                new_slug = film.slug
+                break
+        except (OSError, RuntimeError):
+            if film.raw_path.name == vp_resolved.name:
+                new_slug = film.slug
+                break
+
+    # Primary swap: job card for #processing-job
+    job_html = templates.env.get_template("partials/processing_job.html").render(
+        make_ctx(request, job=job, active_film=new_slug, current_slug=new_slug)
     )
+
+    # OOB swap: left-pane film list with the new active film highlighted
+    chrome_ctx = build_chrome_context(cfg, current_slug=new_slug)
+    lp_ctx = make_ctx(request, **chrome_ctx, active_film=new_slug, current_slug=new_slug)
+    lp_html = templates.env.get_template("partials/_left_pane_body.html").render(lp_ctx)
+    oob = f'<div id="lp-scroll" hx-swap-oob="innerHTML">{lp_html}</div>'
+
+    response = HTMLResponse(job_html + oob)
+    response.set_cookie("active_film", new_slug, max_age=86400 * 365, httponly=False, samesite="lax")
+    return response
 
 
 @router.post("/api/pipeline/cancel/{job_id}", response_class=HTMLResponse)
@@ -175,6 +199,29 @@ async def api_pipeline_cancel(request: Request, job_id: str) -> HTMLResponse:
         )
     # Same enrichment as the start path so the .p-active card renders
     # with its display fields populated post-cancel too.
+    from api.services.processing_service import enrich_jobs  # noqa: PLC0415
+
+    enrich_jobs([job])
+    return templates.TemplateResponse(
+        request,
+        "partials/processing_job.html",
+        make_ctx(request, job=job),
+    )
+
+
+@router.get("/api/pipeline/job-card/{job_id}", response_class=HTMLResponse)
+async def api_pipeline_job_card(request: Request, job_id: str) -> HTMLResponse:
+    """Return the full .p-active card for polling-based outer-card refresh.
+
+    The ``processing_job.html`` template includes ``hx-trigger="every 3s"``
+    on the article when the job is active; this endpoint serves the refresh.
+    Polling stops automatically when the job reaches a terminal state because
+    the returned article omits the ``hx-trigger`` attribute.
+    """
+    job = get_job(job_id)
+    if job is None:
+        return HTMLResponse('<p class="text-error">Job not found.</p>', status_code=404)
+
     from api.services.processing_service import enrich_jobs  # noqa: PLC0415
 
     enrich_jobs([job])

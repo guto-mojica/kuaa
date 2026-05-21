@@ -19,7 +19,7 @@
    .r-cp / .r-anchor / .r-grid / .r-echo / .r-rp / .r-pair / .r-sect /
    .r-similarity-card / .r-shared-tags / .r-reason / .r-actions markup. */
 
-.r-cp { display: flex; flex-direction: column; min-width: 0; overflow: hidden; background: var(--c-bg); }
+.r-cp { display: flex; flex-direction: column; flex: 1; min-width: 0; overflow: hidden; background: var(--c-bg); }
 
 /* Top tool row */
 .r-cp .topbar {
@@ -79,7 +79,7 @@
 
 /* SCROLL */
 .r-cp .scroll {
-  flex: 1; overflow-y: auto;
+  flex: 1; min-height: 0; overflow-y: auto;
 }
 
 /* ANCHOR SECTION */
@@ -245,6 +245,7 @@
 
 /* RIGHT PANE — Why this matches */
 .r-rp {
+  width: 380px; flex-shrink: 0;
   border-left: 1px solid var(--c-border); background: var(--c-panel);
   display: flex; flex-direction: column; overflow: hidden;
 }

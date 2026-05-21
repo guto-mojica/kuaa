@@ -30,7 +30,7 @@
    .p-step / .p-body / .p-log / .l-row / .p-side / .p-stats / .p-queue /
    .p-rp markup. */
 
-.p-cp { display: flex; flex-direction: column; min-width: 0; overflow: hidden; background: var(--c-bg); }
+.p-cp { display: flex; flex-direction: column; flex: 1; min-width: 0; overflow: hidden; background: var(--c-bg); }
 
 .p-top {
   padding: 16px 24px; border-bottom: 1px solid var(--c-border);
@@ -300,6 +300,7 @@
 
 /* RIGHT PANE — Active step detail */
 .p-rp {
+  width: 380px; flex-shrink: 0;
   border-left: 1px solid var(--c-border); background: var(--c-panel);
   display: flex; flex-direction: column; overflow: hidden;
 }

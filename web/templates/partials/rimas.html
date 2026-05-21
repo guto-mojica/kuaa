@@ -43,7 +43,12 @@
         {% endif %}
       </div>
       <div class="r">
-        <button class="fx-btn secondary">{{ icon('image', 14) }} {{ _('Swap anchor') }}</button>
+        <button class="fx-btn secondary"
+                hx-get="/tab/rimas"
+                hx-target="#ch-main"
+                hx-swap="innerHTML"
+                hx-push-url="/rimas"
+                title="{{ _('Pick a new anchor scene') }}">{{ icon('image', 14) }} {{ _('Swap anchor') }}</button>
         <button class="fx-btn secondary">{{ icon('share', 14) }} {{ _('Save collection') }}</button>
       </div>
     </header>
@@ -60,7 +65,7 @@
 
     <div class="scroll">
       {% if anchor_scene %}
-        <section class="r-anchor" data-film-slug="{{ anchor_scene.film_slug }}" data-scene-id="{{ anchor_scene.scene_id }}">
+        <section class="r-anchor" id="rimas-anchor" data-film-slug="{{ anchor_scene.film_slug }}" data-scene-id="{{ anchor_scene.scene_id }}">
           <div class="kf-wrap">
             <div class="kf"{% if anchor_scene.keyframe_url %} style="background-image: url('{{ anchor_scene.keyframe_url }}');"{% endif %}></div>
             <span class="kf-label">
