@@ -93,6 +93,30 @@ embeddings:
   # before tuning this back up.
   min_similarity: 0.0
 
+# ── Search UI / retrieval knobs (Mojica redesign) ────────────────────────────
+# Read-only display knobs surfaced in the Buscar tab's `.knob` row + the chips
+# that toggle modality. Most are placeholders for Month-2 retrieval-depth work
+# (hybrid + reranker + multimodal); the flags default OFF so the chrome ships
+# disabled-by-default and lights up tab-by-tab as each backend lands.
+search:
+  # Default ``k`` (top-K) surfaced in the "k" knob.
+  top_k_default: 9
+  # Hybrid weights — semantic (CLIP) vs lexical (BM25). The Mojica knob shows
+  # them as sem/bm25 floats; until M2 ships the actual hybrid pipeline these
+  # are display-only.
+  hybrid_sem_w: 0.70
+  hybrid_bm25_w: 0.30
+  hybrid_enabled: false       # M2: hybrid retrieval
+  rerank_enabled: false       # M2: cross-encoder reranker
+  mmr_lambda: 0.5             # Maximal Marginal Relevance λ
+  # Modality gates (each toggles its chip on/off in the Buscar tab).
+  image_enabled: true         # existing image-similarity search
+  audio_enabled: false        # M2: CLAP audio-only search
+  multimodal_enabled: false   # M3: cross-modal CLIP×CLAP fusion
+  # M2: the right inspector's Signals panel (.b-sigs) is gated on this until
+  # the per-modality score breakdown actually exists.
+  signals_enabled: false
+
 # ── Descrição LLM (NB05) ──────────────────────────────────────────────────────
 llm:
   model_id: "vikhyatk/moondream2"

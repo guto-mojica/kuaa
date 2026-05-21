@@ -136,6 +136,7 @@ def _filter_degenerate_tags(tags) -> list[str]:
     """Drop degenerate-looking tag strings from the displayed vocabulary."""
     return [t for t in tags if not _is_degenerate_tag(t)]
 
+
 # Server-side upload guards for image search. The cap is intentionally
 # generous for a still frame (a 4K JPEG is well under this) while still
 # refusing arbitrarily large / non-image payloads instead of streaming
@@ -235,8 +236,7 @@ def _load_and_validate(emb_path: Path, map_path: Path) -> SearchIndex:
     declared = mapping.get("total_vectors")
     if n_emb != n_map:
         logger.warning(
-            "Corrupt search index: %d embedding rows vs %d keyframe-map "
-            "rows (%s)",
+            "Corrupt search index: %d embedding rows vs %d keyframe-map " "rows (%s)",
             n_emb,
             n_map,
             emb_path.parent,
@@ -255,20 +255,15 @@ def _load_and_validate(emb_path: Path, map_path: Path) -> SearchIndex:
         )
         return SearchIndex(
             IndexStatus.CORRUPT,
-            detail=(
-                f"mapping total_vectors={declared} != {n_map} keyframe rows"
-            ),
+            detail=(f"mapping total_vectors={declared} != {n_map} keyframe rows"),
         )
 
     embedder = OpenClipEmbedder()
     logger.info("Search index loaded: %d vectors", n_map)
-    return SearchIndex(
-        IndexStatus.OK, embeddings=embeddings, kf_df=kf_df, embedder=embedder
-    )
+    return SearchIndex(IndexStatus.OK, embeddings=embeddings, kf_df=kf_df, embedder=embedder)
 
 
-def load_index(ctx: FilmContext, *, mapping_filename: str,
-                embeddings_filename: str) -> SearchIndex:
+def load_index(ctx: FilmContext, *, mapping_filename: str, embeddings_filename: str) -> SearchIndex:
     """Return the (cached) :class:`SearchIndex` for *ctx*'s embeddings dir.
 
     The result is cached keyed by the embeddings + mapping file paths and
@@ -453,9 +448,7 @@ def aggregate_search(
         except ValueError as exc:
             # Registered film whose directory has been removed manually —
             # skip silently rather than crash the whole aggregate.
-            logger.warning(
-                "aggregate_search: skip film %s — %s", film.slug, exc
-            )
+            logger.warning("aggregate_search: skip film %s — %s", film.slug, exc)
             continue
         if idx.status is not IndexStatus.OK:
             logger.info(
@@ -554,6 +547,7 @@ def aggregate_search(
 
 # ── Result conversion ─────────────────────────────────────────────────────────
 
+
 def results_to_dicts(
     results_df,
     data_dir: Path,
@@ -581,8 +575,8 @@ def results_to_dicts(
 
 # ── Upload validation ─────────────────────────────────────────────────────────
 
-def validate_upload(filename: str | None, content_type: str | None,
-                     data: bytes) -> str:
+
+def validate_upload(filename: str | None, content_type: str | None, data: bytes) -> str:
     """Validate an image-search upload; return a safe file suffix.
 
     Rejects (raising :class:`UploadRejected`) when:
@@ -599,9 +593,7 @@ def validate_upload(filename: str | None, content_type: str | None,
     if not data:
         raise UploadRejected("empty upload")
     if len(data) > MAX_UPLOAD_BYTES:
-        raise UploadRejected(
-            f"file too large ({len(data)} bytes > {MAX_UPLOAD_BYTES} limit)"
-        )
+        raise UploadRejected(f"file too large ({len(data)} bytes > {MAX_UPLOAD_BYTES} limit)")
 
     ctype = (content_type or "").split(";", 1)[0].strip().lower()
     if ctype and not ctype.startswith("image/"):
@@ -621,8 +613,15 @@ def validate_upload(filename: str | None, content_type: str | None,
 
 # ── Search orchestration ──────────────────────────────────────────────────────
 
-def search_text(index: SearchIndex, query: str, tags: list[str],
-                 tag_index: dict, top_k: int, min_similarity: float = 0.0):
+
+def search_text(
+    index: SearchIndex,
+    query: str,
+    tags: list[str],
+    tag_index: dict,
+    top_k: int,
+    min_similarity: float = 0.0,
+):
     """Run a text (optionally tag-filtered) semantic search.
 
     Mirrors the prior route logic exactly: with ``tags`` it calls
@@ -695,6 +694,34 @@ def search_image(index: SearchIndex, image_path: Path, top_k: int):
     return df.head(top_k).reset_index(drop=True)
 
 
+def _mojica_search_defaults() -> dict:
+    """Defaults the Mojica Buscar template (``partials/search.html``)
+    needs whenever no actual query has been issued.
+
+    Task 10 introduces a richer template context — query state, view
+    toggle, results list, film lookup, highlighted tags — that previous
+    tab-renders did not surface. These defaults let the page render the
+    initial "type a query to search" empty state with no special casing
+    on the template side.
+
+    The per-modality result list is intentionally empty here: Task 11
+    rewrites the results partial onto ``.b-card`` markup; until then the
+    legacy ``partials/search_results.html`` consumes the same shape.
+    """
+    return {
+        "query": "",
+        "total": 0,
+        "film_count": 0,
+        "latency_ms": None,
+        "active_mode": "text",
+        "active_view": "grid",
+        "selected_scene_id": None,
+        "results": [],
+        "films_by_id": {},
+        "highlighted_tags": set(),
+    }
+
+
 def build_search_context(ctx: FilmContext) -> dict:
     """Build the per-film search-tab partial context.
 
@@ -702,10 +729,18 @@ def build_search_context(ctx: FilmContext) -> dict:
     — identical to the normalized index's keys) and runs them through
     ``_filter_degenerate_tags`` so the pill grid stays clean even when
     ``scene_tags.json`` carries leaked caption fragments.
+
+    Mojica-redesign keys (Task 10) live alongside ``available_tags`` so
+    the rewritten template can render the empty state without forcing
+    every route to populate them. The ``query`` / ``total`` / ``results``
+    defaults are overwritten by ``/api/search`` responses once a query
+    fires.
     """
     tag_index = load_tag_index(ctx.metadata_dir)
     raw_tags = sorted(tag_index.keys()) if tag_index else []
-    return {"available_tags": _filter_degenerate_tags(raw_tags)}
+    ctx_dict = _mojica_search_defaults()
+    ctx_dict["available_tags"] = _filter_degenerate_tags(raw_tags)
+    return ctx_dict
 
 
 def build_search_context_aggregate(cfg: Any) -> dict:
@@ -716,6 +751,10 @@ def build_search_context_aggregate(cfg: Any) -> dict:
     tag-index keys, filters degenerate entries, and returns the same
     ``available_tags`` key the per-film builder exposes — so the
     ``partials/search.html`` template renders identically in either mode.
+
+    Mojica-redesign keys (Task 10) are merged in via
+    :func:`_mojica_search_defaults` so the aggregate path and per-film
+    path expose the same context shape.
     """
     from cinemateca.library import scan_library
 
@@ -728,4 +767,6 @@ def build_search_context_aggregate(cfg: Any) -> dict:
             continue
         tag_index = load_tag_index(ctx.metadata_dir)
         all_tags.update(tag_index.keys())
-    return {"available_tags": _filter_degenerate_tags(sorted(all_tags))}
+    ctx_dict = _mojica_search_defaults()
+    ctx_dict["available_tags"] = _filter_degenerate_tags(sorted(all_tags))
+    return ctx_dict

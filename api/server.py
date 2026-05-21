@@ -154,6 +154,15 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     # base value here; that override is intended, not a bug.
     if active_tab == "search":
         tab_ctx = search.build_search_context(current_slug)
+        # Mojica Task 10: ``?q=<text>`` survives push-url navigation back
+        # to ``/search`` (HTMX rewrites the bar on every form submit), so
+        # the rewritten template can restore the query input value on a
+        # full-page reload. The actual results list is not re-fetched
+        # here — only the input value is preserved; the HTMX form fires
+        # the real /api/search call on submit / keyup.
+        q = (request.query_params.get("q") or "").strip()
+        if q:
+            tab_ctx["query"] = q
     else:
         tab_ctx = _TAB_CONTEXT_BUILDERS[active_tab]()
     # Mojica chrome kwargs (active_tab=PT slug, compact_lp, has_right_pane) are

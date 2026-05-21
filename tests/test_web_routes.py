@@ -212,6 +212,68 @@ def test_icon_rail_active_for_each_tab(client, path, active):
     assert href in html
 
 
+# ── Group 1e: Buscar main pane (Task 10) ──────────────────────────────────────
+#
+# The Mojica Buscar template rewrites the legacy text/image toggle + raw
+# scene-grid into a single ``.b-cp`` section with:
+#   * ``.search-wrap`` containing the qbar + 4 modality chips + retrieval
+#     knobs (Hybrid sem/bm25, Rerank, MMR, k),
+#   * ``.caption`` row (result/film/latency stats + view-toggle segments),
+#   * ``#search-results`` grid (the Task-11 .b-card cards land in this swap
+#     target),
+#   * a tag-filter section + optional image-upload sub-panel.
+#
+# These two tests pin the new scaffolding without locking the exact copy or
+# legacy classes (Task 11 may still adjust). The film-slug propagation
+# tests in test_film_selector.py cover the form-id + hidden-input contract.
+
+
+def test_buscar_renders_modes_and_knobs(client):
+    """Buscar full-page response carries the .b-cp scaffolding."""
+    r = client.get("/search")
+    assert r.status_code == 200
+    html = r.text
+    # Outer .b-cp + .search-wrap.
+    assert 'class="b-cp"' in html
+    assert 'class="search-wrap"' in html
+    # qbar form with the new id + push-url contract.
+    assert 'id="search-text-form"' in html
+    assert 'hx-push-url="true"' in html
+    # Modality chips row.
+    assert 'class="modes"' in html
+    # 4 modality chips visible. The labels are translated; the
+    # ``data-mode`` attribute is stable across locales.
+    for mode in ("text", "image", "audio", "multimodal"):
+        assert f'data-mode="{mode}"' in html
+    # Disabled chips for the M2/M3 modalities (audio + multimodal off
+    # by default in config). ``disabled`` lands on the <button>.
+    assert "disabled aria-disabled" in html
+    # Read-only knobs (Hybrid / Rerank / MMR / k).
+    assert 'class="knob"' in html
+    # The sem-weight knob carries the configured float.
+    assert "sem 0.70" in html
+    assert "bm25 0.30" in html
+    # Caption row + view-toggle segments.
+    assert 'class="caption"' in html
+    assert 'data-view="grid"' in html
+    assert 'data-view="list"' in html
+    assert 'data-view="compact"' in html
+    # Results grid uses the new .grid class (the Task-11 .b-card cards
+    # will land inside this swap target).
+    assert 'id="search-results"' in html
+    assert 'class="grid"' in html
+
+
+def test_buscar_search_query_appears(client):
+    """The query value flows through to the search input ``value`` attr."""
+    r = client.get("/search?q=jeca")
+    assert r.status_code == 200
+    # The qbar input preserves the query so reloads / push-url navigation
+    # do not blank the field.
+    assert 'name="q"' in r.text
+    assert 'value="jeca"' in r.text
+
+
 def test_library_tree_filter_endpoint(client):
     """GET /api/library/tree returns the Mojica LeftPane body fragment."""
     r = client.get("/api/library/tree")
@@ -227,6 +289,7 @@ def test_library_tree_filter_endpoint(client):
 
 
 # ── Group 2a: full-page vs tab context parity — Phase-1a regression lock ──────
+
 
 class TestFullPageContextDivergence:
     """
@@ -299,6 +362,7 @@ class TestFullPageContextDivergence:
 
 
 # ── Group 2b: Processing `split` filter fix — Phase-1b regression lock ────────
+
 
 class TestProcessingSplitFilterCrash:
     """
@@ -373,9 +437,7 @@ class TestProcessingSplitFilterCrash:
         job.status = "error"
         job.error_msg = "boom: model not found"
         job.steps[0].state = "error"
-        html = templates.env.get_template(
-            "partials/processing_job.html"
-        ).render(job=job)
+        html = templates.env.get_template("partials/processing_job.html").render(job=job)
         assert "jeca_tatu.mp4" in html
         # Direct env render uses the default pt_BR catalog (the "Pipeline
         # failed" msgid is translated), so assert locale-agnostic markup

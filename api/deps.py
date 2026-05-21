@@ -1,4 +1,5 @@
 """FastAPI dependency providers."""
+
 import os
 from functools import cache, lru_cache
 from pathlib import Path
@@ -46,7 +47,6 @@ def get_config():
     return load_config(str(selected) if selected is not None else None)
 
 
-
 @cache
 def _get_translations(locale: str):
     from babel.support import Translations
@@ -79,6 +79,11 @@ def make_ctx(request: Request, **kwargs) -> dict:
     ``current_user``) so the new shell renders sensibly even when a route
     forgets to set them. Callers that pass any of these via ``**kwargs``
     override the defaults.
+
+    The merged effective config is injected as ``cfg`` so templates can
+    read read-only knobs (``cfg.search.hybrid_sem_w`` etc.) without each
+    route having to pass it explicitly. This is the same Namespace
+    returned by ``get_config()``; it is cached, so the lookup is cheap.
     """
     locale = request.cookies.get("locale", "pt_BR")
     trans = _get_translations(locale)
@@ -103,6 +108,11 @@ def make_ctx(request: Request, **kwargs) -> dict:
         "viewers": [],
         "notification_count": 0,
         "current_user": None,
+        # Mojica redesign (Task 10): the Buscar tab reads display-only
+        # retrieval knobs straight from ``cfg.search.*``. Exposing the
+        # full config here keeps the routes simple and avoids a separate
+        # dependency for templates.
+        "cfg": get_config(),
     }
     base.update(kwargs)
     return base
