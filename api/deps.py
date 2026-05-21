@@ -68,10 +68,11 @@ def film_slug_query(
 ) -> str | None:
     """Extract the ``?film=<slug>`` query param.
 
-    Returns ``None`` when the parameter is absent, meaning "aggregate
-    across all registered films". Returns the slug string when present.
+    Returns ``None`` when the parameter is absent or empty, meaning
+    "aggregate across all registered films". Returns the slug string
+    when present and non-empty.
     """
-    return film
+    return film or None
 
 
 def make_ctx(request: Request, **kwargs) -> dict:

@@ -146,7 +146,14 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     # building tab_ctx so slug-aware builders (search) can scope their
     # tag vocabulary to the active film, AND before building the chrome
     # context so the LeftPane marks the .ch-film.active row correctly.
-    current_slug = request.query_params.get("film") or request.cookies.get("active_film") or None
+    _raw_slug = request.query_params.get("film") or request.cookies.get("active_film") or None
+    # Validate against the library directory so a stale cookie with a renamed
+    # or deleted slug doesn't propagate a ValueError into every service call.
+    if _raw_slug:
+        _film_dir = Path(cfg.paths.library_dir) / _raw_slug
+        current_slug: str | None = _raw_slug if _film_dir.is_dir() else None
+    else:
+        current_slug = None
 
     # Task-8: lift the per-request chrome bag (films, library_state,
     # active_job_slugs/count, total_runtime, collections, viewers, …)
