@@ -704,9 +704,10 @@ def _mojica_search_defaults() -> dict:
     initial "type a query to search" empty state with no special casing
     on the template side.
 
-    The per-modality result list is intentionally empty here: Task 11
-    rewrites the results partial onto ``.b-card`` markup; until then the
-    legacy ``partials/search_results.html`` consumes the same shape.
+    The per-modality result list is intentionally empty here. Task 11
+    fills it with ``.b-card``-shaped dicts produced by the /api/search
+    handlers; ``films_by_id`` is populated lazily by callers that have a
+    cfg in hand (see :func:`films_by_id_lookup`).
     """
     return {
         "query": "",
@@ -722,7 +723,27 @@ def _mojica_search_defaults() -> dict:
     }
 
 
-def build_search_context(ctx: FilmContext) -> dict:
+def films_by_id_lookup(cfg: Any) -> dict:
+    """Return ``{film.slug: film}`` for every registered film.
+
+    Task 11's ``.b-card`` markup looks up ``films_by_id[r.film_slug]`` to
+    pull the film title + year onto each result card; the lookup is built
+    here so both the per-film and aggregate routes (and the
+    ``build_search_context*`` builders) populate the same shape.
+
+    Returns an empty dict when the library directory is absent —
+    consistent with :func:`cinemateca.library.scan_library`'s contract.
+    Templates should treat the dict as a best-effort lookup
+    (``films_by_id.get(slug)``); cards whose ``film_slug`` is missing
+    still render with sensible fallbacks.
+    """
+    from cinemateca.library import scan_library
+
+    library_dir = Path(cfg.paths.library_dir)
+    return {film.slug: film for film in scan_library(library_dir)}
+
+
+def build_search_context(ctx: FilmContext, cfg: Any | None = None) -> dict:
     """Build the per-film search-tab partial context.
 
     Uses the RAW merged tag index (only its keys feed ``available_tags``
@@ -735,11 +756,19 @@ def build_search_context(ctx: FilmContext) -> dict:
     every route to populate them. The ``query`` / ``total`` / ``results``
     defaults are overwritten by ``/api/search`` responses once a query
     fires.
+
+    ``cfg`` is optional for back-compat: when supplied, ``films_by_id``
+    is populated via :func:`films_by_id_lookup` so Task-11's ``.b-card``
+    template can resolve film titles/years on hits returned by the same
+    request. When omitted (legacy callers), ``films_by_id`` stays empty
+    and the template falls back to safe-get behaviour.
     """
     tag_index = load_tag_index(ctx.metadata_dir)
     raw_tags = sorted(tag_index.keys()) if tag_index else []
     ctx_dict = _mojica_search_defaults()
     ctx_dict["available_tags"] = _filter_degenerate_tags(raw_tags)
+    if cfg is not None:
+        ctx_dict["films_by_id"] = films_by_id_lookup(cfg)
     return ctx_dict
 
 
@@ -754,7 +783,8 @@ def build_search_context_aggregate(cfg: Any) -> dict:
 
     Mojica-redesign keys (Task 10) are merged in via
     :func:`_mojica_search_defaults` so the aggregate path and per-film
-    path expose the same context shape.
+    path expose the same context shape. ``films_by_id`` is populated
+    here so the template's title/year lookup resolves on every card.
     """
     from cinemateca.library import scan_library
 
@@ -769,4 +799,5 @@ def build_search_context_aggregate(cfg: Any) -> dict:
         all_tags.update(tag_index.keys())
     ctx_dict = _mojica_search_defaults()
     ctx_dict["available_tags"] = _filter_degenerate_tags(sorted(all_tags))
+    ctx_dict["films_by_id"] = films_by_id_lookup(cfg)
     return ctx_dict

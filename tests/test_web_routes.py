@@ -274,6 +274,44 @@ def test_buscar_search_query_appears(client):
     assert 'value="jeca"' in r.text
 
 
+def test_buscar_results_render_as_b_cards_or_empty_state(client):
+    """``#search-results`` ships either ``.b-card`` cards or ``.empty-state``.
+
+    Task 11 (Mojica): the legacy ``.scene-card`` markup is gone. On an
+    empty test corpus the partial renders the new ``.empty-state``
+    wrapper; once results land it renders ``.b-card`` articles. Either
+    branch is acceptable for the empty-data smoke client — we just need
+    to prove the legacy markup is gone and one of the two new branches
+    is the source of truth.
+    """
+    # Full-page render: the partial is included inside #search-results.
+    r = client.get("/search")
+    assert r.status_code == 200
+    html = r.text
+    # The Task-11 partial owns ``.b-card`` and ``.empty-state``; at
+    # least one must be present in the rendered #search-results region.
+    assert 'class="b-card' in html or 'class="empty-state"' in html
+    # And the legacy v0.3 marker is gone from the swap target.
+    assert 'class="scene-card"' not in html
+
+
+def test_buscar_empty_state_when_no_query(client):
+    """Without a query, the results region renders the empty-state hint.
+
+    The grid container itself (set up by ``partials/search.html``) is
+    always present so HTMX swaps land in a real DOM node; the inner
+    partial owns the visible "type a query to search" message.
+    """
+    r = client.get("/search")
+    assert r.status_code == 200
+    html = r.text
+    # The HTMX swap target stays in place across renders.
+    assert 'id="search-results"' in html
+    # And the inner partial's empty-state hint is the visible content.
+    assert 'class="empty-state"' in html
+    assert "Search the library to see results here." in html
+
+
 def test_library_tree_filter_endpoint(client):
     """GET /api/library/tree returns the Mojica LeftPane body fragment."""
     r = client.get("/api/library/tree")
