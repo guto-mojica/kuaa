@@ -1,0 +1,101 @@
+{# Mojica LeftPane body — Phase-1 / Task 8.
+   The scrollable content inside ``.ch-lp .scroll``. Extracted from
+   ``_left_pane.html`` so the same fragment is the HTMX swap target of
+   the filter input (GET /api/library/tree) and the initial server-side
+   render (included from _left_pane.html).
+
+   Three sections, separated by .fx-hr:
+
+     1. Films     — registry-backed list with per-row progress bar.
+     2. Collections — five curated buckets (see chrome_service.
+        _default_collections); first one is the "Entire library" link.
+     3. Shared (compartilhados) — public/exported collection links.
+
+   Per-row modifiers on ``.ch-film``:
+     .active   — film.slug == current_slug (selected film)
+     .proc     — film.slug in active_job_slugs (processing now)
+     .has-sel  — a scene inside this film is currently selected (the
+                 ``selected_scene`` block is rendered when present)
+
+   Context (see _left_pane.html docstring for full list). #}
+{% from "partials/_icons.html" import icon %}
+
+{# ── Films section ──────────────────────────────────────────────── #}
+<div class="fx-ph">
+  <span>{{ _('Library · Films') }}</span>
+  <button class="add"
+          type="button"
+          title="{{ _('Add film') }}"
+          aria-label="{{ _('Add film') }}"
+          hx-get="/api/library/add-form"
+          hx-target="#add-film-zone"
+          hx-swap="innerHTML">{{ icon('plus', 12) }}</button>
+</div>
+
+{% if films %}
+  {% for film in films %}
+    {% set is_active = current_slug and film.slug == current_slug %}
+    {% set is_proc = active_job_slugs and film.slug in active_job_slugs %}
+    {% set sel = (selected_scene if (selected_scene is defined and selected_scene and is_active) else None) %}
+    {% set pct = (film_match_pct.get(film.slug, 0) if film_match_pct else 0) %}
+    {% set match_n = (film_match_counts.get(film.slug, 0) if film_match_counts else 0) %}
+    <a class="ch-film{% if is_active %} active{% endif %}{% if sel %} has-sel{% endif %}{% if is_proc %} proc{% endif %}"
+       href="/scenes?film={{ film.slug }}"
+       data-slug="{{ film.slug }}"
+       title="{{ film.title }}">
+      <span class="arr">{{ icon('chev-d' if is_active else 'chev-r', 12) }}</span>
+      <span class="ico">{{ icon('proc' if is_proc else 'film', 14) }}</span>
+      <span class="name fx-truncate">{{ film.title }}</span>
+      <span class="ct">{{ film.scene_count }}</span>
+      <div class="meta">
+        <span class="yr">{{ film.year if film.year else '——' }}</span>
+        <span class="bar" style="--p: {{ pct }}%"></span>
+        <span class="m">{{ match_n }}</span>
+      </div>
+      {% if sel %}
+        <div class="selptr">
+          {% if sel.keyframe_url %}
+            <span class="thumb" style="background-image: url('{{ sel.keyframe_url }}')"></span>
+          {% else %}
+            <span class="thumb"></span>
+          {% endif %}
+          <div class="info">
+            <span class="arr">↳</span>
+            <span>{{ _('scene %(n)s', n='%03d'|format(sel.scene_id|int)) }}{% if sel.timecode %} · {{ sel.timecode }}{% endif %}</span>
+          </div>
+        </div>
+      {% endif %}
+    </a>
+  {% endfor %}
+{% else %}
+  <p class="tree-empty" style="padding: 8px 14px; color: var(--c-muted); font-size: 12px;">
+    {{ _('No films in library') }}
+  </p>
+{% endif %}
+
+{# Phase-1 keeps the legacy add-film slot so the existing /api/library/add-form
+   HTMX swap target survives. Phase 2 moves the legacy sidebar's add-film flow
+   into a proper modal. #}
+<div id="add-film-zone"></div>
+
+<div class="fx-hr" style="margin: 10px 12px;"></div>
+
+{# ── Collections section ───────────────────────────────────────── #}
+<div class="fx-ph">
+  <span>{{ _('Collections') }}</span>
+  <button class="add"
+          type="button"
+          title="{{ _('New collection') }}"
+          aria-label="{{ _('New collection') }}">{{ icon('plus', 12) }}</button>
+</div>
+
+{% for col in (collections or []) %}
+  <a class="ch-coll{% if col.active %} active{% endif %}"
+     href="{{ col.url or '#' }}"
+     {% if col.category %}data-category="{{ col.category }}"{% endif %}>
+    <span style="width: 14px;"></span>
+    <span class="ico"{% if col.category %} data-cat="{{ col.category }}"{% endif %}>{{ icon(col.icon or 'folder', 14) }}</span>
+    <span class="fx-truncate">{{ _(col.label) }}</span>
+    <span class="ct">{{ col.count }}</span>
+  </a>
+{% endfor %}

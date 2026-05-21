@@ -18,6 +18,7 @@ from api.deps import get_config, make_ctx
 from api.routes import about, annotate, export, library, processing, scenes, search, tabs
 from api.services.annotations import build_annotate_context
 from api.services.catalog import build_scenes_context_aggregate
+from api.services.chrome_service import build_chrome_context
 from api.services.film_context import FilmContext
 from api.templates import templates
 
@@ -121,34 +122,33 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     it would as a standalone ``/tab/<x>`` fragment.
     """
     cfg = get_config()
-    from cinemateca.library import library_state, scan_library
 
-    # Base scan feeds the sidebar registry + global state. The
-    # search/scenes/annotate tab builders do not re-supply `films`, so this
-    # is the only source for their sidebar. Do NOT remove it: the
-    # `processing` builder intentionally overrides `films` (see the merge
-    # below), but the other three depend on this scan.
-    #
-    # scan_library now reads films.json (registry) and returns real per-film
-    # scene_count/is_processed. The processing builder re-supplies `films`
-    # from the same source; collapsing the double-scan into one request-
-    # scoped library object belongs to T9/T10, not here.
-    library_dir = Path(cfg.paths.library_dir)
-    films = scan_library(library_dir)
-    state = library_state(library_dir)
-    base_ctx = {
-        "active_tab": active_tab,
-        "processing_jobs": 0,
-        "films": films,
-        "library_state": state,
-    }
     # HTMX-driven film switches issue full-page GETs with ?film=<slug>
     # (the selector's hx-push-url propagates the slug into the URL bar),
     # so render_page must read it back so the sidebar selector keeps
     # the right option marked selected on the response. Read it BEFORE
     # building tab_ctx so slug-aware builders (search) can scope their
-    # tag vocabulary to the active film.
+    # tag vocabulary to the active film, AND before building the chrome
+    # context so the LeftPane marks the .ch-film.active row correctly.
     current_slug = request.query_params.get("film") or None
+
+    # Task-8: lift the per-request chrome bag (films, library_state,
+    # active_job_slugs/count, total_runtime, collections, viewers, …)
+    # into a single builder. This replaces the inline scan_library /
+    # library_state pair and adds the Mojica-chrome keys the new
+    # LeftPane + IconRail + TopBar need. The keys ``films`` and
+    # ``library_state`` are still carried by ``chrome_ctx`` so legacy
+    # tab partials (and the still-wrapped legacy sidebar inside
+    # .ch-main) see the same values they did before. The ``processing``
+    # builder still re-supplies ``films`` downstream — that override is
+    # intentional (see merge below), not a bug.
+    chrome_ctx = build_chrome_context(cfg, current_slug=current_slug)
+
+    base_ctx = {
+        "active_tab": active_tab,
+        "processing_jobs": 0,
+        **chrome_ctx,
+    }
     # `{**base_ctx, **tab_ctx}`: tab_ctx wins on key collisions. The
     # `processing` builder deliberately re-supplies `films`, overriding the
     # base value here; that override is intended, not a bug.
@@ -169,14 +169,14 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     # tab--active). The new ``active_tab`` overlay in the chrome dict carries
     # the PT slug used by the chrome shell.
     merged["legacy_active_tab"] = active_tab
+    # NOTE: ``current_slug`` is already in ``merged`` via the chrome bag,
+    # so it is NOT passed as an explicit kwarg here (would trigger a
+    # multiple-values TypeError at call time). The chrome bag is the
+    # canonical source for it now.
     return templates.TemplateResponse(
         request,
         "base.html",
-        make_ctx(
-            request,
-            current_slug=current_slug,
-            **{**merged, **chrome},
-        ),
+        make_ctx(request, **{**merged, **chrome}),
     )
 
 

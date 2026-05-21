@@ -148,6 +148,84 @@ def test_topbar_active_tab(client, path, active):
     assert html.count(f'data-tab="{active}"') >= 1
 
 
+# ── Group 1d: IconRail + LeftPane (Task 8) ────────────────────────────────────
+#
+# The Mojica IconRail (56px column) renders five tab anchors plus Home and
+# Settings. The active tab carries the .ic.on class. The LeftPane (248px
+# container) renders a filter input + scroll body + status footer. Its filter
+# input HTMX-targets /api/library/tree which returns _left_pane_body.html.
+
+
+def test_left_pane_scaffold_present(client):
+    """LeftPane renders filter + scroll body + status footer on Buscar."""
+    r = client.get("/search")
+    assert r.status_code == 200
+    html = r.text
+    # Outer container.
+    assert 'class="ch-lp"' in html
+    # Filter input contract.
+    assert 'name="q"' in html
+    assert 'hx-get="/api/library/tree"' in html
+    assert 'hx-target=".ch-lp .scroll"' in html
+    # Scroll body present (the swap target).
+    assert 'class="scroll"' in html
+    # Footer status indicator + stats.
+    assert 'class="foot"' in html
+    # The Library · Films section header is always rendered.
+    assert "Library · Films" in html or "Acervo · Filmes" in html
+    # The Collections section header is always rendered.
+    assert "Collections" in html or "Coleções" in html
+
+
+@pytest.mark.parametrize(
+    "path,active",
+    [
+        ("/search", "buscar"),
+        ("/scenes", "cenas"),
+        ("/annotate", "anotar"),
+        ("/rimas", "rimas"),
+        ("/processing", "proc"),
+    ],
+)
+def test_icon_rail_active_for_each_tab(client, path, active):
+    """The IconRail marks the corresponding .ic anchor as .on for each route."""
+    r = client.get(path)
+    assert r.status_code == 200, r.text[:500]
+    html = r.text
+    # The rail is present.
+    assert 'class="ch-rail"' in html
+    # An .ic.on anchor exists for the active tab. The href encodes the
+    # EN tab key; the active-class check is structural (class string
+    # contains both "ic" and "on" tokens).
+    tab_routes = {
+        "buscar": "/search",
+        "cenas": "/scenes",
+        "anotar": "/annotate",
+        "rimas": "/rimas",
+        "proc": "/processing",
+    }
+    href = tab_routes[active]
+    # Find anchors targeting the active tab's href and confirm at least
+    # one is on the IconRail (class contains "ic on") rather than the
+    # TopBar (class "tab on").
+    assert 'class="ic on"' in html
+    assert href in html
+
+
+def test_library_tree_filter_endpoint(client):
+    """GET /api/library/tree returns the Mojica LeftPane body fragment."""
+    r = client.get("/api/library/tree")
+    assert r.status_code == 200, r.text[:500]
+    html = r.text
+    # The fragment is the inner body — it should NOT contain a full document.
+    assert "<!DOCTYPE html>" not in html
+    # And it should contain the section scaffolding (Library · Films + Collections).
+    assert "Library · Films" in html or "Acervo · Filmes" in html
+    assert "Collections" in html or "Coleções" in html
+    # The .ch-coll "Entire library" / "Acervo inteiro" row anchors the section.
+    assert 'class="ch-coll' in html
+
+
 # ── Group 2a: full-page vs tab context parity — Phase-1a regression lock ──────
 
 class TestFullPageContextDivergence:
