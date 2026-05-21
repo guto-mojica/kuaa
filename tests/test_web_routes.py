@@ -116,14 +116,17 @@ def test_base_shell_includes_palette_and_help_roots(client):
 
     Task 27 replaced the ``#palette-root`` placeholder with the real
     server-rendered command-palette scaffold (``id="palette"`` + nested
-    ``#cp-input`` / ``#cp-list``). The help-root + toast-root remain as
-    Phase-7 mount points until Task 28 fills the help overlay.
+    ``#cp-input`` / ``#cp-list``). Task 28 replaced ``#help-root`` with
+    the keyboard-help overlay scaffold (``id="help"`` + ``#kh-title``).
+    The toast root stays as an empty mount because ToastBus creates
+    toasts imperatively.
     """
     r = client.get("/")
     html = r.text
     assert 'id="palette"' in html
     assert 'id="cp-input"' in html
-    assert 'id="help-root"' in html
+    assert 'id="help"' in html
+    assert 'id="kh-title"' in html
     assert 'id="toast-root"' in html
 
 
@@ -1325,3 +1328,83 @@ def test_toast_trigger_helper_sets_hx_trigger_header():
         "sub": "2 tags · scene 351",
         "duration": 5000,
     }
+
+
+# ── Phase 7 / Task 28: keyboard help overlay (?) ─────────────────────────────
+#
+# The help overlay scaffold lives in `partials/_help_overlay.html` and is
+# included from `base.html` (replacing the Phase-1 `#help-root` placeholder).
+# These tests pin the structural contract: every full-page tab carries the
+# scaffold, the navigation legend documents the five tabs, and `mojica.js`
+# exposes the `window.Help` toggle the `?` keypress drives.
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/search", "/scenes", "/annotate", "/rimas", "/processing"],
+)
+def test_help_overlay_present_on_every_tab(client, path):
+    """The help overlay scaffold ships on every full-page render.
+
+    Like the toast mount, the overlay is server-rendered into `base.html`
+    so the open path (toggle `[hidden]` on `#help`) costs zero round
+    trips. We assert the outer `.kh-back` element exists with the right
+    id, and that it is hidden by default (the `hidden` HTML5 attribute
+    is what `window.Help.open()` flips).
+    """
+    r = client.get(path)
+    assert r.status_code == 200, r.text[:300]
+    html = r.text
+    assert 'id="help"' in html
+    # The outer node carries the polish-css class + ARIA role.
+    assert 'class="kh-back"' in html
+    assert 'role="dialog"' in html
+    # `hidden` (HTML5 boolean attribute) starts the overlay collapsed.
+    # Jinja renders bare booleans as the attribute name only — we accept
+    # either `hidden` (correct HTML5) or `hidden=""` (some frameworks).
+    assert " hidden" in html or 'hidden="' in html
+
+
+def test_help_overlay_documents_navigation_shortcuts(client):
+    """The help overlay's Navigation column lists every Mojica tab.
+
+    The legend must stay in sync with the chrome's five tabs — otherwise
+    a user pressing `?` to discover the `1`..`5` shortcuts would see a
+    stale picture. We assert the section heading is present and that
+    every PT/EN tab label appears at least once inside the overlay
+    markup. Using full-page `/search` keeps the assertion grounded in
+    what the browser renders, not a partial fragment.
+    """
+    r = client.get("/search")
+    html = r.text
+    # Section heading (rendered inside `<h3>` under `.kh-group`).
+    assert "Navigation" in html or "Navegação" in html
+    # All five tab labels surface as `desc` rows. We check the EN labels
+    # (the test client defaults to `en` for unauthenticated sessions);
+    # any of the PT alternates may also appear if the locale flipped.
+    for label in ("Search", "Scenes", "Annotate", "Visual rhymes", "Processing"):
+        assert label in html or label.replace("Visual rhymes", "Rimas visuais") in html
+
+
+def test_mojica_js_contains_help_toggle(client):
+    """`/static/js/mojica.js` exposes `window.Help` and the `?` handler.
+
+    Pins the public JS contract: the file exports a `Help` namespace
+    with `open`/`close`/`toggle` so other surfaces (a future TopBar
+    "?" button, palette command "Show shortcuts") can drive the
+    overlay without duplicating the toggle logic. The `?` keypress
+    handler must be present too — if a future refactor accidentally
+    drops it, the keyboard route silently breaks.
+    """
+    r = client.get("/static/js/mojica.js")
+    assert r.status_code == 200, r.text[:200]
+    body = r.text
+    # The public surface.
+    assert "window.Help" in body
+    assert "openHelp" in body
+    assert "closeHelp" in body
+    assert "toggleHelp" in body
+    # The keypress wiring. Single-quoted '?' is the canonical form in
+    # the IIFE; we also accept double-quoted in case a future formatter
+    # rewrites the literal.
+    assert "'?'" in body or '"?"' in body

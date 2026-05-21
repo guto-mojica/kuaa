@@ -259,20 +259,28 @@ window.ToastBus = (function () {
   return { push: push, remove: remove };
 })();
 
-// ─── Keyboard router (Phase 7 · Task 27) ──────────────────────────────
+// ─── Keyboard router (Phase 7 · Tasks 27 + 28) ────────────────────────
 // Single global keydown listener that:
 //   * Opens the command palette on ⌘K / Ctrl+K. Works from any focus,
 //     including text inputs (the palette IS a text input — preventing it
 //     from opening while the user is typing a search query would be the
 //     opposite of useful).
-//   * Reserves space for future keyboard shortcuts (Task 28 wires "?" to
-//     the help overlay; tab digits "1".."5" become navigation hotkeys).
+//   * Toggles the keyboard help overlay on ``?`` (Shift + /). Guarded
+//     against typing in form fields — typing "what?" into an input must
+//     keep landing the character, not pop the legend.
+//   * ``Esc`` closes the help overlay when it is the active surface.
+//     (The palette has its own Esc handler in palette.js.)
 //
 // palette.js is loaded on demand the first time the palette is opened,
 // not eagerly at page load — most sessions never press ⌘K, and the
 // palette scaffold is already in the DOM (server-rendered partial), so
 // JS-side wiring is the only deferrable cost. Once loaded, ``window.Palette``
 // stays cached and subsequent ⌘K presses hit it directly.
+//
+// The help overlay is fully self-contained: its DOM is server-rendered
+// into base.html and ``window.Help`` (defined below) flips ``[hidden]``
+// on the outer ``#help`` div. No script-loading dance is required — the
+// state machine is small enough to live in mojica.js next to the router.
 (function () {
   'use strict';
 
@@ -309,12 +317,78 @@ window.ToastBus = (function () {
     document.head.appendChild(script);
   }
 
+  // ── Help overlay state machine ──────────────────────────────────────
+  // The DOM is rendered once at page load by partials/_help_overlay.html;
+  // we just flip the [hidden] attribute on the outer #help node. Keeping
+  // the markup in place means the open path renders the legend in the
+  // same frame as the keypress, which is the whole point of a help
+  // surface bound to a one-key shortcut.
+  function openHelp() {
+    // Mutual exclusion: only one polish surface is on screen at a time.
+    // If the palette is open, dismiss it first so the help legend takes
+    // its place rather than stacking on top.
+    if (window.Palette && typeof window.Palette.close === 'function') {
+      window.Palette.close();
+    }
+    var help = document.getElementById('help');
+    if (!help) return;
+    help.hidden = false;
+  }
+
+  function closeHelp() {
+    var help = document.getElementById('help');
+    if (!help) return;
+    help.hidden = true;
+  }
+
+  function toggleHelp() {
+    var help = document.getElementById('help');
+    if (!help) return;
+    if (help.hidden) openHelp();
+    else closeHelp();
+  }
+
+  function helpIsOpen() {
+    var help = document.getElementById('help');
+    return !!(help && !help.hidden);
+  }
+
+  // Backdrop + close-button click handler. The .kh-back element IS the
+  // backdrop, so a click whose target is the outer #help element (not
+  // a child) means the user clicked outside the panel — dismiss. The
+  // .kh-panel carries [data-prevent-close] (kept for parity with the
+  // palette scaffold even though the target check below is the actual
+  // guard) and stops events at its boundary because clicks on the panel
+  // hit one of its descendants, not #help itself.
+  document.addEventListener('click', function (e) {
+    if (!helpIsOpen()) return;
+    var help = document.getElementById('help');
+    // Backdrop click — the click event's target is the #help element
+    // itself only when nothing inside .kh-panel intercepted it.
+    if (e.target === help) {
+      closeHelp();
+      return;
+    }
+    // Explicit close button (anywhere inside the panel).
+    if (e.target.closest && e.target.closest('[data-action="close-help"]')) {
+      closeHelp();
+    }
+  });
+
+  // Expose a small public surface so future flows (e.g. a "?" button on
+  // the TopBar, or Task 27's palette gaining a "Show shortcuts" action)
+  // can drive the overlay without re-implementing the toggle.
+  window.Help = { open: openHelp, close: closeHelp, toggle: toggleHelp };
+
   document.addEventListener('keydown', function (e) {
     // ⌘K / Ctrl+K — open palette. Bypasses the "in field" guard
     // intentionally: this shortcut should work from any focus context.
+    // Mutual exclusion: close help first so the palette doesn't pop on
+    // top of the legend.
     var isMod = e.metaKey || e.ctrlKey;
     if (isMod && (e.key === 'k' || e.key === 'K')) {
       e.preventDefault();
+      closeHelp();
       ensurePaletteLoaded(function () {
         if (window.Palette && typeof window.Palette.open === 'function') {
           window.Palette.open();
@@ -323,13 +397,33 @@ window.ToastBus = (function () {
       return;
     }
 
-    // Hook point for Task 28 (help overlay on "?") and future single-key
-    // shortcuts. The "in field" guard below already protects those from
-    // firing while the user is typing into an input or textarea.
+    // Esc — close help if it is the active surface. The palette installs
+    // its own Esc handler inside palette.js; this branch only fires when
+    // the palette is closed and help is open, so the two never fight.
+    if (e.key === 'Escape' && helpIsOpen()) {
+      e.preventDefault();
+      closeHelp();
+      return;
+    }
+
+    // Below this line: single-key shortcuts. The "in field" guard
+    // suppresses them when the user is typing into an input/textarea so
+    // a query like "what?" doesn't pop the help overlay mid-word. The
+    // palette is special-cased because its <input> is the surface the
+    // shortcut targets — we don't want help to pop when the palette is
+    // already on screen either.
     var ae = document.activeElement;
     var inField = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable);
-    if (inField) return;
+    var paletteOpen = !!(document.getElementById('palette') && !document.getElementById('palette').hidden);
+    if (inField || paletteOpen) return;
 
-    // (No-op today. Task 28 lands the "?" handler here.)
+    // ? — toggle keyboard help overlay. Bare key only; modifier
+    // combinations are reserved for browser/OS shortcuts (⌘? = "About
+    // Browser" on macOS, etc.) and must not be hijacked.
+    if (e.key === '?' && !(e.metaKey || e.ctrlKey || e.altKey)) {
+      e.preventDefault();
+      toggleHelp();
+      return;
+    }
   });
 })();
