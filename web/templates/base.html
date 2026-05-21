@@ -105,12 +105,34 @@
    points. Task 27 replaced the ``#palette-root`` placeholder with the
    real palette scaffold; Task 28 replaces ``#help-root`` with the
    keyboard-help overlay partial. Both are rendered once at page load
-   (hidden) and toggled imperatively from mojica.js — keeping the DOM
+   and their visibility is driven by Alpine.store('palette' / 'help')
+   (see mojica.js + the partials' x-show directives) — keeping the DOM
    in place means the first frame of either surface renders without a
-   network round trip. The toast root stays as an empty mount because
-   toasts are created on demand. #}
+   network round trip. The toast root is a reactive x-for that
+   materialises ``.toast`` cards from ``Alpine.store('toasts').items``;
+   pushes from window.ToastBus or HX-Trigger headers flow through
+   the store. #}
 <div id="modal-container"></div>
-<div id="toast-root" aria-live="polite"></div>
+<div id="toast-root" aria-live="polite"
+     x-data
+     class="toast-host">
+    <template x-for="t in $store.toasts ? $store.toasts.items : []" :key="t.id">
+        <div class="toast"
+             :class="[t.kind, { exiting: t.exiting }]"
+             :role="t.kind === 'error' ? 'alert' : 'status'">
+            <div class="ic"></div>
+            <div class="body">
+                <div class="ttl" x-text="t.title"></div>
+                <template x-if="t.sub">
+                    <div class="sub" x-text="t.sub"></div>
+                </template>
+            </div>
+            <button class="close" type="button"
+                    @click="$store.toasts.remove(t.id)"
+                    aria-label="{{ _('Close') }}">×</button>
+        </div>
+    </template>
+</div>
 {% include "partials/_palette.html" %}
 {% include "partials/_help_overlay.html" %}
 <div id="modal-root"></div>
