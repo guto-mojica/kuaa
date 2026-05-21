@@ -166,7 +166,7 @@
         {{ icon('tag', 14) }} {{ _("Annotate") }}
       </a>
       <a class="fx-btn primary" style="grid-column: 1 / 3;"
-         href="/rimas?anchor={{ selected_scene.scene_id }}{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}">
+         href="/rimas?anchor={{ selected_scene.film_slug }}/{{ selected_scene.scene_id }}">
         {{ icon('rhymes', 14) }} {{ _("Find visual rhymes") }}
       </a>
     </div>
