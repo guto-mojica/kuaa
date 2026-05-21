@@ -117,3 +117,145 @@
     init();
   }
 })();
+
+// ─── ToastBus (Phase 7 · Task 26) ─────────────────────────────────────
+// Global notification bus. Any HTMX response can trigger a toast by
+// emitting an `HX-Trigger` header with a "toast" event payload. JS code
+// (e.g. future client-side flows) can call `window.ToastBus.push(spec)`
+// directly. The bus creates `.toast` elements inside the
+// `#toast-root` div (rendered by base.html under .fx-app).
+//
+// Server contract (FastAPI):
+//   response.headers["HX-Trigger"] = json.dumps({"toast": {
+//       "title": "Saved",
+//       "sub": "optional second line",
+//       "kind": "info" | "success" | "warn" | "error",
+//       "duration": 3500  // optional, ms; 0 disables auto-dismiss
+//   }})
+//
+// HTMX dispatches a CustomEvent named "toast" with `evt.detail` = the
+// payload above; the listener below pipes it straight into `push()`.
+//
+// The bus is exposed on `window.ToastBus` so devtools / manual flows can
+// call it without a server round-trip (`window.ToastBus.push({title:'Hi'})`).
+window.ToastBus = (function () {
+  'use strict';
+
+  // Default auto-dismiss delay (ms). Matches the prototype's 3500ms.
+  var DEFAULT_DURATION = 3500;
+  // How long the exit animation runs before the element is removed.
+  // Keep in sync with `@keyframes p-toast-out` in polish.css (200ms).
+  var EXIT_MS = 200;
+
+  function rootEl() {
+    return document.getElementById('toast-root');
+  }
+
+  function makeId() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    return 't-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+  }
+
+  /**
+   * Push a new toast onto the host. Returns the toast id so callers can
+   * remove it manually (e.g. when a follow-up request resolves before
+   * the auto-dismiss fires).
+   *
+   * @param {Object} spec
+   * @param {string} spec.title — required, top line
+   * @param {string} [spec.sub] — optional second line
+   * @param {string} [spec.kind] — 'info' | 'success' | 'warn' | 'error'
+   * @param {number} [spec.duration] — auto-dismiss ms; 0 disables
+   */
+  function push(spec) {
+    spec = spec || {};
+    var root = rootEl();
+    if (!root) return null;
+
+    var id = makeId();
+    var kind = spec.kind || 'info';
+    var duration = (typeof spec.duration === 'number')
+      ? spec.duration
+      : DEFAULT_DURATION;
+
+    var el = document.createElement('div');
+    el.dataset.toastId = id;
+    el.className = 'toast ' + kind;
+    // role='alert' for errors so screen readers interrupt; role='status'
+    // (the default for #toast-root's aria-live="polite") for the rest.
+    el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+
+    // Build the inner DOM imperatively so the title/sub are set via
+    // textContent (XSS-safe — server may pass user-supplied film titles
+    // or scene tags through, and the HX-Trigger payload is JSON-decoded
+    // by htmx with no markup stripping).
+    var ic = document.createElement('div');
+    ic.className = 'ic';
+
+    var body = document.createElement('div');
+    body.className = 'body';
+    var ttl = document.createElement('div');
+    ttl.className = 'ttl';
+    ttl.textContent = spec.title || '';
+    body.appendChild(ttl);
+    if (spec.sub) {
+      var sub = document.createElement('div');
+      sub.className = 'sub';
+      sub.textContent = spec.sub;
+      body.appendChild(sub);
+    }
+
+    var close = document.createElement('button');
+    close.className = 'close';
+    close.type = 'button';
+    close.setAttribute('aria-label', 'Close');
+    close.textContent = '×'; // ×
+    close.addEventListener('click', function () { remove(id); });
+
+    el.appendChild(ic);
+    el.appendChild(body);
+    el.appendChild(close);
+    root.appendChild(el);
+
+    if (duration > 0) {
+      setTimeout(function () { remove(id); }, duration);
+    }
+    return id;
+  }
+
+  /**
+   * Remove a toast by id. Adds the .exiting class first so the
+   * `p-toast-out` keyframes animation runs; the element is removed
+   * from the DOM after EXIT_MS.
+   */
+  function remove(id) {
+    if (!id) return;
+    var el = document.querySelector('[data-toast-id="' + id + '"]');
+    if (!el) return;
+    if (el.classList.contains('exiting')) return; // idempotent
+    el.classList.add('exiting');
+    setTimeout(function () {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    }, EXIT_MS);
+  }
+
+  // HX-Trigger integration: htmx fires a CustomEvent named exactly after
+  // each key in the JSON payload. `HX-Trigger: {"toast": {...}}` ⇒ a
+  // "toast" event with `evt.detail` = the inner object. We listen on
+  // document.body so the bus picks up triggers from any HTMX-aware
+  // response, including SSE-driven swaps.
+  function onToastEvent(evt) {
+    var detail = evt && evt.detail;
+    if (!detail) return;
+    // Some htmx versions wrap the detail in an array when the trigger
+    // value is non-scalar; normalise both shapes.
+    if (Array.isArray(detail)) detail = detail[0];
+    push(detail);
+  }
+  document.body.addEventListener('toast', onToastEvent);
+
+  return { push: push, remove: remove };
+})();
+

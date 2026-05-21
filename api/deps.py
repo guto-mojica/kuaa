@@ -1,10 +1,14 @@
 """FastAPI dependency providers."""
 
+import json
 import os
 from functools import cache, lru_cache
 from pathlib import Path
+from typing import Literal
 
-from fastapi import Query, Request
+from fastapi import Query, Request, Response
+
+ToastKind = Literal["info", "success", "warn", "error"]
 
 CONFIG_ENV_VAR = "CINEMATECA_CONFIG"
 
@@ -116,6 +120,68 @@ def make_ctx(request: Request, **kwargs) -> dict:
     }
     base.update(kwargs)
     return base
+
+
+def toast_trigger(
+    response: Response,
+    *,
+    title: str,
+    sub: str | None = None,
+    kind: ToastKind = "info",
+    duration: int | None = None,
+) -> None:
+    """Attach an ``HX-Trigger`` header so the client pushes a toast.
+
+    Phase 7 / Task 26 ships the client-side ToastBus (see
+    ``web/static/js/mojica.js``). Any route can call this helper to
+    surface a notification on the next HTMX response:
+
+    .. code-block:: python
+
+        @router.post("/api/things/save")
+        async def save(response: Response, ...):
+            ...  # do the work
+            toast_trigger(response, title="Saved", kind="success")
+            return templates.TemplateResponse(...)
+
+    The header value is a JSON object whose ``toast`` key carries the
+    spec consumed by ``window.ToastBus.push(spec)``::
+
+        HX-Trigger: {"toast": {"title":"Saved","kind":"success"}}
+
+    htmx dispatches a CustomEvent named ``toast`` with the inner object
+    as ``evt.detail``; the bus listens on ``document.body``.
+
+    Parameters
+    ----------
+    response:
+        The FastAPI ``Response`` (injected by FastAPI when the route
+        signature declares it). Headers are mutated in-place.
+    title:
+        Required top line.
+    sub:
+        Optional second line (small caption under the title).
+    kind:
+        Visual variant: ``info`` (default), ``success``, ``warn``,
+        ``error``. Drives the left bar colour and icon tint.
+    duration:
+        Auto-dismiss in ms. ``None`` keeps the client default (3500ms).
+        Pass ``0`` to disable auto-dismiss (the user must click the
+        close button).
+
+    Notes
+    -----
+    Calling this helper twice on the same response overwrites the prior
+    header — htmx accepts a single ``HX-Trigger`` value per response.
+    If a route needs to fire multiple toasts in a single response, batch
+    them with a custom event key (out of scope for Task 26).
+    """
+    payload: dict[str, object] = {"title": title, "kind": kind}
+    if sub:
+        payload["sub"] = sub
+    if duration is not None:
+        payload["duration"] = duration
+    response.headers["HX-Trigger"] = json.dumps({"toast": payload})
 
 
 def film_ctx(request: Request, cfg=None):

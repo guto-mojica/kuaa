@@ -1182,6 +1182,7 @@ def test_proc_stats_section_present(client):
 # tests pin the contract at the asset-serving + template-wiring level so
 # regressions in either side fail fast in pytest.
 
+
 def test_mojica_js_served(client):
     """`/static/js/mojica.js` is served by the FastAPI static mount and
     contains the auto-scroll binding helper.
@@ -1209,3 +1210,111 @@ def test_processing_page_loads_mojica_js(client):
     r = client.get("/processing")
     assert r.status_code == 200, r.text[:500]
     assert "/static/js/mojica.js" in r.text
+
+
+# ── Task 26 ───────────────────────────────────────────────────────────
+# Phase 7 polish layer: `polish.css` ships the toast / palette / help /
+# poke-chip styles up front; `mojica.js` is extended with a `ToastBus`
+# IIFE that listens for ``HX-Trigger: {"toast": {...}}`` server events
+# and renders `.toast` cards inside the `#toast-root` div from
+# ``base.html``. These three tests pin the asset-serving + template-
+# wiring contracts in pytest (browser-level animation behaviour stays
+# out of scope until Playwright lands in Phase 9).
+
+
+def test_polish_css_served(client):
+    """``/static/css/polish.css`` is served and contains the toast scaffolding.
+
+    The asset is a vanilla stylesheet vendored under ``web/static/css``
+    so we can assert on substrings of the source. The `.toast-host`
+    selector and `.toast` base class are the structural anchors the
+    ToastBus JS depends on; either marker is sufficient evidence the
+    file is the Phase-7 polish layer (not, e.g., an empty placeholder).
+    """
+    r = client.get("/static/css/polish.css")
+    assert r.status_code == 200, r.text[:200]
+    body = r.text
+    assert ".toast" in body
+    assert "toast-host" in body
+    # Animations the ToastBus JS relies on.
+    assert "p-toast-in" in body
+    assert "p-toast-out" in body
+
+
+def test_mojica_js_contains_toast_bus(client):
+    """``/static/js/mojica.js`` exposes ``ToastBus`` and targets ``#toast-root``.
+
+    Pins the public contract: ``window.ToastBus`` exists, and the IIFE
+    appends `.toast` elements to the `#toast-root` div rendered by
+    ``base.html``. Both markers must be present so a future refactor
+    that renames either side breaks loudly.
+    """
+    r = client.get("/static/js/mojica.js")
+    assert r.status_code == 200, r.text[:200]
+    body = r.text
+    assert "ToastBus" in body
+    assert "toast-root" in body
+    # The HX-Trigger ⇒ "toast" event listener is the wiring the server
+    # helper depends on; pin it so the server contract can't drift away
+    # from the client one.
+    assert "'toast'" in body or '"toast"' in body
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/search", "/scenes", "/annotate", "/rimas", "/processing"],
+)
+def test_toast_root_present_on_each_tab(client, path):
+    """Every Mojica tab full-page render carries the ``#toast-root`` mount.
+
+    The div lives in ``base.html`` so the assertion is structural — any
+    full-page route that goes through the chrome shell must ship the
+    mount, otherwise ToastBus calls become silent no-ops. The polish
+    stylesheet is linked from the same head, so we also smoke-test
+    the link element here.
+    """
+    r = client.get(path)
+    assert r.status_code == 200, r.text[:300]
+    html = r.text
+    assert 'id="toast-root"' in html
+    assert "css/polish.css" in html
+
+
+def test_toast_trigger_helper_sets_hx_trigger_header():
+    """``api.deps.toast_trigger`` serialises the spec into ``HX-Trigger``.
+
+    The helper is the canonical server-side entry point: any route that
+    wants to surface a toast on the client should call it instead of
+    hand-writing the JSON. This unit test pins the wire format the JS
+    bus listens for (``{"toast": {...}}``) and the optional-field
+    behaviour (``sub`` / ``duration`` are omitted when ``None``).
+    """
+    import json as _json
+
+    from fastapi import Response
+
+    from api.deps import toast_trigger
+
+    # Minimal spec: only title + default kind.
+    r = Response()
+    toast_trigger(r, title="Saved")
+    payload = _json.loads(r.headers["HX-Trigger"])
+    assert "toast" in payload
+    assert payload["toast"] == {"title": "Saved", "kind": "info"}
+
+    # Full spec: all optional fields populated.
+    r2 = Response()
+    toast_trigger(
+        r2,
+        title="Tags saved",
+        sub="2 tags · scene 351",
+        kind="success",
+        duration=5000,
+    )
+    payload2 = _json.loads(r2.headers["HX-Trigger"])
+    assert payload2["toast"] == {
+        "title": "Tags saved",
+        "kind": "success",
+        "sub": "2 tags · scene 351",
+        "duration": 5000,
+    }
