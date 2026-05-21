@@ -44,23 +44,34 @@
   var lastQuery = null;
 
   // ── Open / close ────────────────────────────────────────────────────
-  // Note: open() resets the input + selection but does NOT scroll-lock
-  // the body — the backdrop is fixed full-viewport with its own scroll,
-  // and locking the underlying page mid-search causes layout jumps when
-  // the user closes the palette and lands back on a different tab.
+  // Visibility lives in ``Alpine.store('palette').open`` (registered by
+  // mojica.js on alpine:init); these helpers flip the store and own the
+  // ancillary state — input reset, selection, in-flight query reset on
+  // close. open() does NOT scroll-lock the body — the backdrop is fixed
+  // full-viewport with its own scroll, and locking the underlying page
+  // mid-search causes layout jumps when the user closes the palette and
+  // lands back on a different tab.
+  function paletteStore() {
+    return window.Alpine && window.Alpine.store
+      ? window.Alpine.store('palette')
+      : null;
+  }
+
   function open() {
-    root.hidden = false;
+    var s = paletteStore();
+    if (s) s.open = true;
     input.value = '';
     selected = 0;
     lastQuery = null;
-    // setTimeout(0) so the focus call runs after [hidden] has been
-    // removed and the browser has committed the visibility change.
+    // setTimeout(0) so the focus call runs after x-show has flipped the
+    // display and the browser has committed the visibility change.
     setTimeout(function () { input.focus(); }, 0);
     refresh('');
   }
 
   function close() {
-    root.hidden = true;
+    var s = paletteStore();
+    if (s) s.open = false;
     items = [];
     list.innerHTML = '';
     count.textContent = '';
@@ -218,11 +229,12 @@
     refresh(e.target.value);
   });
 
+  // Esc-to-close and backdrop-click-to-close are declared on the
+  // palette element in _palette.html (``@keydown.escape.window`` and
+  // ``@click.self``); this listener only handles content-specific
+  // keys — arrow navigation and Enter — that have no Alpine analogue.
   root.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      close();
-    } else if (e.key === 'ArrowDown') {
+    if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSelected(selected + 1);
     } else if (e.key === 'ArrowUp') {
@@ -232,12 +244,6 @@
       e.preventDefault();
       execute(items[selected]);
     }
-  });
-
-  // Backdrop click closes; panel click does not (target check is
-  // strict-equal so any descendant click bubbles through without closing).
-  root.addEventListener('click', function (e) {
-    if (e.target === root) close();
   });
 
   // Public surface — mojica.js reads window.Palette to call open() on ⌘K.

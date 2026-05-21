@@ -356,15 +356,22 @@ window.ToastBus = (function () {
     if (s) s.open = !s.open;
   }
 
-  // Register the store as soon as Alpine boots. ``alpine:init`` fires
-  // once, right before Alpine walks the DOM, so the store is ready by
-  // the time _help_overlay's ``x-show="$store.help.open"`` is evaluated.
-  // Deferred-script ordering guarantees mojica.js runs before
-  // DOMContentLoaded (which is when the CDN build calls Alpine.start()),
-  // so this listener is always attached in time.
+  // Register the stores as soon as Alpine boots. ``alpine:init`` fires
+  // once, right before Alpine walks the DOM, so both stores are ready
+  // by the time _help_overlay's ``x-show="$store.help.open"`` and
+  // _palette.html's ``x-show="$store.palette.open"`` are first
+  // evaluated. Deferred-script ordering guarantees mojica.js runs
+  // before DOMContentLoaded (which is when the CDN build calls
+  // Alpine.start()), so this listener is always attached in time.
+  //
+  // The palette store is registered eagerly even though palette.js
+  // itself is loaded on demand — the markup needs the store before
+  // the user's first ⌘K so the closed state is reactive from the
+  // first paint instead of relying on an inline ``hidden`` attribute.
   document.addEventListener('alpine:init', function () {
     if (window.Alpine && typeof window.Alpine.store === 'function') {
       window.Alpine.store('help', { open: false });
+      window.Alpine.store('palette', { open: false });
     }
   });
 
@@ -411,7 +418,15 @@ window.ToastBus = (function () {
     // already on screen either.
     var ae = document.activeElement;
     var inField = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable);
-    var paletteOpen = !!(document.getElementById('palette') && !document.getElementById('palette').hidden);
+    // Palette-open state lives in Alpine.store('palette'); fall back to a
+    // simple ``false`` if the store hasn't initialised yet (the first
+    // single-key shortcut after page load would otherwise race the
+    // alpine:init handler, which is harmless here — the palette can't
+    // be open if the store isn't even registered).
+    var paletteStore = window.Alpine && window.Alpine.store
+      ? window.Alpine.store('palette')
+      : null;
+    var paletteOpen = !!(paletteStore && paletteStore.open);
     if (inField || paletteOpen) return;
 
     // ? — toggle keyboard help overlay. Bare key only; modifier
