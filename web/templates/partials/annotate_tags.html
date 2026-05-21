@@ -1,0 +1,85 @@
+{# ── Anotar · Annotations (tag editor) sub-partial ────────────────────────
+   Mojica Task 19 (Phase 4). Rendered inside ``.a-rp .a-thread`` when
+   ``annotate_tab == "annotations"``. This is the LEGACY manual-tag
+   editor — moved verbatim from the old ``annotate_scene.html`` form so
+   the on-disk save contract (lower-kebab tags, str scene-id keys) and
+   every existing test that posts to ``/api/annotate/save`` /
+   ``/api/annotate/clear`` keep working unchanged.
+
+   Form-field contract preserved exactly:
+
+     * ``hx-post="/api/annotate/save"`` + ``name="scene_id"`` +
+       ``name="filter"`` + ``name="tags"`` — read by
+       :func:`api.routes.annotate.api_annotate_save`.
+     * ``annotate-tags-input`` class hook for any future CSS / test
+       targeting.
+     * ``annotate-feedback`` saved/cleared rows (assertion target of
+       ``test_save_feedback_in_response``).
+     * Clear button posts to ``/api/annotate/clear`` with the same
+       hidden fields shape.
+     * The form's ``hx-target`` stays ``#annotate-scene`` — the wrapper
+       set by ``annotate.html`` — so the swap result reflows the full
+       .a-rp panel including the new tag chip count on the htab pip.
+
+   The hidden ``tab="annotations"`` input keeps the user on the
+   Annotations htab after save / clear (the route honours this via
+   ``normalize_annotate_tab``).
+#}
+
+{% if saved %}
+<div class="annotate-feedback annotate-feedback--success">
+    ✓ {{ existing_tags | length }} {{ _("tag(s) saved") }}
+</div>
+{% elif cleared %}
+<div class="annotate-feedback annotate-feedback--success">
+    ✓ {{ _("Tags cleared") }}
+</div>
+{% endif %}
+
+{% if existing_tags %}
+<div class="scene-card__tags" style="margin-bottom: 12px;">
+    {% for tag in existing_tags %}
+    <span class="tag fx-pill">{{ tag }}</span>
+    {% endfor %}
+</div>
+{% endif %}
+
+<p class="annotate-section-label">{{ _("Manual tags") }}</p>
+
+<form hx-post="/api/annotate/save{% if selected_scene and selected_scene.film_slug %}?film={{ selected_scene.film_slug }}{% endif %}"
+      hx-target="#annotate-scene"
+      hx-swap="innerHTML">
+    <input type="hidden" name="scene_id" value="{{ scene_id }}">
+    <input type="hidden" name="filter" value="{{ filter }}">
+    <input type="hidden" name="tab" value="annotations">
+    <input class="annotate-tags-input"
+           name="tags"
+           type="text"
+           value="{{ tags_value }}"
+           placeholder="{{ _('rural, exterior, horse, single-person') }}"
+           autocomplete="off">
+    <p class="annotate-hint text-muted">
+        {{ _("Use hyphens for compound tags: two-people, night-scene") }}
+    </p>
+    <div class="annotate-actions">
+        <button type="submit" class="btn-primary">{{ _("Save") }}</button>
+        <button type="button"
+                class="btn-secondary"
+                hx-post="/api/annotate/clear{% if selected_scene and selected_scene.film_slug %}?film={{ selected_scene.film_slug }}{% endif %}"
+                hx-vals='{"scene_id": {{ scene_id }}, "filter": "{{ filter }}", "tab": "annotations"}'
+                hx-target="#annotate-scene"
+                hx-swap="innerHTML">
+            {{ _("Clear") }}
+        </button>
+    </div>
+</form>
+
+{% if llm and llm.tags %}
+<div class="annotate-divider"></div>
+<p class="annotate-section-label">{{ _("LLM tags") }}</p>
+<div class="scene-card__tags">
+    {% for tag in llm.tags %}
+    <span class="tag fx-pill">{{ tag }}</span>
+    {% endfor %}
+</div>
+{% endif %}

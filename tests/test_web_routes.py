@@ -560,6 +560,105 @@ def test_anotar_breadcrumb_shows_scene_number(client, seed_metadata):
     assert "scene 351" in html or "cena 351" in html
 
 
+# ── Group 1f-bis: Anotar right pane (Task 19) ─────────────────────────────────
+#
+# The .a-rp shell carries htabs (Comments / Annotations / Properties), a
+# subhead and a dispatched sub-partial body. The HTMX endpoint
+# ``/api/annotate/scene`` reads ``?tab=`` and renders accordingly. These
+# three tests lock the contract: the markup is present, all three tab
+# values resolve to a 200 response, and the legacy save endpoint contract
+# (form-encoded POST → on-disk JSON) is preserved by the .a-rp rewrite.
+
+
+def test_anotar_inspector_returns_a_rp(client, seed_metadata):
+    """``/api/annotate/scene`` renders the ``.a-rp`` shell with ``.htabs``.
+
+    The legacy ``annotate_scene.html`` was a two-column LLM + tag form;
+    Task 19 replaces it with the Frame.io-style ``.a-rp`` (htabs +
+    subhead + dispatched thread). Both new class hooks must appear on
+    every render so CSS / interaction tests targeting the right pane
+    have stable selectors.
+    """
+    seed_metadata()
+    r = client.get("/api/annotate/scene?id=351")
+    assert r.status_code == 200, r.text[:300]
+    html = r.text
+    assert 'class="a-rp"' in html
+    assert 'class="htabs"' in html
+    # The legacy nav-position counter is still present on the .a-rp
+    # subhead — see TestAnnotateSceneEmptyFilterRegression.
+    assert "annotate-nav__pos" in html
+
+
+def test_anotar_inspector_tab_switching(client, seed_metadata):
+    """``?tab=`` selects the right-pane htab body without 500s.
+
+    All three valid values render the corresponding sub-partial:
+        * ``comments``    → ``partials/annotate_comments.html`` (AI .a-com.ai)
+        * ``annotations`` → ``partials/annotate_tags.html`` (tag editor)
+        * ``properties``  → ``partials/annotate_props.html`` (props dl)
+
+    Unknown values must fall back to ``comments`` via
+    :func:`api.services.annotations.normalize_annotate_tab`; assert that
+    too so a future regression in the normaliser does not silently break
+    the default-tab landing state.
+    """
+    seed_metadata()
+
+    # All three valid tabs render.
+    r = client.get("/api/annotate/scene?id=351&tab=comments")
+    assert r.status_code == 200
+    assert 'class="a-rp"' in r.text
+    # Comments sub-partial: either renders the AI description body
+    # ("moondream-2") or the empty-state line ("No LLM description").
+    assert "moondream-2" in r.text or "No LLM description" in r.text
+
+    r = client.get("/api/annotate/scene?id=351&tab=annotations")
+    assert r.status_code == 200
+    # Annotations sub-partial preserves the legacy tag-editor input.
+    assert "annotate-tags-input" in r.text
+
+    r = client.get("/api/annotate/scene?id=351&tab=properties")
+    assert r.status_code == 200
+    # Properties sub-partial renders a definition-list (<dl class="props">).
+    assert 'class="props"' in r.text
+
+    # Unknown tabs fall back to comments (markup proof: the
+    # annotate-tags-input only appears on annotations, so an unknown
+    # value must NOT show it).
+    r = client.get("/api/annotate/scene?id=351&tab=bogus")
+    assert r.status_code == 200
+    assert "annotate-tags-input" not in r.text
+
+
+def test_anotar_save_endpoint_still_works(client, seed_metadata):
+    """The legacy ``/api/annotate/save`` form contract is preserved.
+
+    Task 19's .a-rp rewrite moves the tag form into a sub-partial but
+    keeps the field names (``scene_id`` / ``filter`` / ``tags``) and
+    the on-disk shape (str scene-id key, lower-kebab tags) unchanged.
+    Posting the same body the old form used must still return 200 and
+    persist the normalised tags to ``manual_annotations.json``.
+    """
+    paths = seed_metadata()
+    r = client.post(
+        "/api/annotate/save",
+        data={
+            "scene_id": "351",
+            "filter": "all",
+            "tags": "test, demo",
+        },
+    )
+    assert r.status_code == 200, r.text[:300]
+    # The save renders the full .a-rp partial back into #annotate-scene.
+    assert 'class="a-rp"' in r.text
+    # On-disk shape is unchanged: str scene-id key, lower-kebab tags.
+    import json as _json
+
+    on_disk = _json.loads(paths["manual_path"].read_text())
+    assert on_disk["351"] == ["test", "demo"]
+
+
 # ── Group 1g: Buscar timeline (Task 13) ───────────────────────────────────────
 #
 # The bottom-timeline (``.b-tl``) renders below the .b-cp results grid only

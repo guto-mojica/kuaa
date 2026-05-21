@@ -48,6 +48,25 @@ logger = logging.getLogger(__name__)
 # annotate route (``_BROKEN_LLM``).
 _BROKEN_LLM = "One or two sentences about subject"
 
+# Mojica Task 19: valid right-pane htab values for the .a-rp shell
+# (Comments / Annotations / Properties). Any other value falls back to
+# ``comments`` — same defensive contract the Buscar inspector uses for
+# its ``inspector_tab`` query param.
+_VALID_ANNOTATE_TABS = ("comments", "annotations", "properties")
+
+
+def normalize_annotate_tab(tab: str | None) -> str:
+    """Return a valid ``annotate_tab`` value or fall back to ``"comments"``.
+
+    The Anotar right pane (.a-rp) renders three htabs — Comments,
+    Annotations, Properties — selected by the ``?tab=`` query parameter
+    on ``/api/annotate/scene``. Unknown / missing values collapse to
+    Comments (the default landing state).
+    """
+    if tab in _VALID_ANNOTATE_TABS:
+        return tab
+    return "comments"
+
 
 # ── Tag normalization ─────────────────────────────────────────────────────────
 
@@ -211,6 +230,7 @@ def scene_context(
             "scene_list": [],
             "total": 0,
             "annotated_count": 0,
+            "comment_count": 0,
             "selected_scene": None,
         }
 
@@ -247,8 +267,20 @@ def scene_context(
         ss = int(seconds) % 60
         return f"{mm:02d}:{ss:02d}"
 
+    # Mojica Task 19: the .a-rp htabs + sub-partials reach into
+    # ``selected_scene`` for ``film_slug`` (HTMX ?film= propagation on
+    # tab clicks), the description text (rendered as the AI .a-com.ai
+    # comment in the Comments sub-partial) and the manual tags list
+    # (rendered as the tag pip count on the Annotations htab). All three
+    # default to safe falsy values so the sub-partials' ``{% if %}``
+    # guards collapse to empty when data is absent.
+    description_text = ""
+    if llm and has_llm:
+        description_text = llm.get("description", "") or ""
+
     selected_scene: dict = {
         "scene_id": scene_id,
+        "film_slug": ctx.slug,
         "keyframe_url": img_url or "",
         "timecode": tc_smpte,
         "timecode_short": _short(start_s),
@@ -258,6 +290,8 @@ def scene_context(
         "duration_s": duration_s,
         "version": None,
         "progress_pct": 0,
+        "description": description_text,
+        "tags": list(existing_tags),
         # Collaboration overlays — populated by a later epic; empty/None
         # so the .a-stage template iterates safely on initial render.
         "pins": [],
@@ -268,6 +302,14 @@ def scene_context(
         "prev_id": scenes[idx - 1]["scene_id"] if idx > 0 else None,
         "next_id": scenes[idx + 1]["scene_id"] if idx < len(scenes) - 1 else None,
     }
+
+    # Mojica Task 19: the .a-rp Comments htab pip counts the curator
+    # thread — the AI moondream description is always row #0 when present,
+    # so a populated description bumps the pip by 1. Curator/viewer rows
+    # arrive with the collaboration backend (gated on
+    # ``cfg.collaboration.threads_enabled``); until then the AI row is the
+    # only comment, hence ``comment_count`` is 1 when a description exists.
+    comment_count = 1 if description_text else 0
 
     return {
         "scene": scene,
@@ -284,6 +326,7 @@ def scene_context(
         "current_idx": idx,
         "total": len(scenes),
         "annotated_count": annotated_count,
+        "comment_count": comment_count,
         "scene_list": scenes,
         "selected_scene": selected_scene,
     }

@@ -259,12 +259,15 @@ class TestSceneContext:
         # ``selected_scene`` is the Mojica-Task-18 addition — emitted as
         # ``None`` on the empty branch so the .a-stage template can
         # render the empty-state section without raising on attribute
-        # access. All other empty-shape keys are unchanged.
+        # access. ``comment_count`` is the Mojica-Task-19 addition —
+        # emitted as ``0`` so the .a-rp Comments-htab pip's truthiness
+        # check renders no count chip on the empty branch.
         assert out == {
             "scene": None,
             "scene_list": [],
             "total": 0,
             "annotated_count": 0,
+            "comment_count": 0,
             "selected_scene": None,
         }
 

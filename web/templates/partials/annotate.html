@@ -1,31 +1,41 @@
-{# ── Mojica Anotar tab — stage (.a-stage) ──────────────────────────────────
-   Task 18 (Phase 4) of the Mojica redesign. The legacy filter/jump/form
-   surface (radio filter + scene-jump <select> + per-scene LLM/tag form)
-   is replaced on the LEFT pane by a Frame.io-style scene-review stage:
+{# ── Mojica Anotar tab — stage (.a-stage) + right pane (.a-rp) ────────────
+   Task 18 + 19 (Phase 4) of the Mojica redesign. The legacy
+   filter/jump/form surface is replaced by a Frame.io-style scene-review
+   stage on the LEFT and a tabbed inspector on the RIGHT:
 
-     * ``.a-meta``         — back button, breadcrumb (Acervo / film /
-                              cena NNN / V<n>), status pill, action chips.
-     * ``.a-keyframe``     — 4:3 keyframe with pin / commentpop overlays
-                              (collaboration backend wires these later).
-     * ``.a-tl``           — timeline scrubber + markers + avatar pips +
-                              ticks below.
-     * ``.a-pl``           — playback controls (prev / play / next / TC).
+     * ``.a-stage`` (left)
+         - ``.a-meta``      back button, breadcrumb, status pill, action chips.
+         - ``.a-keyframe``  4:3 keyframe with pin / commentpop overlays.
+         - ``.a-tl``        timeline scrubber + markers + avatar pips + ticks.
+         - ``.a-pl``        playback controls (prev / play / next / TC).
 
-   The legacy form moves to the RIGHT pane via the existing
-   ``partials/annotate_scene.html`` include, which Task 19 then rewrites
-   into the ``.a-rp`` htabs (Activity / Annotations / Properties) + thread
-   + composer surface. Until Task 19 lands, the legacy form keeps
-   working unchanged inside ``.a-rp-legacy`` so /api/annotate/save and
-   the parity test (``test_annotate_full_page_matches_tab``) keep
-   passing without further wiring.
+     * ``.a-rp`` (right, mounted via ``partials/annotate_scene.html``)
+         - htabs row    Comments · Annotations · Properties
+         - subhead      scene label + count pip · filter/sort icons
+         - .a-thread    dispatches to one of three sub-partials
+                         (annotate_comments.html, annotate_tags.html,
+                          annotate_props.html)
+         - composer     gated on ``cfg.collaboration.composer_enabled``
 
-   Compatibility contracts the rewrite still honours:
+   HTMX wiring:
+
+     * The .a-rp lives inside a wrapper ``<div id="annotate-scene">`` so
+       every existing swap target (prev/next nav, save, clear,
+       description edit/save, htab clicks) keeps targeting
+       ``#annotate-scene`` and replaces its innerHTML. Task 18 set up
+       this wrapper; Task 19 only changes what goes INSIDE it.
+
+   Compatibility contracts honoured:
 
      * The outer wrapper keeps ``class="tab-panel"`` so existing
        smoke-tests (``test_tab_fragment_routes_respond``) keep matching.
      * On empty data the empty-state line still carries the legacy
        "Run the Scene Detection step first." message verbatim so the
        full-page vs ``/tab/annotate`` parity test keeps matching.
+     * The ``all_done`` banner above the right pane stays in place; the
+       legacy form's contracts (``/api/annotate/save``, ``/clear``,
+       ``/description/edit``, ``/description``) are preserved inside
+       the sub-partials.
 
    Context this partial reads is produced by
    :func:`api.services.annotations.build_annotate_context`:
@@ -36,13 +46,17 @@
      * ``selected_scene``  dict — keyframe_url, scene_id, timecode (SMPTE),
                               timecode_short / duration_tc (MM:SS for the
                               scrubrow + commentpop chips), progress_pct
-                              (stub 0), pins / comment_popup / markers /
-                              timeline_avatars / timeline_ticks (stubs
-                              until the collaboration backend lands).
-     * ``filter`` + every legacy key (``scene``, ``scene_list``, ``llm``,
-       ``existing_tags`` …) is still passed through unchanged so
-       ``annotate_scene.html`` (legacy form) keeps rendering inside
-       the right-pane include below.
+                              (stub 0), description / tags / film_slug
+                              (for the .a-rp sub-partials), and the
+                              collaboration stubs (pins, comment_popup,
+                              markers, timeline_avatars, timeline_ticks).
+     * ``annotate_tab``    "comments" | "annotations" | "properties" —
+                              defaults to "comments" on full-page; the
+                              HTMX route reads ``?tab=`` and overrides.
+     * Every legacy key (``scene``, ``scene_list``, ``llm``,
+       ``existing_tags``, ``tags_value``, ``prev_id`` / ``next_id``,
+       ``current_idx`` / ``total`` …) is still passed through so
+       ``annotate_scene.html`` and its sub-partials render correctly.
 #}
 {% from "partials/_icons.html" import icon %}
 <div class="tab-panel">
@@ -222,13 +236,13 @@
   </div>
 </section>
 
-{# ── Legacy right pane content (LLM description + manual-tag form) ─────────
-     Task 19 rewrites this into the proper Mojica ``.a-rp`` (htabs +
-     thread + composer). For Task 18 we keep the legacy form inline so
-     /api/annotate/save + scene-jump still work and the existing
-     parity test stays green. The wrapper id ``annotate-scene`` is the
-     HTMX swap target that ``/api/annotate/scene`` already targets.  #}
-<div id="annotate-scene" class="a-rp-legacy">
+{# ── Right pane (.a-rp) wrapper ──────────────────────────────────────────
+     The ``#annotate-scene`` id is the HTMX swap target every right-pane
+     action targets (prev/next, save, clear, description edit/save,
+     htab clicks). ``annotate_scene.html`` renders the ``.a-rp`` shell
+     inside this wrapper; the wrapper's innerHTML is replaced on every
+     swap, preserving the id so subsequent swaps still resolve.  #}
+<div id="annotate-scene" class="a-rp-mount">
   {% if all_done %}
   <p class="annotate-all-done text-muted">{{ _("All scenes have valid LLM descriptions. You can still add manual tags below.") }}</p>
   {% endif %}

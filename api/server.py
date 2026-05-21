@@ -88,7 +88,14 @@ _TAB_CONTEXT_BUILDERS = {
     # annotate view (write-path, scene-by-scene editing across all films) is
     # deferred to a later plan (T9 docstring). /tab/annotate with slug=None also
     # uses from_config, so /annotate full-page and /tab/annotate are consistent.
-    "annotate": lambda: build_annotate_context(FilmContext.from_config(get_config())),
+    # Mojica Task 19: ``annotate_tab="comments"`` defaults the .a-rp htabs
+    # to the Comments tab on full-page renders so the sub-partials' tab
+    # branch is deterministic. The HTMX route reads ``?tab=`` and
+    # overrides this.
+    "annotate": lambda: {
+        **build_annotate_context(FilmContext.from_config(get_config())),
+        "annotate_tab": "comments",
+    },
     "processing": processing.build_processing_context,
     # Rimas Visuais (cross-film visual rhymes) ships its real builder in
     # Phase 5; for Phase 1 the page is a placeholder stub so the route
