@@ -1,0 +1,33 @@
+{# Rimas Visuais echo grid — Task 21 placeholder.
+
+   Renders one ``.r-echo`` card per cross-film neighbour returned by
+   :func:`api.services.rhymes_service.build_rimas_context`. Task 22
+   replaces this with the full ``.r-grid > .r-similarity-card`` markup
+   the design system specifies; this stub keeps the HTMX swap target
+   alive (``#rimas-echoes``) and proves the route + service plumb
+   end-to-end.
+#}
+<div id="rimas-echoes" class="r-grid">
+  {% if echoes %}
+    {% for e in echoes %}
+      <article class="r-echo"
+               data-film-slug="{{ e.film_slug }}"
+               data-scene-id="{{ e.scene_id }}">
+        {% if e.keyframe_url %}
+          <img class="r-echo-kf" src="{{ e.keyframe_url }}" alt="" loading="lazy">
+        {% endif %}
+        <div class="r-echo-meta">
+          <strong>{{ e.film_title }}</strong>
+          · {{ _("scene") }} {{ e.scene_id }}
+          {% if e.timecode %} · {{ e.timecode }}{% endif %}
+          · <span class="r-echo-score">{{ "%.2f"|format(e.score) }}</span>
+        </div>
+        {% if e.reason %}
+          <p class="r-echo-reason">{{ e.reason }}</p>
+        {% endif %}
+      </article>
+    {% endfor %}
+  {% else %}
+    <p class="empty-state">{{ _("No visual rhymes yet — process more films to populate the index.") }}</p>
+  {% endif %}
+</div>

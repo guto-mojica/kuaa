@@ -1,8 +1,46 @@
-{# Rimas Visuais (cross-film visual rhymes) tab — Phase-1 placeholder.
-   The real builder + UI ship in Phase 5 (cross-film kNN + MMR diversity).
-   For Phase 1 we render the standard ``tab-panel`` shell so /rimas returns a
-   well-formed page and the chrome's ``data-active-tab='rimas'`` body
-   attribute can be exercised end-to-end. #}
+{# Rimas Visuais (cross-film visual rhymes) — Task 21 placeholder.
+
+   The real CSS-driven template (.r-cp / .r-anchor / .r-rp / .r-grid) lands
+   in Task 22. This stub carries enough scaffolding for Phase-5 routing
+   tests to pin the contract:
+     * the outer ``.tab-panel`` keeps the /tab/* fragment smoke (Group 1's
+       ``test_tab_fragment_routes_respond`` asserts on this class);
+     * a ``.r-cp`` wrapper proves the rimas tab is wired to the service
+       builder (Task 22's assertions will tighten to the full markup);
+     * an ``.r-anchor`` block surfaces the anchor scene when one resolves,
+       falling back to an ``.empty-state`` row otherwise;
+     * the ``rimas_echoes.html`` fragment renders the echo grid (or the
+       grid's own empty state) so the HTMX swap target exists.
+#}
 <div class="tab-panel">
-    <p class="text-muted">{{ _("Visual Rhymes — coming with Phase 5.") }}</p>
+  <div class="r-cp">
+    {% if anchor_scene %}
+      <section class="r-anchor" data-film-slug="{{ anchor_scene.film_slug }}" data-scene-id="{{ anchor_scene.scene_id }}">
+        <header>
+          <strong>{{ _("Anchor") }}:</strong>
+          {{ (anchor_film.title if anchor_film else anchor_scene.film_slug) }}
+          {% if anchor_scene.timecode %} · {{ anchor_scene.timecode }}{% endif %}
+          · {{ _("scene") }} {{ anchor_scene.scene_id }}
+        </header>
+        {% if anchor_scene.keyframe_url %}
+          <img class="r-anchor-kf" src="{{ anchor_scene.keyframe_url }}" alt="" loading="lazy">
+        {% endif %}
+        {% if anchor_scene.description %}
+          <p class="r-anchor-desc">{{ anchor_scene.description }}</p>
+        {% endif %}
+      </section>
+    {% else %}
+      <p class="empty-state">{{ _("No processed films yet — run the embeddings pipeline to enable Rimas Visuais.") }}</p>
+    {% endif %}
+
+    <div id="rimas-echoes" hx-target="#rimas-echoes" hx-swap="outerHTML">
+      {% include "partials/rimas_echoes.html" %}
+    </div>
+
+    <footer class="r-knobs">
+      <span class="knob">k {{ k }}</span>
+      <span class="knob">{{ _("MMR λ") }} {{ "%.2f"|format(mmr_lambda) }}</span>
+      <span class="knob">{{ _("threshold") }} {{ "%.2f"|format(threshold) }}</span>
+    </footer>
+  </div>
 </div>

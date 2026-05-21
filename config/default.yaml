@@ -117,6 +117,17 @@ search:
   # the per-modality score breakdown actually exists.
   signals_enabled: false
 
+# ── Rimas Visuais (cross-film visual rhymes) ─────────────────────────────────
+# Read-only knobs for the Rimas tab's kNN over CLIP keyframes. Defaults match
+# the prototype expectation in docs/superpowers/plans/2026-05-20-mojica-frame-redesign.md
+# (Task 21). M3 swaps the kNN backend for CLIP × CLAP fusion + MMR diversity +
+# cross-encoder rerank; the public shape (top_n + mmr_lambda + threshold) is
+# intended to stay stable through that swap.
+rimas:
+  top_n: 8                # how many neighbours the route returns
+  mmr_lambda: 0.5         # Maximal Marginal Relevance λ (M3 — display-only today)
+  threshold: 0.75         # cosine floor for the M3 reranker (display-only today)
+
 # ── Collaboration (comment thread / composer / pin persistence) ──────────────
 # The Mojica inspector renders a comment composer + activity thread; both lean
 # on a collaboration backend that does not exist yet (no user model, no

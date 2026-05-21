@@ -10,21 +10,40 @@ Per-film embeddings are expected at::
     <library_dir>/<slug>/embeddings/keyframe_embeddings.npy
     <library_dir>/<slug>/embeddings/index_mapping.json
 
-The mapping file must contain a ``scene_ids`` list whose length matches the
-number of embedding rows. Any missing file degrades gracefully to ``[]``
-so the caller can render an empty-state UI without raising.
+The mapping file's scene-id list can be encoded in either of two shapes
+the existing pipeline produces:
+
+  * synthetic / test fixtures write ``"scene_ids": [1, 2, 3, ...]``
+    — one int per embedding row;
+  * the real production pipeline (PySceneDetect → CLIP) writes
+    ``"keyframe_paths": ["<...>-Scene-001-01.jpg", ...]`` — one filename
+    per embedding row, with the scene number embedded in the
+    ``Scene-NNN-MM`` portion of the basename.
+
+:func:`_extract_scene_ids` accepts either shape transparently, so the
+caller does not need to know which producer wrote the file. Any missing
+file or unparseable mapping degrades gracefully to ``[]`` so the caller
+can render an empty-state UI without raising.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+# ``<title>-Scene-NNN-MM.jpg`` — PySceneDetect's keyframe filename pattern.
+# We only need the scene number (the ``MM`` suffix is the keyframe index
+# within the scene; multiple keyframes per scene collapse to one scene
+# id, so duplicate scene ids in the returned list are expected and
+# correct — they line up row-for-row with the embeddings matrix).
+_SCENE_NUM_RE = re.compile(r"[Ss]cene[-_](\d+)")
 
 
 @dataclass
@@ -103,15 +122,67 @@ def find_rhymes(
     ]
 
 
+def _extract_scene_ids(mapping: dict) -> list[int]:
+    """Return one scene id per embedding row from either index_mapping shape.
+
+    The mapping dict comes from ``index_mapping.json``. Two shapes exist
+    in the wild:
+
+      1. **Synthetic / test shape** — ``{"scene_ids": [1, 2, 3, ...]}``.
+         Returned verbatim (coerced to ``int``).
+      2. **Production shape** — ``{"keyframe_paths": ["<...>-Scene-001-01.jpg",
+         ...]}``. The scene number is parsed out of each filename via
+         :data:`_SCENE_NUM_RE`. Rows whose filename does not match the
+         pattern are emitted as ``-1`` so the index keeps its row-count
+         alignment with the embeddings matrix; the lookup in
+         :func:`_vec_for_scene` will simply never resolve to a row
+         tagged ``-1``.
+
+    Returns ``[]`` when neither key is present — :func:`_load_film_embeddings`
+    treats that as a corrupt mapping and returns ``None`` to the caller.
+    """
+    if "scene_ids" in mapping:
+        return [int(sid) for sid in mapping["scene_ids"]]
+    if "keyframe_paths" in mapping:
+        scene_ids: list[int] = []
+        for path in mapping["keyframe_paths"]:
+            match = _SCENE_NUM_RE.search(str(path))
+            scene_ids.append(int(match.group(1)) if match else -1)
+        return scene_ids
+    return []
+
+
 def _load_film_embeddings(library_dir: Path, slug: str) -> tuple[np.ndarray, list[int]] | None:
-    """Load ``(vectors, scene_ids)`` for one film, or ``None`` if absent."""
+    """Load ``(vectors, scene_ids)`` for one film, or ``None`` if absent.
+
+    Mapping-shape flexibility lives in :func:`_extract_scene_ids` — this
+    function only enforces row-count alignment between the embeddings
+    matrix and the derived scene-id list. A mismatch (or a mapping that
+    declares neither known shape) returns ``None`` so the caller falls
+    back to the empty-state UI.
+    """
     emb_path = library_dir / slug / "embeddings" / "keyframe_embeddings.npy"
     map_path = library_dir / slug / "embeddings" / "index_mapping.json"
     if not (emb_path.exists() and map_path.exists()):
         return None
     vecs: np.ndarray = np.load(emb_path)
     mapping = json.loads(map_path.read_text())
-    scene_ids = [int(sid) for sid in mapping["scene_ids"]]
+    scene_ids = _extract_scene_ids(mapping)
+    if not scene_ids:
+        logger.warning(
+            "rimas: %s index_mapping.json has neither 'scene_ids' nor "
+            "'keyframe_paths' — skipping film",
+            slug,
+        )
+        return None
+    if len(scene_ids) != int(vecs.shape[0]):
+        logger.warning(
+            "rimas: %s embeddings/mapping row mismatch (%d vs %d) — skipping film",
+            slug,
+            int(vecs.shape[0]),
+            len(scene_ids),
+        )
+        return None
     return vecs, scene_ids
 
 

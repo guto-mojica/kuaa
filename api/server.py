@@ -15,10 +15,11 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from api.deps import get_config, make_ctx
-from api.routes import about, annotate, export, library, processing, scenes, search, tabs
+from api.routes import about, annotate, export, library, processing, rimas, scenes, search, tabs
 from api.services.annotations import build_annotate_context
 from api.services.chrome_service import build_chrome_context
 from api.services.film_context import FilmContext
+from api.services.rhymes_service import build_rimas_context
 from api.services.scenes_service import build_cenas_context, build_timeline_context
 from api.templates import templates
 
@@ -57,6 +58,7 @@ app.include_router(processing.router)
 app.include_router(about.router)
 app.include_router(library.router)
 app.include_router(export.router)
+app.include_router(rimas.router)
 
 
 # Each tab's full context is built by the SAME code path the matching
@@ -97,10 +99,12 @@ _TAB_CONTEXT_BUILDERS = {
         "annotate_tab": "comments",
     },
     "processing": processing.build_processing_context,
-    # Rimas Visuais (cross-film visual rhymes) ships its real builder in
-    # Phase 5; for Phase 1 the page is a placeholder stub so the route
-    # exists and the chrome shell can be exercised on it.
-    "rimas": lambda: {"no_data": True},
+    # Rimas Visuais (cross-film visual rhymes) — Task 21 wires the real
+    # service builder. The full-page render reads ``?anchor=`` like the
+    # tab-fragment endpoint so a deep-share URL (``/rimas?anchor=jeca/1``)
+    # lands directly on the requested scene. ``anchor=None`` falls back
+    # to the default-anchor branch inside the service.
+    "rimas": lambda: build_rimas_context(get_config(), anchor=None),
 }
 
 
@@ -198,6 +202,13 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
                 )
                 if timeline_ctx is not None:
                     tab_ctx.update(timeline_ctx)
+    elif active_tab == "rimas":
+        # Mojica Task 21: ``?anchor=<slug>/<scene_id>`` is a deep-share URL
+        # into a specific anchor scene. The service handles parsing +
+        # falling back to the default anchor when the param is absent
+        # or malformed, so an unrecognised value never crashes the page.
+        anchor_param = request.query_params.get("anchor")
+        tab_ctx = build_rimas_context(cfg, anchor=anchor_param)
     else:
         tab_ctx = _TAB_CONTEXT_BUILDERS[active_tab]()
     # Mojica chrome kwargs (active_tab=PT slug, compact_lp, has_right_pane) are

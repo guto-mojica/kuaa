@@ -961,3 +961,87 @@ def test_tipo_classifier_unit():
     assert tipo_of([], None) == "transicao"
     # Description-driven cartela fallback (no matching tag).
     assert tipo_of([], "title sequence") == "cartela"
+
+
+# ── Group 1i: Rimas Visuais tab routes (Task 21) ──────────────────────────────
+#
+# Task 21 wires ``/tab/rimas`` + ``/api/rimas/echoes`` to the new
+# ``api.services.rhymes_service.build_rimas_context`` builder which walks
+# the library, resolves the anchor scene, and calls
+# :func:`cinemateca.rhymes.find_rhymes` for the cross-film kNN. These tests
+# pin (1) the full-page route stays 200 on an empty library (empty-state
+# branch), (2) the HTMX tab fragment returns the ``.r-cp`` shell, (3) the
+# echoes endpoint returns a partial without crashing, and (4) the
+# ``?anchor=`` query param parses without crashing on an unknown slug.
+# Task 22 ships the real templates and tightens these assertions.
+
+
+def test_rimas_page_renders(client):
+    """``/rimas`` renders 200 on an empty library with the .r-cp shell or empty state.
+
+    The service falls back to the default-anchor branch when no
+    processed films exist; the placeholder template emits an
+    ``empty-state`` row in that case. Either branch is acceptable here —
+    the contract is "never 500, always render the chrome around it".
+    """
+    r = client.get("/rimas")
+    assert r.status_code == 200, r.text[:500]
+    html = r.text
+    # The Mojica chrome shell is rendered (full-page route).
+    assert 'data-active-tab="rimas"' in html
+    # And the tab body produces either the .r-cp wrapper (with or
+    # without an anchor) or the empty-state row.
+    assert 'class="r-cp"' in html or 'class="empty-state"' in html
+
+
+def test_tab_rimas_fragment_returns_partial(client):
+    """``/tab/rimas`` returns the .r-cp partial (HTMX swap target).
+
+    Asserts the fragment-only contract: no ``<!DOCTYPE html>`` (full
+    document leaked) and the ``.r-cp`` wrapper is present. The empty
+    library branch still emits the .r-cp shell with the empty-state row
+    inside, so the assertion is locale-stable.
+    """
+    r = client.get("/tab/rimas")
+    assert r.status_code == 200, r.text[:500]
+    html = r.text
+    assert "<!DOCTYPE html>" not in html
+    assert 'class="r-cp"' in html
+
+
+def test_api_rimas_echoes_returns_fragment(client):
+    """``/api/rimas/echoes`` returns the echoes-grid partial without crashing.
+
+    On an empty library the grid renders the empty-state row inside
+    ``.r-grid``. Locking only the structural anchors keeps the test
+    locale-stable and lets Task 22 swap the inner markup without
+    breaking this contract.
+    """
+    r = client.get("/api/rimas/echoes")
+    assert r.status_code == 200, r.text[:500]
+    html = r.text
+    # Fragment — no full document.
+    assert "<!DOCTYPE html>" not in html
+    # The swap target wrapper is always rendered.
+    assert 'id="rimas-echoes"' in html
+    assert 'class="r-grid"' in html
+
+
+def test_rimas_with_explicit_anchor_does_not_crash(client):
+    """``/rimas?anchor=<slug>/<scene_id>`` accepts and parses the anchor.
+
+    On a fresh empty library the slug never resolves — the service
+    returns no anchor data and falls back to the empty-state branch.
+    The contract under test is "the URL never crashes the page";
+    Task 22's seeded variant will pin the populated branch separately.
+    """
+    r = client.get("/rimas?anchor=jeca/1")
+    assert r.status_code == 200, r.text[:500]
+    # Same chrome / shell contract as the no-param variant.
+    assert 'data-active-tab="rimas"' in r.text
+
+    # Malformed anchor falls back to the default-anchor branch.
+    r = client.get("/rimas?anchor=garbage")
+    assert r.status_code == 200, r.text[:500]
+    r = client.get("/rimas?anchor=jeca/not-an-int")
+    assert r.status_code == 200, r.text[:500]
