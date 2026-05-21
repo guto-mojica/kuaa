@@ -1,0 +1,38 @@
+{#- Right-rail "STATS" card under .p-side.
+
+    ``stats`` is a dict with keyword-or-zero defaults so an empty
+    library still renders the card layout (visual placeholder); the
+    backend currently aggregates frames/scenes/embeddings/descriptions
+    from per-film metadata, and `faces`/`objects` stay at 0 until a
+    later aggregation pass lands. The ``.warn`` modifier on faces is
+    driven by ``stats.faces_warn`` so the colour can flip at the
+    server's discretion (e.g. a noisy detection batch). -#}
+<section class="p-stats">
+  <h3>{{ _("STATS") }}</h3>
+  <div class="grid">
+    <div class="stat">
+      <span class="v">{{ stats.frames or 0 }}</span>
+      <span class="k">{{ _("frames") }}</span>
+    </div>
+    <div class="stat">
+      <span class="v">{{ stats.scenes or 0 }}</span>
+      <span class="k">{{ _("scenes") }}</span>
+    </div>
+    <div class="stat">
+      <span class="v">{{ stats.embeddings or 0 }}</span>
+      <span class="k">{{ _("embeddings") }}</span>
+    </div>
+    <div class="stat">
+      <span class="v">{{ stats.descriptions or 0 }}</span>
+      <span class="k">{{ _("descriptions") }}</span>
+    </div>
+    <div class="stat">
+      <span class="v {% if stats.faces_warn %}warn{% endif %}">{{ stats.faces or 0 }}</span>
+      <span class="k">{{ _("faces") }}</span>
+    </div>
+    <div class="stat">
+      <span class="v">{{ stats.objects or 0 }}</span>
+      <span class="k">{{ _("objects") }}</span>
+    </div>
+  </div>
+</section>

@@ -178,6 +178,16 @@ pipeline:
   skip_existing: true       # pular etapas se outputs já existirem
   stop_on_error: false      # false = continua mesmo com erros não-fatais
 
+# ── Processamento tab (UI) ────────────────────────────────────────────────────
+# Knobs the Processing tab template reads. Off-by-default flags here
+# never affect the pipeline runner — they only gate optional UI panels.
+proc:
+  # When true, the .p-rp right pane renders a GPU/VRAM/CPU/RAM
+  # resource card under the active-step substeps. No measurement source
+  # is wired today; flipping this on without populating ``gpu_metrics``
+  # in the route context is a no-op (the template gates on both).
+  gpu_metrics_enabled: false
+
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging:
   level: "INFO"             # DEBUG | INFO | WARNING | ERROR

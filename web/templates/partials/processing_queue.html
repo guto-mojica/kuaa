@@ -1,0 +1,23 @@
+{#- Right-rail "QUEUE" card. ``job_queue`` is the bounded retained job
+    history (recent terminal jobs + the active one). Each item gets a
+    status class (``done`` / ``proc`` / ``queued`` / ``error`` /
+    ``cancelled``) that proc.css colours the leading dot from. The
+    ``filmdot`` is left at a neutral accent colour — per-film palette
+    swatches are a future polish, not blockers for M1. -#}
+<section class="p-queue">
+  <h3>{{ _("QUEUE") }}</h3>
+  {% for q in job_queue %}
+    <div class="item {{ q.status }}">
+      <span class="dot"></span>
+      <span class="nm">
+        <span class="filmdot" style="background: var(--c-accent);"></span>
+        {{ q.film_title }}
+      </span>
+      <span class="when">{{ q.when_display }}</span>
+    </div>
+  {% else %}
+    <p class="fx-mono" style="font-size: 11px; color: var(--c-muted);">
+      {{ _("No history yet.") }}
+    </p>
+  {% endfor %}
+</section>

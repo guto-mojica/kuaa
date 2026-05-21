@@ -1111,3 +1111,66 @@ def test_rimas_grid_uses_echo_card_class(client):
     html = r.text
     assert 'class="r-grid"' in html
     assert 'id="rimas-echoes"' in html
+
+
+# ── Group 1k: Processamento tab — Mojica redesign (Task 24) ───────────────────
+#
+# Task 24 rewrites ``processing.html`` + ``processing_job.html`` onto the
+# Mojica ``.p-cp / .p-top / .p-active / .p-pbar / .p-steps / .p-log /
+# .p-side / .p-stats / .p-queue / .p-rp`` layout. The three tests below
+# pin the structural anchors the new template ships AND the empty-state
+# behaviour that ``test_tab_processing_empty_has_no_active_jobs`` (Group
+# 1) and the Phase-1a/1b regression locks (above) further constrain.
+
+
+def test_proc_renders_p_cp_with_top(client):
+    """``/processing`` ships the new ``.p-cp`` / ``.p-top`` / ``.p-log``
+    layout anchors and the active-jobs swap wrapper.
+
+    These are the four structural markers proc.css drives. The
+    legacy launch form is still present (preserved inside ``.p-top
+    .acts``) so the empty-data regression tests stay green; this test
+    only pins the NEW layout, not the legacy markers.
+    """
+    r = client.get("/processing")
+    assert r.status_code == 200, r.text[:500]
+    html = r.text
+    assert 'class="p-cp"' in html
+    assert 'class="p-top"' in html
+    assert 'id="active-jobs"' in html
+    assert 'class="p-log"' in html
+
+
+def test_proc_no_active_jobs_renders_empty_state(client):
+    """Empty registry renders the ``No active jobs.`` text inside the
+    ``#active-jobs`` swap wrapper.
+
+    The text is the same one v0.2.x shipped; preserving it keeps the
+    Phase-0 regression suite green AND the new template's empty branch
+    is the SAME branch the old template used (so HTMX swaps land on
+    the same target id from the launch-form POST).
+    """
+    r = client.get("/processing")
+    assert r.status_code == 200, r.text[:500]
+    html = r.text
+    assert "No active jobs." in html, "empty-state line missing"
+    # The empty state still ships inside the new .p-cp / #active-jobs
+    # scaffolding (it is not the whole tab — the log + side panels also
+    # render).
+    assert 'id="active-jobs"' in html
+
+
+def test_proc_stats_section_present(client):
+    """``/processing`` always ships the ``.p-stats`` + ``.p-queue`` cards.
+
+    Even on an empty library the cards render with all counts at 0;
+    no data should make these sections vanish (the layout would
+    collapse). Task 24's ``aggregate_stats`` walks ``data/library/``
+    safely on an empty/absent directory and returns the zero-defaults
+    dict.
+    """
+    r = client.get("/processing")
+    assert r.status_code == 200, r.text[:500]
+    html = r.text
+    assert 'class="p-stats"' in html
+    assert 'class="p-queue"' in html
