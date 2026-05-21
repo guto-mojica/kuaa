@@ -304,22 +304,18 @@ def _demo_comment_popup(timecode: str) -> dict:
     }
 
 
-def _demo_markers() -> list[dict]:
-    """Synthetic timeline markers so the .a-tl scrubber renders flagged spots."""
-    return [
-        {"pct": 18, "kind": "pin"},
-        {"pct": 42, "kind": "pin"},
-        {"pct": 71, "kind": "comment"},
-    ]
-
-
-def _demo_avatars() -> list[dict]:
-    """Three viewer avatars for the timeline avatar strip."""
-    return [
-        {"initials": "EJ", "pct": 12},
-        {"initials": "JF", "pct": 47},
-        {"initials": "SP", "pct": 81},
-    ]
+# Static demo data — no per-call allocation. Lists are immutable (tuples)
+# at module scope so accidental mutation can't pollute future requests.
+_DEMO_MARKERS: tuple[dict, ...] = (
+    {"pct": 18, "kind": "pin"},
+    {"pct": 42, "kind": "pin"},
+    {"pct": 71, "kind": "comment"},
+)
+_DEMO_AVATARS: tuple[dict, ...] = (
+    {"initials": "EJ", "pct": 12},
+    {"initials": "JF", "pct": 47},
+    {"initials": "SP", "pct": 81},
+)
 
 
 def scene_context(
@@ -401,6 +397,17 @@ def scene_context(
     if llm and has_llm:
         description_text = llm.get("description", "") or ""
 
+    # Collaboration overlays — populated only when the demo-threads flag
+    # is on. v1.1 collaboration epic will replace this with a real backend.
+    if _demo_threads_enabled():
+        demo_pins = _demo_pins(tc_smpte)
+        demo_popup = _demo_comment_popup(tc_smpte)
+        demo_markers: list[dict] = list(_DEMO_MARKERS)
+        demo_avatars: list[dict] = list(_DEMO_AVATARS)
+        demo_comments = _demo_thread(tc_smpte)
+    else:
+        demo_pins, demo_popup, demo_markers, demo_avatars, demo_comments = [], None, [], [], []
+
     selected_scene: dict = {
         "scene_id": scene_id,
         "film_slug": ctx.slug,
@@ -415,35 +422,15 @@ def scene_context(
         "progress_pct": 0,
         "description": description_text,
         "tags": list(existing_tags),
-        # Collaboration overlays. The real backend (user model + comment
-        # persistence + pin store) is the v1.1 collaboration epic; until
-        # it lands the inspector + a-stage ship with a small deterministic
-        # demo thread + matching pin so the prototype screenshots match
-        # the launch design. Rendering is gated on
-        # ``cfg.collaboration.demo_threads_enabled`` (default ON during
-        # v1.0 launch prep; flipped OFF once real curator notes flow).
-        "pins": _demo_pins(tc_smpte),
-        "comment_popup": _demo_comment_popup(tc_smpte),
-        "markers": _demo_markers(),
-        "timeline_avatars": _demo_avatars(),
+        "pins": demo_pins,
+        "comment_popup": demo_popup,
+        "markers": demo_markers,
+        "timeline_avatars": demo_avatars,
         "timeline_ticks": [],
-        "comments": _demo_thread(tc_smpte),
+        "comments": demo_comments,
         "prev_id": scenes[idx - 1]["scene_id"] if idx > 0 else None,
         "next_id": scenes[idx + 1]["scene_id"] if idx < len(scenes) - 1 else None,
     }
-
-    # If demo_threads_enabled is off the demo overlays clear back to the
-    # honest empty state (pre-collaboration-backend behaviour). cfg is
-    # read lazily so the helper stays callable from tests that don't
-    # bootstrap a full config.
-    if not _demo_threads_enabled():
-        selected_scene.update(
-            pins=[],
-            comment_popup=None,
-            markers=[],
-            timeline_avatars=[],
-            comments=[],
-        )
 
     # Mojica Task 19: the .a-rp Comments htab pip counts the curator
     # thread — the AI moondream description is always row #0 when present,

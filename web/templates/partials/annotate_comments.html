@@ -70,8 +70,14 @@
    Renders the prototype's Frame.io-style comment stream (pinned curator
    note with attachments + reactions, viewer reply) until the real
    collaboration backend lands. Gated on
-   ``cfg.collaboration.demo_threads_enabled`` so the user can clear the
-   demo overlay back to the empty pre-launch state without touching code. #}
+   ``cfg.collaboration.demo_threads_enabled``. The body uses ``|safe`` —
+   this is intentionally bound to ``_demo_thread()`` output in
+   ``api/services/annotations.py``, whose bodies are static literal Python
+   strings the developer authored. When the v1.1 collaboration backend
+   replaces ``selected_scene.comments`` with user-supplied content, the
+   ``|safe`` filter MUST be removed (or replaced with an HTML sanitizer)
+   — otherwise the curator field becomes an XSS vector. #}
+{% set _action_labels = {"reply": _("Reply"), "resolve": _("Resolve"), "share": _("Share")} %}
 {% if cfg.collaboration.demo_threads_enabled and selected_scene and selected_scene.comments %}
   {% for c in selected_scene.comments %}
     <div class="a-com {{ c.role }}{% if c.badge == 'pinned' %} pinned{% endif %}">
@@ -102,10 +108,8 @@
         {% endif %}
         <div class="replyrow">
           {% for act in c.actions %}
-            {% if act == 'reply' %}<a href="#">{{ _('Reply') }}</a>
-            {% elif act == 'resolve' %}<a href="#">{{ _('Resolve') }}</a>
-            {% elif act == 'share' %}<a href="#">{{ _('Share') }}</a>
-            {% endif %}
+            {% set label = _action_labels.get(act) %}
+            {% if label %}<a href="#">{{ label }}</a>{% endif %}
           {% endfor %}
         </div>
       </div>

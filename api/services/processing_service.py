@@ -27,6 +27,7 @@ from __future__ import annotations
 import logging
 import time
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -96,80 +97,66 @@ _STEP_DESCRIPTIONS: dict[str, dict[str, str]] = {
 # value column when the runner emits sub-step progress — but they line up
 # with the visible work each step actually performs.
 
-_SUBSTEP_RECIPES: dict[str, list[dict[str, str]]] = {
-    "frame_extraction": [
-        {"label": "Probe video", "sub": "ffmpeg · streams", "value": "~0.3s"},
-        {"label": "Extract frames", "sub": "1 fps · 480p", "value": ""},
-        {"label": "Persist frames", "sub": "data/frames/", "value": "~5s"},
-    ],
-    "scene_detection": [
-        {"label": "Read frames", "sub": "PySceneDetect input", "value": "~0.5s"},
-        {"label": "Detect cuts", "sub": "adaptive threshold", "value": ""},
-        {"label": "Pick keyframes", "sub": "1 per scene", "value": "~2s"},
-        {"label": "Persist scenes", "sub": "keyframes_metadata.json", "value": "~1s"},
-    ],
-    "visual_analysis": [
-        {"label": "Load YOLOv8 weights", "sub": "ultralytics", "value": "~0.4s"},
-        {"label": "Load MTCNN", "sub": "facenet-pytorch", "value": "~0.6s"},
-        {"label": "Detect objects", "sub": "per scene", "value": ""},
-        {"label": "Detect faces", "sub": "per scene", "value": ""},
-        {"label": "Persist tags", "sub": "tags_per_scene.json", "value": "~15s"},
-    ],
-    "embeddings": [
-        {"label": "Load CLIP", "sub": "ViT-B/32", "value": "~1s"},
-        {"label": "Encode keyframes", "sub": "batch · GPU/CPU", "value": ""},
-        {"label": "Persist embeddings", "sub": "keyframe_embeddings.npy", "value": "~2s"},
-    ],
-    "llm_description": [
-        {"label": "Load Moondream2", "sub": "transformers", "value": "~6s"},
-        {"label": "Describe scenes", "sub": "per keyframe", "value": ""},
-        {"label": "Persist descriptions", "sub": "scene_descriptions.json", "value": "~3s"},
-    ],
-}
+_SUBSTEP_RECIPES: MappingProxyType[str, tuple[dict[str, str], ...]] = MappingProxyType(
+    {
+        "frame_extraction": (
+            {"label": "Probe video", "sub": "ffmpeg · streams", "value": "~0.3s"},
+            {"label": "Extract frames", "sub": "1 fps · 480p", "value": ""},
+            {"label": "Persist frames", "sub": "data/frames/", "value": "~5s"},
+        ),
+        "scene_detection": (
+            {"label": "Read frames", "sub": "PySceneDetect input", "value": "~0.5s"},
+            {"label": "Detect cuts", "sub": "adaptive threshold", "value": ""},
+            {"label": "Pick keyframes", "sub": "1 per scene", "value": "~2s"},
+            {"label": "Persist scenes", "sub": "keyframes_metadata.json", "value": "~1s"},
+        ),
+        "visual_analysis": (
+            {"label": "Load YOLOv8 weights", "sub": "ultralytics", "value": "~0.4s"},
+            {"label": "Load MTCNN", "sub": "facenet-pytorch", "value": "~0.6s"},
+            {"label": "Detect objects", "sub": "per scene", "value": ""},
+            {"label": "Detect faces", "sub": "per scene", "value": ""},
+            {"label": "Persist tags", "sub": "tags_per_scene.json", "value": "~15s"},
+        ),
+        "embeddings": (
+            {"label": "Load CLIP", "sub": "ViT-B/32", "value": "~1s"},
+            {"label": "Encode keyframes", "sub": "batch · GPU/CPU", "value": ""},
+            {"label": "Persist embeddings", "sub": "keyframe_embeddings.npy", "value": "~2s"},
+        ),
+        "llm_description": (
+            {"label": "Load Moondream2", "sub": "transformers", "value": "~6s"},
+            {"label": "Describe scenes", "sub": "per keyframe", "value": ""},
+            {"label": "Persist descriptions", "sub": "scene_descriptions.json", "value": "~3s"},
+        ),
+    }
+)
+
+_DEFAULT_RECIPE: tuple[dict[str, str], ...] = (
+    {"label": "Load weights", "sub": "", "value": ""},
+    {"label": "Run", "sub": "", "value": ""},
+    {"label": "Persist outputs", "sub": "", "value": ""},
+)
+
+
+_ACTIVE_STATUS_BY_INDEX = ("done", "active")  # i=0 → done, i=1 → active, else pending
 
 
 def _fallback_substeps(step_name: str, step_state: str) -> list[dict[str, str]]:
     """Per-step synthetic substeps so the right pane renders meaningfully.
 
-    For each pipeline step we emit its known sub-tasks (recipe in
-    ``_SUBSTEP_RECIPES``) with statuses derived from the parent step's
-    state:
-
-      step.state == 'active'  → first → done, second → active, rest pending
-      step.state == 'done'    → all done
-      otherwise (pending)     → all pending
-
-    Falls back to the generic load/run/persist trio if a step name has no
-    recipe (e.g. user-defined steps in a future release).
+    Status derived from the parent step's state:
+      'done'   → all done
+      'active' → first sub done, second active, remainder pending
+      else     → all pending
     """
-    recipe = _SUBSTEP_RECIPES.get(step_name)
-    if recipe is None:
-        recipe = [
-            {"label": "Load weights", "sub": "", "value": ""},
-            {"label": "Run", "sub": "", "value": ""},
-            {"label": "Persist outputs", "sub": "", "value": ""},
+    recipe = _SUBSTEP_RECIPES.get(step_name, _DEFAULT_RECIPE)
+    if step_state == "done":
+        return [{**r, "status": "done"} for r in recipe]
+    if step_state == "active":
+        return [
+            {**r, "status": _ACTIVE_STATUS_BY_INDEX[i] if i < 2 else "pending"}
+            for i, r in enumerate(recipe)
         ]
-
-    def with_status(state: str) -> list[dict[str, str]]:
-        if state == "done":
-            return [{**r, "status": "done"} for r in recipe]
-        if state == "active":
-            # First sub-task is treated as done (model load), middle one
-            # active, remainder pending — gives the panel a believable
-            # "in-flight" silhouette without faking percentages.
-            out: list[dict[str, str]] = []
-            for i, r in enumerate(recipe):
-                if i == 0:
-                    status = "done"
-                elif i == 1:
-                    status = "active"
-                else:
-                    status = "pending"
-                out.append({**r, "status": status})
-            return out
-        return [{**r, "status": "pending"} for r in recipe]
-
-    return with_status(step_state)
+    return [{**r, "status": "pending"} for r in recipe]
 
 
 # ── Stats aggregation ─────────────────────────────────────────────────────────

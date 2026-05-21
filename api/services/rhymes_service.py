@@ -301,21 +301,11 @@ def _signals_for_pair(
     anchor_data: dict | None,
     selected_echo: dict | None,
 ) -> list[dict]:
-    """Per-pair similarity breakdown for the Rimas inspector card.
+    """Synthetic 5-row similarity breakdown for the Rimas inspector card.
 
-    The shipped M1 retrieval computes a single cosine score over the
-    fused CLIP embedding. The prototype's "Why this rhyme" panel shows
-    a richer breakdown (visual / composition / semantic / colour / fused)
-    that the M3 multi-encoder reranker (CLIP + composition cues +
-    sentence-T5 + colour histograms) will populate from real signals.
-    Until then this function synthesizes a plausible breakdown centred
-    on the real cosine score — the components are deterministic per
-    (anchor, echo) pair (seeded by the two scene ids) so they don't
-    shimmer across reloads.
-
-    The synthetic flag is preserved in the ``key`` field so a future
-    template can distinguish real-vs-synthetic if needed; downstream
-    rendering is unaware of the distinction today.
+    Components other than visual/fused are deterministically derived from
+    the (anchor, echo) scene-id pair so the bars stay stable across
+    reloads. Replace when the M3 multi-encoder reranker lands.
     """
     if anchor_data is None or selected_echo is None:
         return []
