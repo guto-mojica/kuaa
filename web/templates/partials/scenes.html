@@ -13,6 +13,10 @@
       hx-target="#scenes-grid"
       hx-swap="innerHTML">
 
+    {% if current_slug %}
+    <input type="hidden" name="film" value="{{ current_slug }}">
+    {% endif %}
+
     <div class="scenes-filter-bar">
         <input id="scenes-keyword"
                name="q"

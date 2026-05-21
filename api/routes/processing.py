@@ -59,7 +59,8 @@ def build_processing_context() -> dict:
     from cinemateca.library import scan_library
 
     films = scan_library(Path(cfg.paths.library_dir))
-    jobs = active_jobs()
+    from api.jobs import _registry
+    jobs = _registry.all()
 
     return {"films": films, "step_defs": STEP_DEFS, "jobs": jobs}
 
