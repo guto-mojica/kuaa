@@ -374,8 +374,8 @@ def test_eval_page_shows_seeded_queries(client, monkeypatch, tmp_path):
     # both. There's no other ``ev-q`` token in the page chrome so this
     # count is exact.
     queue_row_hits = html.count('class="ev-q"') + html.count('class="ev-q cur"')
-    assert queue_row_hits == 3, (
-        f"expected 3 queue rows in /eval after seeding, got {queue_row_hits}"
-    )
+    assert (
+        queue_row_hits == 3
+    ), f"expected 3 queue rows in /eval after seeding, got {queue_row_hits}"
     # The first seeded query's text should appear in the queue pane.
     assert "duas pessoas conversando" in html

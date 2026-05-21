@@ -18,7 +18,6 @@ from api.deps import get_config, make_ctx
 from api.routes import (
     about,
     annotate,
-    eval as eval_routes,
     export,
     library,
     palette,
@@ -27,6 +26,9 @@ from api.routes import (
     scenes,
     search,
     tabs,
+)
+from api.routes import (
+    eval as eval_routes,
 )
 from api.services.annotations import build_annotate_context
 from api.services.chrome_service import build_chrome_context
