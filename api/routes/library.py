@@ -89,11 +89,11 @@ async def api_library_add(
 
     cfg = get_config()
     library_dir = Path(cfg.paths.library_dir)
-    video = Path(video_path.strip())
+    video = Path(video_path.strip()).expanduser()
 
     # Accept a bare filename — resolve against the raw dir.
     if not video.is_absolute():
-        candidate = Path(cfg.paths.data_dir) / "raw" / video
+        candidate = Path(cfg.paths.raw_dir) / video
         if candidate.exists():
             video = candidate
 
@@ -119,6 +119,14 @@ async def api_library_add(
         return templates.TemplateResponse(
             request, "partials/add_film_form.html", ctx
         )
+
+    # Symlink the source file into the per-film raw/ dir so the pipeline
+    # can find it regardless of where the original lives on disk.
+    raw_dir = library_dir / slug / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    link = raw_dir / video.name
+    if not link.exists() and not link.is_symlink():
+        link.symlink_to(video.resolve())
 
     return _tree_response(request)
 
