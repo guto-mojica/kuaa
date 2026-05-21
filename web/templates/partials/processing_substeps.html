@@ -1,0 +1,45 @@
+{% from "partials/_icons.html" import icon %}
+{#- Right pane (.p-rp) "active step detail": shows the currently
+    running pipeline step's sub-steps + optional GPU resource block.
+
+    M1 stub: ``active_step`` populated from the running job's current
+    step (label + light description); ``substeps`` is a thin synthetic
+    list ("loading model" / "running detection" / "persisting outputs")
+    so the layout renders honestly without a real sub-step instrumentation
+    pass. GPU card is gated by ``cfg.proc.gpu_metrics_enabled`` — off by
+    default; when off the section is omitted (not a placeholder, by
+    design: a fake bar would lie about hardware utilisation). -#}
+<div class="head">
+  <h3>
+    <span class="dot"></span>
+    {{ _("Step") }} {{ active_step.idx + 1 }}: {{ active_step.label }}
+  </h3>
+  <span class="sub">{{ active_step.detail }}</span>
+</div>
+<div class="inner">
+  <p class="what">{{ active_step.description }}</p>
+
+  <section class="substeps">
+    <h3 class="sect-head">{{ _("SUB-STEPS") }}</h3>
+    {% for s in active_step.substeps %}
+      <div class="substep {{ s.status }}">
+        <span class="icn">{{ icon('check' if s.status == 'done' else 'circle', 12) }}</span>
+        <span class="lab">{{ s.label }}</span>
+        <span class="v">{{ s.value }}</span>
+      </div>
+    {% endfor %}
+  </section>
+
+  {% if cfg.proc.gpu_metrics_enabled and gpu_metrics %}
+  <section class="gpu-card">
+    <h3 class="sect-head">{{ _("GPU") }}</h3>
+    {% for m in gpu_metrics %}
+      <div class="gpu-row">
+        <span class="lab">{{ m.label }}</span>
+        <span class="track" style="--p: {{ '%.0f'|format(m.value * 100) }}%;"></span>
+        <span class="v">{{ '%.0f'|format(m.value * 100) }}%</span>
+      </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+</div>

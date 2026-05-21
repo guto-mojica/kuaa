@@ -10,15 +10,100 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ## [Não lançado]
 
-Funcionalidades planejadas para as próximas versões:
+### Adicionado
 
-- Descritor de cenas padrão agora é Moondream 2 via transformers (GPU por
-  wheel PyTorch pré-compilado em Linux/Windows/macOS, sem build de fonte);
-  backend GGUF mantido como opção (`scene_describer: moondream_gguf`).
-  transformers fixado em `>=4.44,<5`; uv.lock passa a ser versionado.
+- **Mojica · Frame.io redesign** — nova identidade visual (dark frio + acento
+  roxo), chrome de 5 abas (adiciona **Rimas Visuais** para rimas visuais
+  cross-film), abas Buscar/Cenas/Anotar/Proc redesenhadas, nova superfície
+  About e novo Eval set builder atrás de flag admin. UI espelha o protótipo
+  entregue em `claude_design/mojica-cinemateca/`.
+- **Serviço Rimas** — kNN por cosseno cross-film sobre as embeddings CLIP de
+  keyframe já existentes (MVP stub; controles de MMR/diversidade ficam para M3).
+- **Eval set builder** — persistência de notas em JSONL + métricas
+  P@K / nDCG / inversões / κ de Cohen; UI keyboard-first em `/eval`
+  (gated por admin).
+- **Camada de polish** — bus de toasts, command palette (⌘K), overlay de
+  ajuda de teclado (`?`).
+- **Fontes self-hosted** — Geist + JetBrains Mono offline (WOFF2).
+
+### Mudado
+
+- **Design tokens** — troca completa da paleta de Celluloid Amber para o
+  roxo Frame.io.
+- **Split de CSS** — `main.css` foi quebrado em 12 módulos (um por superfície:
+  `fx`, `chrome`, `buscar`, `cenas`, `anotar`, `rimas`, `proc`, `polish`,
+  `about`, `eval`, `fonts` + `main` reduzido a tokens/reset/body).
+- **base.html** — novo layout de shell (TopBar de 52px + IconRail de 56px +
+  LeftPane de 248px + área principal + painel direito opcional).
+- **i18n** — ~280 novos msgids extraídos e traduzidos PT/EN.
+
+### Notas
+
+- Suite de testes: **425 → 546 passando** (baseline → pós-redesign).
+- **32 novos commits** distribuídos em **10 fases** (Tasks 1–36) na branch
+  `worktree-mojica-redesign`.
+- O markup legado `.shell > .sidebar` de v0.3 segue aninhado dentro de
+  `.ch-main` como wrap transicional — o unwrap final do conteúdo das abas
+  (Phase 2 expansion) está adiado; o novo chrome cobre tudo visualmente e
+  nenhuma regressão é exposta ao usuário final.
+
+---
+
+## [0.5.0-beta] — 2026-05-20
+
+Sinais de produção, pacote de lançamento e proveniência de execução.
+
+### Adicionado
+
+- **Exportações estruturadas** — catálogo em JSON e CSV via pipeline e endpoints FastAPI.
+- **Run manifests** — `run_manifest.json` por execução CLI e aba Processing, com proveniência completa (versão, passos, duração, artefatos).
+- **Pacote de lançamento** — case study público, kit de comunicações, scripts de vídeo demo, notas de release, `scripts/check_launch_package.py` com testes de completude.
+- **Demo bundle builder** — `scripts/prepare_demo.py` empacota catálogo pré-indexado para distribuição.
+
+---
+
+## [0.4.0-beta] — 2026-05-20
+
+Acervo multi-filme completo (T1–T11), CLI unificada, busca aprimorada,
+domain packs, framework de avaliação e demo scaffold.
+
+### Adicionado
+
+- **Acervo multi-filme (T1–T11)** — registry em `data/library/films.json`,
+  layout por filme em `data/library/<slug>/`, busca e navegação cross-film,
+  seletor de filme no sidebar (HTMX), script de migração idempotente
+  (`scripts/migrate_flat_to_library.py`), pipeline com `--slug`.
+- **CLI unificada** — todos os pontos de entrada sob um único app Typer
+  (`cinemateca serve / process / info / library / reembed-all / config`).
+- **Domain packs** — `archive` e `media_broadcast` com prompts específicos
+  por domínio para os describers transformers e GGUF.
+- **Framework de avaliação** — métricas de retrieval (`Recall@k`, `MRR`,
+  `nDCG@10`), datasets de eval, relatório JSON/Markdown via `scripts/run_eval.py`.
+- **Demo scaffold** — `config/demo.yaml`, `scripts/prepare_demo.py`,
+  `data/demo/manifest.json`, docs de proveniência e verificação.
+- **Busca aprimorada** — densidade 3× no índice (1:N keyframe/cena),
+  deduplicação de cenas, filtro de tags agregado, observabilidade de busca.
+- **Docs públicos** — ARCHITECTURE, ROADMAP, PROJECT_BRIEF, MODEL_INVENTORY,
+  PRIVACY_OFFLINE, EVALUATION, DOMAIN_PACKS, TASK_BREAKDOWN.
+- Estatísticas de correção de anotações.
+
+### Corrigido
+
+- Propagação de `?film=<slug>` do sidebar para formulário de busca e nav de abas.
+- `aggregate_search` pula filmes com diretório deletado.
+- Slug sanitizado na entrada do pipeline; guard para slug vazio.
+
+---
+
+## [0.3.0] — 2026-05-20
+
+Conclusão da migração Streamlit → FastAPI, com paridade funcional confirmada,
+estabilização da interface e backends de modelo plugáveis.
+
+### Planejado (próximas versões)
+
 - Exportação de catálogo em CSV e JSON estruturado
 - Interface para comparar resultados de diferentes thresholds de detecção
-- Suporte a múltiplos vídeos no mesmo acervo indexado
 - Detector de ambiente baseado em modelo treinado (substituir heurística atual)
 - Docker image para instalação sem dependências manuais
 - Testes de integração com vídeo de referência

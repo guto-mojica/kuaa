@@ -28,6 +28,7 @@ from cinemateca.models.describer._common import (
     PROMPTS,
     build_metadata,
 )
+from cinemateca.models.describer.domain_prompts import prompts_from_config
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,7 @@ class MoondreamTransformersDescriber:
             self.process_limit = cfg.llm.process_limit
             self.descriptions_filename = cfg.llm.descriptions_filename
             self.tags_filename = cfg.llm.tags_filename
+            self.prompts = prompts_from_config(cfg)
         else:
             self.model_id = "vikhyatk/moondream2"
             self.revision = "2025-01-09"
@@ -59,6 +61,7 @@ class MoondreamTransformersDescriber:
             self.process_limit = None
             self.descriptions_filename = "scene_descriptions.json"
             self.tags_filename = "scene_tags.json"
+            self.prompts = dict(PROMPTS)
 
     def _warn_if_cpu_torch(self) -> None:
         """Loud, self-announcing diagnostic for the silent CPU regression.
@@ -154,7 +157,7 @@ class MoondreamTransformersDescriber:
         """Return full metadata dict for a single keyframe."""
         self._load_model()
         raw = {}
-        for field, (prompt, max_tokens) in PROMPTS.items():
+        for field, (prompt, max_tokens) in self.prompts.items():
             try:
                 raw[field] = self._answer(image_path, prompt, max_tokens)
             except Exception as e:  # noqa: BLE001 - per-field resilience
@@ -194,7 +197,7 @@ class MoondreamTransformersDescriber:
             try:
                 raw = {}
                 self._load_model()
-                for field, (prompt, mx) in PROMPTS.items():
+                for field, (prompt, mx) in self.prompts.items():
                     try:
                         raw[field] = self._answer(row["filepath"], prompt, mx)
                     except Exception as e:  # noqa: BLE001

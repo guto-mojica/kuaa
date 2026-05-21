@@ -1,0 +1,111 @@
+{# Eval set builder — standalone shell, no Mojica chrome (Task 31).
+
+   The /eval surface is admin-only and owns the full viewport: a 3-pane
+   grading workspace with a 24px admin strip + 50px header + 30px footer.
+   No TopBar / IconRail / LeftPane — this template does not extend
+   base.html. The CSS lives in web/static/css/eval.css and is only loaded
+   on this page (not via base.html).
+
+   Context contract (see api/services/eval_service.build_eval_context):
+     run_id, queries, current_query, grades_by_query, annotator_count,
+     iaa_kappa, plus the Task-31 additions:
+     pending_count, conflict_count, graded_count, metrics,
+     grades_for_current, grader_name, grader_initials, token,
+     blind_mode, compare_mode, current_row_scene_id, result_count,
+     session_elapsed. Most ship zeroed/empty until Task 33 seeds queries.
+#}
+<!DOCTYPE html>
+<html lang="{{ lang or 'pt-BR' }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ _('Mojica · Eval set builder') }}</title>
+  <meta name="viewport" content="width=1440">
+  <link rel="stylesheet" href="{{ request.url_for('static', path='css/fonts.css') }}">
+  <link rel="stylesheet" href="{{ request.url_for('static', path='css/main.css') }}">
+  <link rel="stylesheet" href="{{ request.url_for('static', path='css/fx.css') }}">
+  <link rel="stylesheet" href="{{ request.url_for('static', path='css/eval.css') }}">
+  <link rel="stylesheet" href="{{ request.url_for('static', path='css/polish.css') }}">
+  <script src="{{ request.url_for('static', path='js/htmx.min.js') }}" defer></script>
+  <script src="{{ request.url_for('static', path='js/htmx-ext-sse.js') }}" defer></script>
+  <script src="{{ request.url_for('static', path='js/mojica.js') }}" defer></script>
+  <script src="{{ request.url_for('static', path='js/eval.js') }}" defer></script>
+</head>
+<body class="ev-app"
+      data-locale="{{ locale or 'pt_BR' }}"
+      data-grader="{{ grader_name or 'anon' }}"
+      data-run-id="{{ run_id }}"
+      data-token="{{ token or '' }}">
+
+  {# ── Admin strip ─────────────────────────────────────────────────── #}
+  <div class="ev-admin">
+    <span>
+      <span class="badge">{{ _('ADMIN') }}</span>
+      <span style="margin-left: 14px">{{ _('Internal mode · relevance judgment') }}</span>
+    </span>
+    <span>
+      <span>{{ _('run') }} · <b>{{ run_id }}</b></span>
+      <span class="div">·</span>
+      <span>{{ _('annotators') }} <b>{{ annotator_count }}</b></span>
+      <span class="div">·</span>
+      <span>{{ _('Cohen κ') }} <b>{{ '%.2f'|format(iaa_kappa) }}</b></span>
+    </span>
+  </div>
+
+  {# ── Header bar ──────────────────────────────────────────────────── #}
+  <header class="ev-top">
+    <div class="brand">
+      <span class="mark">M</span>
+      <span class="n">Mojica</span>
+      <span class="sub">{{ _('Eval set builder') }} · v0.3</span>
+      <span class="div"></span>
+      <div class="crumb">
+        <span>{{ _('Eval') }}</span>
+        <span class="div">/</span>
+        <span class="runid">{{ _('run') }} {{ run_id }}</span>
+        {% if current_query %}
+        <span class="div">/</span>
+        <span>Q-{{ '%03d'|format(current_query.id) if current_query.id is number else current_query.id }}</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="session-counter">
+      <span><b>{{ graded_count }}</b>/{{ queries|length }}</span>
+      <span class="bar" style="--p: {{ ((graded_count * 100 // queries|length) if queries else 0) }}%;"></span>
+      <span>{{ '%d%%'|format((graded_count * 100 // queries|length) if queries else 0) }}</span>
+    </div>
+    <div class="me">
+      <span class="av">{{ grader_initials or 'AN' }}</span>
+      <span>{{ grader_name or _('anon') }}</span>
+    </div>
+  </header>
+
+  {# ── 3-pane body ────────────────────────────────────────────────── #}
+  <main class="ev-body">
+    {% include "eval/queue.html" %}
+    {% include "eval/rows.html" %}
+    {% include "eval/metrics.html" %}
+  </main>
+
+  {# ── Footer with keyboard shortcuts ──────────────────────────────── #}
+  <footer class="ev-bot">
+    <span>
+      <span class="mode">EVAL</span>
+    </span>
+    <div class="keys">
+      <span class="k"><b>0/1/2/3</b>{{ _('grade') }}</span>
+      <span class="k"><b>S</b>{{ _('skip') }}</span>
+      <span class="k"><b>j/k</b>{{ _('nav') }}</span>
+      <span class="k"><b>⌘⏎</b>{{ _('save & advance') }}</span>
+      <span class="k"><b>⌘E</b>{{ _('export') }}</span>
+      <span class="k"><b>?</b>{{ _('help') }}</span>
+    </div>
+    <div class="r">
+      <span>{{ _('row') }} <b>{{ (current_row + 1) if current_row is defined and current_row is not none else 1 }}</b>/{{ result_count if result_count is defined else 0 }}</span>
+      <span>Q <b>{{ graded_count }}</b>/<b>{{ queries|length }}</b></span>
+      <span>{{ _('session') }} <b>{{ session_elapsed or '00:00' }}</b></span>
+      <span>v1.0.0</span>
+    </div>
+  </footer>
+
+</body>
+</html>

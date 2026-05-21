@@ -1,0 +1,17 @@
+<div class="tree-node tree-node--confirm">
+    <span class="remove-confirm__label">{{ _("Remove") }} <em>{{ film_title }}</em>?</span>
+    <form class="remove-confirm__actions"
+          hx-post="/api/library/remove/{{ slug }}"
+          hx-target="#library-tree"
+          hx-swap="innerHTML">
+        <button type="submit" name="wipe" value=""
+                class="remove-btn">{{ _("Library only") }}</button>
+        <button type="submit" name="wipe" value="1"
+                class="remove-btn remove-btn--wipe">{{ _("+ wipe data") }}</button>
+        <button type="button"
+                class="remove-btn remove-btn--cancel"
+                hx-get="/api/library/filter"
+                hx-target="#library-tree"
+                hx-swap="innerHTML">{{ _("Cancel") }}</button>
+    </form>
+</div>

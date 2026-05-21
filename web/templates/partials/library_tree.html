@@ -1,8 +1,3 @@
-{# v0.3 is SINGLE-FILM: this is an HONEST global-artifact summary plus a
-   plain raw-video inventory. There is NO per-film selection (selecting a
-   film would not change context in v0.3, so the affordance is gone) and
-   NO fabricated per-file scene counts / processed badges — processed
-   state is GLOBAL, reported once below. #}
 {% from "partials/_icons.html" import icon %}
 {% if library_state %}
 <div class="library-state" id="library-state">
@@ -30,11 +25,35 @@
 
 {% if films %}
     {% for film in films %}
-    <div class="tree-node tree-node--inventory">
+    <div class="tree-node{% if film.slug == active_film %} tree-node--active{% endif %}"
+         hx-get="/api/library/select/{{ film.slug }}"
+         hx-swap="none">
         {{ icon("film-strip") }}
         <span class="tree-node__title">{{ film.title }}</span>
+        <span class="tree-node__trailing">
+            {% if film.scene_count > 0 %}
+            <span class="tree-node__count">{{ film.scene_count }}</span>
+            {% endif %}
+            {% if film.is_registered %}
+            <span class="tree-node__remove"
+                  hx-get="/api/library/remove-confirm/{{ film.slug }}"
+                  hx-target="closest .tree-node"
+                  hx-swap="outerHTML"
+                  hx-trigger="click consume"
+                  title="{{ _('Remove') }}">×</span>
+            {% endif %}
+        </span>
     </div>
     {% endfor %}
 {% else %}
     <p class="tree-empty">{{ _("No films in library") }}</p>
 {% endif %}
+
+<div id="add-film-zone">
+    <div class="tree-node tree-node--add"
+         hx-get="/api/library/add-form"
+         hx-target="#add-film-zone"
+         hx-swap="innerHTML">
+        + {{ _("Add film") }}
+    </div>
+</div>

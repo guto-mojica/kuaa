@@ -1,0 +1,18 @@
+{#- One row of the SSE-fed terminal log (.p-log .lines).
+
+    ``line.lv`` is the short level code rendered by proc.css:
+      i = info   d = debug   w = warn   s = success/ok
+
+    ``line.m`` is treated as pre-sanitised markup (the route layer
+    decides whether to emit raw text or annotated spans like
+    ``<b>scene 60</b>``). Currently every line populated server-side is
+    literal text built in Python, so the ``| e`` filter is applied at
+    that site; ``| safe`` here lets a future enrichment pass emit
+    inline ``<span class="v">…</span>`` / ``<b>…</b>`` markers without
+    a template change.
+-#}
+<div class="l-row">
+  <span class="t">{{ line.t }}</span>
+  <span class="lv {{ line.lv }}">{{ line.lv|upper }}</span>
+  <span class="m">{{ line.m | safe }}</span>
+</div>

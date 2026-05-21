@@ -1,0 +1,737 @@
+[
+  {
+    "id": 1,
+    "text": "duas pessoas conversando ao ar livre",
+    "source": "manual",
+    "lang": "pt",
+    "k": 9,
+    "candidate_count": 9,
+    "latency_ms": 231,
+    "created_when": "2026-04-12",
+    "results": [
+      {
+        "scene_id": 11,
+        "film_slug": "jeca",
+        "film_title": "Jeca Tatu",
+        "year": 1959,
+        "timecode": "00:21:58",
+        "description": "Dois caboclos conversam à beira de uma cerca de pau-a-pique.",
+        "tags": [
+          "exterior",
+          "duas-pessoas",
+          "dialogo"
+        ],
+        "score": 0.87,
+        "keyframe_url": "/media/library/jeca/frames/scene_0011.jpg"
+      },
+      {
+        "scene_id": 3,
+        "film_slug": "pagador",
+        "film_title": "O Pagador de Promessas",
+        "year": 1962,
+        "timecode": "00:01:57",
+        "description": "Zé do Burro e Rosa caminham em direção à igreja.",
+        "tags": [
+          "exterior",
+          "rural",
+          "caminhada"
+        ],
+        "score": 0.85,
+        "keyframe_url": "/media/library/pagador/frames/scene_0003.jpg"
+      },
+      {
+        "scene_id": 115,
+        "film_slug": "jeca",
+        "film_title": "Jeca Tatu",
+        "year": 1959,
+        "timecode": "00:22:15",
+        "description": "Conversa entre vizinhos no terreiro da casa.",
+        "tags": [
+          "exterior",
+          "duas-pessoas",
+          "dia"
+        ],
+        "score": 0.84,
+        "keyframe_url": "/media/library/jeca/frames/scene_0115.jpg"
+      },
+      {
+        "scene_id": 6,
+        "film_slug": "cangaceiro",
+        "film_title": "O Cangaceiro",
+        "year": 1953,
+        "timecode": "00:03:08",
+        "description": "Bando observa o horizonte do alto de uma chapada.",
+        "tags": [
+          "exterior",
+          "grupo",
+          "sertao"
+        ],
+        "score": 0.82,
+        "keyframe_url": "/media/library/cangaceiro/frames/scene_0006.jpg"
+      },
+      {
+        "scene_id": 5,
+        "film_slug": "aruanda",
+        "film_title": "Aruanda",
+        "year": 1960,
+        "timecode": "00:02:51",
+        "description": "Quilombolas conversam durante a colheita.",
+        "tags": [
+          "exterior",
+          "labor",
+          "documentario"
+        ],
+        "score": 0.79,
+        "keyframe_url": "/media/library/aruanda/frames/scene_0005.jpg"
+      },
+      {
+        "scene_id": 4,
+        "film_slug": "rio40",
+        "film_title": "Rio, 40 Graus",
+        "year": 1955,
+        "timecode": "00:02:34",
+        "description": "Vendedor de amendoim observa a praia ao longe.",
+        "tags": [
+          "exterior",
+          "rua",
+          "wagon"
+        ],
+        "score": 0.78,
+        "keyframe_url": "/media/library/rio40/frames/scene_0004.jpg"
+      },
+      {
+        "scene_id": 2,
+        "film_slug": "jeca",
+        "film_title": "Jeca Tatu",
+        "year": 1959,
+        "timecode": "00:01:45",
+        "description": "Plano geral da casa do Jeca ao amanhecer.",
+        "tags": [
+          "exterior",
+          "fence",
+          "amanhecer"
+        ],
+        "score": 0.76,
+        "keyframe_url": "/media/library/jeca/frames/scene_0002.jpg"
+      },
+      {
+        "scene_id": 7,
+        "film_slug": "pagador",
+        "film_title": "O Pagador de Promessas",
+        "year": 1962,
+        "timecode": "00:03:18",
+        "description": "Vista panorâmica da serra com a cruz ao fundo.",
+        "tags": [
+          "exterior",
+          "paisagem",
+          "mountain"
+        ],
+        "score": 0.74,
+        "keyframe_url": "/media/library/pagador/frames/scene_0007.jpg"
+      },
+      {
+        "scene_id": 48,
+        "film_slug": "limite",
+        "film_title": "Limite",
+        "year": 1931,
+        "timecode": "00:14:08",
+        "description": "Interior de cabine com figura solitária recortada na janela.",
+        "tags": [
+          "interior",
+          "baixa-luz",
+          "experimental"
+        ],
+        "score": 0.73,
+        "keyframe_url": "/media/library/limite/frames/scene_0048.jpg"
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "text": "cena noturna com fogo",
+    "source": "manual",
+    "lang": "pt",
+    "k": 9,
+    "candidate_count": 9,
+    "latency_ms": 245,
+    "created_when": "2026-04-12",
+    "results": [
+      {
+        "scene_id": 11,
+        "film_slug": "jeca",
+        "film_title": "Jeca Tatu",
+        "year": 1959,
+        "timecode": "00:21:58",
+        "description": "Dois caboclos conversam à beira de uma cerca de pau-a-pique.",
+        "tags": [
+          "exterior",
+          "duas-pessoas",
+          "dialogo"
+        ],
+        "score": 0.87,
+        "keyframe_url": "/media/library/jeca/frames/scene_0011.jpg"
+      },
+      {
+        "scene_id": 3,
+        "film_slug": "pagador",
+        "film_title": "O Pagador de Promessas",
+        "year": 1962,
+        "timecode": "00:01:57",
+        "description": "Zé do Burro e Rosa caminham em direção à igreja.",
+        "tags": [
+          "exterior",
+          "rural",
+          "caminhada"
+        ],
+        "score": 0.85,
+        "keyframe_url": "/media/library/pagador/frames/scene_0003.jpg"
+      },
+      {
+        "scene_id": 115,
+        "film_slug": "jeca",
+        "film_title": "Jeca Tatu",
+        "year": 1959,
+        "timecode": "00:22:15",
+        "description": "Conversa entre vizinhos no terreiro da casa.",
+        "tags": [
+          "exterior",
+          "duas-pessoas",
+          "dia"
+        ],
+        "score": 0.84,
+        "keyframe_url": "/media/library/jeca/frames/scene_0115.jpg"
+      },
+      {
+        "scene_id": 6,
+        "film_slug": "cangaceiro",
+        "film_title": "O Cangaceiro",
+        "year": 1953,
+        "timecode": "00:03:08",
+        "description": "Bando observa o horizonte do alto de uma chapada.",
+        "tags": [
+          "exterior",
+          "grupo",
+          "sertao"
+        ],
+        "score": 0.82,
+        "keyframe_url": "/media/library/cangaceiro/frames/scene_0006.jpg"
+      },
+      {
+        "scene_id": 5,
+        "film_slug": "aruanda",
+        "film_title": "Aruanda",
+        "year": 1960,
+        "timecode": "00:02:51",
+        "description": "Quilombolas conversam durante a colheita.",
+        "tags": [
+          "exterior",
+          "labor",
+          "documentario"
+        ],
+        "score": 0.79,
+        "keyframe_url": "/media/library/aruanda/frames/scene_0005.jpg"
+      },
+      {
+        "scene_id": 4,
+        "film_slug": "rio40",
+        "film_title": "Rio, 40 Graus",
+        "year": 1955,
+        "timecode": "00:02:34",
+        "description": "Vendedor de amendoim observa a praia ao longe.",
+        "tags": [
+          "exterior",
+          "rua",
+          "wagon"
+        ],
+        "score": 0.78,
+        "keyframe_url": "/media/library/rio40/frames/scene_0004.jpg"
+      },
+      {
+        "scene_id": 2,
+        "film_slug": "jeca",
+        "film_title": "Jeca Tatu",
+        "year": 1959,
+        "timecode": "00:01:45",
+        "description": "Plano geral da casa do Jeca ao amanhecer.",
+        "tags": [
+          "exterior",
+          "fence",
+          "amanhecer"
+        ],
+        "score": 0.76,
+        "keyframe_url": "/media/library/jeca/frames/scene_0002.jpg"
+      },
+      {
+        "scene_id": 7,
+        "film_slug": "pagador",
+        "film_title": "O Pagador de Promessas",
+        "year": 1962,
+        "timecode": "00:03:18",
+        "description": "Vista panorâmica da serra com a cruz ao fundo.",
+        "tags": [
+          "exterior",
+          "paisagem",
+          "mountain"
+        ],
+        "score": 0.74,
+        "keyframe_url": "/media/library/pagador/frames/scene_0007.jpg"
+      },
+      {
+        "scene_id": 48,
+        "film_slug": "limite",
+        "film_title": "Limite",
+        "year": 1931,
+        "timecode": "00:14:08",
+        "description": "Interior de cabine com figura solitária recortada na janela.",
+        "tags": [
+          "interior",
+          "baixa-luz",
+          "experimental"
+        ],
+        "score": 0.73,
+        "keyframe_url": "/media/library/limite/frames/scene_0048.jpg"
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "text": "a rider on horseback in a rural field",
+    "source": "manual",
+    "lang": "en",
+    "k": 9,
+    "candidate_count": 9,
+    "latency_ms": 219,
+    "created_when": "2026-04-12",
+    "results": [
+      {
+        "scene_id": 11,
+        "film_slug": "jeca",
+        "film_title": "Jeca Tatu",
+        "year": 1959,
+        "timecode": "00:21:58",
+        "description": "Dois caboclos conversam à beira de uma cerca de pau-a-pique.",
+        "tags": [
+          "exterior",
+          "duas-pessoas",
+          "dialogo"
+        ],
+        "score": 0.87,
+        "keyframe_url": "/media/library/jeca/frames/scene_0011.jpg"
+      },
+      {
+        "scene_id": 3,
+        "film_slug": "pagador",
+        "film_title": "O Pagador de Promessas",
+        "year": 1962,
+        "timecode": "00:01:57",
+        "description": "Zé do Burro e Rosa caminham em direção à igreja.",
+        "tags": [
+          "exterior",
+          "rural",
+          "caminhada"
+        ],
+        "score": 0.85,
+        "keyframe_url": "/media/library/pagador/frames/scene_0003.jpg"
+      },
+      {
+        "scene_id": 115,
+        "film_slug": "jeca",
+        "film_title": "Jeca Tatu",
+        "year": 1959,
+        "timecode": "00:22:15",
+        "description": "Conversa entre vizinhos no terreiro da casa.",
+        "tags": [
+          "exterior",
+          "duas-pessoas",
+          "dia"
+        ],
+        "score": 0.84,
+        "keyframe_url": "/media/library/jeca/frames/scene_0115.jpg"
+      },
+      {
+        "scene_id": 6,
+        "film_slug": "cangaceiro",
+        "film_title": "O Cangaceiro",
+        "year": 1953,
+        "timecode": "00:03:08",
+        "description": "Bando observa o horizonte do alto de uma chapada.",
+        "tags": [
+          "exterior",
+          "grupo",
+          "sertao"
+        ],
+        "score": 0.82,
+        "keyframe_url": "/media/library/cangaceiro/frames/scene_0006.jpg"
+      },
+      {
+        "scene_id": 5,
+        "film_slug": "aruanda",
+        "film_title": "Aruanda",
+        "year": 1960,
+        "timecode": "00:02:51",
+        "description": "Quilombolas conversam durante a colheita.",
+        "tags": [
+          "exterior",
+          "labor",
+          "documentario"
+        ],
+        "score": 0.79,
+        "keyframe_url": "/media/library/aruanda/frames/scene_0005.jpg"
+      },
+      {
+        "scene_id": 4,
+        "film_slug": "rio40",
+        "film_title": "Rio, 40 Graus",
+        "year": 1955,
+        "timecode": "00:02:34",
+        "description": "Vendedor de amendoim observa a praia ao longe.",
+        "tags": [
+          "exterior",
+          "rua",
+          "wagon"
+        ],
+        "score": 0.78,
+        "keyframe_url": "/media/library/rio40/frames/scene_0004.jpg"
+      },
+      {
+        "scene_id": 2,
+        "film_slug": "jeca",
+        "film_title": "Jeca Tatu",
+        "year": 1959,
+        "timecode": "00:01:45",
+        "description": "Plano geral da casa do Jeca ao amanhecer.",
+        "tags": [
+          "exterior",
+          "fence",
+          "amanhecer"
+        ],
+        "score": 0.76,
+        "keyframe_url": "/media/library/jeca/frames/scene_0002.jpg"
+      },
+      {
+        "scene_id": 7,
+        "film_slug": "pagador",
+        "film_title": "O Pagador de Promessas",
+        "year": 1962,
+        "timecode": "00:03:18",
+        "description": "Vista panorâmica da serra com a cruz ao fundo.",
+        "tags": [
+          "exterior",
+          "paisagem",
+          "mountain"
+        ],
+        "score": 0.74,
+        "keyframe_url": "/media/library/pagador/frames/scene_0007.jpg"
+      },
+      {
+        "scene_id": 48,
+        "film_slug": "limite",
+        "film_title": "Limite",
+        "year": 1931,
+        "timecode": "00:14:08",
+        "description": "Interior de cabine com figura solitária recortada na janela.",
+        "tags": [
+          "interior",
+          "baixa-luz",
+          "experimental"
+        ],
+        "score": 0.73,
+        "keyframe_url": "/media/library/limite/frames/scene_0048.jpg"
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "text": "interior baixa luz com figura solitária",
+    "source": "manual",
+    "lang": "pt",
+    "k": 9,
+    "candidate_count": 9,
+    "latency_ms": 267,
+    "created_when": "2026-04-12",
+    "results": [
+      {
+        "scene_id": 11,
+        "film_slug": "jeca",
+        "film_title": "Jeca Tatu",
+        "year": 1959,
+        "timecode": "00:21:58",
+        "description": "Dois caboclos conversam à beira de uma cerca de pau-a-pique.",
+        "tags": [
+          "exterior",
+          "duas-pessoas",
+          "dialogo"
+        ],
+        "score": 0.87,
+        "keyframe_url": "/media/library/jeca/frames/scene_0011.jpg"
+      },
+      {
+        "scene_id": 3,
+        "film_slug": "pagador",
+        "film_title": "O Pagador de Promessas",
+        "year": 1962,
+        "timecode": "00:01:57",
+        "description": "Zé do Burro e Rosa caminham em direção à igreja.",
+        "tags": [
+          "exterior",
+          "rural",
+          "caminhada"
+        ],
+        "score": 0.85,
+        "keyframe_url": "/media/library/pagador/frames/scene_0003.jpg"
+      },
+      {
+        "scene_id": 115,
+        "film_slug": "jeca",
+        "film_title": "Jeca Tatu",
+        "year": 1959,
+        "timecode": "00:22:15",
+        "description": "Conversa entre vizinhos no terreiro da casa.",
+        "tags": [
+          "exterior",
+          "duas-pessoas",
+          "dia"
+        ],
+        "score": 0.84,
+        "keyframe_url": "/media/library/jeca/frames/scene_0115.jpg"
+      },
+      {
+        "scene_id": 6,
+        "film_slug": "cangaceiro",
+        "film_title": "O Cangaceiro",
+        "year": 1953,
+        "timecode": "00:03:08",
+        "description": "Bando observa o horizonte do alto de uma chapada.",
+        "tags": [
+          "exterior",
+          "grupo",
+          "sertao"
+        ],
+        "score": 0.82,
+        "keyframe_url": "/media/library/cangaceiro/frames/scene_0006.jpg"
+      },
+      {
+        "scene_id": 5,
+        "film_slug": "aruanda",
+        "film_title": "Aruanda",
+        "year": 1960,
+        "timecode": "00:02:51",
+        "description": "Quilombolas conversam durante a colheita.",
+        "tags": [
+          "exterior",
+          "labor",
+          "documentario"
+        ],
+        "score": 0.79,
+        "keyframe_url": "/media/library/aruanda/frames/scene_0005.jpg"
+      },
+      {
+        "scene_id": 4,
+        "film_slug": "rio40",
+        "film_title": "Rio, 40 Graus",
+        "year": 1955,
+        "timecode": "00:02:34",
+        "description": "Vendedor de amendoim observa a praia ao longe.",
+        "tags": [
+          "exterior",
+          "rua",
+          "wagon"
+        ],
+        "score": 0.78,
+        "keyframe_url": "/media/library/rio40/frames/scene_0004.jpg"
+      },
+      {
+        "scene_id": 2,
+        "film_slug": "jeca",
+        "film_title": "Jeca Tatu",
+        "year": 1959,
+        "timecode": "00:01:45",
+        "description": "Plano geral da casa do Jeca ao amanhecer.",
+        "tags": [
+          "exterior",
+          "fence",
+          "amanhecer"
+        ],
+        "score": 0.76,
+        "keyframe_url": "/media/library/jeca/frames/scene_0002.jpg"
+      },
+      {
+        "scene_id": 7,
+        "film_slug": "pagador",
+        "film_title": "O Pagador de Promessas",
+        "year": 1962,
+        "timecode": "00:03:18",
+        "description": "Vista panorâmica da serra com a cruz ao fundo.",
+        "tags": [
+          "exterior",
+          "paisagem",
+          "mountain"
+        ],
+        "score": 0.74,
+        "keyframe_url": "/media/library/pagador/frames/scene_0007.jpg"
+      },
+      {
+        "scene_id": 48,
+        "film_slug": "limite",
+        "film_title": "Limite",
+        "year": 1931,
+        "timecode": "00:14:08",
+        "description": "Interior de cabine com figura solitária recortada na janela.",
+        "tags": [
+          "interior",
+          "baixa-luz",
+          "experimental"
+        ],
+        "score": 0.73,
+        "keyframe_url": "/media/library/limite/frames/scene_0048.jpg"
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "text": "cartela de título com escrita branca",
+    "source": "manual",
+    "lang": "pt",
+    "k": 9,
+    "candidate_count": 9,
+    "latency_ms": 198,
+    "created_when": "2026-04-12",
+    "results": [
+      {
+        "scene_id": 11,
+        "film_slug": "jeca",
+        "film_title": "Jeca Tatu",
+        "year": 1959,
+        "timecode": "00:21:58",
+        "description": "Dois caboclos conversam à beira de uma cerca de pau-a-pique.",
+        "tags": [
+          "exterior",
+          "duas-pessoas",
+          "dialogo"
+        ],
+        "score": 0.87,
+        "keyframe_url": "/media/library/jeca/frames/scene_0011.jpg"
+      },
+      {
+        "scene_id": 3,
+        "film_slug": "pagador",
+        "film_title": "O Pagador de Promessas",
+        "year": 1962,
+        "timecode": "00:01:57",
+        "description": "Zé do Burro e Rosa caminham em direção à igreja.",
+        "tags": [
+          "exterior",
+          "rural",
+          "caminhada"
+        ],
+        "score": 0.85,
+        "keyframe_url": "/media/library/pagador/frames/scene_0003.jpg"
+      },
+      {
+        "scene_id": 115,
+        "film_slug": "jeca",
+        "film_title": "Jeca Tatu",
+        "year": 1959,
+        "timecode": "00:22:15",
+        "description": "Conversa entre vizinhos no terreiro da casa.",
+        "tags": [
+          "exterior",
+          "duas-pessoas",
+          "dia"
+        ],
+        "score": 0.84,
+        "keyframe_url": "/media/library/jeca/frames/scene_0115.jpg"
+      },
+      {
+        "scene_id": 6,
+        "film_slug": "cangaceiro",
+        "film_title": "O Cangaceiro",
+        "year": 1953,
+        "timecode": "00:03:08",
+        "description": "Bando observa o horizonte do alto de uma chapada.",
+        "tags": [
+          "exterior",
+          "grupo",
+          "sertao"
+        ],
+        "score": 0.82,
+        "keyframe_url": "/media/library/cangaceiro/frames/scene_0006.jpg"
+      },
+      {
+        "scene_id": 5,
+        "film_slug": "aruanda",
+        "film_title": "Aruanda",
+        "year": 1960,
+        "timecode": "00:02:51",
+        "description": "Quilombolas conversam durante a colheita.",
+        "tags": [
+          "exterior",
+          "labor",
+          "documentario"
+        ],
+        "score": 0.79,
+        "keyframe_url": "/media/library/aruanda/frames/scene_0005.jpg"
+      },
+      {
+        "scene_id": 4,
+        "film_slug": "rio40",
+        "film_title": "Rio, 40 Graus",
+        "year": 1955,
+        "timecode": "00:02:34",
+        "description": "Vendedor de amendoim observa a praia ao longe.",
+        "tags": [
+          "exterior",
+          "rua",
+          "wagon"
+        ],
+        "score": 0.78,
+        "keyframe_url": "/media/library/rio40/frames/scene_0004.jpg"
+      },
+      {
+        "scene_id": 2,
+        "film_slug": "jeca",
+        "film_title": "Jeca Tatu",
+        "year": 1959,
+        "timecode": "00:01:45",
+        "description": "Plano geral da casa do Jeca ao amanhecer.",
+        "tags": [
+          "exterior",
+          "fence",
+          "amanhecer"
+        ],
+        "score": 0.76,
+        "keyframe_url": "/media/library/jeca/frames/scene_0002.jpg"
+      },
+      {
+        "scene_id": 7,
+        "film_slug": "pagador",
+        "film_title": "O Pagador de Promessas",
+        "year": 1962,
+        "timecode": "00:03:18",
+        "description": "Vista panorâmica da serra com a cruz ao fundo.",
+        "tags": [
+          "exterior",
+          "paisagem",
+          "mountain"
+        ],
+        "score": 0.74,
+        "keyframe_url": "/media/library/pagador/frames/scene_0007.jpg"
+      },
+      {
+        "scene_id": 48,
+        "film_slug": "limite",
+        "film_title": "Limite",
+        "year": 1931,
+        "timecode": "00:14:08",
+        "description": "Interior de cabine com figura solitária recortada na janela.",
+        "tags": [
+          "interior",
+          "baixa-luz",
+          "experimental"
+        ],
+        "score": 0.73,
+        "keyframe_url": "/media/library/limite/frames/scene_0048.jpg"
+      }
+    ]
+  }
+]

@@ -1,0 +1,158 @@
+id: media_broadcast
+label: Media broadcast
+description: >
+  Catalog news, documentary, and production-library footage for asset search,
+  reuse review, and editorial licensing workflows.
+
+metadata_fields:
+  - name: description
+    label: Editorial description
+    type: text
+    required: true
+    help: Concise visual description for a producer or media librarian.
+  - name: shot_type
+    label: Shot type
+    type: enum
+    values: [wide, medium, close-up, aerial, screen, graphic, unknown]
+    required: false
+  - name: visible_people
+    label: Visible people
+    type: short_text
+    required: false
+  - name: location_type
+    label: Location type
+    type: enum
+    values: [indoor, outdoor, studio, vehicle, mixed, unknown]
+    required: false
+  - name: action
+    label: Action
+    type: short_text
+    required: false
+  - name: objects
+    label: Objects
+    type: list
+    item_type: string
+    required: false
+  - name: logos_or_text
+    label: Logos or visible text
+    type: text
+    required: false
+  - name: licensing_notes
+    label: Licensing notes
+    type: text
+    required: false
+  - name: reusable_broll_score
+    label: Reusable b-roll score
+    type: integer
+    min: 1
+    max: 5
+    required: false
+
+prompt_templates:
+  description:
+    prompt: "Describe this broadcast footage in one or two sentences for a media asset library. Focus on visible subject, action, and editorial context."
+    max_new_tokens: 90
+  shot_type:
+    prompt: "What is the shot type? Answer with one phrase such as wide, medium, close-up, aerial, screen, graphic, or unknown."
+    max_new_tokens: 15
+  visible_people:
+    prompt: "How many people are visible and what are their apparent roles? Answer briefly."
+    max_new_tokens: 35
+  location_type:
+    prompt: "What location type is visible? Answer with indoor, outdoor, studio, vehicle, mixed, or unknown."
+    max_new_tokens: 15
+  action:
+    prompt: "What is the main visible action? Answer in a short phrase."
+    max_new_tokens: 30
+  objects:
+    prompt: "List the most searchable visible objects, comma-separated. Maximum 8 items."
+    max_new_tokens: 50
+  logos_or_text:
+    prompt: "Are logos, brand marks, captions, lower thirds, or readable text visible? Summarize briefly or answer none."
+    max_new_tokens: 50
+  licensing_notes:
+    prompt: "Note visible rights or reuse concerns such as recognizable faces, brands, artwork, screens, or private property. Be brief."
+    max_new_tokens: 60
+  reusable_broll_score:
+    prompt: "Rate this shot's reusable b-roll value from 1 to 5, where 5 is highly reusable. Answer with one number and a short reason."
+    max_new_tokens: 30
+
+taxonomy:
+  shot_type:
+    - wide
+    - medium
+    - close-up
+    - aerial
+    - screen
+    - graphic
+    - unknown
+  location_type:
+    - indoor
+    - outdoor
+    - studio
+    - vehicle
+    - mixed
+    - unknown
+  rights_flags:
+    - recognizable-face
+    - brand-logo
+    - readable-text
+    - artwork
+    - screen-content
+    - private-property
+    - none-visible
+
+filters:
+  - name: shot_type
+    label: Shot type
+    source: _raw_responses.shot_type
+    type: enum
+  - name: location_type
+    label: Location type
+    source: _raw_responses.location_type
+    type: enum
+  - name: rights_flags
+    label: Rights flags
+    source: _raw_responses.licensing_notes
+    type: text_contains
+  - name: reusable_broll_score
+    label: B-roll score
+    source: _raw_responses.reusable_broll_score
+    type: numeric_range
+
+export_mapping:
+  scene_id: scene_id
+  keyframe_path: keyframe_path
+  description: description
+  shot_type: _raw_responses.shot_type
+  visible_people: _raw_responses.visible_people
+  location_type: _raw_responses.location_type
+  action: _raw_responses.action
+  objects: objects
+  logos_or_text: _raw_responses.logos_or_text
+  licensing_notes: _raw_responses.licensing_notes
+  reusable_broll_score: _raw_responses.reusable_broll_score
+  tags: tags
+
+sample_outputs:
+  - scene_id: 101
+    description: "A medium shot of a reporter speaking beside a city street."
+    shot_type: medium
+    visible_people: "1 reporter, pedestrians in background"
+    location_type: outdoor
+    action: reporter standup
+    logos_or_text: "microphone flag visible"
+    licensing_notes: "recognizable faces and possible broadcaster logo"
+    reusable_broll_score: 3
+  - scene_id: 102
+    description: "Wide b-roll of commuters entering a train station."
+    shot_type: wide
+    visible_people: "crowd of commuters"
+    location_type: outdoor
+    action: people entering station
+    logos_or_text: "station signage visible"
+    licensing_notes: "readable signage and many recognizable faces"
+    reusable_broll_score: 4
+
+evaluation:
+  queries: data/eval/media_broadcast_queries.yaml

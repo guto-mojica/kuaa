@@ -68,6 +68,8 @@ These words have fixed meaning in code, URLs, translation keys, and UI.
 | Sobre | About | Institutional credits modal/page |
 | Tag | Tag | Label applicable to a scene (automatic or manual) |
 | Pipeline | Pipeline | Step sequence: frames → scenes → visual → embeddings → llm |
+| Rimas | Rhymes | Cross-film visual similarity matches (Rimas Visuais tab) |
+| Âncora | Anchor | The scene whose visual rhymes are being explored |
 
 Terms to avoid because they carry domain ambiguity:
 
@@ -316,6 +318,9 @@ Last updated: in the commit message that touched CLAUDE.md.
   no source build). GGUF kept opt-in. transformers pinned >=4.44,<5 (tf5
   hard-fails for every moondream2 revision, verified). uv.lock now committed.
   See docs/superpowers/plans/2026-05-18-transformers-describer-default.md
+- [x] Multi-film library: per-film dirs, native file picker, film registration
+  and removal, `scan_library` multi-film aware, Processing dropdown synced to
+  active-film cookie, slug read from `film.json`
 
 Keep this list updated as steps complete.
 
@@ -348,7 +353,11 @@ features cut.
   (412, 512) float32 L2-normalised, mapping schema verified. Suite
   332 → 413 passing on `feat/clap-audio-kickoff`. See
   `docs/superpowers/plans/2026-05-20-clap-audio-embeddings.md`.
-- [ ] Eval annotation tool (FastAPI page behind admin flag; 5-sample validation)
+- [x] Eval annotation tool (FastAPI page behind admin flag; 5-sample validation)
+  — lands as `/eval` at admin-flagged route; standalone 3-pane UI + JSONL grade
+  persistence + P@K / nDCG / inversions / Cohen's κ metrics + keyboard router
+  (0/1/2/3/S, j/k, ⌘⏎) + `cinemateca eval seed` CLI complete on
+  `worktree-mojica-redesign`. M3 curator-pair seed work continues.
 - [ ] Pre-launch LinkedIn "I'm building this" post
 
 ### Month 2 — Retrieval depth + audio (HARD FREEZE on new features)
@@ -361,7 +370,10 @@ features cut.
 
 ### Month 3 — Fusion + visual rhymes + eval annotation
 - [ ] Cross-modal CLIP × CLAP fusion search
-- [ ] Visual rhymes (cross-film kNN + MMR diversity)
+- [x] Visual rhymes (cross-film kNN + MMR diversity) — stub MVP shipped with
+  Mojica redesign: cosine kNN cross-film over existing CLIP keyframe embeddings,
+  `Rimas Visuais` tab fully wired (anchor + echoes UI). MMR / diversity
+  controls and curated single-anchor refinements deferred to M3.
 - [ ] 50–100 curator-annotated eval pairs
 - [ ] Landing-page README draft; blog post outline
 

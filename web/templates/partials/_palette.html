@@ -1,0 +1,41 @@
+{#- Command palette scaffold (Phase 7 / Task 27).
+
+    Rendered once into base.html at page load (hidden); ``palette.js``
+    toggles ``[hidden]`` on the outer ``.cp-back`` and fills ``#cp-list``
+    in response to user input. The DOM here is the stable shell — header
+    (.cp-input), scroll body (.cp-list), and footer (.cp-foot) — that the
+    polish.css ``.cp-*`` rules already style. No HTMX involved; the
+    palette is fully client-driven so the open-on-⌘K path can render its
+    first frame before any network call resolves.
+
+    Class names follow web/static/css/polish.css verbatim:
+      * ``.cp-back``  — backdrop (fixed, full-viewport)
+      * ``.cp-panel`` — centred panel (640px)
+      * ``.cp-input``, ``.cp-input .ico``, ``.cp-input .esc``
+      * ``.cp-list``, ``.cp-group``, ``.cp-item``, ``.cp-item.sel`` (selection)
+      * ``.cp-foot``, ``.cp-foot .keys .k``
+      * ``.cp-empty`` (no-results state)
+-#}
+{% from "partials/_icons.html" import icon %}
+<div class="cp-back" id="palette" hidden role="dialog" aria-modal="true" aria-labelledby="cp-input">
+  <div class="cp-panel" role="document" data-prevent-close>
+    <div class="cp-input">
+      <span class="ico">{{ icon('search', 14) }}</span>
+      <input type="text" id="cp-input" autocomplete="off" spellcheck="false"
+             aria-label="{{ _('Command palette') }}"
+             placeholder="{{ _('Search films, scenes, actions…') }}">
+      <span class="esc">esc</span>
+    </div>
+    <div id="cp-list" class="cp-list" role="listbox" aria-label="{{ _('Palette results') }}">
+      {# Filled imperatively by palette.js on every input event. #}
+    </div>
+    <div class="cp-foot">
+      <div class="keys">
+        <span class="k"><b>↑↓</b>{{ _('navigate') }}</span>
+        <span class="k"><b>⏎</b>{{ _('select') }}</span>
+        <span class="k"><b>esc</b>{{ _('close') }}</span>
+      </div>
+      <span id="cp-count"></span>
+    </div>
+  </div>
+</div>

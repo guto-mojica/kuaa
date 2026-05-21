@@ -212,22 +212,59 @@ local em cada máquina. O `.gitignore` já está configurado para isso.
 Com o ambiente virtual ativado e dependências instaladas:
 
 ```bash
-# Iniciar a interface Streamlit (usa config/default.yaml)
-streamlit run app.py
+# Demo público M1 com artefatos pré-computados
+uv run python scripts/prepare_demo.py --download
+uv run app.py --config config/demo.yaml
+
+# Avaliação M2 do índice demo preparado
+uv run python scripts/run_eval.py --config config/demo.yaml \
+  --queries data/eval/archive_demo_queries.yaml \
+  --output-dir data/eval/reports
+
+# Interface principal FastAPI + HTMX
+uv run app.py
 
 # Ou com seu arquivo de configuração local:
-streamlit run app.py
-# e configure os caminhos dentro da interface
+uv run app.py --config config/local.yaml
 ```
 
-O Streamlit abrirá automaticamente no navegador padrão.
-Se não abrir, acesse manualmente: **http://localhost:8501**
+Acesse manualmente: **http://localhost:8501**
+
+Para detalhes do demo público, veja `docs/DEMO.md`. Para métricas de busca,
+veja `docs/EVALUATION.md`.
+
+### Domain packs
+
+O domínio padrão é `archive`, definido em `config/domains/archive.yaml`.
+Para experimentar outro domínio, aponte a configuração para um pack diferente:
+
+```yaml
+domain:
+  pack: "media_broadcast"
+  packs_dir: "config/domains"
+```
+
+Os packs mudam prompts, campos e mapeamento de exportação sem alterar o
+pipeline. Veja `docs/DOMAIN_PACKS.md`.
+
+### Exports and run manifests
+
+Depois que um catálogo existir, a interface pode exportar JSON e CSV:
+
+```bash
+curl -L http://localhost:8501/api/export/catalog.json -o catalog_export.json
+curl -L http://localhost:8501/api/export/catalog.csv -o catalog_export.csv
+```
+
+Cada execução do pipeline grava `run_manifest.json` junto dos metadados,
+registrando entrada, hash de config, domínio, modelos, etapas e artefatos.
+Veja `docs/API.md` e `docs/OPERATIONS.md`.
 
 **Para rodar em uma máquina remota** (servidor da cinemateca) e
 acessar do seu computador:
 ```bash
 # Na máquina remota:
-streamlit run app.py --server.address 0.0.0.0 --server.port 8501
+uv run app.py --host 0.0.0.0 --port 8501
 
 # No seu navegador local:
 # http://IP-DA-MAQUINA-REMOTA:8501
@@ -236,10 +273,10 @@ streamlit run app.py --server.address 0.0.0.0 --server.port 8501
 **Para manter rodando após fechar o terminal** (em servidores):
 ```bash
 # Usando nohup (simples):
-nohup streamlit run app.py --server.address 0.0.0.0 > logs/streamlit.log 2>&1 &
+nohup uv run app.py --host 0.0.0.0 --port 8501 > logs/cinemateca-web.log 2>&1 &
 
 # O processo continua mesmo após logout. Para parar:
-pkill -f "streamlit run app.py"
+pkill -f "uv run app.py"
 ```
 
 ---
@@ -418,7 +455,9 @@ data/
     ├── keyframes_metadata.json     ← timecodes de cada cena
     ├── visual_analysis.json        ← faces, objetos, ambiente
     ├── scene_descriptions.json     ← descrições geradas pelo LLM
-    └── scene_tags.json             ← índice invertido de tags
+    ├── scene_tags.json             ← índice invertido de tags
+    ├── manual_annotations.json     ← anotações humanas (quando houver)
+    └── run_manifest.json           ← proveniência da última execução
 ```
 
 Estes arquivos são a "memória" do sistema — uma vez gerados, a

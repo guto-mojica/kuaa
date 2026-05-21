@@ -8,6 +8,13 @@ project:
   name: "Cinemateca AI"
   version: "0.1.0-alpha"
 
+# ── Domain pack ───────────────────────────────────────────────────────────────
+# Domain packs define prompts, metadata fields, filters, taxonomy, and export
+# mapping. The archive pack preserves current behavior.
+domain:
+  pack: "archive"
+  packs_dir: "config/domains"
+
 # ── Caminhos ─────────────────────────────────────────────────────────────────
 paths:
   library_dir: "data/library"   # root of the per-film layout (multi-film epic)
@@ -100,6 +107,53 @@ audio_embeddings:
   filename: "clap_embeddings.npy"
   mapping_filename: "audio_mapping.json"
 
+# ── Search UI / retrieval knobs (Mojica redesign) ────────────────────────────
+# Read-only display knobs surfaced in the Buscar tab's `.knob` row + the chips
+# that toggle modality. Most are placeholders for Month-2 retrieval-depth work
+# (hybrid + reranker + multimodal); the flags default OFF so the chrome ships
+# disabled-by-default and lights up tab-by-tab as each backend lands.
+search:
+  # Default ``k`` (top-K) surfaced in the "k" knob.
+  top_k_default: 9
+  # Hybrid weights — semantic (CLIP) vs lexical (BM25). The Mojica knob shows
+  # them as sem/bm25 floats; until M2 ships the actual hybrid pipeline these
+  # are display-only.
+  hybrid_sem_w: 0.70
+  hybrid_bm25_w: 0.30
+  hybrid_enabled: false       # M2: hybrid retrieval
+  rerank_enabled: false       # M2: cross-encoder reranker
+  mmr_lambda: 0.5             # Maximal Marginal Relevance λ
+  # Modality gates (each toggles its chip on/off in the Buscar tab).
+  image_enabled: true         # existing image-similarity search
+  audio_enabled: false        # M2: CLAP audio-only search
+  multimodal_enabled: false   # M3: cross-modal CLIP×CLAP fusion
+  # M2: the right inspector's Signals panel (.b-sigs) is gated on this until
+  # the per-modality score breakdown actually exists.
+  signals_enabled: false
+
+# ── Rimas Visuais (cross-film visual rhymes) ─────────────────────────────────
+# Read-only knobs for the Rimas tab's kNN over CLIP keyframes. Defaults match
+# the prototype expectation in docs/superpowers/plans/2026-05-20-mojica-frame-redesign.md
+# (Task 21). M3 swaps the kNN backend for CLIP × CLAP fusion + MMR diversity +
+# cross-encoder rerank; the public shape (top_n + mmr_lambda + threshold) is
+# intended to stay stable through that swap.
+rimas:
+  top_n: 8                # how many neighbours the route returns
+  mmr_lambda: 0.5         # Maximal Marginal Relevance λ (M3 — display-only today)
+  threshold: 0.75         # cosine floor for the M3 reranker (display-only today)
+
+# ── Collaboration (comment thread / composer / pin persistence) ──────────────
+# The Mojica inspector renders a comment composer + activity thread; both lean
+# on a collaboration backend that does not exist yet (no user model, no
+# comment persistence, no pin store). Each surface is gated on its own flag so
+# the right pane ships disabled-by-default and lights up incrementally as the
+# backend lands. Activity tab still renders the moondream description as a
+# read-only ``.b-com.ai`` row independent of these flags.
+collaboration:
+  composer_enabled: false   # post-launch: the textarea + tool buttons
+  threads_enabled: false    # post-launch: curator/viewer comment rows
+
+
 # ── Descrição LLM (NB05) ──────────────────────────────────────────────────────
 llm:
   model_id: "vikhyatk/moondream2"
@@ -145,6 +199,25 @@ pipeline:
   # Comportamento
   skip_existing: true       # pular etapas se outputs já existirem
   stop_on_error: false      # false = continua mesmo com erros não-fatais
+
+# ── Processamento tab (UI) ────────────────────────────────────────────────────
+# Knobs the Processing tab template reads. Off-by-default flags here
+# never affect the pipeline runner — they only gate optional UI panels.
+proc:
+  # When true, the .p-rp right pane renders a GPU/VRAM/CPU/RAM
+  # resource card under the active-step substeps. No measurement source
+  # is wired today; flipping this on without populating ``gpu_metrics``
+  # in the route context is a no-op (the template gates on both).
+  gpu_metrics_enabled: false
+
+# ── Eval set builder (admin-only grading UI) ──────────────────────────────────
+# Where grade JSONLs and curated query files live, and which run id the /eval
+# page reads/writes by default. The /eval surface is itself admin-gated by the
+# ``EVAL_ADMIN_TOKEN`` env var (unset = entire surface returns 403). The path
+# is repo-relative; tests rebase it through ``api.services.eval_service``.
+eval:
+  root: data/eval
+  run_id: default
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging:

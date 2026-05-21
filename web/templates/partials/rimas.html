@@ -1,0 +1,135 @@
+{# Rimas Visuais (cross-film visual rhymes) — Task 22 full template.
+
+   Mirrors the prototype rimas.jsx ScreenRimas (lines 374–595):
+     * .r-cp main column carrying the topbar, controls knob row, anchor
+       hero, and echo grid (rendered via the rimas_echoes.html fragment
+       so HTMX anchor-swap calls only need to swap the grid);
+     * .r-rp right pane rendered via the rimas_inspector.html fragment
+       so /api/rimas/inspector can swap just the pane on echo selection.
+
+   Phase-1 wrap strategy: the right pane (.r-rp) ships inside this same
+   tab-panel rather than the chrome's .ch-right slot, matching the
+   Buscar / Cenas / Anotar pattern. The chrome's has_right_pane=True
+   keeps the grid column allocated; the actual aside lives here.
+
+   Context contract (api.services.rhymes_service.build_rimas_context):
+     anchor_film     — cinemateca.library.Film or None
+     anchor_scene    — dict or None (scene_id / keyframe_url /
+                       timecode / description / tags)
+     echoes          — list of enriched rhyme dicts
+     k, mmr_lambda,
+     threshold       — knob values surfaced in the controls row
+     selected_echo   — dict or None (one echo, populated when
+                       ?echo=<slug>/<scene_id> resolves)
+     selected_echo_id— int or None (the scene_id of the highlighted
+                       echo card; used by the grid template's
+                       .sel-class branch)
+#}
+{% from "partials/_icons.html" import icon %}
+
+<div class="tab-panel">
+  <section class="r-cp">
+    <header class="topbar">
+      <div class="l">
+        <div class="h">
+          <span class="ic">{{ icon('rhymes', 16) }}</span>
+          <span>{{ _('Visual rhymes') }}</span>
+        </div>
+        {% if echoes %}
+          {% set film_count = echoes|map(attribute='film_slug')|unique|list|length %}
+          <span class="ct"><b>{{ echoes|length }}</b> {{ _('rhymes in') }} <b>{{ film_count }}</b> {{ _('films') }}</span>
+        {% else %}
+          <span class="ct">{{ _('Pick an anchor scene to discover cross-film visual echoes.') }}</span>
+        {% endif %}
+      </div>
+      <div class="r">
+        <button class="fx-btn secondary">{{ icon('image', 14) }} {{ _('Swap anchor') }}</button>
+        <button class="fx-btn secondary">{{ icon('share', 14) }} {{ _('Save collection') }}</button>
+      </div>
+    </header>
+
+    <div class="controls">
+      <span class="knob"><span class="k">{{ _('Model') }}</span><span class="v">CLIP-L/14</span></span>
+      <span class="knob"><span class="k">{{ _('Distance') }}</span><span class="v">cosine</span></span>
+      <span class="knob"><span class="k">MMR</span><span class="v">λ {{ '%.2f'|format(mmr_lambda) }}</span></span>
+      <span class="knob"><span class="k">{{ _('Cross-film') }}</span><span class="v acc">{{ _('required') }}</span></span>
+      <span class="knob"><span class="k">k</span><span class="v">{{ k }}</span></span>
+      <span class="knob"><span class="k">{{ _('Threshold') }}</span><span class="v">{{ '%.2f'|format(threshold) }}</span></span>
+      <span class="grow"></span>
+    </div>
+
+    <div class="scroll">
+      {% if anchor_scene %}
+        <section class="r-anchor" data-film-slug="{{ anchor_scene.film_slug }}" data-scene-id="{{ anchor_scene.scene_id }}">
+          <div class="kf-wrap">
+            <div class="kf"{% if anchor_scene.keyframe_url %} style="background-image: url('{{ anchor_scene.keyframe_url }}');"{% endif %}></div>
+            <span class="kf-label">
+              <span class="gly"></span>
+              {{ _('Anchor') }}
+            </span>
+          </div>
+          <div class="meta">
+            <div class="ll">
+              <span class="dot"></span>
+              <span>{{ _('Reference scene · fixed embedding') }}</span>
+            </div>
+            <h1>{{ anchor_scene.title or (_('Scene %(n)s') % {'n': '%03d'|format(anchor_scene.scene_id)}) }}</h1>
+            <div class="filmrow">
+              <span class="pill">
+                <span class="dot" style="background: var(--c-accent);"></span>
+                <b>{{ anchor_film.title if anchor_film else anchor_scene.film_slug }}</b>
+                {% if anchor_film and anchor_film.year %}<span style="font-family: var(--font-mono); font-size: 11px; color: var(--c-muted);">{{ anchor_film.year }}</span>{% endif %}
+              </span>
+              {% if anchor_film and anchor_film.director %}
+                <span style="color: var(--c-muted); font-size: 12px;">dir. {{ anchor_film.director }}</span>
+              {% endif %}
+            </div>
+            <div class="ids">
+              <span>{{ _('scene') }} {{ '%03d'|format(anchor_scene.scene_id) }}{% if anchor_film and anchor_film.scene_count %} / {{ anchor_film.scene_count }}{% endif %}</span>
+              {% if anchor_scene.timecode %}
+                <span>·</span>
+                <span class="fx-tc bare">{{ anchor_scene.timecode }}</span>
+              {% endif %}
+            </div>
+            {% if anchor_scene.description %}
+              <p class="desc">{{ anchor_scene.description }}</p>
+            {% endif %}
+            {% if anchor_scene.tags %}
+              <div class="tags">
+                {% for t in anchor_scene.tags %}
+                  <span class="fx-pill{% if loop.index <= 3 %} ac{% endif %}">{{ t }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+        </section>
+      {% else %}
+        <p class="empty-state">{{ _('No processed films yet — run the embeddings pipeline to enable Rimas Visuais.') }}</p>
+      {% endif %}
+
+      <div class="caption">
+        <h2>
+          {% if echoes %}
+            {% set film_count = echoes|map(attribute='film_slug')|unique|list|length %}
+            <b>{{ echoes|length }}</b> {{ _('rhymes in') }} <b>{{ film_count }}</b> {{ _('films') }}
+          {% else %}
+            <b>0</b> {{ _('rhymes') }}
+          {% endif %}
+        </h2>
+        <span class="meta">
+          <span>k={{ k }} · MMR λ {{ '%.2f'|format(mmr_lambda) }}</span>
+        </span>
+      </div>
+
+      {# rimas_echoes.html's outer <div> already carries id="rimas-echoes"
+         + class="r-grid"; the fragment is its own HTMX swap target so
+         no extra wrapper is needed here. #}
+      {% include "partials/rimas_echoes.html" %}
+    </div>
+  </section>
+
+  {# Right pane (Phase-1 wrap strategy mirrors Buscar/Cenas/Anotar). #}
+  <aside class="r-rp" id="right-pane">
+    {% include "partials/rimas_inspector.html" %}
+  </aside>
+</div>

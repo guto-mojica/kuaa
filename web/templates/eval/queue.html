@@ -1,0 +1,79 @@
+{# Left pane — query queue with filter tabs + toggles (Task 31).
+
+   Renders the run's queries as clickable rows. Each row shows:
+     - status dot (filled green when fully graded)
+     - query id + lang + source
+     - text (clamped to 2 lines)
+     - progress pips (one per candidate, coloured by grade)
+
+   Filter tabs (All / Pending / Conflict) carry counts from the context.
+   Toggles (Blind mode / Compare annotator) sit at the bottom and use
+   the .swt switch primitive defined in eval.css. The Task-32 keyboard
+   router will read the data-toggle attributes to flip these. #}
+<aside class="ev-lp">
+  <div class="head">
+    <span>{{ _('Queue') }}</span>
+    <span class="ct">{{ queries|length }}</span>
+  </div>
+  <div class="filter">
+    <span class="ico">⌕</span>
+    <input type="search" placeholder="{{ _('Filter queries…') }}" aria-label="{{ _('Filter queries') }}">
+  </div>
+  <div class="lpf-tabs">
+    <button class="t on" type="button" data-filter="todas">
+      {{ _('All') }} <span class="ct">{{ queries|length }}</span>
+    </button>
+    <button class="t" type="button" data-filter="pendentes">
+      {{ _('Pending') }} <span class="ct">{{ pending_count if pending_count is defined else 0 }}</span>
+    </button>
+    <button class="t" type="button" data-filter="conflito">
+      {{ _('Conflict') }} <span class="ct">{{ conflict_count if conflict_count is defined else 0 }}</span>
+    </button>
+  </div>
+  <div class="ev-q-list">
+    {% for q in queries %}
+      {% set q_key = q.id|string %}
+      {% set q_grades = grades_by_query.get(q_key, []) %}
+      {% set candidate_count = q.candidate_count if q.candidate_count is defined and q.candidate_count else 9 %}
+      {% set is_current = current_query is not none and (q.id == current_query.id) %}
+      {% set is_done = q_grades|length >= candidate_count and candidate_count > 0 %}
+      <a class="ev-q{% if is_current %} cur{% endif %}"
+         href="?token={{ token or '' }}&amp;query={{ q.id }}">
+        <span class="stat{% if is_done %} done{% endif %}"></span>
+        <div>
+          <div class="qrow">
+            <span class="id">Q-{{ '%03d'|format(q.id) if q.id is number else q.id }}</span>
+            <span class="lang">{{ q.lang or 'pt' }}</span>
+            <span class="src">{{ q.source or 'manual' }}</span>
+          </div>
+          <div class="text">{{ q.text }}</div>
+          <div class="progress">
+            <span class="pips">
+              {% for i in range(candidate_count) %}
+                {% set g = q_grades[i] if i < q_grades|length else none %}
+                <span class="pp{% if g is none %} gp{% elif g == -1 %} gp{% elif g == 0 %} g0{% elif g == 1 %} g1{% elif g == 2 %} g2{% elif g == 3 %} g3{% else %} gp{% endif %}"></span>
+              {% endfor %}
+            </span>
+            <span>{{ q_grades|length }}/{{ candidate_count }}</span>
+          </div>
+        </div>
+      </a>
+    {% else %}
+      <div style="padding: 18px 14px; color: var(--c-muted); font-size: 12px;">
+        {{ _('No queries seeded for this run.') }}
+      </div>
+    {% endfor %}
+  </div>
+  <div class="controls">
+    <label class="toggle{% if blind_mode %} on{% endif %}">
+      <input type="checkbox" data-toggle="blind"{% if blind_mode %} checked{% endif %}>
+      <span>{{ _('Blind mode') }}</span>
+      <span class="swt"></span>
+    </label>
+    <label class="toggle{% if compare_mode %} on{% endif %}">
+      <input type="checkbox" data-toggle="compare"{% if compare_mode %} checked{% endif %}>
+      <span>{{ _('Compare annotator') }}</span>
+      <span class="swt"></span>
+    </label>
+  </div>
+</aside>

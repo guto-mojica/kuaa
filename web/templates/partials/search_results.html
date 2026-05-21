@@ -1,34 +1,109 @@
+{# ── Mojica Buscar results partial — .b-card grid (Task 11) ────────────────
+   Renders one ``<article class="b-card">`` per search hit inside the
+   ``#search-results`` .grid container set up by ``partials/search.html``.
+
+   Result-dict shape (keys consumed below; all populated server-side by
+   ``api/routes/search.py`` via :func:`_enrich_with_film_metadata`):
+
+     * ``scene_id``     int                       (template ``r.scene_id``)
+     * ``film_slug``    str    — injected per-film + by aggregate_search
+     * ``img_url``      str | None                — keyframe served via /media
+     * ``timecode``     str    "HH:MM:SS:FF" or "" — bottom-left overlay
+     * ``similarity``   float                     — top-right score badge
+     * ``description``  str    fallback ""        — body 2-line clamp
+     * ``tags``         list[str] fallback []     — bottom-row pills
+     * ``pin_count``    int    fallback 0         — bottom-right pin badge
+
+   ``films_by_id`` is a ``{slug: Film}`` lookup so the card body resolves
+   each film's title + year without an extra DB-style round-trip.
+   ``selected_scene_id`` (int or None) toggles the ``.sel`` highlight on
+   the currently-inspected card. ``highlighted_tags`` (set[str]) marks
+   tag pills that participated in the current query as accented.
+
+   Backwards-compat:
+
+     * The ``no_index`` / ``upload_error`` branches keep their existing
+       behaviour so route smoke-tests + per-film image-search error paths
+       still surface the same message text. Their markup uses the new
+       ``.empty-state`` wrapper so the .b-cp .grid CSS doesn't stretch a
+       single .search-notice across all columns.
+     * ``r.id`` is NOT in our result shape — we use ``r.scene_id`` and
+       compare it to ``selected_scene_id`` for the ``.sel`` class.
+     * Right-pane inspector endpoint lands in Task 12. The ``hx-get``
+       attribute is wired here so a click yields a 404 until that task,
+       which is the documented intermediate state in the plan.
+#}
+{% from "partials/_icons.html" import icon %}
+
 {% if no_index %}
-<div class="search-notice">
-    <p class="text-muted">
-        {{ _("No search index found. Run the pipeline with the Embeddings step first.") }}
-    </p>
-</div>
+  <div class="empty-state">
+    <p>{{ _("No search index found. Run the pipeline with the Embeddings step first.") }}</p>
+  </div>
 {% elif upload_error %}
-<div class="search-notice">
-    <p class="text-muted">
-        {{ _("That image could not be used. Upload a single image file under 8 MB.") }}
-    </p>
-</div>
+  <div class="empty-state">
+    <p>{{ _("That image could not be used. Upload a single image file under 8 MB.") }}</p>
+  </div>
 {% elif not results %}
-<p class="text-muted">{{ _("No results.") }}</p>
-{% else %}
-{% for r in results %}
-<div class="scene-card">
-    {% if r.img_url %}
-    <img class="scene-card__keyframe"
-         src="{{ r.img_url }}"
-         alt="{{ _('Scene') }} {{ r.scene_id }}"
-         loading="lazy">
+  <div class="empty-state">
+    {% if query %}
+      <p>{{ _('No scenes matched "%(q)s".') % {"q": query} }}</p>
     {% else %}
-    <div class="scene-card__keyframe scene-card__keyframe--missing"></div>
+      <p>{{ _("Search the library to see results here.") }}</p>
     {% endif %}
-    <div class="scene-card__meta">
-        <span class="scene-card__timecode">
-            {%- if r.timecode %}{{ r.timecode }} · {% endif %}{{ _("scene") }} {{ r.scene_id -}}
+  </div>
+{% else %}
+  {% for r in results %}
+    {# ``films_by_id`` is best-effort — a result whose slug was removed
+       between the search and the render still shows a card, falling
+       back to ``r.film_title`` (set by aggregate_search) or the slug
+       itself. #}
+    {% set f = films_by_id.get(r.film_slug) %}
+    <article class="b-card{% if selected_scene_id is not none and r.scene_id == selected_scene_id %} sel{% endif %}"
+             tabindex="0"
+             role="button"
+             data-scene-id="{{ r.scene_id }}"
+             data-film-slug="{{ r.film_slug or '' }}"
+             hx-get="/api/scenes/{{ r.scene_id }}/inspector{% if r.film_slug %}?film={{ r.film_slug }}{% endif %}"
+             hx-target="#right-pane"
+             hx-swap="innerHTML"
+             hx-trigger="click, keyup[key=='Enter' || key==' ']">
+      <div class="kf"{% if r.img_url %} style="background-image: url('{{ r.img_url }}');"{% endif %}>
+        <span class="tl">
+          <span class="dot"></span>
+          {{ _("indexed") }}
         </span>
-        <span class="scene-card__score">{{ "%.3f" | format(r.similarity) }}</span>
-    </div>
-</div>
-{% endfor %}
+        {% if r.timecode %}<span class="bl">{{ r.timecode }}</span>{% endif %}
+        {% if r.similarity is defined and r.similarity is not none %}
+          <span class="tr">{{ '%.3f'|format(r.similarity) }}</span>
+        {% endif %}
+        {% if r.pin_count %}
+          <span class="br"><span class="pin"></span>{{ r.pin_count }}</span>
+        {% endif %}
+      </div>
+      <div class="body">
+        <div class="head">
+          <div class="filmname">
+            <span class="dot" style="background: var(--c-accent);"></span>
+            <span class="nm fx-truncate">{% if f %}{{ f.title }}{% else %}{{ r.film_title or r.film_slug or '' }}{% endif %}</span>
+          </div>
+          <span class="yr">{% if f and f.year %}{{ f.year }}{% endif %}</span>
+        </div>
+        <p class="desc">{{ r.description or _("No description yet.") }}</p>
+        <div class="footrow">
+          <div class="tags">
+            {% set tag_list = r.tags or [] %}
+            {% for t in tag_list[:3] %}
+              <span class="fx-pill{% if highlighted_tags and t in highlighted_tags %} ac{% endif %}">{{ t }}</span>
+            {% endfor %}
+            {% if tag_list|length > 3 %}
+              <span class="fx-pill outline">+{{ tag_list|length - 3 }}</span>
+            {% endif %}
+          </div>
+          <div class="acts">
+            <button type="button" class="fx-icbtn sm" title="{{ _('More') }}">{{ icon('more', 14) }}</button>
+          </div>
+        </div>
+      </div>
+    </article>
+  {% endfor %}
 {% endif %}

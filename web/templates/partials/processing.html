@@ -1,61 +1,147 @@
+{% from "partials/_icons.html" import icon %}
 {% from "partials/_step_labels.html" import step_label with context %}
+
+{#- Processamento tab — Mojica redesign (Task 24).
+
+    Layout (matches claude_design/.../proc.jsx ScreenProc):
+
+      .tab-panel
+      └─ .p-cp                  (centre pane: header + active card + body)
+         ├─ .p-top              (title + actions + launch form)
+         ├─ #active-jobs        (one .p-active card per running job; empty-state)
+         └─ .p-body             (2-col grid: log | side)
+            ├─ .p-log           (SSE-fed terminal log)
+            └─ .p-side          (.p-stats + .p-queue)
+      └─ aside.p-rp             (right pane: active-step detail + GPU card)
+
+    Compatibility:
+      * The legacy launch form (with ``pipeline-steps-check`` /
+        ``tag-pill`` / ``step_defs`` loop + ``/api/pipeline/start``
+        contract) is preserved inside ``.p-top .acts`` so the empty-data
+        regression tests (``test_processing_full_page_steps_checklist_not_empty``,
+        ``test_processing_full_page_renders_step_checklist``) stay green.
+      * The "No active jobs." text is preserved inside the empty state so
+        ``test_tab_processing_empty_has_no_active_jobs`` stays green.
+      * Active-job cards include the SSE swap block via
+        ``processing_job.html`` — its sse-close / sse-swap / sse-connect
+        attribute contract is pinned by ``tests/test_sse.py``. -#}
+
 <div class="tab-panel">
+<section class="p-cp">
 
-<!-- Start form -->
-<form class="pipeline-form"
-      hx-post="/api/pipeline/start"
-      hx-target="#processing-job"
-      hx-swap="innerHTML"
-      hx-indicator="#start-spinner">
+  <header class="p-top">
+    <div class="row1">
+      <h1>
+        <span class="ic">{{ icon('proc', 18) }}</span>
+        {{ _("Processing") }}
+        {% if jobs %}<span class="pip">{{ jobs | length }} {{ _("active") }}</span>{% endif %}
+      </h1>
+      <div class="acts">
+        {#- Launch form: ``video_path`` select + ``steps`` checkboxes —
+            same POST shape as v0.2.x so ``/api/pipeline/start`` is
+            unchanged. The button is wrapped in the same form so a
+            click submits the selected film + steps. -#}
+        <form class="pipeline-launch-bar"
+              hx-post="/api/pipeline/start"
+              hx-target="#processing-job"
+              hx-swap="innerHTML"
+              hx-indicator="#start-spinner"
+              style="display:flex; align-items:center; gap:10px;">
 
-    {% if films %}
-    <div class="pipeline-form__row">
-        <label class="pipeline-form__label">{{ _("Film") }}</label>
-        <select name="video_path" class="jump-select pipeline-form__select">
-            {% for film in films %}
-            <option value="{{ film.raw_path }}">{{ film.title }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    {% else %}
-    <p class="text-muted" style="margin-bottom:16px">
-        {{ _("No video files found in the raw directory.") }}
-    </p>
-    {% endif %}
+          {% if films %}
+            <select name="video_path" class="jump-select">
+              {% for film in films %}
+                <option value="{{ film.raw_path }}"{% if film.slug == active_film %} selected{% endif %}>{{ film.title }}</option>
+              {% endfor %}
+            </select>
+          {% else %}
+            <span class="text-muted" style="font-size:0.8125rem">{{ _("No video files found in the raw directory.") }}</span>
+          {% endif %}
 
-    <div class="pipeline-form__row">
-        <label class="pipeline-form__label">{{ _("Steps") }}</label>
-        <div class="pipeline-steps-check">
+          {#- Step checkboxes — kept VISIBLE (not collapsed) so the
+              ``pipeline-steps-check`` / ``tag-pill`` markers remain in
+              the rendered DOM; styling is unchanged (defined in
+              main.css). -#}
+          <div class="pipeline-steps-check">
             {% for name, label in step_defs %}
-            <label class="tag-pill">
+              <label class="tag-pill">
                 <input type="checkbox" name="steps" value="{{ name }}" checked>
                 {{ step_label(name) }}
-            </label>
+              </label>
             {% endfor %}
-        </div>
-    </div>
+          </div>
 
-    <div class="pipeline-form__actions">
-        <button type="submit" class="btn-primary" {% if not films %}disabled{% endif %}>
-            {{ _("Start processing") }}
-        </button>
-        <span id="start-spinner" class="htmx-indicator text-muted" style="font-size:0.75rem">
+          <button type="submit" class="fx-btn primary" {% if not films %}disabled{% endif %}>
+            {{ icon('play', 14) }} {{ _("Start processing") }}
+          </button>
+          <span id="start-spinner" class="htmx-indicator text-muted" style="font-size:0.75rem">
             {{ _("Starting…") }}
-        </span>
+          </span>
+        </form>
+      </div>
     </div>
-</form>
+  </header>
 
-<div class="pipeline-divider"></div>
+  {#- Active-job card(s). #processing-job is the legacy HTMX target the
+      launch form posts into; #active-jobs is the new wrapper element
+      the prototype expects. They are co-located so both contracts
+      continue to resolve. -#}
+  <div id="active-jobs" style="padding: 0 24px;">
+    <div id="processing-job">
+      {% if jobs %}
+        {% for job in jobs %}
+          {% include "partials/processing_job.html" %}
+        {% endfor %}
+      {% else %}
+        <p class="text-muted" style="font-size:0.8125rem; padding: 14px 0;">{{ _("No active jobs.") }}</p>
+      {% endif %}
+    </div>
+  </div>
 
-<!-- Active job (populated by POST response) -->
-<div id="processing-job">
-    {% if jobs %}
-    {% for job in jobs %}
-    {% include "partials/processing_job.html" %}
-    {% endfor %}
-    {% else %}
-    <p class="text-muted" style="font-size:0.75rem">{{ _("No active jobs.") }}</p>
-    {% endif %}
-</div>
+  <div class="p-body">
+    <div class="p-log" id="proc-log"
+         {% if jobs %}hx-ext="sse" sse-connect="/api/pipeline/stream/{{ jobs[0].id }}" sse-swap="update"{% endif %}>
+      <div class="head">
+        <div class="l">
+          <span class="dot"></span>
+          <span>{{ _("Log · SSE") }}</span>
+        </div>
+        <div class="r">
+          <button type="button" class="fx-icbtn sm" title="{{ _('Filter') }}">{{ icon('filter', 14) }}</button>
+          <button type="button" class="fx-icbtn sm" title="{{ _('Download') }}">{{ icon('download', 14) }}</button>
+          <label class="fx-mono" style="font-size:11px; color: var(--c-muted); display:inline-flex; align-items:center; gap:4px;">
+            <input type="checkbox" data-autoscroll checked>
+            {{ _("auto-scroll") }}
+          </label>
+        </div>
+      </div>
+      <div class="lines">
+        {% for line in initial_log_lines %}
+          {% include "partials/processing_log_line.html" %}
+        {% else %}
+          <p class="fx-mono" style="font-size: 11px; color: var(--c-muted);">
+            {{ _("Waiting for events…") }}
+          </p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <aside class="p-side">
+      {% include "partials/processing_stats.html" %}
+      {% include "partials/processing_queue.html" %}
+    </aside>
+  </div>
+
+</section>
+
+{#- Right pane (active-step detail + GPU). Rendered only when there is
+    a running job *and* the substep context has been populated by the
+    route. When the right pane stays empty, base.html's .ch-rp wrapper
+    still mounts but is visually neutral. -#}
+<aside class="p-rp" id="right-pane">
+  {% if active_step %}
+    {% include "partials/processing_substeps.html" %}
+  {% endif %}
+</aside>
 
 </div>

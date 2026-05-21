@@ -1,37 +1,128 @@
 {% from "partials/_icons.html" import icon %}
-<div class="processing-job" id="job-{{ job.id }}">
-    <p class="processing-job__title text-muted">
-        {{ icon("film-strip") }}
-        {{ job.video_name }}
-    </p>
+{% from "partials/_step_labels.html" import step_label with context %}
 
-    {% if job.status in ('running', 'created') %}
-    <p class="processing-job__actions">
+{#- One active-job card (.p-active) — Mojica redesign (Task 24).
+
+    The new card composes the prototype's visual language (header with
+    film thumb + status pip, striped overall progress bar, 5-step pill
+    row) AROUND the long-standing SSE swap contract. That contract is
+    pinned by ``tests/test_sse.py``:
+
+      * ``sse-connect="/api/pipeline/stream/{job.id}"``
+      * ``sse-close="done,error,cancelled"``
+      * ``sse-swap="update,done,error,cancelled"`` on the inner
+        ``processing_stepper.html`` block
+
+    The server's typed SSE frames still carry the *stepper* fragment,
+    not the whole card, so progress / done / error / cancelled all
+    re-render the inner ``#sse-stepper-{job.id}`` block without touching
+    the new outer chrome. ``processing_stepper.html`` is unchanged.
+
+    The ``.p-pbar`` and ``.p-steps`` rendered up here use the same
+    ``job.steps[*]`` data; they are a redundant *outer* view that does
+    not auto-refresh on SSE today — when a follow-up extends the SSE
+    payload to also drive the .p-active outer card (Task 25 / SSE
+    enrichment), this template will swap on the outer card id instead.
+    Until then the inner stepper is the live source of truth and the
+    outer header reflects the state at GET time.
+-#}
+<article class="p-active" id="job-{{ job.id }}" data-job-id="{{ job.id }}">
+  <div class="head">
+    <div class="l">
+      {% if job.film_thumb %}
+        <div class="thumb" style="background-image: url('{{ job.film_thumb }}');"></div>
+      {% else %}
+        <div class="thumb" style="background: var(--c-bg);"></div>
+      {% endif %}
+      <div class="info">
+        <h2>
+          <span class="dot"></span>
+          {{ job.film_title or job.video_name }}
+          {% if job.year %}<span class="year" style="color: var(--c-muted); font-weight: 400;">({{ job.year }})</span>{% endif %}
+          <span class="stat">{{ icon("film-strip") }} {{ _("Processing") }}</span>
+        </h2>
+        <div class="sub">
+          {% if job.director %}<span>dir. {{ job.director }}</span><span>·</span>{% endif %}
+          {% if job.started_at_display %}<span>{{ _("started at") }} {{ job.started_at_display }}</span>{% endif %}
+          {% if job.elapsed_display %}<span>·</span><span>{{ job.elapsed_display }}</span>{% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="r">
+      <button type="button" class="fx-icbtn" title="{{ _('Expand') }}">{{ icon('expand', 14) }}</button>
+      {% if job.status in ('running', 'created') %}
         <button type="button"
-                class="btn-secondary btn-cancel"
+                class="fx-icbtn processing-job__cancel"
                 hx-post="/api/pipeline/cancel/{{ job.id }}"
                 hx-target="#job-{{ job.id }}"
-                hx-swap="outerHTML">
-            {{ _("Cancel") }}
+                hx-swap="outerHTML"
+                title="{{ _('Cancel') }}">
+          {{ icon('x', 14) }}
         </button>
-    </p>
-    {% endif %}
-
-    <!-- SSE connection — the server emits typed events: "update" for
-         progress frames and exactly one terminal "done", "error" or
-         "cancelled" frame. sse-swap listens to all of them so the final
-         stepper (terminal state) is rendered into the DOM, and sse-close
-         closes the EventSource on the terminal events so it does NOT
-         reconnect after the job finishes. The swap-then-close ordering is
-         guaranteed because the extension registers the sse-swap listeners
-         before the sse-close listener on the same EventSource, and DOM
-         listeners fire in registration order, so the terminal frame's
-         final stepper is rendered into the DOM before source.close(). -->
-    <div hx-ext="sse"
-         sse-connect="/api/pipeline/stream/{{ job.id }}"
-         sse-close="done,error,cancelled">
-        <div sse-swap="update,done,error,cancelled" hx-swap="innerHTML">
-            {% include "partials/processing_stepper.html" with context %}
-        </div>
+      {% endif %}
     </div>
-</div>
+  </div>
+
+  {#- Outer overall-progress bar (CSS uses --p; computed from job.progress). -#}
+  <div class="p-pbar" style="--p: {{ ((job.progress or 0) * 100) | int }}%;">
+    <span class="v" style="position:absolute;right:-46px;top:-7px;font-family:var(--font-mono);font-size:11.5px;color:var(--c-orange);font-weight:700;">{{ ((job.progress or 0) * 100) | int }}%</span>
+  </div>
+
+  <div class="p-prog-row">
+    <div class="l">
+      <span class="pct">{{ ((job.progress or 0) * 100) | int }}%</span>
+      <span>{{ _("complete") }}</span>
+    </div>
+    <div class="r">
+      {%- set active_idx = job.active_step_idx if job.active_step_idx is defined else 0 -%}
+      <span>{{ _("step") }} <b>{{ active_idx + 1 }} / {{ job.steps | length }}</b></span>
+      {% if job.step_progress %}<span>·</span><span>{{ job.step_progress }}</span>{% endif %}
+      {% if job.throughput %}<span>·</span><span>{{ job.throughput }}</span>{% endif %}
+      {% if job.eta_display %}<span>·</span><span>{{ _("ETA") }} ~{{ job.eta_display }}</span>{% endif %}
+    </div>
+  </div>
+
+  {#- 5-pill step row (visual mirror of the inner stepper). Maps the
+      JobState ``StepInfo.state`` vocabulary (pending|active|done|
+      skipped|error|blocked) onto the prototype's .p-step modifier set
+      (.pending / .active / .done — error/blocked render as done-coloured
+      with the inner stepper carrying the actual error detail). -#}
+  <div class="p-steps">
+    {% for step in job.steps %}
+      {%- set vis_state = 'done' if step.state in ('done', 'skipped') else ('active' if step.state == 'active' else ('error' if step.state in ('error','blocked') else 'pending')) -%}
+      <div class="p-step {{ vis_state }}">
+        <div class="top">
+          <span class="stat {{ vis_state }}">
+            {%- if vis_state == 'done' -%}{{ icon('check', 10) }}
+            {%- else -%}{{ loop.index }}
+            {%- endif -%}
+          </span>
+          <span class="num">0{{ loop.index }}/0{{ job.steps | length }}</span>
+        </div>
+        <div class="name">{{ step_label(step.name) }}</div>
+        <div class="meta">
+          <span>{{ step.state }}</span>
+          {% if step.duration_s %}<span>·</span><b>{{ "%.0fs" | format(step.duration_s) }}</b>{% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  {#- ── SSE live inner stepper ──────────────────────────────────────
+      Pinned contract (tests/test_sse.py):
+        sse-close="done,error,cancelled"
+        sse-swap="update,done,error,cancelled"
+      The server emits typed events; the swap block re-renders only
+      ``processing_stepper.html`` (which carries the
+      ``processing-error`` / ``processing-done`` / ``processing-
+      cancelled`` markers + ``stepper`` + ``progress-fill`` the
+      regression tests assert on). -#}
+  <div hx-ext="sse"
+       sse-connect="/api/pipeline/stream/{{ job.id }}"
+       sse-close="done,error,cancelled"
+       style="margin-top: 6px;">
+    <div sse-swap="update,done,error,cancelled" hx-swap="innerHTML">
+      {% include "partials/processing_stepper.html" with context %}
+    </div>
+  </div>
+</article>

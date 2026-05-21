@@ -1,0 +1,25 @@
+{% if error %}
+<p class="add-film-form__error">{{ error }}</p>
+{% endif %}
+<form class="add-film-form"
+      hx-post="/api/library/add"
+      hx-target="#library-tree"
+      hx-swap="innerHTML">
+    <input class="filter-input"
+           type="text"
+           name="video_path"
+           placeholder="{{ _('Absolute path or filename in raw dir') }}"
+           required
+           autofocus>
+    <input class="filter-input"
+           type="text"
+           name="title"
+           placeholder="{{ _('Title (optional)') }}">
+    <div class="add-film-form__actions">
+        <button type="submit" class="tree-node tree-node--add">{{ _("Add") }}</button>
+        <div class="tree-node"
+             hx-get="/api/library/filter"
+             hx-target="#library-tree"
+             hx-swap="innerHTML">{{ _("Cancel") }}</div>
+    </div>
+</form>

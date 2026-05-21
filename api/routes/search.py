@@ -12,6 +12,7 @@ T9: ``/api/search`` accepts an optional ``?film=<slug>`` query parameter.
 text-search path).  Image search is per-film only (aggregate image search
 lands in a later plan).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -42,10 +43,14 @@ def build_search_context(slug: str | None = None) -> dict:
     ``slug=None`` the aggregate (cross-film) union is used so the tag
     pills shown match the search scope. Both paths drop degenerate-looking
     entries via ``_filter_degenerate_tags`` (display-only).
+
+    ``cfg`` is threaded into the per-film service builder so Task 11's
+    ``.b-card`` template gets a populated ``films_by_id`` lookup in
+    either mode (matching the aggregate builder's behaviour).
     """
     cfg = get_config()
     if slug is not None:
-        return search_service.build_search_context(FilmContext.for_film(cfg, slug))
+        return search_service.build_search_context(FilmContext.for_film(cfg, slug), cfg)
     return search_service.build_search_context_aggregate(cfg)
 
 
@@ -62,8 +67,92 @@ def _no_index_response(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "partials/search_results.html",
-        make_ctx(request, results=[], no_index=True),
+        make_ctx(request, results=[], no_index=True, films_by_id={}),
     )
+
+
+def _enrich_with_film_metadata(
+    cfg, results: list[dict], *, per_film_slug: str | None = None
+) -> list[dict]:
+    """Decorate result dicts with ``film_slug``, ``description``, ``tags``.
+
+    The Task-11 ``.b-card`` template reads ``r.film_slug``,
+    ``r.description``, ``r.tags`` and ``r.pin_count``. Aggregate hits
+    already carry ``film_slug`` (set by ``aggregate_search``); per-film
+    hits don't, so we inject ``per_film_slug`` there. Description + tag
+    fields are looked up from each film's metadata directory once
+    (memoised by slug) so a 100-row result list reads each film's
+    descriptions / tag_index at most once.
+
+    Missing data is benign — ``description`` falls back to ``""`` and
+    ``tags`` to ``[]``, both of which the template handles. ``pin_count``
+    is always 0 today; the persistence layer for pins lands later in M1.
+    """
+    desc_cache: dict[str, dict[int, str]] = {}
+    tag_cache: dict[str, dict[int, list[str]]] = {}
+
+    def _load_film_meta(slug: str) -> tuple[dict[int, str], dict[int, list[str]]]:
+        if slug in desc_cache:
+            return desc_cache[slug], tag_cache[slug]
+        try:
+            ctx = FilmContext.for_film(cfg, slug)
+        except ValueError:
+            desc_cache[slug] = {}
+            tag_cache[slug] = {}
+            return desc_cache[slug], tag_cache[slug]
+        descs_raw = load_json(ctx.metadata_dir / "scene_descriptions.json") or []
+        descs: dict[int, str] = {}
+        if isinstance(descs_raw, list):
+            for entry in descs_raw:
+                sid = entry.get("scene_id")
+                if sid is None:
+                    continue
+                try:
+                    descs[int(sid)] = str(entry.get("description") or "")
+                except (TypeError, ValueError):
+                    continue
+        # Invert the merged tag_index into {scene_id: [tag, …]} so we
+        # can pull per-scene tag pills in O(1). load_tag_index merges
+        # LLM + manual; the v0.3 catalog template already trusts this
+        # merged view to be the "displayable" tag set.
+        merged = load_tag_index(ctx.metadata_dir) or {}
+        per_scene: dict[int, list[str]] = {}
+        for tag, sids in merged.items():
+            if not isinstance(sids, (list, set, tuple)):
+                continue
+            for sid in sids:
+                try:
+                    key = int(sid)
+                except (TypeError, ValueError):
+                    continue
+                per_scene.setdefault(key, []).append(tag)
+        desc_cache[slug] = descs
+        tag_cache[slug] = per_scene
+        return descs, per_scene
+
+    enriched: list[dict] = []
+    for r in results:
+        r = dict(r)  # don't mutate the caller's dicts
+        slug = r.get("film_slug") or per_film_slug
+        if slug and "film_slug" not in r:
+            r["film_slug"] = slug
+        sid_raw = r.get("scene_id")
+        sid = None
+        if sid_raw is not None:
+            try:
+                sid = int(sid_raw)
+            except (TypeError, ValueError):
+                sid = None
+        if slug and sid is not None:
+            descs, tags_by_scene = _load_film_meta(slug)
+            r.setdefault("description", descs.get(sid, ""))
+            r.setdefault("tags", tags_by_scene.get(sid, []))
+        else:
+            r.setdefault("description", "")
+            r.setdefault("tags", [])
+        r.setdefault("pin_count", 0)
+        enriched.append(r)
+    return enriched
 
 
 @router.get("/tab/search", response_class=HTMLResponse)
@@ -133,7 +222,15 @@ async def api_search(
             return templates.TemplateResponse(
                 request,
                 "partials/search_results.html",
-                make_ctx(request, current_slug=slug, results=[], no_index=False),
+                make_ctx(
+                    request,
+                    current_slug=slug,
+                    results=[],
+                    no_index=False,
+                    query=q,
+                    films_by_id=search_service.films_by_id_lookup(cfg),
+                    highlighted_tags=set(tags),
+                ),
             )
         # Convert aggregate hit dicts → template-compatible result dicts.
         # aggregate_search returns plain dicts (not DataFrames), so
@@ -160,10 +257,19 @@ async def api_search(
             }
             for h in hits
         ]
+        results = _enrich_with_film_metadata(cfg, results)
         return templates.TemplateResponse(
             request,
             "partials/search_results.html",
-            make_ctx(request, current_slug=slug, results=results, no_index=False),
+            make_ctx(
+                request,
+                current_slug=slug,
+                results=results,
+                no_index=False,
+                query=q,
+                films_by_id=search_service.films_by_id_lookup(cfg),
+                highlighted_tags=set(tags),
+            ),
         )
 
     # Per-film search: slug is guaranteed non-None here (aggregate path
@@ -184,16 +290,22 @@ async def api_search(
     )
 
     meta_by_scene, fps = _kf_meta(ctx)
+    results = _enrich_with_film_metadata(
+        cfg,
+        search_service.results_to_dicts(results_df, ctx.data_dir, meta_by_scene, fps),
+        per_film_slug=slug,
+    )
     return templates.TemplateResponse(
         request,
         "partials/search_results.html",
         make_ctx(
             request,
             current_slug=slug,
-            results=search_service.results_to_dicts(
-                results_df, ctx.data_dir, meta_by_scene, fps
-            ),
+            results=results,
             no_index=False,
+            query=q,
+            films_by_id=search_service.films_by_id_lookup(cfg),
+            highlighted_tags=set(tags),
         ),
     )
 
@@ -223,15 +335,20 @@ async def api_search_image(
 
     data = await file.read()
     try:
-        suffix = search_service.validate_upload(
-            file.filename, file.content_type, data
-        )
+        suffix = search_service.validate_upload(file.filename, file.content_type, data)
     except search_service.UploadRejected as exc:
         logger.info("Image-search upload rejected: %s", exc)
         return templates.TemplateResponse(
             request,
             "partials/search_results.html",
-            make_ctx(request, current_slug=slug, results=[], no_index=False, upload_error=str(exc)),
+            make_ctx(
+                request,
+                current_slug=slug,
+                results=[],
+                no_index=False,
+                upload_error=str(exc),
+                films_by_id=search_service.films_by_id_lookup(cfg),
+            ),
         )
 
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
@@ -247,15 +364,19 @@ async def api_search_image(
         tmp_path.unlink(missing_ok=True)
 
     meta_by_scene, fps = _kf_meta(ctx)
+    results = _enrich_with_film_metadata(
+        cfg,
+        search_service.results_to_dicts(results_df, ctx.data_dir, meta_by_scene, fps),
+        per_film_slug=slug,
+    )
     return templates.TemplateResponse(
         request,
         "partials/search_results.html",
         make_ctx(
             request,
             current_slug=slug,
-            results=search_service.results_to_dicts(
-                results_df, ctx.data_dir, meta_by_scene, fps
-            ),
+            results=results,
             no_index=False,
+            films_by_id=search_service.films_by_id_lookup(cfg),
         ),
     )

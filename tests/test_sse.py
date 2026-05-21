@@ -162,7 +162,7 @@ def test_stream_emits_typed_update_then_single_done(sse_client):
 
     done_frame = frames[-1]
     assert "processing-done" in done_frame["data"], done_frame["data"]
-    assert "pipeline-steps" in done_frame["data"]
+    assert "stepper" in done_frame["data"]
 
 
 def test_stream_emits_single_error_terminal_frame(sse_client):

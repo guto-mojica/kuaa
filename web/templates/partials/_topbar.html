@@ -1,0 +1,98 @@
+{# Mojica TopBar — Phase-1 / Task 7.
+   Ported from claude_design/mojica-cinemateca/project/mojica-fr/chrome.jsx
+   lines 254–325 (TopBar component). Three sub-regions:
+
+     .l    brand mark + wordmark + breadcrumb (collaboration trail)
+     .tabs 5 tab chips (Buscar / Cenas / Anotar / Rimas / Processamento) —
+           PT slugs in `data-tab` match `data-active-tab` set on <body>
+     .r    filter / notifications / upload icon trio, viewers stack,
+           Share button, current-user avatar
+
+   Context variables consumed (all defaulted in api/deps.make_ctx so this
+   template renders even on routes that don't populate them):
+     active_tab          PT slug — buscar / cenas / anotar / rimas / proc
+     breadcrumb          list of {label, cur?, ver?} segments (default [])
+     active_job_count    int — Processamento pip badge (default 0)
+     viewers             list of {initials} — viewers stack (default [])
+     notification_count  int — bell red dot (default 0)
+     current_user        obj with .full_name / .initials (default None)
+
+   The Share button posts to /api/share/link, which doesn't exist yet
+   (collaboration epic). The button still renders; clicking it 404s. The
+   hx-* attributes are kept as the future contract — Task 8 / Phase 7 wire
+   the endpoint. #}
+{% from "partials/_icons.html" import icon %}
+<header class="ch-top">
+  <div class="l">
+    <a href="/" class="brand" data-tip="{{ _('Home') }}">
+      {{ icon('mark', 22) }}
+      <span class="n">Mojica</span>
+    </a>
+    <span class="div"></span>
+    <nav class="crumb" aria-label="{{ _('Breadcrumb') }}">
+      {% for seg in breadcrumb %}
+        {% if not loop.first %}<span class="sep">/</span>{% endif %}
+        {% if seg.ver %}
+          <button class="ver" type="button">{{ seg.label }} {{ icon('chev-d', 12) }}</button>
+        {% else %}
+          <span class="seg{% if seg.cur %} cur{% endif %}">{{ seg.label }}</span>
+        {% endif %}
+      {% endfor %}
+    </nav>
+  </div>
+
+  <nav class="tabs" aria-label="{{ _('Main tabs') }}">
+    {% set tab_defs = [
+      ('buscar', _('Search'), 'search'),
+      ('cenas',  _('Scenes'), 'grid'),
+      ('anotar', _('Annotate'), 'tag'),
+      ('rimas',  _('Rhymes'), 'rhymes'),
+      ('proc',   _('Processing'), 'proc'),
+    ] %}
+    {% set tab_routes = {'buscar':'search','cenas':'scenes','anotar':'annotate','rimas':'rimas','proc':'processing'} %}
+    {% for key, label, ic in tab_defs %}
+      <a class="tab{% if active_tab == key %} on{% endif %}"
+         href="/{{ tab_routes[key] }}"
+         data-tab="{{ key }}">
+        <span class="ico">{{ icon(ic, 18) }}</span>
+        <span>{{ label }}</span>
+        {% if key == 'proc' and active_job_count > 0 %}
+          <span class="pip">{{ active_job_count }}</span>
+        {% endif %}
+      </a>
+    {% endfor %}
+  </nav>
+
+  <div class="r">
+    <button class="fx-icbtn" data-tip="{{ _('Filters · ⇧⌘F') }}">{{ icon('filter', 14) }}</button>
+    <button class="fx-icbtn" data-tip="{{ _('Notifications') }}">
+      {{ icon('bell', 18) }}
+      {% if notification_count %}<span class="nb"></span>{% endif %}
+    </button>
+    <button class="fx-icbtn" data-tip="{{ _('Import media · ⌘U') }}">{{ icon('upload', 18) }}</button>
+    <span class="div" style="margin: 0 4px;"></span>
+
+    {% if viewers and viewers|length > 0 %}
+      <div class="viewers" data-tip="{{ _('%(n)d viewers online') % {'n': viewers|length} }}">
+        <div class="stack">
+          {% for v in viewers[:3] %}
+            <div class="av a{{ loop.index }}">{{ v.initials }}</div>
+          {% endfor %}
+        </div>
+        <span class="c">{{ viewers|length }}</span>
+      </div>
+    {% endif %}
+
+    <button class="fx-btn primary"
+            hx-post="/api/share/link"
+            hx-trigger="click"
+            hx-swap="none">
+      {{ icon('share', 14) }} {{ _('Share') }}
+    </button>
+    <span class="div" style="margin: 0 4px;"></span>
+
+    <div class="myav" data-tip="{{ current_user.full_name if current_user else _('Anonymous') }}">
+      {{ (current_user.initials if current_user else 'M') }}
+    </div>
+  </div>
+</header>

@@ -1,121 +1,180 @@
-<!-- Save / clear feedback (fades out via CSS animation) -->
-{% if saved %}
-<div class="annotate-feedback annotate-feedback--success">
-    ✓ {{ existing_tags | length }} {{ _("tag(s) saved") }}
-</div>
-{% elif cleared %}
-<div class="annotate-feedback annotate-feedback--success">
-    ✓ {{ _("Tags cleared") }}
-</div>
-{% elif desc_saved %}
-<div class="annotate-feedback annotate-feedback--success">
-    ✓ {{ _("Description saved") }}
-</div>
-{% endif %}
+{# ── Mojica Anotar right pane (.a-rp) ───────────────────────────────────────
+   Task 19 (Phase 4) of the Mojica redesign. Replaces the legacy v0.3
+   tag-editor form with the Frame.io-style ``.a-rp`` shell: htabs row
+   (Comments / Annotations / Properties), subhead with scene id + tag
+   pill + filter/sort icons, ``.a-thread`` content dispatched to one of
+   the three sub-partials, optional composer footer.
 
-<!-- Prev / next navigation -->
-<div class="annotate-nav">
-    {% if prev_id is not none %}
-    <button class="btn-ghost annotate-nav__btn"
-            hx-get="/api/annotate/scene?id={{ prev_id }}&filter={{ filter }}"
+   HTMX swap contract — preserved from the previous incarnation so the
+   existing wiring keeps working:
+
+     * The full ``.a-rp`` markup IS the swap result. ``annotate.html``'s
+       ``<div id="annotate-scene">`` wrapper stays in place and its
+       ``innerHTML`` is replaced by THIS partial; navigation
+       (prev/next), save, clear, description edit/save, and tab clicks
+       all target ``#annotate-scene`` and ``swap="innerHTML"``.
+     * The prev/next nav target id ``#annotate-scene`` is unchanged —
+       see ``annotate.html`` (the stage's .a-pl player buttons) and the
+       prev/next links rendered below; the legacy ``annotate-nav__pos``
+       span stays present here so the
+       :class:`tests.test_web_coverage.TestAnnotateSceneEmptyFilterRegression`
+       assertion (``"annotate-nav__pos" in r.text``) keeps matching.
+
+   Compatibility contracts honoured:
+
+     * ``annotate-feedback`` saved/cleared/desc_saved rows render
+       inside the Annotations / Comments sub-partials so the legacy
+       ``test_save_feedback_in_response`` (``"annotate-feedback--success"
+       in r.text``) keeps matching.
+     * ``annotate-tags-input`` + the entire save/clear form contract is
+       preserved verbatim in ``annotate_tags.html`` (same fields, same
+       endpoints).
+     * The ``#annotate-llm-edit`` swap container lives inside
+       ``annotate_comments.html`` so the existing
+       ``annotate_desc_edit.html`` partial still mounts on Edit click.
+
+   Context contract (built by
+   :func:`api.services.annotations.scene_context` /
+   :func:`api.services.annotations.build_annotate_context`):
+
+     * ``selected_scene`` dict — scene_id, film_slug, keyframe_url,
+       timecode, duration_s, description (AI moondream text), tags.
+     * ``scene_id``, ``current_idx``, ``total``, ``prev_id``,
+       ``next_id``, ``filter``, ``existing_tags``, ``tags_value`` —
+       legacy keys the tag editor + nav read directly.
+     * ``annotate_tab`` literal one of "comments" / "annotations" /
+       "properties" — defaulted by the route, normalised by
+       :func:`api.services.annotations.normalize_annotate_tab`.
+     * ``comment_count`` — pip on the Comments htab; 1 when the AI
+       description exists (curator/viewer rows arrive with the
+       collaboration backend).
+     * ``saved`` / ``cleared`` / ``desc_saved`` booleans — drive the
+       feedback rows inside the sub-partials.
+#}
+{%- if selected_scene -%}
+{% from "partials/_icons.html" import icon %}
+<section class="a-rp">
+
+  {# ── Horizontal tabs: Comments · Annotations · Properties ───────────── #}
+  <div class="htabs" role="tablist" aria-label="{{ _('Annotation tabs') }}">
+    <button type="button"
+            class="htab{% if annotate_tab == 'comments' %} on{% endif %}"
+            role="tab"
+            aria-selected="{% if annotate_tab == 'comments' %}true{% else %}false{% endif %}"
+            hx-get="/api/annotate/scene?id={{ selected_scene.scene_id }}&filter={{ filter }}&tab=comments{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
             hx-target="#annotate-scene"
-            hx-swap="innerHTML">←</button>
-    {% else %}
-    <button class="btn-ghost annotate-nav__btn" disabled>←</button>
+            hx-swap="innerHTML">
+      {{ icon('comment', 14) }} {{ _("Comments") }}
+      {% if comment_count %}<span class="pip">{{ comment_count }}</span>{% endif %}
+    </button>
+    <button type="button"
+            class="htab{% if annotate_tab == 'annotations' %} on{% endif %}"
+            role="tab"
+            aria-selected="{% if annotate_tab == 'annotations' %}true{% else %}false{% endif %}"
+            hx-get="/api/annotate/scene?id={{ selected_scene.scene_id }}&filter={{ filter }}&tab=annotations{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
+            hx-target="#annotate-scene"
+            hx-swap="innerHTML">
+      {{ icon('tag', 14) }} {{ _("Annotations") }}
+      {% if existing_tags %}<span class="pip">{{ existing_tags|length }}</span>{% endif %}
+    </button>
+    <button type="button"
+            class="htab{% if annotate_tab == 'properties' %} on{% endif %}"
+            role="tab"
+            aria-selected="{% if annotate_tab == 'properties' %}true{% else %}false{% endif %}"
+            hx-get="/api/annotate/scene?id={{ selected_scene.scene_id }}&filter={{ filter }}&tab=properties{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
+            hx-target="#annotate-scene"
+            hx-swap="innerHTML">
+      {{ icon('fields', 14) }} {{ _("Properties") }}
+    </button>
+    <span class="gap" aria-hidden="true"></span>
+    <button type="button" class="ic" title="{{ _('Sort') }}" aria-label="{{ _('Sort') }}">
+      {{ icon('sort', 14) }}
+    </button>
+    <button type="button" class="ic" title="{{ _('Search') }}" aria-label="{{ _('Search annotations') }}">
+      {{ icon('search', 14) }}
+    </button>
+    <button type="button" class="ic" title="{{ _('More') }}" aria-label="{{ _('More actions') }}">
+      {{ icon('more', 14) }}
+    </button>
+  </div>
+
+  {# ── Subhead: scene label + count pip · filter/sort icons ────────────── #}
+  <div class="subhead">
+    <div class="l">
+      <span>{{ _("Scene %(n)s") % {"n": "%03d"|format(selected_scene.scene_id or 0)} }}</span>
+      {% if annotate_tab == 'annotations' and existing_tags %}
+        <span class="pip">{{ existing_tags|length }} {{ _("tags") }}</span>
+      {% elif annotate_tab == 'comments' and comment_count %}
+        <span class="pip">{{ comment_count }}</span>
+      {% endif %}
+      {# Legacy prev/next position counter — kept inline so existing tests
+         that assert ``annotate-nav__pos`` (and the ``1 / 2`` shape) keep
+         matching. The visual nav lives in the stage's .a-pl player; this
+         span is the textual position the regression suite locks down. #}
+      <span class="annotate-nav__pos text-muted">{{ current_idx + 1 }} / {{ total }}</span>
+    </div>
+    <div class="r">
+      <button type="button" class="fx-icbtn sm" title="{{ _('Filter') }}" aria-label="{{ _('Filter') }}">
+        {{ icon('filter', 14) }}
+      </button>
+      <button type="button" class="fx-icbtn sm" title="{{ _('Sort') }}" aria-label="{{ _('Sort') }}">
+        {{ icon('sort', 14) }}
+      </button>
+    </div>
+  </div>
+
+  {# ── Thread body — dispatches to one of the three sub-partials. ──────── #}
+  <div class="a-thread">
+
+    {% if desc_saved %}
+    <div class="annotate-feedback annotate-feedback--success">
+      ✓ {{ _("Description saved") }}
+    </div>
     {% endif %}
 
-    <span class="annotate-nav__pos text-muted">{{ current_idx + 1 }} / {{ total }}</span>
-
-    {% if next_id is not none %}
-    <button class="btn-ghost annotate-nav__btn"
-            hx-get="/api/annotate/scene?id={{ next_id }}&filter={{ filter }}"
-            hx-target="#annotate-scene"
-            hx-swap="innerHTML">→</button>
+    {% if annotate_tab == 'annotations' %}
+      {% include "partials/annotate_tags.html" %}
+    {% elif annotate_tab == 'properties' %}
+      {% include "partials/annotate_props.html" %}
     {% else %}
-    <button class="btn-ghost annotate-nav__btn" disabled>→</button>
+      {% include "partials/annotate_comments.html" %}
     {% endif %}
-</div>
 
-<!-- Two-column layout: keyframe | annotation form -->
-<div class="annotate-layout">
+  </div>
 
-    <!-- Left: keyframe + time -->
-    <div class="annotate-keyframe-col">
-        {% if img_url %}
-        <img class="annotate-keyframe"
-             src="{{ img_url }}"
-             alt="{{ _('Scene') }} {{ scene_id }}">
-        {% else %}
-        <div class="annotate-keyframe annotate-keyframe--missing"></div>
-        {% endif %}
-        <p class="annotate-timecode text-muted">
-            {{ "%.1f" | format(start_s) }}s → {{ "%.1f" | format(end_s) }}s
-            · {{ "%.1f" | format(duration_s) }}s
-        </p>
-    </div>
-
-    <!-- Right: LLM description + manual tags form -->
-    <div class="annotate-form-col">
-
-        {% if llm %}
-        <div class="annotate-llm">
-            <div class="annotate-llm__header">
-                <p class="annotate-section-label">{{ _("LLM description") }}</p>
-                <button class="btn-ghost annotate-edit-trigger"
-                        hx-get="/api/annotate/description/edit?scene_id={{ scene_id }}&filter={{ filter }}"
-                        hx-target="#annotate-llm-edit"
-                        hx-swap="innerHTML">{{ _("Edit") }}</button>
-            </div>
-            <p class="annotate-llm__text">{{ llm.description }}</p>
-            {% if llm.tags %}
-            <div class="scene-card__tags" style="margin-top: 8px">
-                {% for tag in llm.tags %}
-                <span class="tag">{{ tag }}</span>
-                {% endfor %}
-            </div>
-            {% endif %}
+  {# ── Composer — gated on the collaboration backend flag ──────────────── #}
+  {% if cfg.collaboration.composer_enabled %}
+    <form class="composer" onsubmit="return false;">
+      <div class="meta">
+        {% if selected_scene.timecode %}<span class="fx-tc">{{ selected_scene.timecode }}</span>{% endif %}
+        <span style="font-size: 11px; color: var(--c-muted);">
+          {{ _("Commenting at this timecode") }}
+        </span>
+        <div class="toolset">
+          <button type="button" class="t" title="{{ _('Pin') }}" aria-label="{{ _('Add pin') }}">
+            {{ icon('pin', 14) }}
+          </button>
+          <button type="button" class="t" title="{{ _('Tag') }}" aria-label="{{ _('Add tag') }}">
+            {{ icon('tag', 14) }}
+          </button>
+          <button type="button" class="t" title="{{ _('Attach') }}" aria-label="{{ _('Attach file') }}">
+            {{ icon('attach', 14) }}
+          </button>
+          <button type="button" class="t" title="{{ _('Emoji') }}" aria-label="{{ _('Insert emoji') }}">
+            {{ icon('emoji', 14) }}
+          </button>
         </div>
-        {% else %}
-        <div class="annotate-llm__header">
-            <p class="text-muted annotate-no-llm">{{ _("No LLM description") }}</p>
-            <button class="btn-ghost annotate-edit-trigger"
-                    hx-get="/api/annotate/description/edit?scene_id={{ scene_id }}&filter={{ filter }}"
-                    hx-target="#annotate-llm-edit"
-                    hx-swap="innerHTML">{{ _("Add description") }}</button>
-        </div>
-        {% endif %}
-        <div id="annotate-llm-edit"></div>
+      </div>
+      <div class="input-wrap">
+        <textarea name="body"
+                  placeholder="{{ _('Leave a comment…') }}"
+                  rows="2"></textarea>
+        <button type="submit" class="send" title="{{ _('Send · ⌘⏎') }}" aria-label="{{ _('Send comment') }}">
+          {{ icon('send', 14) }}
+        </button>
+      </div>
+    </form>
+  {% endif %}
 
-        <div class="annotate-divider"></div>
-
-        <p class="annotate-section-label">{{ _("Manual tags") }}</p>
-
-        <form hx-post="/api/annotate/save"
-              hx-target="#annotate-scene"
-              hx-swap="innerHTML">
-            <input type="hidden" name="scene_id" value="{{ scene_id }}">
-            <input type="hidden" name="filter" value="{{ filter }}">
-            <input class="annotate-tags-input"
-                   name="tags"
-                   type="text"
-                   value="{{ tags_value }}"
-                   placeholder="{{ _('rural, exterior, horse, single-person') }}"
-                   autocomplete="off">
-            <p class="annotate-hint text-muted">
-                {{ _("Use hyphens for compound tags: two-people, night-scene") }}
-            </p>
-            <div class="annotate-actions">
-                <button type="submit" class="btn-primary">{{ _("Save") }}</button>
-                <button type="button"
-                        class="btn-secondary"
-                        hx-post="/api/annotate/clear"
-                        hx-vals='{"scene_id": {{ scene_id }}, "filter": "{{ filter }}"}'
-                        hx-target="#annotate-scene"
-                        hx-swap="innerHTML">
-                    {{ _("Clear") }}
-                </button>
-            </div>
-        </form>
-
-    </div>
-</div>
+</section>
+{%- endif -%}

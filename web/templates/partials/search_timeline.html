@@ -1,0 +1,88 @@
+{# ── Mojica Buscar timeline — bottom strip (.b-tl) ──────────────────────────
+   Task 13 (Phase 2) of the Mojica redesign. Renders a horizontal strip
+   below the .b-cp results grid showing every keyframe of the selected
+   film with match highlights, tickmarks, and a timecode display.
+
+   Context contract (built by ``api/services/scenes_service.build_timeline_context``):
+
+     * ``selected_film``       SimpleNamespace — augmented Film with
+       ``.slug``, ``.title``, ``.scene_count``, ``.year`` (from the
+       library registry) PLUS ``.scenes_for_timeline`` (list of dicts
+       with ``id``, ``keyframe_url``, ``timecode``, ``is_match``,
+       ``is_selected``), ``.timeline_ticks`` (HH:MM strings) and
+       ``.runtime_tc`` (HH:MM:SS or ``--:--:--``).
+     * ``selected_scene``      dict — same shape the inspector receives;
+       used here only for the .ctrls timecode display.
+     * ``film_match_n``        int — count of scenes flagged as ``is_match``
+       in the current film (header pill).
+     * ``query``               str — current ?q=<text>; propagated into
+       every .seg href so a click into a timeline scene preserves search
+       state (a plain anchor, NOT an HTMX swap — full-page navigation is
+       deliberate so the URL is shareable).
+
+   Self-contained guard: when ``selected_film`` is absent the partial
+   renders nothing. This lets ``partials/search.html`` include it
+   unconditionally — the full-page initial render (no ``?scene=&film=``
+   params) produces no .b-tl chrome, exactly like Task 12's inspector.
+
+   Known M1 limitations (documented in the service):
+     * ``is_match`` is only True for the currently selected scene; the
+       full per-film match set lands with M2 hybrid retrieval.
+     * ``runtime_tc`` derives from the last scene's ``end_time_s`` —
+       a tight lower bound, indistinguishable in practice from the real
+       video runtime for tick-density purposes.
+#}
+{%- if selected_film and selected_film.scenes_for_timeline %}
+{% from "partials/_icons.html" import icon %}
+<section class="b-tl">
+
+  {# ── Header: title pill + scene/match counts + .ctrls timecode block ── #}
+  <div class="head">
+    <div class="ttitle">
+      <span class="dot" style="background: var(--c-accent);"></span>
+      <span>{{ _("Timeline") }} · <b>{{ selected_film.title }}</b></span>
+      <span class="fx-mono" style="color: var(--c-muted);">
+        {{ selected_film.scene_count }} {{ _("scenes") }}
+        {%- if film_match_n %} · {{ film_match_n }} {{ _("matches") }}{% endif %}
+      </span>
+    </div>
+    <div class="ctrls">
+      <span class="tc">{% if selected_scene and selected_scene.timecode %}{{ selected_scene.timecode }}{% else %}00:00:00{% endif %}</span>
+      <span>/</span>
+      <span style="color: var(--c-text-2);">{{ selected_film.runtime_tc }}</span>
+      <button type="button" class="ib" title="{{ _('Play') }}" aria-label="{{ _('Play scene') }}">
+        {{ icon('play', 14) }}
+      </button>
+      <button type="button" class="ib" title="{{ _('Settings') }}" aria-label="{{ _('Timeline settings') }}">
+        {{ icon('settings', 14) }}
+      </button>
+    </div>
+  </div>
+
+  {# ── Scrub bar: one .seg per scene, sized via flex:1 in buscar.css.
+       Each .seg is a plain anchor (not HTMX) so the URL stays shareable
+       and back/forward navigation works as expected. The .seg href
+       carries ?q=&scene=&film= so the search-page builder repopulates
+       the timeline + inspector on the next render. #}
+  <div class="scrub" role="list" aria-label="{{ _('Film scenes timeline') }}">
+    {% for s in selected_film.scenes_for_timeline %}
+      <a class="seg{% if s.is_match %} match{% endif %}{% if s.is_selected %} sel{% endif %}"
+         role="listitem"
+         {% if s.keyframe_url %}style="background-image: url('{{ s.keyframe_url }}');"{% endif %}
+         href="/search?{% if query %}q={{ query|urlencode }}&{% endif %}scene={{ s.id }}&film={{ selected_film.slug }}"
+         title="{{ s.timecode or _('Scene %(n)s') % {'n': s.id} }}"
+         aria-label="{{ _('Scene %(n)s') % {'n': s.id} }}{% if s.timecode %} · {{ s.timecode }}{% endif %}"></a>
+    {% endfor %}
+  </div>
+
+  {# ── Tick labels: evenly-spaced HH:MM stamps across the runtime.
+       8 columns hard-wired in buscar.css → grid-template-columns:
+       repeat(8, 1fr). Empty timeline_ticks (no end_time_s on disk)
+       collapses the row to zero height — visually acceptable. #}
+  <div class="ticks" aria-hidden="true">
+    {% for tick in selected_film.timeline_ticks %}
+      <span>{{ tick }}</span>
+    {% endfor %}
+  </div>
+</section>
+{%- endif %}

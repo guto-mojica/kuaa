@@ -1,0 +1,112 @@
+{# Center pane — current query card + grade legend + result rows (Task 31).
+
+   When current_query is None (an unseeded run), shows an empty state.
+   Otherwise renders:
+     - .ev-q-card: query metadata header (id, source, language, k,
+       hybrid weights, reranker, latency).
+     - .legend: colour-coded grade chip key.
+     - .ev-rows: one .ev-row per candidate result. Each row has rank,
+       grade buttons (0/1/2/3/S), thumbnail, body (id + film pill +
+       timecode + description + tags), and right-rail (score +
+       progress bar). Grade buttons carry data-query-id / data-scene-id
+       / data-grade so Task 32's keyboard router + the existing
+       /api/eval/grade POST can address them. #}
+<section class="ev-cp">
+  {% if current_query %}
+  <article class="ev-q-card">
+    <div class="ll">
+      <span class="qid">Q-{{ '%03d'|format(current_query.id) if current_query.id is number else current_query.id }}</span>
+      <span class="div">·</span>
+      <span class="src">{{ current_query.source or 'manual' }}</span>
+      <span class="div">·</span>
+      <span>{{ _('created') }} {{ current_query.created_when or '—' }}</span>
+      <span class="div">·</span>
+      <span>{{ current_query.lang or 'pt-BR' }}</span>
+    </div>
+    <h1><span class="kind">›</span> {{ current_query.text }}</h1>
+    <div class="meta">
+      <span class="pill"><span class="dot" style="background: var(--c-accent);"></span>{{ _('text') }}</span>
+      <span>Top-k <b>k={{ current_query.k if current_query.k is defined and current_query.k else 9 }}</b></span>
+      <span>{{ _('hybrid') }} <b>sem 0.70 · bm25 0.30</b></span>
+      <span>{{ _('rerank') }} <b>mxbai-rerank-l</b></span>
+      <span>{{ _('latency') }} <b>{{ current_query.latency_ms if current_query.latency_ms is defined and current_query.latency_ms else '—' }} ms</b></span>
+    </div>
+  </article>
+
+  <div class="legend">
+    <span class="lab">{{ _('grade:') }}</span>
+    <span class="chip g0">0 · {{ _('Irrelevant') }}</span>
+    <span class="chip g1">1 · {{ _('Weakly') }}</span>
+    <span class="chip g2">2 · {{ _('Relevant') }}</span>
+    <span class="chip g3">3 · {{ _('Highly') }}</span>
+    <span class="chip sk">S · {{ _('Skip') }}</span>
+  </div>
+
+  <div class="ev-rows" id="ev-rows">
+    {% set rows = current_query.results if current_query.results is defined and current_query.results else [] %}
+    {% for r in rows %}
+      {% set scene_key = r.scene_id|string %}
+      {% set g = grades_for_current.get(scene_key) if grades_for_current is defined else none %}
+      {% set is_cur_row = current_row_scene_id is defined and current_row_scene_id == r.scene_id %}
+      {% set is_graded = g is not none %}
+      <article class="ev-row{% if is_cur_row %} cur{% endif %}{% if is_graded %} graded{% endif %}"
+               data-scene-id="{{ r.scene_id }}"
+               data-query-id="{{ current_query.id }}">
+        <div class="rank">
+          <span>{{ '%02d'|format(loop.index) }}</span>
+          <span class="rk">{{ _('rank') }}</span>
+        </div>
+        <div class="grades">
+          {% for v, cls in [(0, 'on0'), (1, 'on1'), (2, 'on2'), (3, 'on3')] %}
+            <button type="button"
+                    class="gb{% if g == v %} {{ cls }}{% elif is_graded and g != -1 %} dim{% endif %}"
+                    data-grade="{{ v }}"
+                    data-query-id="{{ current_query.id }}"
+                    data-scene-id="{{ r.scene_id }}">{{ v }}</button>
+          {% endfor %}
+          <button type="button"
+                  class="gb k{% if g == -1 %} ons{% elif is_graded %} dim{% endif %}"
+                  data-grade="-1"
+                  data-query-id="{{ current_query.id }}"
+                  data-scene-id="{{ r.scene_id }}">S</button>
+        </div>
+        <div class="thumb"{% if r.keyframe_url %} style="background-image: url('{{ r.keyframe_url }}');"{% endif %}></div>
+        <div class="body">
+          <div class="head1">
+            <span class="id">{{ (r.film_slug or 'film')|upper }}-{{ '%03d'|format(r.scene_id) if r.scene_id is number else r.scene_id }}</span>
+            <span class="filmpill">
+              <span class="dot" style="background: var(--c-accent);"></span>
+              <span class="nm">{{ r.film_title or r.film_slug or '—' }}</span>
+              <span class="yr">({{ r.year or '—' }})</span>
+            </span>
+            <span class="tc">{{ r.timecode or '00:00:00' }}</span>
+          </div>
+          <div class="desc">{{ r.description or _('No description yet.') }}</div>
+          <div class="tags">
+            {% for t in (r.tags or [])[:5] %}
+              <span class="t">{{ t }}</span>{% if not loop.last %}<span class="t">·</span>{% endif %}
+            {% endfor %}
+          </div>
+        </div>
+        {% set raw_score = r.score if r.score is defined and r.score is not none else 0 %}
+        {% set blind_pct = 50 if blind_mode else (raw_score * 100)|round(0, 'common')|int %}
+        <div class="right">
+          <span class="score{% if blind_mode %} blind{% endif %}">
+            {% if blind_mode %}••••{% else %}{{ '%.2f'|format(raw_score) }}{% endif %}
+          </span>
+          <span class="scbar{% if blind_mode %} blind{% endif %}" style="--p: {{ blind_pct }}%;"></span>
+          <span class="src">sem⊕bm25⊕rk</span>
+        </div>
+      </article>
+    {% else %}
+      <div style="padding: 24px 14px; color: var(--c-muted); font-size: 12px;">
+        {{ _('No candidate results loaded for this query.') }}
+      </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    <div class="ev-empty">
+      <p>{{ _('No query selected.') }}</p>
+    </div>
+  {% endif %}
+</section>
