@@ -93,9 +93,14 @@
   <a class="ch-coll{% if col.active %} active{% endif %}"
      href="{{ col.url or '#' }}"
      {% if col.category %}data-category="{{ col.category }}"{% endif %}>
-    <span style="width: 14px;"></span>
+    <span class="spc"></span>
     <span class="ico"{% if col.category %} data-cat="{{ col.category }}"{% endif %}>{{ icon(col.icon or 'folder', 14) }}</span>
     <span class="fx-truncate">{{ _(col.label) }}</span>
     <span class="ct">{{ col.count }}</span>
   </a>
 {% endfor %}
+
+{# Shared section deferred — the Mojica prototype's Compartilhados block
+   (Curadoria 2026 / HF Spaces / Avaliação IRT) needs a link-sharing model
+   that does not exist yet. Restore when the collaboration epic lands
+   (post-v1.0). #}

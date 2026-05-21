@@ -31,12 +31,34 @@ What this module does NOT do:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 from api.jobs import active_jobs
+from cinemateca.library import Film, LibraryState
 
 
-def _default_collections(films: list[Any], total_scenes: int) -> list[dict]:
+class ChromeContext(TypedDict):
+    """Typed shape of :func:`build_chrome_context`'s return value.
+
+    Each key mirrors a Mojica chrome partial's expected variable; see the
+    function docstring for per-key semantics.
+    """
+
+    films: list[Film]
+    library_state: LibraryState
+    total_runtime_minutes: int
+    current_slug: str | None
+    active_job_slugs: set[str]
+    active_job_count: int
+    film_match_pct: dict[str, int]
+    film_match_counts: dict[str, int]
+    collections: list[dict[str, Any]]
+    viewers: list[dict[str, Any]]
+    current_user: dict[str, Any] | None
+    notification_count: int
+
+
+def _default_collections(films: list[Film], total_scenes: int) -> list[dict[str, Any]]:
     """Return the curated default-collection list rendered in the LeftPane.
 
     Five entries match the Mojica prototype's ``Coleções`` section:
@@ -99,7 +121,7 @@ def _default_collections(films: list[Any], total_scenes: int) -> list[dict]:
     ]
 
 
-def build_chrome_context(cfg, current_slug: str | None = None) -> dict:
+def build_chrome_context(cfg: Any, current_slug: str | None = None) -> ChromeContext:
     """Return the chrome bag merged into every full-page template context.
 
     The result is a flat dict ready to be ``**`` -unpacked into
@@ -108,12 +130,15 @@ def build_chrome_context(cfg, current_slug: str | None = None) -> dict:
     through ``render_page`` still render the shell sensibly.
 
     Args:
-      cfg: Loaded ``cinemateca.config.AppConfig``.
+      cfg: Loaded config namespace returned by ``cinemateca.config.load_config``.
+        Typed as ``Any`` to match the existing service-layer convention
+        (see ``search_service``, ``film_context``, ``catalog``); the only
+        attribute touched here is ``cfg.paths.library_dir``.
       current_slug: Slug of the currently-selected film (``?film=<slug>``),
         used to mark the matching ``.ch-film`` row ``.active``.
 
     Returns:
-      A dict with:
+      A :class:`ChromeContext` ``TypedDict`` with:
         * ``films``: full registry-backed film list (`list[Film]`).
         * ``library_state``: aggregate ``LibraryState`` (raw_present,
           index_present, scene_count, is_processed).

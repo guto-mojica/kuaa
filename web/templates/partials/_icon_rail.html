@@ -45,7 +45,7 @@
        title="{{ _('Processing') }}"
        data-tip="{{ _('Processing') }}">
       {{ icon('proc', 18) }}
-      {% if active_job_count and active_job_count > 0 %}
+      {% if active_job_count > 0 %}
         <span class="nb">{{ active_job_count }}</span>
       {% endif %}
     </a>

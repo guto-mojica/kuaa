@@ -226,6 +226,10 @@
 .ch-coll .ico { display: flex; align-items: center; color: var(--c-muted); }
 .ch-coll.active .ico { color: var(--c-accent); }
 .ch-coll .ct { font-family: var(--font-mono); font-size: 10.5px; color: var(--c-muted); }
+/* Empty leading cell — collections are flat, so the 14px chevron column
+   in `.ch-coll`'s grid stays unfilled. Named so the markup stays declarative
+   instead of carrying an inline `style="width: 14px;"`. */
+.ch-coll .spc { width: 14px; }
 
 /* foot */
 .ch-lp .foot {

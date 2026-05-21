@@ -51,6 +51,10 @@
            locale switcher, About link) keeps passing. Tasks 7 + 8 + Phase 2
            progressively move this content into the chrome partials above
            and shrink this block down to just the page-specific tab content. #}
+        {# FIXME(phase2): the legacy .shell > .sidebar below still renders
+           alongside the new .ch-lp, producing a transient two-sidebars view.
+           Phase 2 deletes this legacy markup when tab content templates are
+           unwrapped from the .shell wrapper. #}
         <div class="shell">
 
             <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
