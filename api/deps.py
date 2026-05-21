@@ -74,9 +74,11 @@ def make_ctx(request: Request, **kwargs) -> dict:
     """Build a Jinja2 template context with per-request locale and active film.
 
     Also defaults the Mojica chrome context keys (``active_tab``,
-    ``compact_lp``, ``has_right_pane``, ``breadcrumb``, ``page_title``) so the
-    new shell renders sensibly even when a route forgets to set them. Callers
-    that pass any of these via ``**kwargs`` override the defaults.
+    ``compact_lp``, ``has_right_pane``, ``breadcrumb``, ``page_title``,
+    ``active_job_count``, ``viewers``, ``notification_count``,
+    ``current_user``) so the new shell renders sensibly even when a route
+    forgets to set them. Callers that pass any of these via ``**kwargs``
+    override the defaults.
     """
     locale = request.cookies.get("locale", "pt_BR")
     trans = _get_translations(locale)
@@ -92,6 +94,15 @@ def make_ctx(request: Request, **kwargs) -> dict:
         "has_right_pane": True,
         "breadcrumb": [],
         "page_title": None,
+        # TopBar (Task 7) defaults — Task 8's chrome_service will replace
+        # these with the real per-request values (active job count derived
+        # from the jobs registry, viewers from the collaboration epic, etc.).
+        # For now the topbar renders with a 0-count tab badge, no viewers
+        # stack, and an anonymous "M" avatar when these aren't supplied.
+        "active_job_count": 0,
+        "viewers": [],
+        "notification_count": 0,
+        "current_user": None,
     }
     base.update(kwargs)
     return base

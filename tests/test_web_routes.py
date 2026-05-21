@@ -120,6 +120,34 @@ def test_base_shell_includes_palette_and_help_roots(client):
     assert 'id="toast-root"' in html
 
 
+# ── Group 1c: TopBar tab chips active state (Task 7) ──────────────────────────
+#
+# The Mojica TopBar renders five tab chips with PT slugs (`data-tab="buscar"`,
+# `data-tab="cenas"`, `data-tab="anotar"`, `data-tab="rimas"`, `data-tab="proc"`)
+# and the active chip carries the `on` class. The body's `data-active-tab`
+# carries the same PT slug. These assertions pin down both contracts at once.
+
+
+@pytest.mark.parametrize(
+    "path,active",
+    [
+        ("/search", "buscar"),
+        ("/scenes", "cenas"),
+        ("/annotate", "anotar"),
+        ("/rimas", "rimas"),
+        ("/processing", "proc"),
+    ],
+)
+def test_topbar_active_tab(client, path, active):
+    """Each route marks its corresponding topbar chip + body slug as active."""
+    r = client.get(path)
+    assert r.status_code == 200, r.text[:500]
+    html = r.text
+    assert f'data-active-tab="{active}"' in html
+    assert '<a class="tab on"' in html
+    assert html.count(f'data-tab="{active}"') >= 1
+
+
 # ── Group 2a: full-page vs tab context parity — Phase-1a regression lock ──────
 
 class TestFullPageContextDivergence:

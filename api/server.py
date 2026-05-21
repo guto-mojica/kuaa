@@ -104,7 +104,10 @@ _TAB_CHROME = {
     "search": {"active_tab": "buscar", "compact_lp": False, "has_right_pane": True},
     "scenes": {"active_tab": "cenas", "compact_lp": False, "has_right_pane": True},
     "annotate": {"active_tab": "anotar", "compact_lp": True, "has_right_pane": True},
-    "processing": {"active_tab": "processamento", "compact_lp": False, "has_right_pane": True},
+    # NOTE: the body's data-active-tab uses the short slug "proc" (not the
+    # full PT "processamento") so the topbar tab chip's `data-tab="proc"`
+    # selector matches in CSS / JS. Task 7 wired this contract.
+    "processing": {"active_tab": "proc", "compact_lp": False, "has_right_pane": True},
     "rimas": {"active_tab": "rimas", "compact_lp": False, "has_right_pane": True},
 }
 
