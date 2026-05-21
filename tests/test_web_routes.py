@@ -480,15 +480,18 @@ def test_search_full_page_includes_inspector_partial_without_crashing(client):
     """``/search`` renders without ``selected_scene`` — the partial self-guards.
 
     The initial full-page render has no selected scene; the inspector
-    must produce no visible chrome rather than crashing on an undefined
-    ``selected_scene`` reference.
+    must produce its empty-state placeholder rather than crashing on an
+    undefined ``selected_scene`` reference or leaving a 380px void on the
+    right of the canvas.
     """
     r = client.get("/search")
     assert r.status_code == 200, r.text[:500]
-    # The inspector partial is included by search.html (no ``ignore missing``
-    # any more). With no selected_scene it must render to nothing visible:
-    # the .b-rp class should NOT appear on the initial page.
-    assert 'class="b-rp"' not in r.text
+    # The inspector partial is included by search.html and now renders an
+    # ``.b-rp.b-rp-empty`` placeholder when no scene is selected. The full
+    # ``.b-rp`` chrome (htabs, .insp-kf, .b-thread, …) must NOT be present.
+    assert 'class="b-rp b-rp-empty"' in r.text, "empty-state placeholder missing"
+    assert 'class="htabs"' not in r.text, "selected-state htabs leaked into empty render"
+    assert 'class="insp-kf"' not in r.text, "selected-state keyframe leaked into empty render"
 
 
 # ── Group 1f-bis: Cenas inspector (Task 16) ───────────────────────────────────

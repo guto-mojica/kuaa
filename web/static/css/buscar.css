@@ -415,3 +415,91 @@
   display: grid; grid-template-columns: repeat(8, 1fr);
   font-family: var(--font-mono); font-size: 9.5px; color: var(--c-faint);
 }
+
+/* ─── Right-pane empty state ─────────────────────────────────────────────
+   Rendered when no scene is selected (initial /search load) so the 380px
+   right column doesn't appear as a dead void. The placeholder shares the
+   .b-rp namespace so the chrome grid keeps its sizing — only the inner
+   layout differs. */
+.b-rp.b-rp-empty {
+  border-left: 1px solid var(--c-border); background: var(--c-panel);
+  display: flex; align-items: center; justify-content: center;
+  padding: 32px 24px;
+}
+.b-rp-empty-inner {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 8px; text-align: center; max-width: 240px;
+  color: var(--c-muted);
+}
+.b-rp-empty-inner .ico {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--c-raised); color: var(--c-muted);
+  margin-bottom: 4px;
+}
+.b-rp-empty-inner .ttl {
+  margin: 0; font-size: 13.5px; font-weight: 600; color: var(--c-text);
+  letter-spacing: -0.005em;
+}
+.b-rp-empty-inner .sub {
+  margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--c-muted);
+}
+
+/* ─── Tag-filter section height cap ──────────────────────────────────────
+   The Mojica empty-state hides .search-tag-section entirely; once results
+   load, the section reappears as a refinement strip below the grid. With
+   1.2k+ tag pills in a real library, the section would dominate the
+   viewport, so cap its height and let it scroll internally. */
+.b-cp .search-tag-section {
+  max-height: 168px;
+  overflow-y: auto;
+  border-top: 1px solid var(--c-border);
+  margin: 0; padding: 12px 24px;
+}
+
+/* ─── Responsive breakpoints ─────────────────────────────────────────────
+   Mojica desktop targets ≥1440px (3-col card grid + 248px left pane +
+   380px right pane). Below that the canvas collapses progressively:
+
+     ≤1280px: right pane shrinks to 320px, card grid keeps auto-fill
+     ≤1024px: caption row wraps; toolbar mode chips compress
+     ≤ 720px: card grid drops to a single column; right pane hides; the
+              search input loses its trailing ⌘K hint to recover width
+
+   chrome.css handles the .ch-body grid + .ch-top tabs at the same
+   breakpoints — these rules cover only the .b-cp / .b-rp internals. */
+
+@media (max-width: 1280px) {
+  .b-cp .search-wrap { padding: 14px 18px 10px; }
+  .b-cp .caption { padding: 10px 18px; }
+  .b-cp .grid { padding: 14px 18px 18px; gap: 12px; }
+  .b-rp .inner { padding: 12px 14px 16px; }
+  .b-tl { padding: 8px 18px 10px; }
+}
+
+@media (max-width: 1024px) {
+  .b-cp .modes { gap: 6px; }
+  .b-cp .chip { padding: 5px 9px; font-size: 11.5px; }
+  .b-cp .caption {
+    flex-direction: column; align-items: flex-start; gap: 8px;
+  }
+  .b-cp .caption .right { align-self: flex-end; }
+}
+
+@media (max-width: 720px) {
+  .b-cp .qbar { flex-direction: column; align-items: stretch; gap: 8px; }
+  .b-cp .qbar .qinput .kbd { display: none; }
+  .b-cp .qbar .fx-btn { width: 100%; justify-content: center; }
+  .b-cp .modes { gap: 5px; }
+  .b-cp .modes .div-v { display: none; }
+  .b-cp .knob { font-size: 11px; }
+  .b-cp .grid {
+    grid-template-columns: 1fr;
+    padding: 12px 14px 16px;
+  }
+  .b-card .kf { aspect-ratio: 16 / 9; }
+  .b-tl { padding: 8px 14px 10px; }
+  /* The search-tag-section caps lower on small screens so it never
+     dominates the viewport even when scrolled. */
+  .b-cp .search-tag-section { max-height: 120px; padding: 10px 14px; }
+}

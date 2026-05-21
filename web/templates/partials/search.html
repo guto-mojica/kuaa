@@ -204,10 +204,14 @@
     {% include "partials/search_results.html" %}
   </div>
 
-  {# ── Tag filter — bottom of the pane in text mode, hidden in image
-       mode (the image search drives results from the upload, not the
-       tag pills). #}
-  {% if available_tags %}
+  {# ── Tag filter — refinement affordance below the results grid.
+       The Mojica prototype keeps the empty Buscar pane uncluttered, so the
+       full tag cloud is hidden until the user has issued a query (or kept
+       a tag-only filter active). When visible, the section caps its height
+       and scrolls internally so it never dominates the viewport on small
+       vocabularies vs. very large ones. Hidden in image mode (the upload
+       drives results from the file, not the tag pills). #}
+  {% if available_tags and (query or highlighted_tags) %}
   <div id="search-tag-panel"
        class="search-tag-section"
        {% if active_mode != 'text' %}style="display:none"{% endif %}>

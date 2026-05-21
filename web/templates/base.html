@@ -2,11 +2,14 @@
 <html lang="{{ lang }}">
 <head>
     <meta charset="UTF-8">
-    {# The Mojica redesign targets a fixed 1440px canvas — match that here so
-       the chrome grid (rail 56 + lp 248 + main 1fr + right 380) lays out
-       deterministically at preview time. Phase 9 will revisit responsive
-       behaviour. #}
-    <meta name="viewport" content="width=1440">
+    {# Responsive viewport. The Mojica design targets ≥1440px as its full
+       canvas, but the chrome (rail 56 + lp 248 + main 1fr + right 380)
+       and per-tab @media rules now collapse progressively at narrower
+       widths — left pane shrinks to icon-only ≤1280px, right pane folds
+       ≤960px, and tab grids drop to a single column ≤720px. The earlier
+       ``width=1440`` lock was a Phase-9 placeholder; this version honours
+       the actual breakpoints. #}
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ page_title or _("Mojica · Cinemateca Digital") }}</title>
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/fonts.css') }}">
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/main.css') }}">
