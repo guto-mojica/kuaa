@@ -837,14 +837,12 @@ msgid "Add description"
 msgstr "Adicionar descrição"
 
 #: web/templates/partials/annotate_comments.html:82
-#, fuzzy
 msgid "PINNED"
-msgstr "Fixar"
+msgstr "FIXADO"
 
 #: web/templates/partials/annotate_comments.html:106
-#, fuzzy
 msgid "Resolve"
-msgstr "Remover"
+msgstr "Resolver"
 
 #: web/templates/partials/annotate_desc_edit.html:11
 msgid ""
@@ -1280,9 +1278,8 @@ msgid "rhymes"
 msgstr "rimas"
 
 #: web/templates/partials/rimas.html:134
-#, fuzzy
 msgid "No anchor selected"
-msgstr "Nenhuma âncora selecionada."
+msgstr "Nenhuma âncora selecionada"
 
 #: web/templates/partials/rimas.html:136
 msgid "Open a scene in the Scenes tab and click"
@@ -1294,9 +1291,8 @@ msgid "Find visual rhymes"
 msgstr "Buscar rimas visuais"
 
 #: web/templates/partials/rimas.html:138
-#, fuzzy
 msgid "to explore cross-film visual echoes."
-msgstr "Escolha uma cena âncora para descobrir ecos visuais cross-film."
+msgstr "para explorar ecos visuais entre filmes."
 
 #: web/templates/partials/rimas.html:142
 msgid ""
@@ -1347,9 +1343,8 @@ msgid "Shared tags"
 msgstr "Tags em comum"
 
 #: web/templates/partials/rimas_inspector.html:125
-#, fuzzy
 msgid "Set as anchor"
-msgstr "Trocar âncora"
+msgstr "Definir como âncora"
 
 #: web/templates/partials/rimas_inspector.html:128
 msgid "Open rhyme scene"
@@ -1536,14 +1531,12 @@ msgid "Choose image…"
 msgstr "Escolher imagem…"
 
 #: web/templates/partials/search_inspector.html:31
-#, fuzzy
 msgid "Result details"
-msgstr "resultados"
+msgstr "Detalhes do resultado"
 
 #: web/templates/partials/search_inspector.html:34
-#, fuzzy
 msgid "Select a result"
-msgstr "Resultados da paleta"
+msgstr "Selecione um resultado"
 
 #: web/templates/partials/search_inspector.html:35
 msgid "Click a card to see its keyframe, annotations, and visual rhymes here."
