@@ -66,13 +66,24 @@ def film_slug_query(
         description="Slug filter; omit for aggregate view",
     ),
 ) -> str | None:
-    """Extract the ``?film=<slug>`` query param.
+    """Extract the ``?film=<slug>`` query param, validated against the library.
 
-    Returns ``None`` when the parameter is absent or empty, meaning
-    "aggregate across all registered films". Returns the slug string
-    when present and non-empty.
+    Returns ``None`` when the parameter is absent, empty, or names a slug
+    whose per-film directory does not exist on disk — meaning "aggregate
+    across all registered films". Returns the validated slug string only
+    when present, non-empty, AND the directory exists.
+
+    This guard runs on every HTMX fragment route (``/tab/*``, ``/api/*``)
+    so stale or invalid slugs silently fall back to the aggregate view
+    instead of raising ``ValueError`` inside ``FilmContext.for_film``.
     """
-    return film or None
+    if not film:
+        return None
+    from pathlib import Path
+
+    cfg = get_config()
+    film_dir = Path(cfg.paths.library_dir) / film
+    return film if film_dir.is_dir() else None
 
 
 def make_ctx(request: Request, **kwargs) -> dict:
