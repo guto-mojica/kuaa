@@ -1,0 +1,51 @@
+{# ── Inspector · Properties tab ───────────────────────────────────────────
+   A definition-list of scene + film metadata for the selected scene.
+   Every row is conditionally rendered — values that are absent or zero
+   are skipped rather than shown blank, so the tab stays compact for
+   sparsely-described scenes.
+#}
+<dl class="props">
+
+  {% if selected_scene.timecode %}
+    <dt>{{ _("Timecode") }}</dt>
+    <dd><span class="fx-tc bare">{{ selected_scene.timecode }}</span></dd>
+  {% endif %}
+
+  {% if selected_scene.scene_total %}
+    <dt>{{ _("Scene") }}</dt>
+    <dd>{{ selected_scene.scene_index }} / {{ selected_scene.scene_total }}</dd>
+  {% endif %}
+
+  {% if selected_scene.duration_s and selected_scene.duration_s > 0 %}
+    <dt>{{ _("Duration") }}</dt>
+    <dd>{{ "%.1f"|format(selected_scene.duration_s) }} s</dd>
+  {% endif %}
+
+  <dt>{{ _("Scene ID") }}</dt>
+  <dd><code>{{ selected_scene.scene_id }}</code></dd>
+
+  <dt>{{ _("Film") }}</dt>
+  <dd>{% if selected_film %}{{ selected_film.title }}{% else %}{{ selected_scene.film_slug or "" }}{% endif %}</dd>
+
+  {% if selected_film and selected_film.year %}
+    <dt>{{ _("Year") }}</dt>
+    <dd>{{ selected_film.year }}</dd>
+  {% endif %}
+
+  {% if selected_film and selected_film.director %}
+    <dt>{{ _("Director") }}</dt>
+    <dd>{{ selected_film.director }}</dd>
+  {% endif %}
+
+  {% if selected_scene.tags %}
+    <dt>{{ _("Tags") }}</dt>
+    <dd>
+      <div class="tags">
+        {% for t in selected_scene.tags %}
+          <span class="fx-pill">{{ t }}</span>
+        {% endfor %}
+      </div>
+    </dd>
+  {% endif %}
+
+</dl>

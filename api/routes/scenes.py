@@ -9,11 +9,12 @@ T9: Routes accept an optional ``?film=<slug>`` query parameter.
 ``slug=None`` → aggregate view across all registered films;
 ``slug=<value>`` → per-film view via ``FilmContext.for_film``.
 """
+
 from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 
 from api.deps import film_slug_query, get_config, make_ctx
@@ -24,6 +25,7 @@ from api.services.catalog import (
     build_scenes_grid_aggregate,
 )
 from api.services.film_context import FilmContext
+from api.services.scenes_service import build_inspector_context
 from api.templates import templates
 
 logger = logging.getLogger(__name__)
@@ -70,4 +72,34 @@ async def api_scenes(
         request,
         "partials/scenes_grid.html",
         make_ctx(request, current_slug=slug, **grid),
+    )
+
+
+@router.get("/api/scenes/{scene_id}/inspector", response_class=HTMLResponse)
+async def api_scene_inspector(
+    request: Request,
+    scene_id: int,
+    tab: str = Query(default="activity"),
+    slug: str | None = Depends(film_slug_query),
+) -> HTMLResponse:
+    """Render the right-pane Buscar inspector for ``scene_id`` (HTMX swap target).
+
+    Task 12 of the Mojica redesign: every ``.b-card`` in the search
+    results sets ``hx-get="/api/scenes/<id>/inspector?film=<slug>"`` and
+    targets ``#right-pane``. This endpoint resolves the (slug, scene_id)
+    pair through :func:`build_inspector_context`, renders
+    ``partials/search_inspector.html``, and returns the HTMX fragment.
+
+    Unresolvable pairs (unknown slug, unknown scene_id, missing
+    per-film metadata) return a 404 — the result card stays selected on
+    the page and the inspector simply does not swap.
+    """
+    cfg = get_config()
+    ctx = build_inspector_context(cfg, scene_id=scene_id, slug=slug, inspector_tab=tab)
+    if ctx is None:
+        raise HTTPException(status_code=404, detail="scene not found")
+    return templates.TemplateResponse(
+        request,
+        "partials/search_inspector.html",
+        make_ctx(request, current_slug=slug, **ctx),
     )

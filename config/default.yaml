@@ -117,6 +117,17 @@ search:
   # the per-modality score breakdown actually exists.
   signals_enabled: false
 
+# ── Collaboration (comment thread / composer / pin persistence) ──────────────
+# The Mojica inspector renders a comment composer + activity thread; both lean
+# on a collaboration backend that does not exist yet (no user model, no
+# comment persistence, no pin store). Each surface is gated on its own flag so
+# the right pane ships disabled-by-default and lights up incrementally as the
+# backend lands. Activity tab still renders the moondream description as a
+# read-only ``.b-com.ai`` row independent of these flags.
+collaboration:
+  composer_enabled: false   # post-launch: the textarea + tool buttons
+  threads_enabled: false    # post-launch: curator/viewer comment rows
+
 # ── Descrição LLM (NB05) ──────────────────────────────────────────────────────
 llm:
   model_id: "vikhyatk/moondream2"

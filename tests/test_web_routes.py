@@ -326,6 +326,114 @@ def test_library_tree_filter_endpoint(client):
     assert 'class="ch-coll' in html
 
 
+# ── Group 1f: Buscar inspector (Task 12) ──────────────────────────────────────
+#
+# The Mojica Buscar inspector is the right-pane ``.b-rp`` partial swapped via
+# HTMX from any ``.b-card`` click handler (``hx-get="/api/scenes/<id>/inspector
+# ?film=<slug>"``). Task 12 ships the route + service + four partials. These
+# tests pin three contracts at once:
+#
+#   1. The endpoint exists and either 200s (when the seeded scene exists)
+#      or 404s (when slug/scene resolution fails). It never 500s and never
+#      returns an empty 200 — the route raises HTTPException(404).
+#   2. Each of the three tabs (activity / annotations / properties) reaches
+#      the correct sub-partial without crashing.
+#   3. The Signals (``.b-sigs``) block stays hidden until
+#      ``cfg.search.signals_enabled`` flips on AND a per-scene signals dict
+#      exists. The composer (``.b-comp``) is gated the same way on
+#      ``cfg.collaboration.composer_enabled``.
+
+
+def test_inspector_returns_partial_for_known_scene(client, seed_metadata):
+    """``/api/scenes/<id>/inspector?film=<slug>`` returns the .b-rp partial."""
+    seed_metadata()  # seeds slug "default" with scene_id 351 + 352
+    r = client.get("/api/scenes/351/inspector?film=default")
+    assert r.status_code == 200, r.text[:500]
+    html = r.text
+    # Outer .b-rp section + the three structural anchors.
+    assert 'class="b-rp"' in html
+    assert 'class="htabs"' in html
+    assert 'class="insp-kf"' in html
+    # No full HTML doc — this is an HTMX fragment.
+    assert "<!DOCTYPE html>" not in html
+
+
+def test_inspector_404s_for_unknown_scene(client, seed_metadata):
+    """An unresolvable (slug, scene_id) returns 404, not 500 or empty 200."""
+    seed_metadata()
+    # Unknown scene_id under a real slug.
+    r = client.get("/api/scenes/9999/inspector?film=default")
+    assert r.status_code == 404, r.text[:500]
+    # Unknown slug.
+    r = client.get("/api/scenes/351/inspector?film=ghost")
+    assert r.status_code == 404, r.text[:500]
+    # Missing slug entirely (aggregate hits always carry a slug, but the
+    # endpoint must handle a stray URL without crashing).
+    r = client.get("/api/scenes/351/inspector")
+    assert r.status_code == 404, r.text[:500]
+
+
+def test_inspector_tab_switching_renders_each_tab(client, seed_metadata):
+    """Each of the three tabs reaches its sub-partial without crashing."""
+    seed_metadata()
+    for tab in ("activity", "annotations", "properties"):
+        r = client.get(f"/api/scenes/351/inspector?film=default&tab={tab}")
+        assert r.status_code == 200, f"tab={tab} crashed: {r.text[:500]}"
+        # The outer .b-rp is rendered for every tab.
+        assert 'class="b-rp"' in r.text
+    # Activity tab renders the moondream description as a .b-com.ai row.
+    r = client.get("/api/scenes/351/inspector?film=default&tab=activity")
+    assert "b-com ai" in r.text
+    assert "a man walking outdoors at dawn" in r.text  # from seed_metadata
+    # Properties tab renders the dl.props block.
+    r = client.get("/api/scenes/351/inspector?film=default&tab=properties")
+    assert 'class="props"' in r.text
+    # Annotations tab renders the inline tag editor.
+    r = client.get("/api/scenes/351/inspector?film=default&tab=annotations")
+    assert 'name="tags"' in r.text
+
+
+def test_inspector_hides_signals_and_composer_by_default(client, seed_metadata):
+    """``.b-sigs`` and ``.b-comp`` stay hidden until their cfg flags flip on.
+
+    Defaults: cfg.search.signals_enabled=False, cfg.collaboration.composer_enabled=False
+    """
+    seed_metadata()
+    r = client.get("/api/scenes/351/inspector?film=default")
+    assert r.status_code == 200
+    html = r.text
+    assert 'class="b-sigs"' not in html
+    assert 'class="b-comp"' not in html
+    # Rhymes are deferred to Phase 5 (empty list → block hidden).
+    assert 'class="b-rimas"' not in html
+
+
+def test_inspector_unknown_tab_falls_back_to_activity(client, seed_metadata):
+    """An invalid ``?tab=`` value normalises to ``activity`` (no 500)."""
+    seed_metadata()
+    r = client.get("/api/scenes/351/inspector?film=default&tab=nonsense")
+    assert r.status_code == 200, r.text[:500]
+    # The .htab marked .on should be the Activity button.
+    assert 'class="htab on"' in r.text
+    # And the body must include the activity-tab marker (the .b-com.ai row).
+    assert "b-com ai" in r.text or "empty-thread" in r.text
+
+
+def test_search_full_page_includes_inspector_partial_without_crashing(client):
+    """``/search`` renders without ``selected_scene`` — the partial self-guards.
+
+    The initial full-page render has no selected scene; the inspector
+    must produce no visible chrome rather than crashing on an undefined
+    ``selected_scene`` reference.
+    """
+    r = client.get("/search")
+    assert r.status_code == 200, r.text[:500]
+    # The inspector partial is included by search.html (no ``ignore missing``
+    # any more). With no selected_scene it must render to nothing visible:
+    # the .b-rp class should NOT appear on the initial page.
+    assert 'class="b-rp"' not in r.text
+
+
 # ── Group 2a: full-page vs tab context parity — Phase-1a regression lock ──────
 
 

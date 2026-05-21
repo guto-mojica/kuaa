@@ -230,10 +230,12 @@
 
 </section>
 
-{# ── Right inspector — Task 12 ships the real .b-rp content; until then
-     the include is a no-op so the page renders cleanly. The legacy
-     right-pane <aside> in base.html stays empty for now. #}
-{% include "partials/search_inspector.html" ignore missing %}
+{# ── Right inspector — Task 12 wires the real .b-rp content. The
+     partial self-guards on ``selected_scene`` so the full-page initial
+     render (no scene selected) produces nothing visible; HTMX clicks on
+     a .b-card swap the inspector into ``#right-pane`` instead, where
+     it lives at runtime. #}
+{% include "partials/search_inspector.html" %}
 
 </div>
 
