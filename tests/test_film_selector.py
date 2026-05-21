@@ -180,6 +180,59 @@ class TestFilmSelectorSelection:
         assert r.status_code == 200
         assert 'data-active-tab="anotar"' in r.text
 
+    def test_scenes_page_grid_filtered_by_slug(self, two_film_client):
+        """Full-page /scenes?film=<slug> must filter the grid, not just
+        the sidebar's .active marker.
+
+        Regression for the Mojica redesign bug where the LeftPane chrome
+        marked the selected film active but the .c-cp grid still rendered
+        the aggregate (all-films) view, starting with the alphabetically
+        first registered film. Root cause: ``_TAB_CONTEXT_BUILDERS["scenes"]``
+        called ``build_cenas_context(get_config())`` without
+        ``current_slug``. The HTMX fragment routes (``/tab/scenes``,
+        ``/api/scenes``) always plumbed it through; the full-page route
+        did not — hence the existing slug tests passed (they only checked
+        the sidebar .active marker) while the visible grid was wrong.
+
+        Loose "Film B not in r.text" checks would not work here — the
+        LeftPane lists every registered film by title regardless of the
+        active slug. Assertions below target grid-only markup: the
+        countrow value span, the per-group ``N / M`` badge, and the
+        unique ``data-scene-id`` per card.
+        """
+        r = two_film_client.get("/scenes?film=film_a")
+        assert r.status_code == 200, r.text[:300]
+        # Countrow total reflects only film_a's 3 scenes (aggregate would
+        # show 5 = 3 + 2).
+        assert '<span class="v">3</span>' in r.text
+        assert '<span class="v">5</span>' not in r.text
+        # film_a's per-group badge appears; film_b's must not (the .group
+        # heading + badge are emitted only for groups in groups_by_film).
+        assert ">3 / 3</span>" in r.text
+        assert ">2 / 2</span>" not in r.text
+        # Scene cards from film_b (scene_ids 4 and 5) must be absent from
+        # the grid — ``data-scene-id`` only renders inside ``.scenecard``.
+        assert 'data-scene-id="4"' not in r.text
+        assert 'data-scene-id="5"' not in r.text
+        # film_a's cards are present.
+        assert 'data-scene-id="1"' in r.text
+        assert 'data-scene-id="3"' in r.text
+
+    def test_scenes_page_grid_filtered_to_film_b(self, two_film_client):
+        """Mirror of the film_a case for film_b — guards against
+        accidental hard-coding of the first registered slug."""
+        r = two_film_client.get("/scenes?film=film_b")
+        assert r.status_code == 200, r.text[:300]
+        assert '<span class="v">2</span>' in r.text
+        assert '<span class="v">5</span>' not in r.text
+        assert ">2 / 2</span>" in r.text
+        assert ">3 / 3</span>" not in r.text
+        assert 'data-scene-id="1"' not in r.text
+        assert 'data-scene-id="2"' not in r.text
+        assert 'data-scene-id="3"' not in r.text
+        assert 'data-scene-id="4"' in r.text
+        assert 'data-scene-id="5"' in r.text
+
 
 # ── Selection persistence across the page (form + tab nav) ───────────────────
 

@@ -88,20 +88,10 @@ app.include_router(eval_routes.router)
 # other two builders still live in their route modules (Phase 3c/4
 # extract them) and remain zero-arg.
 _TAB_CONTEXT_BUILDERS = {
-    # ``"search"`` is intentionally not in this map — its builder is
-    # slug-aware (per-film vs aggregate tag vocabulary), so render_page
-    # calls ``search.build_search_context(current_slug)`` directly after
-    # parsing ``?film=<slug>``.
-    # Full-page /scenes uses the same Cenas (Mojica) builder as /tab/scenes
-    # (no slug → library-wide grouped grid). Task 15 swapped the legacy
-    # ``build_scenes_context_aggregate`` (flat ``cards`` list) for
-    # ``build_cenas_context`` (``groups_by_film`` + countrow + toolrow
-    # context) so the full-page render produces the same .c-cp markup
-    # the new partial expects. ``?scene=<id>`` deep-link parsing is the
-    # HTMX-route's job (``api/routes/scenes._parse_selected_scene_id``);
-    # the full-page render leaves ``selected_scene_id`` as the builder's
-    # default ``None``.
-    "scenes": lambda: build_cenas_context(get_config()),
+    # ``"search"``, ``"scenes"`` and ``"rimas"`` are intentionally NOT in
+    # this map — their builders are slug-aware (per-film vs aggregate),
+    # so render_page calls them directly with ``current_slug`` after
+    # parsing ``?film=<slug>``. See the matching ``elif`` branches below.
     # Annotate stays single-film (from_config) intentionally: an aggregate
     # annotate view (write-path, scene-by-scene editing across all films) is
     # deferred to a later plan (T9 docstring). /tab/annotate with slug=None also
@@ -228,6 +218,19 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
         anchor_param = request.query_params.get("anchor")
         echo_param = request.query_params.get("echo")
         tab_ctx = build_rimas_context(cfg, anchor=anchor_param, echo=echo_param)
+    elif active_tab == "scenes":
+        # ``?film=<slug>`` narrows the .c-cp grid to a single film's
+        # group; ``slug=None`` keeps the library-wide aggregate view.
+        # Without this branch the full-page route rendered the aggregate
+        # grid even when the URL bar / sidebar advertised a selected
+        # film, so picking a film and the LeftPane marking the row
+        # active had no effect on the visible thumbnails. The HTMX
+        # fragment routes (``/tab/scenes``, ``/api/scenes``) always
+        # threaded the slug through; this branch restores parity.
+        # ``?scene=<id>`` deep-link parsing stays a fragment-only
+        # concern (the right-pane inspector lives on a separate swap),
+        # so ``selected_scene_id`` is left at the builder's default.
+        tab_ctx = build_cenas_context(cfg, slug=current_slug)
     else:
         tab_ctx = _TAB_CONTEXT_BUILDERS[active_tab]()
     # Mojica chrome kwargs (active_tab=PT slug, compact_lp, has_right_pane) are
