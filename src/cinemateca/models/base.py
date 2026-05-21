@@ -92,3 +92,21 @@ class EnvironmentClassifier(Protocol):
 
     def classify_batch(self, image_paths: list[Path]) -> list[dict]:
         ...
+
+
+@runtime_checkable
+class AudioEmbedder(Protocol):
+    """Encodes audio waveforms into L2-normalised float32 vectors in a joint
+    text+audio embedding space (e.g. CLAP)."""
+
+    def encode_audio(self, wav_paths: list[Path]) -> np.ndarray:
+        """Returns (N, D) float32 array, L2-normalised."""
+        ...
+
+    def encode_text(self, text: str) -> np.ndarray:
+        """Returns (D,) float32 vector, L2-normalised (shared CLAP space)."""
+        ...
+
+    def encode_audio_single(self, wav_path: str | Path) -> np.ndarray:
+        """Returns (D,) float32 vector for one WAV (audio-by-audio search)."""
+        ...

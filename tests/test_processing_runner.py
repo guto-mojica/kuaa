@@ -87,6 +87,8 @@ def _pipeline_with_stubbed_steps(tmp_path, *, outcomes: dict[str, str]):
     p._step_visual_analysis = make("visual_analysis")
     p._step_embeddings = make("embeddings")
     p._step_llm_description = make("llm_description")
+    p._step_audio_extract = make("audio_extract")
+    p._step_audio_embed = make("audio_embed")
     return p, cfg, calls
 
 
@@ -95,22 +97,38 @@ def _pipeline_with_stubbed_steps(tmp_path, *, outcomes: dict[str, str]):
 
 def test_dependency_graph_matches_verified_prereqs():
     """Roots have no deps; the keyframe-metadata consumers depend on
-    scene_detection (verified against pipeline.run() + _step_*)."""
+    scene_detection (verified against pipeline.run() + _step_*).
+
+    Audio steps slot in as a parallel branch off scene_detection
+    (audio_extract reads metadata; audio_embed reads audio_extract's
+    WAVs)."""
     assert STEP_DEPS["frame_extraction"] == ()
     assert STEP_DEPS["scene_detection"] == ()
     assert STEP_DEPS["visual_analysis"] == ("scene_detection",)
     assert STEP_DEPS["embeddings"] == ("scene_detection",)
     assert STEP_DEPS["llm_description"] == ("scene_detection",)
+    assert STEP_DEPS["audio_extract"] == ("scene_detection",)
+    assert STEP_DEPS["audio_embed"] == ("audio_extract",)
     assert STEP_ORDER == (
         "frame_extraction",
         "scene_detection",
         "visual_analysis",
         "embeddings",
         "llm_description",
+        "audio_extract",
+        "audio_embed",
     )
 
 
 # ── Public API: successful run unchanged ──────────────────────────────────────
+
+
+def _seed_audio_input(cfg):
+    """Seed a WAV in the legacy audio segments dir so audio_embed's
+    input gate passes (a real audio_extract would produce it)."""
+    audio_segs = cfg.paths.frames_dir.parent / "audio" / "segments"
+    audio_segs.mkdir(parents=True, exist_ok=True)
+    (audio_segs / "scene_0001.wav").write_bytes(b"RIFF\x00\x00\x00\x00WAVE")
 
 
 def test_full_run_all_steps_execute_in_order(tmp_path):
@@ -119,18 +137,20 @@ def test_full_run_all_steps_execute_in_order(tmp_path):
     # input gates pass.
     (cfg.paths.metadata_dir / "keyframes_metadata.json").write_text("[]")
     (cfg.paths.frames_dir / "scenes" / "keyframes_content" / "k.jpg").touch()
+    _seed_audio_input(cfg)
 
     res = p.run_steps("video.mp4", steps=list(STEP_ORDER))
 
     assert calls == list(STEP_ORDER)
     assert res.ok
-    assert [r.state for r in res.runs] == ["done"] * 5
+    assert [r.state for r in res.runs] == ["done"] * 7
 
 
 def test_progress_callback_reports_start_and_finish(tmp_path):
     p, cfg, _ = _pipeline_with_stubbed_steps(tmp_path, outcomes={})
     (cfg.paths.metadata_dir / "keyframes_metadata.json").write_text("[]")
     (cfg.paths.frames_dir / "scenes" / "keyframes_content" / "k.jpg").touch()
+    _seed_audio_input(cfg)
 
     events: list[tuple[str, str, str | None]] = []
     p.run_steps(
@@ -171,10 +191,14 @@ def test_scene_detection_failure_blocks_downstream_no_stale_output(tmp_path):
     assert states["visual_analysis"] == "blocked"
     assert states["embeddings"] == "blocked"
     assert states["llm_description"] == "blocked"
+    assert states["audio_extract"] == "blocked"
+    assert states["audio_embed"] == "blocked"
     # Proof no stale mixed output: the step impls were never invoked.
     assert "embeddings" not in calls
     assert "llm_description" not in calls
     assert "visual_analysis" not in calls
+    assert "audio_extract" not in calls
+    assert "audio_embed" not in calls
     assert not res.ok
 
 

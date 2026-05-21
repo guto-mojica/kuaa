@@ -341,7 +341,16 @@ features cut.
   Acceptance migration of real Jeca Tatu data still pending (T12, manual).
 - [ ] Docker image, one-command run (CPU-default, GPU-optional)
 - [ ] Hosted demo skeleton on HuggingFace Spaces (CPU tier)
-- [ ] CLAP integration kickoff (`AudioEmbedder` Protocol)
+- [x] CLAP integration kickoff — `AudioEmbedder` Protocol +
+  `ClapHFEmbedder` (HF transformers, `laion/larger_clap_general`, 10s
+  chunk + mean-pool, L2-normalised joint text+audio space) +
+  `SceneAudioExtractor` (ffmpeg → 48 kHz mono PCM16 per scene) +
+  two pipeline steps `audio_extract`/`audio_embed` (default OFF; opt-in
+  via `--steps`). Real-data acceptance on Jeca Tatu: 412 scenes encoded
+  in 111 s on CUDA (RTX 5090), `audio/clap_embeddings.npy` shape
+  (412, 512) float32 L2-normalised, mapping schema verified. Suite
+  332 → 413 passing on `feat/clap-audio-kickoff`. See
+  `docs/superpowers/plans/2026-05-20-clap-audio-embeddings.md`.
 - [ ] Eval annotation tool (FastAPI page behind admin flag; 5-sample validation)
 - [ ] Pre-launch LinkedIn "I'm building this" post
 

@@ -60,6 +60,8 @@ full = [
     # `import pyvips` at model-load time; [binary] bundles libvips so no system
     # libvips is required (matches the cross-platform / no-source-build goal).
     "pyvips[binary]>=2.2.1",
+    # Audio I/O for CLAP — pure-Python wheel, bundles libsndfile (no system dep)
+    "soundfile>=0.12",
     "rich>=13.0",
     # v0.3.0 web stack
     "fastapi>=0.110",

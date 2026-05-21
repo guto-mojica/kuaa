@@ -64,6 +64,10 @@ _STEP_ALIASES: dict[str, str] = {
     "visual": "visual_analysis",
     "embeddings": "embeddings",
     "llm": "llm_description",
+    # Audio steps — full names only (no short alias for now; M2 may add
+    # ``audio`` and ``clap`` as ergonomic shortcuts once retrieval lands).
+    "audio_extract": "audio_extract",
+    "audio_embed": "audio_embed",
 }
 
 
@@ -183,7 +187,8 @@ def process(
         str | None,
         typer.Option(
             help="Etapas a executar, separadas por vírgula. "
-                 "Valores: frames,scenes,visual,embeddings,llm. "
+                 "Valores: frames, scenes, visual, embeddings, llm, "
+                 "audio_extract, audio_embed. "
                  "Padrão: todas as etapas habilitadas na config.",
         ),
     ] = None,
@@ -278,7 +283,8 @@ def library_reembed(
         str,
         typer.Option(
             help="Etapas a executar, separadas por vírgula. "
-                 "Valores: frames,scenes,visual,embeddings,llm.",
+                 "Valores: frames, scenes, visual, embeddings, llm, "
+                 "audio_extract, audio_embed.",
         ),
     ] = "embeddings",
     keep_existing: Annotated[
@@ -355,6 +361,13 @@ def library_reembed(
             emb_dir = library_dir / film.slug / "embeddings"
             for fname in ("keyframe_embeddings.npy", "index_mapping.json"):
                 p = emb_dir / fname
+                if p.exists():
+                    p.unlink()
+
+        if not keep_existing and "audio_embed" in enabled:
+            audio_dir = library_dir / film.slug / "audio"
+            for fname in ("clap_embeddings.npy", "audio_mapping.json"):
+                p = audio_dir / fname
                 if p.exists():
                     p.unlink()
 
