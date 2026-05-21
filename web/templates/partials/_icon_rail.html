@@ -1,0 +1,62 @@
+{# Mojica IconRail — Phase-1 / Task 8.
+   Ported from claude_design/mojica-cinemateca/project/mojica-fr/chrome.jsx
+   (IconRail component, lines 328–352). 56px-wide vertical column with:
+
+     .stack (top)    Home + 4 main tabs (Buscar / Cenas / Anotar / Rimas)
+     .spacer         flex spacer
+     .stack (bottom) Processamento (with badge when jobs > 0) + Settings
+
+   Context variables consumed (all defaulted by api/deps.make_ctx or
+   filled by api/services/chrome_service.build_chrome_context):
+     active_tab          PT slug — buscar / cenas / anotar / rimas / proc
+     active_job_count    int — badge on Processamento (default 0)
+
+   The active chip carries the .on class (CSS pins accent colour).
+   Each anchor's `title` doubles as a tooltip the polish layer will
+   upgrade into a real `[data-tip]` on hover. #}
+{% from "partials/_icons.html" import icon %}
+{# Preserve the active film slug across rail navigation (parallels the topbar
+   tabs). Empty string when there's no current slug — keeps the resulting href
+   bare. #}
+{% set rail_film_qs = "?film=" ~ current_slug if current_slug else "" %}
+<nav class="ch-rail" aria-label="{{ _('Tab navigation') }}">
+  <div class="stack">
+    <a class="ic"
+       href="/"
+       title="{{ _('Home') }}"
+       data-tip="{{ _('Home') }}">{{ icon('home', 18) }}</a>
+    <a class="ic{% if active_tab == 'buscar' %} on{% endif %}"
+       href="/search{{ rail_film_qs }}"
+       title="{{ _('Search') }}"
+       data-tip="{{ _('Search') }}">{{ icon('search', 18) }}</a>
+    <a class="ic{% if active_tab == 'cenas' %} on{% endif %}"
+       href="/scenes{{ rail_film_qs }}"
+       title="{{ _('Scenes') }}"
+       data-tip="{{ _('Scenes') }}">{{ icon('grid', 18) }}</a>
+    <a class="ic{% if active_tab == 'anotar' %} on{% endif %}"
+       href="/annotate{{ rail_film_qs }}"
+       title="{{ _('Annotate') }}"
+       data-tip="{{ _('Annotate') }}">{{ icon('tag', 18) }}</a>
+    <a class="ic{% if active_tab == 'rimas' %} on{% endif %}"
+       href="/rimas{{ rail_film_qs }}"
+       title="{{ _('Rhymes') }}"
+       data-tip="{{ _('Rhymes') }}">{{ icon('rhymes', 18) }}</a>
+  </div>
+  <div class="spacer"></div>
+  <div class="stack">
+    <a class="ic{% if active_tab == 'proc' %} on{% endif %}"
+       href="/processing{{ rail_film_qs }}"
+       title="{{ _('Processing') }}"
+       data-tip="{{ _('Processing') }}">
+      {{ icon('proc', 18) }}
+      {% if active_job_count > 0 %}
+        <span class="nb">{{ active_job_count }}</span>
+      {% endif %}
+    </a>
+    <button class="ic"
+            type="button"
+            title="{{ _('Settings') }}"
+            data-tip="{{ _('Settings') }}"
+            data-action="open-settings">{{ icon('settings', 18) }}</button>
+  </div>
+</nav>

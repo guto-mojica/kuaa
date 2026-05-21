@@ -1,17 +1,180 @@
+{#- About modal — Mojica redesign (Task 29).
+
+    Atmospheric backdrop (blurred keyframe mosaic + vignette + tinted
+    grain) + dim overlay + 660-wide modal panel with:
+      * header  — brand mark, runtime tag, title, version row, lede;
+      * stats   — 4-cell strip (films · scenes · runtime · time range);
+      * models  — attribution cards for every model in the pipeline;
+      * stack   — coloured pills for the runtime stack;
+      * credits — institutional credit grid;
+      * footer  — repo / docs links + close button.
+
+    The data is built by ``api.services.about_service.build_about_context``
+    and exposed on the context as ``version``, ``build_sha``,
+    ``build_date``, ``stats``, ``models``, ``stack``, ``credits``,
+    ``mosaic_keyframes``. See that module's docstring for the shape.
+
+    Close behaviour: clicking the overlay (NOT the modal) or the close
+    buttons empties ``#modal-container``, matching the legacy modal's
+    behaviour and the htmx swap target on the About link in base.html.
+-#}
 {% from "partials/_icons.html" import icon %}
-<div class="modal-backdrop" onclick="document.getElementById('modal-container').innerHTML=''">
-    <div class="modal-card" onclick="event.stopPropagation()">
-        <button class="modal-close"
-                onclick="document.getElementById('modal-container').innerHTML=''"
-                title="{{ _('Close') }}">
-            {{ icon("x") }}
-        </button>
 
-        <header class="modal-header">
-            {{ icon("film-reel", "modal-logo") }}
-            <h1 class="modal-title">Cinemateca AI</h1>
-        </header>
+<div class="ab-app" id="about"
+     role="dialog" aria-modal="true" aria-labelledby="about-title">
+    {# ── Atmospheric backdrop ────────────────────────────────────────
+       Up to 24 keyframes harvested from the library; falls back to a
+       flat background when no library exists yet (the .tile loop just
+       emits zero rows in that case). #}
+    <div class="ab-bg">
+        <div class="layer">
+            {% for kf_url in mosaic_keyframes[:24] %}
+                <div class="tile" style="background-image: url('{{ kf_url }}');"></div>
+            {% endfor %}
+        </div>
+        <div class="vignette"></div>
+        <div class="grain"></div>
+    </div>
 
-        {% include "partials/_about_credits.html" %}
+    <div class="ab-overlay"
+         onclick="document.getElementById('modal-container').innerHTML=''">
+        <div class="ab-modal" role="document" onclick="event.stopPropagation()">
+
+            {# ── HEADER ────────────────────────────────────────────── #}
+            <div class="ab-head">
+                <button class="close" type="button"
+                        onclick="document.getElementById('modal-container').innerHTML=''"
+                        aria-label="{{ _('Close') }}"
+                        title="{{ _('Close') }} · Esc">×</button>
+
+                <div class="ab-mark-row">
+                    <div class="mk">{{ icon('mark', 26) }}</div>
+                    <div></div>
+                    <span class="runtag">
+                        <span class="dot"></span>
+                        v{{ version }} {{ _('stable') }}
+                    </span>
+                </div>
+
+                <h1 id="about-title">{{ _('Cinemateca Mojica') }}</h1>
+
+                <div class="vrow">
+                    <span class="pill">{{ _('Digital archive') }}</span>
+                    <span class="dot">·</span>
+                    <span><span class="v">v{{ version }}</span></span>
+                    <span class="dot">·</span>
+                    <span class="pill lic">MIT</span>
+                    {% if build_sha %}
+                        <span class="dot">·</span>
+                        <span>{{ _('build') }} <span class="v">{{ build_sha }}</span></span>
+                    {% endif %}
+                    <span class="dot">·</span>
+                    <span>{{ build_date }}</span>
+                </div>
+
+                <p>
+                    {{ _('Internal cataloguing and semantic search system for the Cinemateca Mojica archive.') }}
+                    {{ _('Indexes scenes, descriptions, visual embeddings and transcripts to support curation, programming and research.') }}
+                    <b class="ac">{{ _('100% local') }}</b> —
+                    {{ _('no external service dependency, no outbound traffic at runtime.') }}
+                </p>
+            </div>
+
+            {# ── BODY (scrollable) ─────────────────────────────────── #}
+            <div class="ab-body">
+
+                {# ── Stats strip ──────────────────────────────────── #}
+                <div class="ab-stats">
+                    <div class="ab-stat">
+                        <span class="n">{{ '%02d'|format(stats.film_count) }}</span>
+                        <span class="k">{{ _('indexed films') }}</span>
+                    </div>
+                    <div class="ab-stat">
+                        <span class="n">{{ '{:,}'.format(stats.scene_count).replace(',', '.') }}</span>
+                        <span class="k">{{ _('detected scenes') }}</span>
+                    </div>
+                    <div class="ab-stat">
+                        <span class="n">{{ stats.runtime_display }}</span>
+                        <span class="k">{{ _('catalogued runtime') }}</span>
+                    </div>
+                    <div class="ab-stat">
+                        <span class="n">{{ stats.year_range_display }}</span>
+                        <span class="k">{{ _('time range') }}</span>
+                    </div>
+                </div>
+
+                {# ── Model attributions ──────────────────────────── #}
+                <div class="ab-sect">
+                    <span>{{ _('Models') }}</span>
+                    <span class="ct">{{ models|length }}</span>
+                </div>
+                <div class="ab-models">
+                    {% for m in models %}
+                        <div class="ab-model">
+                            <div class="ico{% if m.color %} {{ m.color }}{% endif %}">{{ m.key }}</div>
+                            <div class="info">
+                                <div class="name">
+                                    {{ m.name }}{% if m.version %}<span class="ver">{{ m.version }}</span>{% endif %}
+                                </div>
+                                <div class="role"><b>{{ _(m.role) }}</b></div>
+                            </div>
+                            <div class="org">
+                                <span class="by">{{ m.org }}</span>
+                                {% if m.repo_url %}
+                                    <a class="repo" href="{{ m.repo_url }}"
+                                       target="_blank" rel="noopener">
+                                        <span class="ab-ghico">{{ icon('link', 14) }}</span>
+                                        repo
+                                    </a>
+                                {% endif %}
+                            </div>
+                            <span class="lic">{{ m.lic }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                {# ── Tech stack pills ────────────────────────────── #}
+                <div class="ab-sect">
+                    <span>{{ _('Stack') }}</span>
+                    <span class="ct">{{ stack|length }}</span>
+                </div>
+                <div class="ab-stack">
+                    {% for tech in stack %}
+                        <span class="ab-stack-pill{% if tech.kind %} {{ tech.kind }}{% endif %}">
+                            <span class="dot"></span>{{ tech.label }}
+                        </span>
+                    {% endfor %}
+                </div>
+
+                {# ── Credits grid ────────────────────────────────── #}
+                <div class="ab-sect">
+                    <span>{{ _('Credits') }}</span>
+                </div>
+                <div class="ab-credits">
+                    {% for credit in credits %}
+                        <span class="k">{{ _(credit.role) }}</span>
+                        <span class="v{% if credit.dim %} dim{% endif %}">{{ credit.name }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {# ── FOOTER ─────────────────────────────────────────────── #}
+            <div class="ab-foot">
+                <div class="l">
+                    <a href="https://github.com/" target="_blank" rel="noopener">Github</a>
+                    <span class="dot">·</span>
+                    <a>{{ _('Documentation') }}</a>
+                    <span class="dot">·</span>
+                    <a>{{ _('Changelog') }}</a>
+                </div>
+                <div class="r">
+                    <button class="ghost-btn" type="button"
+                            onclick="document.getElementById('modal-container').innerHTML=''">
+                        {{ _('Close') }}
+                    </button>
+                </div>
+            </div>
+
+        </div>
     </div>
 </div>

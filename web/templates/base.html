@@ -2,144 +2,110 @@
 <html lang="{{ lang }}">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cinemateca AI</title>
+    {# Responsive viewport. The Mojica design targets ≥1440px as its full
+       canvas, but the chrome (rail 56 + lp 248 + main 1fr + right 380)
+       and per-tab @media rules now collapse progressively at narrower
+       widths — left pane shrinks to icon-only ≤1280px, right pane folds
+       ≤960px, and tab grids drop to a single column ≤720px. The earlier
+       ``width=1440`` lock was a Phase-9 placeholder; this version honours
+       the actual breakpoints. #}
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ page_title or _("Mojica · Cinemateca Digital") }}</title>
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/fonts.css') }}">
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/main.css') }}">
+    {# fx.css + chrome.css landed in d045b9c / ced01e6 and were dormant until
+       Task 6 wired the shell. buscar.css landed in Task 9 (Phase 2 kickoff);
+       it was dormant until Tasks 10–12 added .b-cp / .b-rp / .b-card markup.
+       cenas.css lands in Task 14 (Phase 3 kickoff); dormant until Task 15
+       wires scenes.html to the new .c-cp / .scenecard / .c-rp classes.
+       The remaining Phase-3..6 stylesheets (anotar/rimas/proc/polish) are
+       NOT linked yet — adding <link> tags for files that don't exist would
+       yield 404s in the dev console and noisy headers in the offline-CDN
+       test. They'll be added per task as each lands. #}
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/fx.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/chrome.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/buscar.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/cenas.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/anotar.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/rimas.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/proc.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/polish.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/about.css') }}">
     <script src="{{ request.url_for('static', path='js/htmx.min.js') }}" defer></script>
     <script src="{{ request.url_for('static', path='js/htmx-ext-sse.js') }}" defer></script>
+    {# mojica.js — Phase 6 seed: SSE log auto-scroll on #proc-log.
+       Phase 7 (Tasks 26–28) extends the same file with the toast bus,
+       command palette, and keyboard-help overlay. Single IIFE, no
+       external deps, deferred so it runs after htmx-ext-sse is in
+       place. #}
+    <script src="{{ request.url_for('static', path='js/mojica.js') }}" defer></script>
 </head>
-<body>
+<body class="fx-app"
+      data-active-tab="{{ active_tab }}"
+      data-locale="{{ locale }}">
 {% from "partials/_icons.html" import icon %}
-<div class="shell">
 
-    <!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
-    <aside class="sidebar">
-        <div class="sidebar-header">
-            {{ icon("film-reel") }}
-            <span class="sidebar-title">Cinemateca AI</span>
-        </div>
+{# ── Mojica chrome shell ─────────────────────────────────────────────────────
+   The chrome is a 4-column grid (rail · lp · main · right). Each cell is a
+   partial:
+     * ``_topbar.html``     — brand + breadcrumb + tabs + viewers + share
+     * ``_icon_rail.html``  — 56px vertical column with tab icons
+     * ``_left_pane.html``  — 248px film tree / collections / locale + About
+     * ``ch-main``          — slot for the active tab's partial (.tab-panel)
+     * ``ch-right``         — 380px right inspector, gated on has_right_pane #}
+{% include "partials/_topbar.html" %}
 
-        {% include "partials/film_selector.html" %}
+<div class="ch-body{% if compact_lp %} compact-lp{% endif %}{% if has_right_pane %} with-right{% endif %}">
+    {% include "partials/_icon_rail.html" %}
 
-        <input class="filter-input"
-               type="text"
-               name="q"
-               placeholder="{{ _('Filter library') }}"
-               hx-get="/api/library/filter"
-               hx-trigger="keyup changed delay:300ms"
-               hx-target="#library-tree">
+    {% if not compact_lp %}
+        {% include "partials/_left_pane.html" %}
+    {% endif %}
 
-        <nav class="library-tree" id="library-tree">
-            {% include "partials/library_tree.html" %}
-        </nav>
-
-        <footer class="sidebar-footer">
-            <div class="locale-switcher">
-                {{ icon("globe") }}
-                <a class="locale-link {% if locale == 'pt_BR' %}locale-link--active{% endif %}"
-                   href="/api/locale/pt_BR"
-                   hx-get="/api/locale/pt_BR"
-                   hx-swap="none">PT</a>
-                <span class="locale-sep">|</span>
-                <a class="locale-link {% if locale == 'en' %}locale-link--active{% endif %}"
-                   href="/api/locale/en"
-                   hx-get="/api/locale/en"
-                   hx-swap="none">EN</a>
-            </div>
-            <div class="sidebar-footer__row">
-                <a class="about-link"
-                   href="/about"
-                   hx-get="/api/about"
-                   hx-target="#modal-container"
-                   hx-swap="innerHTML">
-                    {{ icon("info") }}
-                    {{ _("About") }}
-                </a>
-                <span class="version">v0.3.0</span>
-            </div>
-        </footer>
-    </aside>
-
-    <!-- ── Main ────────────────────────────────────────────────────────────── -->
-    <main class="main">
-
-        {# Tab nav. Every tab link preserves the active film slug
-           (?film=<slug>) on hx-get, hx-push-url, and href so navigation
-           across tabs does not silently drop the sidebar selection —
-           otherwise picking a film then clicking Scenes → Search would
-           revert the search to aggregate. #}
-        {% set film_qs = "?film=" ~ current_slug if current_slug else "" %}
-        <!-- Tab bar -->
-        <nav class="tab-bar" id="tab-bar">
-            <a class="tab {% if active_tab == 'search' %}tab--active{% endif %}"
-               href="/search{{ film_qs }}"
-               hx-get="/tab/search{{ film_qs }}"
-               hx-target="#tab-content"
-               hx-swap="innerHTML"
-               hx-push-url="/search{{ film_qs }}"
-               onclick="setActiveTab(this)">
-                {{ icon("magnifying-glass") }}
-                {{ _("Search") }}
-            </a>
-            <a class="tab {% if active_tab == 'scenes' %}tab--active{% endif %}"
-               href="/scenes{{ film_qs }}"
-               hx-get="/tab/scenes{{ film_qs }}"
-               hx-target="#tab-content"
-               hx-swap="innerHTML"
-               hx-push-url="/scenes{{ film_qs }}"
-               onclick="setActiveTab(this)">
-                {{ icon("squares-four") }}
-                {{ _("Scenes") }}
-            </a>
-            <a class="tab {% if active_tab == 'annotate' %}tab--active{% endif %}"
-               href="/annotate{{ film_qs }}"
-               hx-get="/tab/annotate{{ film_qs }}"
-               hx-target="#tab-content"
-               hx-swap="innerHTML"
-               hx-push-url="/annotate{{ film_qs }}"
-               onclick="setActiveTab(this)">
-                {{ icon("tag") }}
-                {{ _("Annotate") }}
-            </a>
-            <a class="tab {% if active_tab == 'processing' %}tab--active{% endif %}"
-               href="/processing{{ film_qs }}"
-               hx-get="/tab/processing{{ film_qs }}"
-               hx-target="#tab-content"
-               hx-swap="innerHTML"
-               hx-push-url="/processing{{ film_qs }}"
-               onclick="setActiveTab(this)">
-                {{ icon("spinner-gap", "spin" if processing_jobs else "") }}
-                {{ _("Processing") }}
-                {% if processing_jobs %}
-                <span class="badge">{{ processing_jobs }}</span>
-                {% endif %}
-            </a>
-        </nav>
-
-        <!-- Tab content -->
-        <div class="tab-content" id="tab-content">
-            {% if active_tab == 'search' %}
-                {% include "partials/search.html" %}
-            {% elif active_tab == 'scenes' %}
-                {% include "partials/scenes.html" %}
-            {% elif active_tab == 'annotate' %}
-                {% include "partials/annotate.html" %}
-            {% elif active_tab == 'processing' %}
-                {% include "partials/processing.html" %}
-            {% endif %}
-        </div>
-
+    <main class="ch-main" id="ch-main">
+        {# Phase-2 cleanup: the legacy ``.shell > .sidebar + .main > .tab-bar``
+           wrapper was deleted here. Its three roles were already carried by
+           the new chrome partials: the film tree moved to ``_left_pane.html``,
+           the top tabs to ``_topbar.html``, the icon column to
+           ``_icon_rail.html``. The locale switcher + About link previously
+           pinned to the legacy sidebar footer now live in ``.ch-lp .foot``.
+           Each tab partial supplies its own ``<div class="tab-panel">``
+           wrapper (see search.html, scenes.html, annotate.html,
+           processing.html, rimas.html) so this slot drops straight into the
+           include. #}
+        {% if legacy_active_tab == 'search' %}
+            {% include "partials/search.html" %}
+        {% elif legacy_active_tab == 'scenes' %}
+            {% include "partials/scenes.html" %}
+        {% elif legacy_active_tab == 'annotate' %}
+            {% include "partials/annotate.html" %}
+        {% elif legacy_active_tab == 'processing' %}
+            {% include "partials/processing.html" %}
+        {% elif legacy_active_tab == 'rimas' %}
+            {% include "partials/rimas.html" %}
+        {% endif %}
     </main>
+
+    {% if has_right_pane %}
+    <aside class="ch-right" id="right-pane">
+        {# Right-pane content lands per tab in Phases 2–6 (Inspector for Buscar,
+           Property panel for Cenas, etc.). Empty until then. #}
+    </aside>
+    {% endif %}
 </div>
 
-<!-- Modal container (filled by HTMX on About click) -->
+{# Modal container (legacy About modal target) and Mojica polish-layer mount
+   points. Task 27 replaced the ``#palette-root`` placeholder with the
+   real palette scaffold; Task 28 replaces ``#help-root`` with the
+   keyboard-help overlay partial. Both are rendered once at page load
+   (hidden) and toggled imperatively from mojica.js — keeping the DOM
+   in place means the first frame of either surface renders without a
+   network round trip. The toast root stays as an empty mount because
+   toasts are created on demand. #}
 <div id="modal-container"></div>
-
-<script>
-function setActiveTab(el) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('tab--active'));
-    el.classList.add('tab--active');
-}
-</script>
+<div id="toast-root" aria-live="polite"></div>
+{% include "partials/_palette.html" %}
+{% include "partials/_help_overlay.html" %}
+<div id="modal-root"></div>
 </body>
 </html>

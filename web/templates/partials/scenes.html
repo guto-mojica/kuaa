@@ -1,160 +1,138 @@
+{# ── Mojica Cenas tab — center pane (.c-cp) ────────────────────────────────
+   Task 15 (Phase 3) of the Mojica redesign. The legacy keyword + tag-filter
+   bar + flat scene-grid is replaced by:
+
+     * ``.toolrow``   — Appearance / Fields / Filters / Grouped by / Sorted +
+                        a ``.find`` keyword input (HTMX-swaps ``#scenes-grid``),
+     * ``.countrow``  — library-wide stats: scenes / films / runtime / keyframes,
+     * ``#scenes-grid`` ``.grid`` — the swap target ``scenes_grid.html`` fills.
+
+   Compatibility contracts the rewrite still honours:
+
+     * The outer wrapper keeps ``class="tab-panel"`` so existing route
+       smoke-tests (``test_tab_fragment_routes_respond``) keep matching.
+     * On an empty library the empty-state line still carries the legacy
+       "Run the pipeline with the Scene Detection step first." message
+       so the full-page vs ``/tab/scenes`` parity test
+       (``TestFullPageContextDivergence.test_scenes_full_page_matches_tab_empty_state``)
+       keeps matching the same string on both code paths.
+     * ``id="scenes-grid"`` stays as the HTMX swap target id so the
+       ``.find`` form's ``hx-target`` keeps working.
+
+   The context this partial reads is produced by
+   :func:`api.services.scenes_service.build_cenas_context`:
+
+     * ``groups_by_film`` — ordered list of per-film groups, consumed by
+       ``scenes_grid.html``;
+     * ``selected_scene_id`` — id of the card to mark ``.sel``;
+     * ``total_scenes`` / ``film_count`` / ``total_runtime_str`` /
+       ``total_keyframes_size`` — countrow summary;
+     * ``visible_field_count`` / ``active_filter_count`` — toolrow pips;
+     * ``no_data`` — true when the library has no scenes (no card was
+       produced across all films). The empty-state branch renders
+       inside the same ``tab-panel`` wrapper so the legacy parity test
+       keeps matching its marker string regardless of which branch we
+       take.
+#}
+{% from "partials/_icons.html" import icon %}
 <div class="tab-panel">
 
 {% if no_data %}
-<div class="scenes-empty">
+<section class="c-cp">
+  <div class="scenes-empty">
     <p class="text-muted">{{ _("No scenes found. Run the pipeline with the Scene Detection step first.") }}</p>
-</div>
+  </div>
+</section>
 {% else %}
 
-<!-- Filter form — change/keyup triggers grid refresh via HTMX -->
-<form id="scenes-filter"
-      hx-get="/api/scenes"
-      hx-trigger="change, keyup changed delay:400ms from:#scenes-keyword"
-      hx-target="#scenes-grid"
-      hx-swap="innerHTML">
+<section class="c-cp">
 
-    {% if current_slug %}
-    <input type="hidden" name="film" value="{{ current_slug }}">
-    {% endif %}
+  {# ── Toolrow: Appearance / Fields / Filters / Grouped by / Sorted + .find ─ #}
+  <div class="toolrow">
+    <button type="button" class="tool">
+      <span class="ico">{{ icon('appearance', 14) }}</span>
+      {{ _('Appearance') }}
+    </button>
+    <button type="button" class="tool">
+      <span class="ico">{{ icon('fields', 14) }}</span>
+      {{ _('Fields') }}<span class="pip">{{ visible_field_count }}</span>
+    </button>
+    <button type="button" class="tool">
+      <span class="ico">{{ icon('filter', 14) }}</span>
+      {{ _('Filters') }}<span class="pip">{{ active_filter_count }}</span>
+    </button>
+    <button type="button" class="tool">
+      <span class="ico">{{ icon('group', 14) }}</span>
+      {{ _('Grouped by') }} <span class="v">{{ _('Film') }}</span>
+    </button>
+    <span class="div" aria-hidden="true"></span>
+    <button type="button" class="tool">
+      <span class="ico">{{ icon('sort', 14) }}</span>
+      {{ _('Sorted by') }} <span class="v">{{ _('Timecode') }}</span>
+    </button>
+    <span class="grow" aria-hidden="true"></span>
+    {# ``.find`` keyword input — HTMX-swaps the grid on every change. The
+       form-level hx-* attributes inherit to the input; we keep the
+       form element semantic so keyboard "/" focus and form-submit
+       gracefully degrade if HTMX is unavailable. #}
+    <form class="find"
+          hx-get="/api/scenes"
+          hx-trigger="keyup changed delay:200ms, search"
+          hx-target="#scenes-grid"
+          hx-swap="innerHTML">
+      <span class="ico">{{ icon('search', 14) }}</span>
+      <input type="search" name="q" placeholder="{{ _('Search…') }}" value="{{ query or '' }}">
+    </form>
+  </div>
 
-    <div class="scenes-filter-bar">
-        <input id="scenes-keyword"
-               name="q"
-               type="text"
-               class="filter-input scenes-keyword"
-               placeholder="{{ _('Filter by description keyword…') }}">
-        <input id="scenes-jump"
-               type="number"
-               class="filter-input scenes-jump"
-               placeholder="{{ _('↵ scene #') }}"
-               min="1"
-               title="{{ _('Type a scene number and press Enter to jump to it') }}">
+  {# ── Scroll wrapper: countrow + grid scroll together; toolrow stays
+       fixed at top. A plain div (not the grid itself) is the scroll
+       container so overflow-y: auto works reliably regardless of the
+       grid's implicit track sizing. #}
+  <div class="scroll">
+    <div class="countrow">
+      <span class="chev" aria-hidden="true">{{ icon('chev-d', 12) }}</span>
+      <span class="v">{{ '{:,}'.format(total_scenes).replace(',', '.') }}</span>
+      <span class="lab">{{ _('scenes') }}</span>
+      <span class="div" aria-hidden="true"></span>
+      <span class="v">{{ film_count }}</span>
+      <span class="lab">{{ _('films') }}</span>
+      <span class="div" aria-hidden="true"></span>
+      <span class="v">{{ total_runtime_str }}</span>
+      <span class="lab">{{ _('runtime') }}</span>
+      <span class="div" aria-hidden="true"></span>
+      <span class="v">{{ total_keyframes_size }}</span>
+      <span class="lab">{{ _('keyframes') }}</span>
     </div>
 
-    {% if available_tags %}
-    <div class="tag-filter-section">
-        <div id="tag-filter-pills">
-            {% for page_tags in available_tags | batch(45) %}
-            <div class="tag-page"{% if not loop.first %} style="display:none"{% endif %}>
-                {% for tag in page_tags %}
-                <label class="tag-pill">
-                    <input type="checkbox" name="tags" value="{{ tag }}">
-                    {{ tag }}
-                </label>
-                {% endfor %}
-            </div>
-            {% endfor %}
-        </div>
-        {% if available_tags | length > 45 %}
-        <div class="tag-page-nav">
-            <button type="button" class="btn-ghost tag-page-btn" id="tag-prev"
-                    onclick="tagNav(-1)" disabled aria-label="{{ _('Previous tag page') }}">‹</button>
-            <span class="text-muted tag-page-lbl" id="tag-page-lbl">
-                1 / {{ ((available_tags | length - 1) // 45) + 1 }}
-            </span>
-            <button type="button" class="btn-ghost tag-page-btn" id="tag-next"
-                    onclick="tagNav(1)" aria-label="{{ _('Next tag page') }}">›</button>
-        </div>
-        {% endif %}
+    {# ── Grid (HTMX swap target for the .find input). The included partial
+         renders one ``.group`` heading per film followed by its scenecards. #}
+    <div id="scenes-grid" class="grid">
+      {% include "partials/scenes_grid.html" %}
     </div>
-    {% endif %}
+  </div>
 
-</form>
-
-<!-- Scene grid — also the HTMX swap target for filter updates -->
-<div id="scenes-grid" class="scene-grid">
-    {% include "partials/scenes_grid.html" %}
-</div>
+</section>
 
 {% endif %}
+
+{# ── Scene inspector — right pane, always present as a flex sibling of .c-cp.
+     id="right-pane" matches the hx-target on every scenecard.
+     hx-swap="innerHTML" replaces the <section class="c-rp"> below with the
+     route's response (partials/scenes_inspector.html), which also renders a
+     <section class="c-rp"> — so the outer aside is the neutral HTMX target
+     and the section carries the .c-rp CSS (width 380px, flex column, etc.). #}
+<aside id="right-pane">
+  <section class="c-rp">
+    <div class="head">
+      <div class="l">
+        <span>{{ _('Scene') }}</span>
+      </div>
+    </div>
+    <div class="inner">
+      <p style="font-size: 12px; color: var(--c-muted); padding: 12px 0;">{{ _('Select a scene to see its details.') }}</p>
+    </div>
+  </section>
+</aside>
+
 </div>
-
-<script>
-(function () {
-    // ── Tag page navigation ───────────────────────────────────────────────────
-    var tagPages = Array.from(document.querySelectorAll('#tag-filter-pills .tag-page'));
-    if (tagPages.length > 1) {
-        var tagCur = 0;
-        window.tagNav = function (dir) {
-            tagPages[tagCur].style.display = 'none';
-            tagCur = Math.max(0, Math.min(tagPages.length - 1, tagCur + dir));
-            tagPages[tagCur].style.display = '';
-            document.getElementById('tag-prev').disabled = tagCur === 0;
-            document.getElementById('tag-next').disabled = tagCur === tagPages.length - 1;
-            document.getElementById('tag-page-lbl').textContent =
-                (tagCur + 1) + ' / ' + tagPages.length;
-        };
-    }
-
-    // ── Scene card selection ──────────────────────────────────────────────────
-    function getCards() {
-        var g = document.getElementById('scenes-grid');
-        return g ? Array.from(g.querySelectorAll('.scene-card[data-scene-id]')) : [];
-    }
-
-    function selectCard(card) {
-        if (!card) return;
-        getCards().forEach(function (c) { c.classList.remove('is-selected'); });
-        card.classList.add('is-selected');
-        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-
-    function selectedIdx() {
-        return getCards().findIndex(function (c) {
-            return c.classList.contains('is-selected');
-        });
-    }
-
-    // Click — toggle: selecting the same card again deselects it
-    var grid = document.getElementById('scenes-grid');
-    if (grid) {
-        grid.addEventListener('click', function (e) {
-            var card = e.target.closest('.scene-card[data-scene-id]');
-            if (!card) return;
-            if (card.classList.contains('is-selected')) {
-                card.classList.remove('is-selected');
-            } else {
-                selectCard(card);
-            }
-        });
-    }
-
-    // Keyboard arrows — deregister previous handler first (tab re-load guard)
-    if (window._scenesKbd) document.removeEventListener('keydown', window._scenesKbd);
-    window._scenesKbd = function (e) {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-        var cards = getCards();
-        if (!cards.length) return;
-        var idx = selectedIdx();
-        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-            e.preventDefault();
-            selectCard(cards[Math.min(idx < 0 ? 0 : idx + 1, cards.length - 1)]);
-        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-            e.preventDefault();
-            if (idx > 0) selectCard(cards[idx - 1]);
-        }
-    };
-    document.addEventListener('keydown', window._scenesKbd);
-
-    // Scene # jump input
-    var jump = document.getElementById('scenes-jump');
-    if (jump) {
-        jump.addEventListener('keydown', function (e) {
-            if (e.key !== 'Enter') return;
-            e.preventDefault();
-            var n = parseInt(this.value, 10);
-            this.value = '';
-            if (isNaN(n)) return;
-            var card = getCards().find(function (c) {
-                return parseInt(c.dataset.sceneId, 10) === n;
-            });
-            if (card) {
-                selectCard(card);
-            } else {
-                jump.classList.add('scenes-jump--not-found');
-                setTimeout(function () { jump.classList.remove('scenes-jump--not-found'); }, 600);
-            }
-        });
-    }
-})();
-</script>

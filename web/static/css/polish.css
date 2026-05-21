@@ -1,0 +1,396 @@
+/* ─── POLISH (Mojica polish layer — toasts, tooltips, palette, help) ────
+   Ported from claude_design/mojica-cinemateca/project/mojica-fr/polish.jsx
+   (POLISH_CSS template literal, lines 5–322) for Phase 7 / Task 26 of the
+   Mojica frame redesign plan
+   (docs/superpowers/plans/2026-05-20-mojica-frame-redesign.md).
+
+   Phase 7 ships in three tasks; this CSS file lands every visual surface
+   up front so the wiring tasks (27 = command palette, 28 = keyboard help
+   overlay) only have to touch markup + JS. The Task-26 wiring touches:
+     * `.toast-host`, `.toast`, `.toast .ic`, `.toast .body`,
+       `.toast .ttl`, `.toast .sub`, `.toast .close`, `.toast::before`
+       (colored left bar), variants `.toast.success/.warn/.error`,
+       `@keyframes p-toast-in`, `@keyframes p-toast-out`.
+   Tasks 27 / 28 wire the rest (.cp-*, .kh-*, .poke-chip, [data-tip]).
+
+   Variable mapping (prototype short-form → shipped tokens in main.css
+   :root, identical to the mapping documented at the top of proc.css and
+   applied across buscar/cenas/anotar/rimas/proc):
+     --ac          →  var(--c-accent)
+     --ac-bg       →  var(--c-accent-bg)
+     --bg          →  var(--c-bg)
+     --panel       →  var(--c-panel)
+     --raised      →  var(--c-raised)
+     --hover       →  var(--c-hover)
+     --bd          →  var(--c-border)
+     --bd2         →  var(--c-border-2)
+     --t           →  var(--c-text)
+     --t2          →  var(--c-text-2)
+     --muted       →  var(--c-muted)
+     --faint       →  var(--c-faint)
+     --green       →  var(--c-green)
+     --green-bg    →  var(--c-green-bg)
+     --orange      →  var(--c-orange)
+     --orange-bg   →  var(--c-orange-bg)
+     --red         →  var(--c-red)
+     --sans        →  var(--font-sans)
+     --mono        →  var(--font-mono)
+
+   Hardcoded rgba/hex literals are kept verbatim from the prototype:
+   - rgba(7,8,11,0.62) — modal backdrop fill (palette + help overlay);
+     intentionally darker than --c-bg to read as a "dimmed" surface.
+   - rgba(139,123,216,0.18) — palette/help panel outer accent glow ring
+     (alpha-tuned variant of --c-accent; box-shadow second layer only).
+   - rgba(245,200,66,0.22) / rgba(245,200,66,0.0) — pin-pulse keyframe
+     ramp (alpha-tuned variant of --c-yellow; halo expand-fade).
+   - rgba(245,144,66,0.14) — `.toast.warn .ic` background (matches the
+     existing --c-orange-bg literal but kept inline to mirror the
+     prototype's intent).
+   - rgba(0,0,0,0.18) / rgba(0,0,0,0.3) / rgba(0,0,0,0.35) /
+     rgba(0,0,0,0.4) / rgba(0,0,0,0.45) / rgba(0,0,0,0.5) /
+     rgba(0,0,0,0.55) — shadow stack alphas for toast, palette, help,
+     and poke-chip elevation. Intentionally raw rgba so the elevation
+     reads identically across themes (no token aliasing).
+   - #050608 — tooltip fill, intentionally one notch darker than --c-bg
+     (#0E1014) to maximise contrast against any backdrop including the
+     palette overlay.
+   - #FFFFFF / `currentColor` — none in this file.
+
+   @keyframes definitions stay verbatim with no variable rewrites — they
+   only reference opacity / transform / rgba literals already documented.
+
+   File is linked from base.html (Task 26) AFTER proc.css so its rules
+   participate in the cascade with no specificity tricks. Until Task 27
+   wires the command palette and Task 28 wires the help overlay, the
+   .cp-* / .kh-* / .poke-chip rules are dormant — they wait for
+   #palette-root / #help-root content to land. ────────────────────────── */
+
+/* ─── Smooth tab cross-fade ──────────────────────────────────────────── */
+@keyframes p-fade-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.ch-body > *:not(.ch-rail):not(.ch-lp) {
+  animation: p-fade-in 220ms cubic-bezier(.2,.7,.3,1);
+  animation-fill-mode: both;
+}
+
+/* ─── Focus rings (keyboard nav only) ────────────────────────────────── */
+.fx-app :focus { outline: none; }
+.fx-app :focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ─── Press states on buttons (subtle compress) ──────────────────────── */
+.fx-btn:active { transform: scale(0.98); }
+.fx-icbtn:active { transform: scale(0.92); }
+.ch-top .tab:active { transform: scale(0.98); }
+.fx-btn, .fx-icbtn, .ch-top .tab {
+  transition: background .12s, color .12s, border-color .12s, transform .08s, box-shadow .12s;
+}
+
+/* ─── Pulse: yellow annotation pins ──────────────────────────────────── */
+@keyframes p-pin-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(245,200,66,0.22), 0 4px 12px rgba(0,0,0,0.4); }
+  50%      { box-shadow: 0 0 0 8px rgba(245,200,66,0.0),  0 4px 12px rgba(0,0,0,0.4); }
+}
+.a-keyframe .pin { animation: p-pin-pulse 2.4s ease-in-out infinite; }
+
+/* ─── Tooltip (pure CSS via data-tip) ────────────────────────────────── */
+.fx-app [data-tip] { position: relative; }
+.fx-app [data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px); left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  padding: 4px 8px; border-radius: 4px;
+  background: #050608; color: var(--c-text);
+  font-family: var(--font-sans); font-size: 11px; font-weight: 500;
+  white-space: nowrap;
+  border: 1px solid var(--c-border-2);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  opacity: 0; pointer-events: none;
+  transition: opacity .12s, transform .12s;
+  transition-delay: 0s;
+  z-index: 1000;
+  letter-spacing: -0.005em;
+}
+.fx-app [data-tip][data-tip-pos="bottom"]::after {
+  bottom: auto; top: calc(100% + 6px);
+  transform: translateX(-50%) translateY(-4px);
+}
+.fx-app [data-tip][data-tip-pos="right"]::after {
+  bottom: auto; top: 50%; left: calc(100% + 6px);
+  transform: translateY(-50%) translateX(-4px);
+}
+.fx-app [data-tip]:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  transition-delay: .35s;
+}
+.fx-app [data-tip][data-tip-pos="right"]:hover::after {
+  transform: translateY(-50%) translateX(0);
+}
+
+/* ─── Command palette ────────────────────────────────────────────────── */
+/* The [hidden] override below restores the HTML attribute's semantics —
+ * .cp-back's class-level ``display: flex`` ties specificity with the
+ * browser's ``[hidden] { display: none }`` rule and wins on source order,
+ * which leaves the palette visible at page load. The targeted attribute
+ * selector raises specificity to class+attribute and wins cleanly. */
+.cp-back {
+  position: fixed; inset: 0;
+  background: rgba(7,8,11,0.62);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding-top: 14vh;
+  z-index: 10000;
+  animation: p-fade-in 160ms ease-out;
+}
+.cp-back[hidden] { display: none; }
+.cp-panel {
+  width: 640px; max-width: calc(100vw - 60px);
+  max-height: 60vh;
+  background: var(--c-panel);
+  border: 1px solid var(--c-border-2);
+  border-radius: 11px;
+  box-shadow:
+    0 30px 80px rgba(0,0,0,0.55),
+    0 0 0 1px rgba(139,123,216,0.18);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.cp-input {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--c-border);
+}
+.cp-input .ico { color: var(--c-muted); display: flex; align-items: center; }
+.cp-input input {
+  flex: 1; background: transparent; border: none; outline: none;
+  font: inherit; font-size: 14.5px; color: var(--c-text);
+  letter-spacing: -0.005em;
+}
+.cp-input input::placeholder { color: var(--c-muted); }
+.cp-input .esc {
+  font-family: var(--font-mono); font-size: 10px; padding: 2px 6px;
+  border-radius: 4px; border: 1px solid var(--c-border-2);
+  color: var(--c-muted); background: var(--c-raised);
+}
+
+.cp-list { flex: 1; overflow-y: auto; padding: 6px 0; }
+.cp-group {
+  padding: 8px 18px 4px;
+  font-family: var(--font-mono); font-size: 9.5px;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--c-muted);
+}
+.cp-item {
+  display: grid; grid-template-columns: 22px 1fr auto auto;
+  gap: 10px; align-items: center;
+  padding: 7px 18px; cursor: pointer;
+  font-size: 13px; color: var(--c-text-2);
+  transition: background .08s;
+}
+.cp-item:hover { background: var(--c-hover); }
+.cp-item.sel { background: var(--c-accent-bg); color: var(--c-text); }
+.cp-item .ic { color: var(--c-muted); display: flex; align-items: center; }
+.cp-item.sel .ic { color: var(--c-accent); }
+.cp-item .lab .nm { color: var(--c-text); font-weight: 500; }
+.cp-item .lab .sub { font-size: 11px; color: var(--c-muted); margin-top: 1px; }
+.cp-item .filmdot { width: 7px; height: 7px; border-radius: 50%; }
+.cp-item .kbd {
+  font-family: var(--font-mono); font-size: 9.5px; padding: 1px 6px;
+  border: 1px solid var(--c-border-2); border-radius: 3px;
+  color: var(--c-muted); background: var(--c-bg);
+}
+.cp-item .badge {
+  font-family: var(--font-mono); font-size: 9.5px;
+  padding: 1px 6px; border-radius: 3px;
+  background: var(--c-raised); color: var(--c-text-2);
+}
+.cp-foot {
+  padding: 10px 18px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-top: 1px solid var(--c-border);
+  font-family: var(--font-mono); font-size: 10px; color: var(--c-muted);
+  background: var(--c-bg);
+}
+.cp-foot .keys { display: flex; gap: 14px; align-items: center; }
+.cp-foot .keys .k b { color: var(--c-text); font-weight: 500; margin-right: 4px; }
+
+.cp-empty {
+  padding: 38px 18px 32px;
+  text-align: center; color: var(--c-muted);
+  font-size: 12.5px;
+}
+.cp-empty .big { font-size: 32px; color: var(--c-faint); margin-bottom: 8px; }
+
+/* ─── Keyboard help overlay (?) ──────────────────────────────────────── */
+/* See note on .cp-back above — same [hidden]-restoration trick. Without
+ * the targeted rule the legend is visible on first paint and there is no
+ * way to dismiss it, since the close handler only flips the same attribute
+ * the CSS is ignoring. */
+.kh-back {
+  position: fixed; inset: 0;
+  background: rgba(7,8,11,0.62);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 30px;
+  z-index: 10000;
+  animation: p-fade-in 160ms ease-out;
+}
+.kh-back[hidden] { display: none; }
+.kh-panel {
+  width: 720px; max-width: calc(100vw - 60px);
+  max-height: calc(100vh - 60px);
+  background: var(--c-panel);
+  border: 1px solid var(--c-border-2);
+  border-radius: 11px;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(139,123,216,0.18);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.kh-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 22px; border-bottom: 1px solid var(--c-border);
+}
+.kh-head h2 {
+  margin: 0; font-size: 17px; font-weight: 600; color: var(--c-text);
+  letter-spacing: -0.012em;
+}
+.kh-head h2 .pip {
+  font-family: var(--font-mono); font-size: 10.5px;
+  padding: 2px 7px; border-radius: 4px;
+  background: var(--c-accent-bg); color: var(--c-accent);
+  margin-left: 8px; font-weight: 500;
+}
+.kh-head .close {
+  width: 30px; height: 30px; border-radius: 6px;
+  background: transparent; border: 1px solid var(--c-border-2);
+  color: var(--c-text-2); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 14px;
+}
+.kh-head .close:hover { background: var(--c-hover); color: var(--c-text); }
+
+.kh-body {
+  flex: 1; overflow-y: auto; padding: 18px 22px 22px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px 28px;
+  align-content: start;
+}
+.kh-group {
+  padding: 4px 0 12px;
+}
+.kh-group h3 {
+  margin: 0 0 10px;
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--c-muted);
+}
+.kh-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 6px 0;
+  border-top: 1px solid var(--c-border);
+}
+.kh-row:first-of-type { border-top: none; }
+.kh-row .desc { font-size: 12.5px; color: var(--c-text-2); }
+.kh-row .keys {
+  display: flex; align-items: center; gap: 4px;
+}
+.kh-row .keys .sep { color: var(--c-faint); font-family: var(--font-mono); }
+.kh-row .keys .k {
+  font-family: var(--font-mono); font-size: 10.5px;
+  padding: 2px 7px; border-radius: 4px;
+  background: var(--c-raised); border: 1px solid var(--c-border-2);
+  color: var(--c-text); font-weight: 500;
+  min-width: 20px; text-align: center;
+}
+
+/* ─── Toasts ─────────────────────────────────────────────────────────── */
+.toast-host {
+  position: fixed; right: 18px; bottom: 18px;
+  display: flex; flex-direction: column-reverse; gap: 8px;
+  z-index: 9000;
+  pointer-events: none;
+}
+@keyframes p-toast-in {
+  from { opacity: 0; transform: translateY(10px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes p-toast-out {
+  to { opacity: 0; transform: translateY(-4px) scale(.98); }
+}
+.toast {
+  pointer-events: auto;
+  min-width: 260px; max-width: 360px;
+  background: var(--c-panel);
+  border: 1px solid var(--c-border-2);
+  border-radius: 8px;
+  padding: 11px 14px;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12.5px; color: var(--c-text);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,0,0,0.3);
+  animation: p-toast-in 180ms cubic-bezier(.2,.7,.3,1);
+  position: relative; overflow: hidden;
+}
+.toast.exiting { animation: p-toast-out 200ms ease forwards; }
+.toast::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--c-accent);
+}
+.toast.success::before { background: var(--c-green); }
+.toast.warn::before { background: var(--c-orange); }
+.toast.error::before { background: var(--c-red); }
+.toast .ic {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 13px; color: var(--c-accent);
+  background: var(--c-accent-bg); flex-shrink: 0;
+}
+.toast.success .ic { color: var(--c-green); background: var(--c-green-bg); }
+.toast.warn .ic { color: var(--c-orange); background: rgba(245,144,66,0.14); }
+.toast .body { flex: 1; }
+.toast .body .ttl { font-weight: 500; color: var(--c-text); }
+.toast .body .sub { font-size: 11px; color: var(--c-muted); margin-top: 1px; }
+.toast .body .sub .mono { font-family: var(--font-mono); color: var(--c-text-2); }
+.toast .close {
+  background: transparent; border: none; color: var(--c-muted);
+  cursor: pointer; font-family: var(--font-mono); font-size: 14px;
+  padding: 2px 6px; border-radius: 3px;
+}
+.toast .close:hover { color: var(--c-text); background: var(--c-hover); }
+
+/* ─── Hint chip (bottom-left, "Try ⌘K · ?") ─────────────────────────── */
+.poke-chip {
+  position: fixed; left: 18px; bottom: 18px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 12px;
+  background: var(--c-panel);
+  border: 1px solid var(--c-border);
+  border-radius: 18px;
+  font-size: 11.5px; color: var(--c-text-2);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  cursor: pointer; z-index: 8500;
+  transition: border-color .12s, background .12s, transform .12s;
+}
+.poke-chip:hover { border-color: var(--c-border-2); background: var(--c-hover); transform: translateY(-1px); }
+.poke-chip .ic {
+  width: 18px; height: 18px; border-radius: 4px;
+  background: var(--c-accent-bg); color: var(--c-accent);
+  display: flex; align-items: center; justify-content: center;
+}
+.poke-chip .kbd {
+  font-family: var(--font-mono); font-size: 10px;
+  padding: 1px 5px; border-radius: 3px;
+  background: var(--c-bg); border: 1px solid var(--c-border-2);
+  color: var(--c-text); font-weight: 500;
+}
+.poke-chip .kbd + .kbd { margin-left: -3px; }
+
+/* ─── Subtle row hover on .ev-row & .l-issue & .b-card ───────────────── */
+.ev-row, .b-card, .c-cp .scenecard, .r-echo {
+  transition: background .1s ease, border-color .12s ease, transform .1s ease, box-shadow .12s ease;
+}
+
+/* ─── Better scrollbar everywhere (Firefox) ──────────────────────────── */
+.fx-app *, .ev-app *, .ab-app * { scrollbar-color: var(--c-border-2) transparent; scrollbar-width: thin; }

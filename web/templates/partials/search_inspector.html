@@ -1,0 +1,205 @@
+{# ── Mojica Buscar inspector — right pane (.b-rp) ──────────────────────────
+   Task 12 (Phase 2) of the Mojica redesign. Swapped into ``#right-pane``
+   (the legacy aside in ``base.html``) by every ``.b-card``'s ``hx-get``
+   on the search-results grid.
+
+   Context contract (built by ``api/services/scenes_service.build_inspector_context``):
+
+     * ``selected_scene``   dict — keyframe_url, timecode, description,
+       tags, scene_id, film_slug, pin (optional), signals (optional),
+       activity_count / annotation_count / pin_count (defaults 0),
+       scene_index / scene_total / duration_s for the Properties tab.
+     * ``selected_film``    Film | None — title/year/director for the
+       attribution row. ``None`` falls back to the slug.
+     * ``inspector_tab``    "activity" | "annotations" | "properties"
+       (default "activity"; unknown values normalised by the service).
+     * ``rhymes``           list — empty until Phase 5 wires the stub
+       service; the ``.b-rimas`` block stays hidden when empty.
+
+   Self-contained guard: when no scene is selected the partial renders
+   nothing. This lets ``partials/search.html`` include it in the
+   full-page initial render without producing visible chrome.
+
+   Config flags consumed (defaults wired in ``config/default.yaml``):
+
+     * ``cfg.search.signals_enabled`` — gates the ``.b-sigs`` block.
+     * ``cfg.collaboration.composer_enabled`` — gates the ``.b-comp``
+       textarea + tool buttons.
+#}
+{% from "partials/_icons.html" import icon %}
+{%- if not selected_scene %}
+<section class="b-rp b-rp-empty" aria-label="{{ _('Result details') }}">
+  <div class="b-rp-empty-inner">
+    <span class="ico" aria-hidden="true">{{ icon('search', 28) }}</span>
+    <p class="ttl">{{ _("Select a result") }}</p>
+    <p class="sub">{{ _("Click a card to see its keyframe, annotations, and visual rhymes here.") }}</p>
+  </div>
+</section>
+{%- else %}
+<section class="b-rp">
+
+  {# ── Horizontal tabs: Activity · Annotations · Properties ───────────── #}
+  <div class="htabs" role="tablist">
+    <button type="button"
+            class="htab{% if inspector_tab == 'activity' %} on{% endif %}"
+            role="tab"
+            aria-selected="{{ 'true' if inspector_tab == 'activity' else 'false' }}"
+            hx-get="/api/scenes/{{ selected_scene.scene_id }}/inspector?tab=activity{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
+            hx-target="#right-pane"
+            hx-swap="innerHTML">
+      {{ icon('comment', 14) }} {{ _("Activity") }}
+      {% if selected_scene.activity_count %}<span class="pip">{{ selected_scene.activity_count }}</span>{% endif %}
+    </button>
+    <button type="button"
+            class="htab{% if inspector_tab == 'annotations' %} on{% endif %}"
+            role="tab"
+            aria-selected="{{ 'true' if inspector_tab == 'annotations' else 'false' }}"
+            hx-get="/api/scenes/{{ selected_scene.scene_id }}/inspector?tab=annotations{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
+            hx-target="#right-pane"
+            hx-swap="innerHTML">
+      {{ icon('pin', 14) }} {{ _("Annotations") }}
+      {% if selected_scene.annotation_count %}<span class="pip">{{ selected_scene.annotation_count }}</span>{% endif %}
+    </button>
+    <button type="button"
+            class="htab{% if inspector_tab == 'properties' %} on{% endif %}"
+            role="tab"
+            aria-selected="{{ 'true' if inspector_tab == 'properties' else 'false' }}"
+            hx-get="/api/scenes/{{ selected_scene.scene_id }}/inspector?tab=properties{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
+            hx-target="#right-pane"
+            hx-swap="innerHTML">
+      {{ _("Properties") }}
+    </button>
+    <span class="gap" aria-hidden="true"></span>
+    <button type="button" class="ic" title="{{ _('More') }}" aria-label="{{ _('More actions') }}">
+      {{ icon('more', 14) }}
+    </button>
+    <button type="button" class="ic" title="{{ _('Expand') }}" aria-label="{{ _('Expand inspector') }}">
+      {{ icon('expand', 14) }}
+    </button>
+  </div>
+
+  <div class="inner">
+
+    {# ── Keyframe with optional pin overlay + annotation badge ────────── #}
+    <div class="insp-kf"
+         {% if selected_scene.keyframe_url %}style="background-image: url('{{ selected_scene.keyframe_url }}');"{% endif %}>
+      {% if selected_scene.pin %}
+        <span class="pin"
+              style="top: {{ selected_scene.pin.top }}; left: {{ selected_scene.pin.left }};">
+          {{ selected_scene.pin.label or '1' }}
+        </span>
+      {% endif %}
+      {% if selected_scene.annotation_count %}
+        <span class="annx">
+          <span class="dot"></span>
+          {{ _("%(n)d annotations") % {"n": selected_scene.annotation_count} }}
+          {% if selected_scene.timecode %} · {{ selected_scene.timecode }}{% endif %}
+        </span>
+      {% endif %}
+    </div>
+
+    {# ── Scene title + film attribution + indexed pill ───────────────── #}
+    <div class="meta-top">
+      <div>
+        <h3>
+          {% if selected_scene.title %}
+            {{ selected_scene.title }}
+          {% else %}
+            {{ _("Scene %(n)s") % {"n": "%03d"|format(selected_scene.scene_id or 0)} }}
+          {% endif %}
+        </h3>
+        <div class="at">
+          <span class="dot" style="background: var(--c-accent);"></span>
+          <b>{% if selected_film %}{{ selected_film.title }}{% else %}{{ selected_scene.film_slug or "" }}{% endif %}</b>
+          {% if selected_film and selected_film.year %}<span>· {{ selected_film.year }}</span>{% endif %}
+          {% if selected_film and selected_film.director %}<span>· {{ _("dir.") }} {{ selected_film.director }}</span>{% endif %}
+          {% if selected_scene.timecode %}<span>· <span class="fx-tc bare">{{ selected_scene.timecode }}</span></span>{% endif %}
+        </div>
+      </div>
+      <span class="fx-pill green">
+        <span class="dot"></span>
+        {{ _("indexed") }}
+      </span>
+    </div>
+
+    {# ── Tab body: Activity (default) | Annotations | Properties ─────── #}
+    {% if inspector_tab == 'annotations' %}
+      {% include "partials/inspector_annotations.html" %}
+    {% elif inspector_tab == 'properties' %}
+      {% include "partials/inspector_properties.html" %}
+    {% else %}
+      {% include "partials/inspector_activity.html" %}
+    {% endif %}
+
+    {# ── Signals breakdown (.b-sigs) — gated on cfg + presence of data ── #}
+    {% if cfg.search.signals_enabled and selected_scene.signals %}
+      <div class="b-sigs">
+        <div class="h">
+          <span>{{ _("Why this result") }}</span>
+          {% if selected_scene.signals.fused is defined and selected_scene.signals.fused is not none %}
+            <span class="v">{{ '%.3f'|format(selected_scene.signals.fused) }}</span>
+          {% endif %}
+        </div>
+        {% for row in selected_scene.signals.rows or [] %}
+          <div class="row{% if row.fused %} fused{% endif %}">
+            <span class="lab">{{ row.label }}</span>
+            <span class="track" style="--p: {{ '%.0f'|format((row.value or 0.0) * 100) }}%;"></span>
+            <span class="v">{{ '%.3f'|format(row.value or 0.0) }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {# ── Visual rhymes (.b-rimas) — cross-film mini-grid; hidden until Phase 5 ── #}
+    {% if rhymes %}
+      <div class="b-rimas">
+        <div class="h">
+          <span>{{ _("Visual rhymes · cross-film") }}</span>
+          <a href="/rimas?anchor={{ selected_scene.scene_id }}{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}">
+            {{ _("See all") }} {{ icon('arrow-r', 12) }}
+          </a>
+        </div>
+        <div class="gr3">
+          {% for x in rhymes[:3] %}
+            <a class="ry"
+               href="/rimas?anchor={{ x.scene_id }}{% if x.film_slug %}&film={{ x.film_slug }}{% endif %}">
+              <div class="kf"{% if x.keyframe_url %} style="background-image: url('{{ x.keyframe_url }}');"{% endif %}></div>
+              <div class="lab">
+                <span class="dot" style="background: var(--c-accent);"></span>
+                <span class="nm fx-truncate">{{ x.film_title or x.film_slug or "" }}</span>
+                {% if x.similarity is defined and x.similarity is not none %}
+                  <span class="sc">{{ '%.3f'|format(x.similarity) }}</span>
+                {% endif %}
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    {# ── Composer (.b-comp) — gated on collaboration backend flag ─────── #}
+    {% if cfg.collaboration.composer_enabled %}
+      <form class="b-comp" onsubmit="return false;">
+        <textarea name="comment"
+                  placeholder="{{ _('Add a comment or annotation…') }}"
+                  rows="3"></textarea>
+        <div class="actrow">
+          <div class="left">
+            {% if selected_scene.timecode %}<span class="fx-tc">{{ selected_scene.timecode }}</span>{% endif %}
+          </div>
+          <div class="tools">
+            <button type="button" class="tool" title="{{ _('Pin') }}" aria-label="{{ _('Add pin') }}">{{ icon('pin', 14) }}</button>
+            <button type="button" class="tool" title="{{ _('Tag') }}" aria-label="{{ _('Add tag') }}">{{ icon('tag', 14) }}</button>
+            <button type="button" class="tool" title="{{ _('Attach') }}" aria-label="{{ _('Attach file') }}">{{ icon('attach', 14) }}</button>
+            <button type="button" class="tool" title="{{ _('Emoji') }}" aria-label="{{ _('Insert emoji') }}">{{ icon('emoji', 14) }}</button>
+            <button type="submit" class="fx-btn primary">
+              {{ icon('send', 14) }} {{ _("Comment") }}
+            </button>
+          </div>
+        </div>
+      </form>
+    {% endif %}
+
+  </div>
+</section>
+{%- endif %}

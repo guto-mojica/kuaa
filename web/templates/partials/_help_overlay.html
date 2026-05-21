@@ -1,0 +1,165 @@
+{#- Keyboard help overlay (Phase 7 / Task 28).
+
+    Rendered once into base.html at page load (hidden); ``mojica.js``
+    toggles ``[hidden]`` on the outer ``.kh-back`` div in response to
+    the ``?`` keypress. The DOM here is purely server-rendered (no
+    HTMX) so the open path can render its first frame instantly without
+    any network round trip — the user mashed `?` to find a shortcut, and
+    making them wait for an XHR before reading the legend would defeat
+    the point.
+
+    Class names follow web/static/css/polish.css verbatim:
+      * ``.kh-back``  — backdrop (fixed, full-viewport, blurred)
+      * ``.kh-panel`` — centred panel (720px max)
+      * ``.kh-head``, ``.kh-head h2``, ``.kh-head h2 .pip`` (the "?" badge),
+        ``.kh-head .close`` (the dismiss button)
+      * ``.kh-body`` — 2-column grid container
+      * ``.kh-group`` — one column of shortcuts under an h3 heading
+      * ``.kh-row`` — single shortcut row (description + keys)
+      * ``.kh-row .desc``, ``.kh-row .keys``, ``.kh-row .keys .k``,
+        ``.kh-row .keys .sep``
+
+    Mutual exclusion with the command palette is enforced on the JS
+    side (see ``window.Help`` and the ⌘K block in mojica.js): opening
+    one closes the other, so a tap of ``?`` while the palette is open
+    swaps the two surfaces cleanly.
+
+    Shortcut taxonomy mirrors the prototype's `polish.jsx` HelpOverlay
+    component (Navigation · Universal · Annotate review · Eval grading
+    · Cenas + Buscar). The Eval row is wired even though Task 30 ships
+    the eval surface itself — the legend documents what those shortcuts
+    will be once the page lands, so users discover the system through
+    the help overlay rather than after stumbling onto /eval blind.
+-#}
+{% from "partials/_icons.html" import icon %}
+<div class="kh-back" id="help" hidden role="dialog" aria-modal="true" aria-labelledby="kh-title">
+  <div class="kh-panel" role="document" data-prevent-close>
+    <div class="kh-head">
+      <h2 id="kh-title">{{ _('Keyboard shortcuts') }} <span class="pip">?</span></h2>
+      <button class="close" type="button" data-action="close-help" aria-label="{{ _('Close') }}">{{ icon('x', 14) }}</button>
+    </div>
+    <div class="kh-body">
+
+      {# ── Navigation ─────────────────────────────────────────────── #}
+      <div class="kh-group">
+        <h3>{{ _('Navigation') }}</h3>
+        {% set nav_rows = [
+          (_('Search'),          [('1', None)]),
+          (_('Scenes'),          [('2', None)]),
+          (_('Annotate'),        [('3', None)]),
+          (_('Visual rhymes'),   [('4', None)]),
+          (_('Processing'),      [('5', None)]),
+          (_('Next · previous item'), [('j', '·'), ('k', None)]),
+          (_('Select'),          [('⏎', None)]),
+          (_('Back · close'),    [('esc', None)]),
+        ] %}
+        {% for label, keys in nav_rows %}
+          <div class="kh-row">
+            <span class="desc">{{ label }}</span>
+            <span class="keys">
+              {% for k, sep in keys %}
+                <span class="k">{{ k }}</span>
+                {% if sep %}<span class="sep">{{ sep }}</span>{% endif %}
+              {% endfor %}
+            </span>
+          </div>
+        {% endfor %}
+      </div>
+
+      {# ── Universal ──────────────────────────────────────────────── #}
+      <div class="kh-group">
+        <h3>{{ _('Universal') }}</h3>
+        {% set universal_rows = [
+          (_('Command palette'), [('⌘', '+'), ('K', None)]),
+          (_('This help'),       [('?', None)]),
+          (_('Global search'),   [('⌘', '+'), ('F', None)]),
+          (_('Back'),            [('⌘', '+'), ('[', None)]),
+          (_('Reload index'),    [('⌘', '+'), ('R', None)]),
+          (_('Export'),          [('⌘', '+'), ('E', None)]),
+        ] %}
+        {% for label, keys in universal_rows %}
+          <div class="kh-row">
+            <span class="desc">{{ label }}</span>
+            <span class="keys">
+              {% for k, sep in keys %}
+                <span class="k">{{ k }}</span>
+                {% if sep %}<span class="sep">{{ sep }}</span>{% endif %}
+              {% endfor %}
+            </span>
+          </div>
+        {% endfor %}
+      </div>
+
+      {# ── Annotate · Review ─────────────────────────────────────── #}
+      <div class="kh-group">
+        <h3>{{ _('Annotate · Review') }}</h3>
+        {% set review_rows = [
+          (_('Play · pause'),         [('space', None)]),
+          (_('Back · forward 5s'),    [('←', '·'), ('→', None)]),
+          (_('Pin comment to frame'), [('P', None)]),
+          (_('Resolve comment'),      [('⇧', '+'), ('R', None)]),
+          (_('Previous · next scene'), [('⇧', '+'), ('J', None)]),
+        ] %}
+        {% for label, keys in review_rows %}
+          <div class="kh-row">
+            <span class="desc">{{ label }}</span>
+            <span class="keys">
+              {% for k, sep in keys %}
+                <span class="k">{{ k }}</span>
+                {% if sep %}<span class="sep">{{ sep }}</span>{% endif %}
+              {% endfor %}
+            </span>
+          </div>
+        {% endfor %}
+      </div>
+
+      {# ── Eval · Grading ────────────────────────────────────────── #}
+      <div class="kh-group">
+        <h3>{{ _('Eval · Grading') }}</h3>
+        {% set eval_rows = [
+          (_('Grade · 0 / 1 / 2 / 3'), [('0', '·'), ('1', '·'), ('2', '·'), ('3', None)]),
+          (_('Skip · unjudgable'),     [('S', None)]),
+          (_('Save query and advance'),[('⌘', '+'), ('⏎', None)]),
+          (_('Blind mode (toggle)'),   [('⇧', '+'), ('B', None)]),
+          (_('Skip query'),            [('⇧', '+'), ('S', None)]),
+        ] %}
+        {% for label, keys in eval_rows %}
+          <div class="kh-row">
+            <span class="desc">{{ label }}</span>
+            <span class="keys">
+              {% for k, sep in keys %}
+                <span class="k">{{ k }}</span>
+                {% if sep %}<span class="sep">{{ sep }}</span>{% endif %}
+              {% endfor %}
+            </span>
+          </div>
+        {% endfor %}
+      </div>
+
+      {# ── Scenes + Search (spans both columns to balance the grid) ─ #}
+      <div class="kh-group" style="grid-column: 1 / 3;">
+        <h3>{{ _('Scenes + Search') }}</h3>
+        {% set xtab_rows = [
+          (_('Swap anchor · Visual rhymes'),                 [('⌥', '+'), ('R', None)]),
+          (_('Copy timecode'),                               [('⌘', '+'), ('C', None)]),
+          (_('Add tag'),                                     [('A', None)]),
+          (_('Toggle view mode (grid · list · compact)'),    [('G', None)]),
+          (_('Select all · clear'),                          [('⌘', '+'), ('A', None)]),
+          (_('Filter'),                                      [('⌘', '+'), ('⇧', '+'), ('F', None)]),
+        ] %}
+        {% for label, keys in xtab_rows %}
+          <div class="kh-row">
+            <span class="desc">{{ label }}</span>
+            <span class="keys">
+              {% for k, sep in keys %}
+                <span class="k">{{ k }}</span>
+                {% if sep %}<span class="sep">{{ sep }}</span>{% endif %}
+              {% endfor %}
+            </span>
+          </div>
+        {% endfor %}
+      </div>
+
+    </div>
+  </div>
+</div>

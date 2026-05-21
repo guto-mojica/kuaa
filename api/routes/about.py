@@ -1,4 +1,5 @@
 """About modal/page and locale-switching routes."""
+
 from __future__ import annotations
 
 from urllib.parse import urlsplit
@@ -6,7 +7,8 @@ from urllib.parse import urlsplit
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
-from api.deps import make_ctx
+from api.deps import get_config, make_ctx
+from api.services.about_service import build_about_context
 from api.templates import templates
 
 router = APIRouter()
@@ -67,10 +69,20 @@ def _safe_return_path(referer: str | None, host: str | None) -> str:
 
 @router.get("/api/about", response_class=HTMLResponse)
 async def api_about(request: Request) -> HTMLResponse:
+    """Return the About modal partial (HTMX swap target).
+
+    Context is built by
+    :func:`api.services.about_service.build_about_context`: project
+    version + build line, library stats (films/scenes/runtime/year
+    range), model attributions, tech-stack pills, credits, and up to
+    24 mosaic-backdrop keyframe URLs. See that module's docstring for
+    the full shape.
+    """
+    ctx = build_about_context(get_config())
     return templates.TemplateResponse(
         request,
         "partials/about_modal.html",
-        make_ctx(request, version="0.3.0"),
+        make_ctx(request, **ctx),
     )
 
 
@@ -79,16 +91,16 @@ async def page_about(request: Request) -> HTMLResponse:
     """Full-page About — progressive-enhancement fallback for the modal.
 
     JS-off users follow the sidebar's real ``href="/about"`` here and
-    get the same credits content the modal shows: both this page and
-    the modal ``{% include %}`` the shared
-    ``partials/_about_credits.html`` partial, so they are
-    content-identical by construction. This template just wraps that
-    partial so the page stands alone.
+    get the same surface the modal shows: ``about_page.html`` just
+    includes ``partials/about_modal.html`` verbatim inside a minimal
+    page chrome, so the two surfaces are content-identical by
+    construction.
     """
+    ctx = build_about_context(get_config())
     return templates.TemplateResponse(
         request,
         "about_page.html",
-        make_ctx(request, version="0.3.0"),
+        make_ctx(request, active_tab="about", **ctx),
     )
 
 
@@ -104,9 +116,7 @@ async def api_set_locale(request: Request, code: str) -> Response:
     """
     supported = {"pt_BR", "en"}
     locale = code if code in supported else "pt_BR"
-    target = _safe_return_path(
-        request.headers.get("referer"), request.headers.get("host")
-    )
+    target = _safe_return_path(request.headers.get("referer"), request.headers.get("host"))
 
     if request.headers.get("hx-request") == "true":
         # HTMX path: 200 + HX-Redirect so htmx does a full client-side

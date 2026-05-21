@@ -64,6 +64,7 @@ LIBRARY_NO_FILMS = "No films in library"
 
 # ── Group 1: no-data state for every tab ──────────────────────────────────────
 
+
 class TestNoDataState:
     """Empty temp dirs → every tab responds 200 with its empty marker.
 
@@ -143,6 +144,7 @@ class TestNoDataState:
 
 # ── Group 2: seeded scenes render ─────────────────────────────────────────────
 
+
 class TestSeededScenes:
     """The generic seed_metadata dataset flows through the scenes route."""
 
@@ -151,8 +153,11 @@ class TestSeededScenes:
         r = client.get("/tab/scenes")
         assert r.status_code == 200, r.text[:300]
         assert SCENES_NO_DATA not in r.text
-        # 2 seeded scenes → the grid count line.
-        assert "2 scenes" in r.text
+        # 2 seeded scenes → Task 15's countrow renders the total as a
+        # ``<span class="v">N</span>`` value followed by the localised
+        # "scenes" label. The legacy ``<p>N scenes</p>`` count line is
+        # gone with the Mojica rewrite.
+        assert '<span class="v">2</span>' in r.text
 
     def test_scenes_grid_renders_both_scene_ids(self, seed_metadata, client):
         seed_metadata()
@@ -192,6 +197,7 @@ class TestSeededScenes:
 
 
 # ── Group 3: annotation save / clear write path ───────────────────────────────
+
 
 class TestAnnotationSaveClear:
     """The POST save/clear routes and the resulting on-disk JSON.
@@ -298,9 +304,7 @@ class TestAnnotateSceneEmptyFilterRegression:
     Surfaced by a full-library regen (every scene then has a description).
     """
 
-    def test_annotate_scene_default_filter_does_not_500(
-        self, seed_metadata, client
-    ):
+    def test_annotate_scene_default_filter_does_not_500(self, seed_metadata, client):
         seed_metadata()
         r = client.get("/api/annotate/scene?id=351")
         assert r.status_code == 200, r.text[:300]
@@ -311,6 +315,7 @@ class TestAnnotateSceneEmptyFilterRegression:
 
 
 # ── Group 4: library filter / select ──────────────────────────────────────────
+
 
 def _register_film_in_tmp(library_dir: Path, slug: str, title: str) -> Path:
     """Register a film and create its per-film ``raw/`` directory layout.
@@ -352,9 +357,7 @@ class TestLibrary:
 
     def test_filter_lists_video_in_raw_dir(self, client):
         cfg = _cfg_from_client()
-        _register_film_in_tmp(
-            Path(cfg.paths.library_dir), slug="jeca_tatu", title="Jeca Tatu"
-        )
+        _register_film_in_tmp(Path(cfg.paths.library_dir), slug="jeca_tatu", title="Jeca Tatu")
         r = client.get("/api/library/filter")
         assert r.status_code == 200, r.text[:300]
         # The title was explicitly registered as "Jeca Tatu".
@@ -371,9 +374,7 @@ class TestLibrary:
         assert "Limite" in r.text
         assert "Jeca Tatu" not in r.text
 
-    def test_inventory_is_not_clickable_and_carries_no_fake_per_film_state(
-        self, client
-    ):
+    def test_inventory_is_not_clickable_and_carries_no_fake_per_film_state(self, client):
         """T9 update of the CONVERTED Phase-2 tripwire.
 
         Old contract (v0.3 single-film, now removed): no clickable per-film
@@ -458,6 +459,7 @@ def _cfg_from_client():
 
 
 # ── Group 5: corrupt search index (Phase 3c tripwire) ─────────────────────────
+
 
 def _write_corrupt_index(cfg):
     """Embeddings .npy with MORE rows than the mapping declares.
@@ -612,9 +614,7 @@ def test_corrupt_index_root_defect_still_in_ai_core_but_caught_by_service(
 # The exact string from the ``{% elif upload_error %}`` branch of
 # web/templates/partials/search_results.html — kept here as the single
 # canonical marker, same convention as SEARCH_NO_INDEX above.
-SEARCH_UPLOAD_ERROR = (
-    "That image could not be used. Upload a single image file under 8 MB."
-)
+SEARCH_UPLOAD_ERROR = "That image could not be used. Upload a single image file under 8 MB."
 
 
 def _write_wellformed_index(cfg):
@@ -640,9 +640,7 @@ def _write_wellformed_index(cfg):
     (emb_dir / cfg.embeddings.mapping_filename).write_text(json.dumps(mapping))
 
 
-def test_image_search_rejected_upload_degrades_gracefully(
-    client, stub_search_embedder
-):
+def test_image_search_rejected_upload_degrades_gracefully(client, stub_search_embedder):
     """A POST to /api/search/image that ``validate_upload`` rejects must
     return HTTP 200 + the upload-error notice, NOT 500.
 

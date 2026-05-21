@@ -1,0 +1,142 @@
+{# Rimas Visuais right-pane inspector — Task 22.
+
+   Two render modes:
+
+     1. anchor only (no ?echo= param resolved): show the anchor preview
+        + a "pick a rhyme" hint. Used on first paint of /rimas and on
+        /api/rimas/inspector calls that omit ?echo=.
+
+     2. anchor + selected echo: show the .r-pair pair-comparison, the
+        .r-similarity-card signal bars (when the service surfaces
+        ``selected_echo.signals``), the .r-reason quote (when the
+        echo carries a reranker reason), the shared-tag pill row, and
+        the .r-actions button column.
+
+   Context contract:
+     anchor_film       — Film | None
+     anchor_scene      — dict | None (keyframe_url, scene_id, …)
+     selected_echo     — dict | None (film_slug, film_title, scene_id,
+                                       keyframe_url, score, rank,
+                                       reason, signals)
+     shared_tags       — list[str] (may be empty)
+
+   The empty/absent branches collapse silently — the swap target
+   (#right-pane) is the parent .r-rp from rimas.html, so even an empty
+   inspector keeps the right pane allocated.
+#}
+{% from "partials/_icons.html" import icon %}
+
+<div class="r-rp-inner">
+  {% if anchor_scene %}
+    <div class="head" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+      <div class="l" style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--c-text);">
+        {% if selected_echo %}
+          <span class="pip" style="font-family: var(--font-mono); font-size: 10.5px; background: var(--c-accent); color: #fff; padding: 1px 6px; border-radius: 9px; font-weight: 600;">#{{ '%02d'|format(selected_echo.rank or 1) }}</span>
+        {% endif %}
+        <span>{{ _('Why this rhymes') }}</span>
+      </div>
+    </div>
+
+    <div class="r-pair-wrap">
+      <div class="r-pair">
+        <div class="cell">
+          <span class="lab ac">{{ _('Anchor') }}</span>
+          <div class="kf"{% if anchor_scene.keyframe_url %} style="background-image: url('{{ anchor_scene.keyframe_url }}');"{% endif %}></div>
+          <span class="nm">
+            <span class="dot" style="background: var(--c-accent);"></span>
+            {{ anchor_film.title if anchor_film else anchor_scene.film_slug }}
+            {% if anchor_film and anchor_film.year %}<span class="yr">{{ anchor_film.year }}</span>{% endif %}
+          </span>
+          <span style="font-family: var(--font-mono); font-size: 10.5px; color: var(--c-muted);">{{ _('scene') }} {{ '%03d'|format(anchor_scene.scene_id) }}{% if anchor_scene.timecode %} · {{ anchor_scene.timecode }}{% endif %}</span>
+        </div>
+        {% if selected_echo %}
+          <div class="cell">
+            <span class="lab">{{ _('Rhyme') }} · #{{ '%02d'|format(selected_echo.rank or 1) }}</span>
+            <div class="kf"{% if selected_echo.keyframe_url %} style="background-image: url('{{ selected_echo.keyframe_url }}');"{% endif %}></div>
+            <span class="nm">
+              <span class="dot" style="background: var(--c-accent);"></span>
+              {{ selected_echo.film_title }}
+            </span>
+            <span style="font-family: var(--font-mono); font-size: 10.5px; color: var(--c-muted);">{{ _('scene') }} {{ '%03d'|format(selected_echo.scene_id) }}{% if selected_echo.timecode %} · {{ selected_echo.timecode }}{% endif %}</span>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if selected_echo and selected_echo.reason %}
+      <div class="r-sect">
+        <span>{{ _('Reasoning') }}</span>
+      </div>
+      <p class="r-reason">{{ selected_echo.reason }}</p>
+    {% endif %}
+
+    {% if selected_echo and selected_echo.signals %}
+      <div class="r-sect" style="margin-top: 22px;">
+        <span>{{ _('Similarity signals') }}</span>
+      </div>
+      <div class="r-similarity-card">
+        <div class="h">
+          <span>cosine · {{ _('fused embedding') }}</span>
+          <span class="v">{{ '%.3f'|format(selected_echo.score) }}</span>
+        </div>
+        {% for sig in selected_echo.signals %}
+          <div class="row{% if sig.key == 'fused' %} fused{% endif %}">
+            <span class="lab">{{ sig.label }}</span>
+            <span class="track" style="--p: {{ '%.0f'|format(sig.value * 100) }}%;"></span>
+            <span class="v">{{ '%.3f'|format(sig.value) }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% elif selected_echo %}
+      <div class="r-sect" style="margin-top: 22px;">
+        <span>{{ _('Similarity') }}</span>
+      </div>
+      <div class="r-similarity-card">
+        <div class="h">
+          <span>cosine · CLIP</span>
+          <span class="v">{{ '%.3f'|format(selected_echo.score) }}</span>
+        </div>
+        <div class="row fused">
+          <span class="lab">{{ _('Fused') }}</span>
+          <span class="track" style="--p: {{ '%.0f'|format(selected_echo.score * 100) }}%;"></span>
+          <span class="v">{{ '%.3f'|format(selected_echo.score) }}</span>
+        </div>
+      </div>
+    {% endif %}
+
+    {% if shared_tags %}
+      <div class="r-sect">
+        <span>{{ _('Shared tags') }} · {{ shared_tags|length }}</span>
+      </div>
+      <div class="r-shared-tags">
+        {% for t in shared_tags %}
+          <span class="fx-pill ac">{{ t }}</span>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="r-actions">
+      {% if selected_echo %}
+        <button class="fx-btn primary"
+                hx-get="/tab/rimas?anchor={{ selected_echo.film_slug }}/{{ selected_echo.scene_id }}"
+                hx-target="#ch-main"
+                hx-swap="innerHTML"
+                hx-push-url="/rimas?anchor={{ selected_echo.film_slug }}/{{ selected_echo.scene_id }}">
+          {{ icon('rhymes', 14) }} {{ _('Set as anchor') }}
+        </button>
+        <a class="fx-btn secondary" href="/scenes?film={{ selected_echo.film_slug }}&scene={{ selected_echo.scene_id }}">
+          <span>{{ _('Open rhyme scene') }}</span>
+          <span class="kbd">↵</span>
+        </a>
+        <a class="fx-btn secondary" href="/annotate?film={{ selected_echo.film_slug }}&id={{ selected_echo.scene_id }}">
+          <span>{{ icon('tag', 14) }} {{ _('Annotate rhyme') }}</span>
+          <span class="kbd">A</span>
+        </a>
+      {% else %}
+        <p class="empty-state" style="font-size: 12px; color: var(--c-muted); padding: 12px 0;">{{ _('Pick a rhyme on the left to see the comparison.') }}</p>
+      {% endif %}
+    </div>
+  {% else %}
+    <p class="empty-state">{{ _('No anchor selected.') }}</p>
+  {% endif %}
+</div>

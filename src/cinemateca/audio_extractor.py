@@ -14,10 +14,31 @@ listings sortable.
 from __future__ import annotations
 
 import logging
+import os
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+def unique_scenes(rows: list[dict]) -> list[dict]:
+    """Dedup keyframe-rows by ``scene_id``, keep first occurrence's times.
+
+    keyframes_metadata.json carries N rows per scene (one per keyframe);
+    most pipeline steps need one row per scene. Returns rows sorted by
+    ``scene_id`` ascending.
+    """
+    seen: dict[int, dict] = {}
+    for row in rows:
+        sid = int(row["scene_id"])
+        if sid not in seen:
+            seen[sid] = {
+                "scene_id": sid,
+                "start_time_s": float(row["start_time_s"]),
+                "end_time_s": float(row["end_time_s"]),
+            }
+    return [seen[sid] for sid in sorted(seen)]
 
 
 class SceneAudioExtractor:
@@ -43,69 +64,66 @@ class SceneAudioExtractor:
 
         Args:
             video_path: Source video.
-            scenes: Rows from ``keyframes_metadata.json``. Each row must
-                carry ``scene_id``, ``start_time_s``, ``end_time_s``.
-                Duplicate scene_ids are deduped (keyframes_metadata has
-                N rows per scene).
+            scenes: Rows from ``keyframes_metadata.json``. Duplicate
+                scene_ids are deduped.
             output_dir: Directory to write ``scene_NNNN.wav`` files into.
 
         Returns:
-            Sorted list of WAV paths (one per unique scene_id, ascending
-            by scene_id).
+            WAV paths sorted by scene_id ascending.
         """
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Dedup by scene_id, preserving the first occurrence's times.
-        unique: dict[int, dict] = {}
-        for row in scenes:
-            sid = int(row["scene_id"])
-            if sid not in unique:
-                unique[sid] = {
-                    "scene_id": sid,
-                    "start_time_s": float(row["start_time_s"]),
-                    "end_time_s": float(row["end_time_s"]),
-                }
-
+        rows = unique_scenes(scenes)
+        targets: list[tuple[dict, Path]] = []
         results: list[Path] = []
-        for sid in sorted(unique):
-            row = unique[sid]
-            out_path = output_dir / f"scene_{sid:04d}.wav"
-
-            if self._skip_existing and out_path.exists():
-                logger.debug("↷ scene_%04d.wav exists, skipping ffmpeg", sid)
-                results.append(out_path)
-                continue
-
-            cmd = [
-                "ffmpeg",
-                "-ss",
-                f"{row['start_time_s']}",
-                "-to",
-                f"{row['end_time_s']}",
-                "-i",
-                str(video_path),
-                "-vn",  # no video
-                "-ac",
-                "1",  # mono
-                "-ar",
-                str(self._sample_rate),
-                "-c:a",
-                "pcm_s16le",  # 16-bit PCM
-                "-y",  # overwrite if force
-                "-loglevel",
-                "error",
-                str(out_path),
-            ]
-            try:
-                subprocess.run(cmd, check=True, capture_output=True, text=True)
-            except subprocess.CalledProcessError as e:
-                raise RuntimeError(f"FFmpeg falhou em scene_{sid:04d}:\n{e.stderr}") from e
-            except FileNotFoundError as e:
-                raise RuntimeError(
-                    "FFmpeg não encontrado. Instale o FFmpeg: " "https://ffmpeg.org/download.html"
-                ) from e
+        for row in rows:
+            out_path = output_dir / f"scene_{row['scene_id']:04d}.wav"
             results.append(out_path)
+            if self._skip_existing and out_path.exists():
+                logger.debug("↷ %s exists, skipping ffmpeg", out_path.name)
+                continue
+            targets.append((row, out_path))
+
+        if targets:
+            max_workers = min(len(targets), os.cpu_count() or 4, 4)
+            with ThreadPoolExecutor(max_workers=max_workers) as pool:
+                # list() forces all to complete and propagates exceptions.
+                list(pool.map(lambda t: self._extract_one(video_path, *t), targets))
 
         logger.info("✓ Áudio por cena: %d WAVs em %s", len(results), output_dir)
         return results
+
+    def _extract_one(self, video_path: Path, row: dict, out_path: Path) -> None:
+        # Fast seek: -ss before -i forces ffmpeg to skip-decode to the
+        # nearest audio packet rather than decoding from the file start.
+        duration = max(0.0, row["end_time_s"] - row["start_time_s"])
+        cmd = [
+            "ffmpeg",
+            "-ss",
+            f"{row['start_time_s']}",
+            "-t",
+            f"{duration}",
+            "-i",
+            str(video_path),
+            "-vn",
+            "-ac",
+            "1",
+            "-ar",
+            str(self._sample_rate),
+            "-c:a",
+            "pcm_s16le",
+            "-y",
+            "-loglevel",
+            "error",
+            str(out_path),
+        ]
+        try:
+            subprocess.run(cmd, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as e:
+            sid = row["scene_id"]
+            raise RuntimeError(f"FFmpeg falhou em scene_{sid:04d}:\n{e.stderr}") from e
+        except FileNotFoundError as e:
+            raise RuntimeError(
+                "FFmpeg não encontrado. Instale o FFmpeg: https://ffmpeg.org/download.html"
+            ) from e

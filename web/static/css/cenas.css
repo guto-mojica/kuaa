@@ -1,0 +1,262 @@
+/* ─── CENAS (Scenes tab) ──────────────────────────────────────────────
+   Ported from claude_design/mojica-cinemateca/project/mojica-fr/cenas.jsx
+   (CENAS_CSS template literal, lines 3–224). Variables rewritten from
+   prototype short-form (--ac, --bg, …) to shipped tokens (--c-accent,
+   --c-bg, …) per the mapping documented in docs/DESIGN_SYSTEM.md and
+   the Phase 3 plan. Hardcoded rgba literals (overlay backgrounds on the
+   keyframe pills) are kept as-is — they are intentional and do not have
+   token equivalents. */
+
+.c-cp { display: flex; flex-direction: column; flex: 1; min-width: 0; overflow: hidden; background: var(--c-bg); }
+
+.c-cp .toolrow {
+  display: flex; align-items: center; gap: 6px;
+  padding: 12px 24px 12px; border-bottom: 1px solid var(--c-border);
+  flex-shrink: 0;
+}
+.c-cp .tool {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 11px; border-radius: 6px;
+  font-size: 12.5px; color: var(--c-text-2); cursor: pointer; font-weight: 500;
+  background: transparent; border: 1px solid transparent;
+}
+.c-cp .tool:hover { background: var(--c-hover); color: var(--c-text); }
+.c-cp .tool .ico { color: var(--c-muted); font-size: 13px; display: flex; align-items: center; }
+.c-cp .tool .v { color: var(--c-accent); font-weight: 500; }
+.c-cp .tool .pip {
+  font-family: var(--font-mono); font-size: 9.5px; padding: 0 5px;
+  background: var(--c-accent-bg); color: var(--c-accent); border-radius: 8px;
+}
+.c-cp .toolrow .div { width: 1px; height: 18px; background: var(--c-border); margin: 0 2px; }
+.c-cp .toolrow .grow { flex: 1; }
+.c-cp .toolrow .find {
+  background: var(--c-panel); border: 1px solid var(--c-border);
+  border-radius: 6px; padding: 5px 10px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--c-muted); min-width: 240px;
+  transition: border-color .12s, background .12s, box-shadow .12s;
+}
+.c-cp .toolrow .find:focus-within {
+  border-color: var(--c-accent); background: var(--c-raised);
+  box-shadow: 0 0 0 2px var(--c-accent-bg-low);
+}
+.c-cp .toolrow .find input {
+  flex: 1; background: transparent; border: none; outline: none;
+  font: inherit; color: var(--c-text); font-size: 12.5px;
+}
+.c-cp .toolrow .find input::placeholder { color: var(--c-muted); }
+
+.c-cp .countrow {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 24px 6px;
+  font-size: 12.5px;
+  flex-shrink: 0;
+}
+.c-cp .countrow .chev {
+  display: flex; align-items: center; color: var(--c-muted); cursor: pointer;
+}
+.c-cp .countrow .v {
+  color: var(--c-text); font-family: var(--font-mono); font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.c-cp .countrow .lab { color: var(--c-muted); }
+.c-cp .countrow .div { width: 1px; height: 14px; background: var(--c-border); }
+
+/* SCROLL WRAPPER — plain div so overflow-y: auto works reliably (a CSS grid
+   element as a bounded flex item doesn't scroll predictably across browsers) */
+.c-cp .scroll { flex: 1; min-height: 0; overflow-y: auto; }
+
+/* GRID — natural content height; scrolling is handled by .c-cp .scroll */
+.c-cp .grid {
+  padding: 12px 24px 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
+  gap: 16px 14px;
+  align-content: start;
+}
+.c-cp .group {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; gap: 10px;
+  padding: 16px 4px 6px;
+  font-size: 13px; color: var(--c-text-2);
+  border-bottom: 1px solid var(--c-border);
+  margin-bottom: 2px;
+}
+.c-cp .group .chev { color: var(--c-muted); cursor: pointer; }
+.c-cp .group .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.c-cp .group .name { font-weight: 600; color: var(--c-text); }
+.c-cp .group .ct {
+  font-family: var(--font-mono); font-size: 11px; color: var(--c-muted);
+  background: var(--c-raised); padding: 1px 6px; border-radius: 9px;
+}
+.c-cp .group .meta {
+  font-size: 11px; color: var(--c-muted); margin-left: auto;
+  display: flex; align-items: center; gap: 12px;
+  font-family: var(--font-mono);
+}
+
+.c-cp .scenecard {
+  background: var(--c-panel); border: 1px solid var(--c-border);
+  border-radius: 7px; overflow: hidden;
+  cursor: pointer; display: flex; flex-direction: column;
+  transition: border-color .12s, transform .12s;
+  position: relative;
+}
+.c-cp .scenecard:hover { border-color: var(--c-border-2); transform: translateY(-1px); }
+.c-cp .scenecard.sel { border-color: var(--c-accent); box-shadow: 0 0 0 2px var(--c-accent-bg); }
+.c-cp .scenecard .check {
+  position: absolute; top: 7px; left: 7px;
+  width: 18px; height: 18px; border-radius: 4px;
+  background: rgba(14,16,20,0.75); border: 1px solid var(--c-border-2);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; opacity: 0; transition: opacity .12s;
+  color: var(--c-text); z-index: 2;
+}
+.c-cp .scenecard:hover .check { opacity: 1; }
+.c-cp .scenecard.sel .check {
+  opacity: 1; background: var(--c-accent); border-color: var(--c-accent); color: #fff;
+}
+.c-cp .scenecard .kf {
+  width: 100%; aspect-ratio: 16/10;
+  background: var(--c-bg) center/cover no-repeat;
+  position: relative; filter: contrast(1.04) brightness(0.95);
+}
+.c-cp .scenecard .kf .bl {
+  position: absolute; bottom: 7px; left: 7px;
+  display: flex; align-items: center; gap: 4px;
+  font-family: var(--font-mono); font-size: 10px; color: #fff;
+  padding: 2px 6px; background: rgba(14,16,20,0.78); border-radius: 4px;
+}
+.c-cp .scenecard .kf .bl .pin { width: 6px; height: 6px; border-radius: 50%; background: var(--c-yellow); }
+.c-cp .scenecard .kf .br {
+  position: absolute; bottom: 7px; right: 7px;
+  font-family: var(--font-mono); font-size: 10px; color: #fff;
+  padding: 2px 6px; background: rgba(14,16,20,0.78); border-radius: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.c-cp .scenecard .kf .ver {
+  position: absolute; top: 7px; right: 7px;
+  font-family: var(--font-mono); font-size: 9.5px; color: var(--c-text);
+  padding: 1px 5px; background: rgba(14,16,20,0.78); border-radius: 3px;
+  letter-spacing: 0.04em;
+}
+.c-cp .scenecard .body { padding: 10px 11px 12px; display: flex; flex-direction: column; gap: 6px; }
+.c-cp .scenecard .name {
+  font-size: 12.5px; font-weight: 600; color: var(--c-text);
+  font-family: var(--font-mono); letter-spacing: -0.003em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.c-cp .scenecard .sub {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--c-muted); flex-wrap: wrap;
+}
+.c-cp .scenecard .sub .dot-f { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.c-cp .scenecard .sub .acts { margin-left: auto; }
+.c-cp .scenecard .sub .acts .fx-icbtn { margin: -4px 0; }
+.c-cp .scenecard .tipo {
+  margin-top: 4px; display: flex; align-items: center; gap: 6px;
+}
+.c-cp .scenecard .tipo .lab {
+  font-family: var(--font-mono); font-size: 9.5px; color: var(--c-faint);
+  letter-spacing: 0.06em; text-transform: uppercase; width: 32px;
+}
+.c-cp .scenecard .tipo .pill {
+  font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500;
+}
+
+/* Right pane — selection summary */
+.c-rp {
+  width: 380px; flex-shrink: 0;
+  border-left: 1px solid var(--c-border); background: var(--c-panel);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.c-rp .head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid var(--c-border);
+}
+.c-rp .head .l {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600; color: var(--c-text);
+}
+.c-rp .head .l .badge {
+  font-family: var(--font-mono); font-size: 10.5px;
+  background: var(--c-accent); color: #fff; padding: 1px 7px; border-radius: 9px;
+  font-weight: 600;
+}
+.c-rp .head .r { display: flex; align-items: center; gap: 2px; }
+.c-rp .inner { padding: 16px 18px 18px; overflow-y: auto; flex: 1; }
+.c-rp .preview {
+  width: 100%; aspect-ratio: 16/10; border-radius: 6px;
+  background: var(--c-bg) center/cover no-repeat;
+  border: 1px solid var(--c-border); filter: contrast(1.05) brightness(0.96);
+  position: relative;
+}
+.c-rp .preview .tipo-pill {
+  position: absolute; top: 8px; left: 8px;
+}
+.c-rp h2 {
+  margin: 14px 0 0; font-size: 16px; font-weight: 600; color: var(--c-text);
+  letter-spacing: -0.01em;
+}
+.c-rp .at {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 11.5px; color: var(--c-muted); margin-top: 6px;
+}
+.c-rp .at .dot { width: 7px; height: 7px; border-radius: 50%; }
+.c-rp .at b { color: var(--c-text-2); font-weight: 500; }
+
+.c-rp .props {
+  display: grid; grid-template-columns: 90px 1fr;
+  gap: 7px 12px; margin-top: 18px;
+  padding-top: 14px; border-top: 1px solid var(--c-border);
+  font-size: 12px;
+}
+.c-rp .props .k { color: var(--c-muted); }
+.c-rp .props .v { color: var(--c-text); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.c-rp .props .v.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+.c-rp .desc-sect {
+  margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--c-border);
+}
+.c-rp .desc-sect .lab {
+  display: flex; align-items: baseline; justify-content: space-between;
+  font-size: 11px; color: var(--c-muted); font-weight: 500;
+  margin-bottom: 7px;
+}
+.c-rp .desc-sect .lab a { color: var(--c-accent); cursor: pointer; font-size: 11px; font-family: var(--font-mono); }
+.c-rp .desc-sect p {
+  margin: 0; font-size: 12.5px; color: var(--c-text-2); line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.c-rp .actions {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 16px;
+}
+.c-rp .actions .fx-btn { justify-content: center; }
+
+/* ─── Responsive ─────────────────────────────────────────────────────────
+   Mirrors chrome.css breakpoints (1280/1024/720) so the Cenas tab keeps
+   its toolbar + grid + inspector readable at narrower widths. The grid
+   already uses auto-fill minmax(248px,1fr) so columns reflow on their
+   own — the rules below mostly tighten padding and stack the toolbar
+   pills below the search input on small viewports. */
+
+@media (max-width: 1280px) {
+  .c-cp .toolrow { padding: 10px 18px; gap: 8px; }
+  .c-cp .countrow { padding: 8px 18px; }
+  .c-cp .grid { padding: 14px 18px 18px; gap: 12px; }
+  .c-rp .inner { padding: 12px 14px 16px; }
+}
+
+@media (max-width: 1024px) {
+  .c-cp .toolrow { flex-wrap: wrap; row-gap: 8px; }
+  .c-cp .toolrow .find { order: 99; flex-basis: 100%; }
+}
+
+@media (max-width: 720px) {
+  .c-cp .toolrow { padding: 10px 14px; }
+  .c-cp .toolrow .tool-btn .label { display: none; }
+  .c-cp .countrow { padding: 8px 14px; flex-wrap: wrap; row-gap: 6px; }
+  .c-cp .grid { grid-template-columns: 1fr; padding: 12px 14px 16px; }
+  .c-cp .group .ghead { padding: 8px 14px; }
+}

@@ -1,0 +1,72 @@
+{# ── Anotar · Properties sub-partial ──────────────────────────────────────
+   Mojica Task 19 (Phase 4). Rendered inside ``.a-rp .a-thread`` when
+   ``annotate_tab == "properties"``. Same definition-list pattern as
+   ``inspector_properties.html`` (the Buscar/Cenas inspector Properties
+   tab) — kept duplicate here intentionally so the Anotar surface can
+   evolve its property set without touching the Buscar inspector.
+#}
+<dl class="props">
+
+  {% if selected_scene.timecode %}
+    <dt>{{ _("Timecode") }}</dt>
+    <dd><span class="fx-tc bare">{{ selected_scene.timecode }}</span></dd>
+  {% endif %}
+
+  {% if selected_scene.duration_s and selected_scene.duration_s > 0 %}
+    <dt>{{ _("Duration") }}</dt>
+    <dd>{{ "%.1f"|format(selected_scene.duration_s) }} s</dd>
+  {% endif %}
+
+  <dt>{{ _("Scene ID") }}</dt>
+  <dd><code>{{ selected_scene.scene_id }}</code></dd>
+
+  {% if total %}
+    <dt>{{ _("Position") }}</dt>
+    <dd>{{ (current_idx + 1) }} / {{ total }}</dd>
+  {% endif %}
+
+  {% if selected_film %}
+    <dt>{{ _("Film") }}</dt>
+    <dd>{{ selected_film.title }}</dd>
+    {% if selected_film.year %}
+      <dt>{{ _("Year") }}</dt>
+      <dd>{{ selected_film.year }}</dd>
+    {% endif %}
+  {% elif selected_scene.film_slug %}
+    <dt>{{ _("Film") }}</dt>
+    <dd>{{ selected_scene.film_slug }}</dd>
+  {% endif %}
+
+  <dt>{{ _("Tags") }}</dt>
+  <dd>
+    {% if existing_tags %}
+      <div class="tags">
+        {% for t in existing_tags %}
+          <span class="fx-pill">{{ t }}</span>
+        {% endfor %}
+      </div>
+    {% else %}
+      <span class="text-muted">{{ _("No manual tags yet.") }}</span>
+    {% endif %}
+  </dd>
+
+  {% if llm and llm.tags %}
+    <dt>{{ _("LLM tags") }}</dt>
+    <dd>
+      <div class="tags">
+        {% for t in llm.tags %}
+          <span class="fx-pill">{{ t }}</span>
+        {% endfor %}
+      </div>
+    </dd>
+  {% endif %}
+
+  <dt>{{ _("Status") }}</dt>
+  <dd>
+    <span class="fx-pill green">
+      <span class="dot"></span>
+      {{ _("indexed") }}
+    </span>
+  </dd>
+
+</dl>

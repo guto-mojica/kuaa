@@ -1,0 +1,118 @@
+{# Right pane — metrics + histogram + session stats + save buttons (Task 31).
+
+   Always renders all four big metric cards (Precision@5, nDCG@5,
+   Precision@3, Inversions) even when no grades exist — values are
+   zeroed via build_eval_context defaults. The histogram fans
+   highest-grade first (3, 2, 1, 0, skip). The save / skip buttons
+   carry data-action attributes so Task 32's keyboard router can
+   trigger them; the actual save POST hits /api/eval/grade with the
+   currently-focused row's scene_id. #}
+<aside class="ev-rp">
+  <div class="head">
+    <h3>
+      {{ _('METRICS') }}
+      {% if current_query %}
+        · Q-{{ '%03d'|format(current_query.id) if current_query.id is number else current_query.id }}
+      {% endif %}
+    </h3>
+    <div class="acts"></div>
+  </div>
+  <div class="inner">
+    {% set m = metrics if metrics is defined and metrics else {} %}
+    {% set p5 = (m.p_at_5 if m.p_at_5 is defined else 0) or 0 %}
+    {% set p3 = (m.p_at_3 if m.p_at_3 is defined else 0) or 0 %}
+    {% set ndcg5 = (m.ndcg_at_5 if m.ndcg_at_5 is defined else 0) or 0 %}
+    {% set inv = (m.inversions if m.inversions is defined else 0) or 0 %}
+    {% set hist = (m.histogram if m.histogram is defined else {}) or {} %}
+
+    <div class="ev-bigmets">
+      <div class="ev-met">
+        <span class="lab">{{ _('PRECISION@5') }}</span>
+        <span class="val">
+          <span class="n">{{ '%d'|format((p5 * 100)|round(0, 'common')|int) }}%</span>
+          <span class="d">@ 5</span>
+        </span>
+        <span class="bar" style="--p: {{ '%d'|format((p5 * 100)|round(0, 'common')|int) }}%;"></span>
+      </div>
+      <div class="ev-met fused">
+        <span class="lab">{{ _('NDCG@5') }}</span>
+        <span class="val">
+          <span class="n">{{ '%.2f'|format(ndcg5) }}</span>
+          <span class="d">{{ _('vs ideal') }}</span>
+        </span>
+        <span class="bar" style="--p: {{ '%d'|format((ndcg5 * 100)|round(0, 'common')|int) }}%;"></span>
+      </div>
+      <div class="ev-met">
+        <span class="lab">{{ _('PRECISION@3') }}</span>
+        <span class="val">
+          <span class="n">{{ '%d'|format((p3 * 100)|round(0, 'common')|int) }}%</span>
+          <span class="d">@ 3</span>
+        </span>
+        <span class="bar" style="--p: {{ '%d'|format((p3 * 100)|round(0, 'common')|int) }}%;"></span>
+      </div>
+      <div class="ev-met{% if inv > 0 %} warn{% endif %}">
+        <span class="lab">{{ _('INVERSIONS') }}</span>
+        <span class="val">
+          <span class="n">{{ inv }}</span>
+          <span class="d">{{ _('pairs') }}</span>
+        </span>
+        {% set inv_pct = ((inv / 10) * 100)|round(0, 'common')|int if inv else 0 %}
+        <span class="bar" style="--p: {{ inv_pct if inv_pct <= 100 else 100 }}%;"></span>
+      </div>
+    </div>
+
+    <div class="ev-sect">
+      <span>{{ _('HISTOGRAM') }}</span>
+      <a>{{ _('details') }}</a>
+    </div>
+    <div class="ev-hist">
+      {% set hist_values = [hist.get(3, 0), hist.get(2, 0), hist.get(1, 0), hist.get(0, 0), hist.get(-1, 0)] %}
+      {% set hist_max = hist_values|max if hist_values|max else 1 %}
+      {% for grade_val, cls, label in [(3, 'g3', 'g=3'), (2, 'g2', 'g=2'), (1, 'g1', 'g=1'), (0, 'g0', 'g=0'), (-1, 'gs', 'skip')] %}
+        {% set ct = hist.get(grade_val, 0) %}
+        <div class="row {{ cls }}">
+          <span>{{ label }}</span>
+          <span class="track" style="--p: {{ '%d'|format(((ct / hist_max) * 100)|round(0, 'common')|int) }}%;"></span>
+          <span class="ct">{{ ct }}</span>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="ev-sect">
+      <span>{{ _('SESSION') }}</span>
+    </div>
+    <div class="ev-sess">
+      <div class="row">
+        <span class="k">{{ _('Queries') }}</span>
+        <span class="v">{{ graded_count }}/{{ queries|length }}</span>
+      </div>
+      <div class="row">
+        <span class="k">{{ _('Mean time') }}</span>
+        <span class="v">—</span>
+      </div>
+      <div class="row">
+        <span class="k">{{ _('Conflicts') }}</span>
+        <span class="v{% if conflict_count is defined and conflict_count %} warn{% endif %}">
+          {{ conflict_count if conflict_count is defined else 0 }}
+        </span>
+      </div>
+      <div class="row">
+        <span class="k">{{ _('P@5 (run)') }}</span>
+        <span class="v acc">
+          {% if metrics is defined and metrics %}{{ '%.2f'|format(p5) }}{% else %}—{% endif %}
+        </span>
+      </div>
+    </div>
+
+    <div class="ev-saverow">
+      <button class="ev-save" type="button" data-action="save-advance">
+        <span>{{ _('SAVE & ADVANCE') }}</span>
+        <span class="kbd">⌘⏎</span>
+      </button>
+      <button class="ev-skip" type="button" data-action="skip">
+        <span>{{ _('SKIP') }}</span>
+        <span class="kbd">⇧S</span>
+      </button>
+    </div>
+  </div>
+</aside>

@@ -108,11 +108,14 @@ def test_extract_emits_correct_ffmpeg_command(monkeypatch, tmp_path):
 
     cmd = captured[0]
     assert cmd[0] == "ffmpeg"
-    assert "-ss" in cmd and "0.0" in cmd
-    assert "-to" in cmd and "5.0" in cmd
-    assert "-ac" in cmd and "1" in cmd  # mono
-    assert "-ar" in cmd and "48000" in cmd  # 48 kHz
-    assert "-c:a" in cmd and "pcm_s16le" in cmd  # PCM16
+    # Fast-seek pattern: -ss + -t must come before -i for keyframe seek.
+    ss_idx, t_idx, i_idx = cmd.index("-ss"), cmd.index("-t"), cmd.index("-i")
+    assert ss_idx < i_idx and t_idx < i_idx
+    assert cmd[ss_idx + 1] == "0.0"
+    assert cmd[t_idx + 1] == "5.0"
+    assert "-ac" in cmd and "1" in cmd
+    assert "-ar" in cmd and "48000" in cmd
+    assert "-c:a" in cmd and "pcm_s16le" in cmd
     assert str(video) in cmd
     assert cmd[-1].endswith("scene_0001.wav")
 

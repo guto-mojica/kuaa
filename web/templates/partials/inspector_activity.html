@@ -1,0 +1,43 @@
+{# ── Inspector · Activity tab ─────────────────────────────────────────────
+   The Activity tab shows the moondream description as a single
+   ``.b-com.ai`` row in a ``.b-thread`` container, plus an empty-state
+   line when no description has been generated yet.
+
+   Curator / viewer comment rows arrive with the collaboration backend
+   (gated by ``cfg.collaboration.threads_enabled``). Until then the
+   thread carries the AI row only — read-only, no reply / edit actions
+   that would require persistence.
+#}
+<div class="b-thread">
+
+  {% if selected_scene.description %}
+    <div class="b-com ai">
+      <div class="av" aria-hidden="true">md</div>
+      <div class="bx">
+        <div class="who">
+          <span class="n">moondream-2</span>
+          <span class="badge">{{ _("AI · description") }}</span>
+          {% if selected_scene.described_when %}
+            <span class="when">{{ selected_scene.described_when }}</span>
+          {% endif %}
+        </div>
+        <div class="body">
+          {% if selected_scene.timecode %}<span class="fx-tc">{{ selected_scene.timecode }}</span>{% endif %}
+          {{ selected_scene.description }}
+        </div>
+        {% if cfg.collaboration.threads_enabled %}
+          <div class="replyrow">
+            <a href="#">{{ _("Reply") }}</a>
+            <a href="#">{{ _("Edit") }}</a>
+            <a href="#">{{ _("Re-generate") }}</a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  {% else %}
+    <p class="empty-thread text-muted">
+      {{ _("No description yet. Run the LLM pipeline step to generate one.") }}
+    </p>
+  {% endif %}
+
+</div>

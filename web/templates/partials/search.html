@@ -1,101 +1,267 @@
+{# ── Mojica Buscar tab — center pane (.b-cp) ───────────────────────────────
+   Task 10 (Phase 2) of the Mojica redesign. The earlier text/image toggle +
+   raw scene-grid markup is gone; this template now lays out the new search
+   chrome: qbar + modality chips + read-only retrieval knobs + caption row +
+   .b-cp .grid (results) + bottom-timeline + right-inspector includes.
+
+   Compatibility contracts the rewrite still honours:
+
+     * The outer wrapper keeps ``class="tab-panel"`` so existing route
+       smoke-tests (``test_tab_fragment_routes_respond``) keep matching.
+     * The text form keeps ``id="search-text-form"`` and its hidden
+       ``name="film"`` input inside it (consumed by
+       ``test_film_selector.TestFilmSlugPropagation``).
+     * The image POST URL still embeds ``?film=<slug>`` directly in the
+       ``hx-post`` attribute — Query(...) ignores multipart body fields.
+     * Results target keeps ``id="search-results"`` so existing
+       hx-target wiring keeps working; the inner partial is rewritten in
+       Task 11 onto ``.b-card`` cards.
+
+   HTMX trigger simplification (vs the plan's snippet): we keep
+   ``hx-trigger="submit"`` only. The plan suggests
+   ``submit, change from:.chip`` so chip clicks re-fire the query, but the
+   chip click handler today only swaps which sub-panel is visible — there
+   is no per-modality API endpoint to GET. Adding the chip trigger here
+   would issue a duplicate text-search every time the user picks the image
+   chip. We'll wire it in M2 alongside the audio / multimodal endpoints.
+
+   The right-inspector and bottom-timeline includes are ``ignore missing``
+   guards so Tasks 12 + 13 can land their partials independently without
+   blocking this file. They render nothing today.
+#}
 {% from "partials/_icons.html" import icon %}
 <div class="tab-panel">
 
-    <div class="search-mode-toggle">
-        <button class="active" type="button" onclick="setSearchMode('text')">{{ _("Text") }}</button>
-        <button type="button" onclick="setSearchMode('image')">{{ _("Image") }}</button>
+<section class="b-cp">
+
+  {# ── Search row: qbar + chips + knobs ─────────────────────────────── #}
+  <div class="search-wrap">
+    <form id="search-text-form"
+          class="qbar"
+          hx-get="/api/search"
+          hx-trigger="submit"
+          hx-target="#search-results"
+          hx-include="#search-text-form, #search-tag-panel"
+          hx-push-url="true">
+      {# Carry the active film slug into the search GET — without this the
+         hx-include only pulls q + tags and the URL-bar ?film=<slug> never
+         reaches the API. Omitted entirely for aggregate (no slug). #}
+      {% if current_slug %}
+      <input type="hidden" name="film" value="{{ current_slug }}">
+      {% endif %}
+
+      <label class="qinput" for="search-input">
+        <span class="ico">{{ icon('search', 18) }}</span>
+        <input id="search-input"
+               type="search"
+               name="q"
+               autocomplete="off"
+               value="{{ query or '' }}"
+               placeholder="{{ _('Search the library — describe a scene, paste an image…') }}"
+               hx-get="/api/search"
+               hx-trigger="keyup changed delay:500ms"
+               hx-target="#search-results"
+               hx-include="#search-text-form, #search-tag-panel">
+        <span class="kbd">⌘K</span>
+      </label>
+      <button type="submit" class="fx-btn primary">
+        {{ _("Search") }} <span class="kbd">⏎</span>
+      </button>
+    </form>
+
+    {# Modality chips. Image is the only modality wired today; Audio +
+       Multimodal land in M2/M3 and stay disabled until their backends
+       exist. Disabled chips render with aria-disabled + .disabled so a
+       screen-reader announces them as unavailable instead of clickable. #}
+    <div class="modes" role="tablist" aria-label="{{ _('Search modality') }}">
+      <button type="button"
+              class="chip{% if active_mode == 'text' %} on{% endif %}"
+              data-mode="text"
+              role="tab"
+              aria-selected="{{ 'true' if active_mode == 'text' else 'false' }}"
+              onclick="setSearchMode('text')">
+        <span class="ico">{{ icon('search', 14) }}</span>
+        {{ _("Text") }}
+      </button>
+      <button type="button"
+              class="chip{% if active_mode == 'image' %} on{% endif %}{% if not cfg.search.image_enabled %} disabled{% endif %}"
+              data-mode="image"
+              role="tab"
+              aria-selected="{{ 'true' if active_mode == 'image' else 'false' }}"
+              {% if not cfg.search.image_enabled %}disabled aria-disabled="true"{% endif %}
+              onclick="setSearchMode('image')">
+        <span class="ico">{{ icon('image', 14) }}</span>
+        {{ _("Image") }}
+      </button>
+      <button type="button"
+              class="chip{% if active_mode == 'audio' %} on{% endif %}{% if not cfg.search.audio_enabled %} disabled{% endif %}"
+              data-mode="audio"
+              role="tab"
+              aria-selected="{{ 'true' if active_mode == 'audio' else 'false' }}"
+              {% if not cfg.search.audio_enabled %}disabled aria-disabled="true"{% endif %}>
+        <span class="ico">{{ icon('audio', 14) }}</span>
+        {{ _("Soundtrack") }}
+      </button>
+      <button type="button"
+              class="chip{% if active_mode == 'multimodal' %} on{% endif %}{% if not cfg.search.multimodal_enabled %} disabled{% endif %}"
+              data-mode="multimodal"
+              role="tab"
+              aria-selected="{{ 'true' if active_mode == 'multimodal' else 'false' }}"
+              {% if not cfg.search.multimodal_enabled %}disabled aria-disabled="true"{% endif %}>
+        <span class="ico">{{ icon('rhymes', 14) }}</span>
+        {{ _("Multimodal") }}
+      </button>
+
+      <span class="div-v" aria-hidden="true"></span>
+
+      {# Retrieval knobs — read-only display. Real interactivity lands in
+         M2 with the hybrid + reranker pipeline. #}
+      <div class="knob" title="{{ _('Hybrid retrieval weights') }}">
+        <span class="k">{{ _("Hybrid") }}</span>
+        <span class="v acc">sem {{ '%.2f'|format(cfg.search.hybrid_sem_w) }}</span>
+        <span class="v">bm25 {{ '%.2f'|format(cfg.search.hybrid_bm25_w) }}</span>
+      </div>
+      <div class="knob" title="{{ _('Cross-encoder reranker') }}">
+        <span class="k">{{ _("Rerank") }}</span>
+        <span class="v">{{ _("on") if cfg.search.rerank_enabled else _("off") }}</span>
+      </div>
+      <div class="knob" title="{{ _('Maximal Marginal Relevance λ') }}">
+        <span class="k">MMR</span>
+        <span class="v">λ {{ '%.2f'|format(cfg.search.mmr_lambda) }}</span>
+      </div>
+      <div class="knob" title="{{ _('Results per query') }}">
+        <span class="k">k</span>
+        <span class="v">{{ cfg.search.top_k_default }}</span>
+      </div>
     </div>
+  </div>
 
-    <!-- ── Text search input ─────────────────────────────────────────────────── -->
-    <div id="search-text-panel">
-        <!--
-            Tags live in a separate element (#search-tag-panel) so results can sit
-            between the input and the tag list. Every search request uses
-            hx-include="#search-text-form, #search-tag-panel" to pull both the
-            query string and any checked tag checkboxes into the GET params.
-        -->
-        <form id="search-text-form"
-              hx-get="/api/search"
-              hx-trigger="submit"
-              hx-target="#search-results"
-              hx-include="#search-text-form, #search-tag-panel">
-            {# Carry the active film slug into the search GET so the API
-               scopes results to the selected film instead of falling back
-               to aggregate. Without this the form's hx-include only pulls
-               q + tags and the URL-bar ?film=<slug> never reaches the API.
-               Omitted entirely for aggregate (current_slug=None) so an
-               empty film= does not turn into the literal string "". #}
-            {% if current_slug %}
-            <input type="hidden" name="film" value="{{ current_slug }}">
-            {% endif %}
-
-            <div class="search-container">
-                <input id="search-input"
-                       class="search-input"
-                       type="text"
-                       name="q"
-                       autocomplete="off"
-                       placeholder="{{ _('two people talking outdoors') }}"
-                       hx-get="/api/search"
-                       hx-trigger="keyup changed delay:500ms"
-                       hx-target="#search-results"
-                       hx-include="#search-text-form, #search-tag-panel">
-                <button type="submit"
-                        class="search-submit-btn"
-                        aria-label="{{ _('Search') }}">→</button>
-            </div>
-        </form>
+  {# ── Caption row: result count + film count + latency + view toggle ── #}
+  <div class="caption">
+    <div class="left">
+      {% if query %}
+        <span class="ttl">
+          {% if total %}
+            <b>{{ total }}</b> {{ _("results") }}
+          {% else %}
+            {{ _("No results.") }}
+          {% endif %}
+        </span>
+        <span class="meta">
+          {% if film_count %}<b>{{ film_count }}</b> {{ _("films") }}{% endif %}
+          {% if latency_ms is not none %}<span>· {{ latency_ms }} ms</span>{% endif %}
+        </span>
+      {% else %}
+        <span class="ttl">{{ _("Type a query to search") }}</span>
+      {% endif %}
     </div>
-
-    <!-- ── Image search input ────────────────────────────────────────────────── -->
-    <div id="search-image-panel" style="display:none">
-        {# Image POST goes per-film only; the route reads ?film=<slug> via
-           Query(...), so the slug must be in the URL (a hidden form field
-           would land in multipart body, which the Query dependency ignores). #}
-        <form hx-post="/api/search/image{% if current_slug %}?film={{ current_slug }}{% endif %}"
-              hx-encoding="multipart/form-data"
-              hx-trigger="change from:#image-input"
-              hx-target="#search-results">
-            <label class="image-upload-label" for="image-input">
-                {{ icon("upload-simple") }}
-                <span id="image-upload-filename">{{ _("Choose image…") }}</span>
-                <input id="image-input" type="file" name="file" accept="image/*"
-                       onchange="document.getElementById('image-upload-filename').textContent = this.files[0]?.name || '{{ _('Choose image…') }}'">
-            </label>
-        </form>
+    <div class="right" role="tablist" aria-label="{{ _('Result layout') }}">
+      <button type="button"
+              class="seg{% if active_view == 'grid' %} on{% endif %}"
+              data-view="grid"
+              aria-pressed="{{ 'true' if active_view == 'grid' else 'false' }}">
+        {{ icon('grid', 14) }} {{ _("Grade") }}
+      </button>
+      <button type="button"
+              class="seg{% if active_view == 'list' %} on{% endif %}"
+              data-view="list"
+              aria-pressed="{{ 'true' if active_view == 'list' else 'false' }}">
+        {{ icon('sort', 14) }} {{ _("Lista") }}
+      </button>
+      <button type="button"
+              class="seg{% if active_view == 'compact' %} on{% endif %}"
+              data-view="compact"
+              aria-pressed="{{ 'true' if active_view == 'compact' else 'false' }}">
+        {{ icon('appearance', 14) }} {{ _("Compacto") }}
+      </button>
     </div>
+  </div>
 
-    <!-- ── Results: directly below the search input ──────────────────────────── -->
-    <div id="search-results" class="scene-grid"></div>
+  {# ── Image-search sub-panel (hidden unless ``active_mode == 'image'``).
+       The hx-post URL must carry ?film=<slug> as a query string so the
+       route's Query(...) dependency picks it up — multipart body fields
+       are invisible to Query. #}
+  <div id="search-image-panel"
+       class="search-image-panel"
+       {% if active_mode != 'image' %}style="display:none"{% endif %}>
+    <form hx-post="/api/search/image{% if current_slug %}?film={{ current_slug }}{% endif %}"
+          hx-encoding="multipart/form-data"
+          hx-trigger="change from:#image-input"
+          hx-target="#search-results">
+      <label class="image-upload-label" for="image-input">
+        {{ icon("upload-simple") }}
+        <span id="image-upload-filename">{{ _("Choose image…") }}</span>
+        <input id="image-input" type="file" name="file" accept="image/*"
+               onchange="document.getElementById('image-upload-filename').textContent = this.files[0]?.name || '{{ _('Choose image…') }}'">
+      </label>
+    </form>
+  </div>
 
-    <!-- ── Tag filter: bottom of tab (hidden in image mode) ──────────────────── -->
-    {% if available_tags %}
-    <div id="search-tag-panel" class="search-tag-section">
-        <div class="search-tag-filter tag-filter"
-             hx-get="/api/search"
-             hx-trigger="change from:input"
-             hx-target="#search-results"
-             hx-include="#search-text-form, #search-tag-panel">
-            {% for tag in available_tags %}
-            <label class="tag-pill">
-                <input type="checkbox" name="tags" value="{{ tag }}">{{ tag }}
-            </label>
-            {% endfor %}
-        </div>
+  {# ── Results grid (the .grid class triggers buscar.css auto-fill).
+       The inner partial still renders legacy ``.scene-card`` markup;
+       Task 11 swaps it for ``.b-card`` cards in-place. #}
+  <div id="search-results" class="grid">
+    {% include "partials/search_results.html" %}
+  </div>
+
+  {# ── Tag filter — refinement affordance below the results grid.
+       The Mojica prototype keeps the empty Buscar pane uncluttered, so the
+       full tag cloud is hidden until the user has issued a query (or kept
+       a tag-only filter active). When visible, the section caps its height
+       and scrolls internally so it never dominates the viewport on small
+       vocabularies vs. very large ones. Hidden in image mode (the upload
+       drives results from the file, not the tag pills). #}
+  {% if available_tags and (query or highlighted_tags) %}
+  <div id="search-tag-panel"
+       class="search-tag-section"
+       {% if active_mode != 'text' %}style="display:none"{% endif %}>
+    <div class="search-tag-filter tag-filter"
+         hx-get="/api/search"
+         hx-trigger="change from:input"
+         hx-target="#search-results"
+         hx-include="#search-text-form, #search-tag-panel">
+      {% for tag in available_tags %}
+      <label class="tag-pill{% if tag in highlighted_tags %} tag-pill--matched{% endif %}">
+        <input type="checkbox" name="tags" value="{{ tag }}">{{ tag }}
+      </label>
+      {% endfor %}
     </div>
-    {% endif %}
+  </div>
+  {% endif %}
+
+  {# ── Bottom timeline (.b-tl) — Task 13. The partial self-guards on
+       ``selected_film`` so the full-page initial render (no ``?scene=``
+       URL param) produces no visible chrome; ``build_timeline_context``
+       populates it when the user clicks a result card OR loads a deep-
+       linked /search?scene=&film= URL. #}
+  {% include "partials/search_timeline.html" %}
+
+</section>
+
+{# ── Right inspector — HTMX swaps target ``#right-pane`` (innerHTML) to
+     replace the .b-rp section without touching this container. #}
+<aside id="right-pane">{% include "partials/search_inspector.html" %}</aside>
 
 </div>
 
 <script>
 function setSearchMode(mode) {
-    document.getElementById('search-text-panel').style.display  = mode === 'text'  ? '' : 'none';
-    document.getElementById('search-image-panel').style.display = mode === 'image' ? '' : 'none';
-    var tagPanel = document.getElementById('search-tag-panel');
-    if (tagPanel) tagPanel.style.display = mode === 'text' ? '' : 'none';
-    document.querySelectorAll('.search-mode-toggle button').forEach(function(b, i) {
-        b.classList.toggle('active', (mode === 'text' && i === 0) || (mode === 'image' && i === 1));
+    var panels = {
+        text: document.getElementById('search-tag-panel'),
+        image: document.getElementById('search-image-panel'),
+    };
+    if (panels.image) {
+        panels.image.style.display = (mode === 'image') ? '' : 'none';
+    }
+    if (panels.text) {
+        panels.text.style.display = (mode === 'text') ? '' : 'none';
+    }
+    document.querySelectorAll('.b-cp .chip').forEach(function (chip) {
+        var on = chip.getAttribute('data-mode') === mode;
+        chip.classList.toggle('on', on);
+        chip.setAttribute('aria-selected', on ? 'true' : 'false');
     });
-    document.getElementById('search-results').innerHTML = '';
+    var results = document.getElementById('search-results');
+    if (results) results.innerHTML = '';
 }
 </script>

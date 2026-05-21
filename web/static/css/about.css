@@ -1,0 +1,326 @@
+/* ── about.css — Mojica About surface ──────────────────────────────────────────
+   Ported from the prototype handoff (claude_design/mojica-cinemateca/project/
+   About.html → ABOUT_CSS, lines 26–342) for Task 29 of the Mojica frame
+   redesign plan (docs/superpowers/plans/2026-05-20-mojica-frame-redesign.md).
+
+   Atmospheric backdrop (blurred keyframe mosaic + vignette + tinted grain) +
+   dim overlay + 660-wide modal panel with header / scrollable body
+   (stats strip · model attribution cards · stack pills · credits grid) /
+   footer. The modal is the canonical surface; the full-page route
+   (/about) renders the same partial inside base.html for JS-off
+   navigation.
+
+   Variable mapping (prototype → shipped tokens in main.css :root):
+     --bg/--panel/--raised/--hover/--bd/--bd2/--bd3 → --c-bg/--c-panel/
+     --c-raised/--c-hover/--c-border/--c-border-2/--c-border-3
+     --t/--t2/--muted/--faint                       → --c-text/--c-text-2/
+                                                       --c-muted/--c-faint
+     --ac/--ac2/--ac-dim/--ac-bg                    → --c-accent/--c-accent-2/
+                                                       --c-accent-dim/--c-accent-bg
+     --yellow/--yellow-bg/--green/--green-bg/--orange/--pink
+       → --c-yellow/--c-yellow-bg/--c-green/--c-green-bg/--c-orange/--c-pink
+     --sans/--mono                                  → --font-sans/--font-mono
+
+   The .ab-app block is scoped to its own root so the surface can be
+   embedded inside base.html (full-page route) without disturbing the
+   surrounding chrome's typography. The modal is fixed-size at 660px
+   wide × 100vh − 60px tall — the prototype targets a 1440px canvas, so
+   we keep the same fixed dimensioning here.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.ab-app, .ab-app * { box-sizing: border-box; }
+.ab-app *::-webkit-scrollbar { width: 8px; }
+.ab-app *::-webkit-scrollbar-thumb { background: var(--c-border-2); border-radius: 4px; }
+.ab-app *::-webkit-scrollbar-track { background: transparent; }
+
+.ab-app {
+  position: fixed; inset: 0;
+  font-family: var(--font-sans); font-size: 13px; color: var(--c-text);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+/* ─── BACKDROP — atmospheric keyframe mosaic ───────────────────────── */
+.ab-bg {
+  position: absolute; inset: 0;
+  background: var(--c-bg);
+  overflow: hidden;
+}
+.ab-bg .layer {
+  position: absolute; inset: -20px;
+  display: grid; grid-template-columns: repeat(6, 1fr);
+  grid-auto-rows: 1fr;
+  gap: 6px;
+  filter: blur(2px) brightness(0.35) contrast(1.05);
+  opacity: 0.5;
+}
+.ab-bg .layer .tile {
+  background-size: cover; background-position: center;
+  width: 100%; height: 100%;
+}
+.ab-bg .vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 0%, rgba(14,16,20,0.65) 60%, rgba(14,16,20,0.95) 100%);
+}
+.ab-bg .grain {
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(circle at 12% 28%, rgba(139,123,216,0.06), transparent 40%),
+    radial-gradient(circle at 88% 72%, rgba(245,200,66,0.04), transparent 40%);
+}
+
+/* ─── DIM MODAL OVERLAY ─────────────────────────────────────────────── */
+.ab-overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: 30px;
+  background: rgba(14,16,20,0.45);
+  backdrop-filter: blur(6px);
+}
+
+.ab-modal {
+  width: 660px; max-height: calc(100vh - 60px);
+  background: var(--c-panel);
+  border: 1px solid var(--c-border-2);
+  border-radius: 10px;
+  box-shadow:
+    0 30px 80px rgba(0,0,0,0.55),
+    0 0 0 1px rgba(139,123,216,0.18),
+    0 0 60px rgba(139,123,216,0.10);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ─── HEADER — soft purple wash + mark + close button ───────────────── */
+.ab-head {
+  position: relative;
+  padding: 26px 28px 22px;
+  border-bottom: 1px solid var(--c-border);
+  background:
+    radial-gradient(circle at 88% 0%, rgba(139,123,216,0.16), transparent 60%),
+    linear-gradient(180deg, rgba(139,123,216,0.06) 0%, transparent 100%);
+}
+.ab-head .close {
+  position: absolute; top: 14px; right: 14px;
+  width: 30px; height: 30px; border-radius: 6px;
+  background: transparent; border: 1px solid var(--c-border-2);
+  color: var(--c-text-2);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-family: var(--font-mono); font-size: 14px;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.ab-head .close:hover { background: var(--c-hover); color: var(--c-text); border-color: var(--c-border-3); }
+
+.ab-mark-row {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 12px;
+}
+.ab-mark-row .mk {
+  width: 44px; height: 44px; border-radius: 8px;
+  background: var(--c-bg); border: 1px solid var(--c-border-2);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow:
+    0 0 0 4px rgba(139,123,216,0.08),
+    0 6px 16px rgba(0,0,0,0.4);
+  color: var(--c-text);
+}
+.ab-mark-row .runtag {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 10px;
+  padding: 3px 8px; border-radius: 12px;
+  background: var(--c-accent-bg); color: var(--c-accent);
+  letter-spacing: 0.16em; text-transform: uppercase; font-weight: 600;
+  margin-left: auto;
+}
+.ab-mark-row .runtag .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--c-accent); }
+
+.ab-head h1 {
+  margin: 0; font-size: 26px; font-weight: 700;
+  color: var(--c-text); letter-spacing: -0.018em; line-height: 1.15;
+}
+.ab-head .vrow {
+  display: flex; align-items: center; gap: 12px; margin-top: 8px;
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--c-muted);
+}
+.ab-head .vrow .v { color: var(--c-text-2); }
+.ab-head .vrow .pill {
+  padding: 1px 7px; border-radius: 3px;
+  background: var(--c-raised); color: var(--c-text);
+  font-weight: 500; letter-spacing: 0.02em;
+}
+.ab-head .vrow .pill.lic { color: var(--c-green); background: var(--c-green-bg); }
+.ab-head .vrow .dot { color: var(--c-faint); }
+
+.ab-head p {
+  margin: 14px 0 0;
+  font-size: 13.5px; line-height: 1.55; color: var(--c-text-2);
+  max-width: 60ch; text-wrap: pretty;
+}
+.ab-head p b { color: var(--c-text); font-weight: 500; }
+.ab-head p .ac { color: var(--c-accent); }
+
+/* ─── BODY — scrollable ───────────────────────────────────────────── */
+.ab-body { overflow-y: auto; padding: 22px 28px 24px; flex: 1; }
+
+/* ─── STATS STRIP ─────────────────────────────────────────────────── */
+.ab-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+  background: var(--c-border); border-radius: 7px; overflow: hidden;
+  margin-bottom: 22px;
+}
+.ab-stat {
+  background: var(--c-bg);
+  padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.ab-stat .n {
+  font-family: var(--font-mono); font-size: 20px; font-weight: 700;
+  color: var(--c-text); letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.ab-stat .k {
+  font-size: 10.5px; color: var(--c-muted);
+  letter-spacing: 0.04em;
+}
+
+/* ─── SECTION HEAD ────────────────────────────────────────────────── */
+.ab-sect {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin: 0 0 12px;
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--c-muted);
+}
+.ab-sect .ct {
+  font-family: var(--font-mono); color: var(--c-faint);
+}
+.ab-sect + * { margin-top: 0; }
+
+/* ─── MODEL ATTRIBUTIONS ──────────────────────────────────────────── */
+.ab-models {
+  display: grid; gap: 8px; margin-bottom: 22px;
+}
+.ab-model {
+  display: grid; grid-template-columns: 32px 1fr auto auto;
+  align-items: center; gap: 12px;
+  padding: 10px 12px;
+  background: var(--c-bg); border: 1px solid var(--c-border); border-radius: 6px;
+  transition: border-color .12s, background .12s;
+}
+.ab-model:hover { background: var(--c-hover); border-color: var(--c-border-2); }
+.ab-model .ico {
+  width: 32px; height: 32px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+  color: var(--c-accent);
+  background: var(--c-accent-bg); border: 1px solid var(--c-accent-dim);
+  letter-spacing: 0.02em;
+}
+.ab-model .ico.yellow { color: var(--c-yellow); background: var(--c-yellow-bg); border-color: rgba(245,200,66,0.3); }
+.ab-model .ico.green { color: var(--c-green); background: var(--c-green-bg); border-color: rgba(92,203,145,0.3); }
+.ab-model .ico.orange { color: var(--c-orange); background: rgba(245,144,66,0.14); border-color: rgba(245,144,66,0.3); }
+.ab-model .ico.pink { color: var(--c-pink); background: rgba(232,121,199,0.16); border-color: rgba(232,121,199,0.3); }
+
+.ab-model .info { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ab-model .info .name {
+  display: flex; align-items: baseline; gap: 8px;
+  font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+  color: var(--c-text);
+}
+.ab-model .info .name .ver {
+  font-size: 10.5px; color: var(--c-muted); font-weight: 400;
+}
+.ab-model .info .role {
+  font-size: 11.5px; color: var(--c-text-2);
+}
+.ab-model .info .role b { color: var(--c-text); font-weight: 500; }
+
+.ab-model .org {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 1px;
+  font-family: var(--font-mono); font-size: 10.5px;
+  text-align: right;
+}
+.ab-model .org .by { color: var(--c-muted); }
+.ab-model .org .repo {
+  color: var(--c-accent); display: inline-flex; align-items: center; gap: 4px;
+  text-decoration: none;
+}
+.ab-model .org .repo:hover { color: var(--c-accent-2); }
+
+.ab-model .lic {
+  font-family: var(--font-mono); font-size: 9.5px; padding: 2px 6px;
+  border-radius: 3px; color: var(--c-text-2);
+  background: var(--c-raised); border: 1px solid var(--c-border-2);
+  letter-spacing: 0.04em;
+  min-width: 50px; text-align: center;
+}
+
+/* ─── STACK PILLS ─────────────────────────────────────────────────── */
+.ab-stack { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 22px; }
+.ab-stack-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 9px; border-radius: 5px;
+  background: var(--c-bg); border: 1px solid var(--c-border);
+  font-family: var(--font-mono); font-size: 11px; color: var(--c-text-2);
+}
+.ab-stack-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--c-muted); }
+.ab-stack-pill.ac { color: var(--c-accent); border-color: var(--c-accent-dim); background: var(--c-accent-bg); }
+.ab-stack-pill.ac .dot { background: var(--c-accent); }
+.ab-stack-pill.green .dot { background: var(--c-green); }
+.ab-stack-pill.yellow .dot { background: var(--c-yellow); }
+.ab-stack-pill.pink .dot { background: var(--c-pink); }
+.ab-stack-pill.orange .dot { background: var(--c-orange); }
+
+/* ─── CREDITS BLOCK ───────────────────────────────────────────────── */
+.ab-credits {
+  background: var(--c-bg); border: 1px solid var(--c-border); border-radius: 6px;
+  padding: 14px 16px;
+  display: grid; grid-template-columns: 110px 1fr; gap: 8px 18px;
+  font-size: 12.5px;
+}
+.ab-credits .k { color: var(--c-muted); font-family: var(--font-mono); font-size: 11px; }
+.ab-credits .v { color: var(--c-text); }
+.ab-credits .v.dim { color: var(--c-text-2); }
+.ab-credits .v b { color: var(--c-accent); font-weight: 500; }
+
+/* ─── FOOTER ──────────────────────────────────────────────────────── */
+.ab-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 28px; border-top: 1px solid var(--c-border);
+  background: var(--c-bg);
+}
+.ab-foot .l {
+  display: flex; align-items: center; gap: 14px;
+  font-family: var(--font-mono); font-size: 10.5px;
+  color: var(--c-muted); letter-spacing: 0.04em;
+}
+.ab-foot .l a { color: var(--c-text-2); cursor: pointer; transition: color .12s; text-decoration: none; }
+.ab-foot .l a:hover { color: var(--c-accent); }
+.ab-foot .l .dot { color: var(--c-faint); }
+
+.ab-foot .r { display: flex; align-items: center; gap: 8px; }
+.ab-foot .ghost-btn {
+  padding: 7px 13px; border-radius: 6px;
+  background: transparent; color: var(--c-text-2);
+  border: 1px solid var(--c-border-2);
+  font: inherit; font-size: 12.5px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.ab-foot .ghost-btn:hover { border-color: var(--c-border-3); color: var(--c-text); }
+.ab-foot .prim-btn {
+  padding: 7px 13px; border-radius: 6px;
+  background: var(--c-accent); color: #fff; border: none;
+  font: inherit; font-size: 12.5px; cursor: pointer; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.ab-foot .prim-btn:hover { background: var(--c-accent-2); }
+.ab-foot .prim-btn .kbd {
+  font-family: var(--font-mono); font-size: 10px;
+  padding: 0 5px; border-radius: 3px;
+  background: rgba(0,0,0,0.18);
+}
+
+/* ─── Github icon container (used inside repo links + footer) ──────── */
+.ab-ghico { width: 14px; height: 14px; display: inline-flex; }
+.ab-ghico svg { width: 100%; height: 100%; }

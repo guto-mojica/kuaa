@@ -4,6 +4,7 @@ T9: ``/tab/processing`` accepts an optional ``?film=<slug>`` query
 parameter (wired for completeness; the processing tab itself always
 shows the global job queue, not per-film-filtered jobs).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -13,7 +14,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 
-from api.deps import film_slug_query, get_config, make_ctx, _get_translations
+from api.deps import _get_translations, film_slug_query, get_config, make_ctx
 from api.jobs import (
     STEP_DEFS,
     ConcurrencyRejected,
@@ -23,6 +24,7 @@ from api.jobs import (
     get_job,
     start_job,
 )
+from api.services.chrome_service import build_chrome_context
 from api.templates import templates
 
 # Terminal SSE events: after one of these the generator emits exactly one
@@ -38,6 +40,7 @@ router = APIRouter()
 
 # ── Rendering helpers ─────────────────────────────────────────────────────────
 
+
 def _render_stepper(job: JobState, locale: str = "pt_BR") -> str:
     """Render the stepper HTML fragment for SSE."""
     trans = _get_translations(locale)
@@ -50,21 +53,60 @@ def _render_stepper(job: JobState, locale: str = "pt_BR") -> str:
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
+
 def build_processing_context() -> dict:
     """Build the template context the processing tab partial needs.
 
     Shared by the ``/tab/processing`` HTMX fragment and the
     ``/processing`` full-page route so both render the step checklist
     and active-job list identically.
+
+    Mojica Task 24 extends the context with the new ``.p-cp`` layout's
+    requirements:
+
+      * ``initial_log_lines`` — empty; SSE feeds the terminal log
+        live. A future tail-of-buffer hook can seed this with the
+        most recent N events.
+      * ``stats`` — aggregate frames/scenes/embeddings/descriptions/
+        faces/objects counts (see :func:`processing_service.aggregate_stats`).
+      * ``job_queue`` — recent-job history mapped to the .p-queue
+        item-status vocabulary.
+      * ``active_step`` — sub-step detail for the right pane (.p-rp);
+        ``None`` when no job is running so the partial omits the pane.
+      * ``gpu_metrics`` — empty by default; gated by
+        ``cfg.proc.gpu_metrics_enabled`` (off in shipped config).
+      * Each enriched ``JobState`` carries display fields
+        (``film_title``, ``started_at_display``, ``elapsed_display``,
+        ``active_step_idx``, …) the .p-active card header reads.
     """
     cfg = get_config()
+    from api.services.processing_service import (
+        aggregate_stats,
+        build_active_step,
+        build_job_queue,
+        enrich_jobs,
+    )
     from cinemateca.library import scan_library
 
-    films = scan_library(Path(cfg.paths.library_dir))
-    from api.jobs import _registry
-    jobs = _registry.all()
+    library_dir = Path(cfg.paths.library_dir)
+    films = scan_library(library_dir)
+    jobs = enrich_jobs(active_jobs())
 
-    return {"films": films, "step_defs": STEP_DEFS, "jobs": jobs}
+    # ``job_queue`` reads the registry's *full* recent history (terminal
+    # + active), not just the currently running set.
+    from api.jobs import _registry  # noqa: PLC0415 - service-layer access
+
+    return {
+        "films": films,
+        "step_defs": STEP_DEFS,
+        "jobs": jobs,
+        "initial_log_lines": [],
+        "stats": aggregate_stats(library_dir),
+        "job_queue": build_job_queue(_registry.all()),
+        "active_step": build_active_step(jobs),
+        "gpu_metrics": [],
+        "cfg": cfg,
+    }
 
 
 @router.get("/tab/processing", response_class=HTMLResponse)
@@ -91,25 +133,54 @@ async def api_pipeline_start(
     cfg = get_config()
     vp = Path(video_path)
     if not vp.exists():
-        return HTMLResponse(
-            f'<p class="text-error">File not found: {vp}</p>', status_code=400
-        )
+        return HTMLResponse(f'<p class="text-error">File not found: {vp}</p>', status_code=400)
 
     try:
         job_id = start_job(str(vp), set(steps), cfg)
     except ConcurrencyRejected as exc:
-        # Single-global-active-job policy: surface a clear rejection
-        # instead of launching a second pipeline.
-        return HTMLResponse(
-            f'<p class="text-error">{exc}</p>', status_code=409
-        )
+        return HTMLResponse(f'<p class="text-error">{exc}</p>', status_code=409)
     job = get_job(job_id)
 
-    return templates.TemplateResponse(
-        request,
-        "partials/processing_job.html",
-        make_ctx(request, job=job),
+    if job is not None:
+        from api.services.processing_service import enrich_jobs  # noqa: PLC0415
+
+        enrich_jobs([job])
+
+    # Derive the slug for the film being processed so we can update
+    # active_film cookie and refresh the left-pane film list in one shot.
+    from cinemateca.library import scan_library  # noqa: PLC0415
+
+    library_dir = Path(cfg.paths.library_dir)
+    films = scan_library(library_dir)
+    vp_resolved = vp.resolve()
+    new_slug = request.cookies.get("active_film", "")
+    for film in films:
+        try:
+            if film.raw_path.resolve() == vp_resolved:
+                new_slug = film.slug
+                break
+            if film.raw_path.name == vp_resolved.name:
+                new_slug = film.slug
+                break
+        except (OSError, RuntimeError):
+            if film.raw_path.name == vp_resolved.name:
+                new_slug = film.slug
+                break
+
+    # Primary swap: job card for #processing-job
+    job_html = templates.env.get_template("partials/processing_job.html").render(
+        make_ctx(request, job=job, active_film=new_slug, current_slug=new_slug)
     )
+
+    # OOB swap: left-pane film list with the new active film highlighted
+    chrome_ctx = build_chrome_context(cfg, current_slug=new_slug)
+    lp_ctx = make_ctx(request, **chrome_ctx, active_film=new_slug, current_slug=new_slug)
+    lp_html = templates.env.get_template("partials/_left_pane_body.html").render(lp_ctx)
+    oob = f'<div id="lp-scroll" hx-swap-oob="innerHTML">{lp_html}</div>'
+
+    response = HTMLResponse(job_html + oob)
+    response.set_cookie("active_film", new_slug, max_age=86400 * 365, httponly=False, samesite="lax")
+    return response
 
 
 @router.post("/api/pipeline/cancel/{job_id}", response_class=HTMLResponse)
@@ -122,14 +193,40 @@ async def api_pipeline_cancel(request: Request, job_id: str) -> HTMLResponse:
     ok = cancel_job(job_id)
     job = get_job(job_id)
     if job is None:
-        return HTMLResponse(
-            '<p class="text-error">Job not found.</p>', status_code=404
-        )
+        return HTMLResponse('<p class="text-error">Job not found.</p>', status_code=404)
     if not ok:
         return HTMLResponse(
             '<p class="text-muted">Job already finished.</p>',
             status_code=409,
         )
+    # Same enrichment as the start path so the .p-active card renders
+    # with its display fields populated post-cancel too.
+    from api.services.processing_service import enrich_jobs  # noqa: PLC0415
+
+    enrich_jobs([job])
+    return templates.TemplateResponse(
+        request,
+        "partials/processing_job.html",
+        make_ctx(request, job=job),
+    )
+
+
+@router.get("/api/pipeline/job-card/{job_id}", response_class=HTMLResponse)
+async def api_pipeline_job_card(request: Request, job_id: str) -> HTMLResponse:
+    """Return the full .p-active card for polling-based outer-card refresh.
+
+    The ``processing_job.html`` template includes ``hx-trigger="every 3s"``
+    on the article when the job is active; this endpoint serves the refresh.
+    Polling stops automatically when the job reaches a terminal state because
+    the returned article omits the ``hx-trigger`` attribute.
+    """
+    job = get_job(job_id)
+    if job is None:
+        return HTMLResponse('<p class="text-error">Job not found.</p>', status_code=404)
+
+    from api.services.processing_service import enrich_jobs  # noqa: PLC0415
+
+    enrich_jobs([job])
     return templates.TemplateResponse(
         request,
         "partials/processing_job.html",

@@ -1,58 +1,112 @@
 /* ── Fonts ─────────────────────────────────────────────────────────────────────
-   IBM Plex (Sans 400/500, Serif 400) is SELF-HOSTED (Apache 2.0): the
-   woff2 subsets + @font-face rules live under web/static/fonts/ and are
-   imported locally below — the app makes ZERO font network requests, so
-   it renders correctly fully offline (Phase 6 offline-polish contract).
-   iA Writer Mono (--font-mono) is an optional OFL extra; absent, the
-   mono stack falls back gracefully (see --font-mono below).
+   Phase 0 redesign (Mojica/Frame.io): primary type is Geist (sans) +
+   JetBrains Mono (mono), self-hosted under web/static/fonts/geist|jetbrains
+   and declared in fonts.css. IBM Plex stays imported so legacy components
+   still relying on --font-serif (e.g. .tree-node__title) render until those
+   modules are rewritten in later phases. The app makes ZERO font network
+   requests — offline-first contract preserved.
    ─────────────────────────────────────────────────────────────────────────── */
+@import url('fonts.css');
 @import url('../fonts/ibmplex.css');
 
 /* ── Custom properties ─────────────────────────────────────────────────────── */
 :root {
-    /* Surfaces */
-    --c-bg-base:        #1C1A18;
-    --c-bg-raised:      #272421;
-    --c-bg-overlay:     #312E2B;
-    --c-bg-border:      #3D3A36;
+    /* === Surfaces (Mojica · Frame.io cool dark) === */
+    --c-bg:        #0E1014;   /* page background */
+    --c-panel:     #171B22;   /* sidebar, right panes */
+    --c-raised:    #1F242E;   /* cards, hover-distinguished */
+    --c-hover:     #252B36;   /* hover state */
+    --c-selected:  #2A2F3D;   /* selected, has-sel highlight */
+    --c-border:    #262C36;   /* dividers */
+    --c-border-2:  #363D49;   /* hover / emphasised borders */
+    --c-border-3:  #454B58;   /* scrollbar thumb hover */
 
-    /* Text */
-    --c-text-primary:   #F0EDE8;
-    --c-text-secondary: #A09890;
-    --c-text-muted:     #6E6760;
+    /* === Text === */
+    --c-text:       #F1F3F7;   /* primary */
+    --c-text-2:     #B8BCC7;   /* secondary */
+    --c-muted:      #787E8A;   /* labels, metadata */
+    --c-faint:      #4E535E;   /* placeholders, ticks */
 
-    /* Accent — Celluloid Amber */
-    --c-accent:         #C8963E;
-    --c-accent-dim:     #8B6520;
-    --c-accent-text:    #F5C97A;
+    /* === Accent — Frame.io purple === */
+    --c-accent:        #8B7BD8;
+    --c-accent-2:      #A99CE5;
+    --c-accent-dim:    #5C4FA8;
+    --c-accent-bg:     rgba(139,123,216,0.14);
+    --c-accent-bg-low: rgba(139,123,216,0.06);
 
-    /* Semantic */
-    --c-success:        #4E9E6B;
-    --c-success-bg:     #0D2318;
-    --c-error:          #C25450;
-    --c-error-bg:       #2A100F;
-    --c-processing:     #5B8FCC;
-    --c-processing-bg:  #0A1929;
-    --c-pending:        #645E58;
+    /* === Yellow — annotation pins, timestamps === */
+    --c-yellow:     #F5C842;
+    --c-yellow-dim: #9C7E1E;
+    --c-yellow-bg:  rgba(245,200,66,0.16);
 
-    /* Fonts */
+    /* === Pink — viewers / collaborators === */
+    --c-pink:       #E879C7;
+    --c-pink-bg:    rgba(232,121,199,0.18);
+
+    /* === Status === */
+    --c-green:      #5CCB91;
+    --c-green-bg:   rgba(92,203,145,0.12);
+    --c-orange:     #F59042;
+    --c-orange-bg:  rgba(245,144,66,0.14);
+    --c-red:        #F56E5A;
+    --c-red-bg:     rgba(245,110,90,0.14);
+
+    /* === Category dots === */
+    --c-cat-cartela:   #F5C842;
+    --c-cat-dialogo:   #A99CE5;
+    --c-cat-exterior:  #5CCB91;
+    --c-cat-interior:  #F59042;
+    --c-cat-transicao: #787E8A;
+    --c-cat-titulo:    #E879C7;
+
+    /* === Type === */
+    --font-sans: 'Geist', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Geist Mono', ui-monospace, monospace;
+
+    /* === Legacy aliases — keep until v0.3 tests retire === */
+    --c-bg-base:        var(--c-bg);
+    --c-bg-raised:      var(--c-raised);
+    --c-bg-overlay:     var(--c-hover);
+    --c-bg-border:      var(--c-border);
+    --c-text-primary:   var(--c-text);
+    --c-text-secondary: var(--c-text-2);
+    --c-text-muted:     var(--c-muted);
+    --c-accent-text:    var(--c-accent-2);
+    --c-success:        var(--c-green);
+    --c-success-bg:     var(--c-green-bg);
+    --c-error:          var(--c-red);
+    --c-error-bg:       var(--c-red-bg);
+    --c-processing:     var(--c-orange);
+    --c-processing-bg:  var(--c-orange-bg);
+    --c-pending:        var(--c-muted);
+    /* IBM Plex Serif kept as legacy alias for the v0.3 sidebar's
+       .tree-node__title rule (and any other legacy serif use). Retired
+       when those components migrate to the Mojica stack. */
     --font-serif: 'IBM Plex Serif', Georgia, serif;
-    --font-sans:  'IBM Plex Sans', system-ui, sans-serif;
-    --font-mono:  'iA Writer Mono', 'Courier New', monospace;
 }
+/* ── END Mojica token block ─ component CSS below is legacy v0.3, untouched
+   in Task 2 and gets rewritten per-tab in Phases 1–10. ─────────────────── */
 
 /* ── Reset ─────────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html, body { margin: 0; padding: 0; height: 100%; }
 body {
-    background: var(--c-bg-base);
-    color: var(--c-text-primary);
+    display: flex; flex-direction: column;
+    background: var(--c-bg);
+    color: var(--c-text);
     font-family: var(--font-sans);
-    font-size: 0.875rem;
-    line-height: 1.6;
-    min-height: 100vh;
+    font-size: 13px;
+    line-height: 1.5;
+    letter-spacing: -0.003em;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: 'ss01' on, 'ss02' on;
     overflow: hidden;
 }
+*::-webkit-scrollbar { width: 9px; height: 9px; }
+*::-webkit-scrollbar-thumb { background: var(--c-border-2); border-radius: 5px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--c-border-3); }
+*::-webkit-scrollbar-track { background: transparent; }
 
 /* ── Shell ─────────────────────────────────────────────────────────────────── */
 .shell {
@@ -1316,4 +1370,4 @@ button.tree-node {
 /* ── Utility ───────────────────────────────────────────────────────────────── */
 .text-muted     { color: var(--c-text-muted); font-size: 0.875rem; }
 .text-secondary { color: var(--c-text-secondary); }
-.tab-panel      { min-height: 0; }
+.tab-panel      { display: flex; flex: 1; min-height: 0; }

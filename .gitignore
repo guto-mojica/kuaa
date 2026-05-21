@@ -124,3 +124,7 @@ Icon
 desktop.ini
 ehthumbs.db
 Thumbs.db
+
+# Design handoff bundle (reference material, not project source)
+claude_design/
+mojica_design_handoff.zip

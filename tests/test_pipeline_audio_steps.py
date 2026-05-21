@@ -134,18 +134,21 @@ def _patch_ffmpeg(monkeypatch):
 
 
 def _patch_clap(monkeypatch, dim=512):
-    """Patch ClapHFEmbedder so encode_audio_single returns a unit vector."""
+    """Patch ClapHFEmbedder so encode_audio returns a deterministic matrix
+    keyed by scene_id, without touching the model or decoding WAVs."""
     from cinemateca.models.audio import clap_hf
 
-    def fake_encode_audio_single(self, wav_path):
-        # Deterministic unit vector keyed by file stem.
-        sid = int(Path(wav_path).stem.split("_")[1])
-        v = np.zeros(dim, dtype="float32")
-        v[sid % dim] = 1.0
-        return v
+    def fake_encode_audio(self, wav_paths):
+        if not wav_paths:
+            return np.zeros((0, dim), dtype="float32")
+        out = np.zeros((len(wav_paths), dim), dtype="float32")
+        for i, p in enumerate(wav_paths):
+            sid = int(Path(p).stem.split("_")[1])
+            out[i, sid % dim] = 1.0
+        return out
 
     monkeypatch.setattr(clap_hf.ClapHFEmbedder, "_load_model", lambda self: None)
-    monkeypatch.setattr(clap_hf.ClapHFEmbedder, "encode_audio_single", fake_encode_audio_single)
+    monkeypatch.setattr(clap_hf.ClapHFEmbedder, "encode_audio", fake_encode_audio)
 
 
 def test_audio_extract_step_writes_one_wav_per_scene(monkeypatch, tmp_path):

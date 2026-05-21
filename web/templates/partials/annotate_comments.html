@@ -1,0 +1,118 @@
+{# ── Anotar · Comments sub-partial ────────────────────────────────────────
+   Mojica Task 19 (Phase 4). Rendered inside ``.a-rp .a-thread`` when
+   ``annotate_tab == "comments"`` — the Comments htab is the default
+   landing state for the right pane. Mirrors the Frame.io-style comment
+   stream from ``claude_design/.../anotar.jsx`` lines 514–599: the AI
+   moondream description is row #0 (``.a-com.ai``); curator + viewer
+   rows arrive with the collaboration backend later
+   (``cfg.collaboration.threads_enabled``).
+
+   Legacy compatibility:
+
+     * The "Edit description" / "Add description" affordance keeps its
+       ``hx-get`` to ``/api/annotate/description/edit`` and the
+       ``#annotate-llm-edit`` swap container, so the existing description
+       editor (``partials/annotate_desc_edit.html``) still mounts here.
+       The edit container lives below the AI comment card so its in-line
+       form swap does not displace the htab chrome.
+     * The ``annotate-no-llm`` empty-state line is preserved verbatim so
+       existing tests / translations keep matching.
+#}
+{% if selected_scene and selected_scene.description %}
+  <div class="a-com ai">
+    <div class="av" aria-hidden="true">md</div>
+    <div class="bx">
+      <div class="who">
+        <span class="n">moondream-2</span>
+        <span class="badge">{{ _("AI · description") }}</span>
+        <span class="ix">#0</span>
+      </div>
+      <div class="body">
+        {% if selected_scene.timecode %}<span class="fx-tc">{{ selected_scene.timecode }}</span>{% endif %}
+        {{ selected_scene.description }}
+      </div>
+      <div class="replyrow">
+        {# Edit / Re-generate keep the legacy contracts so the existing
+           ``annotate_desc_edit.html`` editor still mounts via the
+           ``#annotate-llm-edit`` swap container below. The Anotar tab
+           routes the edit form through ``/api/annotate/description/edit``
+           and the save through ``/api/annotate/description``; both
+           continue to work unchanged. #}
+        <a href="#"
+           hx-get="/api/annotate/description/edit?scene_id={{ scene_id }}&filter={{ filter }}{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
+           hx-target="#annotate-llm-edit"
+           hx-swap="innerHTML">{{ _("Edit") }}</a>
+        {% if cfg.collaboration.threads_enabled %}
+          <a href="#">{{ _("Reply") }}</a>
+          <a href="#">{{ _("Re-generate") }}</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% else %}
+  <p class="annotate-no-llm text-muted">
+    {{ _("No LLM description") }}
+    <a href="#"
+       class="annotate-edit-trigger"
+       hx-get="/api/annotate/description/edit?scene_id={{ scene_id }}&filter={{ filter }}{% if selected_scene and selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
+       hx-target="#annotate-llm-edit"
+       hx-swap="innerHTML">{{ _("Add description") }}</a>
+  </p>
+{% endif %}
+
+{# Edit-form swap container — kept under both branches so the existing
+   ``annotate_desc_edit.html`` partial (which posts to
+   ``/api/annotate/description`` with ``hx-target="#annotate-scene"``)
+   has a stable mount point when "Edit" / "Add description" is clicked. #}
+<div id="annotate-llm-edit"></div>
+
+{# ── Demo curator + viewer thread ────────────────────────────────────────
+   Renders the prototype's Frame.io-style comment stream (pinned curator
+   note with attachments + reactions, viewer reply) until the real
+   collaboration backend lands. Gated on
+   ``cfg.collaboration.demo_threads_enabled``. The body uses ``|safe`` —
+   this is intentionally bound to ``_demo_thread()`` output in
+   ``api/services/annotations.py``, whose bodies are static literal Python
+   strings the developer authored. When the v1.1 collaboration backend
+   replaces ``selected_scene.comments`` with user-supplied content, the
+   ``|safe`` filter MUST be removed (or replaced with an HTML sanitizer)
+   — otherwise the curator field becomes an XSS vector. #}
+{% set _action_labels = {"reply": _("Reply"), "resolve": _("Resolve"), "share": _("Share")} %}
+{% if cfg.collaboration.demo_threads_enabled and selected_scene and selected_scene.comments %}
+  {% for c in selected_scene.comments %}
+    <div class="a-com {{ c.role }}{% if c.badge == 'pinned' %} pinned{% endif %}">
+      <div class="av" aria-hidden="true">{{ c.initials }}</div>
+      <div class="bx">
+        <div class="who">
+          <span class="n">{{ c.author }}</span>
+          {% if c.badge == 'pinned' %}<span class="badge">{{ _('PINNED') }}</span>{% endif %}
+          {% if c.timecode %}<span class="fx-tc">{{ c.timecode }}</span>{% endif %}
+          <span class="when">{{ c.when }}</span>
+        </div>
+        <div class="body">{{ c.body|safe }}</div>
+        {% if c.attachments %}
+          <div class="attach">
+            {% for a in c.attachments %}
+              <a class="att" href="#" data-kind="{{ a.kind }}">{{ a.name }}</a>
+            {% endfor %}
+          </div>
+        {% endif %}
+        {% if c.reactions %}
+          <div class="rx">
+            {% for r in c.reactions %}
+              <span class="rxc"{% if r.count %} data-count="{{ r.count }}"{% endif %}>
+                {{ r.emoji }}{% if r.count %} {{ r.count }}{% endif %}
+              </span>
+            {% endfor %}
+          </div>
+        {% endif %}
+        <div class="replyrow">
+          {% for act in c.actions %}
+            {% set label = _action_labels.get(act) %}
+            {% if label %}<a href="#">{{ label }}</a>{% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+{% endif %}

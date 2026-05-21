@@ -1,0 +1,176 @@
+{# ── Mojica Cenas inspector — right pane (.c-rp) ────────────────────────────
+   Task 16 (Phase 3) of the Mojica redesign. Swapped into ``#right-pane``
+   (the legacy aside in ``base.html``) by every ``.scenecard``'s ``hx-get``
+   on the Cenas grid:
+
+       /api/scenes/{id}/inspector?film=<slug>&tab=properties&kind=cenas
+
+   The endpoint dispatches on ``?kind=`` and renders this partial for
+   Cenas clicks; ``?kind=buscar`` (or omitted) still routes through
+   ``search_inspector.html``.
+
+   Structurally distinct from the Buscar ``.b-rp``: no htabs, no activity
+   thread, no signals/composer/rhymes — just a selection-count head with
+   action icons, a preview tile with its tipo pill, the scene's h2 title
+   + film attribution, a ``.props`` grid, a description block, and a
+   3-button ``.actions`` footer linking to Buscar / Anotar / Rimas.
+
+   Context contract (built by
+   :func:`api.services.scenes_service.build_inspector_context` —
+   shared with the Buscar inspector; the extra ``tipo`` key landed in
+   Task 16):
+
+     * ``selected_scene``  dict — id, scene_id, film_slug, keyframe_url,
+       timecode, duration_s, tipo (cartela/dialogo/exterior/interior/
+       transicao), description, tags.
+     * ``selected_film``   Film | None — title/year/director for the
+       attribution row. ``None`` falls back to the slug.
+     * ``inspector_kind``  literal "cenas" — set by the route handler.
+
+   Self-contained guard: when no scene is selected the partial renders
+   nothing. Mirrors the Buscar inspector's self-guard so the same
+   ``include "partials/scenes_inspector.html"`` could be used from a
+   full-page render without producing visible chrome.
+#}
+{%- if selected_scene -%}
+{% from "partials/_icons.html" import icon %}
+<section class="c-rp">
+
+  {# ── Selection-count head + action icons ─────────────────────────────── #}
+  <div class="head">
+    <div class="l">
+      <span class="badge">1</span>
+      <span>{{ _("Item selected") }}</span>
+    </div>
+    <div class="r">
+      <button type="button" class="fx-icbtn sm" title="{{ _('Annotate') }}" aria-label="{{ _('Annotate') }}">
+        {{ icon('tag', 14) }}
+      </button>
+      <button type="button" class="fx-icbtn sm" title="{{ _('Share') }}" aria-label="{{ _('Share') }}">
+        {{ icon('share', 14) }}
+      </button>
+      <button type="button" class="fx-icbtn sm" title="{{ _('Download') }}" aria-label="{{ _('Download') }}">
+        {{ icon('download', 14) }}
+      </button>
+      <button type="button" class="fx-icbtn sm" title="{{ _('More') }}" aria-label="{{ _('More actions') }}">
+        {{ icon('more', 14) }}
+      </button>
+    </div>
+  </div>
+
+  <div class="inner">
+
+    {# ── Preview tile with absolute-positioned tipo pill ─────────────── #}
+    <div class="preview"
+         {% if selected_scene.keyframe_url %}style="background-image: url('{{ selected_scene.keyframe_url }}');"{% endif %}>
+      {% if selected_scene.tipo %}
+        <span class="tipo-pill fx-pill"
+              style="background: var(--c-cat-{{ selected_scene.tipo }}); color: #0E1014; font-weight: 600;">
+          {{ _(selected_scene.tipo|capitalize) }}
+        </span>
+      {% endif %}
+    </div>
+
+    {# ── Title + film attribution row ─────────────────────────────────── #}
+    <h2>
+      {% if selected_scene.title %}
+        {{ selected_scene.title }}
+      {% else %}
+        {{ _("Scene %(n)s") % {"n": "%03d"|format(selected_scene.scene_id or 0)} }}
+      {% endif %}
+    </h2>
+    <div class="at">
+      <span class="dot" style="background: var(--c-accent);"></span>
+      <b>{% if selected_film %}{{ selected_film.title }}{% else %}{{ selected_scene.film_slug or "" }}{% endif %}</b>
+      {% if selected_film and selected_film.year %}<span>· {{ selected_film.year }}</span>{% endif %}
+      {% if selected_film and selected_film.director %}<span>· {{ _("dir.") }} {{ selected_film.director }}</span>{% endif %}
+    </div>
+
+    {# ── Properties grid ──────────────────────────────────────────────── #}
+    {# The CSS (cenas.css .c-rp .props) is a 2-col grid (90px 1fr) that
+       lays out paired ``<span class="k">``/``<span class="v">`` children
+       row by row — sticking with span pairs to match the existing rules.
+    #}
+    <div class="props">
+      <span class="k">{{ _("Timecode") }}</span>
+      <span class="v mono">{{ selected_scene.timecode or "—" }}</span>
+
+      <span class="k">{{ _("Duration") }}</span>
+      <span class="v mono">
+        {% if selected_scene.duration_s and selected_scene.duration_s > 0 %}
+          ~ {{ '%.1f'|format(selected_scene.duration_s) }} s
+        {% else %}
+          —
+        {% endif %}
+      </span>
+
+      <span class="k">{{ _("Type") }}</span>
+      <span class="v">
+        {% if selected_scene.tipo %}
+          <span class="fx-pill"
+                style="background: var(--c-cat-{{ selected_scene.tipo }}); color: #0E1014; font-weight: 600;">
+            {{ _(selected_scene.tipo|capitalize) }}
+          </span>
+        {% else %}—{% endif %}
+      </span>
+
+      <span class="k">{{ _("Tags") }}</span>
+      <span class="v">
+        {% set tag_list = selected_scene.tags or [] %}
+        {% for t in tag_list[:4] %}
+          <span class="fx-pill">{{ t }}</span>
+        {% endfor %}
+        {% if tag_list|length > 4 %}
+          <span class="fx-mono" style="color: var(--c-muted); font-size: 10.5px;">
+            +{{ tag_list|length - 4 }}
+          </span>
+        {% endif %}
+        {% if not tag_list %}—{% endif %}
+      </span>
+
+      <span class="k">{{ _("Status") }}</span>
+      <span class="v">
+        <span class="fx-pill green">
+          <span class="dot"></span>
+          {{ _("indexed") }}
+        </span>
+      </span>
+
+      {% if selected_scene.scene_index and selected_scene.scene_total %}
+        <span class="k">{{ _("Position") }}</span>
+        <span class="v mono">
+          {{ selected_scene.scene_index }} / {{ selected_scene.scene_total }}
+        </span>
+      {% endif %}
+    </div>
+
+    {# ── Description (read-only; Anotar handles editing) ──────────────── #}
+    <div class="desc-sect">
+      <div class="lab">
+        <span>{{ _("Description") }}</span>
+        <a href="/annotate?id={{ selected_scene.scene_id }}{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}">
+          {{ _("edit") }}
+        </a>
+      </div>
+      <p>{{ selected_scene.description or _("No description yet.") }}</p>
+    </div>
+
+    {# ── Action footer (3 buttons in a 2-col grid; primary spans both) ── #}
+    <div class="actions">
+      <a class="fx-btn secondary"
+         href="/search?scene={{ selected_scene.scene_id }}{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}">
+        {{ icon('search', 14) }} {{ _("Find similar") }}
+      </a>
+      <a class="fx-btn secondary"
+         href="/annotate?id={{ selected_scene.scene_id }}{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}">
+        {{ icon('tag', 14) }} {{ _("Annotate") }}
+      </a>
+      <a class="fx-btn primary" style="grid-column: 1 / 3;"
+         href="/rimas?anchor={{ selected_scene.film_slug }}/{{ selected_scene.scene_id }}">
+        {{ icon('rhymes', 14) }} {{ _("Find visual rhymes") }}
+      </a>
+    </div>
+
+  </div>
+</section>
+{%- endif -%}
