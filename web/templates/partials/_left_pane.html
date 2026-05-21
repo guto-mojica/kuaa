@@ -53,4 +53,32 @@
       {{ "%dh %02dm"|format((total_runtime_minutes or 0) // 60, (total_runtime_minutes or 0) % 60) }}
     </div>
   </div>
+
+  {# Locale + About row. The legacy ``.sidebar-footer`` carried both;
+     the Phase-2 base.html cleanup deleted that footer, so the redesign now
+     surfaces them here instead. ``/api/locale/<code>`` sets the cookie and
+     returns HX-Refresh so the next paint picks up the new translations.
+     About reuses the same ``#modal-container`` target the legacy link did,
+     so the existing modal partial works unmodified. #}
+  <div class="lp-aux">
+    <div class="locale" role="group" aria-label="{{ _('Language') }}">
+      {{ icon('globe', 12) }}
+      <a class="lc{% if locale == 'pt_BR' %} on{% endif %}"
+         href="/api/locale/pt_BR"
+         hx-get="/api/locale/pt_BR"
+         hx-swap="none">PT</a>
+      <span class="sep" aria-hidden="true">·</span>
+      <a class="lc{% if locale == 'en' %} on{% endif %}"
+         href="/api/locale/en"
+         hx-get="/api/locale/en"
+         hx-swap="none">EN</a>
+    </div>
+    <a class="about"
+       href="/about"
+       hx-get="/api/about"
+       hx-target="#modal-container"
+       hx-swap="innerHTML">
+      {{ icon('info', 12) }} {{ _('About') }}
+    </a>
+  </div>
 </aside>

@@ -48,11 +48,17 @@ TAB_FRAGMENTS = ["/tab/search", "/tab/scenes", "/tab/annotate", "/tab/processing
 
 @pytest.mark.parametrize("path", FULL_PAGES)
 def test_full_page_routes_respond(client, path):
-    """Full-page routes return 200 with the base shell rendered."""
+    """Full-page routes return 200 with the new Mojica shell rendered.
+
+    Phase-2 deleted the legacy ``<div class="tab-content" id="tab-content">``
+    wrapper; tab partials now drop straight inside ``<main class="ch-main">``
+    via their own ``.tab-panel`` div. ``id="ch-main"`` is the post-Phase-2
+    stable mount point.
+    """
     r = client.get(path)
     assert r.status_code == 200, r.text[:500]
     assert "<!DOCTYPE html>" in r.text
-    assert 'id="tab-content"' in r.text
+    assert 'id="ch-main"' in r.text
 
 
 @pytest.mark.parametrize("path", TAB_FRAGMENTS)

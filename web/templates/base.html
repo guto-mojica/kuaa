@@ -43,11 +43,13 @@
 {% from "partials/_icons.html" import icon %}
 
 {# ── Mojica chrome shell ─────────────────────────────────────────────────────
-   TopBar / IconRail / LeftPane are stub partials in Phase 1 — Task 7 fills
-   _topbar.html, Task 8 fills _icon_rail.html + _left_pane.html with real
-   content. Until then they render minimal shells (brand only) so the
-   chrome.css grid + new tests have something to bind to. The legacy sidebar
-   + tab-bar below still drive every tab's UX; Phase 2+ replaces it. #}
+   The chrome is a 4-column grid (rail · lp · main · right). Each cell is a
+   partial:
+     * ``_topbar.html``     — brand + breadcrumb + tabs + viewers + share
+     * ``_icon_rail.html``  — 56px vertical column with tab icons
+     * ``_left_pane.html``  — 248px film tree / collections / locale + About
+     * ``ch-main``          — slot for the active tab's partial (.tab-panel)
+     * ``ch-right``         — 380px right inspector, gated on has_right_pane #}
 {% include "partials/_topbar.html" %}
 
 <div class="ch-body{% if compact_lp %} compact-lp{% endif %}{% if has_right_pane %} with-right{% endif %}">
@@ -58,141 +60,27 @@
     {% endif %}
 
     <main class="ch-main" id="ch-main">
-
-        {# ── Legacy chrome (Phase-0/1 of v0.3): the existing sidebar +
-           tab-bar still ship inside the new ch-main pane so every Task-6-
-           predates test (film selector, tab nav with hx-get / hx-push-url,
-           locale switcher, About link) keeps passing. Tasks 7 + 8 + Phase 2
-           progressively move this content into the chrome partials above
-           and shrink this block down to just the page-specific tab content. #}
-        {# FIXME(phase2): the legacy .shell > .sidebar below still renders
-           alongside the new .ch-lp, producing a transient two-sidebars view.
-           Phase 2 deletes this legacy markup when tab content templates are
-           unwrapped from the .shell wrapper. #}
-        <div class="shell">
-
-            <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
-            <aside class="sidebar">
-                <div class="sidebar-header">
-                    {{ icon("film-reel") }}
-                    <span class="sidebar-title">Cinemateca AI</span>
-                </div>
-
-                {% include "partials/film_selector.html" %}
-
-                <input class="filter-input"
-                       type="text"
-                       name="q"
-                       placeholder="{{ _('Filter library') }}"
-                       hx-get="/api/library/filter"
-                       hx-trigger="keyup changed delay:300ms"
-                       hx-target="#library-tree">
-
-                <nav class="library-tree" id="library-tree">
-                    {% include "partials/library_tree.html" %}
-                </nav>
-
-                <footer class="sidebar-footer">
-                    <div class="locale-switcher">
-                        {{ icon("globe") }}
-                        <a class="locale-link {% if locale == 'pt_BR' %}locale-link--active{% endif %}"
-                           href="/api/locale/pt_BR"
-                           hx-get="/api/locale/pt_BR"
-                           hx-swap="none">PT</a>
-                        <span class="locale-sep">|</span>
-                        <a class="locale-link {% if locale == 'en' %}locale-link--active{% endif %}"
-                           href="/api/locale/en"
-                           hx-get="/api/locale/en"
-                           hx-swap="none">EN</a>
-                    </div>
-                    <div class="sidebar-footer__row">
-                        <a class="about-link"
-                           href="/about"
-                           hx-get="/api/about"
-                           hx-target="#modal-container"
-                           hx-swap="innerHTML">
-                            {{ icon("info") }}
-                            {{ _("About") }}
-                        </a>
-                        <span class="version">v0.3.0</span>
-                    </div>
-                </footer>
-            </aside>
-
-            <!-- ── Main ────────────────────────────────────────────────────────── -->
-            <main class="main">
-
-                {# Tab nav. Every tab link preserves the active film slug
-                   (?film=<slug>) on hx-get, hx-push-url, and href so navigation
-                   across tabs does not silently drop the sidebar selection —
-                   otherwise picking a film then clicking Scenes → Search would
-                   revert the search to aggregate. #}
-                {% set film_qs = "?film=" ~ current_slug if current_slug else "" %}
-                <!-- Tab bar -->
-                <nav class="tab-bar" id="tab-bar">
-                    <a class="tab {% if legacy_active_tab == 'search' %}tab--active{% endif %}"
-                       href="/search{{ film_qs }}"
-                       hx-get="/tab/search{{ film_qs }}"
-                       hx-target="#tab-content"
-                       hx-swap="innerHTML"
-                       hx-push-url="/search{{ film_qs }}"
-                       onclick="setActiveTab(this)">
-                        {{ icon("magnifying-glass") }}
-                        {{ _("Search") }}
-                    </a>
-                    <a class="tab {% if legacy_active_tab == 'scenes' %}tab--active{% endif %}"
-                       href="/scenes{{ film_qs }}"
-                       hx-get="/tab/scenes{{ film_qs }}"
-                       hx-target="#tab-content"
-                       hx-swap="innerHTML"
-                       hx-push-url="/scenes{{ film_qs }}"
-                       onclick="setActiveTab(this)">
-                        {{ icon("squares-four") }}
-                        {{ _("Scenes") }}
-                    </a>
-                    <a class="tab {% if legacy_active_tab == 'annotate' %}tab--active{% endif %}"
-                       href="/annotate{{ film_qs }}"
-                       hx-get="/tab/annotate{{ film_qs }}"
-                       hx-target="#tab-content"
-                       hx-swap="innerHTML"
-                       hx-push-url="/annotate{{ film_qs }}"
-                       onclick="setActiveTab(this)">
-                        {{ icon("tag") }}
-                        {{ _("Annotate") }}
-                    </a>
-                    <a class="tab {% if legacy_active_tab == 'processing' %}tab--active{% endif %}"
-                       href="/processing{{ film_qs }}"
-                       hx-get="/tab/processing{{ film_qs }}"
-                       hx-target="#tab-content"
-                       hx-swap="innerHTML"
-                       hx-push-url="/processing{{ film_qs }}"
-                       onclick="setActiveTab(this)">
-                        {{ icon("spinner-gap", "spin" if processing_jobs else "") }}
-                        {{ _("Processing") }}
-                        {% if processing_jobs %}
-                        <span class="badge">{{ processing_jobs }}</span>
-                        {% endif %}
-                    </a>
-                </nav>
-
-                <!-- Tab content -->
-                <div class="tab-content" id="tab-content">
-                    {% if legacy_active_tab == 'search' %}
-                        {% include "partials/search.html" %}
-                    {% elif legacy_active_tab == 'scenes' %}
-                        {% include "partials/scenes.html" %}
-                    {% elif legacy_active_tab == 'annotate' %}
-                        {% include "partials/annotate.html" %}
-                    {% elif legacy_active_tab == 'processing' %}
-                        {% include "partials/processing.html" %}
-                    {% elif legacy_active_tab == 'rimas' %}
-                        {% include "partials/rimas.html" %}
-                    {% endif %}
-                </div>
-
-            </main>
-        </div>
-
+        {# Phase-2 cleanup: the legacy ``.shell > .sidebar + .main > .tab-bar``
+           wrapper was deleted here. Its three roles were already carried by
+           the new chrome partials: the film tree moved to ``_left_pane.html``,
+           the top tabs to ``_topbar.html``, the icon column to
+           ``_icon_rail.html``. The locale switcher + About link previously
+           pinned to the legacy sidebar footer now live in ``.ch-lp .foot``.
+           Each tab partial supplies its own ``<div class="tab-panel">``
+           wrapper (see search.html, scenes.html, annotate.html,
+           processing.html, rimas.html) so this slot drops straight into the
+           include. #}
+        {% if legacy_active_tab == 'search' %}
+            {% include "partials/search.html" %}
+        {% elif legacy_active_tab == 'scenes' %}
+            {% include "partials/scenes.html" %}
+        {% elif legacy_active_tab == 'annotate' %}
+            {% include "partials/annotate.html" %}
+        {% elif legacy_active_tab == 'processing' %}
+            {% include "partials/processing.html" %}
+        {% elif legacy_active_tab == 'rimas' %}
+            {% include "partials/rimas.html" %}
+        {% endif %}
     </main>
 
     {% if has_right_pane %}
@@ -216,12 +104,5 @@
 {% include "partials/_palette.html" %}
 {% include "partials/_help_overlay.html" %}
 <div id="modal-root"></div>
-
-<script>
-function setActiveTab(el) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('tab--active'));
-    el.classList.add('tab--active');
-}
-</script>
 </body>
 </html>

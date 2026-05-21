@@ -247,3 +247,40 @@
 .ch-lp .foot .info {
   font-family: var(--font-mono); font-size: 10.5px; color: var(--c-muted);
 }
+
+/* Locale + About row (under .foot). Compact two-cell strip so the chrome
+   keeps the same vertical rhythm as the legacy sidebar footer the redesign
+   replaced. The locale links are anchors (not buttons) because they hit
+   /api/locale/<code> with HX-Refresh — keeping them as <a> means a no-JS
+   fallback still switches languages. */
+.ch-lp .lp-aux {
+  border-top: 1px solid var(--c-border);
+  padding: 8px 14px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px; color: var(--c-text-2);
+}
+.ch-lp .lp-aux .locale {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--c-muted);
+}
+.ch-lp .lp-aux .locale .lc {
+  color: var(--c-muted);
+  text-decoration: none;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  padding: 1px 2px;
+  border-radius: 3px;
+  transition: color .12s;
+}
+.ch-lp .lp-aux .locale .lc:hover { color: var(--c-text); }
+.ch-lp .lp-aux .locale .lc.on { color: var(--c-accent); }
+.ch-lp .lp-aux .locale .sep { color: var(--c-border-2); }
+.ch-lp .lp-aux .about {
+  display: inline-flex; align-items: center; gap: 5px;
+  color: var(--c-muted);
+  text-decoration: none;
+  font-size: 11px;
+  transition: color .12s;
+}
+.ch-lp .lp-aux .about:hover { color: var(--c-text); }

@@ -50,9 +50,14 @@
       ('proc',   _('Processing'), 'proc'),
     ] %}
     {% set tab_routes = {'buscar':'search','cenas':'scenes','anotar':'annotate','rimas':'rimas','proc':'processing'} %}
+    {# Preserve the active film slug across tab switches. Without this, picking
+       a film (which sets ?film=<slug>) and then clicking another top tab would
+       silently revert to the aggregate view — matching the legacy tab-bar's
+       behaviour the Phase-2 cleanup replaced. #}
+    {% set tab_film_qs = "?film=" ~ current_slug if current_slug else "" %}
     {% for key, label, ic in tab_defs %}
       <a class="tab{% if active_tab == key %} on{% endif %}"
-         href="/{{ tab_routes[key] }}"
+         href="/{{ tab_routes[key] }}{{ tab_film_qs }}"
          data-tab="{{ key }}">
         <span class="ico">{{ icon(ic, 18) }}</span>
         <span>{{ label }}</span>
