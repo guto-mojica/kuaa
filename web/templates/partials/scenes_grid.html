@@ -27,11 +27,12 @@
      — paired with ``--c-cat-<tipo>`` CSS variables), ``pin_count``
      (int), ``version`` (str | None).
 
-   Clicking a scenecard hx-GETs the Buscar inspector endpoint (Task 12)
-   into ``#right-pane``; the Cenas-specific inspector partial lands in
-   Task 16 — until then the Buscar inspector is reused (same scene
-   selection, same backend lookup) which is a deliberate intermediate
-   state documented in the plan.
+   Clicking a scenecard hx-GETs the inspector endpoint with
+   ``kind=cenas`` so the right-pane swaps in the ``.c-rp`` Cenas-styled
+   partial (Task 16: ``partials/scenes_inspector.html``) rather than the
+   Buscar ``.b-rp``. The ``tab=properties`` query arg is preserved for
+   backwards compatibility with the Buscar-style tab indicator (the
+   Cenas inspector ignores it but the route still accepts it).
 #}
 {% from "partials/_icons.html" import icon %}
 {% if not groups_by_film %}
@@ -52,7 +53,7 @@
       {% set tipo = s.tipo or 'transicao' %}
       <article class="scenecard{% if selected_scene_id is not none and s.id == selected_scene_id %} sel{% endif %}"
                data-scene-id="{{ s.id }}"
-               hx-get="/api/scenes/{{ s.id }}/inspector?film={{ group.film.slug }}&tab=properties"
+               hx-get="/api/scenes/{{ s.id }}/inspector?film={{ group.film.slug }}&tab=properties&kind=cenas"
                hx-target="#right-pane"
                hx-swap="innerHTML"
                hx-trigger="click">

@@ -249,6 +249,13 @@ def build_inspector_context(
         except (TypeError, ValueError):
             continue
 
+    # ``tipo`` mirrors what ``_card_to_scene`` computes for the Cenas grid
+    # so the selected scenecard's pill colour matches the right-pane
+    # ``.tipo-pill`` and the ``.props`` "Tipo" row. The Buscar inspector
+    # (``.b-rp``) currently ignores this field — keeping it on the scene
+    # dict keeps the two surfaces sharing one shape.
+    tipo = tipo_of(tags, description)
+
     selected_scene = {
         "id": scene_id,
         "scene_id": scene_id,
@@ -258,6 +265,7 @@ def build_inspector_context(
         "start_s": start_s,
         "end_s": end_s,
         "duration_s": duration_s,
+        "tipo": tipo,
         "title": None,
         "description": description,
         "tags": tags,

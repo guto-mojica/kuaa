@@ -434,6 +434,65 @@ def test_search_full_page_includes_inspector_partial_without_crashing(client):
     assert 'class="b-rp"' not in r.text
 
 
+# ── Group 1f-bis: Cenas inspector (Task 16) ───────────────────────────────────
+#
+# The Mojica Cenas inspector reuses the same ``/api/scenes/<id>/inspector``
+# endpoint but discriminates on a new ``?kind=`` query param:
+#
+#   * ``kind=buscar`` (default, omitted) → ``.b-rp`` Buscar shell
+#   * ``kind=cenas``                     → ``.c-rp`` Cenas shell
+#
+# The scenecard's hx-get on the Cenas grid passes ``kind=cenas``; the
+# .b-card's hx-get on the Buscar grid omits the param and keeps the
+# Task-12 contract intact.
+
+
+def test_cenas_inspector_returns_c_rp_markup(client, seed_metadata):
+    """``?kind=cenas`` returns the .c-rp partial, NOT the .b-rp Buscar shell."""
+    seed_metadata()
+    r = client.get("/api/scenes/351/inspector?film=default&tab=properties&kind=cenas")
+    assert r.status_code == 200, r.text[:500]
+    html = r.text
+    # New Cenas wrapper.
+    assert 'class="c-rp"' in html
+    # MUST NOT carry the Buscar shell.
+    assert 'class="b-rp"' not in html
+    # The Cenas inspector has no htabs at all.
+    assert 'class="htabs"' not in html
+    # Props grid is rendered inline (not via inspector_properties.html which
+    # uses ``<dl class="props">``; the Cenas inspector uses ``<div
+    # class="props">`` per cenas.css's grid spec).
+    assert 'class="props"' in html
+    # The 3-action footer + selection-count head are part of the Cenas
+    # shell only.
+    assert 'class="actions"' in html
+    assert 'class="badge"' in html
+
+
+def test_buscar_inspector_defaults_to_b_rp(client, seed_metadata):
+    """Omitting ``?kind=`` keeps the Task-12 contract: .b-rp is returned."""
+    seed_metadata()
+    r = client.get("/api/scenes/351/inspector?film=default")
+    assert r.status_code == 200, r.text[:500]
+    html = r.text
+    assert 'class="b-rp"' in html
+    assert 'class="c-rp"' not in html
+    # Explicit ``kind=buscar`` is equivalent.
+    r2 = client.get("/api/scenes/351/inspector?film=default&kind=buscar")
+    assert r2.status_code == 200
+    assert 'class="b-rp"' in r2.text
+
+
+def test_cenas_grid_scenecard_uses_kind_cenas(client, seed_metadata):
+    """Every ``.scenecard``'s ``hx-get`` includes ``kind=cenas`` (Task 16 wiring)."""
+    seed_metadata()
+    # /scenes is the full-page route; if the grid renders any scenecards
+    # they must point at the kind=cenas inspector.
+    r = client.get("/scenes")
+    if r.status_code == 200 and "scenecard" in r.text:
+        assert "kind=cenas" in r.text
+
+
 # ── Group 1g: Buscar timeline (Task 13) ───────────────────────────────────────
 #
 # The bottom-timeline (``.b-tl``) renders below the .b-cp results grid only

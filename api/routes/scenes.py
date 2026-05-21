@@ -115,26 +115,49 @@ async def api_scene_inspector(
     request: Request,
     scene_id: int,
     tab: str = Query(default="activity"),
+    kind: str = Query(default="buscar"),
     slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
-    """Render the right-pane Buscar inspector for ``scene_id`` (HTMX swap target).
+    """Render the right-pane scene inspector for ``scene_id`` (HTMX swap target).
 
-    Task 12 of the Mojica redesign: every ``.b-card`` in the search
-    results sets ``hx-get="/api/scenes/<id>/inspector?film=<slug>"`` and
-    targets ``#right-pane``. This endpoint resolves the (slug, scene_id)
-    pair through :func:`build_inspector_context`, renders
-    ``partials/search_inspector.html``, and returns the HTMX fragment.
+    Task 12 of the Mojica redesign shipped the Buscar inspector (``.b-rp``).
+    Task 16 reuses the same endpoint for the Cenas inspector (``.c-rp``) —
+    the two surfaces share the same backend lookup but render markedly
+    different DOM:
+
+      * ``kind="buscar"`` (default, backward-compatible with Task 12 callers
+        that omit the param) → renders ``partials/search_inspector.html``
+        with the htabs/insp-kf/meta-top/thread/signals/composer stack.
+      * ``kind="cenas"`` → renders ``partials/scenes_inspector.html``
+        with the selection-count head + preview + h2 + at + props grid +
+        description + 3-button actions footer (no tabs).
+
+    Every ``.b-card`` in the search results sets
+    ``hx-get="/api/scenes/<id>/inspector?film=<slug>"`` (no kind, defaults
+    to buscar); every ``.scenecard`` in the Cenas grid sets
+    ``hx-get="/api/scenes/<id>/inspector?film=<slug>&tab=properties&kind=cenas"``.
+    Targets ``#right-pane``.
 
     Unresolvable pairs (unknown slug, unknown scene_id, missing
-    per-film metadata) return a 404 — the result card stays selected on
-    the page and the inspector simply does not swap.
+    per-film metadata) return a 404 regardless of ``kind`` — the result
+    card stays selected on the page and the inspector simply does not
+    swap. An unknown ``kind`` value falls back to ``"buscar"`` (matches
+    the unknown-tab normalisation already in ``build_inspector_context``)
+    so a stray URL never crashes the inspector swap.
     """
     cfg = get_config()
     ctx = build_inspector_context(cfg, scene_id=scene_id, slug=slug, inspector_tab=tab)
     if ctx is None:
         raise HTTPException(status_code=404, detail="scene not found")
+    inspector_kind = kind if kind in {"buscar", "cenas"} else "buscar"
+    ctx["inspector_kind"] = inspector_kind
+    template_name = (
+        "partials/scenes_inspector.html"
+        if inspector_kind == "cenas"
+        else "partials/search_inspector.html"
+    )
     return templates.TemplateResponse(
         request,
-        "partials/search_inspector.html",
+        template_name,
         make_ctx(request, current_slug=slug, **ctx),
     )
