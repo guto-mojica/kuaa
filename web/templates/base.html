@@ -113,26 +113,7 @@
    pushes from window.ToastBus or HX-Trigger headers flow through
    the store. #}
 <div id="modal-container"></div>
-<div id="toast-root" aria-live="polite"
-     x-data
-     class="toast-host">
-    <template x-for="t in $store.toasts ? $store.toasts.items : []" :key="t.id">
-        <div class="toast"
-             :class="[t.kind, { exiting: t.exiting }]"
-             :role="t.kind === 'error' ? 'alert' : 'status'">
-            <div class="ic"></div>
-            <div class="body">
-                <div class="ttl" x-text="t.title"></div>
-                <template x-if="t.sub">
-                    <div class="sub" x-text="t.sub"></div>
-                </template>
-            </div>
-            <button class="close" type="button"
-                    @click="$store.toasts.remove(t.id)"
-                    aria-label="{{ _('Close') }}">×</button>
-        </div>
-    </template>
-</div>
+{% include "partials/_toast_host.html" %}
 {% include "partials/_palette.html" %}
 {% include "partials/_help_overlay.html" %}
 <div id="modal-root"></div>

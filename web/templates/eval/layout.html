@@ -33,11 +33,21 @@
   <script src="{{ request.url_for('static', path='js/mojica.js') }}" defer></script>
   <script src="{{ request.url_for('static', path='js/eval.js') }}" defer></script>
 </head>
+{# Alpine component shell for the grading workspace. ``evalApp`` is
+   registered by eval.js (Alpine.data); it owns the row cursor and the
+   blind/compare toggles. Initial state is rendered straight into the
+   x-data call from the server context. ``@keydown.window`` routes
+   every grading keystroke (0-3 / s / j-k / ⌘⏎ / b-c) into the
+   component; ``:class`` reflects the blind/compare signals onto the
+   body so eval.css's .ev-blind / .ev-compare rules engage. #}
 <body class="ev-app"
       data-locale="{{ locale or 'pt_BR' }}"
       data-grader="{{ grader_name or 'anon' }}"
       data-run-id="{{ run_id }}"
-      data-token="{{ token or '' }}">
+      data-token="{{ token or '' }}"
+      x-data="evalApp({ row: {{ current_row if (current_row is defined and current_row is not none) else 0 }}, blind: {{ 'true' if blind_mode else 'false' }}, compare: {{ 'true' if compare_mode else 'false' }} })"
+      :class="{ 'ev-blind': blind, 'ev-compare': compare }"
+      @keydown.window="onKey($event)">
 
   {# ── Admin strip ─────────────────────────────────────────────────── #}
   <div class="ev-admin">
@@ -109,6 +119,12 @@
       <span>v1.0.0</span>
     </div>
   </footer>
+
+  {# Toast host — the eval shell is standalone (does not extend
+     base.html), so it mounts its own #toast-root. eval.js's
+     grade-failure / query-complete toasts route through the shared
+     ToastBus + Alpine.store('toasts') and now render here. #}
+  {% include "partials/_toast_host.html" %}
 
 </body>
 </html>

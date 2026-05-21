@@ -8,8 +8,10 @@
 
    Filter tabs (All / Pending / Conflict) carry counts from the context.
    Toggles (Blind mode / Compare annotator) sit at the bottom and use
-   the .swt switch primitive defined in eval.css. The Task-32 keyboard
-   router will read the data-toggle attributes to flip these. #}
+   the .swt switch primitive defined in eval.css. The checkboxes are
+   x-model-bound to the evalApp component's blind / compare signals
+   (eval.js); the keyboard router (B / C) flips the same signals, so
+   keypress and click stay in sync. #}
 <aside class="ev-lp">
   <div class="head">
     <span>{{ _('Queue') }}</span>
@@ -65,13 +67,13 @@
     {% endfor %}
   </div>
   <div class="controls">
-    <label class="toggle{% if blind_mode %} on{% endif %}">
-      <input type="checkbox" data-toggle="blind"{% if blind_mode %} checked{% endif %}>
+    <label class="toggle" :class="{ on: blind }">
+      <input type="checkbox" x-model="blind">
       <span>{{ _('Blind mode') }}</span>
       <span class="swt"></span>
     </label>
-    <label class="toggle{% if compare_mode %} on{% endif %}">
-      <input type="checkbox" data-toggle="compare"{% if compare_mode %} checked{% endif %}>
+    <label class="toggle" :class="{ on: compare }">
+      <input type="checkbox" x-model="compare">
       <span>{{ _('Compare annotator') }}</span>
       <span class="swt"></span>
     </label>
