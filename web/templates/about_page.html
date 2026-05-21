@@ -20,6 +20,13 @@
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/main.css') }}">
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/fx.css') }}">
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/about.css') }}">
+    {# Alpine.js — required because the modal's close handlers
+       (@click on the X / footer button, @click.self on the overlay,
+       @keydown.escape.window) are Alpine directives. mojica.js is
+       intentionally omitted: this page has no help overlay, palette,
+       or HTMX surfaces, so the toast bus + keyboard router would just
+       register stores no markup reads. #}
+    <script src="{{ request.url_for('static', path='js/alpine.min.js') }}" defer></script>
 </head>
 <body class="fx-app" data-active-tab="about" data-locale="{{ locale }}">
 {# A live ``#modal-container`` is still rendered so the modal's onclick

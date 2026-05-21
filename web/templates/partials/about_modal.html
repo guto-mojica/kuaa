@@ -14,14 +14,30 @@
     ``build_date``, ``stats``, ``models``, ``stack``, ``credits``,
     ``mosaic_keyframes``. See that module's docstring for the shape.
 
-    Close behaviour: clicking the overlay (NOT the modal) or the close
-    buttons empties ``#modal-container``, matching the legacy modal's
-    behaviour and the htmx swap target on the About link in base.html.
+    Close behaviour: clicking the overlay (NOT the modal), the X
+    button, the footer "Close" button, or pressing Esc empties
+    ``#modal-container``, matching the legacy modal's behaviour and
+    the htmx swap target on the About link in base.html.
+
+    The close logic is hosted in an Alpine ``x-data`` scope on the
+    outer ``.ab-app`` element:
+      * ``close()`` empties ``#modal-container``, which removes this
+        modal from the DOM (and on /about, the page's own listener
+        notices the empty container and bounces to "/").
+      * ``@click.self`` on .ab-overlay replaces the previous
+        ``onclick="event.stopPropagation()"`` on .ab-modal — clicks on
+        the modal target a descendant, never .ab-overlay itself, so
+        ``.self`` filters them out without the stopPropagation hack.
+      * ``@keydown.escape.window`` adds the Esc shortcut the X button's
+        tooltip already promises; the old inline-onclick path never had
+        a key handler.
 -#}
 {% from "partials/_icons.html" import icon %}
 
 <div class="ab-app" id="about"
-     role="dialog" aria-modal="true" aria-labelledby="about-title">
+     role="dialog" aria-modal="true" aria-labelledby="about-title"
+     x-data="{ close() { document.getElementById('modal-container').innerHTML = '' } }"
+     @keydown.escape.window="close()">
     {# ── Atmospheric backdrop ────────────────────────────────────────
        Up to 24 keyframes harvested from the library; falls back to a
        flat background when no library exists yet (the .tile loop just
@@ -36,14 +52,13 @@
         <div class="grain"></div>
     </div>
 
-    <div class="ab-overlay"
-         onclick="document.getElementById('modal-container').innerHTML=''">
-        <div class="ab-modal" role="document" onclick="event.stopPropagation()">
+    <div class="ab-overlay" @click.self="close()">
+        <div class="ab-modal" role="document">
 
             {# ── HEADER ────────────────────────────────────────────── #}
             <div class="ab-head">
                 <button class="close" type="button"
-                        onclick="document.getElementById('modal-container').innerHTML=''"
+                        @click="close()"
                         aria-label="{{ _('Close') }}"
                         title="{{ _('Close') }} · Esc">×</button>
 
@@ -169,7 +184,7 @@
                 </div>
                 <div class="r">
                     <button class="ghost-btn" type="button"
-                            onclick="document.getElementById('modal-container').innerHTML=''">
+                            @click="close()">
                         {{ _('Close') }}
                     </button>
                 </div>
