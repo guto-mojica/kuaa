@@ -354,7 +354,7 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
     ctx.frames_dir.mkdir(parents=True, exist_ok=True)
     ctx.embeddings_dir.mkdir(parents=True, exist_ok=True)
 
-    pipeline = CatalogPipeline(cfg, ctx=ctx)
+    pipeline = CatalogPipeline(cfg, slug=slug)
 
     by_name: dict[str, StepInfo] = {s.name: s for s in job.steps}
 
