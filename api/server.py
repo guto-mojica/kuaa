@@ -128,6 +128,9 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     # base value here; that override is intended, not a bug.
     if active_tab == "search":
         tab_ctx = search.build_search_context(current_slug)
+    elif active_tab == "scenes" and current_slug:
+        from api.services.catalog import build_scenes_context
+        tab_ctx = build_scenes_context(FilmContext.for_film(cfg, current_slug))
     else:
         tab_ctx = _TAB_CONTEXT_BUILDERS[active_tab]()
     return templates.TemplateResponse(
