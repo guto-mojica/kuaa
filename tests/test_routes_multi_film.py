@@ -15,6 +15,7 @@ All tests run without a real CLIP model (no index seeded) so the
 search assertions focus on the no-index graceful-degradation path.
 Search-with-real-index coverage lives in test_multi_film_search.py.
 """
+
 from __future__ import annotations
 
 import json
@@ -23,6 +24,7 @@ from pathlib import Path
 import pytest
 
 # ── Two-film fixture helpers ──────────────────────────────────────────────────
+
 
 def _seed_film(library_dir: Path, slug: str, title: str, scene_ids: list[int]) -> None:
     """Register a film and create its per-film directory layout.
@@ -78,26 +80,44 @@ def two_film_client(tmp_config, monkeypatch, client):
 
 # ── Scenes aggregate / per-film ──────────────────────────────────────────────
 
+
 class TestScenesRouteMultiFilm:
-    """``/tab/scenes`` and ``/api/scenes`` dispatch on ``?film=``."""
+    """``/tab/scenes`` and ``/api/scenes`` dispatch on ``?film=``.
+
+    Task 15 (Mojica) swapped the legacy ``<p>N scenes</p>`` count line
+    for the ``.countrow`` markup with the total in a ``<span class="v">``
+    span followed by the localised ``scenes`` label. These tests pin
+    the same scene-count contract on the new structure: the count
+    appears as the value-span content and the per-film group's
+    ``match_count`` displays as ``<span class="ct">N / M</span>``.
+    """
 
     def test_tab_scenes_aggregate_includes_both_films(self, two_film_client):
         r = two_film_client.get("/tab/scenes")
         assert r.status_code == 200, r.text[:300]
         # Both films have scenes → no-data state must be absent.
         assert "No scenes found" not in r.text
-        # The scenes grid shows cards from both films.
-        assert "5 scenes" in r.text
+        # New countrow: total scenes in the value-span. 5 = 3 (film_a) + 2 (film_b).
+        assert '<span class="v">5</span>' in r.text
+        # Both per-film group headings appear (one each for film_a / film_b).
+        assert "Film A" in r.text
+        assert "Film B" in r.text
 
     def test_tab_scenes_per_film_a_filters(self, two_film_client):
         r = two_film_client.get("/tab/scenes?film=film_a")
         assert r.status_code == 200, r.text[:300]
-        assert "3 scenes" in r.text
+        # Only film_a's 3 scenes are present in the countrow total.
+        assert '<span class="v">3</span>' in r.text
+        assert "Film A" in r.text
+        # film_b's heading must not appear in the per-film view.
+        assert "Film B" not in r.text
 
     def test_tab_scenes_per_film_b_filters(self, two_film_client):
         r = two_film_client.get("/tab/scenes?film=film_b")
         assert r.status_code == 200, r.text[:300]
-        assert "2 scenes" in r.text
+        assert '<span class="v">2</span>' in r.text
+        assert "Film B" in r.text
+        assert "Film A" not in r.text
 
     def test_tab_scenes_unknown_slug_raises(self, two_film_client):
         """Unknown slug → FilmContext.for_film raises ValueError.
@@ -112,14 +132,27 @@ class TestScenesRouteMultiFilm:
 
 
 class TestScenesGridAggregate:
-    """/api/scenes (no ?film=) uses the aggregate grid path."""
+    """/api/scenes (no ?film=) uses the aggregate grid path.
+
+    Task 15 (Mojica): the grid partial renders ``.group`` headings +
+    ``.scenecard`` articles; the legacy ``<p>N scenes</p>`` count line
+    is gone. The countrow lives in ``scenes.html`` (the toolbar parent
+    template); the grid fragment only renders the per-group
+    ``<span class="ct">N / M</span>`` badges + the cards themselves.
+    These tests pin the count via the group badge + the explicit
+    ``data-scene-id`` attributes that uniquely identify each card.
+    """
 
     def test_aggregate_grid_returns_all_scenes(self, two_film_client):
         """No slug → all 5 scenes from both films are returned."""
         r = two_film_client.get("/api/scenes")
         assert r.status_code == 200, r.text[:300]
-        # film_a has 3 scenes, film_b has 2 → 5 cards total.
-        assert "5 scenes" in r.text
+        # film_a has 3 scenes, film_b has 2 → both groups appear with
+        # their respective match counts (``<span class="ct">N / M</span>``).
+        assert "Film A" in r.text
+        assert "Film B" in r.text
+        assert ">3 / 3</span>" in r.text
+        assert ">2 / 2</span>" in r.text
         # Cards from both films appear: scene IDs 1-3 from film_a (scene_id
         # 1, 2, 3) and 4-5 from film_b → check several scene-card ids.
         assert 'data-scene-id="1"' in r.text
@@ -128,7 +161,8 @@ class TestScenesGridAggregate:
     def test_per_film_grid_filters_to_film_a(self, two_film_client):
         r = two_film_client.get("/api/scenes", params={"film": "film_a"})
         assert r.status_code == 200, r.text[:300]
-        assert "3 scenes" in r.text
+        assert "Film A" in r.text
+        assert ">3 / 3</span>" in r.text
         # scene_ids 4 and 5 belong to film_b and must be absent.
         assert 'data-scene-id="4"' not in r.text
         assert 'data-scene-id="5"' not in r.text
@@ -136,7 +170,8 @@ class TestScenesGridAggregate:
     def test_per_film_grid_filters_to_film_b(self, two_film_client):
         r = two_film_client.get("/api/scenes", params={"film": "film_b"})
         assert r.status_code == 200, r.text[:300]
-        assert "2 scenes" in r.text
+        assert "Film B" in r.text
+        assert ">2 / 2</span>" in r.text
         # scene_ids 1-3 belong to film_a and must be absent.
         assert 'data-scene-id="1"' not in r.text
 
@@ -145,8 +180,10 @@ class TestScenesGridAggregate:
         all scenes, so ?tags=outdoor should return all 5 scenes."""
         r = two_film_client.get("/api/scenes", params={"tags": "outdoor"})
         assert r.status_code == 200, r.text[:300]
-        # outdoor tag matches all scenes in both films → still 5 scenes.
-        assert "5 scenes" in r.text
+        # outdoor tag matches all scenes in both films → both groups still
+        # appear at full match count.
+        assert ">3 / 3</span>" in r.text
+        assert ">2 / 2</span>" in r.text
 
     def test_current_slug_no_crash_on_aggregate(self, two_film_client):
         """Aggregate /api/scenes (no film param) must return 200 without crash.
@@ -166,6 +203,7 @@ class TestScenesGridAggregate:
 
 # ── Library filter ────────────────────────────────────────────────────────────
 
+
 class TestLibraryFilterMultiFilm:
     """``/api/library/filter`` lists all films; ``?q=`` narrows."""
 
@@ -184,6 +222,7 @@ class TestLibraryFilterMultiFilm:
 
 # ── Search no-index graceful degradation ─────────────────────────────────────
 
+
 class TestSearchRouteMultiFilm:
     """``/api/search`` dispatches on ``?film=``.
 
@@ -192,17 +231,13 @@ class TestSearchRouteMultiFilm:
     Full search-with-real-index coverage is in test_multi_film_search.py.
     """
 
-    def test_api_search_aggregate_no_index_degrades_gracefully(
-        self, two_film_client
-    ):
+    def test_api_search_aggregate_no_index_degrades_gracefully(self, two_film_client):
         r = two_film_client.get("/api/search", params={"q": "outdoor"})
         assert r.status_code == 200, r.text[:300]
         # No index → the no-index hint is rendered, no 500.
         assert "No search index found" in r.text
 
-    def test_api_search_per_film_no_index_degrades_gracefully(
-        self, two_film_client
-    ):
+    def test_api_search_per_film_no_index_degrades_gracefully(self, two_film_client):
         r = two_film_client.get("/api/search", params={"q": "outdoor", "film": "film_a"})
         assert r.status_code == 200, r.text[:300]
         assert "No search index found" in r.text

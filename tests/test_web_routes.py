@@ -667,3 +667,72 @@ class TestProcessingSplitFilterCrash:
         assert "stepper" in html
         assert "progress-fill" in html
         assert "stepper__item--active" in html
+
+
+# ── Group 1h: Cenas tab — Mojica redesign (Task 15) ───────────────────────────
+#
+# Task 15 rewrites ``scenes.html`` + ``scenes_grid.html`` onto the new
+# ``.c-cp + .toolrow + .countrow + .scenecard`` markup with film-grouped
+# sections. The three tests below pin (1) the toolrow / countrow / grid
+# scaffolding on the full-page route, (2) the grouped grid markup when
+# seeded data exists, and (3) the ``tipo_of`` classifier contract.
+
+
+def test_scenes_tab_renders_toolbar_and_countrow(client):
+    """``/scenes`` renders the .c-cp scaffolding (toolrow + countrow + grid).
+
+    On an empty library the partial routes through the ``no_data``
+    branch which renders the empty-state hint inside the .c-cp wrapper,
+    so the outer ``class="c-cp"`` marker is the only stable smoke
+    signal. The seeded variant below pins the toolrow + countrow +
+    grid in their non-empty state.
+    """
+    r = client.get("/scenes")
+    assert r.status_code == 200, r.text[:500]
+    html = r.text
+    assert 'class="c-cp"' in html
+    # Empty state still uses the .c-cp shell so the parity smoke holds.
+    assert 'class="scene-card"' not in html, "legacy markup leaked into Mojica grid"
+
+
+def test_scenes_grid_groups_by_film(client, seed_metadata):
+    """Seeded data populates the toolrow / countrow / grouped grid.
+
+    The fixture registers slug ``"default"`` with two scenes (351, 352);
+    the grid must render one ``.group`` heading and at least one
+    ``.scenecard`` article inside the ``#scenes-grid`` swap target.
+    """
+    seed_metadata()
+    r = client.get("/scenes")
+    assert r.status_code == 200, r.text[:500]
+    html = r.text
+    # Outer .c-cp shell.
+    assert 'class="c-cp"' in html
+    # Toolrow + .find input contract.
+    assert 'class="toolrow"' in html
+    assert 'class="find"' in html
+    assert 'hx-get="/api/scenes"' in html
+    # Countrow with totals.
+    assert 'class="countrow"' in html
+    # Grouped grid: one .group heading + at least one .scenecard.
+    assert 'id="scenes-grid"' in html
+    assert 'class="group"' in html
+    assert "Default Film" in html
+    assert 'class="scenecard"' in html
+    # Tipo pill carries one of the canonical tipo CSS variables.
+    assert "var(--c-cat-" in html
+    # And the legacy v0.3 marker is gone from the swap target.
+    assert 'class="scene-card"' not in html
+
+
+def test_tipo_classifier_unit():
+    """``tipo_of`` returns the documented bucket for each tag pattern."""
+    from api.services.scenes_service import tipo_of
+
+    assert tipo_of(["cartela", "title-card"], None) == "cartela"
+    assert tipo_of(["interior", "baixa-luz"], None) == "interior"
+    assert tipo_of(["exterior", "rural"], None) == "exterior"
+    assert tipo_of(["duas-pessoas"], None) == "dialogo"
+    assert tipo_of([], None) == "transicao"
+    # Description-driven cartela fallback (no matching tag).
+    assert tipo_of([], "title sequence") == "cartela"

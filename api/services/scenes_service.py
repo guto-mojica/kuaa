@@ -44,9 +44,11 @@ from types import SimpleNamespace
 from typing import Any
 
 from api.services.catalog import (
+    build_cards,
     derive_fps,
     keyframe_url,
     load_json,
+    load_metadata,
     load_tag_index,
     to_smpte,
 )
@@ -56,6 +58,48 @@ logger = logging.getLogger(__name__)
 
 # Valid right-pane tabs; any other value falls back to ``activity``.
 _VALID_TABS = ("activity", "annotations", "properties")
+
+# Allowed ``tipo`` values — paired with the ``--c-cat-<tipo>`` CSS
+# variables in ``web/static/css/main.css`` that colour the scene-card
+# pill background. Keep in sync with that CSS block.
+_TIPOS = ("cartela", "dialogo", "exterior", "interior", "transicao")
+
+
+def tipo_of(tags: list[str], description: str | None) -> str:
+    """Classify a scene into one of the Mojica tipo buckets.
+
+    The Cenas-tab scene-card pill is coloured by ``--c-cat-<tipo>``;
+    this classifier picks the bucket from the LLM/manual tag list and
+    (as a soft fallback) the moondream description. Order matters —
+    earlier branches win when a scene has tags that match multiple
+    rules:
+
+      1. ``cartela`` — opening/closing title cards. Any of the
+         ``cartela`` / ``title-card`` / ``white-writing`` tags, or the
+         word "title" in the description.
+      2. ``interior`` — any ``interior`` or ``baixa-luz`` tag.
+      3. ``exterior`` — exact ``exterior`` tag (LLM canonical) or any
+         ``rural``-prefixed tag.
+      4. ``dialogo`` — two-person framing / dialogue tags.
+      5. ``transicao`` — default for everything else.
+
+    Used by ``_card_to_scene`` when assembling a ``groups_by_film``
+    entry for the Cenas grid template. The values pair with the
+    ``--c-cat-<tipo>`` CSS variables; new values added here MUST land
+    a matching CSS variable in ``main.css`` first.
+    """
+    desc = (description or "").lower()
+    if "title" in desc or any(
+        "white-writing" in t or "cartela" in t or "title-card" in t for t in tags
+    ):
+        return "cartela"
+    if any("interior" in t or "baixa-luz" in t for t in tags):
+        return "interior"
+    if "exterior" in tags or any("rural" in t for t in tags):
+        return "exterior"
+    if any("duas-pessoas" in t or "dialogo" in t for t in tags):
+        return "dialogo"
+    return "transicao"
 
 
 def _resolve_tab(tab: str | None) -> str:
@@ -454,4 +498,289 @@ def build_timeline_context(
         "selected_scene": selected_scene,
         "film_match_n": film_match_n,
         "query": query,
+    }
+
+
+# ── Cenas grid (.c-cp) — Task 15 ──────────────────────────────────────────────
+
+
+def _format_runtime_hm(seconds: float | None) -> str:
+    """Return ``"Xh Ym"`` for the countrow runtime summary.
+
+    Empty / non-positive durations collapse to ``"—"`` (em-dash) so the
+    countrow's ``<span class="v">`` renders a typographic placeholder
+    instead of ``0h 0m``. Used by both the per-film ``runtime_tc`` and
+    the library-wide ``total_runtime_str``.
+    """
+    if not seconds or seconds <= 0:
+        return "—"  # em-dash
+    s = int(round(seconds))
+    hh = s // 3600
+    mm = (s % 3600) // 60
+    if hh == 0:
+        return f"{mm}m"
+    return f"{hh}h {mm:02d}m"
+
+
+def _last_end_time_s(kf_meta: list) -> float:
+    """Return the last positive ``end_time_s`` across a scene list.
+
+    Used to derive a per-film runtime estimate (the actual video may
+    extend a few seconds past the last detected scene, but for the
+    countrow's coarse summary this is indistinguishable from the truth).
+    Returns ``0.0`` when no entry exposes a positive end time.
+    """
+    for entry in reversed(kf_meta):
+        try:
+            end = float(entry.get("end_time_s") or 0.0)
+        except (TypeError, ValueError):
+            continue
+        if end > 0:
+            return end
+    return 0.0
+
+
+def _film_for_grid(film: Any, kf_meta: list) -> SimpleNamespace:
+    """Wrap a ``Film`` in a namespace exposing the grid template's attrs.
+
+    The ``Film`` dataclass has no ``director`` / ``runtime_tc`` /
+    ``director_last`` fields (see ``cinemateca.library.Film``), but the
+    grid template reads all three. Rather than widen the dataclass for
+    presentational concerns, this returns a ``SimpleNamespace`` that:
+
+      * mirrors the registered slug / title / year / scene_count;
+      * derives ``runtime_tc`` from the film's keyframe metadata;
+      * exposes ``director`` / ``director_last`` (both empty today —
+        the registry does not store a director field).
+
+    If/when the registry gains a director column, populate it here and
+    the template picks it up without further changes.
+    """
+    runtime_s = _last_end_time_s(kf_meta) if kf_meta else 0.0
+    runtime_tc = _format_runtime_hm(runtime_s)
+    # Director is not in films.json today; reserved for a future
+    # metadata extension. Empty strings collapse the ``· {director}``
+    # span in the template via its ``{% if group.film.director %}`` guard.
+    director = ""
+    director_last = ""
+    return SimpleNamespace(
+        slug=film.slug,
+        title=film.title,
+        year=film.year,
+        scene_count=film.scene_count if film.scene_count else len(kf_meta),
+        director=director,
+        director_last=director_last,
+        runtime_tc=runtime_tc,
+        runtime_s=runtime_s,
+    )
+
+
+def _card_to_scene(card: dict) -> dict:
+    """Convert a catalog ``build_cards`` dict to the grid template's scene shape.
+
+    Adds the keys the new template reads (``id``, ``slug``, ``tipo``,
+    ``pin_count``, ``version``, ``keyframe_url``) while preserving the
+    original ``scene_id`` / ``timecode`` keys so any downstream code that
+    still consumes the catalog shape keeps working.
+
+    ``slug`` here is the *scene* slug shown on the card body (e.g.
+    ``"scene 351"``) — distinct from the *film* slug carried by the
+    enclosing group. Without a stable scene-slug source in the metadata
+    today it falls back to ``f"scene {scene_id}"``; later phases can
+    swap in a curated scene title (e.g. from a description's first
+    clause) without touching the template.
+    """
+    sid = card.get("scene_id")
+    try:
+        sid_int = int(sid) if sid is not None else 0
+    except (TypeError, ValueError):
+        sid_int = 0
+    return {
+        "id": sid_int,
+        "scene_id": sid_int,
+        "slug": f"scene {sid_int}",
+        "keyframe_url": card.get("img_url") or "",
+        "timecode": card.get("timecode") or "",
+        "tipo": tipo_of(
+            list(card.get("all_tags") or card.get("tags") or []),
+            card.get("full_description") or card.get("description") or "",
+        ),
+        "pin_count": int(card.get("pin_count") or 0),
+        # ``version`` (V1/V2) is reserved for the multi-cut workflow
+        # that lands in a later plan; the template hides the ``.ver``
+        # pill when this is falsy.
+        "version": card.get("version") or None,
+    }
+
+
+def _build_groups_by_film(
+    cfg: Any,
+    *,
+    tags: list[str],
+    keyword: str,
+    slug: str | None = None,
+) -> tuple[list[dict], list[Any], int, float, set[str]]:
+    """Walk the library and produce the ``groups_by_film`` template payload.
+
+    Returns a tuple ``(groups, films, total_scenes, total_runtime_s,
+    all_tags)`` where:
+
+      * ``groups`` is the ordered list of ``{"film": SimpleNamespace,
+        "scenes": [scene_dict, ...], "match_count": int}`` dicts the
+        template iterates on. Films with zero matching scenes after
+        ``tags`` / ``keyword`` filtering are dropped (the heading would
+        otherwise sit above an empty card area).
+      * ``films`` is the raw ``list[Film]`` from ``scan_library``,
+        kept around for the countrow's ``film_count``.
+      * ``total_scenes`` counts cards across all films *post-filter*
+        — it is the same number the toolrow's ``Filters`` pip + the
+        countrow's ``scenes`` slot display.
+      * ``total_runtime_s`` is the sum of per-film runtimes, also used
+        only by the countrow.
+      * ``all_tags`` is the union of normalized tag-index keys, kept
+        as the legacy ``available_tags`` value for backwards-compat
+        (the tag-filter UI moves to the right pane in a later task but
+        the legacy filter must keep working).
+    """
+    from cinemateca.library import scan_library
+
+    library_dir = Path(cfg.paths.library_dir)
+    groups: list[dict] = []
+    films: list[Any] = []
+    total_scenes = 0
+    total_runtime_s = 0.0
+    all_tags: set[str] = set()
+
+    # Per-film slug filter (sidebar-driven): only render the matching
+    # film's group. The aggregate path still walks the whole library so
+    # the empty-state hint stays accurate when the registered slug has
+    # no on-disk metadata. ``ValueError`` from ``FilmContext.for_film``
+    # surfaces to the caller (matches the legacy contract — the routes
+    # use it to 4xx unknown slugs in HTMX-fetch paths).
+    all_films = list(scan_library(library_dir))
+    if slug is not None:
+        if not any(f.slug == slug for f in all_films):
+            # Trigger the same ValueError the legacy single-film path
+            # produced via ``FilmContext.for_film(cfg, slug)``. Tests
+            # pin this contract (``test_tab_scenes_unknown_slug_raises``).
+            FilmContext.for_film(cfg, slug)
+        all_films = [f for f in all_films if f.slug == slug]
+
+    for film in all_films:
+        films.append(film)
+        try:
+            ctx = FilmContext.for_film(cfg, film.slug)
+        except ValueError:
+            # Slug registered but disk layout missing — skip cleanly.
+            continue
+        kf_meta, desc_by_scene, vis_by_scene, tag_index = load_metadata(ctx.metadata_dir)
+        all_tags.update(tag_index.keys())
+        cards = build_cards(
+            kf_meta,
+            desc_by_scene,
+            vis_by_scene,
+            tag_index,
+            ctx.data_dir,
+            tags,
+            keyword,
+        )
+        if not cards:
+            # Per-film empty result after filtering — don't emit a
+            # heading the user can't drill into.
+            continue
+        scenes = [_card_to_scene(c) for c in cards]
+        film_ns = _film_for_grid(film, kf_meta)
+        total_scenes += len(scenes)
+        total_runtime_s += film_ns.runtime_s
+        groups.append(
+            {
+                "film": film_ns,
+                "scenes": scenes,
+                "match_count": len(scenes),
+            }
+        )
+
+    return groups, films, total_scenes, total_runtime_s, all_tags
+
+
+def build_cenas_context(
+    cfg: Any,
+    *,
+    tags: list[str] | None = None,
+    keyword: str = "",
+    selected_scene_id: int | None = None,
+    slug: str | None = None,
+) -> dict:
+    """Return the full Cenas-tab template context.
+
+    Powers the ``/scenes`` full-page route and the ``/tab/scenes``
+    fragment. The context shape matches what the new
+    ``partials/scenes.html`` consumes:
+
+      * ``groups_by_film`` — ordered list of per-film groups,
+      * ``selected_scene_id`` — id of the card to mark ``.sel``,
+      * ``total_scenes`` / ``film_count`` / ``total_runtime_str`` /
+        ``total_keyframes_size`` — countrow summary,
+      * ``visible_field_count`` / ``active_filter_count`` — toolrow pips,
+      * ``no_data`` — true when no card was produced across all films,
+        so the partial can render the empty-state hint instead of an
+        empty grid (and the parity test against ``/tab/scenes`` keeps
+        matching),
+      * ``available_tags`` — union of normalized tag-index keys, kept
+        for backwards-compat with legacy tag-filter callers,
+      * ``cards`` — legacy flat-list shape retained so any code still
+        reading ``ctx["cards"]`` (catalog tests, etc.) keeps working
+        until Phase 3 cleanup removes the field.
+
+    Aggregate-only (no per-film slug branch): the Cenas redesign always
+    renders the library-wide grouped grid; the legacy per-film view
+    falls out as a sidebar selection that filters the same grid in a
+    later task. Until then, slug-aware callers can still apply
+    keyword / tag filters via the existing ``build_scenes_grid`` path.
+    """
+    tags = list(tags or [])
+    keyword = keyword or ""
+    (
+        groups,
+        films,
+        total_scenes,
+        total_runtime_s,
+        all_tags,
+    ) = _build_groups_by_film(cfg, tags=tags, keyword=keyword, slug=slug)
+
+    # Flat cards list — preserves the legacy context key so older
+    # template includes and tests that read ``cards`` directly do not
+    # break during the transition. Pulls from each group's scenes so
+    # the keyword/tag filter applied above is honoured.
+    flat_cards: list[dict] = []
+    for group in groups:
+        slug = group["film"].slug
+        for s in group["scenes"]:
+            flat_cards.append({**s, "film_slug": slug})
+
+    return {
+        "groups_by_film": groups,
+        "selected_scene_id": selected_scene_id,
+        "total_scenes": total_scenes,
+        "film_count": len(groups),
+        "total_runtime_s": total_runtime_s,
+        "total_runtime_str": _format_runtime_hm(total_runtime_s),
+        # The keyframes-on-disk size is not summed today (would require
+        # ``os.stat`` per keyframe — O(scenes) syscalls on every page
+        # load). Em-dash placeholder until a cheap, cached source lands.
+        "total_keyframes_size": "—",
+        # Toolrow pip placeholders. The "fields" control isn't wired
+        # today (the card layout is fixed) but the pip needs a number
+        # for the template literal; 2 is the count of currently-visible
+        # fields (name + tipo). The filter count reflects active tag
+        # filters the legacy callers still pass.
+        "visible_field_count": 2,
+        "active_filter_count": len(tags),
+        "no_data": total_scenes == 0,
+        "available_tags": sorted(all_tags),
+        "cards": flat_cards,
+        # Echo back the active query so a re-render preserves the input
+        # value on full-page navigation (and the inspector route can
+        # plumb it through later if needed).
+        "query": keyword,
     }

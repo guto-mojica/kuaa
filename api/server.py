@@ -17,10 +17,9 @@ from fastapi.staticfiles import StaticFiles
 from api.deps import get_config, make_ctx
 from api.routes import about, annotate, export, library, processing, scenes, search, tabs
 from api.services.annotations import build_annotate_context
-from api.services.catalog import build_scenes_context_aggregate
 from api.services.chrome_service import build_chrome_context
 from api.services.film_context import FilmContext
-from api.services.scenes_service import build_timeline_context
+from api.services.scenes_service import build_cenas_context, build_timeline_context
 from api.templates import templates
 
 logger = logging.getLogger(__name__)
@@ -75,11 +74,16 @@ _TAB_CONTEXT_BUILDERS = {
     # slug-aware (per-film vs aggregate tag vocabulary), so render_page
     # calls ``search.build_search_context(current_slug)`` directly after
     # parsing ``?film=<slug>``.
-    # Full-page /scenes uses the same aggregate builder as /tab/scenes (no slug
-    # → aggregate across all films). Previously used FilmContext.from_config
-    # which reads the FLAT metadata_dir, breaking Phase-1a parity with the
-    # HTMX tab path after T9 introduced library-tree routing.
-    "scenes": lambda: build_scenes_context_aggregate(get_config()),
+    # Full-page /scenes uses the same Cenas (Mojica) builder as /tab/scenes
+    # (no slug → library-wide grouped grid). Task 15 swapped the legacy
+    # ``build_scenes_context_aggregate`` (flat ``cards`` list) for
+    # ``build_cenas_context`` (``groups_by_film`` + countrow + toolrow
+    # context) so the full-page render produces the same .c-cp markup
+    # the new partial expects. ``?scene=<id>`` deep-link parsing is the
+    # HTMX-route's job (``api/routes/scenes._parse_selected_scene_id``);
+    # the full-page render leaves ``selected_scene_id`` as the builder's
+    # default ``None``.
+    "scenes": lambda: build_cenas_context(get_config()),
     # Annotate stays single-film (from_config) intentionally: an aggregate
     # annotate view (write-path, scene-by-scene editing across all films) is
     # deferred to a later plan (T9 docstring). /tab/annotate with slug=None also

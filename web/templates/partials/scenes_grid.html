@@ -1,60 +1,83 @@
-{% if not cards %}
-<p class="text-muted scenes-count">{{ _("No scenes match the filters.") }}</p>
+{# ── Mojica Cenas grid — Task 15 ──────────────────────────────────────────
+   Renders the ``groups_by_film`` payload as the .group/.scenecard markup
+   the new ``.c-cp .grid`` lays out. The legacy flat-cards rendering
+   (``cards`` list with ``.scene-card`` markup) is removed; any caller
+   still passing the old shape gets an empty grid + the empty-state hint
+   from ``scenes.html``'s outer ``no_data`` guard.
+
+   Context shape consumed (all populated by
+   :func:`api.services.scenes_service.build_cenas_context`):
+
+     * ``groups_by_film`` — list of:
+         {
+             "film":       SimpleNamespace(slug, title, year, scene_count,
+                                           director, director_last,
+                                           runtime_tc, runtime_s),
+             "scenes":     [scene_dict, ...],
+             "match_count": int,
+         }
+     * ``selected_scene_id`` — int or None; the scenecard whose
+       ``s.id`` matches gets the ``.sel`` class for the right-pane
+       inspector parity highlight.
+
+   Each scene_dict carries:
+     ``id`` / ``scene_id`` (int), ``slug`` (display name shown on the
+     card body), ``keyframe_url`` (str, may be empty), ``timecode``
+     (str), ``tipo`` (one of cartela/dialogo/exterior/interior/transicao
+     — paired with ``--c-cat-<tipo>`` CSS variables), ``pin_count``
+     (int), ``version`` (str | None).
+
+   Clicking a scenecard hx-GETs the Buscar inspector endpoint (Task 12)
+   into ``#right-pane``; the Cenas-specific inspector partial lands in
+   Task 16 — until then the Buscar inspector is reused (same scene
+   selection, same backend lookup) which is a deliberate intermediate
+   state documented in the plan.
+#}
+{% from "partials/_icons.html" import icon %}
+{% if not groups_by_film %}
+  <div class="empty-state">
+    <p>{{ _("No scenes match the filters.") }}</p>
+  </div>
 {% else %}
-<p class="text-muted scenes-count">{{ cards | length }} {{ _("scenes") }}</p>
-
-{% for card in cards %}
-<div class="scene-card"
-     id="scene-card-{{ card.scene_id }}"
-     data-scene-id="{{ card.scene_id }}">
-
-    {% if card.img_url %}
-    <img class="scene-card__keyframe"
-         src="{{ card.img_url }}"
-         alt="{{ _('Scene') }} {{ card.scene_id }}"
-         loading="lazy">
-    {% else %}
-    <div class="scene-card__keyframe scene-card__keyframe--missing"></div>
-    {% endif %}
-
-    <div class="scene-card__meta">
-        <span class="scene-card__timecode">
-            {%- if card.timecode %}{{ card.timecode }} · {% endif %}{{ _("scene") }} {{ card.scene_id -}}
-        </span>
-        {% if card.environment %}
-        <span class="scene-card__env">{{ card.environment }}</span>
-        {% endif %}
-        {% if card.num_people is not none and card.num_people > 0 %}
-        <span class="scene-card__people">{{ card.num_people }}p</span>
-        {% endif %}
+  {% for group in groups_by_film %}
+    <div class="group">
+      <span class="chev" aria-hidden="true">{{ icon('chev-d', 12) }}</span>
+      <span class="dot" style="background: var(--c-accent);" aria-hidden="true"></span>
+      <span class="name">{{ group.film.title }}</span>
+      <span style="color: var(--c-muted); font-size: 11.5px;">{% if group.film.year %}{{ group.film.year }}{% endif %}{% if group.film.director %} · {{ group.film.director }}{% endif %}</span>
+      <span class="ct">{{ group.match_count }} / {{ group.film.scene_count }}</span>
+      <span class="meta"><span>runtime {{ group.film.runtime_tc }}</span></span>
     </div>
-
-    {% if card.description %}
-    <p class="scene-card__desc">{{ card.description | truncate(90, True, '…') }}</p>
-    {% endif %}
-
-    {% if card.tags %}
-    <div class="scene-card__tags">
-        {% for tag in card.tags %}
-        <span class="tag">{{ tag }}</span>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    <!-- Expanded: full description + all tags. Revealed by .is-selected -->
-    <div class="scene-card__expanded">
-        {% if card.full_description %}
-        <p class="scene-card__full-desc">{{ card.full_description }}</p>
-        {% endif %}
-        {% if card.all_tags %}
-        <div class="scene-card__all-tags">
-            {% for tag in card.all_tags %}
-            <span class="tag">{{ tag }}</span>
-            {% endfor %}
+    {% for s in group.scenes %}
+      {% set tipo = s.tipo or 'transicao' %}
+      <article class="scenecard{% if selected_scene_id is not none and s.id == selected_scene_id %} sel{% endif %}"
+               data-scene-id="{{ s.id }}"
+               hx-get="/api/scenes/{{ s.id }}/inspector?film={{ group.film.slug }}&tab=properties"
+               hx-target="#right-pane"
+               hx-swap="innerHTML"
+               hx-trigger="click">
+        <button type="button" class="check" title="{{ _('Select') }}" aria-label="{{ _('Select') }}">{{ icon('check', 12) }}</button>
+        <div class="kf"{% if s.keyframe_url %} style="background-image: url('{{ s.keyframe_url }}');"{% endif %}>
+          {% if s.pin_count %}<span class="bl"><span class="pin"></span>{{ s.pin_count }}</span>{% endif %}
+          {% if s.timecode %}<span class="br">{{ s.timecode[:8] }}</span>{% endif %}
+          {% if s.version %}<span class="ver">{{ s.version }}</span>{% endif %}
         </div>
-        {% endif %}
-    </div>
-
-</div>
-{% endfor %}
+        <div class="body">
+          <h3 class="name fx-truncate">{{ s.slug }}</h3>
+          <div class="sub">
+            <span class="dot-f" style="background: var(--c-accent);" aria-hidden="true"></span>
+            <span>{{ group.film.director_last or group.film.title }}</span>
+            {% if group.film.year %}<span>· {{ group.film.year }}</span>{% endif %}
+            <span class="acts">
+              <button type="button" class="fx-icbtn sm" title="{{ _('More') }}" aria-label="{{ _('More') }}">{{ icon('more', 14) }}</button>
+            </span>
+          </div>
+          <div class="tipo">
+            <span class="lab">{{ _('TYPE') }}</span>
+            <span class="pill" style="background: var(--c-cat-{{ tipo }}); color: #0E1014; font-weight: 600;">{{ _(tipo|capitalize) }}</span>
+          </div>
+        </div>
+      </article>
+    {% endfor %}
+  {% endfor %}
 {% endif %}
