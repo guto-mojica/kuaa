@@ -10,6 +10,43 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ## [Não lançado]
 
+### Adicionado
+
+- **Mojica · Frame.io redesign** — nova identidade visual (dark frio + acento
+  roxo), chrome de 5 abas (adiciona **Rimas Visuais** para rimas visuais
+  cross-film), abas Buscar/Cenas/Anotar/Proc redesenhadas, nova superfície
+  About e novo Eval set builder atrás de flag admin. UI espelha o protótipo
+  entregue em `claude_design/mojica-cinemateca/`.
+- **Serviço Rimas** — kNN por cosseno cross-film sobre as embeddings CLIP de
+  keyframe já existentes (MVP stub; controles de MMR/diversidade ficam para M3).
+- **Eval set builder** — persistência de notas em JSONL + métricas
+  P@K / nDCG / inversões / κ de Cohen; UI keyboard-first em `/eval`
+  (gated por admin).
+- **Camada de polish** — bus de toasts, command palette (⌘K), overlay de
+  ajuda de teclado (`?`).
+- **Fontes self-hosted** — Geist + JetBrains Mono offline (WOFF2).
+
+### Mudado
+
+- **Design tokens** — troca completa da paleta de Celluloid Amber para o
+  roxo Frame.io.
+- **Split de CSS** — `main.css` foi quebrado em 12 módulos (um por superfície:
+  `fx`, `chrome`, `buscar`, `cenas`, `anotar`, `rimas`, `proc`, `polish`,
+  `about`, `eval`, `fonts` + `main` reduzido a tokens/reset/body).
+- **base.html** — novo layout de shell (TopBar de 52px + IconRail de 56px +
+  LeftPane de 248px + área principal + painel direito opcional).
+- **i18n** — ~280 novos msgids extraídos e traduzidos PT/EN.
+
+### Notas
+
+- Suite de testes: **425 → 546 passando** (baseline → pós-redesign).
+- **32 novos commits** distribuídos em **10 fases** (Tasks 1–36) na branch
+  `worktree-mojica-redesign`.
+- O markup legado `.shell > .sidebar` de v0.3 segue aninhado dentro de
+  `.ch-main` como wrap transicional — o unwrap final do conteúdo das abas
+  (Phase 2 expansion) está adiado; o novo chrome cobre tudo visualmente e
+  nenhuma regressão é exposta ao usuário final.
+
 ---
 
 ## [0.5.0-beta] — 2026-05-20
