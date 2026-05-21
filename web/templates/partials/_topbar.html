@@ -73,7 +73,7 @@
     <span class="div" style="margin: 0 4px;"></span>
 
     {% if viewers and viewers|length > 0 %}
-      <div class="viewers" data-tip="{{ _('%(n)d viewers online', n=viewers|length) }}">
+      <div class="viewers" data-tip="{{ _('%(n)d viewers online') % {'n': viewers|length} }}">
         <div class="stack">
           {% for v in viewers[:3] %}
             <div class="av a{{ loop.index }}">{{ v.initials }}</div>

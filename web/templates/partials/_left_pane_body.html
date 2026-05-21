@@ -61,7 +61,7 @@
           {% endif %}
           <div class="info">
             <span class="arr">↳</span>
-            <span>{{ _('scene %(n)s', n='%03d'|format(sel.scene_id|int)) }}{% if sel.timecode %} · {{ sel.timecode }}{% endif %}</span>
+            <span>{{ _('scene %(n)s') % {'n': '%03d'|format(sel.scene_id|int)} }}{% if sel.timecode %} · {{ sel.timecode }}{% endif %}</span>
           </div>
         </div>
       {% endif %}

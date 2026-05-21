@@ -59,12 +59,14 @@
        itself. #}
     {% set f = films_by_id.get(r.film_slug) %}
     <article class="b-card{% if selected_scene_id is not none and r.scene_id == selected_scene_id %} sel{% endif %}"
+             tabindex="0"
+             role="button"
              data-scene-id="{{ r.scene_id }}"
              data-film-slug="{{ r.film_slug or '' }}"
              hx-get="/api/scenes/{{ r.scene_id }}/inspector{% if r.film_slug %}?film={{ r.film_slug }}{% endif %}"
              hx-target="#right-pane"
              hx-swap="innerHTML"
-             hx-trigger="click">
+             hx-trigger="click, keyup[key=='Enter' || key==' ']">
       <div class="kf"{% if r.img_url %} style="background-image: url('{{ r.img_url }}');"{% endif %}>
         <span class="tl">
           <span class="dot"></span>
