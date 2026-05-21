@@ -198,7 +198,7 @@ def film_ctx(request: Request, cfg=None):
         cfg = get_config()
     slug = request.cookies.get("active_film", "")
     if slug:
-        film_dir = Path(cfg.paths.data_dir).resolve() / "films" / slug
+        film_dir = Path(cfg.paths.library_dir) / slug
         if film_dir.exists():
             return FilmContext.for_film(cfg, slug)
     return FilmContext.from_config(cfg)

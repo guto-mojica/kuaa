@@ -92,18 +92,8 @@ _TAB_CONTEXT_BUILDERS = {
     # this map — their builders are slug-aware (per-film vs aggregate),
     # so render_page calls them directly with ``current_slug`` after
     # parsing ``?film=<slug>``. See the matching ``elif`` branches below.
-    # Annotate stays single-film (from_config) intentionally: an aggregate
-    # annotate view (write-path, scene-by-scene editing across all films) is
-    # deferred to a later plan (T9 docstring). /tab/annotate with slug=None also
-    # uses from_config, so /annotate full-page and /tab/annotate are consistent.
-    # Mojica Task 19: ``annotate_tab="comments"`` defaults the .a-rp htabs
-    # to the Comments tab on full-page renders so the sub-partials' tab
-    # branch is deterministic. The HTMX route reads ``?tab=`` and
-    # overrides this.
-    "annotate": lambda: {
-        **build_annotate_context(FilmContext.from_config(get_config())),
-        "annotate_tab": "comments",
-    },
+    # annotate is handled directly in render_page's if/elif chain so it can
+    # receive current_slug (from ?film= query param or active_film cookie).
     "processing": processing.build_processing_context,
     # Rimas Visuais (cross-film visual rhymes) — Task 21 wires the real
     # service builder. The full-page render reads ``?anchor=`` like the
@@ -156,7 +146,7 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     # building tab_ctx so slug-aware builders (search) can scope their
     # tag vocabulary to the active film, AND before building the chrome
     # context so the LeftPane marks the .ch-film.active row correctly.
-    current_slug = request.query_params.get("film") or None
+    current_slug = request.query_params.get("film") or request.cookies.get("active_film") or None
 
     # Task-8: lift the per-request chrome bag (films, library_state,
     # active_job_slugs/count, total_runtime, collections, viewers, …)
@@ -235,6 +225,16 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
         # concern (the right-pane inspector lives on a separate swap),
         # so ``selected_scene_id`` is left at the builder's default.
         tab_ctx = build_cenas_context(cfg, slug=current_slug)
+    elif active_tab == "annotate":
+        fctx = (
+            FilmContext.for_film(cfg, current_slug)
+            if current_slug
+            else FilmContext.from_config(cfg)
+        )
+        tab_ctx = {
+            **build_annotate_context(fctx),
+            "annotate_tab": "comments",
+        }
     else:
         tab_ctx = _TAB_CONTEXT_BUILDERS[active_tab]()
     # Mojica chrome kwargs (active_tab=PT slug, compact_lp, has_right_pane) are

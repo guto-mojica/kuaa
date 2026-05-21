@@ -20,7 +20,7 @@ import logging
 from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse
 
-from api.deps import film_slug_query, get_config, make_ctx
+from api.deps import film_ctx, film_slug_query, get_config, make_ctx
 from api.services.annotations import (
     build_annotate_context,
     build_scene_panel,
@@ -37,10 +37,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _ctx(slug: str | None = None) -> FilmContext:
+def _ctx(slug: str | None, request: Request | None = None) -> FilmContext:
     cfg = get_config()
     if slug is not None:
         return FilmContext.for_film(cfg, slug)
+    if request is not None:
+        return film_ctx(request, cfg)
     return FilmContext.from_config(cfg)
 
 
@@ -59,7 +61,7 @@ async def tab_annotate(
             request,
             current_slug=slug,
             annotate_tab=normalize_annotate_tab(tab),
-            **build_annotate_context(_ctx(slug), filter, id),
+            **build_annotate_context(_ctx(slug, request), filter, id),
         ),
     )
 
@@ -72,7 +74,7 @@ async def api_annotate_scene(
     tab: str = Query(default="comments"),
     slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
-    ctx = build_scene_panel(_ctx(slug), id, filter)
+    ctx = build_scene_panel(_ctx(slug, request), id, filter)
     return templates.TemplateResponse(
         request,
         "partials/annotate_scene.html",
@@ -95,7 +97,7 @@ async def api_annotate_save(
     tab: str = Form(default="annotations"),
     slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
-    fctx = _ctx(slug)
+    fctx = _ctx(slug, request)
 
     new_tags = normalize_tags(tags)
     ann = load_annotations(fctx)
@@ -127,7 +129,7 @@ async def api_annotate_description_edit(
 ) -> HTMLResponse:
     from api.services.catalog import load_json
 
-    fctx = _ctx(slug)
+    fctx = _ctx(slug, request)
     descriptions = load_json(fctx.metadata_dir / "scene_descriptions.json") or []
     current = next(
         (d.get("description", "") for d in descriptions if d.get("scene_id") == scene_id),
@@ -155,7 +157,7 @@ async def api_annotate_description_save(
     tab: str = Form(default="comments"),
     slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
-    fctx = _ctx(slug)
+    fctx = _ctx(slug, request)
     save_description(fctx, scene_id, description.strip())
     logger.info("Description updated for scene %s", scene_id)
 
@@ -182,7 +184,7 @@ async def api_annotate_clear(
     tab: str = Form(default="annotations"),
     slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
-    fctx = _ctx(slug)
+    fctx = _ctx(slug, request)
 
     ann = load_annotations(fctx)
     ann.pop(str(scene_id), None)
