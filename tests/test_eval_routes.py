@@ -189,3 +189,84 @@ def test_eval_page_with_cookie_token_accepted(client, monkeypatch, tmp_path):
         assert r.status_code != 403
     finally:
         client.cookies.delete("eval_admin")
+
+
+# ── Task 31: standalone 3-pane layout ─────────────────────────────────────────
+
+
+def test_eval_layout_renders_3pane_grid(client, monkeypatch, tmp_path):
+    """The Task-31 standalone shell ships the .ev-app grid + admin
+    strip + header + 3-pane body + footer. None of the Mojica chrome
+    classes leak in (no TopBar / IconRail / LeftPane on the eval
+    surface — it's full-viewport, admin-only)."""
+
+    monkeypatch.setenv("EVAL_ADMIN_TOKEN", "test-token")
+    import api.services.eval_service as eval_service
+
+    monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
+    monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
+
+    r = client.get("/eval?token=test-token")
+    assert r.status_code == 200, r.text
+    html = r.text
+    # Root + four grid rows (admin / top / body / bot).
+    assert 'class="ev-app"' in html
+    assert 'class="ev-admin"' in html
+    assert 'class="ev-top"' in html
+    assert 'class="ev-body"' in html
+    assert 'class="ev-bot"' in html
+    # Stylesheet is loaded on this page only.
+    assert "eval.css" in html
+    # Standalone shell — no Mojica chrome containers.
+    assert "ch-body" not in html
+    assert "ch-rail" not in html
+
+
+def test_eval_queue_pane_present(client, monkeypatch, tmp_path):
+    """The left pane ships filter tabs + toggles even when the run
+    has no queries yet."""
+
+    monkeypatch.setenv("EVAL_ADMIN_TOKEN", "test-token")
+    import api.services.eval_service as eval_service
+
+    monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
+    monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
+
+    r = client.get("/eval?token=test-token")
+    assert r.status_code == 200
+    html = r.text
+    # Left-pane container + filter-tab buttons.
+    assert 'class="ev-lp"' in html
+    assert 'data-filter="todas"' in html
+    assert 'data-filter="pendentes"' in html
+    assert 'data-filter="conflito"' in html
+    # Toggles for blind/compare modes.
+    assert 'data-toggle="blind"' in html
+    assert 'data-toggle="compare"' in html
+
+
+def test_eval_metrics_pane_zero_state(client, monkeypatch, tmp_path):
+    """The right pane renders all four big-metric cards on an empty
+    run with zeroed values (the template must not crash when no
+    grades / no current_query exist)."""
+
+    monkeypatch.setenv("EVAL_ADMIN_TOKEN", "test-token")
+    import api.services.eval_service as eval_service
+
+    monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
+    monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
+
+    r = client.get("/eval?token=test-token")
+    assert r.status_code == 200
+    html = r.text
+    # Right pane container + metric labels (we don't assert exact
+    # values because future locale changes could move them, but the
+    # labels themselves are part of the stable layout contract).
+    assert 'class="ev-rp"' in html
+    assert "PRECISION@5" in html
+    assert "NDCG@5" in html
+    assert "PRECISION@3" in html
+    assert "INVERSIONS" in html
+    # Save / skip action buttons.
+    assert 'data-action="save-advance"' in html
+    assert 'data-action="skip"' in html

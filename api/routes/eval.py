@@ -79,7 +79,7 @@ def eval_page(request: Request):
 
     _check_admin(request)
     cfg = get_config()
-    ctx = build_eval_context(cfg)
+    ctx = build_eval_context(cfg, request=request)
     return templates.TemplateResponse(
         request,
         "eval/layout.html",
