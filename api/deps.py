@@ -71,17 +71,30 @@ def film_slug_query(
 
 
 def make_ctx(request: Request, **kwargs) -> dict:
-    """Build a Jinja2 template context with per-request locale and active film."""
+    """Build a Jinja2 template context with per-request locale and active film.
+
+    Also defaults the Mojica chrome context keys (``active_tab``,
+    ``compact_lp``, ``has_right_pane``, ``breadcrumb``, ``page_title``) so the
+    new shell renders sensibly even when a route forgets to set them. Callers
+    that pass any of these via ``**kwargs`` override the defaults.
+    """
     locale = request.cookies.get("locale", "pt_BR")
     trans = _get_translations(locale)
-    return {
+    base = {
         "request": request,
         "_": trans.gettext,
         "locale": locale,
         "lang": locale_to_lang(locale),
         "active_film": request.cookies.get("active_film", ""),
-        **kwargs,
+        # Mojica chrome defaults — overridden by render_page() per route.
+        "active_tab": "search",
+        "compact_lp": False,
+        "has_right_pane": True,
+        "breadcrumb": [],
+        "page_title": None,
     }
+    base.update(kwargs)
+    return base
 
 
 def film_ctx(request: Request, cfg=None):

@@ -1,4 +1,5 @@
 """FastAPI application — mounted by uvicorn via app.py."""
+
 from __future__ import annotations
 
 import logging
@@ -83,6 +84,28 @@ _TAB_CONTEXT_BUILDERS = {
     # uses from_config, so /annotate full-page and /tab/annotate are consistent.
     "annotate": lambda: build_annotate_context(FilmContext.from_config(get_config())),
     "processing": processing.build_processing_context,
+    # Rimas Visuais (cross-film visual rhymes) ships its real builder in
+    # Phase 5; for Phase 1 the page is a placeholder stub so the route
+    # exists and the chrome shell can be exercised on it.
+    "rimas": lambda: {"no_data": True},
+}
+
+
+# Mojica chrome metadata per tab. Maps the internal EN tab key used in URLs +
+# Python (search/scenes/annotate/processing/rimas) to:
+#   - active_tab (PT slug used by ``[data-active-tab]`` on <body>),
+#   - compact_lp (Anotar collapses the LeftPane to maximise the work surface),
+#   - has_right_pane (every Phase-1 tab keeps a right pane; templates that don't
+#     populate it render an empty <aside> — semantically harmless).
+# Kept here (not in deps.py) because it concerns route-level page composition,
+# not per-request locale or film context. Phase 2+ tasks may move some of this
+# into the page templates themselves once they extend base.html directly.
+_TAB_CHROME = {
+    "search": {"active_tab": "buscar", "compact_lp": False, "has_right_pane": True},
+    "scenes": {"active_tab": "cenas", "compact_lp": False, "has_right_pane": True},
+    "annotate": {"active_tab": "anotar", "compact_lp": True, "has_right_pane": True},
+    "processing": {"active_tab": "processamento", "compact_lp": False, "has_right_pane": True},
+    "rimas": {"active_tab": "rimas", "compact_lp": False, "has_right_pane": True},
 }
 
 
@@ -130,10 +153,27 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
         tab_ctx = search.build_search_context(current_slug)
     else:
         tab_ctx = _TAB_CONTEXT_BUILDERS[active_tab]()
+    # Mojica chrome kwargs (active_tab=PT slug, compact_lp, has_right_pane) are
+    # merged via make_ctx defaults; the EN tab key in base_ctx["active_tab"] is
+    # the legacy value still consumed by the in-page tab-bar partial and is
+    # intentionally overwritten by _TAB_CHROME[active_tab]["active_tab"] (PT
+    # slug) for the new ``data-active-tab`` body attribute. The legacy partial
+    # reads ``legacy_active_tab`` instead — set below.
+    chrome = _TAB_CHROME.get(active_tab, {})
+    merged = {**base_ctx, **tab_ctx}
+    # Preserve the EN tab key for the legacy tab-bar / partial dispatch in
+    # base.html (selects which partial to include and which tab is marked
+    # tab--active). The new ``active_tab`` overlay in the chrome dict carries
+    # the PT slug used by the chrome shell.
+    merged["legacy_active_tab"] = active_tab
     return templates.TemplateResponse(
         request,
         "base.html",
-        make_ctx(request, current_slug=current_slug, **{**base_ctx, **tab_ctx}),
+        make_ctx(
+            request,
+            current_slug=current_slug,
+            **{**merged, **chrome},
+        ),
     )
 
 
@@ -160,3 +200,14 @@ async def page_annotate(request: Request) -> HTMLResponse:
 @app.get("/processing", response_class=HTMLResponse)
 async def page_processing(request: Request) -> HTMLResponse:
     return render_page(request, "processing")
+
+
+@app.get("/rimas", response_class=HTMLResponse)
+async def page_rimas(request: Request) -> HTMLResponse:
+    """Rimas Visuais (cross-film visual rhymes) — Phase-5 placeholder.
+
+    The real builder + page template land in Phase 5; for Phase 1 this route
+    exists so the chrome shell, IconRail link, and ``data-active-tab='rimas'``
+    body attribute can be exercised end-to-end.
+    """
+    return render_page(request, "rimas")

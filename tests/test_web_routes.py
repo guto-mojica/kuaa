@@ -78,6 +78,48 @@ def test_tab_processing_empty_has_no_active_jobs(client):
     assert "No active jobs." in r.text
 
 
+# ── Group 1b: Mojica chrome shell smoke (Task 6) ──────────────────────────────
+#
+# These assert the new chrome scaffolding (TopBar / IconRail / LeftPane / right
+# pane) is wired into the rendered shell. The chrome lives ALONGSIDE the legacy
+# sidebar/tab-bar until Tasks 7+8 replace those bits with real content; the
+# legacy markup must keep working until then so the existing tests stay green.
+
+
+def test_base_shell_renders_chrome(client):
+    """Buscar full-page response carries TopBar/IconRail/LeftPane/right markers."""
+    r = client.get("/search")
+    assert r.status_code == 200
+    html = r.text
+    # TopBar present + brand name.
+    assert 'class="ch-top"' in html
+    assert "Mojica" in html
+    # IconRail wrapper.
+    assert 'class="ch-rail"' in html
+    # LeftPane (not compact on Buscar).
+    assert 'class="ch-lp"' in html
+    # Body wrapper has the right-pane modifier (Buscar has a right pane).
+    assert "with-right" in html
+    # Active tab tag uses the PT slug.
+    assert 'data-active-tab="buscar"' in html
+
+
+def test_base_shell_compact_for_anotar(client):
+    """Anotar collapses the left pane via the compact-lp body modifier."""
+    r = client.get("/annotate")
+    assert r.status_code == 200
+    assert "compact-lp" in r.text
+
+
+def test_base_shell_includes_palette_and_help_roots(client):
+    """Polish-layer mount points exist on the index page (filled later)."""
+    r = client.get("/")
+    html = r.text
+    assert 'id="palette-root"' in html
+    assert 'id="help-root"' in html
+    assert 'id="toast-root"' in html
+
+
 # ── Group 2a: full-page vs tab context parity — Phase-1a regression lock ──────
 
 class TestFullPageContextDivergence:
