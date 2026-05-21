@@ -188,6 +188,15 @@ proc:
   # in the route context is a no-op (the template gates on both).
   gpu_metrics_enabled: false
 
+# ── Eval set builder (admin-only grading UI) ──────────────────────────────────
+# Where grade JSONLs and curated query files live, and which run id the /eval
+# page reads/writes by default. The /eval surface is itself admin-gated by the
+# ``EVAL_ADMIN_TOKEN`` env var (unset = entire surface returns 403). The path
+# is repo-relative; tests rebase it through ``api.services.eval_service``.
+eval:
+  root: data/eval
+  run_id: default
+
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging:
   level: "INFO"             # DEBUG | INFO | WARNING | ERROR

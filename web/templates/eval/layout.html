@@ -1,0 +1,51 @@
+{# Eval set builder — Phase-9 placeholder layout.
+   Task 30 ships the backend (grades persistence + metrics + routes); the
+   real grading UI (queue, rows, metrics right pane, keyboard router) lands
+   in Tasks 31-32. This minimal stub renders the page context so the route
+   returns 200 instead of TemplateNotFound, and so operators flipping
+   EVAL_ADMIN_TOKEN on for the first time see something coherent before the
+   UI ships.
+#}
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <title>Eval set builder · Cinemateca</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0e0e10; color: #e8e8ea;
+           padding: 2rem; max-width: 720px; margin: 0 auto; line-height: 1.5; }
+    h1 { font-size: 1.3rem; font-weight: 600; margin-bottom: .5rem; }
+    .muted { color: #8a8a92; font-size: .92rem; }
+    code { background: #1c1c20; padding: .12em .4em; border-radius: 4px;
+           font-size: .88em; }
+    .meta { margin-top: 1.5rem; padding: 1rem; background: #16161a;
+            border: 1px solid #2a2a30; border-radius: 6px; }
+    .meta dt { color: #8a8a92; font-size: .8rem; text-transform: uppercase;
+               letter-spacing: .04em; margin-top: .5rem; }
+    .meta dt:first-child { margin-top: 0; }
+    .meta dd { margin: .2rem 0 0 0; }
+  </style>
+</head>
+<body>
+  <h1>Eval set builder</h1>
+  <p class="muted">Backend live (Task 30). The grading UI lands in Tasks 31-32.</p>
+  <div class="meta">
+    <dl>
+      <dt>Run id</dt>
+      <dd><code>{{ run_id }}</code></dd>
+      <dt>Queries in queue</dt>
+      <dd>{{ queries|length }}</dd>
+      <dt>Annotators on file</dt>
+      <dd>{{ annotator_count }}</dd>
+      <dt>Inter-annotator κ</dt>
+      <dd>{{ "%.3f"|format(iaa_kappa) }}</dd>
+    </dl>
+  </div>
+  <p class="muted" style="margin-top:1.5rem">
+    Grade endpoint: <code>POST /api/eval/grade</code>
+    (form: <code>query_id</code>, <code>scene_id</code>, <code>grade</code>).<br>
+    Metrics endpoint: <code>GET /api/eval/metrics?query_id=&lt;qid&gt;</code>.
+  </p>
+</body>
+</html>

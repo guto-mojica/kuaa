@@ -18,6 +18,7 @@ from api.deps import get_config, make_ctx
 from api.routes import (
     about,
     annotate,
+    eval as eval_routes,
     export,
     library,
     palette,
@@ -71,6 +72,7 @@ app.include_router(library.router)
 app.include_router(export.router)
 app.include_router(rimas.router)
 app.include_router(palette.router)
+app.include_router(eval_routes.router)
 
 
 # Each tab's full context is built by the SAME code path the matching
