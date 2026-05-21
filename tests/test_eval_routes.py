@@ -344,3 +344,38 @@ def test_eval_grade_then_metrics_round_trip(client, monkeypatch, tmp_path):
     # And all four keys the JS expects are present on every response.
     for key in ("p_at_5", "p_at_3", "ndcg_at_5", "inversions"):
         assert key in data
+
+
+# ── Task 33: seeded queries appear in the queue ───────────────────────────────
+
+
+def test_eval_page_shows_seeded_queries(client, monkeypatch, tmp_path):
+    """After running ``cinemateca eval seed``, the /eval page renders the
+    seeded queries in the left-pane queue. We assert on the row count by
+    counting the ``ev-q`` queue-row class (one per query — current and
+    pending entries both carry it)."""
+
+    monkeypatch.setenv("EVAL_ADMIN_TOKEN", "test-token")
+    import api.services.eval_service as eval_service
+
+    monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
+    monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
+
+    from cinemateca.eval.seed import write_seed
+
+    write_seed(tmp_path, "default", count=3)
+
+    r = client.get("/eval?token=test-token")
+    assert r.status_code == 200, r.text
+    html = r.text
+    # Three queue rows in the left pane. The template emits
+    # ``class="ev-q"`` for pending rows and ``class="ev-q cur"`` for the
+    # one that's currently selected; counting both substrings covers
+    # both. There's no other ``ev-q`` token in the page chrome so this
+    # count is exact.
+    queue_row_hits = html.count('class="ev-q"') + html.count('class="ev-q cur"')
+    assert queue_row_hits == 3, (
+        f"expected 3 queue rows in /eval after seeding, got {queue_row_hits}"
+    )
+    # The first seeded query's text should appear in the queue pane.
+    assert "duas pessoas conversando" in html

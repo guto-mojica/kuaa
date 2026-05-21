@@ -16,6 +16,7 @@ Tree:
     cinemateca library reembed ...    # Rebuild embeddings across registry
     cinemateca library delete SLUG    # Remove a film + artifacts
     cinemateca config show            # Dump effective merged config
+    cinemateca eval seed ...          # Seed sample queries for /eval
 
 Each subcommand has its own ``--help``. ``cinemateca`` alone prints
 the command tree.
@@ -52,8 +53,16 @@ config_app = typer.Typer(
     rich_markup_mode="rich",
     context_settings={"help_option_names": ["-h", "--help"]},
 )
+eval_app = typer.Typer(
+    name="eval",
+    help="Eval set builder utilities (seed sample queries, etc.).",
+    no_args_is_help=True,
+    rich_markup_mode="rich",
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 app.add_typer(library_app, name="library")
 app.add_typer(config_app, name="config")
+app.add_typer(eval_app, name="eval")
 
 
 # ── Shared option / step resolution ───────────────────────────────────────────
@@ -461,6 +470,43 @@ def config_show(
         return obj
 
     print(yaml.safe_dump(_serialise(cfg), sort_keys=True, allow_unicode=True))
+
+
+# ─── cinemateca eval seed ────────────────────────────────────────────────────
+
+@eval_app.command("seed")
+def eval_seed(
+    run: Annotated[
+        str,
+        typer.Option(help="Run ID (becomes <run>.queries.json in the eval root)."),
+    ] = "default",
+    queries: Annotated[
+        int,
+        typer.Option(
+            help="Number of sample queries to write (clamped to the bundled max).",
+            min=0,
+        ),
+    ] = 5,
+    root: Annotated[
+        Path,
+        typer.Option(
+            help="Eval data directory. Created if it doesn't exist.",
+        ),
+    ] = Path("data/eval"),
+) -> None:
+    """Write a sample queries file for the /eval grading UI.
+
+    The seed slate is hand-crafted placeholder data (five queries, nine
+    candidates each) used to populate the standalone grading workspace
+    on a fresh install. The Month 3 curator-annotation work will replace
+    these placeholders with real /api/search results once the
+    multi-film library is migrated.
+    """
+    from cinemateca.eval.seed import SAMPLE_QUERIES, write_seed
+
+    path = write_seed(root=root, run_id=run, count=queries)
+    written = min(max(0, queries), len(SAMPLE_QUERIES))
+    typer.echo(f"✓ Wrote {written} queries to {path}")
 
 
 # ─── Entry point ─────────────────────────────────────────────────────────────
