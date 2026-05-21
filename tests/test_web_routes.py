@@ -434,6 +434,69 @@ def test_search_full_page_includes_inspector_partial_without_crashing(client):
     assert 'class="b-rp"' not in r.text
 
 
+# ── Group 1g: Buscar timeline (Task 13) ───────────────────────────────────────
+#
+# The bottom-timeline (``.b-tl``) renders below the .b-cp results grid only
+# when ``?scene=&film=`` URL params resolve to a real film with on-disk
+# keyframe metadata. On the bare /search initial render (no selection) the
+# partial self-guards on ``selected_film`` and produces no chrome — same
+# pattern as Task 12's inspector. The partial is included from search.html
+# without ``ignore missing`` (Task 13 removes the guard).
+
+
+def test_search_timeline_absent_on_full_page_without_selection(client):
+    """``/search`` with no ``?scene=&film=`` renders no ``.b-tl`` chrome.
+
+    The timeline partial self-guards on ``selected_film``; the initial
+    page must NOT render the scrub strip or the timeline header.
+    """
+    r = client.get("/search")
+    assert r.status_code == 200, r.text[:500]
+    html = r.text
+    assert 'class="b-tl"' not in html
+    assert 'class="scrub"' not in html
+
+
+def test_search_timeline_renders_when_scene_and_film_selected(client, seed_metadata):
+    """``/search?scene=351&film=default`` populates the .b-tl with scrub + ticks.
+
+    The seeded fixture writes two scenes (351, 352) with start/end
+    times, so the timeline builder resolves a positive runtime, emits
+    one ``.seg`` per scene, marks the selected scene as ``.sel`` and
+    flags it as a match (M1 simplification: only the selected scene
+    counts as a match until M2 wires the full per-film match set).
+
+    Also asserts the right-pane inspector co-renders on the same page
+    (the timeline builder populates ``selected_scene`` + ``selected_film``
+    which the inspector partial picks up — a single render delivers
+    both panes without an extra HTMX swap).
+    """
+    seed_metadata()
+    r = client.get("/search?scene=351&film=default&q=campo")
+    assert r.status_code == 200, r.text[:500]
+    html = r.text
+    # Outer .b-tl section + the two structural anchors are present.
+    assert 'class="b-tl"' in html
+    assert 'class="scrub"' in html
+    assert 'class="ticks"' in html
+    # Header carries the film title and a match count.
+    assert "Default Film" in html
+    # The selected scene's .seg is marked .sel; the other scene is not.
+    # Two scenes seeded; both should be present in the scrub. Use
+    # the explicit ?scene= URL param target attribute to assert order
+    # is preserved.
+    assert "scene=351" in html
+    assert "scene=352" in html
+    # Selected (351) gets .seg.sel + .match; the other only renders bare .seg.
+    assert 'class="seg match sel"' in html
+    # Query param is preserved in the .seg hrefs so a click round-trips state.
+    assert "q=campo" in html
+    # The same render also produces the right-pane inspector (the timeline
+    # builder reuses build_inspector_context, so selected_scene + selected_film
+    # populate both partials on a single response).
+    assert 'class="b-rp"' in html
+
+
 # ── Group 2a: full-page vs tab context parity — Phase-1a regression lock ──────
 
 

@@ -225,8 +225,12 @@
   </div>
   {% endif %}
 
-  {# ── Bottom timeline placeholder — Task 13 ships the real .b-tl. #}
-  {% include "partials/search_timeline.html" ignore missing %}
+  {# ── Bottom timeline (.b-tl) — Task 13. The partial self-guards on
+       ``selected_film`` so the full-page initial render (no ``?scene=``
+       URL param) produces no visible chrome; ``build_timeline_context``
+       populates it when the user clicks a result card OR loads a deep-
+       linked /search?scene=&film= URL. #}
+  {% include "partials/search_timeline.html" %}
 
 </section>
 

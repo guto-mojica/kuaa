@@ -20,6 +20,7 @@ from api.services.annotations import build_annotate_context
 from api.services.catalog import build_scenes_context_aggregate
 from api.services.chrome_service import build_chrome_context
 from api.services.film_context import FilmContext
+from api.services.scenes_service import build_timeline_context
 from api.templates import templates
 
 logger = logging.getLogger(__name__)
@@ -163,6 +164,29 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
         q = (request.query_params.get("q") or "").strip()
         if q:
             tab_ctx["query"] = q
+        # Mojica Task 13: when the URL carries ``?scene=<id>&film=<slug>``
+        # (a timeline-segment link or a deep-share URL into a specific
+        # scene), populate the bottom-timeline (``.b-tl``) context. The
+        # builder also returns ``selected_film`` (augmented with timeline
+        # attrs) + ``selected_scene``, which the right-pane inspector
+        # partial picks up on the same render so the .b-rp is visible
+        # without an extra HTMX swap. The builder returns ``None`` when
+        # the (slug, scene_id) pair cannot be resolved or the film has
+        # no keyframe metadata — in which case the timeline partial's
+        # self-guard simply renders nothing.
+        scene_param = request.query_params.get("scene")
+        film_param = request.query_params.get("film")
+        if scene_param is not None and film_param:
+            try:
+                scene_id = int(scene_param)
+            except ValueError:
+                scene_id = None
+            if scene_id is not None:
+                timeline_ctx = build_timeline_context(
+                    cfg, slug=film_param, scene_id=scene_id, query=q
+                )
+                if timeline_ctx is not None:
+                    tab_ctx.update(timeline_ctx)
     else:
         tab_ctx = _TAB_CONTEXT_BUILDERS[active_tab]()
     # Mojica chrome kwargs (active_tab=PT slug, compact_lp, has_right_pane) are
