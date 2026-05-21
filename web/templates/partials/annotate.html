@@ -1,66 +1,244 @@
+{# ── Mojica Anotar tab — stage (.a-stage) ──────────────────────────────────
+   Task 18 (Phase 4) of the Mojica redesign. The legacy filter/jump/form
+   surface (radio filter + scene-jump <select> + per-scene LLM/tag form)
+   is replaced on the LEFT pane by a Frame.io-style scene-review stage:
+
+     * ``.a-meta``         — back button, breadcrumb (Acervo / film /
+                              cena NNN / V<n>), status pill, action chips.
+     * ``.a-keyframe``     — 4:3 keyframe with pin / commentpop overlays
+                              (collaboration backend wires these later).
+     * ``.a-tl``           — timeline scrubber + markers + avatar pips +
+                              ticks below.
+     * ``.a-pl``           — playback controls (prev / play / next / TC).
+
+   The legacy form moves to the RIGHT pane via the existing
+   ``partials/annotate_scene.html`` include, which Task 19 then rewrites
+   into the ``.a-rp`` htabs (Activity / Annotations / Properties) + thread
+   + composer surface. Until Task 19 lands, the legacy form keeps
+   working unchanged inside ``.a-rp-legacy`` so /api/annotate/save and
+   the parity test (``test_annotate_full_page_matches_tab``) keep
+   passing without further wiring.
+
+   Compatibility contracts the rewrite still honours:
+
+     * The outer wrapper keeps ``class="tab-panel"`` so existing
+       smoke-tests (``test_tab_fragment_routes_respond``) keep matching.
+     * On empty data the empty-state line still carries the legacy
+       "Run the Scene Detection step first." message verbatim so the
+       full-page vs ``/tab/annotate`` parity test keeps matching.
+
+   Context this partial reads is produced by
+   :func:`api.services.annotations.build_annotate_context`:
+
+     * ``no_data`` / ``all_done`` — empty-state branches (unchanged).
+     * ``selected_film``   ``Film``-like | None — title for the
+                              breadcrumb (falls back to a placeholder).
+     * ``selected_scene``  dict — keyframe_url, scene_id, timecode (SMPTE),
+                              timecode_short / duration_tc (MM:SS for the
+                              scrubrow + commentpop chips), progress_pct
+                              (stub 0), pins / comment_popup / markers /
+                              timeline_avatars / timeline_ticks (stubs
+                              until the collaboration backend lands).
+     * ``filter`` + every legacy key (``scene``, ``scene_list``, ``llm``,
+       ``existing_tags`` …) is still passed through unchanged so
+       ``annotate_scene.html`` (legacy form) keeps rendering inside
+       the right-pane include below.
+#}
+{% from "partials/_icons.html" import icon %}
 <div class="tab-panel">
 
 {% if no_data %}
-<p class="text-muted">{{ _("Run the Scene Detection step first.") }}</p>
+<section class="a-stage a-stage--empty">
+  <p class="text-muted">{{ _("Run the Scene Detection step first.") }}</p>
+</section>
+
+{% elif selected_scene %}
+
+<section class="a-stage">
+
+  {# ── META BAR: back · breadcrumb · status · actions ─────────────────── #}
+  <header class="a-meta">
+    <div class="l">
+      <button type="button"
+              class="back"
+              title="{{ _('Back') }}"
+              aria-label="{{ _('Back') }}"
+              onclick="history.back()">
+        {{ icon('chev-l', 14) }}
+      </button>
+      <div class="filmpath">
+        <span class="dot" style="background: var(--c-accent);" aria-hidden="true"></span>
+        <span class="seg">{{ _("Library") }}</span>
+        <span class="sep" aria-hidden="true">/</span>
+        <span class="seg">
+          {% if selected_film %}{{ selected_film.title }}{% else %}{{ _("Current film") }}{% endif %}
+        </span>
+        <span class="sep" aria-hidden="true">/</span>
+        <span class="seg cur">{{ _("scene %(n)s") % {"n": "%03d"|format(selected_scene.scene_id or 0)} }}</span>
+        <span class="ver">V{{ selected_scene.version or 1 }} {{ icon('chev-d', 12) }}</span>
+      </div>
+    </div>
+    <div class="r">
+      <span class="stat-pill">
+        <span class="dot" aria-hidden="true"></span>
+        {{ _("indexed") }}
+      </span>
+      <button type="button" class="fx-icbtn" title="{{ _('Download') }}" aria-label="{{ _('Download') }}">
+        {{ icon('download', 14) }}
+      </button>
+      <button type="button" class="fx-icbtn" title="{{ _('Toggle right pane') }}" aria-label="{{ _('Toggle right pane') }}">
+        {{ icon('panel-r', 14) }}
+      </button>
+      <button type="button" class="fx-icbtn" title="{{ _('More') }}" aria-label="{{ _('More actions') }}">
+        {{ icon('more', 14) }}
+      </button>
+    </div>
+  </header>
+
+  {# ── KEYFRAME stage with annotation pins + commentpop ───────────────── #}
+  <div class="a-keyframe-wrap">
+    <div class="a-keyframe"
+         role="img"
+         aria-label="{{ _('Scene %(n)s keyframe') % {'n': selected_scene.scene_id or 0} }}"
+         {% if selected_scene.keyframe_url %}style="background-image: url('{{ selected_scene.keyframe_url }}');"{% endif %}>
+      {% for pin in selected_scene.pins or [] %}
+        <span class="pin{% if pin.kind == 'ai' %} alt{% endif %}"
+              style="top: {{ pin.top }}; left: {{ pin.left }};">
+          {{ pin.label or loop.index }}
+        </span>
+      {% endfor %}
+      {% if selected_scene.comment_popup %}
+        {% set cp = selected_scene.comment_popup %}
+        <div class="commentpop"
+             style="top: {{ cp.top }}; left: {{ cp.left }};">
+          {% for c in cp.comments or [] %}
+            <div class="com{% if c.is_ai %} ai{% elif c.is_curator %} curator{% endif %}">
+              <span class="av">{{ c.initials }}</span>
+              <div class="bx" style="flex: 1;">
+                <div class="who">
+                  <span class="n">{{ c.author }}</span>
+                  <span class="when">{{ c.when }}</span>
+                </div>
+                <p class="body">{{ c.body }}</p>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── TIMELINE SCRUB ─────────────────────────────────────────────────── #}
+  <div class="a-tl">
+    <div class="scrubrow">
+      <span class="tc">
+        <b>{{ selected_scene.timecode_short }}</b>
+        / {{ selected_scene.duration_tc }}
+      </span>
+      <div class="scrub" role="slider"
+           aria-label="{{ _('Scene playback position') }}"
+           aria-valuemin="0" aria-valuemax="100"
+           aria-valuenow="{{ selected_scene.progress_pct or 0 }}">
+        <div class="progress" style="width: {{ selected_scene.progress_pct or 0 }}%;"></div>
+        {% for m in selected_scene.markers or [] %}
+          <span class="marker{% if m.kind == 'curator' %} curator{% endif %}"
+                style="left: {{ m.pct }}%;">
+            <span class="label">{{ m.label }}</span>
+          </span>
+        {% endfor %}
+        {% for a in selected_scene.timeline_avatars or [] %}
+          <span class="av-pip {{ a.kind }}" style="left: {{ a.pct }}%;">{{ a.initials }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% if selected_scene.timeline_ticks %}
+    <div class="ticks">
+      {% for t in selected_scene.timeline_ticks %}<span>{{ t }}</span>{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── PLAYBACK CONTROLS ──────────────────────────────────────────────── #}
+  <div class="a-pl">
+    <div class="l">
+      {% if selected_scene.prev_id is not none %}
+      <button type="button"
+              class="icp"
+              title="{{ _('Previous scene') }}"
+              aria-label="{{ _('Previous scene') }}"
+              hx-get="/api/annotate/scene?id={{ selected_scene.prev_id }}&filter={{ filter }}"
+              hx-target="#annotate-scene"
+              hx-swap="innerHTML">{{ icon('chev-l', 14) }}</button>
+      {% else %}
+      <button type="button" class="icp" disabled aria-disabled="true" title="{{ _('Previous scene') }}">
+        {{ icon('chev-l', 14) }}
+      </button>
+      {% endif %}
+      <span class="label">
+        {{ _("scene") }} <span class="v" style="color: var(--c-text);">{{ "%03d"|format(selected_scene.scene_id or 0) }}</span>
+      </span>
+      {% if selected_scene.next_id is not none %}
+      <button type="button"
+              class="icp"
+              title="{{ _('Next scene') }}"
+              aria-label="{{ _('Next scene') }}"
+              hx-get="/api/annotate/scene?id={{ selected_scene.next_id }}&filter={{ filter }}"
+              hx-target="#annotate-scene"
+              hx-swap="innerHTML">{{ icon('chev-r', 14) }}</button>
+      {% else %}
+      <button type="button" class="icp" disabled aria-disabled="true" title="{{ _('Next scene') }}">
+        {{ icon('chev-r', 14) }}
+      </button>
+      {% endif %}
+    </div>
+    <div class="c">
+      <button type="button" class="icp" title="{{ _('Loop') }}" aria-label="{{ _('Loop') }}">
+        {{ icon('loop', 14) }}
+      </button>
+      <button type="button" class="icp" title="{{ _('Back 5s') }}" aria-label="{{ _('Back 5 seconds') }}">-5s</button>
+      <button type="button" class="icp primary" title="{{ _('Play') }}" aria-label="{{ _('Play') }}">
+        {{ icon('play', 14) }}
+      </button>
+      <button type="button" class="icp" title="{{ _('Forward 5s') }}" aria-label="{{ _('Forward 5 seconds') }}">+5s</button>
+      <span class="tc-now">{{ selected_scene.timecode }}</span>
+      <span aria-hidden="true">/</span>
+      <span class="tc-tot">{{ selected_scene.duration_tc }}</span>
+    </div>
+    <div class="r">
+      <button type="button" class="icp" title="{{ _('Volume') }}" aria-label="{{ _('Volume') }}">
+        {{ icon('volume', 14) }}
+      </button>
+      <button type="button" class="label" title="{{ _('Playback speed') }}">1.0×</button>
+      <button type="button" class="label on" title="{{ _('Quality') }}">
+        <span class="v">HD</span>
+      </button>
+      <button type="button" class="icp" title="{{ _('Settings') }}" aria-label="{{ _('Settings') }}">
+        {{ icon('settings', 14) }}
+      </button>
+      <button type="button" class="icp" title="{{ _('Fullscreen') }}" aria-label="{{ _('Fullscreen') }}">
+        {{ icon('expand', 14) }}
+      </button>
+    </div>
+  </div>
+</section>
+
+{# ── Legacy right pane content (LLM description + manual-tag form) ─────────
+     Task 19 rewrites this into the proper Mojica ``.a-rp`` (htabs +
+     thread + composer). For Task 18 we keep the legacy form inline so
+     /api/annotate/save + scene-jump still work and the existing
+     parity test stays green. The wrapper id ``annotate-scene`` is the
+     HTMX swap target that ``/api/annotate/scene`` already targets.  #}
+<div id="annotate-scene" class="a-rp-legacy">
+  {% if all_done %}
+  <p class="annotate-all-done text-muted">{{ _("All scenes have valid LLM descriptions. You can still add manual tags below.") }}</p>
+  {% endif %}
+  {% include "partials/annotate_scene.html" %}
+</div>
 
 {% else %}
-
-{% if all_done %}
-<p class="annotate-all-done text-muted">{{ _("All scenes have valid LLM descriptions. You can still add manual tags below.") }}</p>
+<section class="a-stage a-stage--empty">
+  <p class="text-muted">{{ _("No scenes match the current filter.") }}</p>
+</section>
 {% endif %}
 
-<!-- Filter -->
-<div class="annotate-filter">
-    <span class="annotate-filter__label">{{ _("Show") }}:</span>
-    <label class="annotate-filter__option">
-        <input type="radio" name="ui-filter" value="no_llm"
-               {% if filter == 'no_llm' %}checked{% endif %}
-               hx-get="/tab/annotate?filter=no_llm"
-               hx-target="#tab-content"
-               hx-swap="innerHTML">
-        {{ _("Without LLM description") }}
-    </label>
-    <label class="annotate-filter__option">
-        <input type="radio" name="ui-filter" value="all"
-               {% if filter == 'all' %}checked{% endif %}
-               hx-get="/tab/annotate?filter=all"
-               hx-target="#tab-content"
-               hx-swap="innerHTML">
-        {{ _("All scenes") }}
-    </label>
-    <span class="annotate-filter__count text-muted">
-        {{ total }} {{ _("scenes") }} · {{ annotated_count }} {{ _("annotated") }}
-    </span>
-</div>
-
-{% if scene %}
-
-<!-- Jump to scene -->
-<div class="annotate-jump">
-    <form hx-get="/api/annotate/scene"
-          hx-trigger="change from:select"
-          hx-target="#annotate-scene"
-          hx-swap="innerHTML">
-        <input type="hidden" name="filter" value="{{ filter }}">
-        <select name="id" class="jump-select">
-            {% for s in scene_list %}
-            <option value="{{ s.scene_id }}"
-                    {% if s.scene_id == scene_id %}selected{% endif %}>
-                {{ _("Scene") }} {{ s.scene_id }}
-            </option>
-            {% endfor %}
-        </select>
-    </form>
-</div>
-
-<!-- Scene panel — HTMX swap target for prev/next navigation -->
-<div id="annotate-scene">
-    {% include "partials/annotate_scene.html" %}
-</div>
-
-{% else %}
-<p class="text-muted">{{ _("No scenes match the current filter.") }}</p>
-{% endif %}
-
-{% endif %}
 </div>

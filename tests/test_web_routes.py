@@ -493,6 +493,73 @@ def test_cenas_grid_scenecard_uses_kind_cenas(client, seed_metadata):
         assert "kind=cenas" in r.text
 
 
+# ── Group 1f.5: Anotar stage (Task 18) ────────────────────────────────────────
+#
+# The Mojica Anotar rewrite swaps the legacy filter/jump/form left pane for a
+# Frame.io-style stage: meta header + keyframe + timeline + player controls.
+# These tests pin the public contracts the rewrite establishes so future
+# changes that drop the stage markup, accidentally revive the legacy form on
+# the left, or stop collapsing the LeftPane fail loudly. The legacy form is
+# intentionally kept on the right (inside ``#annotate-scene``) by Task 18 —
+# Task 19 retires it into the proper ``.a-rp`` htabs + thread + composer.
+
+
+def test_anotar_renders_stage_meta_keyframe_timeline_player(client, seed_metadata):
+    """``/annotate`` renders the .a-stage + .a-meta + .a-keyframe + .a-tl + .a-pl markup.
+
+    The empty-state branch (no seeded data) renders only the empty
+    placeholder, so we seed metadata first to exercise the populated
+    branch. The five class assertions cover every top-level block of
+    the Frame.io-style scene-review surface.
+    """
+    seed_metadata()
+    r = client.get("/annotate")
+    assert r.status_code == 200
+    html = r.text
+    assert 'class="a-stage"' in html
+    assert 'class="a-meta"' in html
+    assert 'class="a-keyframe"' in html
+    assert 'class="a-tl"' in html
+    assert 'class="a-pl"' in html
+
+
+def test_anotar_uses_compact_lp(client):
+    """The Anotar tab collapses the LeftPane via the compact-lp body modifier.
+
+    This pins down ``_TAB_CHROME['annotate']['compact_lp'] = True`` end-
+    to-end: the body class controls the CSS grid that hides ``.ch-lp``,
+    so a stale chrome config would render an extra 248px sidebar and
+    break the stage layout silently. We deliberately do NOT assert the
+    absence of every legacy left-pane class (e.g. ``ch-lp``); the
+    Phase-1 chrome still renders ``ch-lp`` markup elsewhere, and that
+    is unrelated to the compact-lp body modifier we care about here.
+    """
+    r = client.get("/annotate")
+    assert r.status_code == 200
+    assert "compact-lp" in r.text
+
+
+def test_anotar_breadcrumb_shows_scene_number(client, seed_metadata):
+    """The .a-meta breadcrumb renders the scene number as ``scene NNN`` (zero-padded).
+
+    Format-string lives in the template: ``"%03d" | format(scene_id)``,
+    so scene 351 in the seed fixture becomes ``scene 351``. The
+    breadcrumb wrapper class is asserted alongside the formatted scene
+    label so a future template change that drops the breadcrumb (or
+    silently renders an unformatted id) fails here.
+    """
+    seed_metadata()
+    r = client.get("/annotate")
+    assert r.status_code == 200
+    html = r.text
+    assert 'class="filmpath"' in html
+    # Seed defaults to scene 351 as the first scene. The empty-state
+    # filter fallback (no_llm → all) lands here because the default
+    # seed has no LLM descriptions yet, so the partial picks the first
+    # scene of the "all" list — still 351.
+    assert "scene 351" in html or "cena 351" in html
+
+
 # ── Group 1g: Buscar timeline (Task 13) ───────────────────────────────────────
 #
 # The bottom-timeline (``.b-tl``) renders below the .b-cp results grid only

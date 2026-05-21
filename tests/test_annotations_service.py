@@ -53,6 +53,7 @@ from cinemateca.annotator import FILENAME
 
 # ── normalize_tags ────────────────────────────────────────────────────────────
 
+
 class TestNormalizeTags:
     def test_lowercase_and_space_to_hyphen(self):
         assert normalize_tags("Rural, Open Field") == ["rural", "open-field"]
@@ -76,15 +77,12 @@ class TestNormalizeTags:
     def test_matches_legacy_inline_listcomp(self):
         """Property check vs the exact prior inline expression."""
         for raw in ["Rural,, Open Field , exterior,", "  A B  ,c", "", "x"]:
-            legacy = [
-                t.strip().lower().replace(" ", "-")
-                for t in raw.split(",")
-                if t.strip()
-            ]
+            legacy = [t.strip().lower().replace(" ", "-") for t in raw.split(",") if t.strip()]
             assert normalize_tags(raw) == legacy
 
 
 # ── load / save (atomic) ──────────────────────────────────────────────────────
+
 
 class TestLoadSaveAnnotations:
     def test_load_missing_returns_empty_dict(self, tmp_config):
@@ -205,6 +203,7 @@ class TestLoadSaveAnnotations:
 
 # ── build_scene_list ──────────────────────────────────────────────────────────
 
+
 class TestBuildSceneList:
     def test_empty_dir_yields_empty(self, tmp_config):
         ctx = FilmContext.from_config(tmp_config)
@@ -219,22 +218,14 @@ class TestBuildSceneList:
         scenes, _, _ = build_scene_list(ctx, "all")
         assert {s["scene_id"] for s in scenes} == {351, 352}
 
-    def test_no_llm_filter_drops_scenes_with_valid_description(
-        self, tmp_config, seed_metadata
-    ):
+    def test_no_llm_filter_drops_scenes_with_valid_description(self, tmp_config, seed_metadata):
         # 351 has a valid description, 352 does NOT (omitted from desc).
-        seed_metadata(
-            descriptions=[
-                {"scene_id": 351, "description": "a real description"}
-            ]
-        )
+        seed_metadata(descriptions=[{"scene_id": 351, "description": "a real description"}])
         ctx = FilmContext.from_config(tmp_config)
         scenes, _, _ = build_scene_list(ctx, "no_llm")
         assert [s["scene_id"] for s in scenes] == [352]
 
-    def test_broken_llm_placeholder_does_not_count_as_valid(
-        self, tmp_config, seed_metadata
-    ):
+    def test_broken_llm_placeholder_does_not_count_as_valid(self, tmp_config, seed_metadata):
         seed_metadata(
             descriptions=[
                 {"scene_id": 351, "description": _BROKEN_LLM},
@@ -246,9 +237,7 @@ class TestBuildSceneList:
         # 351's description is the broken placeholder → still "no llm".
         assert [s["scene_id"] for s in scenes] == [351]
 
-    def test_error_record_does_not_count_as_valid(
-        self, tmp_config, seed_metadata
-    ):
+    def test_error_record_does_not_count_as_valid(self, tmp_config, seed_metadata):
         seed_metadata(
             descriptions=[
                 {"scene_id": 351, "description": "x", "error": "boom"},
@@ -262,20 +251,24 @@ class TestBuildSceneList:
 
 # ── scene_context / build_scene_panel ─────────────────────────────────────────
 
+
 class TestSceneContext:
     def test_empty_scene_list_returns_empty_shape(self, tmp_config):
         ctx = FilmContext.from_config(tmp_config)
         out = scene_context(ctx, [], None, {}, {})
+        # ``selected_scene`` is the Mojica-Task-18 addition — emitted as
+        # ``None`` on the empty branch so the .a-stage template can
+        # render the empty-state section without raising on attribute
+        # access. All other empty-shape keys are unchanged.
         assert out == {
             "scene": None,
             "scene_list": [],
             "total": 0,
             "annotated_count": 0,
+            "selected_scene": None,
         }
 
-    def test_defaults_to_first_scene_when_id_none(
-        self, tmp_config, seed_metadata
-    ):
+    def test_defaults_to_first_scene_when_id_none(self, tmp_config, seed_metadata):
         seed_metadata()
         ctx = FilmContext.from_config(tmp_config)
         scenes, desc, ann = build_scene_list(ctx, "all")
@@ -286,18 +279,14 @@ class TestSceneContext:
         assert out["next_id"] == 352
         assert out["total"] == 2
 
-    def test_defaults_to_first_when_id_not_in_list(
-        self, tmp_config, seed_metadata
-    ):
+    def test_defaults_to_first_when_id_not_in_list(self, tmp_config, seed_metadata):
         seed_metadata()
         ctx = FilmContext.from_config(tmp_config)
         scenes, desc, ann = build_scene_list(ctx, "all")
         out = scene_context(ctx, scenes, 99999, desc, ann)
         assert out["scene_id"] == 351
 
-    def test_jump_to_specific_scene_sets_nav_edges(
-        self, tmp_config, seed_metadata
-    ):
+    def test_jump_to_specific_scene_sets_nav_edges(self, tmp_config, seed_metadata):
         seed_metadata()
         ctx = FilmContext.from_config(tmp_config)
         scenes, desc, ann = build_scene_list(ctx, "all")
@@ -307,9 +296,7 @@ class TestSceneContext:
         assert out["prev_id"] == 351
         assert out["next_id"] is None
 
-    def test_existing_tags_and_annotated_count(
-        self, tmp_config, seed_metadata
-    ):
+    def test_existing_tags_and_annotated_count(self, tmp_config, seed_metadata):
         # Default seed: manual annotation only on "352".
         seed_metadata()
         ctx = FilmContext.from_config(tmp_config)
@@ -335,9 +322,7 @@ class TestSceneContext:
         assert good["llm"] is not None
         assert broken["llm"] is None
 
-    def test_build_scene_panel_matches_manual_composition(
-        self, tmp_config, seed_metadata
-    ):
+    def test_build_scene_panel_matches_manual_composition(self, tmp_config, seed_metadata):
         seed_metadata()
         ctx = FilmContext.from_config(tmp_config)
         scenes, desc, ann = build_scene_list(ctx, "all")
@@ -364,6 +349,7 @@ class TestSceneContext:
 
 # ── build_annotate_context ────────────────────────────────────────────────────
 
+
 class TestBuildAnnotateContext:
     def test_no_data_branch(self, tmp_config):
         ctx = FilmContext.from_config(tmp_config)
@@ -373,9 +359,7 @@ class TestBuildAnnotateContext:
         assert out["scene"] is None
         assert out["filter"] == "no_llm"
 
-    def test_all_done_when_every_scene_has_valid_llm(
-        self, tmp_config, seed_metadata
-    ):
+    def test_all_done_when_every_scene_has_valid_llm(self, tmp_config, seed_metadata):
         # Both seeded scenes have valid descriptions → no_llm filter empties
         # the list while data exists → all_done is flagged, but the service
         # falls back to filter="all" so the annotation UI stays usable.
@@ -389,9 +373,7 @@ class TestBuildAnnotateContext:
         assert out["scene"] is not None
         assert out["total"] == 2
 
-    def test_populated_panel_with_all_filter(
-        self, tmp_config, seed_metadata
-    ):
+    def test_populated_panel_with_all_filter(self, tmp_config, seed_metadata):
         seed_metadata()
         ctx = FilmContext.from_config(tmp_config)
         out = build_annotate_context(ctx, "all")
@@ -411,6 +393,7 @@ class TestBuildAnnotateContext:
 
 # ── save_description ──────────────────────────────────────────────────────────
 
+
 class TestSaveDescription:
     def test_updates_existing_entry(self, tmp_config, seed_metadata):
         seed_metadata()
@@ -418,6 +401,7 @@ class TestSaveDescription:
         save_description(ctx, 351, "manually edited text")
 
         import json
+
         records = json.loads((ctx.metadata_dir / "scene_descriptions.json").read_text())
         entry = next(r for r in records if r["scene_id"] == 351)
         assert entry["description"] == "manually edited text"
@@ -433,6 +417,7 @@ class TestSaveDescription:
         save_description(ctx, 351, "updated")
 
         import json
+
         records = json.loads((ctx.metadata_dir / "scene_descriptions.json").read_text())
         entry = next(r for r in records if r["scene_id"] == 351)
         assert entry["description"] == "updated"
@@ -444,6 +429,7 @@ class TestSaveDescription:
         save_description(ctx, 999, "brand new")
 
         import json
+
         records = json.loads((ctx.metadata_dir / "scene_descriptions.json").read_text())
         ids = {r["scene_id"] for r in records}
         assert 999 in ids
@@ -456,6 +442,7 @@ class TestSaveDescription:
         save_description(ctx, 351, "first description")
 
         import json
+
         records = json.loads((ctx.metadata_dir / "scene_descriptions.json").read_text())
         assert records == [{"scene_id": 351, "description": "first description"}]
 
@@ -474,6 +461,7 @@ class TestSaveDescription:
         save_description(ctx, 351, "second edit")
 
         import json
+
         records = json.loads((ctx.metadata_dir / "scene_descriptions.json").read_text())
         entries = [r for r in records if r["scene_id"] == 351]
         assert len(entries) == 1
