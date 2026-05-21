@@ -11,13 +11,15 @@
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/fonts.css') }}">
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/main.css') }}">
     {# fx.css + chrome.css landed in d045b9c / ced01e6 and were dormant until
-       this commit wires the shell. The Phase-2..6 stylesheets
-       (buscar/cenas/anotar/rimas/proc/polish) are NOT linked yet — adding
-       <link> tags for files that don't exist would yield 404s in the dev
-       console and noisy headers in the offline-CDN test. They'll be added
-       per task as each lands. #}
+       Task 6 wired the shell. buscar.css lands in Task 9 (Phase 2 kickoff);
+       it's dormant too until Tasks 10–12 add .b-cp / .b-rp / .b-card markup.
+       The remaining Phase-3..6 stylesheets (cenas/anotar/rimas/proc/polish)
+       are NOT linked yet — adding <link> tags for files that don't exist
+       would yield 404s in the dev console and noisy headers in the
+       offline-CDN test. They'll be added per task as each lands. #}
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/fx.css') }}">
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/chrome.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/buscar.css') }}">
     <script src="{{ request.url_for('static', path='js/htmx.min.js') }}" defer></script>
     <script src="{{ request.url_for('static', path='js/htmx-ext-sse.js') }}" defer></script>
     {# /static/js/mojica.js is the polish layer (palette + help + toasts);
