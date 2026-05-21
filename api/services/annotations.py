@@ -217,7 +217,7 @@ def _demo_threads_enabled() -> bool:
     pre-demo empty state is the safe fallback.
     """
     try:
-        from api.config import get_config  # noqa: PLC0415
+        from api.deps import get_config  # noqa: PLC0415
 
         cfg = get_config()
         return bool(getattr(cfg.collaboration, "demo_threads_enabled", False))
