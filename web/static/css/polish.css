@@ -135,6 +135,11 @@
 }
 
 /* ─── Command palette ────────────────────────────────────────────────── */
+/* The [hidden] override below restores the HTML attribute's semantics —
+ * .cp-back's class-level ``display: flex`` ties specificity with the
+ * browser's ``[hidden] { display: none }`` rule and wins on source order,
+ * which leaves the palette visible at page load. The targeted attribute
+ * selector raises specificity to class+attribute and wins cleanly. */
 .cp-back {
   position: fixed; inset: 0;
   background: rgba(7,8,11,0.62);
@@ -144,6 +149,7 @@
   z-index: 10000;
   animation: p-fade-in 160ms ease-out;
 }
+.cp-back[hidden] { display: none; }
 .cp-panel {
   width: 640px; max-width: calc(100vw - 60px);
   max-height: 60vh;
@@ -222,6 +228,10 @@
 .cp-empty .big { font-size: 32px; color: var(--c-faint); margin-bottom: 8px; }
 
 /* ─── Keyboard help overlay (?) ──────────────────────────────────────── */
+/* See note on .cp-back above — same [hidden]-restoration trick. Without
+ * the targeted rule the legend is visible on first paint and there is no
+ * way to dismiss it, since the close handler only flips the same attribute
+ * the CSS is ignoring. */
 .kh-back {
   position: fixed; inset: 0;
   background: rgba(7,8,11,0.62);
@@ -231,6 +241,7 @@
   z-index: 10000;
   animation: p-fade-in 160ms ease-out;
 }
+.kh-back[hidden] { display: none; }
 .kh-panel {
   width: 720px; max-width: calc(100vw - 60px);
   max-height: calc(100vh - 60px);
