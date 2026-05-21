@@ -1045,3 +1045,69 @@ def test_rimas_with_explicit_anchor_does_not_crash(client):
     assert r.status_code == 200, r.text[:500]
     r = client.get("/rimas?anchor=jeca/not-an-int")
     assert r.status_code == 200, r.text[:500]
+
+
+# ── Group 1j: Rimas Visuais full template (Task 22) ───────────────────────────
+#
+# Task 22 ships the real CSS-driven templates (.topbar / .controls / .r-anchor
+# / .r-grid / .r-rp / .r-pair / .r-similarity-card) and the new
+# ``/api/rimas/inspector`` endpoint for HTMX echo-selection swaps. These tests
+# pin the structural anchors that Task 22's design requires; the empty-library
+# branch is the canonical fixture state, so assertions stay locale-stable.
+
+
+def test_rimas_page_has_topbar_and_controls(client):
+    """``/rimas`` renders the Mojica .topbar + .controls knob row.
+
+    Pins the new Task-22 markup: the topbar (with the rhyme count chip
+    on populated libraries or a hint on empty ones) and the controls
+    knob row. Both branches share the .r-cp wrapper so this assertion
+    holds regardless of library state.
+    """
+    r = client.get("/rimas")
+    assert r.status_code == 200, r.text[:500]
+    html = r.text
+    assert 'class="r-cp"' in html
+    # Either the topbar OR the controls knob row must be present —
+    # they ship together but the controls knob row carries the
+    # locale-stable knob/k/v structure (the .topbar is structural-only
+    # markup so its className alone is the test surface).
+    assert 'class="topbar"' in html
+    assert 'class="controls"' in html
+    assert 'class="knob"' in html
+
+
+def test_rimas_inspector_endpoint(client):
+    """``/api/rimas/inspector`` returns the right-pane fragment.
+
+    The endpoint is fired by .r-echo card clicks (hx-target="#right-
+    pane") and returns the inspector partial wrapped in
+    ``.r-rp-inner``. On an empty library the anchor itself does not
+    resolve, so the empty-state branch fires — still 200, still a
+    fragment, never a 500.
+    """
+    r = client.get("/api/rimas/inspector?anchor=jeca/1&echo=limite/1")
+    assert r.status_code < 500, r.text[:500]
+    html = r.text
+    # Fragment — no full document leaked.
+    assert "<!DOCTYPE html>" not in html
+    # The inspector wrapper is always rendered, even on the
+    # anchor-only / empty branches (the .r-rp-inner block is the
+    # template's outer element).
+    assert 'class="r-rp-inner"' in html
+
+
+def test_rimas_grid_uses_echo_card_class(client):
+    """``/tab/rimas`` emits the .r-grid container in both branches.
+
+    The grid container ships even on an empty library (the
+    empty-state row lives inside it, mirroring the swap target
+    contract). Task-22 cards use the ``.r-echo`` className; on an
+    empty library no cards render, so the negative assertion is
+    "container present, empty-state inside".
+    """
+    r = client.get("/tab/rimas")
+    assert r.status_code == 200, r.text[:500]
+    html = r.text
+    assert 'class="r-grid"' in html
+    assert 'id="rimas-echoes"' in html

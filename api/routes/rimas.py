@@ -47,15 +47,20 @@ router = APIRouter()
 
 
 @router.get("/tab/rimas", response_class=HTMLResponse)
-async def tab_rimas(request: Request, anchor: str | None = None) -> HTMLResponse:
+async def tab_rimas(
+    request: Request,
+    anchor: str | None = None,
+    echo: str | None = None,
+) -> HTMLResponse:
     """Render the Rimas Visuais tab partial.
 
     The service treats an absent / malformed ``anchor`` query param as
     "use the default anchor" — the first processed film, scene 1. When
-    no film qualifies the partial renders an empty state.
+    no film qualifies the partial renders an empty state. ``?echo=``
+    deep-shares a specific rhyme card and pre-populates the inspector.
     """
     cfg = get_config()
-    ctx = build_rimas_context(cfg, anchor=anchor)
+    ctx = build_rimas_context(cfg, anchor=anchor, echo=echo)
     return templates.TemplateResponse(
         request,
         "partials/rimas.html",
@@ -64,23 +69,55 @@ async def tab_rimas(request: Request, anchor: str | None = None) -> HTMLResponse
 
 
 @router.get("/api/rimas/echoes", response_class=HTMLResponse)
-async def api_rimas_echoes(request: Request, anchor: str | None = None) -> HTMLResponse:
+async def api_rimas_echoes(
+    request: Request,
+    anchor: str | None = None,
+    echo: str | None = None,
+) -> HTMLResponse:
     """Return the echo-grid fragment for HTMX anchor swaps.
 
-    The fragment is consumed by anchor-switch interactions (Task 22):
-    clicking a film in the sidebar or promoting a candidate echo to
-    anchor fires this endpoint with the new ``?anchor=`` value and
-    swaps the grid in place without reloading the whole tab.
+    The fragment is consumed by anchor-switch interactions: clicking a
+    film in the sidebar or promoting a candidate echo to anchor fires
+    this endpoint with the new ``?anchor=`` value and swaps the grid in
+    place without reloading the whole tab.
 
     Shares the full context shape with :func:`tab_rimas` so the
     fragment can read every key the page template can (the echoes
-    partial intentionally reads only ``echoes`` + the knob trio; the
-    rest is no-op).
+    partial intentionally reads only ``echoes`` + the knob trio +
+    ``selected_echo_id`` for the ``.sel`` highlight class; the rest is
+    no-op).
     """
     cfg = get_config()
-    ctx = build_rimas_context(cfg, anchor=anchor)
+    ctx = build_rimas_context(cfg, anchor=anchor, echo=echo)
     return templates.TemplateResponse(
         request,
         "partials/rimas_echoes.html",
+        make_ctx(request, **ctx),
+    )
+
+
+@router.get("/api/rimas/inspector", response_class=HTMLResponse)
+async def api_rimas_inspector(
+    request: Request,
+    anchor: str | None = None,
+    echo: str | None = None,
+) -> HTMLResponse:
+    """Return the right-pane inspector fragment.
+
+    Fired by the .r-echo cards on click (hx-target="#right-pane",
+    hx-swap="innerHTML"). The fragment renders the .r-pair comparison +
+    similarity card + shared tags + actions for the selected echo, or
+    an "anchor-only" empty branch when ``?echo=`` is omitted or
+    unresolvable.
+
+    Same 200-only contract as the other rimas endpoints: any
+    unresolvable input collapses to an empty-but-rendered inspector,
+    never a 500.
+    """
+    cfg = get_config()
+    ctx = build_rimas_context(cfg, anchor=anchor, echo=echo)
+    return templates.TemplateResponse(
+        request,
+        "partials/rimas_inspector.html",
         make_ctx(request, **ctx),
     )

@@ -1,33 +1,57 @@
-{# Rimas Visuais echo grid — Task 21 placeholder.
+{# Rimas Visuais echo grid — Task 22.
 
-   Renders one ``.r-echo`` card per cross-film neighbour returned by
-   :func:`api.services.rhymes_service.build_rimas_context`. Task 22
-   replaces this with the full ``.r-grid > .r-similarity-card`` markup
-   the design system specifies; this stub keeps the HTMX swap target
-   alive (``#rimas-echoes``) and proves the route + service plumb
-   end-to-end.
+   Renders one .r-echo card per cross-film neighbour returned by
+   :func:`api.services.rhymes_service.build_rimas_context`. Each card
+   is an anchor element so middle-click + share work; clicking with
+   HTMX swaps only the right-pane inspector (#right-pane) via
+   /api/rimas/inspector, so the grid stays put while the user
+   browses rhymes.
+
+   The wrapping ``id="rimas-echoes"`` + ``class="r-grid"`` are kept on
+   the outer ``<div>`` for both the populated and empty branches —
+   the route-level test in tests/test_web_routes.py asserts both
+   anchors are present regardless of library state. The HTMX swap
+   target (`#rimas-echoes`) is preserved across full and fragment
+   renders.
 #}
+{% from "partials/_icons.html" import icon %}
+
 <div id="rimas-echoes" class="r-grid">
   {% if echoes %}
     {% for e in echoes %}
-      <article class="r-echo"
-               data-film-slug="{{ e.film_slug }}"
-               data-scene-id="{{ e.scene_id }}">
-        {% if e.keyframe_url %}
-          <img class="r-echo-kf" src="{{ e.keyframe_url }}" alt="" loading="lazy">
-        {% endif %}
-        <div class="r-echo-meta">
-          <strong>{{ e.film_title }}</strong>
-          · {{ _("scene") }} {{ e.scene_id }}
-          {% if e.timecode %} · {{ e.timecode }}{% endif %}
-          · <span class="r-echo-score">{{ "%.2f"|format(e.score) }}</span>
+      {% set anchor_qs = anchor_film.slug ~ '/' ~ anchor_scene.scene_id if (anchor_film and anchor_scene) else '' %}
+      {% set echo_qs = e.film_slug ~ '/' ~ e.scene_id %}
+      <a class="r-echo{% if selected_echo_id is defined and selected_echo_id == e.scene_id and selected_echo and selected_echo.film_slug == e.film_slug %} sel{% endif %}"
+         href="/rimas?anchor={{ anchor_qs }}&echo={{ echo_qs }}"
+         hx-get="/api/rimas/inspector?anchor={{ anchor_qs }}&echo={{ echo_qs }}"
+         hx-target="#right-pane"
+         hx-swap="innerHTML"
+         hx-trigger="click"
+         data-film-slug="{{ e.film_slug }}"
+         data-scene-id="{{ e.scene_id }}"
+         role="button"
+         tabindex="0">
+        <div class="kf"{% if e.keyframe_url %} style="background-image: url('{{ e.keyframe_url }}');"{% endif %}>
+          <span class="rank">#{{ '%02d'|format(loop.index) }}</span>
+          <span class="sim">{{ '%.2f'|format(e.score) }}</span>
+          <span class="filmbadge">
+            <span class="dot" style="background: var(--c-accent);"></span>
+            {{ e.film_title }}
+          </span>
+          {% if e.timecode %}<span class="tc">{{ e.timecode }}</span>{% endif %}
         </div>
-        {% if e.reason %}
-          <p class="r-echo-reason">{{ e.reason }}</p>
-        {% endif %}
-      </article>
+        <div class="body">
+          {% if e.reason %}
+            <p class="reason">{{ e.reason }}</p>
+          {% endif %}
+          <div class="footrow">
+            <span class="info">{{ _('Scene %(n)s') % {'n': '%03d'|format(e.scene_id)} }}</span>
+            <span style="color: var(--c-accent);">↗ {{ _('open') }}</span>
+          </div>
+        </div>
+      </a>
     {% endfor %}
   {% else %}
-    <p class="empty-state">{{ _("No visual rhymes yet — process more films to populate the index.") }}</p>
+    <p class="empty-state">{{ _('No visual rhymes yet — process more films to populate the index.') }}</p>
   {% endif %}
 </div>

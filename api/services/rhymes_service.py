@@ -271,11 +271,64 @@ def _rimas_cfg(cfg: Any) -> tuple[int, float, float]:
     return top_n, mmr_lambda, threshold
 
 
-def build_rimas_context(cfg: Any, *, anchor: str | None) -> dict:
+def _select_echo(
+    enriched: list[dict],
+    echo_slug: str | None,
+    echo_scene_id: int | None,
+) -> tuple[dict | None, int | None]:
+    """Resolve the ``?echo=<slug>/<scene_id>`` query param to a card.
+
+    Walks the already-enriched echoes list (so the inspector's keyframe
+    URL + score data line up byte-for-byte with the grid card it came
+    from) and returns ``(echo_dict, rank)`` where ``rank`` is the 1-
+    based position the card occupies in the grid. The dict is mutated
+    to carry that ``rank`` so the inspector template can render the
+    ``#NN`` pip without re-walking the list.
+
+    Returns ``(None, None)`` for any unresolvable echo (the inspector
+    template treats this as "anchor-only" mode and skips the .r-pair).
+    """
+    if echo_slug is None or echo_scene_id is None:
+        return None, None
+    for idx, e in enumerate(enriched, start=1):
+        if e.get("film_slug") == echo_slug and int(e.get("scene_id", -1)) == echo_scene_id:
+            e["rank"] = idx
+            return e, idx
+    return None, None
+
+
+def _shared_tags(cfg: Any, anchor_data: dict | None, selected_echo: dict | None) -> list[str]:
+    """Return the intersection of anchor + selected-echo tag sets.
+
+    Used by the inspector's "Shared tags" block. Empty when either side
+    is missing or no tags overlap.
+    """
+    if anchor_data is None or selected_echo is None:
+        return []
+    anchor_tags = anchor_data.get("tags") or []
+    if not anchor_tags:
+        return []
+    try:
+        ctx = FilmContext.for_film(cfg, selected_echo["film_slug"])
+    except (KeyError, ValueError):
+        return []
+    echo_tags = _tags_for(ctx.metadata_dir, int(selected_echo["scene_id"]))
+    if not echo_tags:
+        return []
+    return [t for t in anchor_tags if t in set(echo_tags)]
+
+
+def build_rimas_context(
+    cfg: Any,
+    *,
+    anchor: str | None,
+    echo: str | None = None,
+) -> dict:
     """Build the Rimas Visuais template context.
 
     Returned keys match what ``partials/rimas.html`` /
-    ``partials/rimas_echoes.html`` (Task 22) consume:
+    ``partials/rimas_echoes.html`` / ``partials/rimas_inspector.html``
+    (Task 22) consume:
 
       * ``anchor_film`` — the :class:`cinemateca.library.Film` carrying
         the anchor scene, or ``None`` when no anchor resolves.
@@ -288,12 +341,20 @@ def build_rimas_context(cfg: Any, *, anchor: str | None) -> dict:
         neighbour), each carrying ``film_slug`` / ``film_title`` /
         ``scene_id`` / ``keyframe_url`` / ``score`` / ``timecode`` /
         ``reason``.
+      * ``selected_echo`` — one echo dict picked out by the ``?echo=``
+        query param, or ``None``. Mutated in-place to carry a ``rank``
+        key (1-based grid position) so the inspector can render the
+        ``#NN`` pip without re-walking the list.
+      * ``selected_echo_id`` — the scene_id of the selected echo (used
+        by ``rimas_echoes.html`` to add the ``.sel`` highlight class).
+      * ``shared_tags`` — list[str], intersection of anchor + selected
+        echo tag sets (empty when either side absent or no overlap).
       * ``k`` / ``mmr_lambda`` / ``threshold`` — the Rimas knobs surfaced
         in the template (display-only for M1; M3 honors mmr_lambda and
         threshold).
 
-    Never raises on an unresolvable anchor — the empty state is the
-    contract for both the route and the HTMX fragment.
+    Never raises on an unresolvable anchor / echo — the empty state is
+    the contract for both the route and the HTMX fragments.
     """
     library_dir = Path(cfg.paths.library_dir)
     films = library.scan_library(library_dir)
@@ -320,19 +381,32 @@ def build_rimas_context(cfg: Any, *, anchor: str | None) -> dict:
 
     enriched = [_enrich_rhyme(cfg, r, films_by_id) for r in rhymes]
 
+    # ?echo=<slug>/<scene_id> highlights one of the echo cards and
+    # populates the inspector. Re-uses _parse_anchor: it accepts the
+    # same shape and returns (None, None) for malformed input.
+    echo_slug, echo_scene_id = _parse_anchor(echo)
+    selected_echo, _rank = _select_echo(enriched, echo_slug, echo_scene_id)
+    selected_echo_id = selected_echo["scene_id"] if selected_echo else None
+
+    shared = _shared_tags(cfg, anchor_data, selected_echo)
+
     logger.info(
-        "rimas: anchor=%s/%s films=%d echoes=%d (k=%d)",
+        "rimas: anchor=%s/%s films=%d echoes=%d (k=%d) selected_echo=%s",
         slug,
         scene_id,
         len(films),
         len(enriched),
         top_n,
+        f"{echo_slug}/{echo_scene_id}" if selected_echo else None,
     )
 
     return {
         "anchor_film": films_by_id.get(slug) if slug else None,
         "anchor_scene": anchor_data,
         "echoes": enriched,
+        "selected_echo": selected_echo,
+        "selected_echo_id": selected_echo_id,
+        "shared_tags": shared,
         "k": top_n,
         "mmr_lambda": mmr_lambda,
         "threshold": threshold,

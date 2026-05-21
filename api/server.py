@@ -204,11 +204,14 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
                     tab_ctx.update(timeline_ctx)
     elif active_tab == "rimas":
         # Mojica Task 21: ``?anchor=<slug>/<scene_id>`` is a deep-share URL
-        # into a specific anchor scene. The service handles parsing +
-        # falling back to the default anchor when the param is absent
-        # or malformed, so an unrecognised value never crashes the page.
+        # into a specific anchor scene. Task 22 adds ``?echo=<slug>/<scene_id>``
+        # to pre-populate the right-pane inspector with one of the echo
+        # cards highlighted. The service handles parsing + falling back
+        # to the default anchor / no-echo when the params are absent or
+        # malformed, so an unrecognised value never crashes the page.
         anchor_param = request.query_params.get("anchor")
-        tab_ctx = build_rimas_context(cfg, anchor=anchor_param)
+        echo_param = request.query_params.get("echo")
+        tab_ctx = build_rimas_context(cfg, anchor=anchor_param, echo=echo_param)
     else:
         tab_ctx = _TAB_CONTEXT_BUILDERS[active_tab]()
     # Mojica chrome kwargs (active_tab=PT slug, compact_lp, has_right_pane) are
