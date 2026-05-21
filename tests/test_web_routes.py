@@ -112,10 +112,17 @@ def test_base_shell_compact_for_anotar(client):
 
 
 def test_base_shell_includes_palette_and_help_roots(client):
-    """Polish-layer mount points exist on the index page (filled later)."""
+    """Polish-layer mount points exist on the index page.
+
+    Task 27 replaced the ``#palette-root`` placeholder with the real
+    server-rendered command-palette scaffold (``id="palette"`` + nested
+    ``#cp-input`` / ``#cp-list``). The help-root + toast-root remain as
+    Phase-7 mount points until Task 28 fills the help overlay.
+    """
     r = client.get("/")
     html = r.text
-    assert 'id="palette-root"' in html
+    assert 'id="palette"' in html
+    assert 'id="cp-input"' in html
     assert 'id="help-root"' in html
     assert 'id="toast-root"' in html
 

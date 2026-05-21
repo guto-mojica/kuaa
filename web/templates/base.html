@@ -203,10 +203,14 @@
 </div>
 
 {# Modal container (legacy About modal target) and Mojica polish-layer mount
-   points — palette/help/toast roots are filled by Phase-7 HTMX calls. #}
+   points. Task 27 replaces the ``#palette-root`` placeholder with the
+   real scaffold partial — the DOM is rendered once at page load and the
+   palette.js IIFE toggles ``[hidden]`` on the outer ``#palette`` div. The
+   help/toast roots remain empty until Tasks 26 (toast bus, already wired)
+   and 28 (help overlay) fill them. #}
 <div id="modal-container"></div>
 <div id="toast-root" aria-live="polite"></div>
-<div id="palette-root"></div>
+{% include "partials/_palette.html" %}
 <div id="help-root"></div>
 <div id="modal-root"></div>
 

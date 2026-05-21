@@ -15,7 +15,18 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from api.deps import get_config, make_ctx
-from api.routes import about, annotate, export, library, processing, rimas, scenes, search, tabs
+from api.routes import (
+    about,
+    annotate,
+    export,
+    library,
+    palette,
+    processing,
+    rimas,
+    scenes,
+    search,
+    tabs,
+)
 from api.services.annotations import build_annotate_context
 from api.services.chrome_service import build_chrome_context
 from api.services.film_context import FilmContext
@@ -59,6 +70,7 @@ app.include_router(about.router)
 app.include_router(library.router)
 app.include_router(export.router)
 app.include_router(rimas.router)
+app.include_router(palette.router)
 
 
 # Each tab's full context is built by the SAME code path the matching

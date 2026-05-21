@@ -259,3 +259,77 @@ window.ToastBus = (function () {
   return { push: push, remove: remove };
 })();
 
+// ─── Keyboard router (Phase 7 · Task 27) ──────────────────────────────
+// Single global keydown listener that:
+//   * Opens the command palette on ⌘K / Ctrl+K. Works from any focus,
+//     including text inputs (the palette IS a text input — preventing it
+//     from opening while the user is typing a search query would be the
+//     opposite of useful).
+//   * Reserves space for future keyboard shortcuts (Task 28 wires "?" to
+//     the help overlay; tab digits "1".."5" become navigation hotkeys).
+//
+// palette.js is loaded on demand the first time the palette is opened,
+// not eagerly at page load — most sessions never press ⌘K, and the
+// palette scaffold is already in the DOM (server-rendered partial), so
+// JS-side wiring is the only deferrable cost. Once loaded, ``window.Palette``
+// stays cached and subsequent ⌘K presses hit it directly.
+(function () {
+  'use strict';
+
+  var paletteLoading = false;
+
+  /**
+   * Ensure ``window.Palette`` is available, then invoke ``callback``.
+   *
+   * Idempotent + race-safe: once a load is in flight, subsequent calls
+   * queue their callback on the same <script> element's ``load`` event
+   * instead of injecting a second tag.
+   */
+  function ensurePaletteLoaded(callback) {
+    if (window.Palette) {
+      callback();
+      return;
+    }
+    // A previous call is already loading the script — re-attach the
+    // callback to the same tag. The script's onload fires once and runs
+    // every queued callback.
+    if (paletteLoading) {
+      var pending = document.getElementById('palette-script');
+      if (pending) {
+        pending.addEventListener('load', function () { callback(); });
+      }
+      return;
+    }
+    paletteLoading = true;
+    var script = document.createElement('script');
+    script.id = 'palette-script';
+    script.src = '/static/js/palette.js';
+    script.defer = true;
+    script.addEventListener('load', function () { callback(); });
+    document.head.appendChild(script);
+  }
+
+  document.addEventListener('keydown', function (e) {
+    // ⌘K / Ctrl+K — open palette. Bypasses the "in field" guard
+    // intentionally: this shortcut should work from any focus context.
+    var isMod = e.metaKey || e.ctrlKey;
+    if (isMod && (e.key === 'k' || e.key === 'K')) {
+      e.preventDefault();
+      ensurePaletteLoaded(function () {
+        if (window.Palette && typeof window.Palette.open === 'function') {
+          window.Palette.open();
+        }
+      });
+      return;
+    }
+
+    // Hook point for Task 28 (help overlay on "?") and future single-key
+    // shortcuts. The "in field" guard below already protects those from
+    // firing while the user is typing into an input or textarea.
+    var ae = document.activeElement;
+    var inField = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable);
+    if (inField) return;
+
+    // (No-op today. Task 28 lands the "?" handler here.)
+  });
+})();
