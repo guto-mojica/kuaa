@@ -193,3 +193,85 @@ msgstr "Embeddings"
 
 msgid "LLM descriptions"
 msgstr "Descrições LLM"
+
+# ── About surface (Mojica redesign · Task 29) ─────────────────────────
+msgid "Cinemateca Mojica"
+msgstr "Cinemateca Mojica"
+
+msgid "stable"
+msgstr "estável"
+
+msgid "Digital archive"
+msgstr "Acervo digital"
+
+msgid "build"
+msgstr "build"
+
+msgid "Internal cataloguing and semantic search system for the Cinemateca Mojica archive."
+msgstr "Sistema interno de catalogação e busca semântica do acervo da Cinemateca Mojica."
+
+msgid "Indexes scenes, descriptions, visual embeddings and transcripts to support curation, programming and research."
+msgstr "Indexa cenas, descrições, embeddings visuais e transcrições para apoiar curadoria, programação e pesquisa."
+
+msgid "100% local"
+msgstr "100% local"
+
+msgid "no external service dependency, no outbound traffic at runtime."
+msgstr "sem dependência de serviço externo, sem tráfego de saída em runtime."
+
+msgid "indexed films"
+msgstr "filmes indexados"
+
+msgid "detected scenes"
+msgstr "cenas detectadas"
+
+msgid "catalogued runtime"
+msgstr "runtime catalogado"
+
+msgid "time range"
+msgstr "faixa temporal"
+
+msgid "Models"
+msgstr "Modelos"
+
+msgid "Stack"
+msgstr "Stack"
+
+msgid "Credits"
+msgstr "Créditos"
+
+msgid "Visual embedding"
+msgstr "Embedding visual"
+
+msgid "Scene description"
+msgstr "Descrição de cena"
+
+msgid "Object detection"
+msgstr "Detecção de objetos"
+
+msgid "Face detection"
+msgstr "Detecção de faces"
+
+msgid "Audio embedding"
+msgstr "Embedding de áudio"
+
+msgid "Concept"
+msgstr "Conceito"
+
+msgid "Engineering"
+msgstr "Engenharia"
+
+msgid "AI integration"
+msgstr "Integração de IA"
+
+msgid "Funding"
+msgstr "Financiamento"
+
+msgid "Year"
+msgstr "Ano"
+
+msgid "Documentation"
+msgstr "Documentação"
+
+msgid "Changelog"
+msgstr "Histórico de mudanças"

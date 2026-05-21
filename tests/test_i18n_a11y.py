@@ -104,37 +104,61 @@ def test_nav_and_about_and_locale_have_real_href(raw_client, href):
 
 def test_about_full_page_route_works_js_off(raw_client):
     """The /about href must resolve to a standalone page (the modal-only
-    affordance had no JS-off fallback before Phase 6)."""
+    affordance had no JS-off fallback before Phase 6).
+
+    Task 29 (Mojica redesign) replaced the legacy "Model attributions"
+    table with the redesigned ``.ab-modal`` panel: the en-source
+    "Models" section header now identifies the surface. The full-page
+    template's ``<a href="/" …>`` legacy back-link was removed because
+    the modal's close button (which empties ``#modal-container``) now
+    drives navigation; a JS-side bounce redirects to ``/`` when the
+    container empties.
+    """
     raw_client.cookies.set("locale", "en")
     r = raw_client.get("/about")
     assert r.status_code == 200
     assert "<!DOCTYPE html>" in r.text
-    assert "Model attributions" in r.text  # en source string
-    assert 'href="/"' in r.text  # a real way back, no JS needed
+    # Source-locale identifying string for the redesigned modal:
+    assert "Models" in r.text
+    # The modal's panel is present (canonical surface, shared with the
+    # /api/about partial — proves the page is the JS-off fallback).
+    assert 'class="ab-modal"' in r.text
 
 
 def test_about_full_page_localized_pt(raw_client):
-    """Same page, pt_BR cookie → translated credits heading."""
+    """Same page, pt_BR cookie → translated copy.
+
+    Asserts both that the page returns localised content (pt_BR ``<html
+    lang>`` set) and that one of the new ABOUT strings translates: the
+    ``Digital archive`` pill in the header row maps to ``Acervo
+    digital``. If this string ever loses its translation, the assertion
+    flips before the visible PT copy regresses.
+    """
     raw_client.cookies.set("locale", "pt_BR")
     r = raw_client.get("/about")
     assert r.status_code == 200
-    assert "Atribuições de modelos" in r.text
     assert '<html lang="pt-BR">' in r.text
+    assert "Acervo digital" in r.text
 
 
 def test_about_modal_and_page_share_credits(raw_client):
-    """Modal (/api/about) and full page (/about) emit the same credits.
+    """Modal (/api/about) and full page (/about) emit the same content.
 
-    Both {% include %} the shared partials/_about_credits.html, so the
-    model attributions must appear identically on both surfaces.
+    Task 29 (Mojica redesign) collapsed the old shared
+    ``_about_credits.html`` partial into a single canonical surface:
+    ``about_page.html`` now ``{% include %}``s
+    ``partials/about_modal.html`` verbatim, so by construction every
+    string in the modal also appears on the page.
     """
     raw_client.cookies.set("locale", "en")
     modal = raw_client.get("/api/about").text
     page = raw_client.get("/about").text
-    for needle in ("Moondream 2", "CLIP", "YOLOv8", "MTCNN",
-                   "Model attributions"):
-        assert needle in modal, needle
-        assert needle in page, needle
+    # Model attribution cards: badge keys + repo identifiers cover the
+    # full pipeline list (CLIP / Moondream / YOLO / MTCNN / CLAP).
+    for needle in ("moondream2", "clip-vit-large", "yolov8m",
+                   "mtcnn", "larger_clap_general", "Models"):
+        assert needle in modal, f"modal missing: {needle}"
+        assert needle in page, f"page missing: {needle}"
 
 
 # ── Locale switch preserves path + open-redirect safety ───────────────

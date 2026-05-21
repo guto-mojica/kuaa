@@ -1,41 +1,46 @@
 <!DOCTYPE html>
 {#- Full-page About — JS-off progressive-enhancement fallback for the
-    about modal (web/templates/partials/about_modal.html). The credits
-    content is the SHARED partials/_about_credits.html partial, included
-    by both this page and the modal, so the two surfaces are
-    content-identical by construction. This wrapper just gives it a
-    standalone page with a real back link so the sidebar's
-    <a href="/about"> works with scripting disabled. -#}
+    About modal (web/templates/partials/about_modal.html). Task 29
+    (Mojica redesign) simplified this template so both surfaces share
+    the SAME partial, byte-for-byte — the modal is the canonical
+    surface; this page just renders it standalone for direct ``/about``
+    hits and for browsers with scripting disabled.
+
+    The chrome stylesheets are linked so the modal's atmospheric
+    backdrop and styling resolve the same way they do over base.html.
+    No chrome shell is included around it — the modal is fixed-position
+    and covers the viewport on its own, so wrapping it in the chrome
+    grid would just push it off-screen. -#}
 <html lang="{{ lang }}">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cinemateca AI — {{ _("About") }}</title>
+    <meta name="viewport" content="width=1440">
+    <title>{{ _("About") }} — Cinemateca Mojica</title>
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/fonts.css') }}">
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/main.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/fx.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/about.css') }}">
 </head>
-<body>
-{% from "partials/_icons.html" import icon %}
-<div class="shell">
-    <main class="main">
-        <div class="tab-content">
-            <div class="modal-card modal-card--page">
-                <a class="modal-close" href="/" title="{{ _('Close') }}">
-                    {{ icon("x") }}
-                </a>
-
-                <header class="modal-header">
-                    {{ icon("film-reel", "modal-logo") }}
-                    <h1 class="modal-title">Cinemateca AI</h1>
-                </header>
-
-                {% include "partials/_about_credits.html" %}
-
-                <p class="modal-section" style="margin-top:24px">
-                    <a class="modal-link" href="/">&larr; {{ _("Back") }}</a>
-                </p>
-            </div>
-        </div>
-    </main>
+<body class="fx-app" data-active-tab="about" data-locale="{{ locale }}">
+{# A live ``#modal-container`` is still rendered so the modal's onclick
+   handlers (which empty it on close) have somewhere to point. On
+   /about the user lands directly inside that container, so closing the
+   modal navigates back to ``/`` instead. #}
+<div id="modal-container">
+    {% include "partials/about_modal.html" %}
 </div>
+<script>
+// JS-off-friendly close: when the user clicks an in-modal close button
+// (which empties #modal-container above) we land on a blank document.
+// Detect that and bounce to "/" so the user does not get stuck.
+document.getElementById('modal-container').addEventListener('click', function(e) {
+  // The handler runs AFTER the inline onclick has emptied innerHTML,
+  // so a quick microtask check confirms emptiness then navigates.
+  setTimeout(function() {
+    var c = document.getElementById('modal-container');
+    if (c && c.innerHTML.trim() === '') window.location.href = '/';
+  }, 0);
+});
+</script>
 </body>
 </html>

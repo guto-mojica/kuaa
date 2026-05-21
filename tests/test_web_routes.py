@@ -65,10 +65,51 @@ def test_tab_fragment_routes_respond(client, path):
 
 
 def test_about_modal_responds(client):
-    """/api/about renders the about modal partial."""
+    """/api/about renders the redesigned About modal partial (Task 29).
+
+    The 0.3.0 version assertion the pre-Mojica test carried is replaced
+    by a structural check: the modal now reads the runtime
+    ``cinemateca.__version__``, and the surface is identified by its
+    ``.ab-modal`` panel rather than a literal version string.
+    """
     r = client.get("/api/about")
     assert r.status_code == 200, r.text[:500]
-    assert "0.3.0" in r.text
+    assert 'class="ab-modal"' in r.text
+
+
+def test_about_modal_renders_model_attributions(client):
+    """Every model in the project pipeline gets its own attribution card."""
+    r = client.get("/api/about")
+    assert r.status_code == 200, r.text[:500]
+    # Five attribution cards present (one per pipeline model).
+    assert r.text.count('class="ab-model"') == 5
+    # Identifiable model names appear (covers both name and badge text).
+    body = r.text.lower()
+    assert "moondream" in body
+    assert "clip" in body
+    assert "yolov8" in body
+    assert "mtcnn" in body
+    assert "clap" in body
+
+
+def test_about_modal_stats_grid(client):
+    """The header stats strip renders 4 cells with films/scenes/runtime/years."""
+    r = client.get("/api/about")
+    assert r.status_code == 200, r.text[:500]
+    assert 'class="ab-stats"' in r.text
+    # Exactly four stat cells (films, scenes, runtime, year range).
+    assert r.text.count('class="ab-stat"') == 4
+
+
+def test_about_page_renders_full_page(client):
+    """/about wraps the modal partial in a standalone page for JS-off users."""
+    r = client.get("/about")
+    assert r.status_code == 200, r.text[:500]
+    assert "<!DOCTYPE html>" in r.text
+    # The full-page route shares the modal partial: ``.ab-app`` root +
+    # ``.ab-modal`` panel both appear.
+    assert 'class="ab-app"' in r.text
+    assert 'class="ab-modal"' in r.text
 
 
 def test_tab_processing_empty_has_no_active_jobs(client):
