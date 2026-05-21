@@ -28,8 +28,12 @@
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/proc.css') }}">
     <script src="{{ request.url_for('static', path='js/htmx.min.js') }}" defer></script>
     <script src="{{ request.url_for('static', path='js/htmx-ext-sse.js') }}" defer></script>
-    {# /static/js/mojica.js is the polish layer (palette + help + toasts);
-       it ships in Phase 7 (Task 28). Not linked here until then. #}
+    {# mojica.js — Phase 6 seed: SSE log auto-scroll on #proc-log.
+       Phase 7 (Tasks 26–28) extends the same file with the toast bus,
+       command palette, and keyboard-help overlay. Single IIFE, no
+       external deps, deferred so it runs after htmx-ext-sse is in
+       place. #}
+    <script src="{{ request.url_for('static', path='js/mojica.js') }}" defer></script>
 </head>
 <body class="fx-app"
       data-active-tab="{{ active_tab }}"

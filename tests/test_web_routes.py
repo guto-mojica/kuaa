@@ -1174,3 +1174,38 @@ def test_proc_stats_section_present(client):
     html = r.text
     assert 'class="p-stats"' in html
     assert 'class="p-queue"' in html
+
+
+# ── Task 25 ───────────────────────────────────────────────────────────
+# mojica.js — Phase 6 seed: SSE log auto-scroll on the Processing tab.
+# Browser-level behaviour testing requires a real DOM (Playwright); these
+# tests pin the contract at the asset-serving + template-wiring level so
+# regressions in either side fail fast in pytest.
+
+def test_mojica_js_served(client):
+    """`/static/js/mojica.js` is served by the FastAPI static mount and
+    contains the auto-scroll binding helper.
+
+    The asset is a vendored vanilla-JS module (no build step), so we
+    can assert on substrings of the source directly. Either marker is
+    sufficient evidence the file at the served URL is the Phase-6
+    polish layer (not, e.g., an empty placeholder).
+    """
+    r = client.get("/static/js/mojica.js")
+    assert r.status_code == 200, r.text[:200]
+    body = r.text
+    assert "bindLogAutoscroll" in body or "proc-log" in body
+
+
+def test_processing_page_loads_mojica_js(client):
+    """The Processing tab full-page render references `mojica.js` so the
+    SSE auto-scroll binding ships with the chrome.
+
+    The `<script>` tag lives in ``base.html`` (Phase-1 chrome), so any
+    full-page render — not just /processing — should include it. We
+    pin it on /processing because that is the tab whose behaviour the
+    script enables.
+    """
+    r = client.get("/processing")
+    assert r.status_code == 200, r.text[:500]
+    assert "/static/js/mojica.js" in r.text
