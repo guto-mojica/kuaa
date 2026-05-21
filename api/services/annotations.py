@@ -199,6 +199,129 @@ def build_scene_list(ctx: FilmContext, filter_mode: str) -> tuple[list, dict, di
     return scenes, desc_by_scene, annotations
 
 
+# ── Demo collaboration thread (v1.0 launch prep, pre-backend) ─────────────────
+#
+# A deterministic 2-entry curator+viewer thread so the Anotar / Buscar inspector
+# matches the prototype screenshots before the real comment backend ships.
+# Rendering is gated on ``cfg.collaboration.demo_threads_enabled`` (template
+# side), so flipping the flag off restores the pre-demo empty state with no
+# code changes.
+
+
+def _demo_threads_enabled() -> bool:
+    """Lazy read of ``cfg.collaboration.demo_threads_enabled``.
+
+    Imports inside the function so test fixtures that don't initialize
+    the full config (or that swap in their own narrow stub) never trip
+    on an import-time dependency. Failures default to ``False`` so the
+    pre-demo empty state is the safe fallback.
+    """
+    try:
+        from api.config import get_config  # noqa: PLC0415
+
+        cfg = get_config()
+        return bool(getattr(cfg.collaboration, "demo_threads_enabled", False))
+    except Exception:
+        return False
+
+
+def _demo_thread(timecode: str) -> list[dict]:
+    """Return a small fixed curator+viewer thread for the inspector.
+
+    The two entries mirror the prototype's Frame.io-style Annotate comments:
+    a pinned curator note with attachments + reactions, and a viewer reply.
+    Content is intentionally generic so it reads plausibly across any scene
+    in any film; the timecode chip is interpolated so the pin sits on the
+    current keyframe instead of a hardcoded one.
+    """
+    return [
+        {
+            "author": "Rafael Gonzaga",
+            "role": "curator",
+            "initials": "RG",
+            "badge": "pinned",
+            "timecode": timecode,
+            "when": "há 2h",
+            "body": (
+                "O diálogo nesta cena é representativo da vertente "
+                '<b>"campo aberto"</b> em Mazzaropi. Anexei notas do diretor '
+                "e referências visuais que apareceram na pré-pesquisa."
+            ),
+            "attachments": [
+                {"name": "notas-jeca-tatu.docx", "kind": "doc"},
+                {"name": "moodboard-retrospectiva.jpg", "kind": "image"},
+            ],
+            "reactions": [{"emoji": "👍", "count": 2}],
+            "actions": ["reply", "resolve", "share"],
+        },
+        {
+            "author": "Júlia Reis",
+            "role": "viewer",
+            "initials": "JR",
+            "badge": "",
+            "timecode": "",
+            "when": "agora",
+            "body": (
+                "Concordo. Talvez vincular também à temática <b>'campo aberto'</b> "
+                "que tem o mesmo enquadramento? Achei interessante para uma "
+                "<i>rima visual</i>."
+            ),
+            "attachments": [],
+            "reactions": [{"emoji": "👍", "count": 0}, {"emoji": "😊", "count": 0}],
+            "actions": ["reply"],
+        },
+    ]
+
+
+def _demo_pins(timecode: str) -> list[dict]:
+    """One annotation pin overlay so the keyframe canvas isn't blank.
+
+    Position is deterministic (28% top, 42% left) so the pin sits over a
+    visually neutral region of most keyframes. The label is the order in
+    the thread (1 = the curator note above).
+    """
+    return [{"label": "1", "top": "28%", "left": "42%", "timecode": timecode}]
+
+
+def _demo_comment_popup(timecode: str) -> dict:
+    """Inline comment popover that floats over the keyframe.
+
+    The popup carries a short curator quote so the .a-stage canvas reads
+    like the Frame.io reference. Coordinates anchor the bubble at roughly
+    the same spot as the pin so the leader line lines up.
+    """
+    return {
+        "top": "55%",
+        "left": "50%",
+        "author": "Rafael Gonzaga",
+        "initials": "RG",
+        "when": "há 2h",
+        "timecode": timecode,
+        "body": (
+            "O diálogo nesta cena é representativo da vertente "
+            '<b>"campo aberto"</b>. Anexei notas do diretor e referências visuais.'
+        ),
+    }
+
+
+def _demo_markers() -> list[dict]:
+    """Synthetic timeline markers so the .a-tl scrubber renders flagged spots."""
+    return [
+        {"pct": 18, "kind": "pin"},
+        {"pct": 42, "kind": "pin"},
+        {"pct": 71, "kind": "comment"},
+    ]
+
+
+def _demo_avatars() -> list[dict]:
+    """Three viewer avatars for the timeline avatar strip."""
+    return [
+        {"initials": "EJ", "pct": 12},
+        {"initials": "JF", "pct": 47},
+        {"initials": "SP", "pct": 81},
+    ]
+
+
 def scene_context(
     ctx: FilmContext,
     scenes: list,
@@ -292,24 +415,40 @@ def scene_context(
         "progress_pct": 0,
         "description": description_text,
         "tags": list(existing_tags),
-        # Collaboration overlays — populated by a later epic; empty/None
-        # so the .a-stage template iterates safely on initial render.
-        "pins": [],
-        "comment_popup": None,
-        "markers": [],
-        "timeline_avatars": [],
+        # Collaboration overlays. The real backend (user model + comment
+        # persistence + pin store) is the v1.1 collaboration epic; until
+        # it lands the inspector + a-stage ship with a small deterministic
+        # demo thread + matching pin so the prototype screenshots match
+        # the launch design. Rendering is gated on
+        # ``cfg.collaboration.demo_threads_enabled`` (default ON during
+        # v1.0 launch prep; flipped OFF once real curator notes flow).
+        "pins": _demo_pins(tc_smpte),
+        "comment_popup": _demo_comment_popup(tc_smpte),
+        "markers": _demo_markers(),
+        "timeline_avatars": _demo_avatars(),
         "timeline_ticks": [],
+        "comments": _demo_thread(tc_smpte),
         "prev_id": scenes[idx - 1]["scene_id"] if idx > 0 else None,
         "next_id": scenes[idx + 1]["scene_id"] if idx < len(scenes) - 1 else None,
     }
 
+    # If demo_threads_enabled is off the demo overlays clear back to the
+    # honest empty state (pre-collaboration-backend behaviour). cfg is
+    # read lazily so the helper stays callable from tests that don't
+    # bootstrap a full config.
+    if not _demo_threads_enabled():
+        selected_scene.update(
+            pins=[],
+            comment_popup=None,
+            markers=[],
+            timeline_avatars=[],
+            comments=[],
+        )
+
     # Mojica Task 19: the .a-rp Comments htab pip counts the curator
     # thread — the AI moondream description is always row #0 when present,
-    # so a populated description bumps the pip by 1. Curator/viewer rows
-    # arrive with the collaboration backend (gated on
-    # ``cfg.collaboration.threads_enabled``); until then the AI row is the
-    # only comment, hence ``comment_count`` is 1 when a description exists.
-    comment_count = 1 if description_text else 0
+    # plus any demo or real curator/viewer rows.
+    comment_count = (1 if description_text else 0) + len(selected_scene["comments"])
 
     return {
         "scene": scene,

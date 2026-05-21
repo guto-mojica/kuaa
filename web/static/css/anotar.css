@@ -371,3 +371,73 @@
   cursor: pointer; flex-shrink: 0;
 }
 .a-rp .composer .send:hover { background: var(--c-accent-2); }
+
+/* ─── Demo curator thread styling ───────────────────────────────────────
+   Attachment chips + reaction badges + viewer avatar gradient.
+   (Pinned-badge + curator-avatar styling already lives at lines 279–296.) */
+.a-com.viewer .av { background: linear-gradient(135deg, #5C4FA8, #3D2E80); color: #fff; }
+.a-com .attach {
+  display: flex; flex-direction: column; gap: 4px; margin-top: 6px;
+}
+.a-com .attach .att {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 8px; border-radius: 5px;
+  background: var(--c-bg); border: 1px solid var(--c-border);
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--c-text-2);
+  text-decoration: none;
+}
+.a-com .attach .att::before {
+  content: ''; width: 12px; height: 12px; border-radius: 2px;
+  background: var(--c-raised); flex-shrink: 0;
+}
+.a-com .attach .att[data-kind="image"]::before { background: var(--c-accent-dim); }
+.a-com .attach .att:hover {
+  border-color: var(--c-border-2); color: var(--c-text);
+}
+.a-com .rx {
+  display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap;
+}
+.a-com .rx .rxc {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 1px 8px; border-radius: 12px;
+  background: var(--c-bg); border: 1px solid var(--c-border);
+  font-size: 11px; color: var(--c-text-2);
+}
+.a-com .rx .rxc[data-count]:not([data-count="0"]) {
+  background: var(--c-accent-bg); border-color: var(--c-accent-dim);
+  color: var(--c-accent);
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────────
+   The Annotate canvas leads with a centred 4/3 keyframe. At narrow widths
+   the keyframe stops trying to fill 1440px and yields to the natural
+   stage width, the timeline scrubber compresses, and the right pane
+   shrinks then folds (chrome.css hides .ch-right at ≤960px). */
+
+@media (max-width: 1280px) {
+  .a-stage { padding: 18px 22px; }
+  .a-keyframe-wrap { max-width: 100%; }
+  .a-tl { padding: 8px 22px; }
+  .a-pl { padding: 8px 22px; }
+  .a-rp { width: auto; }
+  .a-rp .htabs { padding: 0 12px; }
+  .a-thread { padding: 12px 14px; }
+}
+
+@media (max-width: 1024px) {
+  .a-stage { padding: 14px 16px; }
+  .a-meta { font-size: 12px; gap: 8px; }
+  .a-pl .tools .tool .label { display: none; }
+  .a-pl .speed,
+  .a-pl .quality { display: none; }
+}
+
+@media (max-width: 720px) {
+  .a-stage { padding: 10px 12px; gap: 10px; }
+  .a-meta { flex-wrap: wrap; row-gap: 4px; }
+  .a-keyframe { aspect-ratio: 16/9; }
+  .a-tl { padding: 6px 12px; }
+  .a-tl .markers { display: none; }
+  .a-pl { padding: 6px 12px; flex-wrap: wrap; gap: 6px; }
+  .a-pl .transport { order: -1; }
+}

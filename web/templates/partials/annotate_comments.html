@@ -65,3 +65,50 @@
    ``/api/annotate/description`` with ``hx-target="#annotate-scene"``)
    has a stable mount point when "Edit" / "Add description" is clicked. #}
 <div id="annotate-llm-edit"></div>
+
+{# ── Demo curator + viewer thread ────────────────────────────────────────
+   Renders the prototype's Frame.io-style comment stream (pinned curator
+   note with attachments + reactions, viewer reply) until the real
+   collaboration backend lands. Gated on
+   ``cfg.collaboration.demo_threads_enabled`` so the user can clear the
+   demo overlay back to the empty pre-launch state without touching code. #}
+{% if cfg.collaboration.demo_threads_enabled and selected_scene and selected_scene.comments %}
+  {% for c in selected_scene.comments %}
+    <div class="a-com {{ c.role }}{% if c.badge == 'pinned' %} pinned{% endif %}">
+      <div class="av" aria-hidden="true">{{ c.initials }}</div>
+      <div class="bx">
+        <div class="who">
+          <span class="n">{{ c.author }}</span>
+          {% if c.badge == 'pinned' %}<span class="badge">{{ _('PINNED') }}</span>{% endif %}
+          {% if c.timecode %}<span class="fx-tc">{{ c.timecode }}</span>{% endif %}
+          <span class="when">{{ c.when }}</span>
+        </div>
+        <div class="body">{{ c.body|safe }}</div>
+        {% if c.attachments %}
+          <div class="attach">
+            {% for a in c.attachments %}
+              <a class="att" href="#" data-kind="{{ a.kind }}">{{ a.name }}</a>
+            {% endfor %}
+          </div>
+        {% endif %}
+        {% if c.reactions %}
+          <div class="rx">
+            {% for r in c.reactions %}
+              <span class="rxc"{% if r.count %} data-count="{{ r.count }}"{% endif %}>
+                {{ r.emoji }}{% if r.count %} {{ r.count }}{% endif %}
+              </span>
+            {% endfor %}
+          </div>
+        {% endif %}
+        <div class="replyrow">
+          {% for act in c.actions %}
+            {% if act == 'reply' %}<a href="#">{{ _('Reply') }}</a>
+            {% elif act == 'resolve' %}<a href="#">{{ _('Resolve') }}</a>
+            {% elif act == 'share' %}<a href="#">{{ _('Share') }}</a>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+{% endif %}

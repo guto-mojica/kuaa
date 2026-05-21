@@ -363,3 +363,36 @@
 .r-actions { display: flex; flex-direction: column; gap: 6px; margin-top: 16px; }
 .r-actions .fx-btn { justify-content: space-between; }
 .r-actions .fx-btn .kbd { font-family: var(--font-mono); }
+
+/* ─── Responsive ─────────────────────────────────────────────────────────
+   The Rimas centre pane is anchor + echo grid. At narrow widths the
+   480px anchor keyframe yields to the available column, then the
+   anchor stack becomes a single column, and the echo grid drops from
+   auto-fill 260px to a single column. The right-pane pair-comparison
+   becomes a vertical stack instead of side-by-side. */
+
+@media (max-width: 1280px) {
+  .r-cp .topbar { padding: 10px 18px; gap: 10px; }
+  .r-cp .controls { padding: 8px 18px; flex-wrap: wrap; row-gap: 6px; }
+  .r-cp .scroll { padding: 14px 18px 18px; }
+  .r-rp-inner { padding: 14px 14px 16px; }
+  .r-anchor { grid-template-columns: minmax(0, 360px) 1fr; }
+}
+
+@media (max-width: 1024px) {
+  .r-anchor {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .r-anchor .meta { padding: 0; }
+  .r-cp .topbar .actions .fx-btn .label { display: none; }
+}
+
+@media (max-width: 720px) {
+  .r-cp .topbar { padding: 8px 12px; flex-wrap: wrap; row-gap: 6px; }
+  .r-cp .controls { padding: 6px 12px; font-size: 10.5px; }
+  .r-cp .scroll { padding: 12px 12px 16px; }
+  .r-grid { grid-template-columns: 1fr; gap: 12px; }
+  .r-pair { grid-template-columns: 1fr; }
+  .r-actions { gap: 8px; }
+}

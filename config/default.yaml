@@ -152,6 +152,12 @@ rimas:
 collaboration:
   composer_enabled: false   # post-launch: the textarea + tool buttons
   threads_enabled: false    # post-launch: curator/viewer comment rows
+  # Demo curator + viewer comments rendered on the Anotar / Buscar
+  # inspector when ``threads_enabled`` is off. They make the v1.0 launch
+  # screenshots match the prototype before a real comment backend lands.
+  # Flip this off (or replace with ``threads_enabled: true``) once the
+  # collaboration epic ships and real curator notes flow through.
+  demo_threads_enabled: true
 
 
 # ── Descrição LLM (NB05) ──────────────────────────────────────────────────────

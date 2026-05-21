@@ -227,3 +227,30 @@
   display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 16px;
 }
 .c-rp .actions .fx-btn { justify-content: center; }
+
+/* ─── Responsive ─────────────────────────────────────────────────────────
+   Mirrors chrome.css breakpoints (1280/1024/720) so the Cenas tab keeps
+   its toolbar + grid + inspector readable at narrower widths. The grid
+   already uses auto-fill minmax(248px,1fr) so columns reflow on their
+   own — the rules below mostly tighten padding and stack the toolbar
+   pills below the search input on small viewports. */
+
+@media (max-width: 1280px) {
+  .c-cp .toolrow { padding: 10px 18px; gap: 8px; }
+  .c-cp .countrow { padding: 8px 18px; }
+  .c-cp .grid { padding: 14px 18px 18px; gap: 12px; }
+  .c-rp .inner { padding: 12px 14px 16px; }
+}
+
+@media (max-width: 1024px) {
+  .c-cp .toolrow { flex-wrap: wrap; row-gap: 8px; }
+  .c-cp .toolrow .find { order: 99; flex-basis: 100%; }
+}
+
+@media (max-width: 720px) {
+  .c-cp .toolrow { padding: 10px 14px; }
+  .c-cp .toolrow .tool-btn .label { display: none; }
+  .c-cp .countrow { padding: 8px 14px; flex-wrap: wrap; row-gap: 6px; }
+  .c-cp .grid { grid-template-columns: 1fr; padding: 12px 14px 16px; }
+  .c-cp .group .ghead { padding: 8px 14px; }
+}

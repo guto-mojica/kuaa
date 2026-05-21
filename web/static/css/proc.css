@@ -363,3 +363,38 @@
   content: ''; position: absolute; left: 0; top: 0; bottom: 0;
   width: var(--p); background: var(--c-accent); border-radius: 2px;
 }
+
+/* ─── Responsive ─────────────────────────────────────────────────────────
+   The Processing tab has two big content blocks: the active-job card at
+   the top and the 2-col body (live log on the left, stats/queue on the
+   right). At narrow widths the 5-step pill row wraps to two rows, the
+   2-col body becomes a 1-col stack, and the queue card moves below the
+   log. chrome.css hides .ch-right at ≤960px, which already removes the
+   substep panel — these rules cover only the centre-pane internals. */
+
+@media (max-width: 1280px) {
+  .p-cp .p-top { padding: 12px 18px; gap: 10px; }
+  .p-cp .p-active { margin: 12px 18px; }
+  .p-cp .p-body { padding: 12px 18px 18px; gap: 12px; grid-template-columns: 1fr 280px; }
+  .p-rp .inner { padding: 12px 14px 16px; }
+}
+
+@media (max-width: 1024px) {
+  .p-steps { grid-template-columns: repeat(3, 1fr); row-gap: 8px; }
+  .p-body { grid-template-columns: 1fr; }
+  .p-side { flex-direction: row; gap: 10px; flex-wrap: wrap; }
+  .p-side .p-stats,
+  .p-side .p-queue { flex: 1 1 280px; }
+  .p-prog-row { flex-wrap: wrap; row-gap: 6px; }
+}
+
+@media (max-width: 720px) {
+  .p-cp .p-top { padding: 10px 12px; flex-wrap: wrap; gap: 8px; }
+  .p-cp .p-active { margin: 10px 12px; padding: 10px; }
+  .p-cp .p-body { padding: 10px 12px 14px; }
+  .p-steps { grid-template-columns: repeat(2, 1fr); }
+  .p-step .label { font-size: 10.5px; }
+  .p-log .head { flex-wrap: wrap; row-gap: 6px; }
+  .p-log .lines { font-size: 10.5px; }
+  .p-side { flex-direction: column; }
+}
