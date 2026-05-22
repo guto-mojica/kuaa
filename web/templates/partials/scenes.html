@@ -81,6 +81,14 @@
           hx-target="#scenes-grid"
           hx-swap="innerHTML">
       <span class="ico">{{ icon('search', 14) }}</span>
+      {# Carry the active film slug into the grid-refresh GET. Without it the
+         HTMX swap hits /api/scenes with no ?film=<slug>, so a keyword search
+         on a film-narrowed Cenas view silently reverts to the library-wide
+         aggregate grid (first registered film first). Mirrors search.html's
+         hidden-input pattern; omitted entirely for the aggregate view. #}
+      {% if current_slug %}
+      <input type="hidden" name="film" value="{{ current_slug }}">
+      {% endif %}
       <input type="search" name="q" placeholder="{{ _('Search…') }}" value="{{ query or '' }}">
     </form>
   </div>
