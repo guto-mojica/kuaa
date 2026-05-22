@@ -144,7 +144,7 @@
 
   {# ── Composer — gated on the collaboration backend flag ──────────────── #}
   {% if cfg.collaboration.composer_enabled %}
-    <form class="composer" onsubmit="return false;">
+    <form class="composer" @submit.prevent>
       <div class="meta">
         {% if selected_scene.timecode %}<span class="fx-tc">{{ selected_scene.timecode }}</span>{% endif %}
         <span style="font-size: 11px; color: var(--c-muted);">

@@ -1,0 +1,31 @@
+{#- Toast host — shared notification mount.
+
+    Rendered once per shell (base.html for the Mojica chrome,
+    eval/layout.html for the standalone /eval surface). The queue
+    lives in ``Alpine.store('toasts')`` (registered by mojica.js); the
+    <template x-for> below materialises one ``.toast`` card per entry.
+    Pushes arrive from ``window.ToastBus.push()`` or an HTMX
+    ``HX-Trigger: {"toast": …}`` header — see mojica.js for the bus.
+
+    Class names follow web/static/css/polish.css verbatim
+    (.toast-host, .toast + .ic/.body/.ttl/.sub/.close, the
+    .toast.exiting hook for the p-toast-out keyframe).
+-#}
+<div id="toast-root" aria-live="polite" class="toast-host" x-data>
+    <template x-for="t in $store.toasts ? $store.toasts.items : []" :key="t.id">
+        <div class="toast"
+             :class="[t.kind, { exiting: t.exiting }]"
+             :role="t.kind === 'error' ? 'alert' : 'status'">
+            <div class="ic"></div>
+            <div class="body">
+                <div class="ttl" x-text="t.title"></div>
+                <template x-if="t.sub">
+                    <div class="sub" x-text="t.sub"></div>
+                </template>
+            </div>
+            <button class="close" type="button"
+                    @click="$store.toasts.remove(t.id)"
+                    aria-label="{{ _('Close') }}">×</button>
+        </div>
+    </template>
+</div>

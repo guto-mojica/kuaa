@@ -4,9 +4,9 @@
    Precision@3, Inversions) even when no grades exist — values are
    zeroed via build_eval_context defaults. The histogram fans
    highest-grade first (3, 2, 1, 0, skip). The save / skip buttons
-   carry data-action attributes so Task 32's keyboard router can
-   trigger them; the actual save POST hits /api/eval/grade with the
-   currently-focused row's scene_id. #}
+   bind @click to the evalApp component (eval.js); the keyboard
+   shortcuts (⌘⏎ / S) reach the same methods. The actual save POST
+   hits /api/eval/grade with the currently-focused row's scene_id. #}
 <aside class="ev-rp">
   <div class="head">
     <h3>
@@ -105,11 +105,11 @@
     </div>
 
     <div class="ev-saverow">
-      <button class="ev-save" type="button" data-action="save-advance">
+      <button class="ev-save" type="button" @click="saveAndAdvance()">
         <span>{{ _('SAVE & ADVANCE') }}</span>
         <span class="kbd">⌘⏎</span>
       </button>
-      <button class="ev-skip" type="button" data-action="skip">
+      <button class="ev-skip" type="button" @click="skipCurrent()">
         <span>{{ _('SKIP') }}</span>
         <span class="kbd">⇧S</span>
       </button>

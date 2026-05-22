@@ -240,9 +240,11 @@ def test_eval_queue_pane_present(client, monkeypatch, tmp_path):
     assert 'data-filter="todas"' in html
     assert 'data-filter="pendentes"' in html
     assert 'data-filter="conflito"' in html
-    # Toggles for blind/compare modes.
-    assert 'data-toggle="blind"' in html
-    assert 'data-toggle="compare"' in html
+    # Toggles for blind/compare modes — x-model-bound to the evalApp
+    # Alpine component (the data-toggle hooks were retired in the
+    # Alpine migration).
+    assert 'x-model="blind"' in html
+    assert 'x-model="compare"' in html
 
 
 def test_eval_metrics_pane_zero_state(client, monkeypatch, tmp_path):
@@ -267,9 +269,11 @@ def test_eval_metrics_pane_zero_state(client, monkeypatch, tmp_path):
     assert "NDCG@5" in html
     assert "PRECISION@3" in html
     assert "INVERSIONS" in html
-    # Save / skip action buttons.
-    assert 'data-action="save-advance"' in html
-    assert 'data-action="skip"' in html
+    # Save / skip action buttons — @click-bound to the evalApp
+    # Alpine component (the data-action hooks were retired in the
+    # Alpine migration).
+    assert '@click="saveAndAdvance()"' in html
+    assert '@click="skipCurrent()"' in html
 
 
 # ── Task 32: keyboard router asset wiring ─────────────────────────────────────

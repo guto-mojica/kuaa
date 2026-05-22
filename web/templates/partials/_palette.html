@@ -1,12 +1,16 @@
 {#- Command palette scaffold (Phase 7 / Task 27).
 
-    Rendered once into base.html at page load (hidden); ``palette.js``
-    toggles ``[hidden]`` on the outer ``.cp-back`` and fills ``#cp-list``
-    in response to user input. The DOM here is the stable shell — header
-    (.cp-input), scroll body (.cp-list), and footer (.cp-foot) — that the
-    polish.css ``.cp-*`` rules already style. No HTMX involved; the
-    palette is fully client-driven so the open-on-⌘K path can render its
-    first frame before any network call resolves.
+    Rendered once into base.html at page load (closed). ``mojica.js``
+    registers ``Alpine.store('palette', { open: false })`` on
+    alpine:init and the markup below reacts via
+    ``x-show="$store.palette.open"``; ``palette.js`` (lazy-loaded on
+    first ⌘K) flips the store from its ``open()`` / ``close()`` and
+    handles input + fetch + selection imperatively because those have
+    no Alpine equivalent. The DOM here is the stable shell — header
+    (.cp-input), scroll body (.cp-list), and footer (.cp-foot) — that
+    the polish.css ``.cp-*`` rules already style. No HTMX involved;
+    the palette is fully client-driven so the open-on-⌘K path can
+    render its first frame before any network call resolves.
 
     Class names follow web/static/css/polish.css verbatim:
       * ``.cp-back``  — backdrop (fixed, full-viewport)
@@ -15,9 +19,26 @@
       * ``.cp-list``, ``.cp-group``, ``.cp-item``, ``.cp-item.sel`` (selection)
       * ``.cp-foot``, ``.cp-foot .keys .k``
       * ``.cp-empty`` (no-results state)
+
+    Alpine bindings on the root element:
+      * ``x-show="$store.palette.open"`` + ``x-cloak`` — reactive
+        visibility; cloak avoids a flash before alpine:init runs.
+      * ``@click.self="$store.palette.open = false"`` — backdrop
+        click dismisses; ``.self`` ensures the handler only fires
+        when the click target IS .cp-back (clicks inside .cp-panel
+        hit a descendant and bypass this entirely).
+      * ``@keydown.escape.window`` — Esc dismisses, but only when
+        the palette is the active surface. preventDefault is gated
+        on ``$store.palette.open`` so the keystroke is free to
+        propagate to other handlers when the palette is closed.
 -#}
 {% from "partials/_icons.html" import icon %}
-<div class="cp-back" id="palette" hidden role="dialog" aria-modal="true" aria-labelledby="cp-input">
+<div class="cp-back" id="palette"
+     role="dialog" aria-modal="true" aria-labelledby="cp-input"
+     x-show="$store.palette.open"
+     x-cloak
+     @click.self="$store.palette.open = false"
+     @keydown.escape.window="if ($store.palette.open) { $event.preventDefault(); $store.palette.open = false }">
   <div class="cp-panel" role="document" data-prevent-close>
     <div class="cp-input">
       <span class="ico">{{ icon('search', 14) }}</span>
