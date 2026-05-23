@@ -665,12 +665,15 @@ def aggregate_search(
         else:
             try:
                 bm25 = _get_bm25_index_for_ctx(ctx)
-            except Exception as exc:  # pragma: no cover — defensive
+            except (FileNotFoundError, OSError, ValueError):
+                # Narrow set of loader failure modes: missing dir, IO error,
+                # malformed slug/path, or unparsable JSON. Anything else
+                # (AttributeError, ImportError, …) is a programming bug we
+                # WANT to surface, not silently absorb.
                 logger.warning(
-                    "aggregate_search: bm25 loader failed for %s (%s); "
-                    "degrading to clip for this film",
+                    "aggregate_search: bm25 loader failed for %s; degrading to clip for this film",
                     film.slug,
-                    exc,
+                    exc_info=True,
                 )
                 bm25 = None
 
