@@ -58,6 +58,7 @@ import re
 import threading
 from dataclasses import dataclass
 from enum import Enum
+from functools import lru_cache as _lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -307,6 +308,111 @@ def clear_index_cache() -> None:
     """
     with _cache_lock:
         _index_cache.clear()
+
+
+# ── BM25 loader: disk reads + merged tag-index + mtime+size cache ────────────
+
+
+def _file_stamp(path: Path) -> tuple[float, int]:
+    """``(mtime, size)`` of a file, or ``(0.0, 0)`` if absent.
+
+    Used as a cache key — bumps on any write, including ones that land
+    within the same mtime tick (size differs).
+    """
+    try:
+        st = path.stat()
+    except FileNotFoundError:
+        return (0.0, 0)
+    return (st.st_mtime, st.st_size)
+
+
+@_lru_cache(maxsize=32)
+def _cached_bm25_index(
+    metadata_dir: str,
+    descriptions_stamp: tuple[float, int],
+    scene_tags_stamp: tuple[float, int],
+    manual_annotations_stamp: tuple[float, int],
+    stopwords_lang: str | None,
+    k1: float,
+    b: float,
+) -> BM25Index:
+    """Build a BM25 index for the given (already-stamped) metadata dir.
+
+    The three stamp tuples form the cache key: any write to any of the
+    three source files bumps either mtime or size, forcing a rebuild.
+    The path string is in the key too so two films don't collide.
+
+    Source files (all under ``metadata_dir``):
+      * ``scene_descriptions.json`` — Moondream output (list of dicts).
+      * ``scene_tags.json`` — LLM-tag output (INT scene_id keys).
+      * ``manual_annotations.json`` — manual tags (STR scene_id keys).
+
+    Tag merge semantics come from ``catalog.load_tag_index`` (single
+    source of truth for scene_id normalisation across both tag files).
+    """
+    import json as _json
+    from pathlib import Path as _Path
+
+    from cinemateca.retrieval.bm25 import BM25Index as _BM25Index
+
+    md = _Path(metadata_dir)
+    descriptions_path = md / "scene_descriptions.json"
+    descriptions: list[dict] = []
+    if descriptions_path.exists():
+        try:
+            data = _json.loads(descriptions_path.read_text())
+            descriptions = data if isinstance(data, list) else []
+        except _json.JSONDecodeError:
+            logger.warning("BM25: malformed %s; using empty descriptions", descriptions_path)
+
+    # Merged LLM ⊕ manual tag index via the existing catalog helper.
+    # We can't avoid the import — ``load_tag_index`` is the single source
+    # of truth for the merge semantics (it owns scene_id normalisation).
+    from api.services.catalog import load_tag_index
+
+    tag_index = load_tag_index(md) or {}
+
+    return _BM25Index.build(
+        descriptions=descriptions,
+        tag_index=tag_index,
+        stopwords_lang=stopwords_lang,
+        k1=k1,
+        b=b,
+    )
+
+
+def _get_bm25_index_for_ctx(ctx: FilmContext) -> BM25Index:
+    """Load + cache the BM25 index for one film.
+
+    Cache invalidates when any of three source files changes:
+      * ``scene_descriptions.json`` (Moondream output)
+      * ``scene_tags.json`` (LLM-tag output)
+      * ``manual_annotations.json`` (manual tags)
+
+    The cache holds the 32 most-recently-used films (more than enough
+    for any plausible library size). The ``get_config`` import is
+    deferred to keep this module loadable without the FastAPI app
+    config wired up (matters for tests that import the service module
+    in isolation).
+    """
+    from api.deps import get_config
+
+    cfg = get_config()
+    bm25_cfg = getattr(cfg.search, "bm25", None)
+    stopwords_lang = getattr(bm25_cfg, "stopwords_lang", None) if bm25_cfg else None
+    k1 = float(getattr(bm25_cfg, "k1", 1.5)) if bm25_cfg else 1.5
+    b = float(getattr(bm25_cfg, "b", 0.75)) if bm25_cfg else 0.75
+
+    md = ctx.metadata_dir
+    return _cached_bm25_index(
+        str(md),
+        _file_stamp(md / "scene_descriptions.json"),
+        _file_stamp(md / "scene_tags.json"),
+        _file_stamp(md / "manual_annotations.json"),
+        stopwords_lang,
+        k1,
+        b,
+    )
 
 
 # ── Per-film helpers + aggregate search ───────────────────────────────────────
