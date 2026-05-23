@@ -12,9 +12,13 @@ import json
 import logging
 import subprocess
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
+
+if TYPE_CHECKING:
+    from cinemateca.config import _Namespace
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +115,7 @@ class FrameExtractor:
         frames = extractor.extract("data/raw/jeca_tatu.mp4", "data/frames/sample")
     """
 
-    def __init__(self, cfg=None):
+    def __init__(self, cfg: _Namespace | None = None):
         """
         Args:
             cfg: _Namespace da config (ou None para usar defaults).

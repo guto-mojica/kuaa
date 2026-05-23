@@ -4,7 +4,7 @@ from cinemateca.eval.annotations import AnnotationStats, compute_annotation_stat
 from cinemateca.eval.datasets import EvaluationDataset, QueryCase, load_dataset
 from cinemateca.eval.grades import EvalRun, Grade, GradeEntry, LoadedRun
 from cinemateca.eval.metrics import QueryMetrics, RetrievalResult, summarize_results
-from cinemateca.eval.retrieval import EvalError, RetrievalRun
+from cinemateca.eval.retrieval import EvalError, RetrievalRun, run_retrieval_eval
 
 __all__ = [
     # Annotations
@@ -26,4 +26,5 @@ __all__ = [
     # Retrieval
     "EvalError",
     "RetrievalRun",
+    "run_retrieval_eval",
 ]

@@ -1,4 +1,9 @@
-"""Run retrieval evaluation against a stored CLIP index."""
+"""Run retrieval evaluation against a stored CLIP index.
+
+Consumer wiring (``cinemateca eval run`` CLI + ``/eval`` API surface) is
+deferred to M3 (cross-modal fusion milestone). The subsystem is complete
+and tested in isolation; nothing calls ``run_retrieval_eval`` yet.
+"""
 
 from __future__ import annotations
 

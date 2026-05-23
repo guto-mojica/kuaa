@@ -11,6 +11,10 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from cinemateca.config import _Namespace
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +49,7 @@ class SceneDetector:
                                                "data/frames/scenes")
     """
 
-    def __init__(self, cfg=None):
+    def __init__(self, cfg: _Namespace | None = None):
         if cfg is not None:
             sd = cfg.scene_detection
             self.detector_type = sd.detector

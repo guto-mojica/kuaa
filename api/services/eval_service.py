@@ -160,6 +160,8 @@ def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
         "current_row_scene_id": None,
         "result_count": result_count,
         "session_elapsed": "00:00",
+        # Placeholder for M3 retrieval wiring (run_retrieval_eval).
+        "retrieval_results": [],
     }
 
 
