@@ -265,6 +265,7 @@ class CatalogPipeline:
                 self.cfg,
                 video_path,
                 result,
+                metadata_dir=self._metadata_dir(),
                 started_at_epoch=started_at_epoch,
             )
         except Exception as exc:  # noqa: BLE001 - manifest must not mask pipeline result

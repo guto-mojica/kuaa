@@ -283,14 +283,31 @@ def write_run_manifest(
     video_path: str | Path,
     result: Any | None = None,
     *,
+    metadata_dir: Path | None = None,
     status: str | None = None,
     started_at_epoch: float | None = None,
     finished_at_epoch: float | None = None,
     error: str | None = None,
 ) -> Path:
-    """Build and write `run_manifest.json` beside metadata artifacts."""
+    """Build and write ``run_manifest.json`` beside metadata artifacts.
 
-    manifest_path = Path(cfg.paths.metadata_dir) / MANIFEST_FILENAME
+    Args:
+        cfg: Configuration namespace (``load_config()`` result).
+        video_path: Path to the source video file.
+        result: ``PipelineResult`` if available; ``None`` for in-progress writes.
+        metadata_dir: Override the directory where the manifest is written.
+            When ``None`` (default), falls back to ``cfg.paths.metadata_dir``
+            — the legacy flat layout.  Pass ``pipeline._metadata_dir()`` for
+            per-film layouts so the manifest lands next to the film's own
+            keyframes and not in the global metadata directory.
+        status: Explicit run status string (``"done"`` / ``"error"`` / …).
+        started_at_epoch: Unix timestamp of run start.
+        finished_at_epoch: Unix timestamp of run finish.
+        error: Error message for failed runs.
+    """
+
+    target_dir = metadata_dir if metadata_dir is not None else Path(cfg.paths.metadata_dir)
+    manifest_path = target_dir / MANIFEST_FILENAME
     payload = build_run_manifest(
         cfg,
         video_path,

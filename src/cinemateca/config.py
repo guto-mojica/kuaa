@@ -75,9 +75,23 @@ class _Namespace:
 
 # ─── API pública ──────────────────────────────────────────────────────────────
 
+def _ensure_dirs(cfg: _Namespace) -> None:
+    """Create every configured ``paths.*`` directory on disk.
+
+    Separated from :func:`load_config` so callers that only need to read
+    the config (e.g. tests, introspection commands) can pass
+    ``ensure_dirs=False`` and avoid touching the filesystem.
+    """
+    for path_obj in vars(cfg.paths).values():
+        if isinstance(path_obj, Path):
+            path_obj.mkdir(parents=True, exist_ok=True)
+
+
 def load_config(
     user_config: str | Path | None = None,
     project_root: str | Path | None = None,
+    *,
+    ensure_dirs: bool = True,
 ) -> _Namespace:
     """
     Carrega a configuração, mesclando defaults com o arquivo do usuário.
@@ -87,6 +101,10 @@ def load_config(
                       Se None, usa apenas os defaults.
         project_root: Raiz do projeto para resolver caminhos relativos.
                       Se None, usa o diretório de trabalho atual.
+        ensure_dirs:  When ``True`` (default), create every ``paths.*``
+                      directory that does not yet exist.  Pass ``False``
+                      in tests or introspection-only callers to avoid
+                      filesystem side-effects on load.
 
     Returns:
         _Namespace com toda a configuração acessível por atributos.
@@ -116,12 +134,13 @@ def load_config(
     # 3. Resolver caminhos relativos → absolutos
     config["paths"] = _resolve_paths(config.get("paths", {}), root)
 
-    # 4. Criar diretórios necessários
-    for path_obj in config["paths"].values():
-        if isinstance(path_obj, Path):
-            path_obj.mkdir(parents=True, exist_ok=True)
+    ns = _Namespace(config)
 
-    return _Namespace(config)
+    # 4. Criar diretórios necessários (opt-out for tests / introspection)
+    if ensure_dirs:
+        _ensure_dirs(ns)
+
+    return ns
 
 
 def setup_logging(cfg: _Namespace) -> None:
