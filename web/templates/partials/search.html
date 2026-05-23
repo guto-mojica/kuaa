@@ -32,7 +32,7 @@
 {% from "partials/_icons.html" import icon %}
 <div class="tab-panel">
 
-<section class="b-cp">
+<section class="b-cp" x-data="{}">
 
   {# ── Search row: qbar + chips + knobs ─────────────────────────────── #}
   <div class="search-wrap">
@@ -49,6 +49,17 @@
       {% if current_slug %}
       <input type="hidden" name="film" value="{{ current_slug }}">
       {% endif %}
+
+      {# Hidden mirrors so HTMX includes the retrieval params on every search.
+         Alpine ``:value`` bindings keep these in sync with the buscarRetrieval
+         store, which the popovers below mutate. The bindings only work because
+         this form is descendant of the ``<section class="b-cp" x-data="{}">``
+         scope above; without an enclosing Alpine root the ``:value`` directives
+         would be ignored at runtime. #}
+      <input type="hidden" name="retriever" :value="$store.buscarRetrieval.mode">
+      <input type="hidden" name="sem_w"     :value="$store.buscarRetrieval.sem_w">
+      <input type="hidden" name="bm25_w"    :value="$store.buscarRetrieval.bm25_w">
+      <input type="hidden" name="top_k"     :value="$store.buscarRetrieval.top_k">
 
       <label class="qinput" for="search-input">
         <span class="ico">{{ icon('search', 18) }}</span>
@@ -114,24 +125,103 @@
 
       <span class="div-v" aria-hidden="true"></span>
 
-      {# Retrieval knobs — read-only display. Real interactivity lands in
-         M2 with the hybrid + reranker pipeline. #}
-      <div class="knob" title="{{ _('Hybrid retrieval weights') }}">
-        <span class="k">{{ _("Hybrid") }}</span>
-        <span class="v acc">sem {{ '%.2f'|format(cfg.search.hybrid_sem_w) }}</span>
-        <span class="v">bm25 {{ '%.2f'|format(cfg.search.hybrid_bm25_w) }}</span>
+      {# ── Retrieval knobs ───────────────────────────────────────────────
+         Hybrid + k are interactive popovers (M2 sub-project #3).
+         Rerank + MMR remain read-only badges with M2/M3 micro-chips —
+         their backends ship in M2 #4 and M3 respectively. #}
+
+      {# Hybrid popover. #}
+      <div class="knob knob-popover" x-data="{ open: false }">
+        <button type="button"
+                class="knob-toggle"
+                @click="open = !open"
+                :aria-expanded="open ? 'true' : 'false'"
+                aria-haspopup="dialog">
+          <span class="k">{{ _("Híbrido") }}</span>
+          <span class="v acc" x-text="(
+            { clip: '{{ _('CLIP only') }}',
+              bm25: '{{ _('BM25 only') }}',
+              hybrid: 'sem ' + Number($store.buscarRetrieval.sem_w).toFixed(2) +
+                      ' bm25 ' + (1 - Number($store.buscarRetrieval.sem_w)).toFixed(2)
+            })[$store.buscarRetrieval.mode]
+          "></span>
+        </button>
+        <div class="popover"
+             x-show="open"
+             x-cloak
+             @click.outside="open = false"
+             role="dialog"
+             aria-label="{{ _('Retrieval mode') }}">
+          <h3>{{ _("Retrieval mode") }}</h3>
+          <label class="radio">
+            <input type="radio" value="hybrid" x-model="$store.buscarRetrieval.mode">
+            {{ _("Hybrid") }}
+          </label>
+          <label class="radio">
+            <input type="radio" value="clip" x-model="$store.buscarRetrieval.mode">
+            {{ _("CLIP only") }}
+          </label>
+          <label class="radio">
+            <input type="radio" value="bm25" x-model="$store.buscarRetrieval.mode">
+            {{ _("BM25 only") }}
+          </label>
+          <div class="slider-row" x-show="$store.buscarRetrieval.mode === 'hybrid'">
+            <label for="sem-w-slider">
+              {{ _("Semantic weight") }} ↔ {{ _("Lexical weight") }}
+            </label>
+            <input type="range"
+                   id="sem-w-slider"
+                   min="0" max="1" step="0.05"
+                   x-model.number="$store.buscarRetrieval.sem_w"
+                   @input="$store.buscarRetrieval.bm25_w = 1 - $store.buscarRetrieval.sem_w">
+            <span class="slider-readout">
+              sem <span x-text="Number($store.buscarRetrieval.sem_w).toFixed(2)"></span>
+              · bm25 <span x-text="(1 - Number($store.buscarRetrieval.sem_w)).toFixed(2)"></span>
+            </span>
+          </div>
+        </div>
       </div>
-      <div class="knob" title="{{ _('Cross-encoder reranker') }}">
+
+      {# Read-only Rerank chip — M2 #4 lights this up later. #}
+      <div class="knob" data-state="readonly" title="{{ _('Cross-encoder reranker — ships in M2 #4') }}">
         <span class="k">{{ _("Rerank") }}</span>
-        <span class="v">{{ _("on") if cfg.search.rerank_enabled else _("off") }}</span>
+        <span class="v">{{ _("off") }}</span>
+        <span class="readonly-badge">M2</span>
       </div>
-      <div class="knob" title="{{ _('Maximal Marginal Relevance λ') }}">
+
+      {# Read-only MMR chip — M3 lights this up later. #}
+      <div class="knob" data-state="readonly" title="{{ _('Maximal Marginal Relevance λ — ships in M3') }}">
         <span class="k">MMR</span>
         <span class="v">λ {{ '%.2f'|format(cfg.search.mmr_lambda) }}</span>
+        <span class="readonly-badge">M3</span>
       </div>
-      <div class="knob" title="{{ _('Results per query') }}">
-        <span class="k">k</span>
-        <span class="v">{{ cfg.search.top_k_default }}</span>
+
+      {# k popover — backend already supports ?top_k=N. #}
+      <div class="knob knob-popover" x-data="{ open: false }">
+        <button type="button"
+                class="knob-toggle"
+                @click="open = !open"
+                :aria-expanded="open ? 'true' : 'false'"
+                aria-haspopup="dialog">
+          <span class="k">k</span>
+          <span class="v" x-text="$store.buscarRetrieval.top_k"></span>
+        </button>
+        <div class="popover"
+             x-show="open"
+             x-cloak
+             @click.outside="open = false"
+             role="dialog"
+             aria-label="{{ _('Results per query') }}">
+          <h3>{{ _("Results per query") }}</h3>
+          <div class="stepper">
+            {% for n in [3, 6, 9, 12, 18] %}
+            <label class="radio">
+              <input type="radio" value="{{ n }}" x-model.number="$store.buscarRetrieval.top_k">
+              {{ n }}
+            </label>
+            {% endfor %}
+          </div>
+        </div>
       </div>
     </div>
   </div>

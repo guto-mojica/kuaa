@@ -306,11 +306,18 @@ def test_buscar_renders_modes_and_knobs(client):
     # Disabled chips for the M2/M3 modalities (audio + multimodal off
     # by default in config). ``disabled`` lands on the <button>.
     assert "disabled aria-disabled" in html
-    # Read-only knobs (Hybrid / Rerank / MMR / k).
+    # Retrieval knob row — Hybrid + k are interactive Alpine popovers
+    # (``.knob.knob-popover``); Rerank + MMR remain read-only chips
+    # (``.knob[data-state="readonly"]``). Hybrid Search plan Task E2
+    # moved the sem/bm25 readout from a server-rendered float to a
+    # client-computed ``x-text`` driven by the buscarRetrieval store,
+    # so the bare ``sem 0.70`` substring no longer ships from the
+    # server. MMR's λ still renders server-side from cfg.search.
     assert 'class="knob"' in html
-    # The sem-weight knob carries the configured float.
-    assert "sem 0.70" in html
-    assert "bm25 0.30" in html
+    assert 'knob-popover' in html
+    assert 'data-state="readonly"' in html
+    # MMR chip keeps its server-rendered λ readout from cfg.search.
+    assert "λ {:.2f}".format(0.50) in html  # mmr_lambda default
     # Caption row + view-toggle segments.
     assert 'class="caption"' in html
     assert 'data-view="grid"' in html
@@ -493,6 +500,49 @@ def test_search_full_page_includes_inspector_partial_without_crashing(client):
     assert 'class="b-rp b-rp-empty"' in r.text, "empty-state placeholder missing"
     assert 'class="htabs"' not in r.text, "selected-state htabs leaked into empty render"
     assert 'class="insp-kf"' not in r.text, "selected-state keyframe leaked into empty render"
+
+
+# ── Task E2: Buscar toolrow interactive popovers ──────────────────────────────
+#
+# The Hybrid Search plan replaces the read-only retrieval knob row in
+# Buscar with Alpine popovers driving the ``buscarRetrieval`` store +
+# hidden HTMX-mirror inputs inside ``#search-text-form``. The two tests
+# below pin the markup contract so future template churn cannot silently
+# break the popover↔HTMX wiring.
+
+
+def test_search_toolrow_renders_hybrid_popover(client) -> None:
+    """``/tab/search`` exposes the interactive Hybrid + k popovers and
+    the hidden HTMX mirrors that ride the existing ``hx-include`` scope."""
+    resp = client.get("/tab/search")
+    assert resp.status_code == 200
+    body = resp.text
+    # Popover toggle button with Alpine binding to the store.
+    assert "$store.buscarRetrieval" in body
+    # Three radio options for retrieval mode.
+    assert 'value="clip"' in body
+    assert 'value="bm25"' in body
+    assert 'value="hybrid"' in body
+    # Slider for sem_w (range input).
+    assert 'type="range"' in body
+    # Hidden mirrors INSIDE #search-text-form for HTMX include.
+    assert 'name="retriever"' in body
+    assert 'name="sem_w"' in body
+    assert 'name="bm25_w"' in body
+    assert 'name="top_k"' in body
+
+
+def test_search_toolrow_renders_readonly_rerank_and_mmr_badges(client) -> None:
+    """Rerank + MMR stay as obvious read-only chips with M2/M3 micro-badges
+    until their backends land — the test pins both the ``data-state`` and
+    the badge text so a future refactor cannot remove the cue."""
+    resp = client.get("/tab/search")
+    body = resp.text
+    # Read-only chips with explicit data-state for screen-reader + test pinning.
+    assert 'data-state="readonly"' in body
+    # M2/M3 micro-badges visible.
+    assert ">M2<" in body
+    assert ">M3<" in body
 
 
 # ── Group 1f-bis: Cenas inspector (Task 16) ───────────────────────────────────
