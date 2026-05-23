@@ -497,6 +497,9 @@ def aggregate_search(
     top_k: int,
     tags: list[str] | None = None,
     min_similarity: float = 0.0,
+    retriever_mode: str = "clip",
+    sem_w: float = 0.70,
+    bm25_w: float = 0.30,
 ) -> list[dict]:
     """Run per-film search and merge top results by score.
 
@@ -516,6 +519,14 @@ def aggregate_search(
     drops anything below it. A query whose top result is under the floor
     returns ``[]`` (the route renders the no-index UI state, which the
     template now also covers for "no results above threshold").
+
+    ``retriever_mode`` / ``sem_w`` / ``bm25_w`` are D1 pre-staging: the
+    route's signature now passes them through, but the per-film fan-out
+    here still runs pure-CLIP regardless. Task D2 (next in the plan)
+    fills in the actual cross-film hybrid dispatch — keeping the kwargs
+    here with legacy-clip defaults lets D1 land as a single coherent
+    commit (route + service signature) without forcing the dispatcher
+    to ship half-built.
     """
     from cinemateca.library import scan_library
     from cinemateca.scene_ids import normalize_tag_index, scene_id_key

@@ -40,10 +40,15 @@ SNAPSHOT_PATH: Path = Path(__file__).parent / "fixtures" / "hybrid_search_regres
 #  - semantic-strong (CLIP should excel)
 #  - literal numeric (BM25 should win once hybrid lands)
 #  - generic (broad query, deep ranking matters)
+# M2-D1 addendum: the route default flipped to ``retriever=hybrid``, so
+# calling ``/api/search?q=...`` now returns hybrid-fused output. The
+# snapshot was captured against the pre-M2 pure-CLIP path, so we pin
+# ``retriever=clip`` explicitly here — the route short-circuits that to
+# the legacy ``search_text`` path, reproducing the snapshot exactly.
 SNAPSHOT_QUERIES: list[dict] = [
-    {"q": "menina chorando", "top_k": 9},
-    {"q": "1959", "top_k": 9},
-    {"q": "homem na rua", "top_k": 9},
+    {"q": "menina chorando", "top_k": 9, "retriever": "clip"},
+    {"q": "1959", "top_k": 9, "retriever": "clip"},
+    {"q": "homem na rua", "top_k": 9, "retriever": "clip"},
 ]
 
 
