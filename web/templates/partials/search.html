@@ -180,23 +180,37 @@
         <span class="ttl">{{ _("Type a query to search") }}</span>
       {% endif %}
     </div>
+    {# ── View toggle (Grade / Lista / Compacto). Pure client-side: the
+         buttons flip ``$store.buscarView.mode``, which the results
+         container below picks up via ``:class``. The ``data-view``
+         attribute survives as the stable test pin
+         (``tests/test_web_routes.py:315-317``) and as the
+         human-readable hook for any future event delegation. The
+         server-side ``active_view`` is no longer consulted here — the
+         choice is per-user and lives in localStorage. #}
     <div class="right" role="tablist" aria-label="{{ _('Result layout') }}">
       <button type="button"
-              class="seg{% if active_view == 'grid' %} on{% endif %}"
+              class="seg"
+              :class="{ on: $store.buscarView.mode === 'grid' }"
               data-view="grid"
-              aria-pressed="{{ 'true' if active_view == 'grid' else 'false' }}">
+              :aria-pressed="$store.buscarView.mode === 'grid' ? 'true' : 'false'"
+              @click="$store.buscarView.mode = 'grid'">
         {{ icon('grid', 14) }} {{ _("Grade") }}
       </button>
       <button type="button"
-              class="seg{% if active_view == 'list' %} on{% endif %}"
+              class="seg"
+              :class="{ on: $store.buscarView.mode === 'list' }"
               data-view="list"
-              aria-pressed="{{ 'true' if active_view == 'list' else 'false' }}">
+              :aria-pressed="$store.buscarView.mode === 'list' ? 'true' : 'false'"
+              @click="$store.buscarView.mode = 'list'">
         {{ icon('sort', 14) }} {{ _("Lista") }}
       </button>
       <button type="button"
-              class="seg{% if active_view == 'compact' %} on{% endif %}"
+              class="seg"
+              :class="{ on: $store.buscarView.mode === 'compact' }"
               data-view="compact"
-              aria-pressed="{{ 'true' if active_view == 'compact' else 'false' }}">
+              :aria-pressed="$store.buscarView.mode === 'compact' ? 'true' : 'false'"
+              @click="$store.buscarView.mode = 'compact'">
         {{ icon('appearance', 14) }} {{ _("Compacto") }}
       </button>
     </div>
@@ -235,7 +249,15 @@
        ``x-ref="searchResults"`` exposes the node to the chip-row's
        @click handlers so a mode flip clears the grid without
        getElementById gymnastics. #}
-  <div id="search-results" class="grid" x-ref="searchResults">
+  {# ── Results grid. The ``view-<mode>`` class binding picks up the
+       Buscar view-toggle choice (Grade / Lista / Compacto) and lets
+       CSS in main.css re-flow the .b-card children without a server
+       round-trip. ``class="grid"`` stays as a static SSR token so the
+       parity test in tests/test_web_routes.py:322 keeps matching. #}
+  <div id="search-results"
+       class="grid"
+       :class="'view-' + $store.buscarView.mode"
+       x-ref="searchResults">
     {% include "partials/search_results.html" %}
   </div>
 

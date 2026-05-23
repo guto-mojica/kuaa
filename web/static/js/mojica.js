@@ -433,3 +433,98 @@
     }
   });
 })();
+
+// ─── UI preferences (Cenas Appearance / Fields + Buscar view) ────────
+// localStorage-backed Alpine stores driving toolrow popovers in
+// scenes.html (Appearance + Fields) and the view-toggle segments in
+// search.html (Grade / Lista / Compacto). The server can't see
+// localStorage, so these toggles are client-only — Alpine reactively
+// binds class names on the appropriate container to flip layout and
+// per-field visibility. Persistence survives reloads and tab swaps.
+//
+// Store shape (all reactive Alpine proxies):
+//   $store.cenasAppearance.density   // 'comfortable' | 'compact'
+//   $store.cenasFields.{timecode,pin_count,version,sub,tipo}  // bool
+//   $store.buscarView.mode           // 'grid' | 'list' | 'compact'
+//
+// Defaults are "everything visible, comfortable density, grid view";
+// users only ever pay storage cost when they deviate from defaults.
+// A corrupt or absent payload silently falls back to defaults — the
+// try/catch keeps a malformed localStorage entry from breaking the
+// page entirely.
+(function () {
+  'use strict';
+
+  // localStorage key namespace. Prefixed so future prefs don't collide
+  // with any other localStorage usage in the app (eval grader, etc.).
+  var KEYS = {
+    appearance: 'mojica:cenas:appearance',
+    fields:     'mojica:cenas:fields',
+    view:       'mojica:buscar:view',
+  };
+
+  // Defaults — also the source of truth for "what fields exist". The
+  // Fields popover renders one row per key here in declaration order.
+  var DEFAULTS = {
+    appearance: { density: 'comfortable' },
+    fields:     { timecode: true, pin_count: true, version: true, sub: true, tipo: true },
+    view:       { mode: 'grid' },
+  };
+
+  /**
+   * Load a JSON-encoded prefs payload from localStorage and merge it
+   * onto a defaults object. Missing keys + parse failures both fall
+   * back to defaults rather than leaving the store half-populated.
+   */
+  function loadPrefs(key, defaults) {
+    try {
+      var raw = window.localStorage && window.localStorage.getItem(key);
+      if (!raw) return Object.assign({}, defaults);
+      var parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return Object.assign({}, defaults);
+      return Object.assign({}, defaults, parsed);
+    } catch (e) {
+      return Object.assign({}, defaults);
+    }
+  }
+
+  /** Persist a plain-object snapshot to localStorage. Errors swallowed. */
+  function savePrefs(key, snapshot) {
+    try {
+      if (window.localStorage) {
+        window.localStorage.setItem(key, JSON.stringify(snapshot));
+      }
+    } catch (e) { /* quota / private-mode — best-effort */ }
+  }
+
+  /**
+   * Bind an Alpine.effect that snapshots the named store's listed
+   * keys to localStorage whenever any of them changes. Reading each
+   * key inside the effect is what subscribes the effect to changes
+   * (Alpine tracks proxy property access).
+   */
+  function persistOnChange(storeName, key, fields) {
+    if (!(window.Alpine && typeof window.Alpine.effect === 'function')) return;
+    window.Alpine.effect(function () {
+      var s = window.Alpine.store(storeName);
+      if (!s) return;
+      var snap = {};
+      for (var i = 0; i < fields.length; i++) snap[fields[i]] = s[fields[i]];
+      savePrefs(key, snap);
+    });
+  }
+
+  document.addEventListener('alpine:init', function () {
+    if (!(window.Alpine && typeof window.Alpine.store === 'function')) return;
+
+    window.Alpine.store('cenasAppearance', loadPrefs(KEYS.appearance, DEFAULTS.appearance));
+    window.Alpine.store('cenasFields',     loadPrefs(KEYS.fields,     DEFAULTS.fields));
+    window.Alpine.store('buscarView',      loadPrefs(KEYS.view,       DEFAULTS.view));
+
+    // Persistence effects must register AFTER the stores exist; same
+    // alpine:init handler keeps the relative ordering deterministic.
+    persistOnChange('cenasAppearance', KEYS.appearance, ['density']);
+    persistOnChange('cenasFields',     KEYS.fields,     ['timecode', 'pin_count', 'version', 'sub', 'tipo']);
+    persistOnChange('buscarView',      KEYS.view,       ['mode']);
+  });
+})();

@@ -45,7 +45,16 @@
 </section>
 {% else %}
 
-<section class="c-cp">
+<section class="c-cp"
+         :class="{
+           'view-density-comfortable': $store.cenasAppearance.density === 'comfortable',
+           'view-density-compact':     $store.cenasAppearance.density === 'compact',
+           'hide-timecode':  !$store.cenasFields.timecode,
+           'hide-pin-count': !$store.cenasFields.pin_count,
+           'hide-version':   !$store.cenasFields.version,
+           'hide-sub':       !$store.cenasFields.sub,
+           'hide-tipo':      !$store.cenasFields.tipo,
+         }">
 
   {# ── Toolrow: Appearance / Fields / Filters / Grouped by / Sorted + .find ─
 
@@ -54,16 +63,129 @@
        Filtros popover) sends ``hx-include="#scenes-toolrow"`` so both
        the keyword AND the active tag selection ride along. Keeping the
        inputs co-located is what makes ``q + film + tags[]`` survive
-       partial swaps without a global form. #}
+       partial swaps without a global form.
+
+       Appearance + Fields are pure client-side prefs driven by Alpine
+       stores in ``mojica.js`` (``$store.cenasAppearance`` /
+       ``$store.cenasFields``). They flip class names on the wrapping
+       ``.c-cp`` section above; CSS in ``cenas.css`` translates those
+       classes into density + per-field visibility overrides. State is
+       persisted to ``localStorage`` so a refresh keeps the user's
+       chosen card density and hidden fields. #}
   <div id="scenes-toolrow" class="toolrow">
-    <button type="button" class="tool">
-      <span class="ico">{{ icon('appearance', 14) }}</span>
-      {{ _('Appearance') }}
-    </button>
-    <button type="button" class="tool">
-      <span class="ico">{{ icon('fields', 14) }}</span>
-      {{ _('Fields') }}<span class="pip">{{ visible_field_count }}</span>
-    </button>
+
+    {# ── Appearance: card-density radio popover. Two options today
+         (Comfortable / Compact). Adding more later means adding a
+         radio row here + a matching ``.view-density-<name>`` rule in
+         cenas.css — no service-layer changes. #}
+    <div class="filter-wrap"
+         x-data="{ open: false }"
+         @click.outside="open = false"
+         @keydown.escape.window="open = false">
+      <button type="button"
+              class="tool"
+              :class="{ 'tool--active': open || $store.cenasAppearance.density !== 'comfortable' }"
+              :aria-expanded="open ? 'true' : 'false'"
+              aria-haspopup="true"
+              @click="open = !open">
+        <span class="ico">{{ icon('appearance', 14) }}</span>
+        {{ _('Appearance') }}
+      </button>
+
+      <div class="scenes-filter-popover"
+           role="dialog"
+           :aria-hidden="open ? 'false' : 'true'"
+           x-show="open"
+           x-cloak
+           x-transition.opacity.duration.120ms>
+        <header class="scenes-filter-popover__head">
+          <span class="scenes-filter-popover__title">{{ _('Card density') }}</span>
+        </header>
+        <div class="scenes-prefs-rows">
+          <label class="scenes-prefs-row">
+            <input type="radio" name="density"
+                   value="comfortable"
+                   x-model="$store.cenasAppearance.density">
+            <span>{{ _('Comfortable') }}</span>
+          </label>
+          <label class="scenes-prefs-row">
+            <input type="radio" name="density"
+                   value="compact"
+                   x-model="$store.cenasAppearance.density">
+            <span>{{ _('Compact') }}</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    {# ── Fields: per-field visibility popover. The pip surfaces the
+         number of HIDDEN fields (zero by default → no pip), mirroring
+         the Filtros pattern where a non-zero pip means "you've changed
+         something from defaults". ``Object.values(...).filter(v => !v)``
+         counts falsy entries — one expression, no helper needed. #}
+    <div class="filter-wrap"
+         x-data="{ open: false }"
+         @click.outside="open = false"
+         @keydown.escape.window="open = false">
+      <button type="button"
+              class="tool"
+              :class="{ 'tool--active': open || Object.values($store.cenasFields).some(v => !v) }"
+              :aria-expanded="open ? 'true' : 'false'"
+              aria-haspopup="true"
+              @click="open = !open">
+        <span class="ico">{{ icon('fields', 14) }}</span>
+        {{ _('Fields') }}
+        <span class="pip"
+              x-show="Object.values($store.cenasFields).some(v => !v)"
+              x-text="Object.values($store.cenasFields).filter(v => !v).length"
+              x-cloak></span>
+      </button>
+
+      <div class="scenes-filter-popover"
+           role="dialog"
+           :aria-hidden="open ? 'false' : 'true'"
+           x-show="open"
+           x-cloak
+           x-transition.opacity.duration.120ms>
+        <header class="scenes-filter-popover__head">
+          <span class="scenes-filter-popover__title">{{ _('Visible fields') }}</span>
+          <button type="button"
+                  class="scenes-filter-popover__clear"
+                  x-show="Object.values($store.cenasFields).some(v => !v)"
+                  @click="
+                    $store.cenasFields.timecode = true;
+                    $store.cenasFields.pin_count = true;
+                    $store.cenasFields.version = true;
+                    $store.cenasFields.sub = true;
+                    $store.cenasFields.tipo = true;
+                  ">
+            {{ _('Reset') }}
+          </button>
+        </header>
+        <div class="scenes-prefs-rows">
+          <label class="scenes-prefs-row">
+            <input type="checkbox" x-model="$store.cenasFields.timecode">
+            <span>{{ _('Timecode') }}</span>
+          </label>
+          <label class="scenes-prefs-row">
+            <input type="checkbox" x-model="$store.cenasFields.pin_count">
+            <span>{{ _('Pin count') }}</span>
+          </label>
+          <label class="scenes-prefs-row">
+            <input type="checkbox" x-model="$store.cenasFields.version">
+            <span>{{ _('Version') }}</span>
+          </label>
+          <label class="scenes-prefs-row">
+            <input type="checkbox" x-model="$store.cenasFields.sub">
+            <span>{{ _('Director · year') }}</span>
+          </label>
+          <label class="scenes-prefs-row">
+            <input type="checkbox" x-model="$store.cenasFields.tipo">
+            <span>{{ _('Type pill') }}</span>
+          </label>
+        </div>
+      </div>
+    </div>
 
     {# ── Filtros: Alpine popover with tag checkboxes. The pip count is
          driven client-side (``count`` in the x-data scope) so the
