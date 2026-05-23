@@ -505,30 +505,43 @@ def aggregate_search(
 
     For ``modality == "text"`` only in this plan; image / audio / fusion
     modalities are wired in Plans 3-5. The merger is a plain sort by
-    cosine score across films — comparable because every film uses the
-    same CLIP backbone (registry default).
+    score across films — comparable because every film runs the SAME
+    retriever (every film in one request shares ``retriever_mode``).
 
     When ``tags`` is non-empty, each film's hits are restricted to scenes
     whose ``scene_id`` is in EVERY selected tag's list (AND intersection),
     mirroring ``SemanticSearch.combined``'s per-film semantics. A film
-    that lacks any of the selected tags contributes zero hits.
+    that lacks any of the selected tags contributes zero hits. The tag
+    filter applies to ALL three retriever modes (CLIP, BM25, hybrid) —
+    `?retriever=bm25&tags=outdoor` does NOT silently ignore the tag.
 
-    ``min_similarity`` is a cosine-score floor applied per hit before the
-    cross-film merge. CLIP returns top-K nearest neighbours unconditionally,
-    so unrelated queries used to surface 8 noise scenes — the threshold
-    drops anything below it. A query whose top result is under the floor
-    returns ``[]`` (the route renders the no-index UI state, which the
-    template now also covers for "no results above threshold").
+    ``min_similarity`` is a cosine-score floor applied only to CLIP-side
+    scores. It is NOT applied to BM25 scores (different scale) or to the
+    fused RRF scores in hybrid mode (different scale again). For pure
+    ``retriever_mode="clip"`` the threshold behaves exactly as before.
 
-    ``retriever_mode`` / ``sem_w`` / ``bm25_w`` are D1 pre-staging: the
-    route's signature now passes them through, but the per-film fan-out
-    here still runs pure-CLIP regardless. Task D2 (next in the plan)
-    fills in the actual cross-film hybrid dispatch — keeping the kwargs
-    here with legacy-clip defaults lets D1 land as a single coherent
-    commit (route + service signature) without forcing the dispatcher
-    to ship half-built.
+    ``retriever_mode`` selects the per-film retrieval pipeline:
+
+      * ``"clip"`` — inline CLIP cosine over the per-film index. Pin
+        for pre-M2 ordering; the per-hit dict shape and tie-break order
+        are byte-identical to the legacy code path.
+      * ``"bm25"`` — per-film ``BM25Index.query`` results. Scores are
+        BM25 (not cosine); the cross-film merge sorts by raw BM25 score
+        because every film uses the same ``rank_bm25.BM25Okapi``
+        parameters (k1, b) so the scales are comparable.
+      * ``"hybrid"`` — RRF fusion of CLIP cosine + BM25 with weights
+        ``sem_w`` / ``bm25_w``. A film whose BM25 corpus is empty
+        (no ``scene_descriptions.json`` / ``scene_tags.json``)
+        silently degrades to clip-only for THAT film — the merge
+        across films still proceeds.
+
+    Per-film widening: every mode pulls ``top_k * 4`` hits per film
+    before the cross-film merge so the final top_k after dedupe by
+    ``(film_slug, scene_id)`` still has enough density to fill the
+    requested K (mirrors ``search_text``'s keyframe-density widening).
     """
     from cinemateca.library import scan_library
+    from cinemateca.retrieval.hybrid import fuse_rrf
     from cinemateca.scene_ids import normalize_tag_index, scene_id_key
 
     if modality != "text":
@@ -551,14 +564,22 @@ def aggregate_search(
     text_vec = text_vec / (norm + 1e-12)
 
     selected_tags = list(tags) if tags else []
+    # Widen the per-film retrieval window so the cross-film merge has
+    # enough density to fill `top_k` after the dedupe pass. Mirrors
+    # `search_text`'s 4× widening for the keyframes-per-scene ceiling.
+    raw_k = max(top_k * 4, 1)
 
     logger.info(
-        "aggregate_search: query=%r films=%d top_k=%d tags=%s min_sim=%.3f",
+        "aggregate_search: query=%r films=%d top_k=%d tags=%s min_sim=%.3f "
+        "retriever=%s sem_w=%.2f bm25_w=%.2f",
         query,
         len(films),
         top_k,
         selected_tags or None,
         min_similarity,
+        retriever_mode,
+        sem_w,
+        bm25_w,
     )
 
     all_hits: list[dict] = []
@@ -602,22 +623,115 @@ def aggregate_search(
                 continue
 
         scores: np.ndarray = idx.embeddings @ text_vec  # type: ignore[operator]
-        film_added = 0
+
+        # CLIP-side ranked list — `(scene_id, cosine_score)` descending.
+        # Used directly in `"clip"` mode and as the semantic input to
+        # RRF in `"hybrid"` mode. min_similarity (a cosine-scale floor)
+        # is applied here so the pre-RRF list never carries CLIP-side
+        # noise scenes.
+        #
+        # Multi-keyframe dedupe: a single scene may have multiple
+        # keyframes (Phase-1 density), so the same scene_id can appear N
+        # times in ``scores`` at different rows. We keep the row index
+        # with the HIGHEST cosine per scene_id so the surfaced
+        # ``keyframe_path`` points at the actual best-matching frame —
+        # the contract pinned by ``test_aggregate_dedup_picks_best_
+        # keyframe_per_scene``. ``best_row_by_sid`` carries that row
+        # mapping forward into the per-mode dispatch below so BM25 /
+        # hybrid hits can resolve to the same "best CLIP keyframe" row
+        # without re-scanning ``kf_df``.
+        best_score_by_sid: dict[int, float] = {}
+        best_row_by_sid: dict[int, int] = {}
         for i, score in enumerate(scores):
-            if float(score) < min_similarity:
+            s = float(score)
+            if s < min_similarity:
                 continue
             row = idx.kf_df.iloc[i]  # type: ignore[union-attr]
-            scene_id = int(row["scene_id"])
-            if allowed_scene_keys is not None and scene_id_key(scene_id) not in allowed_scene_keys:
+            sid = int(row["scene_id"])
+            if allowed_scene_keys is not None and scene_id_key(sid) not in allowed_scene_keys:
                 continue
-            meta = meta_by_scene.get(scene_id)
+            prev = best_score_by_sid.get(sid)
+            if prev is None or s > prev:
+                best_score_by_sid[sid] = s
+                best_row_by_sid[sid] = i
+        clip_ranked: list[tuple[int, float]] = sorted(
+            best_score_by_sid.items(), key=lambda p: p[1], reverse=True
+        )
+
+        # Build the per-film hit list (sid, score) based on retriever_mode.
+        per_film_hits: list[tuple[int, float]]
+        if retriever_mode == "clip":
+            per_film_hits = clip_ranked[:raw_k]
+        else:
+            try:
+                bm25 = _get_bm25_index_for_ctx(ctx)
+            except Exception as exc:  # pragma: no cover — defensive
+                logger.warning(
+                    "aggregate_search: bm25 loader failed for %s (%s); "
+                    "degrading to clip for this film",
+                    film.slug,
+                    exc,
+                )
+                bm25 = None
+
+            if bm25 is None or bm25.model is None:
+                # Empty BM25 corpus → silent clip-only fallback for this
+                # film. The cross-film merge still proceeds.
+                logger.info(
+                    "aggregate_search: film=%s bm25 empty; degrading to clip "
+                    "(mode=%s requested)",
+                    film.slug,
+                    retriever_mode,
+                )
+                per_film_hits = clip_ranked[:raw_k]
+            else:
+                bm25_hits = bm25.query(query, top_k=raw_k)
+                # Tag filter applies to BM25 hits too. Without this,
+                # ?retriever=bm25&tags=outdoor would silently ignore the
+                # tag selection — the clip path filters via the same
+                # `allowed_scene_keys` set above.
+                if allowed_scene_keys is not None:
+                    bm25_hits = [
+                        (sid, s) for sid, s in bm25_hits if scene_id_key(sid) in allowed_scene_keys
+                    ]
+                if retriever_mode == "bm25":
+                    per_film_hits = bm25_hits[:raw_k]
+                else:  # "hybrid"
+                    per_film_hits = fuse_rrf(
+                        clip_ranked,
+                        bm25_hits,
+                        sem_w=sem_w,
+                        bm25_w=bm25_w,
+                    )[:raw_k]
+
+        # Materialise hit dicts. The keyframe filepath is resolved from
+        # idx.kf_df by scene_id. For scenes the CLIP pass already saw
+        # (CLIP / hybrid modes, plus BM25-mode scenes that also have a
+        # cosine score), use the best-cosine row index recorded above
+        # — that's the contract from
+        # ``test_aggregate_dedup_picks_best_keyframe_per_scene``. For
+        # pure BM25 hits whose scene_id is below the cosine floor or
+        # absent from the CLIP top, fall back to the first kf_df row
+        # matching that scene_id (deterministic — kf_df ordering is
+        # stable across loads).
+        film_added = 0
+        for sid, score in per_film_hits:
+            best_i = best_row_by_sid.get(sid)
+            if best_i is not None:
+                row = idx.kf_df.iloc[best_i]  # type: ignore[union-attr]
+            else:
+                row_mask = idx.kf_df["scene_id"] == sid  # type: ignore[union-attr]
+                if not row_mask.any():
+                    continue
+                row = idx.kf_df[row_mask].iloc[0]  # type: ignore[union-attr]
+            meta = meta_by_scene.get(sid)
             start_s = float(meta.get("start_time_s") or 0.0) if meta else 0.0
             timecode = to_smpte(start_s, fps) if start_s > 0 else ""
             all_hits.append(
                 {
                     "film_slug": film.slug,
                     "film_title": film.title,
-                    "scene_id": scene_id,
+                    "scene_id": sid,
                     "score": float(score),
                     "keyframe_path": str(row["filepath"]),
                     "timecode": timecode,
@@ -628,14 +742,18 @@ def aggregate_search(
         # threshold/reranker operates on, so log enough to tune both.
         # n_vectors is the index size; top3 lets you see whether the
         # query genuinely has signal in this film vs being uniform noise.
+        # We log CLIP's raw cosine top3 unconditionally so the diagnostic
+        # surface is identical across retriever modes (the BM25 / RRF
+        # scores are mode-specific and would dilute the log).
         if scores.size:
             top3 = np.sort(scores)[-3:][::-1]
             logger.info(
-                "aggregate_search: film=%s n_vectors=%d top3=%s kept=%d",
+                "aggregate_search: film=%s n_vectors=%d top3=%s kept=%d " "(retriever=%s)",
                 film.slug,
                 int(scores.size),
                 [round(float(s), 3) for s in top3],
                 film_added,
+                retriever_mode,
             )
         per_film_kept += film_added
 
