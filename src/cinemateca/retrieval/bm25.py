@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from rank_bm25 import BM25Okapi
 
 from cinemateca.retrieval.corpus import build_corpus
+from cinemateca.retrieval.tokenize import tokenize
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +68,6 @@ class BM25Index:
         """
         if self.model is None or top_k <= 0:
             return []
-        from cinemateca.retrieval.tokenize import tokenize
-
         q_tokens = tokenize(text, stopwords_lang=self.stopwords_lang)
         if not q_tokens:
             return []
