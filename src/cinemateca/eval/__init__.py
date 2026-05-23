@@ -2,15 +2,28 @@
 
 from cinemateca.eval.annotations import AnnotationStats, compute_annotation_stats
 from cinemateca.eval.datasets import EvaluationDataset, QueryCase, load_dataset
+from cinemateca.eval.grades import EvalRun, Grade, GradeEntry, LoadedRun
 from cinemateca.eval.metrics import QueryMetrics, RetrievalResult, summarize_results
+from cinemateca.eval.retrieval import EvalError, RetrievalRun
 
 __all__ = [
+    # Annotations
     "AnnotationStats",
+    "compute_annotation_stats",
+    # Datasets
     "EvaluationDataset",
     "QueryCase",
+    "load_dataset",
+    # Grades
+    "EvalRun",
+    "Grade",
+    "GradeEntry",
+    "LoadedRun",
+    # Metrics
     "QueryMetrics",
     "RetrievalResult",
-    "compute_annotation_stats",
-    "load_dataset",
     "summarize_results",
+    # Retrieval
+    "EvalError",
+    "RetrievalRun",
 ]

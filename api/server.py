@@ -25,7 +25,6 @@ from api.routes import (
     rimas,
     scenes,
     search,
-    tabs,
 )
 from api.routes import (
     eval as eval_routes,
@@ -64,7 +63,6 @@ _BASE = Path(__file__).parent.parent
 app = FastAPI(title="Cinemateca AI", version="0.3.0", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(_BASE / "web" / "static")), name="static")
 
-app.include_router(tabs.router)
 app.include_router(search.router)
 app.include_router(scenes.router)
 app.include_router(annotate.router)

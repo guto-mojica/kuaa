@@ -9,7 +9,7 @@ Module path note
 The plan calls this module ``cinemateca.eval.metrics``, but that name
 is already taken by the *retrieval* metrics (recall@K, MRR, graded
 nDCG with a relevance-dict signature). Reusing the same module would
-silently shadow `ndcg_at_k` with a list-of-Grade signature that means
+silently shadow `grading_ndcg_at_k` with a list-of-Grade signature that means
 something quite different. The grading-side metrics therefore live in
 ``cinemateca.eval.grader_metrics`` (and tests in
 ``tests/test_eval_grader_metrics.py``), keeping both call surfaces
@@ -22,9 +22,9 @@ import math
 
 from cinemateca.eval.grader_metrics import (
     cohen_kappa,
+    grading_ndcg_at_k,
     histogram,
     inversions,
-    ndcg_at_k,
     precision_at_k,
 )
 from cinemateca.eval.grades import Grade
@@ -58,7 +58,7 @@ def test_precision_at_k_empty():
     assert precision_at_k([], k=5) == 0.0
 
 
-def test_ndcg_at_k_perfect():
+def test_grading_ndcg_at_k_perfect():
     """Ranking already in ideal order → nDCG = 1.0."""
 
     grades = [
@@ -68,19 +68,19 @@ def test_ndcg_at_k_perfect():
         Grade.IRRELEVANT,
         Grade.IRRELEVANT,
     ]
-    assert math.isclose(ndcg_at_k(grades, k=5), 1.0, abs_tol=1e-6)
+    assert math.isclose(grading_ndcg_at_k(grades, k=5), 1.0, abs_tol=1e-6)
 
 
-def test_ndcg_at_k_worst_then_best():
+def test_grading_ndcg_at_k_worst_then_best():
     """Inverted ranking is less than ideal but > 0."""
 
     # All-zero grades return 0 (idcg = 0 floor)
     zeros = [Grade.IRRELEVANT, Grade.IRRELEVANT]
-    assert ndcg_at_k(zeros, k=2) == 0.0
+    assert grading_ndcg_at_k(zeros, k=2) == 0.0
 
     # Reversed-perfect: ideal would be (3,2,1) but we got (1,2,3)
     grades = [Grade.WEAKLY, Grade.RELEVANT, Grade.HIGHLY_RELEVANT]
-    score = ndcg_at_k(grades, k=3)
+    score = grading_ndcg_at_k(grades, k=3)
     assert 0.0 < score < 1.0
 
 

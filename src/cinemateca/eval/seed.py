@@ -148,16 +148,13 @@ _PLACEHOLDER_RESULTS_OUTDOOR_DIALOG: list[dict[str, Any]] = [
     ),
 ]
 
-# Same nine candidates for every seeded query. The placeholder slates are
-# intentionally identical — the UI contract being seeded is "show a slate
-# of nine cards on the centre pane", not "show *good* search results".
-# Real per-query slates land in Month 3 once /api/search is wired in.
-_PLACEHOLDER_RESULTS_NIGHT_FIRE: list[dict[str, Any]] = list(_PLACEHOLDER_RESULTS_OUTDOOR_DIALOG)
-_PLACEHOLDER_RESULTS_HORSE_RIDER: list[dict[str, Any]] = list(_PLACEHOLDER_RESULTS_OUTDOOR_DIALOG)
-_PLACEHOLDER_RESULTS_INTERIOR_LOWLIGHT: list[dict[str, Any]] = list(
-    _PLACEHOLDER_RESULTS_OUTDOOR_DIALOG
-)
-_PLACEHOLDER_RESULTS_TITLE_CARD: list[dict[str, Any]] = list(_PLACEHOLDER_RESULTS_OUTDOOR_DIALOG)
+# All five seeded queries share the same nine placeholder candidates —
+# the UI contract is "show a slate of nine cards on the centre pane",
+# not "show *good* search results".  Real per-query slates land in
+# Month 3 once /api/search is wired in.  Use the single list directly
+# instead of maintaining four named copies that diverge semantically
+# without adding information.
+_PLACEHOLDER_RESULTS = _PLACEHOLDER_RESULTS_OUTDOOR_DIALOG
 
 
 SAMPLE_QUERIES: list[dict[str, Any]] = [
@@ -170,7 +167,7 @@ SAMPLE_QUERIES: list[dict[str, Any]] = [
         "candidate_count": 9,
         "latency_ms": 231,
         "created_when": "2026-04-12",
-        "results": _PLACEHOLDER_RESULTS_OUTDOOR_DIALOG,
+        "results": _PLACEHOLDER_RESULTS,
     },
     {
         "id": 2,
@@ -181,7 +178,7 @@ SAMPLE_QUERIES: list[dict[str, Any]] = [
         "candidate_count": 9,
         "latency_ms": 245,
         "created_when": "2026-04-12",
-        "results": _PLACEHOLDER_RESULTS_NIGHT_FIRE,
+        "results": _PLACEHOLDER_RESULTS,
     },
     {
         "id": 3,
@@ -192,7 +189,7 @@ SAMPLE_QUERIES: list[dict[str, Any]] = [
         "candidate_count": 9,
         "latency_ms": 219,
         "created_when": "2026-04-12",
-        "results": _PLACEHOLDER_RESULTS_HORSE_RIDER,
+        "results": _PLACEHOLDER_RESULTS,
     },
     {
         "id": 4,
@@ -203,7 +200,7 @@ SAMPLE_QUERIES: list[dict[str, Any]] = [
         "candidate_count": 9,
         "latency_ms": 267,
         "created_when": "2026-04-12",
-        "results": _PLACEHOLDER_RESULTS_INTERIOR_LOWLIGHT,
+        "results": _PLACEHOLDER_RESULTS,
     },
     {
         "id": 5,
@@ -214,7 +211,7 @@ SAMPLE_QUERIES: list[dict[str, Any]] = [
         "candidate_count": 9,
         "latency_ms": 198,
         "created_when": "2026-04-12",
-        "results": _PLACEHOLDER_RESULTS_TITLE_CARD,
+        "results": _PLACEHOLDER_RESULTS,
     },
 ]
 

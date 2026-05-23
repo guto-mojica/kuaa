@@ -24,6 +24,11 @@ def get_device(preference: str = "auto") -> torch.device:
     """
     Retorna o melhor device disponível.
 
+    The result is cached via ``lru_cache(maxsize=1)`` so every caller in the
+    same process receives the same ``torch.device`` object.  To force a fresh
+    hardware probe (e.g. in tests that mock ``torch.cuda.is_available``), call
+    ``get_device.cache_clear()`` before the next invocation.
+
     Args:
         preference: "auto" | "cpu" | "cuda" | "mps"
                     "auto" tenta MPS → CUDA → CPU nessa ordem.

@@ -36,6 +36,11 @@ _DEFAULT_MODEL_ID = "laion/larger_clap_general"
 _DEFAULT_BATCH_SIZE = 8
 _DEFAULT_CHUNK_SECONDS = 10.0
 _DEFAULT_SAMPLE_RATE = 48000
+# Joint embedding dimension shared by all LAION-CLAP variants in the current
+# lineup.  Used as a zero-row fallback when no WAVs are supplied — the caller
+# never has to hard-code "512".  If a future model uses a different dim the
+# constant is the single place to update.
+_CLAP_DIM = 512
 
 
 class ClapHFEmbedder:
@@ -133,10 +138,9 @@ class ClapHFEmbedder:
         passes to ~52 (at batch_size=8).
         """
         if not wav_paths:
-            # 512 matches every CLAP variant in the current LAION lineup; if
-            # a future model uses a different dim, this path needs to load
-            # the model first to read ``model.config.projection_dim``.
-            return np.zeros((0, 512), dtype="float32")
+            # Use _CLAP_DIM so there's a single place to update when a future
+            # model variant changes the projection dimension.
+            return np.zeros((0, _CLAP_DIM), dtype="float32")
 
         self._load_model()
 
@@ -150,7 +154,7 @@ class ClapHFEmbedder:
         chunk_vecs_parts: list[np.ndarray] = []
         for i in range(0, len(all_chunks), self._batch_size):
             chunk_vecs_parts.append(self._embed_chunks(all_chunks[i : i + self._batch_size]))
-        chunk_vecs = np.vstack(chunk_vecs_parts) if chunk_vecs_parts else np.empty((0, 512))
+        chunk_vecs = np.vstack(chunk_vecs_parts) if chunk_vecs_parts else np.empty((0, _CLAP_DIM))
 
         out = np.empty((len(wav_paths), chunk_vecs.shape[1]), dtype="float32")
         offset = 0
@@ -199,7 +203,7 @@ class ClapHFEmbedder:
 
         mapping = {
             "model": self._model_id,
-            "dimension": int(embeddings.shape[1]) if embeddings.size else 512,
+            "dimension": int(embeddings.shape[1]) if embeddings.size else _CLAP_DIM,
             "total_vectors": int(len(embeddings)),
             "normalized": True,
             "scene_ids": [r["scene_id"] for r in rows],

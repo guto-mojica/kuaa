@@ -24,9 +24,9 @@ from typing import Any
 
 from cinemateca.eval.grader_metrics import (
     cohen_kappa,
+    grading_ndcg_at_k,
     histogram,
     inversions,
-    ndcg_at_k,
     precision_at_k,
 )
 from cinemateca.eval.grades import EvalRun, Grade, LoadedRun, load_run
@@ -117,7 +117,7 @@ def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
                 metrics = {
                     "p_at_3": precision_at_k(cq_grades, 3),
                     "p_at_5": precision_at_k(cq_grades, 5),
-                    "ndcg_at_5": ndcg_at_k(cq_grades, 5),
+                    "ndcg_at_5": grading_ndcg_at_k(cq_grades, 5),
                     "inversions": inversions(cq_grades),
                     "histogram": histogram(cq_grades),
                 }
@@ -206,7 +206,7 @@ def compute_query_metrics(cfg, *, query_id: str | None = None) -> dict[str, Any]
     return {
         "p_at_3": precision_at_k(grades_list, 3),
         "p_at_5": precision_at_k(grades_list, 5),
-        "ndcg_at_5": ndcg_at_k(grades_list, 5),
+        "ndcg_at_5": grading_ndcg_at_k(grades_list, 5),
         "inversions": inversions(grades_list),
         "histogram": histogram(grades_list),
     }

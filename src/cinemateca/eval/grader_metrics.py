@@ -3,7 +3,7 @@
 Live-updating quality indicators on the /eval page right pane:
 
 * ``precision_at_k`` — fraction of top-k items with grade >= RELEVANT
-* ``ndcg_at_k`` — normalised DCG with ``2^g - 1`` gain (SKIP → 0)
+* ``grading_ndcg_at_k`` — normalised DCG with ``2^g - 1`` gain (SKIP → 0)
 * ``inversions`` — out-of-order pair count (sanity on ordering)
 * ``histogram`` — count of each grade value (incl. SKIP)
 * ``cohen_kappa`` — inter-annotator agreement κ between two grader lists
@@ -15,7 +15,8 @@ taken by ``cinemateca.eval.metrics`` for the *retrieval* metrics
 (recall@K, MRR, graded-relevance nDCG). Reusing the name would shadow
 the retrieval ``ndcg_at_k`` with a Grade-list signature that means
 something else. Both surfaces coexist in their own modules; this file
-covers the grading-UI quality indicators.
+covers the grading-UI quality indicators and uses ``grading_ndcg_at_k``
+to make the name distinction explicit at import time.
 """
 
 from __future__ import annotations
@@ -61,8 +62,12 @@ def _discount(rank_zero_indexed: int) -> float:
     return 1.0 / math.log2(rank_zero_indexed + 2)
 
 
-def ndcg_at_k(grades: list[Grade], k: int) -> float:
+def grading_ndcg_at_k(grades: list[Grade], k: int) -> float:
     """Normalised DCG@k using ``2^g - 1`` gain.
+
+    Distinct from ``cinemateca.eval.metrics.ndcg_at_k`` which operates on
+    ``RetrievalResult`` rows. This variant operates on ``list[Grade]`` for
+    the live grading-UI quality indicators.
 
     The ideal ranking is obtained by sorting the SAME top-k slice by
     descending grade (SKIP last) — this measures how well the system's

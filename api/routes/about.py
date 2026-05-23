@@ -24,6 +24,7 @@ _SAFE_RETURN_PATHS = {
     "/annotate",
     "/processing",
     "/about",
+    "/rimas",
 }
 
 

@@ -21,8 +21,6 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_VIDEO_EXTENSIONS = {".mp4", ".mkv", ".avi", ".mov", ".m4v", ".webm"}
-
 # Must stay in sync with ``config/default.yaml`` → ``embeddings.filename``.
 # Threaded here instead of through ``cfg`` to keep :func:`library_state`'s
 # API surface a single argument; the cost is this one cross-file invariant.
