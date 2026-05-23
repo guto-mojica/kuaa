@@ -363,7 +363,20 @@ features cut.
 ### Month 2 — Retrieval depth + audio (HARD FREEZE on new features)
 - [ ] CLAP audio embeddings complete; audio-only search in UI
 - [ ] Whisper transcripts indexed (faster-whisper, `Transcriber` Protocol)
-- [ ] Hybrid search (CLIP ⊕ BM25, Reciprocal Rank Fusion)
+- [x] Hybrid search (CLIP ⊕ BM25, Reciprocal Rank Fusion) — shipped 2026-05-23
+  on `worktree-hybrid-search-spec`. New package `src/cinemateca/retrieval/`
+  (tokenize + corpus + BM25Index + RRF) feeds `search_hybrid()` orchestrator;
+  per-FilmContext loader with 3-file mtime+size cache. `/api/search` defaults
+  to `retriever=hybrid`; `?retriever=clip` is the regression pin (snapshot in
+  `tests/fixtures/hybrid_search_regression.json`). Aggregate cross-film honors
+  the same retriever mode. UI: Alpine popovers for Híbrido + k knobs (bring-
+  forward of `alpine.min.js` from the Mojica branch); Rerank/MMR are obvious
+  read-only chips with M2/M3 micro-badges. Suite +30 tests (583 → ~625
+  passing on this branch). Spec/plano em
+  `docs/superpowers/specs/2026-05-23-hybrid-search-design.md` +
+  `docs/superpowers/plans/2026-05-23-hybrid-search.md`. F1 (eval ablation
+  on Jeca Tatu) ainda pendente — corrida manual requer dados reais.
+  **Próximo:** M2 #4 cross-encoder reranker.
 - [ ] Cross-encoder reranker (text default; VLM-as-judge opt-in)
 - [ ] Multilingual visual model (SigLIP-multilingual; M-CLIP fallback)
 - [ ] CLAP archival-audio sanity check (pre-commit gate on Jeca Tatu)
