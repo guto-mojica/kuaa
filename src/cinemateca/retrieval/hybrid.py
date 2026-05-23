@@ -39,6 +39,13 @@ def fuse_rrf(
     Returns:
         Fused ``[(scene_id, fused_score), …]`` sorted descending. Every
         scene_id that appears in either input is in the output.
+
+    Precondition:
+        Each input list must already be deduped by ``scene_id``. Repeated
+        entries within a list cause the rank-by-sid dict to silently
+        retain only the last occurrence, which is rarely what callers
+        want. Today's callers (CLIP search + BM25Index.query) both dedupe
+        before returning.
     """
     ranks_a: dict[int, int] = {sid: rank for rank, (sid, _) in enumerate(list_a, start=1)}
     ranks_b: dict[int, int] = {sid: rank for rank, (sid, _) in enumerate(list_b, start=1)}
