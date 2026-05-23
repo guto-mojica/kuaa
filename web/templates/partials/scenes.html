@@ -47,8 +47,15 @@
 
 <section class="c-cp">
 
-  {# ── Toolrow: Appearance / Fields / Filters / Grouped by / Sorted + .find ─ #}
-  <div class="toolrow">
+  {# ── Toolrow: Appearance / Fields / Filters / Grouped by / Sorted + .find ─
+
+       The toolrow is the HTMX include scope: every refresh that hits
+       ``/api/scenes`` (keyword change on ``.find``, tag toggle in the
+       Filtros popover) sends ``hx-include="#scenes-toolrow"`` so both
+       the keyword AND the active tag selection ride along. Keeping the
+       inputs co-located is what makes ``q + film + tags[]`` survive
+       partial swaps without a global form. #}
+  <div id="scenes-toolrow" class="toolrow">
     <button type="button" class="tool">
       <span class="ico">{{ icon('appearance', 14) }}</span>
       {{ _('Appearance') }}
@@ -57,10 +64,67 @@
       <span class="ico">{{ icon('fields', 14) }}</span>
       {{ _('Fields') }}<span class="pip">{{ visible_field_count }}</span>
     </button>
-    <button type="button" class="tool">
-      <span class="ico">{{ icon('filter', 14) }}</span>
-      {{ _('Filters') }}<span class="pip">{{ active_filter_count }}</span>
-    </button>
+
+    {# ── Filtros: Alpine popover with tag checkboxes. The pip count is
+         driven client-side (``count`` in the x-data scope) so the
+         ``#scenes-grid``-only HTMX swap doesn't need to repaint the
+         toolrow on every change. Server still emits the initial
+         ``active_filter_count`` so SSR and first paint agree. #}
+    <div class="filter-wrap"
+         x-data="{ open: false, count: {{ active_filter_count }} }"
+         @click.outside="open = false"
+         @keydown.escape.window="open = false">
+      <button type="button"
+              class="tool"
+              :class="{ 'tool--active': open || count > 0 }"
+              :aria-expanded="open ? 'true' : 'false'"
+              aria-haspopup="true"
+              @click="open = !open">
+        <span class="ico">{{ icon('filter', 14) }}</span>
+        {{ _('Filters') }}<span class="pip" x-show="count > 0" x-text="count" x-cloak></span>
+      </button>
+
+      <div class="scenes-filter-popover"
+           role="dialog"
+           :aria-hidden="open ? 'false' : 'true'"
+           x-show="open"
+           x-cloak
+           x-transition.opacity.duration.120ms>
+        <header class="scenes-filter-popover__head">
+          <span class="scenes-filter-popover__title">{{ _('Filter by tag') }}</span>
+          <button type="button"
+                  class="scenes-filter-popover__clear"
+                  x-show="count > 0"
+                  @click="
+                    $refs.pills.querySelectorAll('input[name=tags]').forEach(i => i.checked = false);
+                    count = 0;
+                    window.htmx && window.htmx.trigger($refs.pills, 'refresh');
+                  ">
+            {{ _('Clear') }}
+          </button>
+        </header>
+        {% if available_tags %}
+        <div x-ref="pills"
+             id="scenes-filter-pills"
+             class="tag-filter scenes-filter-popover__pills"
+             hx-get="/api/scenes"
+             hx-trigger="change from:input, refresh"
+             hx-target="#scenes-grid"
+             hx-swap="innerHTML"
+             hx-include="#scenes-toolrow"
+             @change="count = $el.querySelectorAll('input[name=tags]:checked').length">
+          {% for tag in available_tags %}
+          <label class="tag-pill">
+            <input type="checkbox" name="tags" value="{{ tag }}">{{ tag }}
+          </label>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="scenes-filter-popover__empty">{{ _('No tags available yet.') }}</p>
+        {% endif %}
+      </div>
+    </div>
+
     <button type="button" class="tool">
       <span class="ico">{{ icon('group', 14) }}</span>
       {{ _('Grouped by') }} <span class="v">{{ _('Film') }}</span>
@@ -74,12 +138,15 @@
     {# ``.find`` keyword input — HTMX-swaps the grid on every change. The
        form-level hx-* attributes inherit to the input; we keep the
        form element semantic so keyboard "/" focus and form-submit
-       gracefully degrade if HTMX is unavailable. #}
+       gracefully degrade if HTMX is unavailable. ``hx-include`` pulls
+       the popover's tag selection into every keyword refresh so the
+       active filter survives a fresh keystroke. #}
     <form class="find"
           hx-get="/api/scenes"
           hx-trigger="keyup changed delay:200ms, search"
           hx-target="#scenes-grid"
-          hx-swap="innerHTML">
+          hx-swap="innerHTML"
+          hx-include="#scenes-toolrow">
       <span class="ico">{{ icon('search', 14) }}</span>
       {# Carry the active film slug into the grid-refresh GET. Without it the
          HTMX swap hits /api/scenes with no ?film=<slug>, so a keyword search

@@ -228,6 +228,85 @@
 }
 .c-rp .actions .fx-btn { justify-content: center; }
 
+/* ─── Filtros popover ────────────────────────────────────────────────────
+   Anchored to the Filters tool button in the toolrow. The wrapper is
+   ``position: relative`` so the popover lays out below the button
+   without affecting the rest of the toolrow flow. Closes on outside-
+   click and Escape (Alpine bindings on .filter-wrap). The pip count
+   is driven client-side from the popover's checkbox state — the
+   ``#scenes-grid``-only HTMX swap deliberately does not re-render the
+   toolrow, so live tag counts stay reactive without an extra round
+   trip. */
+
+.c-cp .toolrow .filter-wrap { position: relative; display: inline-flex; }
+
+.c-cp .toolrow .tool--active {
+  background: var(--c-hover);
+  color: var(--c-text);
+  border-color: var(--c-border);
+}
+
+.scenes-filter-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 280px;
+  max-width: 420px;
+  max-height: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 14px;
+  background: var(--c-raised);
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+  z-index: 20;
+}
+
+.scenes-filter-popover__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--c-muted);
+}
+
+.scenes-filter-popover__title {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.scenes-filter-popover__clear {
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: 11px;
+  color: var(--c-accent);
+  cursor: pointer;
+  padding: 0;
+}
+.scenes-filter-popover__clear:hover { text-decoration: underline; }
+
+.scenes-filter-popover__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  overflow-y: auto;
+  padding-right: 4px;
+  /* Subtract gap + header height from popover max-height so the pill
+     area scrolls independently rather than the whole popover. */
+  max-height: 300px;
+}
+
+.scenes-filter-popover__empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--c-muted);
+}
+
 /* ─── Responsive ─────────────────────────────────────────────────────────
    Mirrors chrome.css breakpoints (1280/1024/720) so the Cenas tab keeps
    its toolbar + grid + inspector readable at narrower widths. The grid
