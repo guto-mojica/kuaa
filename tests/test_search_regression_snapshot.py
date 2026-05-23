@@ -16,6 +16,7 @@ captures behavior against the maintainer's local catalogue at the time
 of capture (commit-pinned); see Task A1 in
 ``docs/superpowers/plans/2026-05-23-hybrid-search.md``.
 """
+
 from __future__ import annotations
 
 import json
@@ -104,16 +105,14 @@ def test_pre_m2_snapshot_matches_or_updates(regression_client: TestClient) -> No
 
     if os.environ.get("UPDATE_HYBRID_SNAPSHOT") == "1":
         SNAPSHOT_PATH.parent.mkdir(parents=True, exist_ok=True)
-        SNAPSHOT_PATH.write_text(
-            json.dumps(snapshot, indent=2, ensure_ascii=False) + "\n"
-        )
+        SNAPSHOT_PATH.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False) + "\n")
         pytest.skip(f"Snapshot updated at {SNAPSHOT_PATH}")
 
-    assert SNAPSHOT_PATH.exists(), (
-        "Snapshot missing. Run with UPDATE_HYBRID_SNAPSHOT=1 against pre-M2 main."
-    )
+    assert (
+        SNAPSHOT_PATH.exists()
+    ), "Snapshot missing. Run with UPDATE_HYBRID_SNAPSHOT=1 against pre-M2 main."
     expected: dict[str, list[int]] = json.loads(SNAPSHOT_PATH.read_text())
     for q, ids in snapshot.items():
-        assert ids == expected[q], (
-            f"Snapshot drift for query={q!r}: got {ids}, expected {expected[q]}"
-        )
+        assert (
+            ids == expected[q]
+        ), f"Snapshot drift for query={q!r}: got {ids}, expected {expected[q]}"
