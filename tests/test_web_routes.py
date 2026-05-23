@@ -1459,3 +1459,29 @@ def test_mojica_js_contains_help_toggle(client):
     # the IIFE; we also accept double-quoted in case a future formatter
     # rewrites the literal.
     assert "'?'" in body or '"?"' in body
+
+
+def test_mojica_js_registers_buscar_retrieval_store(client) -> None:
+    """The Alpine store name + persist key + defaults are pinned strings.
+
+    Task E1 of the Hybrid Search plan: the Buscar knob row's popovers
+    (E2) bind to ``Alpine.store('buscarRetrieval')``, persisted under
+    ``mojica:buscar:retrieval``. Defaults match the search route's
+    canonical hybrid baseline (``retriever=hybrid`` / ``sem_w=0.70`` /
+    ``bm25_w=0.30``) so a first-paint UI never drifts from the server
+    contract. The ``top_k`` field is the UI-preferred value (9) and is
+    intentionally distinct from the route's FastAPI default (8) — the
+    hidden HTMX mirror (E2) sends the UI value on every request.
+    """
+    resp = client.get("/static/js/mojica.js")
+    assert resp.status_code == 200
+    body = resp.text
+    # Store name (canonical Alpine pattern).
+    assert "Alpine.store('buscarRetrieval'" in body
+    # localStorage key.
+    assert "mojica:buscar:retrieval" in body
+    # Default values that the UI popovers will display.
+    assert "'hybrid'" in body  # default retriever mode
+    assert "0.70" in body  # default sem_w
+    assert "0.30" in body  # default bm25_w (derived as 1 - sem_w in UI, but
+                            # persisted independently so the API contract is honest)

@@ -427,3 +427,94 @@ window.ToastBus = (function () {
     }
   });
 })();
+
+// ── Buscar retrieval prefs (Hybrid Search Task E1) ─────────────────────
+// Persisted Alpine store backing the Buscar tab's knob-row popovers
+// (retriever / sem_w / bm25_w / top_k). Defaults mirror the canonical
+// hybrid baseline so a first-paint UI never drifts from the server
+// contract: ``retriever=hybrid``, ``sem_w=0.70``, ``bm25_w=0.30``,
+// ``top_k=9`` (UI preference; the route's FastAPI default is 8, see the
+// E1 task plan — the hidden HTMX mirror in E2 sends the UI value on
+// every request, so the divergence is intentional).
+//
+// The IIFE pattern mirrors the Mojica-redesign prefs block (which
+// already ships ``cenasGroup`` / ``cenasSort`` / ``buscarView`` on the
+// design branch): same KEYS/DEFAULTS shape, same ``loadPrefs`` /
+// ``savePrefs`` / ``persistOnChange`` helpers, same ``alpine:init``
+// registration. When the two branches converge, the helpers collapse
+// into one block and the KEYS/DEFAULTS objects merge — no schema rewrite
+// is needed because each store is keyed independently in localStorage.
+//
+// A corrupt or absent payload silently falls back to defaults via the
+// try/catch in ``loadPrefs`` — a malformed entry must not break Buscar.
+(function () {
+  'use strict';
+
+  // localStorage key namespace. Prefixed so future prefs don't collide
+  // with any other localStorage usage in the app (eval grader, etc.).
+  var KEYS = {
+    retrieval: 'mojica:buscar:retrieval',
+  };
+
+  // Defaults — also the source of truth for "what fields exist". The
+  // ``mode`` / ``sem_w`` / ``bm25_w`` / ``top_k`` fields mirror the
+  // ``retriever`` / ``sem_w`` / ``bm25_w`` / ``top_k`` query params on
+  // ``/api/search`` and ``/api/search/aggregate`` (D1/D2). Keep this in
+  // sync with ``api/routes/search.py`` if the route's defaults change.
+  var DEFAULTS = {
+    retrieval: { mode: 'hybrid', sem_w: 0.70, bm25_w: 0.30, top_k: 9 },
+  };
+
+  /**
+   * Load a JSON-encoded prefs payload from localStorage and merge it
+   * onto a defaults object. Missing keys + parse failures both fall
+   * back to defaults rather than leaving the store half-populated.
+   */
+  function loadPrefs(key, defaults) {
+    try {
+      var raw = window.localStorage && window.localStorage.getItem(key);
+      if (!raw) return Object.assign({}, defaults);
+      var parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return Object.assign({}, defaults);
+      return Object.assign({}, defaults, parsed);
+    } catch (e) {
+      return Object.assign({}, defaults);
+    }
+  }
+
+  /** Persist a plain-object snapshot to localStorage. Errors swallowed. */
+  function savePrefs(key, snapshot) {
+    try {
+      if (window.localStorage) {
+        window.localStorage.setItem(key, JSON.stringify(snapshot));
+      }
+    } catch (e) { /* quota / private-mode — best-effort */ }
+  }
+
+  /**
+   * Bind an Alpine.effect that snapshots the named store's listed
+   * keys to localStorage whenever any of them changes. Reading each
+   * key inside the effect is what subscribes the effect to changes
+   * (Alpine tracks proxy property access).
+   */
+  function persistOnChange(storeName, key, fields) {
+    if (!(window.Alpine && typeof window.Alpine.effect === 'function')) return;
+    window.Alpine.effect(function () {
+      var s = window.Alpine.store(storeName);
+      if (!s) return;
+      var snap = {};
+      for (var i = 0; i < fields.length; i++) snap[fields[i]] = s[fields[i]];
+      savePrefs(key, snap);
+    });
+  }
+
+  document.addEventListener('alpine:init', function () {
+    if (!(window.Alpine && typeof window.Alpine.store === 'function')) return;
+
+    window.Alpine.store('buscarRetrieval', loadPrefs(KEYS.retrieval, DEFAULTS.retrieval));
+
+    // Persistence effects must register AFTER the stores exist; same
+    // alpine:init handler keeps the relative ordering deterministic.
+    persistOnChange('buscarRetrieval', KEYS.retrieval, ['mode', 'sem_w', 'bm25_w', 'top_k']);
+  });
+})();
