@@ -6,9 +6,24 @@ from here, never from a concrete backend module.
 
 Device is passed explicitly by the caller; this module never reads it
 from cfg.
+
+Return-type annotations use the Protocol types from ``base.py`` — they
+are the public contract; callers must not rely on concrete backend types.
 """
 
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from cinemateca.models.base import (
+        AudioEmbedder,
+        EnvironmentClassifier,
+        FaceDetector,
+        ImageEmbedder,
+        ObjectDetector,
+        SceneDescriber,
+    )
 
 
 def _name(cfg, attr: str) -> str:
@@ -21,7 +36,7 @@ def _name(cfg, attr: str) -> str:
     return val
 
 
-def get_image_embedder(cfg, device=None):
+def get_image_embedder(cfg, device=None) -> "ImageEmbedder":
     name = _name(cfg, "image_embedder")
     if name == "clip_openclip":
         from cinemateca.models.clip.openclip import OpenClipEmbedder
@@ -30,7 +45,7 @@ def get_image_embedder(cfg, device=None):
     raise ValueError(f"Unknown image_embedder: {name!r}")
 
 
-def get_face_detector(cfg, device=None):
+def get_face_detector(cfg, device=None) -> "FaceDetector":
     name = _name(cfg, "face_detector")
     if name == "mtcnn_pytorch":
         from cinemateca.models.face.mtcnn import MTCNNFaceDetector
@@ -39,7 +54,7 @@ def get_face_detector(cfg, device=None):
     raise ValueError(f"Unknown face_detector: {name!r}")
 
 
-def get_object_detector(cfg, device=None):
+def get_object_detector(cfg, device=None) -> "ObjectDetector":
     name = _name(cfg, "object_detector")
     if name == "yolov8":
         from cinemateca.models.objects.yolov8 import YOLOv8ObjectDetector
@@ -48,7 +63,7 @@ def get_object_detector(cfg, device=None):
     raise ValueError(f"Unknown object_detector: {name!r}")
 
 
-def get_scene_describer(cfg, device=None):
+def get_scene_describer(cfg, device=None) -> "SceneDescriber":
     name = _name(cfg, "scene_describer")
     # Order is load-bearing: moondream_transformers is the default backend.
     if name == "moondream_transformers":
@@ -64,19 +79,18 @@ def get_scene_describer(cfg, device=None):
     raise ValueError(f"Unknown scene_describer: {name!r}")
 
 
-def get_environment_classifier(cfg):
+def get_environment_classifier(cfg, device=None) -> "EnvironmentClassifier":
     name = _name(cfg, "environment_classifier")
     if name == "opencv_heuristic":
         from cinemateca.models.environment.opencv_heuristic import (
             OpenCVEnvironmentClassifier,
         )
 
-        # device-agnostic: OpenCV heuristic, no device parameter
-        return OpenCVEnvironmentClassifier(cfg)
+        return OpenCVEnvironmentClassifier(cfg, device)
     raise ValueError(f"Unknown environment_classifier: {name!r}")
 
 
-def get_audio_embedder(cfg, device=None):
+def get_audio_embedder(cfg, device=None) -> "AudioEmbedder":
     name = _name(cfg, "audio_embedder")
     if name == "clap_hf":
         from cinemateca.models.audio.clap_hf import ClapHFEmbedder

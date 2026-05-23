@@ -28,15 +28,12 @@ report — that is a product question, intentionally NOT changed here).
 
 from __future__ import annotations
 
-import json
 import logging
-import os
-import stat
-import tempfile
 from pathlib import Path
 
 from api.services.catalog import derive_fps, keyframe_url, load_json, to_smpte
 from api.services.film_context import FilmContext
+from cinemateca.annotator import atomic_write_json as _atomic_write_json
 from cinemateca.annotator import load as _annotator_load
 from cinemateca.annotator import save as _annotator_save
 
@@ -128,8 +125,10 @@ def save_description(ctx: FilmContext, scene_id: int, new_text: str) -> None:
     replaces its ``description`` value with ``new_text``, preserving all
     other fields (e.g. ``tags``, ``objects``). If no entry exists for
     that scene, a minimal ``{"scene_id": scene_id, "description": new_text}``
-    record is appended. The write is atomic (same-dir temp + os.replace)
-    with the same permissions semantics as ``cinemateca.annotator.save``.
+    record is appended.
+
+    The write delegates to :func:`cinemateca.annotator.atomic_write_json` so
+    the crash-safety logic lives in one place (no duplication).
     """
     path = ctx.metadata_dir / "scene_descriptions.json"
     records: list = load_json(path) or []
@@ -143,23 +142,7 @@ def save_description(ctx: FilmContext, scene_id: int, new_text: str) -> None:
     if not found:
         records.append({"scene_id": scene_id, "description": new_text})
 
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(prefix=".scene_descriptions.", suffix=".tmp", dir=path.parent)
-    tmp_path = Path(tmp_name)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(records, f, indent=2, ensure_ascii=False)
-        if path.exists():
-            os.chmod(tmp_path, stat.S_IMODE(os.stat(path).st_mode))
-        else:
-            current = os.umask(0)
-            os.umask(current)
-            os.chmod(tmp_path, 0o666 & ~current)
-        os.replace(tmp_path, path)
-    except BaseException:
-        tmp_path.unlink(missing_ok=True)
-        raise
-
+    _atomic_write_json(path, records)
     logger.info("Description updated for scene %s", scene_id)
 
 
@@ -208,18 +191,20 @@ def build_scene_list(ctx: FilmContext, filter_mode: str) -> tuple[list, dict, di
 # code changes.
 
 
-def _demo_threads_enabled() -> bool:
-    """Lazy read of ``cfg.collaboration.demo_threads_enabled``.
+def _demo_threads_enabled(cfg=None) -> bool:
+    """Return ``cfg.collaboration.demo_threads_enabled``.
 
-    Imports inside the function so test fixtures that don't initialize
-    the full config (or that swap in their own narrow stub) never trip
-    on an import-time dependency. Failures default to ``False`` so the
-    pre-demo empty state is the safe fallback.
+    ``cfg`` is accepted explicitly so callers can pass a pre-loaded config
+    and avoid the ``api.deps`` coupling.  When ``cfg`` is ``None`` the
+    function falls back to ``api.deps.get_config()`` for call-sites that
+    don't have the config handy (e.g. legacy code paths).  Any exception
+    produces ``False`` so the pre-demo empty state is the safe fallback.
     """
     try:
-        from api.deps import get_config  # noqa: PLC0415
+        if cfg is None:
+            from api.deps import get_config  # noqa: PLC0415
 
-        cfg = get_config()
+            cfg = get_config()
         return bool(getattr(cfg.collaboration, "demo_threads_enabled", False))
     except Exception:
         return False

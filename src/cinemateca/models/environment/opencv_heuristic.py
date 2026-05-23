@@ -4,8 +4,6 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-import cv2
-
 logger = logging.getLogger(__name__)
 
 
@@ -15,9 +13,12 @@ class OpenCVEnvironmentClassifier:
     AVISO: Esta é uma implementação aproximada baseada em métricas simples de
     brilho e densidade de bordas. Para uso em produção, recomenda-se treinar
     um classificador específico para o acervo da instituição.
+
+    OpenCV is imported lazily (first call to ``classify``) so importing this
+    module does not trigger the full OpenCV load at server startup.
     """
 
-    def __init__(self, cfg=None):
+    def __init__(self, cfg=None, device=None):  # device is accepted but unused (CPU-only heuristic)
         if cfg is not None:
             env_cfg = cfg.visual_analysis.environment
             self.enabled = env_cfg.enabled
@@ -36,6 +37,8 @@ class OpenCVEnvironmentClassifier:
                 "location": "desconhecido",
                 "edge_density": 0.0,
             }
+
+        import cv2  # noqa: PLC0415 — lazy import to avoid server-startup cost
 
         img = cv2.imread(str(image_path))
         if img is None:

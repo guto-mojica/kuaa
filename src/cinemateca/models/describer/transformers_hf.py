@@ -231,14 +231,21 @@ class MoondreamTransformersDescriber:
         return all_results
 
     @staticmethod
-    def build_tag_index(results: list[dict]) -> dict:
-        """Build a tag → [scene_id] index sorted by frequency descending."""
+    def build_tag_index(results: list[dict]) -> dict[str, list[str]]:
+        """Build a tag → [scene_id] index sorted by frequency descending.
+
+        Scene IDs are stored as strings so the index type is homogeneous
+        (``dict[str, list[str]]``) and consumers can do membership tests
+        without worrying about int/str divergence.
+        """
         from collections import defaultdict
 
-        idx: dict[str, list] = defaultdict(list)
+        idx: dict[str, list[str]] = defaultdict(list)
         for rec in results:
-            for tag in rec.get("tags", []):
-                idx[tag].append(rec.get("scene_id"))
+            sid = rec.get("scene_id")
+            if sid is not None:
+                for tag in rec.get("tags", []):
+                    idx[tag].append(str(sid))
         return dict(sorted(idx.items(), key=lambda x: len(x[1]), reverse=True))
 
     def save(self, results, tag_index, output_dir):

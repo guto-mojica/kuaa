@@ -285,6 +285,16 @@ def active_jobs() -> list[JobState]:
     return _registry.active()
 
 
+def all_jobs() -> list[JobState]:
+    """Return every job in the registry (active, completed, cancelled, errored).
+
+    Wraps ``_registry.all()`` as a public function so routes and services can
+    retrieve the full job history without reaching into the private registry
+    object.  Use :func:`active_jobs` when you only care about running jobs.
+    """
+    return _registry.all()
+
+
 def cancel_job(job_id: str) -> bool:
     return _registry.cancel(job_id)
 

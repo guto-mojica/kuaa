@@ -201,13 +201,20 @@ class MoondreamGGUFDescriber:
         return all_results
 
     @staticmethod
-    def build_tag_index(results: list[dict]) -> dict:
+    def build_tag_index(results: list[dict]) -> dict[str, list[str]]:
+        """Build a tag → [scene_id] index sorted by frequency descending.
+
+        Scene IDs are stored as strings for type consistency with the manual
+        annotations dict (``dict[str, list[str]]``) produced by ``annotator``.
+        """
         from collections import defaultdict
 
-        idx: dict[str, list] = defaultdict(list)
+        idx: dict[str, list[str]] = defaultdict(list)
         for rec in results:
-            for tag in rec.get("tags", []):
-                idx[tag].append(rec.get("scene_id"))
+            sid = rec.get("scene_id")
+            if sid is not None:
+                for tag in rec.get("tags", []):
+                    idx[tag].append(str(sid))
         return dict(sorted(idx.items(), key=lambda x: len(x[1]), reverse=True))
 
     def save(self, results, tag_index, output_dir):

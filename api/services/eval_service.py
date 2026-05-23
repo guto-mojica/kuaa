@@ -249,6 +249,12 @@ def _eval_run_id(cfg) -> str:
     return "default"
 
 
+# Public aliases so routes and tests can call these without reaching into
+# the private _eval_root / _eval_run_id names.
+eval_root = _eval_root
+eval_run_id = _eval_run_id
+
+
 def _load_queries(root: Path, run_id: str) -> list[dict[str, Any]]:
     """Load the curated query list for the run. Empty when missing.
 
