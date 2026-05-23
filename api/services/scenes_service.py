@@ -53,6 +53,7 @@ from api.services.catalog import (
     to_smpte,
 )
 from api.services.film_context import FilmContext
+from api.services.film_service import list_films
 
 logger = logging.getLogger(__name__)
 
@@ -133,10 +134,8 @@ def _films_by_slug(cfg: Any) -> dict:
     into the search service (which would couple two layers that should
     stay independent).
     """
-    from cinemateca.library import scan_library
-
     library_dir = Path(cfg.paths.library_dir)
-    return {film.slug: film for film in scan_library(library_dir)}
+    return {film.slug: film for film in list_films(library_dir)}
 
 
 def _description_for(metadata_dir: Path, scene_id: int) -> str:
@@ -650,8 +649,6 @@ def _build_groups_by_film(
         (the tag-filter UI moves to the right pane in a later task but
         the legacy filter must keep working).
     """
-    from cinemateca.library import scan_library
-
     library_dir = Path(cfg.paths.library_dir)
     groups: list[dict] = []
     films: list[Any] = []
@@ -665,7 +662,7 @@ def _build_groups_by_film(
     # no on-disk metadata. ``ValueError`` from ``FilmContext.for_film``
     # surfaces to the caller (matches the legacy contract — the routes
     # use it to 4xx unknown slugs in HTMX-fetch paths).
-    all_films = list(scan_library(library_dir))
+    all_films = list(list_films(library_dir))
     if slug is not None:
         if not any(f.slug == slug for f in all_films):
             # Trigger the same ValueError the legacy single-film path

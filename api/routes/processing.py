@@ -14,12 +14,13 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 
-from api.deps import film_slug_query, get_config, make_ctx
+from api.deps import film_slug_query, get_config, get_library_dir, make_ctx
 from api.jobs import (
     STEP_DEFS,
     ConcurrencyRejected,
     JobState,
     active_jobs,
+    all_jobs,
     cancel_job,
     get_job,
     start_job,
@@ -76,30 +77,27 @@ def build_processing_context() -> dict:
         (``film_title``, ``started_at_display``, ``elapsed_display``,
         ``active_step_idx``, …) the .p-active card header reads.
     """
-    cfg = get_config()
+    from api.services.film_service import list_films
     from api.services.processing_service import (
         aggregate_stats,
         build_active_step,
         build_job_queue,
         enrich_jobs,
     )
-    from cinemateca.library import scan_library
 
-    library_dir = Path(cfg.paths.library_dir)
-    films = scan_library(library_dir)
+    library_dir = get_library_dir()
+    films = list_films(library_dir)
     jobs = enrich_jobs(active_jobs())
 
     # ``job_queue`` reads the registry's *full* recent history (terminal
     # + active), not just the currently running set.
-    from api.jobs import _registry  # noqa: PLC0415 - service-layer access
-
     return {
         "films": films,
         "step_defs": STEP_DEFS,
         "jobs": jobs,
         "initial_log_lines": [],
         "stats": aggregate_stats(library_dir),
-        "job_queue": build_job_queue(_registry.all()),
+        "job_queue": build_job_queue(all_jobs()),
         "active_step": build_active_step(jobs),
         "gpu_metrics": [],
         "cfg": cfg,

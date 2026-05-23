@@ -35,8 +35,9 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
-from api.deps import film_slug_query, get_config, make_ctx
+from api.deps import film_slug_query, get_config, get_library_dir, make_ctx
 from api.services.chrome_service import build_chrome_context
+from api.services.film_service import list_films
 from api.templates import templates
 
 router = APIRouter()
@@ -44,16 +45,10 @@ router = APIRouter()
 
 def _library_ctx(request: Request, q: str = "", current_slug: str | None = None) -> dict:
     """Build the legacy sidebar context: global state + filtered registry film list."""
-    from cinemateca.library import library_state, scan_library
+    from cinemateca.library import library_state
 
-    cfg = get_config()
-    library_dir = Path(cfg.paths.library_dir)
-
-    films = scan_library(library_dir)
-    if q.strip():
-        needle = q.strip().lower()
-        films = [f for f in films if needle in f.title.lower() or needle in f.slug.lower()]
-
+    library_dir = get_library_dir()
+    films = list_films(library_dir, q)
     state = library_state(library_dir)
     return make_ctx(request, films=films, library_state=state, current_slug=current_slug)
 

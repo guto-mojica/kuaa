@@ -46,6 +46,11 @@ def get_config():
     return load_config(str(selected) if selected is not None else None)
 
 
+def get_library_dir() -> Path:
+    """Return the configured library directory."""
+    return Path(get_config().paths.library_dir)
+
+
 
 @cache
 def _get_translations(locale: str):

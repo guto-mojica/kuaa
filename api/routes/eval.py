@@ -28,7 +28,12 @@ import os
 from fastapi import APIRouter, Form, HTTPException, Request, status
 
 from api.deps import get_config, make_ctx
-from api.services.eval_service import build_eval_context, compute_query_metrics
+from api.services.eval_service import (
+    build_eval_context,
+    compute_query_metrics,
+    eval_root,
+    eval_run_id,
+)
 from api.templates import templates
 from cinemateca.eval.grades import EvalRun, Grade, save_grade
 
@@ -116,13 +121,11 @@ def post_grade(
             detail=f"Invalid grade value: {grade}",
         ) from exc
 
-    # Resolve eval root + run id via the service-layer helpers so test
+    # Resolve eval root + run id via the service-layer public helpers so test
     # ``monkeypatch.setattr`` on those helpers takes effect here too.
-    from api.services import eval_service
-
     cfg = get_config()
-    run_root = eval_service._eval_root(cfg)
-    run_id = eval_service._eval_run_id(cfg)
+    run_root = eval_root(cfg)
+    run_id = eval_run_id(cfg)
     grader = request.cookies.get("grader", "anon")
 
     run = EvalRun(run_id=run_id, root=run_root)

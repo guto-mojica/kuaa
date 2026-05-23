@@ -1,8 +1,12 @@
 """
 cinemateca.models.registry
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
-Reads cfg.models.* and returns concrete backends. The pipeline imports
-from here, never from a concrete backend module.
+Factory functions that construct model backends from config.
+
+Each ``get_*`` function reads ``cfg.models.<role>`` to select a backend
+name, then constructs and returns the corresponding concrete backend.
+The pipeline imports only from here — never from a concrete backend module
+— so swapping backends requires only a config change.
 
 Device is passed explicitly by the caller; this module never reads it
 from cfg.

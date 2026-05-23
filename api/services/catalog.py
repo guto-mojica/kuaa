@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from api.services.film_context import FilmContext
+from api.services.film_service import list_films
 from cinemateca.scene_ids import scene_id_key
 
 logger = logging.getLogger(__name__)
@@ -325,11 +326,9 @@ def build_scenes_grid_aggregate(cfg: Any, tags: list[str], keyword: str) -> dict
     :func:`build_scenes_grid` return shape — so the same
     ``scenes_grid.html`` partial works in both modes.
     """
-    from cinemateca.library import scan_library
-
     library_dir = Path(cfg.paths.library_dir)
     all_cards: list[dict] = []
-    for film in scan_library(library_dir):
+    for film in list_films(library_dir):
         ctx = FilmContext.for_film(cfg, film.slug)
         kf_meta, desc_by_scene, vis_by_scene, tag_index = load_metadata(
             ctx.metadata_dir
@@ -370,12 +369,10 @@ def build_scenes_context_aggregate(cfg: Any) -> dict:
     For large libraries (~100+ films) consider a request-scoped cache
     alongside the per-film search index cache T8 introduces.
     """
-    from cinemateca.library import scan_library
-
     library_dir = Path(cfg.paths.library_dir)
     all_cards: list[dict] = []
     all_tags: set[str] = set()
-    for film in scan_library(library_dir):
+    for film in list_films(library_dir):
         ctx = FilmContext.for_film(cfg, film.slug)
         kf_meta, desc_by_scene, vis_by_scene, tag_index = load_metadata(
             ctx.metadata_dir

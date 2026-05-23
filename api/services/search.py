@@ -71,6 +71,7 @@ from api.services.catalog import (
     to_smpte,
 )
 from api.services.film_context import FilmContext
+from api.services.film_service import list_films
 
 logger = logging.getLogger(__name__)
 
@@ -366,10 +367,8 @@ def has_indexed_films(cfg: Any) -> bool:
         ``min_similarity`` → render "No results" (the query simply didn't
         match anything in the corpus — a normal outcome, not a setup error).
     """
-    from cinemateca.library import scan_library
-
     library_dir = Path(cfg.paths.library_dir)
-    for film in scan_library(library_dir):
+    for film in list_films(library_dir):
         try:
             idx = _get_search_index(cfg, film.slug)
         except ValueError:
@@ -407,7 +406,6 @@ def aggregate_search(
     returns ``[]`` (the route renders the no-index UI state, which the
     template now also covers for "no results above threshold").
     """
-    from cinemateca.library import scan_library
     from cinemateca.scene_ids import normalize_tag_index, scene_id_key
 
     if modality != "text":
@@ -419,7 +417,7 @@ def aggregate_search(
     # Materialise the film list BEFORE loading the embedder.  When the library
     # is empty (0 registered films) we return early and avoid the ~4 s CLIP
     # model initialisation that _get_embedder triggers.
-    films = list(scan_library(library_dir))
+    films = list(list_films(library_dir))
     if not films:
         return []
 
@@ -737,10 +735,8 @@ def films_by_id_lookup(cfg: Any) -> dict:
     (``films_by_id.get(slug)``); cards whose ``film_slug`` is missing
     still render with sensible fallbacks.
     """
-    from cinemateca.library import scan_library
-
     library_dir = Path(cfg.paths.library_dir)
-    return {film.slug: film for film in scan_library(library_dir)}
+    return {film.slug: film for film in list_films(library_dir)}
 
 
 def build_search_context(ctx: FilmContext, cfg: Any | None = None) -> dict:
@@ -786,11 +782,9 @@ def build_search_context_aggregate(cfg: Any) -> dict:
     path expose the same context shape. ``films_by_id`` is populated
     here so the template's title/year lookup resolves on every card.
     """
-    from cinemateca.library import scan_library
-
     library_dir = Path(cfg.paths.library_dir)
     all_tags: set[str] = set()
-    for film in scan_library(library_dir):
+    for film in list_films(library_dir):
         try:
             ctx = FilmContext.for_film(cfg, film.slug)
         except ValueError:

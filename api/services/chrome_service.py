@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Any, TypedDict
 
 from api.jobs import active_jobs
+from api.services.film_service import list_films
 from cinemateca.library import Film, LibraryState
 
 
@@ -159,10 +160,10 @@ def build_chrome_context(cfg: Any, current_slug: str | None = None) -> ChromeCon
         * ``current_user``: identity dict or ``None``. ``None`` in Phase 1.
         * ``notification_count``: bell red-dot counter. ``0`` in Phase 1.
     """
-    from cinemateca.library import library_state, scan_library
+    from cinemateca.library import library_state
 
     library_dir = Path(cfg.paths.library_dir)
-    films = scan_library(library_dir)
+    films = list_films(library_dir)
     lstate = library_state(library_dir)
 
     # ── Active job slug derivation ────────────────────────────────────
