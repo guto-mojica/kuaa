@@ -58,7 +58,7 @@ import re
 import threading
 from dataclasses import dataclass
 from enum import Enum
-from functools import lru_cache as _lru_cache
+from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -326,7 +326,7 @@ def _file_stamp(path: Path) -> tuple[float, int]:
     return (st.st_mtime, st.st_size)
 
 
-@_lru_cache(maxsize=32)
+@lru_cache(maxsize=32)
 def _cached_bm25_index(
     metadata_dir: str,
     descriptions_stamp: tuple[float, int],
@@ -365,11 +365,9 @@ def _cached_bm25_index(
         except _json.JSONDecodeError:
             logger.warning("BM25: malformed %s; using empty descriptions", descriptions_path)
 
-    # Merged LLM ⊕ manual tag index via the existing catalog helper.
-    # We can't avoid the import — ``load_tag_index`` is the single source
-    # of truth for the merge semantics (it owns scene_id normalisation).
-    from api.services.catalog import load_tag_index
-
+    # Merged LLM ⊕ manual tag index via the existing catalog helper —
+    # the single source of truth for the merge semantics (it owns
+    # scene_id normalisation).
     tag_index = load_tag_index(md) or {}
 
     return _BM25Index.build(
