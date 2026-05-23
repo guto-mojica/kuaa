@@ -254,11 +254,19 @@ def build_cards(
         desc = desc_by_scene.get(sid, {})
         description = desc.get("description") or ""
 
+        # Duration is end_time_s − start_time_s, both already in
+        # ``s`` (keyframe metadata). We carry the raw seconds so the
+        # Cenas grid's "Sort by Duration" can compare without parsing
+        # the SMPTE string back into seconds.
+        end_s = float(s.get("end_time_s") or 0.0)
+        duration_s = max(0.0, end_s - start_s)
         cards.append(
             {
                 "scene_id": s.get("scene_id"),
                 "img_url": img_url,
                 "timecode": tc,
+                "start_s": start_s,
+                "duration_s": duration_s,
                 "tags": scene_tags,
                 "all_tags": all_tags_sorted,
                 "environment": " · ".join(env_parts),

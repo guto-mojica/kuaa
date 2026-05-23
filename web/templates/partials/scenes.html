@@ -45,42 +45,364 @@
 </section>
 {% else %}
 
-<section class="c-cp">
+<section class="c-cp"
+         :class="{
+           'view-density-comfortable': $store.cenasAppearance.density === 'comfortable',
+           'view-density-compact':     $store.cenasAppearance.density === 'compact',
+           'hide-timecode':  !$store.cenasFields.timecode,
+           'hide-pin-count': !$store.cenasFields.pin_count,
+           'hide-version':   !$store.cenasFields.version,
+           'hide-sub':       !$store.cenasFields.sub,
+           'hide-tipo':      !$store.cenasFields.tipo,
+         }">
 
-  {# ── Toolrow: Appearance / Fields / Filters / Grouped by / Sorted + .find ─ #}
-  <div class="toolrow">
-    <button type="button" class="tool">
-      <span class="ico">{{ icon('appearance', 14) }}</span>
-      {{ _('Appearance') }}
-    </button>
-    <button type="button" class="tool">
-      <span class="ico">{{ icon('fields', 14) }}</span>
-      {{ _('Fields') }}<span class="pip">{{ visible_field_count }}</span>
-    </button>
-    <button type="button" class="tool">
-      <span class="ico">{{ icon('filter', 14) }}</span>
-      {{ _('Filters') }}<span class="pip">{{ active_filter_count }}</span>
-    </button>
-    <button type="button" class="tool">
-      <span class="ico">{{ icon('group', 14) }}</span>
-      {{ _('Grouped by') }} <span class="v">{{ _('Film') }}</span>
-    </button>
+  {# ── Toolrow: Appearance / Fields / Filters / Grouped by / Sorted + .find ─
+
+       The toolrow is the HTMX include scope: every refresh that hits
+       ``/api/scenes`` (keyword change on ``.find``, tag toggle in the
+       Filtros popover) sends ``hx-include="#scenes-toolrow"`` so both
+       the keyword AND the active tag selection ride along. Keeping the
+       inputs co-located is what makes ``q + film + tags[]`` survive
+       partial swaps without a global form.
+
+       Appearance + Fields are pure client-side prefs driven by Alpine
+       stores in ``mojica.js`` (``$store.cenasAppearance`` /
+       ``$store.cenasFields``). They flip class names on the wrapping
+       ``.c-cp`` section above; CSS in ``cenas.css`` translates those
+       classes into density + per-field visibility overrides. State is
+       persisted to ``localStorage`` so a refresh keeps the user's
+       chosen card density and hidden fields. #}
+  <div id="scenes-toolrow" class="toolrow">
+
+    {# ── Appearance: card-density radio popover. Two options today
+         (Comfortable / Compact). Adding more later means adding a
+         radio row here + a matching ``.view-density-<name>`` rule in
+         cenas.css — no service-layer changes. #}
+    <div class="filter-wrap"
+         x-data="{ open: false }"
+         @click.outside="open = false"
+         @keydown.escape.window="open = false">
+      <button type="button"
+              class="tool"
+              :class="{ 'tool--active': open || $store.cenasAppearance.density !== 'comfortable' }"
+              :aria-expanded="open ? 'true' : 'false'"
+              aria-haspopup="true"
+              @click="open = !open">
+        <span class="ico">{{ icon('appearance', 14) }}</span>
+        {{ _('Appearance') }}
+      </button>
+
+      <div class="scenes-filter-popover"
+           role="dialog"
+           :aria-hidden="open ? 'false' : 'true'"
+           x-show="open"
+           x-cloak
+           x-transition.opacity.duration.120ms>
+        <header class="scenes-filter-popover__head">
+          <span class="scenes-filter-popover__title">{{ _('Card density') }}</span>
+        </header>
+        <div class="scenes-prefs-rows">
+          <label class="scenes-prefs-row">
+            <input type="radio" name="density"
+                   value="comfortable"
+                   x-model="$store.cenasAppearance.density">
+            <span>{{ _('Comfortable') }}</span>
+          </label>
+          <label class="scenes-prefs-row">
+            <input type="radio" name="density"
+                   value="compact"
+                   x-model="$store.cenasAppearance.density">
+            <span>{{ _('Compact') }}</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    {# ── Fields: per-field visibility popover. The pip surfaces the
+         number of HIDDEN fields (zero by default → no pip), mirroring
+         the Filtros pattern where a non-zero pip means "you've changed
+         something from defaults". ``Object.values(...).filter(v => !v)``
+         counts falsy entries — one expression, no helper needed. #}
+    <div class="filter-wrap"
+         x-data="{ open: false }"
+         @click.outside="open = false"
+         @keydown.escape.window="open = false">
+      <button type="button"
+              class="tool"
+              :class="{ 'tool--active': open || Object.values($store.cenasFields).some(v => !v) }"
+              :aria-expanded="open ? 'true' : 'false'"
+              aria-haspopup="true"
+              @click="open = !open">
+        <span class="ico">{{ icon('fields', 14) }}</span>
+        {{ _('Fields') }}
+        <span class="pip"
+              x-show="Object.values($store.cenasFields).some(v => !v)"
+              x-text="Object.values($store.cenasFields).filter(v => !v).length"
+              x-cloak></span>
+      </button>
+
+      <div class="scenes-filter-popover"
+           role="dialog"
+           :aria-hidden="open ? 'false' : 'true'"
+           x-show="open"
+           x-cloak
+           x-transition.opacity.duration.120ms>
+        <header class="scenes-filter-popover__head">
+          <span class="scenes-filter-popover__title">{{ _('Visible fields') }}</span>
+          <button type="button"
+                  class="scenes-filter-popover__clear"
+                  x-show="Object.values($store.cenasFields).some(v => !v)"
+                  @click="
+                    $store.cenasFields.timecode = true;
+                    $store.cenasFields.pin_count = true;
+                    $store.cenasFields.version = true;
+                    $store.cenasFields.sub = true;
+                    $store.cenasFields.tipo = true;
+                  ">
+            {{ _('Reset') }}
+          </button>
+        </header>
+        <div class="scenes-prefs-rows">
+          <label class="scenes-prefs-row">
+            <input type="checkbox" x-model="$store.cenasFields.timecode">
+            <span>{{ _('Timecode') }}</span>
+          </label>
+          <label class="scenes-prefs-row">
+            <input type="checkbox" x-model="$store.cenasFields.pin_count">
+            <span>{{ _('Pin count') }}</span>
+          </label>
+          <label class="scenes-prefs-row">
+            <input type="checkbox" x-model="$store.cenasFields.version">
+            <span>{{ _('Version') }}</span>
+          </label>
+          <label class="scenes-prefs-row">
+            <input type="checkbox" x-model="$store.cenasFields.sub">
+            <span>{{ _('Director · year') }}</span>
+          </label>
+          <label class="scenes-prefs-row">
+            <input type="checkbox" x-model="$store.cenasFields.tipo">
+            <span>{{ _('Type pill') }}</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    {# ── Filtros: Alpine popover with tag checkboxes. The pip count is
+         driven client-side (``count`` in the x-data scope) so the
+         ``#scenes-grid``-only HTMX swap doesn't need to repaint the
+         toolrow on every change. Server still emits the initial
+         ``active_filter_count`` so SSR and first paint agree. #}
+    <div class="filter-wrap"
+         x-data="{ open: false, count: {{ active_filter_count }} }"
+         @click.outside="open = false"
+         @keydown.escape.window="open = false">
+      <button type="button"
+              class="tool"
+              :class="{ 'tool--active': open || count > 0 }"
+              :aria-expanded="open ? 'true' : 'false'"
+              aria-haspopup="true"
+              @click="open = !open">
+        <span class="ico">{{ icon('filter', 14) }}</span>
+        {{ _('Filters') }}<span class="pip" x-show="count > 0" x-text="count" x-cloak></span>
+      </button>
+
+      <div class="scenes-filter-popover"
+           role="dialog"
+           :aria-hidden="open ? 'false' : 'true'"
+           x-show="open"
+           x-cloak
+           x-transition.opacity.duration.120ms>
+        <header class="scenes-filter-popover__head">
+          <span class="scenes-filter-popover__title">{{ _('Filter by tag') }}</span>
+          <button type="button"
+                  class="scenes-filter-popover__clear"
+                  x-show="count > 0"
+                  @click="
+                    $refs.pills.querySelectorAll('input[name=tags]').forEach(i => i.checked = false);
+                    count = 0;
+                    window.htmx && window.htmx.trigger($refs.pills, 'refresh');
+                  ">
+            {{ _('Clear') }}
+          </button>
+        </header>
+        {% if available_tags %}
+        <div x-ref="pills"
+             id="scenes-filter-pills"
+             class="tag-filter scenes-filter-popover__pills"
+             hx-get="/api/scenes"
+             hx-trigger="change from:input, refresh"
+             hx-target="#scenes-grid"
+             hx-swap="innerHTML"
+             hx-include="#scenes-toolrow"
+             @change="count = $el.querySelectorAll('input[name=tags]:checked').length">
+          {% for tag in available_tags %}
+          <label class="tag-pill">
+            <input type="checkbox" name="tags" value="{{ tag }}">{{ tag }}
+          </label>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="scenes-filter-popover__empty">{{ _('No tags available yet.') }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {# ── Grouped by: radio popover. The Alpine store
+         ``$store.cenasGroup.by`` is the source of truth; an inline
+         ``<input type="hidden" name="group" :value="$store.cenasGroup.by">``
+         mirrors the choice into the hx-include scope so the grid
+         refresh request carries ?group=… alongside any active
+         tags/keyword. Changing the radio fires Alpine reactivity
+         (which updates the hidden input via :value) and dispatches
+         a manual ``htmx:trigger 'refresh'`` to the popover's
+         hx-trigger so the grid re-renders. #}
+    <div class="filter-wrap"
+         x-data="{ open: false }"
+         @click.outside="open = false"
+         @keydown.escape.window="open = false">
+      <button type="button"
+              class="tool"
+              :class="{ 'tool--active': open || $store.cenasGroup.by !== 'film' }"
+              :aria-expanded="open ? 'true' : 'false'"
+              aria-haspopup="true"
+              @click="open = !open">
+        <span class="ico">{{ icon('group', 14) }}</span>
+        {{ _('Grouped by') }}
+        <span class="v"
+              x-text="({film: '{{ _('Film') }}',
+                       tipo: '{{ _('Type') }}',
+                       none: '{{ _('None') }}'})[$store.cenasGroup.by]">
+          {{ _('Film') }}
+        </span>
+      </button>
+      <div class="scenes-filter-popover"
+           role="dialog"
+           :aria-hidden="open ? 'false' : 'true'"
+           x-show="open"
+           x-cloak
+           x-transition.opacity.duration.120ms
+           id="scenes-group-popover"
+           hx-get="/api/scenes"
+           hx-trigger="change from:input, refresh"
+           hx-target="#scenes-grid"
+           hx-swap="innerHTML"
+           hx-include="#scenes-toolrow">
+        <header class="scenes-filter-popover__head">
+          <span class="scenes-filter-popover__title">{{ _('Group scenes by') }}</span>
+        </header>
+        <div class="scenes-prefs-rows">
+          <label class="scenes-prefs-row">
+            <input type="radio" name="group_choice" value="film"
+                   x-model="$store.cenasGroup.by">
+            <span>{{ _('Film') }}</span>
+          </label>
+          <label class="scenes-prefs-row">
+            <input type="radio" name="group_choice" value="tipo"
+                   x-model="$store.cenasGroup.by">
+            <span>{{ _('Type') }}</span>
+          </label>
+          <label class="scenes-prefs-row">
+            <input type="radio" name="group_choice" value="none"
+                   x-model="$store.cenasGroup.by">
+            <span>{{ _('None (flat)') }}</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
     <span class="div" aria-hidden="true"></span>
-    <button type="button" class="tool">
-      <span class="ico">{{ icon('sort', 14) }}</span>
-      {{ _('Sorted by') }} <span class="v">{{ _('Timecode') }}</span>
-    </button>
+
+    {# ── Sorted by: same popover pattern as Group. The mirrored
+         ``name="sort"`` hidden input carries the choice into the
+         /api/scenes refresh URL. ``$store.cenasSort.by`` is the
+         persisted client signal; the server treats unknown values
+         as the timecode default in ``_VALID_SORTS``. #}
+    <div class="filter-wrap"
+         x-data="{ open: false }"
+         @click.outside="open = false"
+         @keydown.escape.window="open = false">
+      <button type="button"
+              class="tool"
+              :class="{ 'tool--active': open || $store.cenasSort.by !== 'timecode' }"
+              :aria-expanded="open ? 'true' : 'false'"
+              aria-haspopup="true"
+              @click="open = !open">
+        <span class="ico">{{ icon('sort', 14) }}</span>
+        {{ _('Sorted by') }}
+        <span class="v"
+              x-text="({timecode: '{{ _('Timecode') }}',
+                       duration: '{{ _('Duration') }}',
+                       pins: '{{ _('Pin count') }}'})[$store.cenasSort.by]">
+          {{ _('Timecode') }}
+        </span>
+      </button>
+      <div class="scenes-filter-popover"
+           role="dialog"
+           :aria-hidden="open ? 'false' : 'true'"
+           x-show="open"
+           x-cloak
+           x-transition.opacity.duration.120ms
+           id="scenes-sort-popover"
+           hx-get="/api/scenes"
+           hx-trigger="change from:input, refresh"
+           hx-target="#scenes-grid"
+           hx-swap="innerHTML"
+           hx-include="#scenes-toolrow">
+        <header class="scenes-filter-popover__head">
+          <span class="scenes-filter-popover__title">{{ _('Sort scenes by') }}</span>
+        </header>
+        <div class="scenes-prefs-rows">
+          <label class="scenes-prefs-row">
+            <input type="radio" name="sort_choice" value="timecode"
+                   x-model="$store.cenasSort.by">
+            <span>{{ _('Timecode') }}</span>
+          </label>
+          <label class="scenes-prefs-row">
+            <input type="radio" name="sort_choice" value="duration"
+                   x-model="$store.cenasSort.by">
+            <span>{{ _('Duration') }} <span class="scenes-prefs-row__hint">{{ _('longest first') }}</span></span>
+          </label>
+          <label class="scenes-prefs-row">
+            <input type="radio" name="sort_choice" value="pins"
+                   x-model="$store.cenasSort.by">
+            <span>{{ _('Pin count') }} <span class="scenes-prefs-row__hint">{{ _('most pinned first') }}</span></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    {# Hidden inputs live OUTSIDE the popovers so they're part of
+       ``#scenes-toolrow`` regardless of which popover is open. The
+       hx-include picks them up on every grid refresh (find input,
+       tag pill, group radio, sort radio). The :value bindings stay
+       in sync with the Alpine stores. The radio inputs above use
+       distinct ``name="..._choice"`` so they DON'T also ride along
+       as a duplicate form value — only the hidden mirrors do. #}
+    <input type="hidden" name="group" :value="$store.cenasGroup.by">
+    <input type="hidden" name="sort" :value="$store.cenasSort.by">
+
     <span class="grow" aria-hidden="true"></span>
     {# ``.find`` keyword input — HTMX-swaps the grid on every change. The
        form-level hx-* attributes inherit to the input; we keep the
        form element semantic so keyboard "/" focus and form-submit
-       gracefully degrade if HTMX is unavailable. #}
+       gracefully degrade if HTMX is unavailable. ``hx-include`` pulls
+       the popover's tag selection into every keyword refresh so the
+       active filter survives a fresh keystroke. #}
     <form class="find"
           hx-get="/api/scenes"
           hx-trigger="keyup changed delay:200ms, search"
           hx-target="#scenes-grid"
-          hx-swap="innerHTML">
+          hx-swap="innerHTML"
+          hx-include="#scenes-toolrow">
       <span class="ico">{{ icon('search', 14) }}</span>
+      {# Carry the active film slug into the grid-refresh GET. Without it the
+         HTMX swap hits /api/scenes with no ?film=<slug>, so a keyword search
+         on a film-narrowed Cenas view silently reverts to the library-wide
+         aggregate grid (first registered film first). Mirrors search.html's
+         hidden-input pattern; omitted entirely for the aggregate view. #}
+      {% if current_slug %}
+      <input type="hidden" name="film" value="{{ current_slug }}">
+      {% endif %}
       <input type="search" name="q" placeholder="{{ _('Search…') }}" value="{{ query or '' }}">
     </form>
   </div>

@@ -33,12 +33,34 @@
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/about.css') }}">
     <script src="{{ request.url_for('static', path='js/htmx.min.js') }}" defer></script>
     <script src="{{ request.url_for('static', path='js/htmx-ext-sse.js') }}" defer></script>
-    {# mojica.js — Phase 6 seed: SSE log auto-scroll on #proc-log.
+    {# Script order matters — mojica.js MUST execute BEFORE alpine.min.js.
+       Reason: Alpine 3 auto-starts the moment alpine.min.js loads if
+       ``document.readyState !== 'loading'``, which is always true for
+       deferred scripts (parsing is done by the time defers execute).
+       Alpine's ``start()`` dispatches ``alpine:init`` synchronously
+       inside alpine.min.js's own execution, *before* any later defer
+       script gets to register listeners. If mojica.js loads AFTER
+       alpine, every ``document.addEventListener('alpine:init', …)``
+       in our IIFEs is registered too late and never fires — so
+       ``$store.toasts``, ``$store.help``, ``$store.palette``,
+       ``$store.tagFilter``, and the prefs stores all stay undefined.
+       Bindings like ``$store.buscarView.mode`` then throw at first
+       paint. Loading mojica.js first gets all the listeners armed
+       before alpine boots; the IIFE bodies never touch ``window.Alpine``
+       synchronously (only inside the listeners / on-demand helpers),
+       so the inverted order is safe.
+
+       mojica.js — Phase 6 seed: SSE log auto-scroll on #proc-log.
        Phase 7 (Tasks 26–28) extends the same file with the toast bus,
        command palette, and keyboard-help overlay. Single IIFE, no
-       external deps, deferred so it runs after htmx-ext-sse is in
-       place. #}
+       external deps. #}
     <script src="{{ request.url_for('static', path='js/mojica.js') }}" defer></script>
+    {# Alpine.js — client-only state sprinkles (chip toggles, panel
+       visibility, modal close, file-input filename). Alpine's
+       MutationObserver picks up DOM nodes inserted by htmx swaps
+       automatically, so no extra wiring is needed for fragments.
+       Pinned to 3.14.9 (see web/static/js/alpine.min.js). #}
+    <script src="{{ request.url_for('static', path='js/alpine.min.js') }}" defer></script>
 </head>
 <body class="fx-app"
       data-active-tab="{{ active_tab }}"
@@ -98,12 +120,15 @@
    points. Task 27 replaced the ``#palette-root`` placeholder with the
    real palette scaffold; Task 28 replaces ``#help-root`` with the
    keyboard-help overlay partial. Both are rendered once at page load
-   (hidden) and toggled imperatively from mojica.js — keeping the DOM
+   and their visibility is driven by Alpine.store('palette' / 'help')
+   (see mojica.js + the partials' x-show directives) — keeping the DOM
    in place means the first frame of either surface renders without a
-   network round trip. The toast root stays as an empty mount because
-   toasts are created on demand. #}
+   network round trip. The toast root is a reactive x-for that
+   materialises ``.toast`` cards from ``Alpine.store('toasts').items``;
+   pushes from window.ToastBus or HX-Trigger headers flow through
+   the store. #}
 <div id="modal-container"></div>
-<div id="toast-root" aria-live="polite"></div>
+{% include "partials/_toast_host.html" %}
 {% include "partials/_palette.html" %}
 {% include "partials/_help_overlay.html" %}
 <div id="modal-root"></div>

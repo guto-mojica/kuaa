@@ -213,6 +213,11 @@ class TestBuildCards:
             "scene_id",
             "img_url",
             "timecode",
+            # ``start_s`` + ``duration_s`` added so the Cenas toolrow
+            # Sort-by-Duration option can compare without re-parsing
+            # the SMPTE ``timecode`` string back into seconds.
+            "start_s",
+            "duration_s",
             "tags",
             "all_tags",
             "environment",

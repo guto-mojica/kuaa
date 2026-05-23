@@ -47,9 +47,23 @@
     {% for r in rows %}
       {% set scene_key = r.scene_id|string %}
       {% set g = grades_for_current.get(scene_key) if grades_for_current is defined else none %}
-      {% set is_cur_row = current_row_scene_id is defined and current_row_scene_id == r.scene_id %}
+      {% set other_g = grades_for_current_other.get(scene_key) if grades_for_current_other is defined else none %}
       {% set is_graded = g is not none %}
-      <article class="ev-row{% if is_cur_row %} cur{% endif %}{% if is_graded %} graded{% endif %}"
+      {# Disagree = self vs other diverge by >= 2 grade levels (SKIP
+         excluded — it isn't a relevance judgement). Drives the red
+         tint on the .other-grade chip. Both must be present + real. #}
+      {% set disagree = (
+           g is not none and other_g is not none
+           and g != -1 and other_g != -1
+           and ((g|int - other_g|int)|abs >= 2)
+         ) %}
+      {# ``cur`` is reactive — driven by the evalApp component's
+         currentRow signal (eval.js). The initial cursor index is
+         seeded into x-data from the server's ``current_row``. The
+         grade buttons keep their data-* attributes (gradeRow /
+         updateRowGrade read them) and add @click → onGradeClick. #}
+      <article class="ev-row{% if is_graded %} graded{% endif %}"
+               :class="{ cur: currentRow === {{ loop.index0 }} }"
                data-scene-id="{{ r.scene_id }}"
                data-query-id="{{ current_query.id }}">
         <div class="rank">
@@ -62,13 +76,15 @@
                     class="gb{% if g == v %} {{ cls }}{% elif is_graded and g != -1 %} dim{% endif %}"
                     data-grade="{{ v }}"
                     data-query-id="{{ current_query.id }}"
-                    data-scene-id="{{ r.scene_id }}">{{ v }}</button>
+                    data-scene-id="{{ r.scene_id }}"
+                    @click="onGradeClick($el, {{ v }})">{{ v }}</button>
           {% endfor %}
           <button type="button"
                   class="gb k{% if g == -1 %} ons{% elif is_graded %} dim{% endif %}"
                   data-grade="-1"
                   data-query-id="{{ current_query.id }}"
-                  data-scene-id="{{ r.scene_id }}">S</button>
+                  data-scene-id="{{ r.scene_id }}"
+                  @click="onGradeClick($el, -1)">S</button>
         </div>
         <div class="thumb"{% if r.keyframe_url %} style="background-image: url('{{ r.keyframe_url }}');"{% endif %}></div>
         <div class="body">
@@ -90,12 +106,31 @@
         </div>
         {% set raw_score = r.score if r.score is defined and r.score is not none else 0 %}
         {% set blind_pct = 50 if blind_mode else (raw_score * 100)|round(0, 'common')|int %}
+        {# The ``blind`` class is reactive (evalApp.blind signal); the
+           score text + bar width stay server-rendered, matching the
+           pre-Alpine router which only ever toggled the class. #}
         <div class="right">
-          <span class="score{% if blind_mode %} blind{% endif %}">
+          <span class="score" :class="{ blind: blind }">
             {% if blind_mode %}••••{% else %}{{ '%.2f'|format(raw_score) }}{% endif %}
           </span>
-          <span class="scbar{% if blind_mode %} blind{% endif %}" style="--p: {{ blind_pct }}%;"></span>
+          <span class="scbar" :class="{ blind: blind }" style="--p: {{ blind_pct }}%;"></span>
           <span class="src">sem⊕bm25⊕rk</span>
+          {# Compare-mode counterpart: shows the OTHER annotator's grade
+             for this scene, with a red tint when |Δ| ≥ 2. Rendered
+             unconditionally; CSS hides it unless body.ev-compare is on
+             (driven by Alpine's compare signal). When the other
+             annotator hasn't rated this scene, render a muted "—"
+             placeholder so the column doesn't collapse silently. #}
+          {% if iaa is defined and iaa.enabled %}
+          <span class="other-grade{% if disagree %} disagree{% endif %}">
+            <span class="who">{{ iaa.other.initials }}</span>
+            <span class="g">·
+              {% if other_g is none %}—
+              {% elif other_g == -1 %}S
+              {% else %}{{ other_g }}{% endif %}
+            </span>
+          </span>
+          {% endif %}
         </div>
       </article>
     {% else %}

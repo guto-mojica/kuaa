@@ -32,7 +32,15 @@
 {% from "partials/_icons.html" import icon %}
 <div class="tab-panel">
 
-<section class="b-cp">
+{# Alpine ``x-data`` scope: the chip row, the image/tag sub-panels, and
+   #search-results all live inside .b-cp, so a single mount point at the
+   section covers every binding below. The previous trailing <script>
+   that toggled .on / hid panels imperatively is gone — Alpine reactively
+   syncs class and display from the ``mode`` signal. Clearing the results
+   grid on a chip flip preserves the original behaviour and uses x-refs
+   so we don't reach across the DOM with getElementById. #}
+<section class="b-cp"
+         x-data="{ mode: '{{ active_mode }}' }">
 
   {# ── Search row: qbar + chips + knobs ─────────────────────────────── #}
   <div class="search-wrap">
@@ -74,40 +82,57 @@
        exist. Disabled chips render with aria-disabled + .disabled so a
        screen-reader announces them as unavailable instead of clickable. #}
     <div class="modes" role="tablist" aria-label="{{ _('Search modality') }}">
+      {# Modality chips:
+         * ``:class="{ on: mode === '…' }"`` reactively flips the highlight
+           — Alpine merges this with the static ``chip`` (and optional
+           ``disabled``) class so the disabled affordance is preserved.
+         * ``:aria-selected`` mirrors the boolean for assistive tech.
+         * ``@click`` only fires on enabled chips — the ``disabled`` attr
+           prevents the click event entirely, so audio/multimodal stay
+           inert until their backends light up in M2/M3.
+         * Clearing #search-results on a flip reproduces the old inline
+           script's behaviour; ``$refs.searchResults`` resolves inside
+           this same x-data scope. #}
       <button type="button"
-              class="chip{% if active_mode == 'text' %} on{% endif %}"
+              class="chip"
+              :class="{ on: mode === 'text' }"
               data-mode="text"
               role="tab"
-              aria-selected="{{ 'true' if active_mode == 'text' else 'false' }}"
-              onclick="setSearchMode('text')">
+              :aria-selected="mode === 'text' ? 'true' : 'false'"
+              @click="mode = 'text'; $refs.searchResults && ($refs.searchResults.innerHTML = '')">
         <span class="ico">{{ icon('search', 14) }}</span>
         {{ _("Text") }}
       </button>
       <button type="button"
-              class="chip{% if active_mode == 'image' %} on{% endif %}{% if not cfg.search.image_enabled %} disabled{% endif %}"
+              class="chip{% if not cfg.search.image_enabled %} disabled{% endif %}"
+              :class="{ on: mode === 'image' }"
               data-mode="image"
               role="tab"
-              aria-selected="{{ 'true' if active_mode == 'image' else 'false' }}"
+              :aria-selected="mode === 'image' ? 'true' : 'false'"
               {% if not cfg.search.image_enabled %}disabled aria-disabled="true"{% endif %}
-              onclick="setSearchMode('image')">
+              @click="mode = 'image'; $refs.searchResults && ($refs.searchResults.innerHTML = '')">
         <span class="ico">{{ icon('image', 14) }}</span>
         {{ _("Image") }}
       </button>
       <button type="button"
-              class="chip{% if active_mode == 'audio' %} on{% endif %}{% if not cfg.search.audio_enabled %} disabled{% endif %}"
+              class="chip{% if not cfg.search.audio_enabled %} disabled{% endif %}"
+              :class="{ on: mode === 'audio' }"
               data-mode="audio"
               role="tab"
-              aria-selected="{{ 'true' if active_mode == 'audio' else 'false' }}"
-              {% if not cfg.search.audio_enabled %}disabled aria-disabled="true"{% endif %}>
+              :aria-selected="mode === 'audio' ? 'true' : 'false'"
+              {% if not cfg.search.audio_enabled %}disabled aria-disabled="true"{% endif %}
+              @click="mode = 'audio'; $refs.searchResults && ($refs.searchResults.innerHTML = '')">
         <span class="ico">{{ icon('audio', 14) }}</span>
         {{ _("Soundtrack") }}
       </button>
       <button type="button"
-              class="chip{% if active_mode == 'multimodal' %} on{% endif %}{% if not cfg.search.multimodal_enabled %} disabled{% endif %}"
+              class="chip{% if not cfg.search.multimodal_enabled %} disabled{% endif %}"
+              :class="{ on: mode === 'multimodal' }"
               data-mode="multimodal"
               role="tab"
-              aria-selected="{{ 'true' if active_mode == 'multimodal' else 'false' }}"
-              {% if not cfg.search.multimodal_enabled %}disabled aria-disabled="true"{% endif %}>
+              :aria-selected="mode === 'multimodal' ? 'true' : 'false'"
+              {% if not cfg.search.multimodal_enabled %}disabled aria-disabled="true"{% endif %}
+              @click="mode = 'multimodal'; $refs.searchResults && ($refs.searchResults.innerHTML = '')">
         <span class="ico">{{ icon('rhymes', 14) }}</span>
         {{ _("Multimodal") }}
       </button>
@@ -155,24 +180,38 @@
         <span class="ttl">{{ _("Type a query to search") }}</span>
       {% endif %}
     </div>
+    {# ── View toggle (Grade / Lista / Compacto). Pure client-side: the
+         buttons flip ``$store.buscarView.mode``, which the results
+         container below picks up via ``:class``. The ``data-view``
+         attribute survives as the stable test pin
+         (``tests/test_web_routes.py:315-317``) and as the
+         human-readable hook for any future event delegation. The
+         server-side ``active_view`` is no longer consulted here — the
+         choice is per-user and lives in localStorage. #}
     <div class="right" role="tablist" aria-label="{{ _('Result layout') }}">
       <button type="button"
-              class="seg{% if active_view == 'grid' %} on{% endif %}"
+              class="seg"
+              :class="{ on: $store.buscarView.mode === 'grid' }"
               data-view="grid"
-              aria-pressed="{{ 'true' if active_view == 'grid' else 'false' }}">
-        {{ icon('grid', 14) }} {{ _("Grade") }}
+              :aria-pressed="$store.buscarView.mode === 'grid' ? 'true' : 'false'"
+              @click="$store.buscarView.mode = 'grid'">
+        {{ icon('grid', 14) }} {{ _("Grid") }}
       </button>
       <button type="button"
-              class="seg{% if active_view == 'list' %} on{% endif %}"
+              class="seg"
+              :class="{ on: $store.buscarView.mode === 'list' }"
               data-view="list"
-              aria-pressed="{{ 'true' if active_view == 'list' else 'false' }}">
-        {{ icon('sort', 14) }} {{ _("Lista") }}
+              :aria-pressed="$store.buscarView.mode === 'list' ? 'true' : 'false'"
+              @click="$store.buscarView.mode = 'list'">
+        {{ icon('sort', 14) }} {{ _("List") }}
       </button>
       <button type="button"
-              class="seg{% if active_view == 'compact' %} on{% endif %}"
+              class="seg"
+              :class="{ on: $store.buscarView.mode === 'compact' }"
               data-view="compact"
-              aria-pressed="{{ 'true' if active_view == 'compact' else 'false' }}">
-        {{ icon('appearance', 14) }} {{ _("Compacto") }}
+              :aria-pressed="$store.buscarView.mode === 'compact' ? 'true' : 'false'"
+              @click="$store.buscarView.mode = 'compact'">
+        {{ icon('appearance', 14) }} {{ _("Compact") }}
       </button>
     </div>
   </div>
@@ -181,26 +220,44 @@
        The hx-post URL must carry ?film=<slug> as a query string so the
        route's Query(...) dependency picks it up — multipart body fields
        are invisible to Query. #}
+  {# Image-search sub-panel — visibility now driven reactively by Alpine
+     from the chip-row signal. A nested ``x-data`` scope owns the chosen
+     filename so picking a file updates the visible label without reaching
+     across the DOM. ``x-cloak`` keeps the panel hidden until Alpine
+     processes it on first paint (CSS rule lives in main.css). #}
   <div id="search-image-panel"
        class="search-image-panel"
-       {% if active_mode != 'image' %}style="display:none"{% endif %}>
+       x-show="mode === 'image'"
+       x-cloak
+       x-data="{ filename: '{{ _('Choose image…') }}' }">
     <form hx-post="/api/search/image{% if current_slug %}?film={{ current_slug }}{% endif %}"
           hx-encoding="multipart/form-data"
           hx-trigger="change from:#image-input"
           hx-target="#search-results">
       <label class="image-upload-label" for="image-input">
         {{ icon("upload-simple") }}
-        <span id="image-upload-filename">{{ _("Choose image…") }}</span>
+        <span id="image-upload-filename" x-text="filename">{{ _("Choose image…") }}</span>
         <input id="image-input" type="file" name="file" accept="image/*"
-               onchange="document.getElementById('image-upload-filename').textContent = this.files[0]?.name || '{{ _('Choose image…') }}'">
+               @change="filename = $event.target.files[0]?.name || '{{ _('Choose image…') }}'">
       </label>
     </form>
   </div>
 
   {# ── Results grid (the .grid class triggers buscar.css auto-fill).
        The inner partial still renders legacy ``.scene-card`` markup;
-       Task 11 swaps it for ``.b-card`` cards in-place. #}
-  <div id="search-results" class="grid">
+       Task 11 swaps it for ``.b-card`` cards in-place.
+       ``x-ref="searchResults"`` exposes the node to the chip-row's
+       @click handlers so a mode flip clears the grid without
+       getElementById gymnastics. #}
+  {# ── Results grid. The ``view-<mode>`` class binding picks up the
+       Buscar view-toggle choice (Grade / Lista / Compacto) and lets
+       CSS in main.css re-flow the .b-card children without a server
+       round-trip. ``class="grid"`` stays as a static SSR token so the
+       parity test in tests/test_web_routes.py:322 keeps matching. #}
+  <div id="search-results"
+       class="grid"
+       :class="'view-' + $store.buscarView.mode"
+       x-ref="searchResults">
     {% include "partials/search_results.html" %}
   </div>
 
@@ -214,7 +271,8 @@
   {% if available_tags and (query or highlighted_tags) %}
   <div id="search-tag-panel"
        class="search-tag-section"
-       {% if active_mode != 'text' %}style="display:none"{% endif %}>
+       x-show="mode === 'text'"
+       x-cloak>
     <div class="search-tag-filter tag-filter"
          hx-get="/api/search"
          hx-trigger="change from:input"
@@ -247,24 +305,9 @@
 
 </div>
 
-<script>
-function setSearchMode(mode) {
-    var panels = {
-        text: document.getElementById('search-tag-panel'),
-        image: document.getElementById('search-image-panel'),
-    };
-    if (panels.image) {
-        panels.image.style.display = (mode === 'image') ? '' : 'none';
-    }
-    if (panels.text) {
-        panels.text.style.display = (mode === 'text') ? '' : 'none';
-    }
-    document.querySelectorAll('.b-cp .chip').forEach(function (chip) {
-        var on = chip.getAttribute('data-mode') === mode;
-        chip.classList.toggle('on', on);
-        chip.setAttribute('aria-selected', on ? 'true' : 'false');
-    });
-    var results = document.getElementById('search-results');
-    if (results) results.innerHTML = '';
-}
-</script>
+{# The legacy setSearchMode <script> block was deleted here. Chip
+   highlight, panel visibility, aria-selected sync, and the results-
+   grid clear-on-flip are now driven by the Alpine ``x-data`` scope
+   on .b-cp above (mode signal + $refs.searchResults). No global
+   function to keep working with HTMX swaps — Alpine re-initialises
+   the scope automatically when this partial is swapped back in. #}

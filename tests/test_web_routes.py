@@ -158,6 +158,69 @@ def test_base_shell_compact_for_anotar(client):
     assert "compact-lp" in r.text
 
 
+def test_base_shell_loads_mojica_js_before_alpine(client):
+    """mojica.js MUST execute before alpine.min.js — see base.html comment.
+
+    Alpine 3 auto-starts when ``document.readyState !== 'loading'``,
+    which is always true for deferred scripts. ``start()`` dispatches
+    ``alpine:init`` synchronously inside alpine.min.js's execution.
+    If mojica.js loads AFTER alpine, every
+    ``addEventListener('alpine:init', …)`` in our IIFEs misses the
+    event, and the entire Alpine-store layer (toasts, help, palette,
+    tagFilter, cenasAppearance, cenasFields, buscarView) stays
+    unregistered. ``$store.buscarView.mode`` then throws on first
+    paint and the seg buttons in Buscar lose their reactive
+    highlight. This test pins the script order so that bug can't
+    silently regress.
+    """
+    r = client.get("/search")
+    assert r.status_code == 200
+    html = r.text
+    mojica_pos = html.find("js/mojica.js")
+    alpine_pos = html.find("js/alpine.min.js")
+    assert mojica_pos != -1, "mojica.js <script> tag missing from base.html"
+    assert alpine_pos != -1, "alpine.min.js <script> tag missing from base.html"
+    assert mojica_pos < alpine_pos, (
+        "mojica.js must come before alpine.min.js so its alpine:init "
+        "listeners register before Alpine auto-starts. Swap them back "
+        "and the new Buscar view-toggle / Cenas Appearance / Fields "
+        "stores all break silently."
+    )
+
+
+def test_eval_shell_loads_mojica_eval_before_alpine(client, monkeypatch):
+    """Eval shell pins the same script order — see base shell counterpart.
+
+    ``eval/layout.html`` is a separate shell (does NOT extend base.html),
+    so the same Alpine-3 auto-start bug bites it independently. If
+    alpine.min.js fires ``alpine:init`` before eval.js's
+    ``Alpine.data('evalApp', …)`` registers, the body's
+    ``x-data="evalApp(…)"`` throws "evalApp is not defined" and the
+    entire grading workspace — keyboard router, grade-button @click,
+    blind/compare toggles, row cursor, toasts — goes inert. The pin
+    keeps both mojica.js and eval.js executing before alpine.min.js.
+    """
+    monkeypatch.setenv("EVAL_ADMIN_TOKEN", "test-token")
+    r = client.get("/eval?token=test-token")
+    assert r.status_code == 200, r.text
+    html = r.text
+    mojica_pos = html.find("js/mojica.js")
+    eval_pos = html.find("js/eval.js")
+    alpine_pos = html.find("js/alpine.min.js")
+    assert mojica_pos != -1, "mojica.js <script> tag missing from eval/layout.html"
+    assert eval_pos != -1, "eval.js <script> tag missing from eval/layout.html"
+    assert alpine_pos != -1, "alpine.min.js <script> tag missing from eval/layout.html"
+    assert mojica_pos < alpine_pos, (
+        "mojica.js must come before alpine.min.js in the eval shell "
+        "for the same reason as base.html — see the layout.html comment."
+    )
+    assert eval_pos < alpine_pos, (
+        "eval.js must come before alpine.min.js so Alpine.data('evalApp', …) "
+        "is registered before Alpine walks the DOM. Swap them back and the "
+        "entire eval grading UI goes inert ('evalApp is not defined')."
+    )
+
+
 def test_base_shell_includes_palette_and_help_roots(client):
     """Polish-layer mount points exist on the index page.
 
@@ -1021,6 +1084,161 @@ def test_tipo_classifier_unit():
     assert tipo_of([], None) == "transicao"
     # Description-driven cartela fallback (no matching tag).
     assert tipo_of([], "title sequence") == "cartela"
+
+
+# ── Cenas toolrow: Group by + Sort by params ─────────────────────────────────
+#
+# The Cenas toolrow's Group / Sort popovers were inert prior to this work —
+# decorative spans with no popover, no hidden inputs, no backend params.
+# These tests pin (1) the toolrow exposes the hidden ``name="group"`` /
+# ``name="sort"`` inputs inside ``#scenes-toolrow`` so the existing
+# hx-include scope picks them up on every grid refresh; (2) the popover
+# radio rows render; (3) ``/api/scenes?sort=duration`` reorders the cards;
+# (4) ``/api/scenes?group=tipo`` emits one ``.group`` heading per tipo;
+# (5) ``/api/scenes?group=none`` emits NO ``.group`` headings (flat).
+
+
+def test_scenes_toolrow_carries_group_and_sort_hidden_inputs(client, seed_metadata):
+    """Hidden ``name=group`` and ``name=sort`` ride along on every refresh.
+
+    The ``.find`` form's ``hx-include="#scenes-toolrow"`` is what propagates
+    keyword + tags + group + sort on a single keyup. If the hidden inputs
+    aren't inside the toolrow, ``?group=…&sort=…`` never reaches the
+    service layer and the user's choice is lost on the next refresh.
+    """
+    seed_metadata()
+    r = client.get("/scenes")
+    assert r.status_code == 200, r.text[:300]
+    html = r.text
+    assert 'id="scenes-toolrow"' in html
+    # The hidden inputs live INSIDE the toolrow (any string match within
+    # the response is sufficient — the integration test below proves the
+    # value actually reaches the backend).
+    assert 'name="group"' in html
+    assert 'name="sort"' in html
+    # The two new popovers exist + carry the prototype's radio rows.
+    assert 'id="scenes-group-popover"' in html
+    assert 'id="scenes-sort-popover"' in html
+    assert 'name="group_choice"' in html
+    assert 'name="sort_choice"' in html
+    # Both popovers wire HTMX so a radio change refreshes the grid.
+    assert html.count('hx-target="#scenes-grid"') >= 2
+
+
+def test_api_scenes_sort_duration_reorders_cards(client, seed_metadata):
+    """``?sort=duration`` puts the longer scene first (within its group)."""
+    seed_metadata()
+    # Default sort=timecode → scene 351 (start 83s) before scene 352 (120s).
+    r = client.get("/api/scenes?sort=timecode")
+    assert r.status_code == 200, r.text[:300]
+    html_default = r.text
+    idx_351 = html_default.find('data-scene-id="351"')
+    idx_352 = html_default.find('data-scene-id="352"')
+    assert idx_351 >= 0 and idx_352 >= 0
+    assert idx_351 < idx_352, "default sort=timecode should keep 351 ahead of 352"
+
+    # sort=duration → scene 352 (8s) ahead of scene 351 (7s).
+    r = client.get("/api/scenes?sort=duration")
+    assert r.status_code == 200
+    html_dur = r.text
+    idx_351 = html_dur.find('data-scene-id="351"')
+    idx_352 = html_dur.find('data-scene-id="352"')
+    assert idx_351 >= 0 and idx_352 >= 0
+    assert idx_352 < idx_351, "sort=duration should put the longer scene first"
+
+
+def test_api_scenes_sort_pins_falls_back_to_timecode_when_tied(
+    client, seed_metadata
+):
+    """Tied pin_count (both 0) falls back to start_s, preserving timecode order."""
+    seed_metadata()
+    r = client.get("/api/scenes?sort=pins")
+    assert r.status_code == 200
+    html = r.text
+    idx_351 = html.find('data-scene-id="351"')
+    idx_352 = html.find('data-scene-id="352"')
+    assert idx_351 < idx_352, "tied pin_count should tie-break by start_s"
+
+
+def test_api_scenes_group_none_drops_headings(client, seed_metadata):
+    """``?group=none`` renders scenecards in a single flat list — no .group bars."""
+    seed_metadata()
+    # Baseline: default group=film emits exactly one .group heading
+    # (one film registered in the seed).
+    r = client.get("/api/scenes?group=film")
+    assert r.status_code == 200
+    html_film = r.text
+    assert html_film.count('class="group"') == 1
+    # Flatten: no headings, but scenecards still render.
+    r = client.get("/api/scenes?group=none")
+    assert r.status_code == 200
+    html_none = r.text
+    assert html_none.count('class="group"') == 0
+    assert 'class="scenecard"' in html_none
+    # Cards still resolve their inspector URL via per-scene ``film_slug``.
+    assert "/api/scenes/351/inspector?film=default" in html_none
+
+
+def test_api_scenes_group_tipo_emits_tipo_headings(client, seed_metadata):
+    """``?group=tipo`` swaps film headings for tipo headings.
+
+    Both seeded scenes carry the ``exterior`` tag → they share the
+    "Exterior" tipo heading. The heading dot pulls from the
+    ``--c-cat-exterior`` palette variable (not the per-film accent).
+    """
+    seed_metadata()
+    r = client.get("/api/scenes?group=tipo")
+    assert r.status_code == 200, r.text[:300]
+    html = r.text
+    # At least one .group heading lands; its dot carries the tipo
+    # CSS variable so the heading colour matches the scenecard pills.
+    assert 'class="group"' in html
+    assert "var(--c-cat-exterior)" in html
+    # The heading label is the tipo's display name, not a film title.
+    assert "Exterior" in html
+    # And the legacy film title is no longer in the heading row
+    # (the test fixture's film is "Default Film" — it can still
+    # appear in the per-card sub line via ``s.film.title``, but the
+    # ``.group`` heading carries the tipo label).
+    group_start = html.find('class="group"')
+    next_close = html.find("</div>", group_start)
+    heading_html = html[group_start:next_close]
+    assert "Default Film" not in heading_html
+
+
+def test_api_scenes_unknown_group_falls_back_to_film(client, seed_metadata):
+    """A stray ``?group=foobar`` is normalised to the default, not a 500."""
+    seed_metadata()
+    r = client.get("/api/scenes?group=foobar&sort=lolwhat")
+    assert r.status_code == 200
+    html = r.text
+    # Default group=film semantics restored: one .group heading.
+    assert html.count('class="group"') == 1
+    assert "Default Film" in html
+
+
+def test_scene_dict_carries_start_s_and_duration_s(client, seed_metadata):
+    """``_card_to_scene`` adds the raw seconds Sort-by-Duration depends on.
+
+    Service-layer unit test (no template render) — pins the contract
+    so a future refactor that drops ``start_s`` / ``duration_s`` from
+    the card → scene mapping fails loud here instead of silently
+    breaking the Sort popover.
+    """
+    seed_metadata()
+    from api.deps import get_config
+    from api.services.scenes_service import build_cenas_context
+
+    ctx = build_cenas_context(get_config())
+    scenes = ctx["groups_by_film"][0]["scenes"]
+    assert {s["id"] for s in scenes} == {351, 352}
+    for s in scenes:
+        assert "start_s" in s and isinstance(s["start_s"], float)
+        assert "duration_s" in s and isinstance(s["duration_s"], float)
+        # Each scene also carries its own film namespace for cross-film
+        # groupings (group=tipo / group=none).
+        assert s["film"] is not None
+        assert s["film"].slug == "default"
 
 
 # ── Group 1i: Rimas Visuais tab routes (Task 21) ──────────────────────────────

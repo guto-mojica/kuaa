@@ -1,0 +1,288 @@
+{#- Mojica UI primitive macros.
+
+    Import with:
+        {% from "partials/_macros.html" import
+            button, icon_button, pill, timestamp,
+            segmented_control, panel_header, kv_row, empty_state %}
+
+    Design principles (see CLAUDE.md + docs/DESIGN_SYSTEM.md):
+      * Macros wrap EXISTING class names — they do NOT introduce new CSS.
+        The --c-* token system in main.css remains the single source of
+        visual truth.
+      * No translation inside macros: callers pass already-translated
+        strings (``{{ _('Save') }}``) so each call-site appears in the
+        Babel .pot scan.
+      * Extra HTML attributes (``hx-*``, ``data-*``, ``x-*``, ``aria-*``)
+        flow through the ``attrs`` dict. Underscores in attribute names
+        are preserved verbatim — callers must use the actual attr name
+        (``'hx-post'``, ``'data-mode'``, etc.).
+      * Macros are an additive refactor target. Existing hand-written
+        markup keeps working unchanged; tabs migrate to macros tab by
+        tab, not en masse.
+-#}
+{% from "partials/_icons.html" import icon %}
+
+
+{#- ── _attrs ──────────────────────────────────────────────────────────
+    Internal helper: render an ``attrs`` dict as ``key="value"`` pairs.
+    Empty/None values are skipped; booleans render as bare attributes
+    (``disabled`` rather than ``disabled="True"``). The ``class`` and
+    ``style`` keys are intentionally rendered like any other attribute;
+    macros that need to merge their own class string with caller-supplied
+    classes do so before calling _attrs.
+-#}
+{% macro _attrs(attrs) -%}
+{%- for k, v in (attrs or {}).items() -%}
+  {%- if v is sameas true %} {{ k }}
+  {%- elif v is sameas false or v is none %}
+  {%- else %} {{ k }}="{{ v }}"
+  {%- endif -%}
+{%- endfor -%}
+{%- endmacro %}
+
+
+{#- ── button ─────────────────────────────────────────────────────────
+    Primary / secondary text button.
+
+    Args:
+      label      — visible text (already translated)
+      kind       — 'primary' | 'secondary' | 'ghost' (default 'secondary')
+                   Maps to .btn-primary / .btn-secondary; 'ghost' is
+                   .btn-secondary with no border, used for inline cancels.
+      icon_name  — optional leading icon (renders via icon())
+      attrs      — extra HTML attrs (hx-*, data-*, x-*, etc.)
+
+    Example:
+      {{ button(_('Save'), 'primary', attrs={'hx-post': '/api/save'}) }}
+-#}
+{% macro button(label, kind='secondary', icon_name=None, attrs={}) -%}
+{%- set cls = 'btn-' ~ kind -%}
+{%- if attrs.get('class') %}{% set cls = cls ~ ' ' ~ attrs.class %}{% endif -%}
+{%- set extra = attrs.copy() if attrs else {} -%}
+{%- if 'class' in extra %}{% set _ = extra.pop('class') %}{% endif -%}
+<button type="{{ extra.pop('type', 'button') }}" class="{{ cls }}"{{ _attrs(extra) }}>
+  {%- if icon_name %}{{ icon(icon_name, 14) }} {% endif -%}
+  {{ label }}
+</button>
+{%- endmacro %}
+
+
+{#- ── icon_button ────────────────────────────────────────────────────
+    Square icon-only button (e.g. inspector header actions).
+
+    Args:
+      icon_name — phosphor key (see partials/_icons.html)
+      label     — aria-label + title (always required for a11y)
+      size      — 'sm' | 'md' (default 'sm')
+      attrs     — extra HTML attrs
+
+    Example:
+      {{ icon_button('tag', _('Annotate'), attrs={'hx-get': '/anotar'}) }}
+-#}
+{% macro icon_button(icon_name, label, size='sm', attrs={}) -%}
+{%- set cls = 'fx-icbtn ' ~ size -%}
+{%- if attrs.get('class') %}{% set cls = cls ~ ' ' ~ attrs.class %}{% endif -%}
+{%- set extra = attrs.copy() if attrs else {} -%}
+{%- if 'class' in extra %}{% set _ = extra.pop('class') %}{% endif -%}
+<button type="button" class="{{ cls }}" title="{{ label }}" aria-label="{{ label }}"{{ _attrs(extra) }}>
+  {{ icon(icon_name, 14 if size == 'sm' else 16) }}
+</button>
+{%- endmacro %}
+
+
+{#- ── pill ──────────────────────────────────────────────────────────
+    Small label pill (.pill family). Includes the optional left "dot"
+    used in /eval row chips.
+
+    Args:
+      text  — visible text (already translated)
+      kind  — None (default neutral) | 'lic' | grade slugs (g0/g1/g2/g3/sk)
+              | any extra CSS class joined to .pill
+      dot   — None (no dot) | a colour token like 'var(--c-accent)'
+              renders the ``<span class="dot" style="background: …">``
+      attrs — extra HTML attrs (style, data-*, etc.)
+
+    Example:
+      {{ pill(_('text'), dot='var(--c-accent)') }}
+      {{ pill('MIT', kind='lic') }}
+-#}
+{% macro pill(text, kind=None, dot=None, attrs={}) -%}
+{%- set cls = 'pill' -%}
+{%- if kind %}{% set cls = cls ~ ' ' ~ kind %}{% endif -%}
+{%- if attrs.get('class') %}{% set cls = cls ~ ' ' ~ attrs.class %}{% endif -%}
+{%- set extra = attrs.copy() if attrs else {} -%}
+{%- if 'class' in extra %}{% set _ = extra.pop('class') %}{% endif -%}
+<span class="{{ cls }}"{{ _attrs(extra) }}>
+  {%- if dot %}<span class="dot" style="background: {{ dot }};"></span>{% endif -%}
+  {{ text }}
+</span>
+{%- endmacro %}
+
+
+{#- ── timestamp ─────────────────────────────────────────────────────
+    Render a timecode (HH:MM:SS or HH:MM:SS:FF). Three layouts via
+    ``kind``:
+      'single'  → .tc                 — standalone scene timecode
+      'now'     → .tc-now             — playhead current position
+      'total'   → .tc-tot             — clip total duration
+
+    Args:
+      value — pre-formatted string (the macro does not format)
+      kind  — 'single' | 'now' | 'total' (default 'single')
+      attrs — extra HTML attrs
+-#}
+{% macro timestamp(value, kind='single', attrs={}) -%}
+{%- set cls_map = {'single': 'tc', 'now': 'tc-now', 'total': 'tc-tot'} -%}
+{%- set cls = cls_map.get(kind, 'tc') -%}
+{%- if attrs.get('class') %}{% set cls = cls ~ ' ' ~ attrs.class %}{% endif -%}
+{%- set extra = attrs.copy() if attrs else {} -%}
+{%- if 'class' in extra %}{% set _ = extra.pop('class') %}{% endif -%}
+<span class="{{ cls }}"{{ _attrs(extra) }}>{{ value }}</span>
+{%- endmacro %}
+
+
+{#- ── segmented_control ─────────────────────────────────────────────
+    Segmented selector (.seg buttons inside a [role="tablist"] container).
+    The caller drives which item is active; the macro emits markup only —
+    behavior (toggling .on, swapping panes, etc.) is left to Alpine
+    ``x-data`` on the parent, or an htmx round-trip.
+
+    Args:
+      items       — list of dicts: {'value': 'grid', 'label': _('Grade'),
+                    'icon': 'grid'} (icon optional)
+      active      — value matching one item ('grid' / 'list' / 'compact')
+      aria_label  — accessible label for the tablist container
+      attrs       — extra HTML attrs on the wrapping div (e.g. ``x-data``)
+
+    Example:
+      {{ segmented_control(
+          [{'value': 'grid', 'label': _('Grade'), 'icon': 'grid'},
+           {'value': 'list', 'label': _('List'), 'icon': 'sort'}],
+          active=active_view,
+          aria_label=_('Result layout'),
+      ) }}
+-#}
+{% macro segmented_control(items, active, aria_label, attrs={}) -%}
+{%- set cls = 'right' -%}
+{%- if attrs.get('class') %}{% set cls = cls ~ ' ' ~ attrs.class %}{% endif -%}
+{%- set extra = attrs.copy() if attrs else {} -%}
+{%- if 'class' in extra %}{% set _ = extra.pop('class') %}{% endif -%}
+<div class="{{ cls }}" role="tablist" aria-label="{{ aria_label }}"{{ _attrs(extra) }}>
+  {%- for it in items %}
+  <button type="button"
+          class="seg{% if it.value == active %} on{% endif %}"
+          data-value="{{ it.value }}"
+          aria-pressed="{{ 'true' if it.value == active else 'false' }}">
+    {%- if it.get('icon') %}{{ icon(it.icon, 14) }} {% endif -%}
+    {{ it.label }}
+  </button>
+  {%- endfor %}
+</div>
+{%- endmacro %}
+
+
+{#- ── panel_header ──────────────────────────────────────────────────
+    Generic ``.head`` row used by inspectors (c-rp, b-rp, ev-queue
+    head, etc.). The macro renders the wrapping div + ``.l`` / ``.r``
+    slots only; both slots receive pre-rendered HTML strings so the
+    call-site composes whatever it needs (badge, icon-button strip,
+    dropdown). Use Jinja's ``{% set foo %} … {% endset %}`` to build
+    the slot HTML inline.
+
+    Args:
+      left   — rendered HTML for the left slot (use ``|safe`` is applied
+               inside the macro, so a {% set %} block string works
+               directly).
+      right  — rendered HTML for the right slot.
+      attrs  — extra HTML attrs on the wrapping div.
+
+    Example:
+      {% set actions %}
+        {{ icon_button('tag', _('Annotate')) }}
+        {{ icon_button('share', _('Share')) }}
+      {% endset %}
+      {{ panel_header(
+          left='<span class="badge">1</span> <span>' ~ _('Item selected') ~ '</span>',
+          right=actions,
+      ) }}
+
+    For inspector heads that have NO ``.r`` slot (e.g. .ev-queue head
+    with just a title), pass ``right=''`` — the empty div is harmless
+    and CSS lays it out as a 0-width column.
+-#}
+{% macro panel_header(left='', right='', attrs={}) -%}
+{%- set cls = 'head' -%}
+{%- if attrs.get('class') %}{% set cls = cls ~ ' ' ~ attrs.class %}{% endif -%}
+{%- set extra = attrs.copy() if attrs else {} -%}
+{%- if 'class' in extra %}{% set _ = extra.pop('class') %}{% endif -%}
+<div class="{{ cls }}"{{ _attrs(extra) }}>
+  <div class="l">{{ left | safe }}</div>
+  <div class="r">{{ right | safe }}</div>
+</div>
+{%- endmacro %}
+
+
+{#- ── kv_row ───────────────────────────────────────────────────────
+    Key / value row used by metrics panels and inspector property
+    listings. Matches the .ev-sess > .row > .k + .v shape in eval.css
+    (the same markup works in any context — it's a flex .row with the
+    label on the left and a right-aligned value).
+
+    Args:
+      key         — label (already translated)
+      value       — value as a pre-rendered string (numbers, "—",
+                    percentages, etc.)
+      value_kind  — None | 'acc' | 'warn' | 'muted' | any extra class
+                    joined to .v (eval.css already styles .v.acc / .v.warn)
+      attrs       — extra HTML attrs on the wrapping div
+-#}
+{% macro kv_row(key, value, value_kind=None, attrs={}) -%}
+{%- set cls = 'row' -%}
+{%- if attrs.get('class') %}{% set cls = cls ~ ' ' ~ attrs.class %}{% endif -%}
+{%- set extra = attrs.copy() if attrs else {} -%}
+{%- if 'class' in extra %}{% set _ = extra.pop('class') %}{% endif -%}
+{%- set vcls = 'v' -%}
+{%- if value_kind %}{% set vcls = vcls ~ ' ' ~ value_kind %}{% endif -%}
+<div class="{{ cls }}"{{ _attrs(extra) }}>
+  <span class="k">{{ key }}</span>
+  <span class="{{ vcls }}">{{ value }}</span>
+</div>
+{%- endmacro %}
+
+
+{#- ── empty_state ──────────────────────────────────────────────────
+    Empty-state block. Used across Buscar (no results), Cenas (empty
+    library), Anotar (no scene), Rimas (no anchor), Processing (no
+    job).
+
+    The ``.empty-state`` class is a marker (no global CSS rules) —
+    parents may style children via their own scoped selectors (e.g.
+    ``.b-cp .grid .empty-state``). The macro renders the same minimal
+    ``<div class="empty-state"><p>…</p></div>`` shape that already
+    appears across scenes_grid.html, search_results.html, rimas.html.
+    A ``hint`` second paragraph is optional. An ``icon_name`` adds a
+    leading icon as a sibling of the <p> — same DOM shape inspector
+    tabs can target if they want a block layout.
+
+    Args:
+      message    — short user-facing line (already translated)
+      icon_name  — optional phosphor key — renders as a leading icon
+      hint       — optional secondary <p> line below the message
+      attrs      — extra HTML attrs
+
+    Examples:
+      {{ empty_state(_('No anchor selected.')) }}
+      {{ empty_state(_('No results.'), icon_name='magnifying-glass',
+                     hint=_('Try a broader query.')) }}
+-#}
+{% macro empty_state(message, icon_name=None, hint=None, attrs={}) -%}
+{%- set cls = 'empty-state' -%}
+{%- if attrs.get('class') %}{% set cls = cls ~ ' ' ~ attrs.class %}{% endif -%}
+{%- set extra = attrs.copy() if attrs else {} -%}
+{%- if 'class' in extra %}{% set _ = extra.pop('class') %}{% endif -%}
+<div class="{{ cls }}"{{ _attrs(extra) }}>
+  {%- if icon_name %}{{ icon(icon_name, 24) }}{% endif %}
+  <p>{{ message }}</p>
+  {%- if hint %}<p class="hint">{{ hint }}</p>{% endif %}
+</div>
+{%- endmacro %}

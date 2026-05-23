@@ -192,6 +192,17 @@
   content: ''; position: absolute; inset: 2px; border-radius: 50%;
   background: var(--c-accent);
 }
+/* Conflict indicator on the queue dot. Drawn as a small red corner
+   wedge — distinct from the done-green fill so a fully-graded query
+   that still carries conflicts reads as "done but worth a look". */
+.ev-q .stat.conflict {
+  border-color: var(--c-red);
+}
+.ev-q .stat.conflict::after {
+  content: ''; position: absolute; right: -2px; top: -2px;
+  width: 6px; height: 6px; border-radius: 50%; background: var(--c-red);
+  border: 1.5px solid var(--c-panel);
+}
 .ev-q > div { min-width: 0; }
 .ev-q .qrow {
   display: flex; align-items: center; gap: 7px;
@@ -428,6 +439,28 @@
   font-family: var(--font-mono); font-size: 9.5px; color: var(--c-faint);
   letter-spacing: 0.04em;
 }
+/* Compare-mode chip: the OTHER annotator's grade for this scene.
+   Hidden by default; revealed when body carries .ev-compare (set
+   reactively by eval.js's compare signal). Red tint on |Δ| ≥ 2
+   draws the grader's eye to disagreements worth a second look. */
+.ev-row .right .other-grade {
+  display: none;
+  align-items: center; gap: 4px;
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--c-muted); font-variant-numeric: tabular-nums;
+  padding: 2px 6px; border: 1px solid var(--c-border);
+  border-radius: 3px; line-height: 1;
+}
+.ev-app.ev-compare .ev-row .right .other-grade { display: inline-flex; }
+.ev-row .right .other-grade .who {
+  color: var(--c-text-2); font-weight: 600;
+}
+.ev-row .right .other-grade .g { color: var(--c-text); }
+.ev-row .right .other-grade.disagree {
+  border-color: var(--c-red); color: var(--c-red);
+}
+.ev-row .right .other-grade.disagree .who,
+.ev-row .right .other-grade.disagree .g { color: var(--c-red); }
 
 /* note row when expanded */
 .ev-row.expanded .note-row { display: flex; }

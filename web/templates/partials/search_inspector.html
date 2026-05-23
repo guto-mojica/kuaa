@@ -179,7 +179,7 @@
 
     {# ── Composer (.b-comp) — gated on collaboration backend flag ─────── #}
     {% if cfg.collaboration.composer_enabled %}
-      <form class="b-comp" onsubmit="return false;">
+      <form class="b-comp" @submit.prevent>
         <textarea name="comment"
                   placeholder="{{ _('Add a comment or annotation…') }}"
                   rows="3"></textarea>

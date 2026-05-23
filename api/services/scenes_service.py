@@ -15,6 +15,10 @@ from api.services._scene_detail import (
     tipo_of,
 )
 from api.services._scenes_list import (
+    _TIPO_DISPLAY_ORDER,
+    _TIPO_LABEL,
+    _VALID_GROUPS,
+    _VALID_SORTS,
     _build_groups_by_film,
     _build_scenes_for_timeline,
     _card_to_scene,
@@ -24,6 +28,8 @@ from api.services._scenes_list import (
     _format_runtime_tc,
     _hhmm_from_seconds,
     _last_end_time_s,
+    _regroup,
+    _sort_scenes,
     build_cenas_context,
     build_timeline_context,
 )
@@ -39,6 +45,10 @@ __all__ = [
     "_resolve_tab",
     "_scene_lookup",
     "_tags_for",
+    "_TIPO_DISPLAY_ORDER",
+    "_TIPO_LABEL",
+    "_VALID_GROUPS",
+    "_VALID_SORTS",
     "_build_groups_by_film",
     "_build_scenes_for_timeline",
     "_card_to_scene",
@@ -48,4 +58,6 @@ __all__ = [
     "_format_runtime_tc",
     "_hhmm_from_seconds",
     "_last_end_time_s",
+    "_regroup",
+    "_sort_scenes",
 ]

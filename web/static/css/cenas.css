@@ -228,6 +228,154 @@
 }
 .c-rp .actions .fx-btn { justify-content: center; }
 
+/* ─── Filtros popover ────────────────────────────────────────────────────
+   Anchored to the Filters tool button in the toolrow. The wrapper is
+   ``position: relative`` so the popover lays out below the button
+   without affecting the rest of the toolrow flow. Closes on outside-
+   click and Escape (Alpine bindings on .filter-wrap). The pip count
+   is driven client-side from the popover's checkbox state — the
+   ``#scenes-grid``-only HTMX swap deliberately does not re-render the
+   toolrow, so live tag counts stay reactive without an extra round
+   trip. */
+
+.c-cp .toolrow .filter-wrap { position: relative; display: inline-flex; }
+
+.c-cp .toolrow .tool--active {
+  background: var(--c-hover);
+  color: var(--c-text);
+  border-color: var(--c-border);
+}
+
+.scenes-filter-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 280px;
+  max-width: 420px;
+  max-height: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 14px;
+  background: var(--c-raised);
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+  z-index: 20;
+}
+
+.scenes-filter-popover__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--c-muted);
+}
+
+.scenes-filter-popover__title {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.scenes-filter-popover__clear {
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: 11px;
+  color: var(--c-accent);
+  cursor: pointer;
+  padding: 0;
+}
+.scenes-filter-popover__clear:hover { text-decoration: underline; }
+
+.scenes-filter-popover__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  overflow-y: auto;
+  padding-right: 4px;
+  /* Subtract gap + header height from popover max-height so the pill
+     area scrolls independently rather than the whole popover. */
+  max-height: 300px;
+}
+
+.scenes-filter-popover__empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--c-muted);
+}
+
+/* ─── Popover: prefs rows (radios + checkboxes) ──────────────────────────
+   Stacked rows used by the Appearance + Fields popovers. Each row is a
+   full-width hover target with the input visually anchored to the left
+   and the label text taking the rest of the line. Picking a row anywhere
+   on its surface flips the underlying Alpine store (and through it,
+   localStorage); the radio/checkbox native control is the source of
+   truth for keyboard focus + accessibility. */
+
+.scenes-prefs-rows {
+  display: flex; flex-direction: column;
+  gap: 2px;
+  margin: 0;
+}
+.scenes-prefs-row {
+  display: flex; align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  font-size: 12.5px;
+  color: var(--c-text);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background .12s;
+}
+.scenes-prefs-row:hover { background: var(--c-hover); }
+.scenes-prefs-row input { margin: 0; accent-color: var(--c-accent); }
+.scenes-prefs-row > span { user-select: none; }
+/* Inline hint that follows a sort/group option ("longest first",
+   "most pinned first"). Same visual weight as the .v badge on the
+   tool button so the popover reads as a secondary clarifier, not a
+   competing label. */
+.scenes-prefs-row__hint {
+  margin-left: 6px;
+  color: var(--c-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+/* ─── Appearance: card-density modifiers ─────────────────────────────────
+   ``$store.cenasAppearance.density`` ∈ {comfortable, compact}. The
+   Alpine :class binding on .c-cp materialises one of the two modifier
+   classes below. ``comfortable`` is the default (no overrides; matches
+   the base rules above). ``compact`` shrinks the grid track + tightens
+   the .body so visibly more cards fit per row at the same viewport
+   width. Aspect ratio shifts 16/10 → 16/9 because a flatter thumbnail
+   reads better at the smaller card size. */
+
+.c-cp.view-density-compact .grid {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px 10px;
+}
+.c-cp.view-density-compact .scenecard .kf { aspect-ratio: 16/9; }
+.c-cp.view-density-compact .scenecard .body { padding: 6px 8px 8px; gap: 4px; }
+.c-cp.view-density-compact .scenecard .name { font-size: 12px; }
+.c-cp.view-density-compact .scenecard .sub { font-size: 11px; }
+.c-cp.view-density-compact .scenecard .tipo .lab { font-size: 9.5px; }
+
+/* ─── Fields: per-field visibility modifiers ─────────────────────────────
+   ``$store.cenasFields.<field>`` is a boolean per scenecard sub-element.
+   When falsy, the Alpine :class binding adds ``.hide-<field>`` to .c-cp,
+   which the rules below translate to ``display: none`` on the matching
+   child. Grid + flex absorb the missing child without layout jitter.
+   Field names are the same as the store keys for one-to-one traceability. */
+
+.c-cp.hide-timecode  .scenecard .kf .br  { display: none; }
+.c-cp.hide-pin-count .scenecard .kf .bl  { display: none; }
+.c-cp.hide-version   .scenecard .kf .ver { display: none; }
+.c-cp.hide-sub       .scenecard .sub     { display: none; }
+.c-cp.hide-tipo      .scenecard .tipo    { display: none; }
+
 /* ─── Responsive ─────────────────────────────────────────────────────────
    Mirrors chrome.css breakpoints (1280/1024/720) so the Cenas tab keeps
    its toolbar + grid + inspector readable at narrower widths. The grid

@@ -1471,16 +1471,16 @@ msgstr "Digite uma busca"
 msgid "Result layout"
 msgstr "Layout dos resultados"
 
-#: web/templates/partials/search.html:163
-msgid "Grade"
-msgstr "Nota"
+#: web/templates/partials/search.html:198
+msgid "Grid"
+msgstr "Grade"
 
-#: web/templates/partials/search.html:169
-msgid "Lista"
+#: web/templates/partials/search.html:206
+msgid "List"
 msgstr "Lista"
 
-#: web/templates/partials/search.html:175
-msgid "Compacto"
+#: web/templates/partials/search.html:214
+msgid "Compact"
 msgstr "Compacto"
 
 #: web/templates/partials/search.html:193

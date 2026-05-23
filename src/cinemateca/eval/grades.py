@@ -168,3 +168,53 @@ def load_run(run: EvalRun) -> LoadedRun:
         grades[(entry.query_id, entry.scene_id)] = entry
 
     return LoadedRun(run_id=run.run_id, grades=grades)
+
+
+def load_run_per_annotator(
+    run: EvalRun,
+) -> dict[tuple[str, str], dict[str, GradeEntry]]:
+    """Read a run JSONL into a per-(query, scene) view that preserves
+    each annotator's latest grade.
+
+    The default ``load_run`` collapses across graders — it keeps only
+    the LAST GradeEntry per ``(query_id, scene_id)``, so a Rafael→Julia
+    re-grade sequence loses Rafael's earlier vote. That collapse is the
+    right reduce for per-query metric math (P@K / nDCG operate on one
+    canonical grade per scene) but it makes inter-annotator agreement
+    measurement impossible — there are no pairs of grades from
+    different annotators left to compare.
+
+    This loader keeps the per-grader latest:
+
+        out[(qid, sid)][grader] -> GradeEntry  (latest from that grader)
+
+    Missing file → empty dict (a not-yet-started run). Callers do
+    ``shared = set(out[(q, s)]) & {grader_a, grader_b}`` to find the
+    overlap two graders rated, which is the basis for κ + the 5×5
+    confusion matrix the eval Right Pane renders.
+    """
+
+    out: dict[tuple[str, str], dict[str, GradeEntry]] = {}
+    if not run.jsonl_path.exists():
+        return out
+
+    for line in run.jsonl_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        record = json.loads(line)
+        entry = GradeEntry(
+            query_id=record["query_id"],
+            scene_id=record["scene_id"],
+            grader=record["grader"],
+            grade=Grade(int(record["grade"])),
+            ts=record["ts"],
+        )
+        key = (entry.query_id, entry.scene_id)
+        bucket = out.setdefault(key, {})
+        # Last-write-wins per grader — a regrade by the same person
+        # supersedes their earlier vote, but does not overwrite the
+        # other annotator's vote on the same (q, s).
+        bucket[entry.grader] = entry
+
+    return out

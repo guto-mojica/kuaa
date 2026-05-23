@@ -1,338 +1,375 @@
 // web/static/js/eval.js
-// Eval set builder keyboard router + grading interactions (Phase 9 · Task 32).
+// Eval set builder — Alpine component for the keyboard-first grading
+// workspace (Phase 9 · Task 32; Alpine migration).
 //
-// Loaded only on /eval (referenced from eval/layout.html). The /eval surface
-// is keyboard-first: 0/1/2/3 grade keys, S = skip, j/k = row nav, ⌘⏎ =
-// save & advance, B/C = toggle blind/compare. Mouse clicks on .gb buttons
-// take the same code path as keypresses. After a grade lands, this script
-// updates the row's chips inline and re-fetches /api/eval/metrics to repaint
-// the right-pane Precision@K / nDCG / Inversions cards without a full page
-// reload — see the API contract in api/routes/eval.py.
+// Loaded only on /eval (referenced from eval/layout.html, after
+// alpine.min.js + mojica.js). The surface is keyboard-first: 0/1/2/3
+// grade keys, S = skip, j/k = row nav, ⌘⏎ = save & advance, B/C =
+// toggle blind/compare. Mouse clicks on .gb / .ev-save / .ev-skip
+// take the same code path through @click directives.
+//
+// State lives in an Alpine component (``Alpine.data('evalApp', …)``)
+// mounted on ``<body class="ev-app">``:
+//   * currentRow — index of the focused .ev-row. Drives the reactive
+//     ``cur`` class via :class in eval/rows.html; a $watch scrolls the
+//     focused row into view.
+//   * blind / compare — toggle state. Drives ``body.ev-blind`` /
+//     ``body.ev-compare`` (:class on <body>) and the per-row
+//     .score/.scbar ``blind`` class; the queue.html checkboxes are
+//     x-model-bound, so a keypress (B/C) and a click both flow
+//     through the same signal.
+//
+// The network + DOM-patch helpers (gradeRow → /api/eval/grade,
+// updateRowGrade, refreshMetrics → /api/eval/metrics, setMetric) stay
+// imperative: they patch server-rendered markup after a fetch and have
+// no declarative Alpine analogue. This mirrors how palette.js keeps
+// its fetch/render path imperative while the open/close surface state
+// moved to a store.
 
 (function () {
   'use strict';
 
-  const root = document.querySelector('.ev-app');
-  if (!root) return;
-
-  // The token lives on body.data-token (rendered by eval/layout.html) and is
-  // also passed as ?token= on the page URL. We read the URL first because
-  // that's the path real graders take; body[data-token] is the offline
-  // fallback used when the page was bookmarked with the cookie set.
-  const tokenMatch = window.location.search.match(/[?&]token=([^&]+)/);
-  const adminToken =
-    (tokenMatch ? decodeURIComponent(tokenMatch[1]) : '') ||
-    (root.dataset.token || '');
-
-  // State
-  let currentRow = 0;
-  let rows = [];
-
-  function refreshRows() {
-    rows = Array.from(document.querySelectorAll('#ev-rows .ev-row'));
-    if (rows.length === 0) {
-      currentRow = 0;
-      return;
-    }
-    // Preserve current focus when re-binding (HTMX swaps); clamp to range.
-    const existingCur = rows.findIndex((r) => r.classList.contains('cur'));
-    if (existingCur >= 0) {
-      currentRow = existingCur;
-    } else if (currentRow >= rows.length) {
-      currentRow = Math.max(0, rows.length - 1);
-    }
-    paintCurrent();
+  // Admin token: ``?token=`` on the URL is the path real graders take;
+  // ``body[data-token]`` is the offline fallback for a bookmarked page
+  // with the cookie set. Resolved once at load, independent of Alpine.
+  function readToken() {
+    var m = window.location.search.match(/[?&]token=([^&]+)/);
+    var fromUrl = m ? decodeURIComponent(m[1]) : '';
+    var body = document.querySelector('.ev-app');
+    return fromUrl || (body && body.dataset.token) || '';
   }
 
-  function paintCurrent() {
-    rows.forEach((r, i) => r.classList.toggle('cur', i === currentRow));
-    const c = rows[currentRow];
-    if (c && typeof c.scrollIntoView === 'function') {
-      c.scrollIntoView({ block: 'nearest' });
-    }
-  }
-
-  // ─── Grading (network + DOM) ─────────────────────────────────────────────
-  // gradeRow POSTs /api/eval/grade then mutates the DOM. We deliberately do
-  // not roll back on failure: instead we toast (when ToastBus is mounted)
-  // and leave the prior chips in place so the grader can retry. The eval
-  // page does NOT extend base.html, so #toast-root is absent and ToastBus
-  // calls no-op; that's acceptable for M1 — the inline button paint is
-  // the primary feedback signal anyway.
-
-  async function gradeRow(rowEl, grade) {
-    const queryId = rowEl.dataset.queryId;
-    const sceneId = rowEl.dataset.sceneId;
-    if (!queryId || !sceneId) return;
-
-    const fd = new FormData();
-    fd.append('query_id', queryId);
-    fd.append('scene_id', sceneId);
-    fd.append('grade', String(grade));
-
-    const qs = adminToken ? '?token=' + encodeURIComponent(adminToken) : '';
-    try {
-      const resp = await fetch('/api/eval/grade' + qs, {
-        method: 'POST',
-        body: fd,
-      });
-      if (!resp.ok) {
-        if (window.ToastBus) {
-          window.ToastBus.push({
-            title: 'Grade failed',
-            sub: 'Server ' + resp.status,
-            kind: 'error',
-          });
-        }
-        return;
-      }
-      updateRowGrade(rowEl, grade);
-      refreshMetrics(queryId);
-    } catch (err) {
-      // Network / CORS / offline. Keep the row paint untouched.
-      // eslint-disable-next-line no-console
-      console.error('eval grade error:', err);
-      if (window.ToastBus) {
-        window.ToastBus.push({
-          title: 'Grade failed',
-          sub: err && err.message ? err.message : 'Network error',
-          kind: 'error',
-        });
-      }
-    }
-  }
-
-  function updateRowGrade(rowEl, grade) {
-    rowEl.classList.add('graded');
-    const buttons = rowEl.querySelectorAll('.gb');
-    buttons.forEach((b) => {
-      b.classList.remove('on0', 'on1', 'on2', 'on3', 'ons', 'dim');
-    });
-    buttons.forEach((b) => {
-      const v = parseInt(b.dataset.grade, 10);
-      if (Number.isNaN(v)) return;
-      if (v === grade) {
-        if (grade === -1) b.classList.add('ons');
-        else b.classList.add('on' + grade);
-      } else {
-        // SKIP doesn't dim the 0/1/2/3 chips per the prototype CSS — only
-        // the non-skip path dims siblings. (For consistency with how the
-        // server renders graded rows, we dim siblings for any grade != -1.)
-        if (grade !== -1) b.classList.add('dim');
-      }
-    });
-  }
-
-  // ─── Metrics refresh ─────────────────────────────────────────────────────
-  // We hit /api/eval/metrics?query_id=... and patch the four .ev-met cards
-  // in place. We don't re-render the whole right pane because (a) htmx
-  // isn't on those nodes and (b) full-pane swap would lose the histogram +
-  // session stats which the JSON response doesn't fully carry. The label
-  // strings come from the i18n-rendered template, so we match against the
-  // canonical English source keys (PRECISION@5, NDCG@5, PRECISION@3,
-  // INVERSIONS). In a translated locale this match silently no-ops; the
-  // page still works, the right pane just doesn't live-update. That's a
-  // Task-33 follow-up (server-rendered partial swap).
-
-  const METRIC_LABELS = {
+  // i18n-invariant metric keys → canonical English label text. The
+  // right-pane cards are matched by label text (see setMetric); in a
+  // translated locale the match silently no-ops and the cards just
+  // don't live-update — a Task-33 follow-up (server-rendered partial
+  // swap) will remove the label-matching entirely.
+  var METRIC_LABELS = {
     p_at_5: 'PRECISION@5',
     p_at_3: 'PRECISION@3',
     ndcg_at_5: 'NDCG@5',
     inversions: 'INVERSIONS',
   };
 
-  async function refreshMetrics(queryId) {
-    if (!queryId) return;
-    const qs =
-      '?query_id=' + encodeURIComponent(queryId) +
-      (adminToken ? '&token=' + encodeURIComponent(adminToken) : '');
-    try {
-      const resp = await fetch('/api/eval/metrics' + qs);
-      if (!resp.ok) return;
-      const data = await resp.json();
-      setMetric('p_at_5', data.p_at_5);
-      setMetric('p_at_3', data.p_at_3);
-      setMetric('ndcg_at_5', data.ndcg_at_5);
-      setMetric('inversions', data.inversions);
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('eval metrics refresh error:', err);
-    }
+  // Session-scoped cache for nDCG@5 deltas. Keyed by query_id so the
+  // delta resets when the grader switches queries (a fresh query has
+  // no prior baseline). The value is the LAST nDCG@5 the grader saw
+  // for that query; refreshMetrics writes the new value + a delta
+  // badge before updating the cache for the next round-trip.
+  var PREV_NDCG = Object.create(null);
+
+  // Format a delta number as "+0.07" / "-0.04" / "" (empty when the
+  // change is below the smallest displayable step).
+  function fmtDelta(delta) {
+    if (!isFinite(delta)) return '';
+    var rounded = Math.round(delta * 100) / 100;
+    if (Math.abs(rounded) < 0.005) return '';
+    return (rounded > 0 ? '+' : '') + rounded.toFixed(2);
   }
 
-  function setMetric(key, value) {
-    if (value === undefined || value === null) return;
-    const labelText = METRIC_LABELS[key];
-    if (!labelText) return;
-    const mets = document.querySelectorAll('.ev-rp .ev-met');
-    for (const m of mets) {
-      const lab = m.querySelector('.lab');
-      if (!lab || lab.textContent.trim() !== labelText) continue;
-      const n = m.querySelector('.val .n');
-      if (n) {
-        if (key === 'p_at_5' || key === 'p_at_3') {
-          n.textContent = Math.round(value * 100) + '%';
-        } else if (key === 'ndcg_at_5') {
-          n.textContent = (Number(value) || 0).toFixed(2);
-        } else {
-          n.textContent = String(value);
-        }
-      }
-      const bar = m.querySelector('.bar');
-      if (bar) {
-        let pct = 0;
-        if (key === 'p_at_5' || key === 'p_at_3' || key === 'ndcg_at_5') {
-          pct = (Number(value) || 0) * 100;
-        } else if (key === 'inversions') {
-          // Same scaling as metrics.html — 10 inversions ≈ full bar.
-          pct = Math.min(100, (Number(value) || 0) * 10);
-        }
-        bar.style.setProperty('--p', Math.round(pct) + '%');
-      }
-      // Toggle .warn on the inversions card when count > 0 (mirrors the
-      // template's server-side branch).
-      if (key === 'inversions') {
-        m.classList.toggle('warn', (Number(value) || 0) > 0);
-      }
-      break;
-    }
+  // Live row list. Re-queried on demand rather than cached because an
+  // HTMX swap of the row partial replaces the nodes; reading the DOM
+  // each call keeps the cursor logic correct without a stale array.
+  function rowEls() {
+    return Array.prototype.slice.call(
+      document.querySelectorAll('#ev-rows .ev-row')
+    );
   }
 
-  // ─── Save & advance ─────────────────────────────────────────────────────
-  // M1 behaviour: advance the row cursor when there's a next row; otherwise
-  // surface "query complete" via the toast bus. The cross-query advance
-  // (navigate to ?query=<next_id>) lands with Task 33 once the queue panel
-  // exposes a stable ordering attribute.
+  document.addEventListener('alpine:init', function () {
+    if (!(window.Alpine && typeof window.Alpine.data === 'function')) return;
 
-  function saveAndAdvance() {
-    if (rows.length === 0) return;
-    const nextRow = currentRow + 1;
-    if (nextRow < rows.length) {
-      currentRow = nextRow;
-      paintCurrent();
-    } else if (window.ToastBus) {
-      window.ToastBus.push({
-        title: 'Query complete',
-        sub: 'Advance to next query',
-        kind: 'success',
-      });
-    }
-  }
+    window.Alpine.data('evalApp', function (opts) {
+      opts = opts || {};
+      return {
+        currentRow: typeof opts.row === 'number' ? opts.row : 0,
+        blind: !!opts.blind,
+        compare: !!opts.compare,
+        rowCount: 0,
+        token: readToken(),
 
-  // ─── Mouse path ──────────────────────────────────────────────────────────
-  root.addEventListener('click', (e) => {
-    const btn = e.target.closest('.gb');
-    if (btn) {
-      const grade = parseInt(btn.dataset.grade, 10);
-      if (Number.isNaN(grade)) return;
-      const row = btn.closest('.ev-row');
-      if (!row) return;
-      // Move the row cursor onto whatever the user clicked — they're
-      // telling us where their attention is.
-      const idx = rows.indexOf(row);
-      if (idx >= 0) {
-        currentRow = idx;
-        paintCurrent();
-      }
-      gradeRow(row, grade);
-      return;
-    }
-    // Right-pane action buttons: SAVE & ADVANCE / SKIP.
-    const act = e.target.closest('[data-action]');
-    if (act) {
-      const which = act.dataset.action;
-      if (which === 'save-advance') {
-        saveAndAdvance();
-      } else if (which === 'skip') {
-        const row = rows[currentRow];
-        if (row) gradeRow(row, -1);
-      }
-    }
+        init: function () {
+          var self = this;
+          this.countRows();
+          // Re-count after an HTMX swap brings in a new row list
+          // (forward-looking — no row partial swaps today, but the
+          // cursor must survive one when Task 33 adds it).
+          document.body.addEventListener('htmx:afterSettle', function () {
+            self.countRows();
+          });
+          // Keep the focused row in view as the cursor moves. The
+          // ``cur`` class itself is reactive (:class in rows.html);
+          // only the scroll needs an imperative nudge.
+          this.$watch('currentRow', function () { self.scrollToCurrent(); });
+        },
+
+        // ── Row cursor ──────────────────────────────────────────────
+        countRows: function () {
+          this.rowCount = rowEls().length;
+          if (this.currentRow >= this.rowCount) {
+            this.currentRow = Math.max(0, this.rowCount - 1);
+          }
+        },
+
+        focusRow: function (idx) {
+          if (idx < 0 || idx >= this.rowCount) return;
+          this.currentRow = idx;
+        },
+
+        focusRowEl: function (rowEl) {
+          var idx = rowEls().indexOf(rowEl);
+          if (idx >= 0) this.currentRow = idx;
+        },
+
+        scrollToCurrent: function () {
+          var el = rowEls()[this.currentRow];
+          if (el && typeof el.scrollIntoView === 'function') {
+            el.scrollIntoView({ block: 'nearest' });
+          }
+        },
+
+        // ── Grading ─────────────────────────────────────────────────
+        // Mouse path: a .gb click moves the cursor onto its row (the
+        // user is telling us where their attention is) then grades it.
+        onGradeClick: function (btnEl, grade) {
+          var row = btnEl.closest('.ev-row');
+          if (!row) return;
+          this.focusRowEl(row);
+          this.gradeRow(row, grade);
+        },
+
+        // Keyboard path: grade whatever row the cursor is on.
+        gradeCurrent: function (grade) {
+          var row = rowEls()[this.currentRow];
+          if (row) this.gradeRow(row, grade);
+        },
+
+        // POST /api/eval/grade then patch the row. We deliberately do
+        // not roll back on failure — instead we toast and leave the
+        // prior chips in place so the grader can retry.
+        gradeRow: function (rowEl, grade) {
+          var queryId = rowEl.dataset.queryId;
+          var sceneId = rowEl.dataset.sceneId;
+          if (!queryId || !sceneId) return;
+
+          var fd = new FormData();
+          fd.append('query_id', queryId);
+          fd.append('scene_id', sceneId);
+          fd.append('grade', String(grade));
+
+          var qs = this.token
+            ? '?token=' + encodeURIComponent(this.token)
+            : '';
+          var self = this;
+          fetch('/api/eval/grade' + qs, { method: 'POST', body: fd })
+            .then(function (resp) {
+              if (!resp.ok) {
+                self.toast('Grade failed', 'Server ' + resp.status, 'error');
+                return;
+              }
+              self.updateRowGrade(rowEl, grade);
+              self.refreshMetrics(queryId);
+            })
+            .catch(function (err) {
+              // Network / CORS / offline — keep the row paint untouched.
+              // eslint-disable-next-line no-console
+              console.error('eval grade error:', err);
+              self.toast(
+                'Grade failed',
+                err && err.message ? err.message : 'Network error',
+                'error'
+              );
+            });
+        },
+
+        // Patch the row's chips after a successful POST. Imperative:
+        // the .gb chips are server-rendered and there is no per-row
+        // Alpine state to make this reactive without a deeper rewrite
+        // (every row would need its own x-data + grade signal).
+        updateRowGrade: function (rowEl, grade) {
+          rowEl.classList.add('graded');
+          var buttons = rowEl.querySelectorAll('.gb');
+          buttons.forEach(function (b) {
+            b.classList.remove('on0', 'on1', 'on2', 'on3', 'ons', 'dim');
+          });
+          buttons.forEach(function (b) {
+            var v = parseInt(b.dataset.grade, 10);
+            if (Number.isNaN(v)) return;
+            if (v === grade) {
+              if (grade === -1) b.classList.add('ons');
+              else b.classList.add('on' + grade);
+            } else if (grade !== -1) {
+              // SKIP (-1) does not dim the 0/1/2/3 chips; any real
+              // grade dims its siblings (mirrors the server render).
+              b.classList.add('dim');
+            }
+          });
+        },
+
+        // ── Metrics refresh ─────────────────────────────────────────
+        // Hit /api/eval/metrics and patch the four .ev-met cards in
+        // place. We don't re-render the whole right pane — htmx isn't
+        // on those nodes and a full swap would drop the histogram +
+        // session stats the JSON response doesn't carry.
+        refreshMetrics: function (queryId) {
+          if (!queryId) return;
+          var qs =
+            '?query_id=' + encodeURIComponent(queryId) +
+            (this.token ? '&token=' + encodeURIComponent(this.token) : '');
+          var self = this;
+          fetch('/api/eval/metrics' + qs)
+            .then(function (resp) { return resp.ok ? resp.json() : null; })
+            .then(function (data) {
+              if (!data) return;
+              // nDCG delta lands BEFORE setMetric updates the value so
+              // fmtDelta can compare against the previous reading. The
+              // cache is per-query so switching queries doesn't carry
+              // a misleading delta across context boundaries.
+              var prev = PREV_NDCG[queryId];
+              if (typeof prev === 'number' && typeof data.ndcg_at_5 === 'number') {
+                self.setDelta('ndcg_at_5', data.ndcg_at_5 - prev);
+              }
+              if (typeof data.ndcg_at_5 === 'number') {
+                PREV_NDCG[queryId] = data.ndcg_at_5;
+              }
+              self.setMetric('p_at_5', data.p_at_5);
+              self.setMetric('p_at_3', data.p_at_3);
+              self.setMetric('ndcg_at_5', data.ndcg_at_5);
+              self.setMetric('inversions', data.inversions);
+            })
+            .catch(function (err) {
+              // eslint-disable-next-line no-console
+              console.error('eval metrics refresh error:', err);
+            });
+        },
+
+        // Write a delta badge into ``.ev-met .val .delta[data-key="…"]``.
+        // Adds .up / .dn classes so eval.css renders green-for-better
+        // (nDCG/precision gains) and red-for-worse. Inversions invert
+        // the polarity (more inversions = worse), but we only render
+        // the nDCG delta today — the metric.html scaffolding leaves a
+        // .delta hook only there. Adding inversions later is one
+        // template edit + one cache key.
+        setDelta: function (key, delta) {
+          var el = document.querySelector('.ev-met .val .delta[data-key="' + key + '"]');
+          if (!el) return;
+          var text = fmtDelta(delta);
+          el.classList.remove('up', 'dn');
+          el.textContent = text;
+          if (!text) return;
+          // nDCG / precision: positive delta = improvement.
+          if (delta > 0) el.classList.add('up');
+          else if (delta < 0) el.classList.add('dn');
+        },
+
+        setMetric: function (key, value) {
+          if (value === undefined || value === null) return;
+          var labelText = METRIC_LABELS[key];
+          if (!labelText) return;
+          var mets = document.querySelectorAll('.ev-rp .ev-met');
+          for (var i = 0; i < mets.length; i++) {
+            var m = mets[i];
+            var lab = m.querySelector('.lab');
+            if (!lab || lab.textContent.trim() !== labelText) continue;
+            var n = m.querySelector('.val .n');
+            if (n) {
+              if (key === 'p_at_5' || key === 'p_at_3') {
+                n.textContent = Math.round(value * 100) + '%';
+              } else if (key === 'ndcg_at_5') {
+                n.textContent = (Number(value) || 0).toFixed(2);
+              } else {
+                n.textContent = String(value);
+              }
+            }
+            var bar = m.querySelector('.bar');
+            if (bar) {
+              var pct = 0;
+              if (key === 'p_at_5' || key === 'p_at_3' || key === 'ndcg_at_5') {
+                pct = (Number(value) || 0) * 100;
+              } else if (key === 'inversions') {
+                // Same scaling as metrics.html — 10 inversions ≈ full bar.
+                pct = Math.min(100, (Number(value) || 0) * 10);
+              }
+              bar.style.setProperty('--p', Math.round(pct) + '%');
+            }
+            if (key === 'inversions') {
+              m.classList.toggle('warn', (Number(value) || 0) > 0);
+            }
+            break;
+          }
+        },
+
+        // ── Save & advance / skip ───────────────────────────────────
+        // M1 behaviour: advance the row cursor when there's a next
+        // row; otherwise surface "query complete" via the toast bus.
+        // The cross-query advance lands with Task 33.
+        saveAndAdvance: function () {
+          if (this.rowCount === 0) return;
+          var nextRow = this.currentRow + 1;
+          if (nextRow < this.rowCount) {
+            this.currentRow = nextRow;
+          } else {
+            this.toast('Query complete', 'Advance to next query', 'success');
+          }
+        },
+
+        skipCurrent: function () {
+          var row = rowEls()[this.currentRow];
+          if (row) this.gradeRow(row, -1);
+        },
+
+        // ── Keyboard router ─────────────────────────────────────────
+        // Bound via @keydown.window on <body> so the router works even
+        // when focus has wandered onto the body after a fetch round-
+        // trip. Inputs / textareas suppress every key so graders can
+        // type into the filter box; ⌘K etc. pass through to mojica.js.
+        onKey: function (e) {
+          var ae = document.activeElement;
+          if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) {
+            return;
+          }
+          if (e.metaKey && e.key === 'Enter') {
+            e.preventDefault();
+            this.saveAndAdvance();
+            return;
+          }
+          // Let Cmd-K / Ctrl-K etc. reach the global palette router.
+          if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+          var k = e.key;
+          if (k === 'j' || k === 'ArrowDown') {
+            e.preventDefault();
+            this.focusRow(this.currentRow + 1);
+          } else if (k === 'k' || k === 'ArrowUp') {
+            e.preventDefault();
+            this.focusRow(this.currentRow - 1);
+          } else if (k === '0' || k === '1' || k === '2' || k === '3') {
+            e.preventDefault();
+            this.gradeCurrent(parseInt(k, 10));
+          } else if (k === 's' || k === 'S') {
+            e.preventDefault();
+            this.gradeCurrent(-1);
+          } else if (k === 'b' || k === 'B') {
+            // Flip the signal directly — x-model on the queue.html
+            // checkbox + :class on <body> handle the rest reactively.
+            e.preventDefault();
+            this.blind = !this.blind;
+          } else if (k === 'c' || k === 'C') {
+            e.preventDefault();
+            this.compare = !this.compare;
+          }
+        },
+
+        // ── Toast helper ────────────────────────────────────────────
+        // Routes through the shared ToastBus (mojica.js). eval/layout
+        // now ships its own #toast-root (via partials/_toast_host.html)
+        // so these surface visibly instead of no-op'ing.
+        toast: function (title, sub, kind) {
+          if (window.ToastBus) {
+            window.ToastBus.push({ title: title, sub: sub, kind: kind });
+          }
+        },
+      };
+    });
   });
-
-  // ─── Toggle handlers (blind / compare) ───────────────────────────────────
-  root.addEventListener('change', (e) => {
-    const t = e.target.closest('[data-toggle]');
-    if (!t) return;
-    const which = t.dataset.toggle;
-    const enabled = t.checked;
-    if (which === 'blind') {
-      document.body.classList.toggle('ev-blind', enabled);
-      document
-        .querySelectorAll('.ev-row .score, .ev-row .scbar')
-        .forEach((el) => el.classList.toggle('blind', enabled));
-    } else if (which === 'compare') {
-      document.body.classList.toggle('ev-compare', enabled);
-    }
-    // The visual switch (.toggle.on) mirrors the underlying checkbox.
-    const label = t.closest('.toggle');
-    if (label) label.classList.toggle('on', enabled);
-  });
-
-  // ─── Keyboard router ─────────────────────────────────────────────────────
-  // We listen on document so the router works even when focus has wandered
-  // onto the body — common after a fetch round-trip. Inputs / textareas
-  // suppress every key (graders should be able to type into the filter
-  // box without grading the current row). Modifiers other than meta+Enter
-  // are passed through to the browser unchanged.
-
-  document.addEventListener('keydown', (e) => {
-    const ae = document.activeElement;
-    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return;
-
-    if (e.metaKey && e.key === 'Enter') {
-      e.preventDefault();
-      saveAndAdvance();
-      return;
-    }
-    // Allow Cmd-K / Cmd-/ etc. to reach the global palette router.
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
-
-    const k = e.key;
-    if (k === 'j' || k === 'ArrowDown') {
-      e.preventDefault();
-      if (currentRow < rows.length - 1) {
-        currentRow++;
-        paintCurrent();
-      }
-    } else if (k === 'k' || k === 'ArrowUp') {
-      e.preventDefault();
-      if (currentRow > 0) {
-        currentRow--;
-        paintCurrent();
-      }
-    } else if (k === '0' || k === '1' || k === '2' || k === '3') {
-      e.preventDefault();
-      const grade = parseInt(k, 10);
-      const row = rows[currentRow];
-      if (row) gradeRow(row, grade);
-    } else if (k === 's' || k === 'S') {
-      e.preventDefault();
-      const row = rows[currentRow];
-      if (row) gradeRow(row, -1);
-    } else if (k === 'b' || k === 'B') {
-      e.preventDefault();
-      const t = document.querySelector('[data-toggle="blind"]');
-      if (t) {
-        t.checked = !t.checked;
-        t.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    } else if (k === 'c' || k === 'C') {
-      e.preventDefault();
-      const t = document.querySelector('[data-toggle="compare"]');
-      if (t) {
-        t.checked = !t.checked;
-        t.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    }
-  });
-
-  // ─── Init ────────────────────────────────────────────────────────────────
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', refreshRows);
-  } else {
-    refreshRows();
-  }
-  // Re-bind when HTMX swaps content (future row-list partial swap).
-  document.body.addEventListener('htmx:afterSettle', refreshRows);
 })();

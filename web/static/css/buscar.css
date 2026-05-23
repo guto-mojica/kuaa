@@ -81,12 +81,22 @@
 }
 .b-cp .caption .left .meta b { color: var(--c-text); font-weight: 500; }
 .b-cp .caption .right { display: flex; align-items: center; gap: 6px; }
+/* Reset native <button> chrome so the seg renders as bare text+icon,
+   matching the prototype's <span class="seg">. Without these resets,
+   the browser default light-grey background, 2px outset border, and
+   system font leak through and the buttons look like form controls
+   instead of caption-row toggles. */
 .b-cp .caption .right .seg {
+  appearance: none; -webkit-appearance: none;
+  background: transparent; border: 0; font-family: inherit;
   font-size: 11.5px; color: var(--c-muted); padding: 4px 9px; border-radius: 5px;
   cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 6px;
 }
 .b-cp .caption .right .seg:hover { background: var(--c-hover); color: var(--c-text); }
-.b-cp .caption .right .seg.on { background: var(--c-hover); color: var(--c-text); }
+.b-cp .caption .right .seg.on    { background: var(--c-hover); color: var(--c-text); }
+.b-cp .caption .right .seg:focus-visible {
+  outline: 2px solid var(--c-accent-dim); outline-offset: 1px;
+}
 
 /* GRID */
 .b-cp .grid {
@@ -455,6 +465,54 @@
   overflow-y: auto;
   border-top: 1px solid var(--c-border);
   margin: 0; padding: 12px 24px;
+}
+
+/* ─── View toggle (Grade / Lista / Compacto) ─────────────────────────────
+   The .right caption-segment buttons in search.html flip
+   ``$store.buscarView.mode`` ∈ {grid, list, compact}. The results
+   container picks that up via ``:class="'view-' + mode"``, which adds
+   one of the three modifier classes below to ``#search-results.grid``.
+
+   - ``view-grid``    — default (no overrides; matches the base ``.b-cp
+                        .grid`` rules at line 92).
+   - ``view-list``    — single-column rows; each .b-card lays its
+                        keyframe to the left of a wider .body so titles
+                        + meta read in a horizontal strip.
+   - ``view-compact`` — denser grid; smaller minmax track + tighter
+                        gaps + reduced .body padding so the same
+                        viewport shows ~40% more cards.
+
+   ``#search-results`` keeps ``class="grid"`` as a stable SSR token
+   (pinned in tests/test_web_routes.py:322) — the view-* class is
+   additive, never a replacement. */
+
+#search-results.view-grid { /* default rules above already apply */ }
+
+#search-results.view-compact {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+#search-results.view-compact .b-card .kf { aspect-ratio: 16/10; }
+#search-results.view-compact .b-card .body { padding: 8px 9px 9px; gap: 4px; }
+#search-results.view-compact .b-card .filmname { font-size: 12px; }
+
+#search-results.view-list {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+#search-results.view-list .b-card {
+  flex-direction: row;
+  align-items: stretch;
+}
+#search-results.view-list .b-card .kf {
+  width: 200px;
+  flex-shrink: 0;
+  aspect-ratio: auto;
+  min-height: 120px;
+}
+#search-results.view-list .b-card .body {
+  flex: 1;
+  padding: 12px 14px;
 }
 
 /* ─── Responsive breakpoints ─────────────────────────────────────────────
