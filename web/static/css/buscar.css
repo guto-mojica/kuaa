@@ -504,3 +504,108 @@
      dominates the viewport even when scrolled. */
   .b-cp .search-tag-section { max-height: 120px; padding: 10px 14px; }
 }
+
+/* ── Interactive knob popovers (Híbrido, k) ────────────────────────── */
+
+.knob-popover {
+  position: relative;
+}
+
+.knob-toggle {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.knob-toggle::after {
+  content: "▾";
+  font-size: 10px;
+  margin-left: 4px;
+  color: var(--c-muted);
+}
+
+.knob-popover .popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  min-width: 220px;
+  padding: 10px 12px;
+  background: var(--c-panel);
+  border: 1px solid var(--c-border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.knob-popover .popover h3 {
+  margin: 0 0 8px 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--c-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.knob-popover .popover .radio {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.knob-popover .popover .slider-row {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--c-border);
+  font-size: 11px;
+  color: var(--c-muted);
+}
+
+.knob-popover .popover .slider-row input[type="range"] {
+  width: 100%;
+  margin: 6px 0;
+}
+
+.knob-popover .popover .slider-readout {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--c-text);
+}
+
+.knob-popover .popover .stepper {
+  display: flex;
+  gap: 12px;
+}
+
+/* ── Read-only knob (Rerank, MMR) ──────────────────────────────────── */
+
+.knob[data-state="readonly"] {
+  cursor: default;
+  opacity: 0.75;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.readonly-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 1px 4px;
+  margin-left: 4px;
+  background: var(--c-border);
+  color: var(--c-muted);
+  border-radius: 3px;
+  text-transform: uppercase;
+}

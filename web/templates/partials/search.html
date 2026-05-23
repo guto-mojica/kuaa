@@ -58,7 +58,7 @@
          would be ignored at runtime. #}
       <input type="hidden" name="retriever" :value="$store.buscarRetrieval.mode">
       <input type="hidden" name="sem_w"     :value="$store.buscarRetrieval.sem_w">
-      <input type="hidden" name="bm25_w"    :value="$store.buscarRetrieval.bm25_w">
+      <input type="hidden" name="bm25_w"    :value="(1 - Number($store.buscarRetrieval.sem_w)).toFixed(2)">
       <input type="hidden" name="top_k"     :value="$store.buscarRetrieval.top_k">
 
       <label class="qinput" for="search-input">
@@ -172,8 +172,7 @@
             <input type="range"
                    id="sem-w-slider"
                    min="0" max="1" step="0.05"
-                   x-model.number="$store.buscarRetrieval.sem_w"
-                   @input="$store.buscarRetrieval.bm25_w = 1 - $store.buscarRetrieval.sem_w">
+                   x-model.number="$store.buscarRetrieval.sem_w">
             <span class="slider-readout">
               sem <span x-text="Number($store.buscarRetrieval.sem_w).toFixed(2)"></span>
               · bm25 <span x-text="(1 - Number($store.buscarRetrieval.sem_w)).toFixed(2)"></span>
@@ -183,14 +182,14 @@
       </div>
 
       {# Read-only Rerank chip — M2 #4 lights this up later. #}
-      <div class="knob" data-state="readonly" title="{{ _('Cross-encoder reranker — ships in M2 #4') }}">
+      <div class="knob" data-state="readonly" aria-disabled="true" title="{{ _('Cross-encoder reranker — ships in M2 #4') }}">
         <span class="k">{{ _("Rerank") }}</span>
         <span class="v">{{ _("off") }}</span>
         <span class="readonly-badge">M2</span>
       </div>
 
       {# Read-only MMR chip — M3 lights this up later. #}
-      <div class="knob" data-state="readonly" title="{{ _('Maximal Marginal Relevance λ — ships in M3') }}">
+      <div class="knob" data-state="readonly" aria-disabled="true" title="{{ _('Maximal Marginal Relevance λ — ships in M3') }}">
         <span class="k">MMR</span>
         <span class="v">λ {{ '%.2f'|format(cfg.search.mmr_lambda) }}</span>
         <span class="readonly-badge">M3</span>

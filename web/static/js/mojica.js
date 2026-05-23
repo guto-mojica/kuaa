@@ -462,7 +462,7 @@ window.ToastBus = (function () {
   // ``/api/search`` and ``/api/search/aggregate`` (D1/D2). Keep this in
   // sync with ``api/routes/search.py`` if the route's defaults change.
   var DEFAULTS = {
-    retrieval: { mode: 'hybrid', sem_w: 0.70, bm25_w: 0.30, top_k: 9 },
+    retrieval: { mode: 'hybrid', sem_w: 0.70, top_k: 9 },
   };
 
   /**
@@ -515,6 +515,6 @@ window.ToastBus = (function () {
 
     // Persistence effects must register AFTER the stores exist; same
     // alpine:init handler keeps the relative ordering deterministic.
-    persistOnChange('buscarRetrieval', KEYS.retrieval, ['mode', 'sem_w', 'bm25_w', 'top_k']);
+    persistOnChange('buscarRetrieval', KEYS.retrieval, ['mode', 'sem_w', 'top_k']);
   });
 })();

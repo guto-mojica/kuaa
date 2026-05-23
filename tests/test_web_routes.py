@@ -1517,11 +1517,14 @@ def test_mojica_js_registers_buscar_retrieval_store(client) -> None:
     Task E1 of the Hybrid Search plan: the Buscar knob row's popovers
     (E2) bind to ``Alpine.store('buscarRetrieval')``, persisted under
     ``mojica:buscar:retrieval``. Defaults match the search route's
-    canonical hybrid baseline (``retriever=hybrid`` / ``sem_w=0.70`` /
-    ``bm25_w=0.30``) so a first-paint UI never drifts from the server
-    contract. The ``top_k`` field is the UI-preferred value (9) and is
-    intentionally distinct from the route's FastAPI default (8) — the
-    hidden HTMX mirror (E2) sends the UI value on every request.
+    canonical hybrid baseline (``retriever=hybrid`` / ``sem_w=0.70``) so
+    a first-paint UI never drifts from the server contract. ``bm25_w`` is
+    derived client-side as ``1 - sem_w`` in the hidden HTMX mirror (E3
+    follow-up: single source of truth for the weight pair), so the store
+    no longer carries it as a persisted field. The ``top_k`` field is the
+    UI-preferred value (9) and is intentionally distinct from the route's
+    FastAPI default (8) — the hidden HTMX mirror (E2) sends the UI value
+    on every request.
     """
     resp = client.get("/static/js/mojica.js")
     assert resp.status_code == 200
@@ -1533,5 +1536,3 @@ def test_mojica_js_registers_buscar_retrieval_store(client) -> None:
     # Default values that the UI popovers will display.
     assert "'hybrid'" in body  # default retriever mode
     assert "0.70" in body  # default sem_w
-    assert "0.30" in body  # default bm25_w (derived as 1 - sem_w in UI, but
-                            # persisted independently so the API contract is honest)
