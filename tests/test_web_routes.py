@@ -158,6 +158,36 @@ def test_base_shell_compact_for_anotar(client):
     assert "compact-lp" in r.text
 
 
+def test_base_shell_loads_mojica_js_before_alpine(client):
+    """mojica.js MUST execute before alpine.min.js — see base.html comment.
+
+    Alpine 3 auto-starts when ``document.readyState !== 'loading'``,
+    which is always true for deferred scripts. ``start()`` dispatches
+    ``alpine:init`` synchronously inside alpine.min.js's execution.
+    If mojica.js loads AFTER alpine, every
+    ``addEventListener('alpine:init', …)`` in our IIFEs misses the
+    event, and the entire Alpine-store layer (toasts, help, palette,
+    tagFilter, cenasAppearance, cenasFields, buscarView) stays
+    unregistered. ``$store.buscarView.mode`` then throws on first
+    paint and the seg buttons in Buscar lose their reactive
+    highlight. This test pins the script order so that bug can't
+    silently regress.
+    """
+    r = client.get("/search")
+    assert r.status_code == 200
+    html = r.text
+    mojica_pos = html.find("js/mojica.js")
+    alpine_pos = html.find("js/alpine.min.js")
+    assert mojica_pos != -1, "mojica.js <script> tag missing from base.html"
+    assert alpine_pos != -1, "alpine.min.js <script> tag missing from base.html"
+    assert mojica_pos < alpine_pos, (
+        "mojica.js must come before alpine.min.js so its alpine:init "
+        "listeners register before Alpine auto-starts. Swap them back "
+        "and the new Buscar view-toggle / Cenas Appearance / Fields "
+        "stores all break silently."
+    )
+
+
 def test_base_shell_includes_palette_and_help_roots(client):
     """Polish-layer mount points exist on the index page.
 

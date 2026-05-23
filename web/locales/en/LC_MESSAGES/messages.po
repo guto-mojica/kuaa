@@ -1505,16 +1505,16 @@ msgstr ""
 msgid "Result layout"
 msgstr ""
 
-#: web/templates/partials/search.html:163
-msgid "Grade"
+#: web/templates/partials/search.html:198
+msgid "Grid"
 msgstr ""
 
-#: web/templates/partials/search.html:169
-msgid "Lista"
+#: web/templates/partials/search.html:206
+msgid "List"
 msgstr ""
 
-#: web/templates/partials/search.html:175
-msgid "Compacto"
+#: web/templates/partials/search.html:214
+msgid "Compact"
 msgstr ""
 
 #: web/templates/partials/search.html:193

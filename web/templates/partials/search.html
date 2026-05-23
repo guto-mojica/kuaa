@@ -195,7 +195,7 @@
               data-view="grid"
               :aria-pressed="$store.buscarView.mode === 'grid' ? 'true' : 'false'"
               @click="$store.buscarView.mode = 'grid'">
-        {{ icon('grid', 14) }} {{ _("Grade") }}
+        {{ icon('grid', 14) }} {{ _("Grid") }}
       </button>
       <button type="button"
               class="seg"
@@ -203,7 +203,7 @@
               data-view="list"
               :aria-pressed="$store.buscarView.mode === 'list' ? 'true' : 'false'"
               @click="$store.buscarView.mode = 'list'">
-        {{ icon('sort', 14) }} {{ _("Lista") }}
+        {{ icon('sort', 14) }} {{ _("List") }}
       </button>
       <button type="button"
               class="seg"
@@ -211,7 +211,7 @@
               data-view="compact"
               :aria-pressed="$store.buscarView.mode === 'compact' ? 'true' : 'false'"
               @click="$store.buscarView.mode = 'compact'">
-        {{ icon('appearance', 14) }} {{ _("Compacto") }}
+        {{ icon('appearance', 14) }} {{ _("Compact") }}
       </button>
     </div>
   </div>
