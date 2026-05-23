@@ -10,7 +10,10 @@ import time
 from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from cinemateca.config import Config
 
 MANIFEST_FILENAME = "run_manifest.json"
 MANIFEST_SCHEMA_VERSION = "1.0"
@@ -32,7 +35,7 @@ def _coerce_jsonable(value: Any) -> Any:
     return value
 
 
-def config_snapshot(cfg: Any) -> dict[str, Any]:
+def config_snapshot(cfg: Config) -> dict[str, Any]:
     """Return a stable JSON-compatible snapshot of the loaded config."""
 
     if hasattr(cfg, "to_dict"):
@@ -42,7 +45,7 @@ def config_snapshot(cfg: Any) -> dict[str, Any]:
     return _coerce_jsonable(raw)
 
 
-def config_hash(cfg: Any) -> str:
+def config_hash(cfg: Config) -> str:
     """Return a SHA-256 hash of the loaded config snapshot."""
 
     payload = json.dumps(
@@ -93,7 +96,7 @@ def _get_path(root: Any, *parts: str, default: Any = None) -> Any:
     return current
 
 
-def model_snapshot(cfg: Any) -> dict[str, Any]:
+def model_snapshot(cfg: Config) -> dict[str, Any]:
     """Return configured model backend names and model revision hints."""
 
     return {
@@ -121,7 +124,7 @@ def model_snapshot(cfg: Any) -> dict[str, Any]:
     }
 
 
-def domain_snapshot(cfg: Any) -> dict[str, Any]:
+def domain_snapshot(cfg: Config) -> dict[str, Any]:
     """Return selected domain pack identity without failing manifest writes."""
 
     try:
@@ -137,7 +140,7 @@ def domain_snapshot(cfg: Any) -> dict[str, Any]:
     }
 
 
-def output_artifacts(cfg: Any) -> dict[str, dict[str, Any]]:
+def output_artifacts(cfg: Config) -> dict[str, dict[str, Any]]:
     """Return expected output artifact paths and existence state."""
 
     metadata_dir = Path(_get_path(cfg, "paths", "metadata_dir", default="."))

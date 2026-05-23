@@ -28,7 +28,10 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from cinemateca.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -230,7 +233,7 @@ class CatalogPipeline:
     used (backward-compatible).
     """
 
-    def __init__(self, cfg, *, slug: str | None = None):
+    def __init__(self, cfg: Config, *, slug: str | None = None):
         self.cfg = cfg
         # Guard against degenerate slugs (empty string after sanitization).
         # ``film_dir = library_dir / ""`` equals ``library_dir`` itself, which
@@ -621,6 +624,17 @@ class CatalogPipeline:
 
         Returns:
             PipelineResult com o status de cada etapa.
+
+        Note — step-gating divergence from ``run_steps()``:
+            This method gates each step via ``cfg.pipeline.steps.*`` boolean
+            flags (set before calling ``run()``), checked inline with a hardcoded
+            ``if/else`` chain.  ``run_steps()`` uses a different, dependency-graph
+            approach (``STEP_DEPS``) that skips steps whose upstream deps failed.
+            The two code paths are intentionally not unified: ``run()`` is the
+            high-frequency production path that must not change step ordering
+            without a migration plan; ``run_steps()`` is the low-level rerun API
+            used by ``library reembed``.  Unifying them is tracked as a future
+            refactor — do not merge them casually.
         """
         video_path = Path(video_path)
         pipeline_start = time.time()

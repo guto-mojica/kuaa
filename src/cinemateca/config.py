@@ -167,3 +167,9 @@ def setup_logging(cfg: _Namespace) -> None:
         force=True,
     )
     logger.info("Logging inicializado — nível: %s", log_cfg.level)
+
+
+# Public type alias so callers can annotate: `cfg: Config` instead of `cfg: _Namespace`.
+Config = _Namespace
+
+__all__ = ["Config", "load_config", "setup_logging"]
