@@ -28,13 +28,12 @@ def test_for_film_resolves_per_film_paths(tmp_path: Path) -> None:
     ``data_dir`` is the media-mount root (``cfg.paths.data_dir``), NOT
     the library root — keyframe URLs must resolve against the directory
     mounted at ``/media`` in :mod:`api.server`."""
+    from cinemateca.library import register_film
+
     data_dir = tmp_path / "data"
     library_dir = data_dir / "library"
-    (library_dir / "jeca_tatu" / "raw").mkdir(parents=True)
-    (library_dir / "jeca_tatu" / "raw" / "jeca_tatu.mp4").write_bytes(b"")
-    (library_dir / "jeca_tatu" / "metadata").mkdir()
-    (library_dir / "jeca_tatu" / "frames").mkdir()
-    (library_dir / "jeca_tatu" / "embeddings").mkdir()
+    library_dir.mkdir(parents=True)
+    register_film(library_dir, slug="jeca_tatu", title="Jeca Tatu", year=1959, raw_filename="jeca_tatu.mp4")
 
     ctx = FilmContext.for_film(_cfg(library_dir, data_dir=data_dir), "jeca_tatu")
 
@@ -49,7 +48,7 @@ def test_for_film_resolves_per_film_paths(tmp_path: Path) -> None:
 def test_for_film_unknown_slug_raises(tmp_path: Path) -> None:
     library_dir = tmp_path / "library"
     library_dir.mkdir()
-    with pytest.raises(ValueError, match="No such film directory"):
+    with pytest.raises(ValueError, match="Film not registered"):
         FilmContext.for_film(_cfg(library_dir), "ghost")
 
 

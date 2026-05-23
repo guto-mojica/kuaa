@@ -290,7 +290,7 @@ class _StubPipeline:
 
     behavior = "ok"  # ok | fail | block | hang
 
-    def __init__(self, cfg, ctx=None):
+    def __init__(self, cfg, *, slug=None):
         self.cfg = cfg
 
     def run_steps(self, video_path, steps, progress_cb=None, cancel_check=None):

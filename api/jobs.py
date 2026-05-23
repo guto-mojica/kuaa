@@ -304,6 +304,32 @@ def start_job(video_path: str, enabled_steps: set[str], cfg) -> str:
 
 # ── Pipeline runner (runs in a daemon thread) ─────────────────────────────────
 
+def _slug_for_video(video_path: str, cfg) -> str:
+    """Return the registry slug that owns *video_path*.
+
+    Matches by ``raw_filename`` in ``films.json`` first — reliable even
+    when the filename stem differs from the slug (e.g. raw file is
+    ``jeca_tatu_1959.mp4`` but slug is ``jeca_tatu``).  Falls back to
+    the stem-based heuristic only when no registry entry matches.
+    """
+    from pathlib import Path, PurePosixPath
+
+    from cinemateca.library import load_registry
+
+    filename = PurePosixPath(video_path.replace("\\", "/")).name
+    try:
+        library_dir = Path(getattr(getattr(cfg, "paths", None), "library_dir", ""))
+        if library_dir.name:
+            for slug, entry in load_registry(library_dir).items():
+                if entry.get("raw_filename", "") == filename:
+                    return slug
+    except Exception:
+        pass
+    # Fallback: derive from stem (may not match registry slug)
+    stem = PurePosixPath(video_path.replace("\\", "/")).stem
+    return stem.lower().replace(" ", "_")
+
+
 def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
     """Drive :meth:`CatalogPipeline.run_steps` and mirror state onto the job.
 
@@ -322,14 +348,13 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
     t_start = time.time()
     job.status = STATUS_RUNNING
 
-    # Route pipeline output to data/films/{slug}/ for per-film isolation.
-    slug = PurePosixPath(job.video_path.replace("\\", "/")).stem.lower().replace(" ", "_")
+    slug = _slug_for_video(job.video_path, cfg)
     ctx = FilmContext.for_film(cfg, slug)
     ctx.metadata_dir.mkdir(parents=True, exist_ok=True)
     ctx.frames_dir.mkdir(parents=True, exist_ok=True)
     ctx.embeddings_dir.mkdir(parents=True, exist_ok=True)
 
-    pipeline = CatalogPipeline(cfg, ctx=ctx)
+    pipeline = CatalogPipeline(cfg, slug=slug)
 
     by_name: dict[str, StepInfo] = {s.name: s for s in job.steps}
 

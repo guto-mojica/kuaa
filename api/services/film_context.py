@@ -114,10 +114,17 @@ class FilmContext:
         # its own .name; "../secret" becomes "secret" and the comparison fails.
         if not slug or slug != Path(slug).name:
             raise ValueError(f"Invalid slug: {slug!r}")
+        from cinemateca.library import load_registry
         library_dir = Path(cfg.paths.library_dir)
         film_dir = library_dir / slug
-        if not film_dir.is_dir():
-            raise ValueError(f"No such film directory: {film_dir}")
+        # Registry is the single gate — unregistered slugs are rejected even
+        # if a directory happens to exist on disk (orphaned dirs, manual creates).
+        registry = load_registry(library_dir)
+        if slug not in registry:
+            raise ValueError(f"Film not registered: {slug!r}")
+        # Create subdirs on first access for films registered without migration.
+        for sub in ("raw", "metadata", "frames", "embeddings"):
+            (film_dir / sub).mkdir(parents=True, exist_ok=True)
         # data_dir defaults to library_dir for test configs that don't supply
         # cfg.paths.data_dir; real configs always carry data_dir (default.yaml).
         data_dir_str = getattr(cfg.paths, "data_dir", None) or str(library_dir)
