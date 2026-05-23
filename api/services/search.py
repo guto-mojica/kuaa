@@ -59,7 +59,7 @@ import threading
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -71,6 +71,10 @@ from api.services.catalog import (
     to_smpte,
 )
 from api.services.film_context import FilmContext
+from cinemateca.retrieval.hybrid import DEFAULT_RRF_K
+
+if TYPE_CHECKING:
+    from cinemateca.retrieval.bm25 import BM25Index
 
 logger = logging.getLogger(__name__)
 
@@ -676,6 +680,172 @@ def search_text(
         len(df),
     )
     return df
+
+
+def search_hybrid(
+    index: SearchIndex,
+    *,
+    bm25: BM25Index | None,
+    query: str,
+    tags: list[str],
+    tag_index: dict,
+    top_k: int,
+    min_similarity: float,
+    retriever_mode: str,
+    sem_w: float,
+    bm25_w: float,
+    rrf_k: int = DEFAULT_RRF_K,
+):
+    """Dispatch text search across one of three retrieval pipelines.
+
+    Returns the same DataFrame shape ``search_text`` returns (columns:
+    ``scene_id``, ``similarity``, plus the keyframe columns). The route
+    layer cannot tell which mode produced the result — that's the
+    whole point of the dispatcher.
+
+    Args:
+        index: per-film CLIP search index.
+        bm25: per-film BM25 index, or ``None`` when ``retriever_mode`` is
+            ``"clip"`` and BM25 wasn't loaded (cheap skip).
+        retriever_mode: one of ``"clip" | "bm25" | "hybrid"``.
+        sem_w, bm25_w: only consulted in ``"hybrid"`` mode.
+
+    Mode behaviour:
+        * ``"clip"`` — delegates to :func:`search_text` unchanged.
+          Regression pin for pre-M2 ordering.
+        * ``"bm25"`` — runs BM25 only, formats the result the same way
+          ``search_text`` would (mapping back to the index's metadata).
+        * ``"hybrid"`` — runs both, fuses by weighted RRF, returns
+          ``top_k`` by fused-score.
+
+    Graceful fallback: when ``bm25`` is ``None`` or its underlying
+    ``model`` is ``None`` (empty corpus), any non-``"clip"`` mode
+    transparently degrades to CLIP-only — the UI degrades without
+    raising, the route still serves a result.
+    """
+    if retriever_mode == "clip":
+        return search_text(index, query, tags, tag_index, top_k, min_similarity)
+
+    if bm25 is None or bm25.model is None:
+        logger.info(
+            "search_hybrid: bm25 index empty/None; falling back to clip " "(mode=%s requested)",
+            retriever_mode,
+        )
+        return search_text(index, query, tags, tag_index, top_k, min_similarity)
+
+    # Mirrors search_text's keyframe-density widening (4× ceiling).
+    raw_k = top_k * 4
+
+    if retriever_mode == "bm25":
+        hits = bm25.query(query, top_k=raw_k)
+        return _bm25_hits_to_dataframe(hits, index, tags, tag_index, top_k, min_similarity)
+
+    # retriever_mode == "hybrid"
+    clip_df = search_text(index, query, tags, tag_index, raw_k, min_similarity)
+    clip_ranked: list[tuple[int, float]] = (
+        [(int(row.scene_id), float(row.similarity)) for row in clip_df.itertuples(index=False)]
+        if not clip_df.empty
+        else []
+    )
+    bm25_hits = bm25.query(query, top_k=raw_k)
+
+    from cinemateca.retrieval.hybrid import fuse_rrf
+
+    fused = fuse_rrf(clip_ranked, bm25_hits, sem_w=sem_w, bm25_w=bm25_w, k_rrf=rrf_k)[:top_k]
+
+    return _fused_to_dataframe(fused, clip_df, index, tags, tag_index, top_k, min_similarity)
+
+
+def _bm25_hits_to_dataframe(
+    hits: list[tuple[int, float]],
+    index: SearchIndex,
+    tags: list[str],
+    tag_index: dict,
+    top_k: int,
+    min_similarity: float,
+):
+    """Materialise BM25-only hits into the ``search_text`` DataFrame shape.
+
+    BM25 scores are not in CLIP's cosine-similarity scale, but the
+    template only cares about ordering. We expose the BM25 score as
+    ``similarity`` for shape-compat; routes that surface raw scores can
+    distinguish via the ``retriever`` query param.
+    """
+    import pandas as pd
+
+    if not hits:
+        return pd.DataFrame(columns=["scene_id", "similarity"])
+    df = pd.DataFrame(hits, columns=["scene_id", "similarity"])
+    if tags and tag_index:
+        keep_sids: set[int] = set()
+        for t in tags:
+            for sid in tag_index.get(t, []):
+                keep_sids.add(int(sid))
+        df = df[df["scene_id"].isin(keep_sids)].reset_index(drop=True)
+    if hasattr(index, "kf_df") and index.kf_df is not None:
+        df = df.merge(
+            index.kf_df.drop_duplicates(subset="scene_id", keep="first"),
+            on="scene_id",
+            how="left",
+        )
+    return df.head(top_k).reset_index(drop=True)
+
+
+def _fused_to_dataframe(
+    fused: list[tuple[int, float]],
+    clip_df,
+    index: SearchIndex,
+    tags: list[str],
+    tag_index: dict,
+    top_k: int,
+    min_similarity: float,
+):
+    """Materialise the fused ranking, reusing ``clip_df`` rows when present.
+
+    BM25-only hits (scenes the CLIP top-K didn't surface) are back-filled
+    from ``index.kf_df`` so every row carries the keyframe columns the
+    template expects.
+    """
+    import pandas as pd
+
+    if not fused:
+        return pd.DataFrame(columns=["scene_id", "similarity"])
+    fused_df = pd.DataFrame(fused, columns=["scene_id", "fused_score"])
+    if not clip_df.empty:
+        merged = fused_df.merge(
+            clip_df.drop(columns=["similarity"], errors="ignore"),
+            on="scene_id",
+            how="left",
+        )
+    else:
+        merged = fused_df
+    merged["similarity"] = merged["fused_score"]
+    merged = merged.drop(columns=["fused_score"])
+    if tags and tag_index:
+        keep_sids: set[int] = set()
+        for t in tags:
+            for sid in tag_index.get(t, []):
+                keep_sids.add(int(sid))
+        merged = merged[merged["scene_id"].isin(keep_sids)].reset_index(drop=True)
+    if hasattr(index, "kf_df") and index.kf_df is not None:
+        # Backfill keyframe metadata for BM25-only hits.
+        if "img_filename" in merged.columns:
+            missing_mask = merged["img_filename"].isna()
+        else:
+            missing_mask = pd.Series([False] * len(merged))
+        missing = merged[missing_mask]
+        if not missing.empty:
+            patched = missing[["scene_id", "similarity"]].merge(
+                index.kf_df.drop_duplicates(subset="scene_id", keep="first"),
+                on="scene_id",
+                how="left",
+            )
+            merged = pd.concat(
+                [merged[~merged["scene_id"].isin(patched["scene_id"])], patched],
+                ignore_index=True,
+            )
+            merged = merged.sort_values("similarity", ascending=False).reset_index(drop=True)
+    return merged.head(top_k).reset_index(drop=True)
 
 
 def search_image(index: SearchIndex, image_path: Path, top_k: int):
