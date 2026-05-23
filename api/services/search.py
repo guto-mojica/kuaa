@@ -74,6 +74,8 @@ from api.services.film_context import FilmContext
 from cinemateca.retrieval.hybrid import DEFAULT_RRF_K
 
 if TYPE_CHECKING:
+    import pandas as pd
+
     from cinemateca.retrieval.bm25 import BM25Index
 
 logger = logging.getLogger(__name__)
@@ -695,7 +697,7 @@ def search_hybrid(
     sem_w: float,
     bm25_w: float,
     rrf_k: int = DEFAULT_RRF_K,
-):
+) -> pd.DataFrame:
     """Dispatch text search across one of three retrieval pipelines.
 
     Returns the same DataFrame shape ``search_text`` returns (columns:
@@ -709,6 +711,10 @@ def search_hybrid(
             ``"clip"`` and BM25 wasn't loaded (cheap skip).
         retriever_mode: one of ``"clip" | "bm25" | "hybrid"``.
         sem_w, bm25_w: only consulted in ``"hybrid"`` mode.
+        min_similarity: cosine floor for the CLIP path. Applied only on
+            ``"clip"`` mode and on the CLIP side of ``"hybrid"`` (where
+            it pre-filters before RRF). Not applied on ``"bm25"`` mode —
+            BM25 scores are not in the cosine-similarity scale.
 
     Mode behaviour:
         * ``"clip"`` — delegates to :func:`search_text` unchanged.
@@ -728,7 +734,7 @@ def search_hybrid(
 
     if bm25 is None or bm25.model is None:
         logger.info(
-            "search_hybrid: bm25 index empty/None; falling back to clip " "(mode=%s requested)",
+            "search_hybrid: bm25 index empty/None; falling back to clip (mode=%s requested)",
             retriever_mode,
         )
         return search_text(index, query, tags, tag_index, top_k, min_similarity)
@@ -737,10 +743,12 @@ def search_hybrid(
     raw_k = top_k * 4
 
     if retriever_mode == "bm25":
+        # BM25 scores aren't cosine — min_similarity does not apply.
         hits = bm25.query(query, top_k=raw_k)
-        return _bm25_hits_to_dataframe(hits, index, tags, tag_index, top_k, min_similarity)
+        return _bm25_hits_to_dataframe(hits, index, tags, tag_index, top_k)
 
-    # retriever_mode == "hybrid"
+    # retriever_mode == "hybrid". min_similarity flows through search_text
+    # below, pre-filtering the CLIP side before RRF fusion.
     clip_df = search_text(index, query, tags, tag_index, raw_k, min_similarity)
     clip_ranked: list[tuple[int, float]] = (
         [(int(row.scene_id), float(row.similarity)) for row in clip_df.itertuples(index=False)]
@@ -753,7 +761,7 @@ def search_hybrid(
 
     fused = fuse_rrf(clip_ranked, bm25_hits, sem_w=sem_w, bm25_w=bm25_w, k_rrf=rrf_k)[:top_k]
 
-    return _fused_to_dataframe(fused, clip_df, index, tags, tag_index, top_k, min_similarity)
+    return _fused_to_dataframe(fused, clip_df, index, tags, tag_index, top_k)
 
 
 def _bm25_hits_to_dataframe(
@@ -762,8 +770,7 @@ def _bm25_hits_to_dataframe(
     tags: list[str],
     tag_index: dict,
     top_k: int,
-    min_similarity: float,
-):
+) -> pd.DataFrame:
     """Materialise BM25-only hits into the ``search_text`` DataFrame shape.
 
     BM25 scores are not in CLIP's cosine-similarity scale, but the
@@ -793,13 +800,12 @@ def _bm25_hits_to_dataframe(
 
 def _fused_to_dataframe(
     fused: list[tuple[int, float]],
-    clip_df,
+    clip_df: pd.DataFrame,
     index: SearchIndex,
     tags: list[str],
     tag_index: dict,
     top_k: int,
-    min_similarity: float,
-):
+) -> pd.DataFrame:
     """Materialise the fused ranking, reusing ``clip_df`` rows when present.
 
     BM25-only hits (scenes the CLIP top-K didn't surface) are back-filled
