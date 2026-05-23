@@ -188,6 +188,39 @@ def test_base_shell_loads_mojica_js_before_alpine(client):
     )
 
 
+def test_eval_shell_loads_mojica_eval_before_alpine(client, monkeypatch):
+    """Eval shell pins the same script order — see base shell counterpart.
+
+    ``eval/layout.html`` is a separate shell (does NOT extend base.html),
+    so the same Alpine-3 auto-start bug bites it independently. If
+    alpine.min.js fires ``alpine:init`` before eval.js's
+    ``Alpine.data('evalApp', …)`` registers, the body's
+    ``x-data="evalApp(…)"`` throws "evalApp is not defined" and the
+    entire grading workspace — keyboard router, grade-button @click,
+    blind/compare toggles, row cursor, toasts — goes inert. The pin
+    keeps both mojica.js and eval.js executing before alpine.min.js.
+    """
+    monkeypatch.setenv("EVAL_ADMIN_TOKEN", "test-token")
+    r = client.get("/eval?token=test-token")
+    assert r.status_code == 200, r.text
+    html = r.text
+    mojica_pos = html.find("js/mojica.js")
+    eval_pos = html.find("js/eval.js")
+    alpine_pos = html.find("js/alpine.min.js")
+    assert mojica_pos != -1, "mojica.js <script> tag missing from eval/layout.html"
+    assert eval_pos != -1, "eval.js <script> tag missing from eval/layout.html"
+    assert alpine_pos != -1, "alpine.min.js <script> tag missing from eval/layout.html"
+    assert mojica_pos < alpine_pos, (
+        "mojica.js must come before alpine.min.js in the eval shell "
+        "for the same reason as base.html — see the layout.html comment."
+    )
+    assert eval_pos < alpine_pos, (
+        "eval.js must come before alpine.min.js so Alpine.data('evalApp', …) "
+        "is registered before Alpine walks the DOM. Swap them back and the "
+        "entire eval grading UI goes inert ('evalApp is not defined')."
+    )
+
+
 def test_base_shell_includes_palette_and_help_roots(client):
     """Polish-layer mount points exist on the index page.
 

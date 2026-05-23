@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -29,7 +30,14 @@ from cinemateca.eval.grader_metrics import (
     ndcg_at_k,
     precision_at_k,
 )
-from cinemateca.eval.grades import EvalRun, Grade, LoadedRun, load_run
+from cinemateca.eval.grades import (
+    EvalRun,
+    Grade,
+    GradeEntry,
+    LoadedRun,
+    load_run,
+    load_run_per_annotator,
+)
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
@@ -84,20 +92,41 @@ def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
     run_id = _eval_run_id(cfg)
     run = EvalRun(run_id=run_id, root=run_root)
     loaded = load_run(run)
+    per_annotator = load_run_per_annotator(run)
 
     queries = _load_queries(run_root, run_id)
     current_query = queries[0] if queries else None
 
-    annotator_count, iaa_kappa = _annotator_summary(loaded)
+    # Resolve grader identity FIRST — IAA + compare-mode helpers below
+    # need it to pick "the other annotator". Cookie-driven when a
+    # request is provided; falls back to "anon" for direct callers (tests).
+    grader_name = "anon"
+    blind_mode = False
+    compare_mode = False
+    token = os.getenv("EVAL_ADMIN_TOKEN", "")
+    if request is not None:
+        grader_name = request.cookies.get("grader", "anon")
+        blind_mode = request.cookies.get("eval_blind", "") == "1"
+        compare_mode = request.cookies.get("eval_compare", "") == "1"
+        token = request.cookies.get("eval_admin") or request.query_params.get("token") or token
+
+    annotator_count, iaa_kappa = _annotator_summary(per_annotator)
     grades_by_query = _grades_by_query(loaded)
+
+    # Multi-annotator IAA bundle for the right-pane panel + the queue's
+    # Conflict tab + the per-row compare-mode chip. All three views
+    # consume the same source so the counts stay consistent.
+    iaa = _build_iaa(per_annotator, current_grader=grader_name)
+    query_conflict_set = _query_conflict_set(per_annotator)
 
     # UI fields (Task 31). All have safe zero defaults so the
     # template renders even on a fresh, unseeded run.
     graded_count = sum(1 for grades in grades_by_query.values() if grades)
     pending_count = max(0, len(queries) - graded_count)
-    conflict_count = 0  # Task 33 wires real multi-annotator conflict detection.
+    conflict_count = len(query_conflict_set)
 
     grades_for_current: dict[str, Grade] = {}
+    grades_for_current_other: dict[str, Grade] = {}
     metrics: dict[str, Any] = {
         "p_at_3": 0.0,
         "p_at_5": 0.0,
@@ -109,9 +138,34 @@ def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
     if current_query is not None:
         cq_id = str(current_query.get("id", ""))
         if cq_id:
-            for (qid, scene_id), entry in loaded.grades.items():
-                if qid == cq_id:
-                    grades_for_current[str(scene_id)] = entry.grade
+            # ``grades_for_current`` drives the .gb chip render in
+            # rows.html — it must show THIS grader's grade, not the
+            # last-write-wins reduce of ``loaded.grades`` (which would
+            # surface the other annotator's grade in a multi-grader
+            # run and make every disagree-by-≥2 chip vanish). Read
+            # from ``per_annotator`` keyed by the current grader,
+            # falling back to the collapsed reduce when no
+            # per-annotator entry exists yet (e.g. anonymous viewers).
+            for (qid, scene_id), by_who in per_annotator.items():
+                if qid != cq_id:
+                    continue
+                if grader_name in by_who:
+                    grades_for_current[str(scene_id)] = by_who[grader_name].grade
+                elif by_who:
+                    # No record from current grader — surface whatever
+                    # is on file so the row isn't ungraded-looking.
+                    # Prefer the collapsed-loaded.grades entry to
+                    # preserve the prior single-grader semantics.
+                    canonical = loaded.grades.get((qid, scene_id))
+                    if canonical is not None:
+                        grades_for_current[str(scene_id)] = canonical.grade
+            # Compare-mode counterpart — same query, other annotator.
+            other_name = iaa.get("other", {}).get("name") if iaa.get("enabled") else None
+            grades_for_current_other = _other_grades_for_current(
+                per_annotator,
+                current_query_id=cq_id,
+                other_grader=other_name,
+            )
             cq_grades = _grades_for_query(loaded, cq_id)
             if cq_grades:
                 metrics = {
@@ -125,19 +179,6 @@ def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
         if isinstance(results, list):
             result_count = len(results)
 
-    # Grader identity is cookie-driven on the route. When no request
-    # is passed (e.g. tests calling build_eval_context directly) we
-    # fall back to the anonymous default.
-    grader_name = "anon"
-    blind_mode = False
-    compare_mode = False
-    token = os.getenv("EVAL_ADMIN_TOKEN", "")
-    if request is not None:
-        grader_name = request.cookies.get("grader", "anon")
-        blind_mode = request.cookies.get("eval_blind", "") == "1"
-        compare_mode = request.cookies.get("eval_compare", "") == "1"
-        token = request.cookies.get("eval_admin") or request.query_params.get("token") or token
-
     return {
         # Data layer
         "run_id": run_id,
@@ -150,6 +191,9 @@ def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
         "graded_count": graded_count,
         "pending_count": pending_count,
         "conflict_count": conflict_count,
+        "query_conflict_set": query_conflict_set,
+        "iaa": iaa,
+        "grades_for_current_other": grades_for_current_other,
         "metrics": metrics,
         "grades_for_current": grades_for_current,
         "grader_name": grader_name,
@@ -280,8 +324,15 @@ def _grades_for_query(loaded: LoadedRun, query_id: str) -> list[Grade]:
     return [entry.grade for (qid, _scene_id), entry in loaded.grades.items() if qid == query_id]
 
 
-def _annotator_summary(loaded: LoadedRun) -> tuple[int, float]:
+def _annotator_summary(
+    per_annotator: dict[tuple[str, str], dict[str, GradeEntry]],
+) -> tuple[int, float]:
     """Return (distinct annotator count, κ between top-2 graders).
+
+    Reads the per-annotator-preserving view from
+    ``load_run_per_annotator`` so a re-grade by one annotator doesn't
+    erase the other annotator's vote on the same (q, s) — the bug the
+    earlier LoadedRun-only path had.
 
     κ is computed only on (query, scene) pairs that BOTH top graders
     rated. With < 2 graders or no overlap, κ = 0.0. With only one
@@ -290,8 +341,9 @@ def _annotator_summary(loaded: LoadedRun) -> tuple[int, float]:
     """
 
     by_grader: dict[str, dict[tuple[str, str], Grade]] = {}
-    for key, entry in loaded.grades.items():
-        by_grader.setdefault(entry.grader, {})[key] = entry.grade
+    for key, by_who in per_annotator.items():
+        for grader, entry in by_who.items():
+            by_grader.setdefault(grader, {})[key] = entry.grade
 
     annotator_count = len(by_grader)
     if annotator_count < 2:
@@ -307,3 +359,206 @@ def _annotator_summary(loaded: LoadedRun) -> tuple[int, float]:
     a_list = [a_grades[k] for k in ordered]
     b_list = [b_grades[k] for k in ordered]
     return annotator_count, cohen_kappa(a_list, b_list)
+
+
+# ── IAA panel + compare-mode helpers (Task 31 follow-on) ──────────────────────
+
+# Landis & Koch (1977) qualitative thresholds for κ. The label appears
+# next to the numeric value in the right-pane IAA card; the colour is
+# chosen by the template based on whether κ ≥ 0.41 (warm) vs lower.
+_KAPPA_QUALITY_THRESHOLDS = (
+    (0.81, "almost perfect"),
+    (0.61, "substantial"),
+    (0.41, "moderate"),
+    (0.21, "fair"),
+    (0.00, "slight"),
+)
+
+
+def _kappa_quality_label(kappa: float) -> str:
+    """Return the Landis-Koch qualitative bucket for a κ value.
+
+    Negative κ (worse than chance) is reported as "poor" so the UI has
+    a distinct label to render. Returns ``"slight"`` for κ ≥ 0 < 0.21.
+    """
+
+    if kappa < 0:
+        return "poor"
+    for threshold, label in _KAPPA_QUALITY_THRESHOLDS:
+        if kappa >= threshold:
+            return label
+    return "slight"
+
+
+def _grader_initials(name: str) -> str:
+    """Local mirror of ``_initials`` for grader pills inside IAA blocks.
+
+    Kept private to the IAA helpers so the existing ``_initials``
+    contract (anon → 'AN') stays untouched.
+    """
+
+    return _initials(name)
+
+
+def _build_iaa(
+    per_annotator: dict[tuple[str, str], dict[str, GradeEntry]],
+    *,
+    current_grader: str,
+) -> dict[str, Any]:
+    """Build the inter-annotator-agreement bundle for the right pane.
+
+    Compares ``current_grader`` against the most-active OTHER grader on
+    file. When that pair has fewer than one shared (q, s) judgment, the
+    bundle reports ``enabled=False`` and the template skips the panel.
+
+    Returns:
+        {
+            "enabled": bool,                       # render the panel?
+            "self":  {"name", "initials", "count"},
+            "other": {"name", "initials", "count"},
+            "shared": int,                         # # of (q,s) overlap
+            "kappa": float,
+            "agree_pct": int,                      # exact-match %
+            "quality_label": str,                  # Landis-Koch bucket
+            "confusion": [[c00,c01,c02,c03],       # 4×4 (excludes SKIP)
+                           …],                     # rows = self grade
+                                                   # cols = other grade
+            "row_totals": [r0,r1,r2,r3],
+            "col_totals": [c0,c1,c2,c3],
+            "grand_total": int,                    # = sum of row totals
+            "conflict_pairs": int,                 # |g_self − g_other| ≥ 2
+        }
+    """
+
+    # Tally per-grader entry counts to pick "the other annotator".
+    grader_counts: Counter[str] = Counter()
+    for by_who in per_annotator.values():
+        for grader in by_who:
+            grader_counts[grader] += 1
+    if not grader_counts:
+        return {"enabled": False}
+
+    # The "other" is the most-active grader that isn't us. When the
+    # current grader has never written, we still compare against the
+    # top two on file to keep the panel useful.
+    others = [g for g in grader_counts if g != current_grader]
+    if not others:
+        return {"enabled": False}
+    other_name = max(others, key=lambda g: grader_counts[g])
+
+    # Self defaults to current_grader; when the grader has no entries
+    # we fall back to the second-most-active person on file so the
+    # panel still renders something meaningful (two arbitrary graders'
+    # overlap rather than blank).
+    if current_grader in grader_counts:
+        self_name = current_grader
+    else:
+        ranked = grader_counts.most_common()
+        if len(ranked) < 2:
+            return {"enabled": False}
+        self_name = ranked[0][0] if ranked[0][0] != other_name else ranked[1][0]
+
+    # Walk the shared (q, s) pairs. SKIP grades are excluded from the
+    # confusion matrix + κ — they are explicit "no opinion" markers,
+    # not judgments, and treating them as a 5th category inflates
+    # disagreement.
+    confusion = [[0] * 4 for _ in range(4)]
+    a_list: list[Grade] = []
+    b_list: list[Grade] = []
+    agreements = 0
+    conflict_pairs = 0
+    shared = 0
+    for _key, by_who in per_annotator.items():
+        if self_name not in by_who or other_name not in by_who:
+            continue
+        g_self = by_who[self_name].grade
+        g_other = by_who[other_name].grade
+        if g_self == Grade.SKIP or g_other == Grade.SKIP:
+            continue
+        shared += 1
+        a_list.append(g_self)
+        b_list.append(g_other)
+        if g_self == g_other:
+            agreements += 1
+        if abs(int(g_self) - int(g_other)) >= 2:
+            conflict_pairs += 1
+        confusion[int(g_self)][int(g_other)] += 1
+
+    if shared == 0:
+        return {"enabled": False}
+
+    kappa = cohen_kappa(a_list, b_list)
+    agree_pct = round((agreements / shared) * 100) if shared else 0
+
+    row_totals = [sum(row) for row in confusion]
+    col_totals = [sum(confusion[r][c] for r in range(4)) for c in range(4)]
+    grand_total = sum(row_totals)
+
+    return {
+        "enabled": True,
+        "self": {
+            "name": self_name,
+            "initials": _grader_initials(self_name),
+            "count": grader_counts[self_name],
+        },
+        "other": {
+            "name": other_name,
+            "initials": _grader_initials(other_name),
+            "count": grader_counts[other_name],
+        },
+        "shared": shared,
+        "kappa": kappa,
+        "agree_pct": agree_pct,
+        "quality_label": _kappa_quality_label(kappa),
+        "confusion": confusion,
+        "row_totals": row_totals,
+        "col_totals": col_totals,
+        "grand_total": grand_total,
+        "conflict_pairs": conflict_pairs,
+    }
+
+
+def _other_grades_for_current(
+    per_annotator: dict[tuple[str, str], dict[str, GradeEntry]],
+    *,
+    current_query_id: str,
+    other_grader: str | None,
+) -> dict[str, Grade]:
+    """``scene_id -> Grade`` from the OTHER annotator on the current query.
+
+    Used by rows.html when compare mode is on to render the second
+    annotator's column. Returns an empty dict when there is no other
+    grader on file (single-annotator runs degrade silently).
+    """
+
+    if not other_grader:
+        return {}
+    out: dict[str, Grade] = {}
+    for (qid, sid), by_who in per_annotator.items():
+        if qid != current_query_id:
+            continue
+        if other_grader in by_who:
+            out[str(sid)] = by_who[other_grader].grade
+    return out
+
+
+def _query_conflict_set(
+    per_annotator: dict[tuple[str, str], dict[str, GradeEntry]],
+) -> set[str]:
+    """Return query_ids that contain at least one |Δ| ≥ 2 disagreement.
+
+    Drives the queue's "Conflict" filter tab and the ``conflict_count``
+    badge. SKIP entries are ignored — only real grade-vs-grade
+    disagreements count.
+    """
+
+    conflicting: set[str] = set()
+    for (qid, _sid), by_who in per_annotator.items():
+        if len(by_who) < 2:
+            continue
+        grades = [g.grade for g in by_who.values() if g.grade != Grade.SKIP]
+        if len(grades) < 2:
+            continue
+        if max(int(g) for g in grades) - min(int(g) for g in grades) >= 2:
+            conflicting.add(qid)
+    return conflicting

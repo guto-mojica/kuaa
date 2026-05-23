@@ -51,6 +51,22 @@
     inversions: 'INVERSIONS',
   };
 
+  // Session-scoped cache for nDCG@5 deltas. Keyed by query_id so the
+  // delta resets when the grader switches queries (a fresh query has
+  // no prior baseline). The value is the LAST nDCG@5 the grader saw
+  // for that query; refreshMetrics writes the new value + a delta
+  // badge before updating the cache for the next round-trip.
+  var PREV_NDCG = Object.create(null);
+
+  // Format a delta number as "+0.07" / "-0.04" / "" (empty when the
+  // change is below the smallest displayable step).
+  function fmtDelta(delta) {
+    if (!isFinite(delta)) return '';
+    var rounded = Math.round(delta * 100) / 100;
+    if (Math.abs(rounded) < 0.005) return '';
+    return (rounded > 0 ? '+' : '') + rounded.toFixed(2);
+  }
+
   // Live row list. Re-queried on demand rather than cached because an
   // HTMX swap of the row partial replaces the nodes; reading the DOM
   // each call keeps the cursor logic correct without a stale array.
@@ -205,6 +221,17 @@
             .then(function (resp) { return resp.ok ? resp.json() : null; })
             .then(function (data) {
               if (!data) return;
+              // nDCG delta lands BEFORE setMetric updates the value so
+              // fmtDelta can compare against the previous reading. The
+              // cache is per-query so switching queries doesn't carry
+              // a misleading delta across context boundaries.
+              var prev = PREV_NDCG[queryId];
+              if (typeof prev === 'number' && typeof data.ndcg_at_5 === 'number') {
+                self.setDelta('ndcg_at_5', data.ndcg_at_5 - prev);
+              }
+              if (typeof data.ndcg_at_5 === 'number') {
+                PREV_NDCG[queryId] = data.ndcg_at_5;
+              }
               self.setMetric('p_at_5', data.p_at_5);
               self.setMetric('p_at_3', data.p_at_3);
               self.setMetric('ndcg_at_5', data.ndcg_at_5);
@@ -214,6 +241,25 @@
               // eslint-disable-next-line no-console
               console.error('eval metrics refresh error:', err);
             });
+        },
+
+        // Write a delta badge into ``.ev-met .val .delta[data-key="…"]``.
+        // Adds .up / .dn classes so eval.css renders green-for-better
+        // (nDCG/precision gains) and red-for-worse. Inversions invert
+        // the polarity (more inversions = worse), but we only render
+        // the nDCG delta today — the metric.html scaffolding leaves a
+        // .delta hook only there. Adding inversions later is one
+        // template edit + one cache key.
+        setDelta: function (key, delta) {
+          var el = document.querySelector('.ev-met .val .delta[data-key="' + key + '"]');
+          if (!el) return;
+          var text = fmtDelta(delta);
+          el.classList.remove('up', 'dn');
+          el.textContent = text;
+          if (!text) return;
+          // nDCG / precision: positive delta = improvement.
+          if (delta > 0) el.classList.add('up');
+          else if (delta < 0) el.classList.add('dn');
         },
 
         setMetric: function (key, value) {

@@ -6,29 +6,69 @@
      - text (clamped to 2 lines)
      - progress pips (one per candidate, coloured by grade)
 
-   Filter tabs (All / Pending / Conflict) carry counts from the context.
+   Filter tabs (All / Pending / Conflict) drive a reactive
+   ``filter`` signal (Alpine x-data on the aside) — clicking a tab
+   sets the filter; each ``.ev-q`` row's ``x-show="visible($el)"``
+   re-evaluates and hides itself when its
+   ``data-status`` / ``data-conflict`` don't match.
+
+   The search input drives the same ``visible()`` predicate via the
+   ``search`` signal — substring match against each row's
+   ``data-text`` (lowercased query text + id).
+
    Toggles (Blind mode / Compare annotator) sit at the bottom and use
    the .swt switch primitive defined in eval.css. The checkboxes are
    x-model-bound to the evalApp component's blind / compare signals
-   (eval.js); the keyboard router (B / C) flips the same signals, so
-   keypress and click stay in sync. #}
-<aside class="ev-lp">
+   (eval.js — registered on body[x-data="evalApp(…)"]); the keyboard
+   router (B / C) flips the same signals, so keypress and click
+   stay in sync. The filter / search signals are LOCAL to this
+   aside — keeping them out of the evalApp component avoids
+   leaking queue-only UI state into the keyboard router's payload. #}
+<aside class="ev-lp"
+       x-data="{
+         filter: 'todas',
+         search: '',
+         visible(el) {
+           const s = el.dataset.status || '';
+           const c = el.dataset.conflict || 'false';
+           if (this.filter === 'pendentes' && s !== 'pending') return false;
+           if (this.filter === 'conflito' && c !== 'true') return false;
+           const needle = this.search.trim().toLowerCase();
+           if (needle) {
+             const hay = (el.dataset.text || '').toLowerCase();
+             if (!hay.includes(needle)) return false;
+           }
+           return true;
+         }
+       }">
   <div class="head">
     <span>{{ _('Queue') }}</span>
     <span class="ct">{{ queries|length }}</span>
   </div>
   <div class="filter">
     <span class="ico">⌕</span>
-    <input type="search" placeholder="{{ _('Filter queries…') }}" aria-label="{{ _('Filter queries') }}">
+    <input type="search"
+           x-model.debounce.150ms="search"
+           placeholder="{{ _('Filter queries…') }}"
+           aria-label="{{ _('Filter queries') }}">
   </div>
   <div class="lpf-tabs">
-    <button class="t on" type="button" data-filter="todas">
+    <button class="t" type="button"
+            :class="{ on: filter === 'todas' }"
+            data-filter="todas"
+            @click="filter = 'todas'">
       {{ _('All') }} <span class="ct">{{ queries|length }}</span>
     </button>
-    <button class="t" type="button" data-filter="pendentes">
+    <button class="t" type="button"
+            :class="{ on: filter === 'pendentes' }"
+            data-filter="pendentes"
+            @click="filter = 'pendentes'">
       {{ _('Pending') }} <span class="ct">{{ pending_count if pending_count is defined else 0 }}</span>
     </button>
-    <button class="t" type="button" data-filter="conflito">
+    <button class="t" type="button"
+            :class="{ on: filter === 'conflito' }"
+            data-filter="conflito"
+            @click="filter = 'conflito'">
       {{ _('Conflict') }} <span class="ct">{{ conflict_count if conflict_count is defined else 0 }}</span>
     </button>
   </div>
@@ -39,9 +79,20 @@
       {% set candidate_count = q.candidate_count if q.candidate_count is defined and q.candidate_count else 9 %}
       {% set is_current = current_query is not none and (q.id == current_query.id) %}
       {% set is_done = q_grades|length >= candidate_count and candidate_count > 0 %}
+      {% set has_conflict = query_conflict_set is defined and (q.id|string) in query_conflict_set %}
+      {# data-status drives the Pendentes/Todas filter; data-conflict
+         drives the Conflito filter; data-text is the searchable
+         haystack (qid + text + lang + source). All three are
+         dataset attrs so Alpine's visible($el) can read them
+         without an extra round-trip through the component state. #}
       <a class="ev-q{% if is_current %} cur{% endif %}"
-         href="?token={{ token or '' }}&amp;query={{ q.id }}">
-        <span class="stat{% if is_done %} done{% endif %}"></span>
+         href="?token={{ token or '' }}&amp;query={{ q.id }}"
+         data-status="{{ 'done' if is_done else 'pending' }}"
+         data-conflict="{{ 'true' if has_conflict else 'false' }}"
+         data-text="Q-{{ '%03d'|format(q.id) if q.id is number else q.id }} {{ q.text or '' }} {{ q.lang or 'pt' }} {{ q.source or 'manual' }}"
+         x-show="visible($el)"
+         x-cloak>
+        <span class="stat{% if is_done %} done{% endif %}{% if has_conflict %} conflict{% endif %}"></span>
         <div>
           <div class="qrow">
             <span class="id">Q-{{ '%03d'|format(q.id) if q.id is number else q.id }}</span>

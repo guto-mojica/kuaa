@@ -27,11 +27,26 @@
   <link rel="stylesheet" href="{{ request.url_for('static', path='css/polish.css') }}">
   <script src="{{ request.url_for('static', path='js/htmx.min.js') }}" defer></script>
   <script src="{{ request.url_for('static', path='js/htmx-ext-sse.js') }}" defer></script>
-  {# Alpine.js — must precede mojica.js so window.Alpine is ready by
-     the time mojica.js runs. See base.html for the rationale. #}
-  <script src="{{ request.url_for('static', path='js/alpine.min.js') }}" defer></script>
+  {# Script order matters — mojica.js + eval.js MUST execute BEFORE
+     alpine.min.js. Alpine 3 auto-starts the moment alpine.min.js
+     loads if ``document.readyState !== 'loading'``, which is always
+     true for deferred scripts. ``start()`` dispatches ``alpine:init``
+     synchronously *inside* alpine.min.js's own execution, before any
+     later defer script runs. If mojica.js or eval.js loads AFTER
+     alpine, their ``document.addEventListener('alpine:init', …)``
+     callbacks register too late — ``Alpine.data('evalApp', …)``
+     never fires, the body's ``x-data="evalApp(…)"`` throws
+     "evalApp is not defined", and the entire keyboard router,
+     blind/compare toggle, grade-button @click bindings, row cursor,
+     and toast layer go inert. Loading mojica + eval first gets all
+     listeners armed before alpine boots; neither IIFE touches
+     ``window.Alpine`` synchronously (only inside listeners / on-demand
+     helpers), so the inverted order is safe.
+
+     Regression pin: ``tests/test_web_routes.py::test_eval_shell_loads_mojica_eval_before_alpine``. #}
   <script src="{{ request.url_for('static', path='js/mojica.js') }}" defer></script>
   <script src="{{ request.url_for('static', path='js/eval.js') }}" defer></script>
+  <script src="{{ request.url_for('static', path='js/alpine.min.js') }}" defer></script>
 </head>
 {# Alpine component shell for the grading workspace. ``evalApp`` is
    registered by eval.js (Alpine.data); it owns the row cursor and the
