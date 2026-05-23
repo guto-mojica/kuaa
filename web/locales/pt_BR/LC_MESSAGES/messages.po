@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cinemateca-ai 0.3.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-21 18:06-0300\n"
+"POT-Creation-Date: 2026-05-23 18:08-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pt_BR\n"
@@ -275,7 +275,7 @@ msgstr "Navegação"
 #: web/templates/partials/_icon_rail.html:31
 #: web/templates/partials/_topbar.html:46
 #: web/templates/partials/annotate_scene.html:93
-#: web/templates/partials/search.html:68
+#: web/templates/partials/search.html:79
 msgid "Search"
 msgstr "Buscar"
 
@@ -577,7 +577,7 @@ msgid "%(n)d viewers online"
 msgstr "%(n)d espectadores online"
 
 #: web/templates/partials/_topbar.html:95
-#: web/templates/partials/annotate_comments.html:107
+#: web/templates/partials/annotate_comments.html:80
 #: web/templates/partials/scenes_inspector.html:49
 msgid "Share"
 msgstr "Compartilhar"
@@ -818,7 +818,7 @@ msgid "Edit"
 msgstr "Editar"
 
 #: web/templates/partials/annotate_comments.html:46
-#: web/templates/partials/annotate_comments.html:105
+#: web/templates/partials/annotate_comments.html:80
 #: web/templates/partials/inspector_activity.html:30
 msgid "Reply"
 msgstr "Responder"
@@ -836,13 +836,13 @@ msgstr "Sem descrição LLM"
 msgid "Add description"
 msgstr "Adicionar descrição"
 
-#: web/templates/partials/annotate_comments.html:82
-msgid "PINNED"
-msgstr "FIXADO"
-
-#: web/templates/partials/annotate_comments.html:106
+#: web/templates/partials/annotate_comments.html:80
 msgid "Resolve"
 msgstr "Resolver"
+
+#: web/templates/partials/annotate_comments.html:88
+msgid "PINNED"
+msgstr "FIXADO"
 
 #: web/templates/partials/annotate_desc_edit.html:11
 msgid ""
@@ -1224,7 +1224,7 @@ msgstr "rimas em"
 
 # ── Processing tab ────────────────────────────────────────────────────
 #: web/templates/partials/rimas.html:40 web/templates/partials/rimas.html:115
-#: web/templates/partials/scenes.html:99 web/templates/partials/search.html:151
+#: web/templates/partials/scenes.html:99 web/templates/partials/search.html:240
 msgid "films"
 msgstr "filmes"
 
@@ -1440,93 +1440,113 @@ msgstr "editar"
 msgid "Find similar"
 msgstr "Buscar semelhantes"
 
-#: web/templates/partials/search.html:60
+#: web/templates/partials/search.html:71
 msgid "Search the library — describe a scene, paste an image…"
 msgstr "Buscar no acervo — descreva uma cena, cole uma imagem…"
 
-#: web/templates/partials/search.html:76
+#: web/templates/partials/search.html:87
 msgid "Search modality"
 msgstr "Modalidade de busca"
 
 # ── Search tab ────────────────────────────────────────────────────────
-#: web/templates/partials/search.html:84
+#: web/templates/partials/search.html:95
 msgid "Text"
 msgstr "Texto"
 
-#: web/templates/partials/search.html:94
+#: web/templates/partials/search.html:105
 msgid "Image"
 msgstr "Imagem"
 
-#: web/templates/partials/search.html:103
+#: web/templates/partials/search.html:114
 msgid "Soundtrack"
 msgstr "Trilha"
 
-#: web/templates/partials/search.html:112
+#: web/templates/partials/search.html:123
 msgid "Multimodal"
 msgstr "Multimodal"
 
-#: web/templates/partials/search.html:119
-msgid "Hybrid retrieval weights"
-msgstr "Pesos do retrieval híbrido"
+#: web/templates/partials/search.html:140
+msgid "Híbrido"
+msgstr "Híbrido"
 
-#: web/templates/partials/search.html:120
+#: web/templates/partials/search.html:142
+#: web/templates/partials/search.html:162
+msgid "CLIP only"
+msgstr "Apenas CLIP"
+
+#: web/templates/partials/search.html:143
+#: web/templates/partials/search.html:166
+msgid "BM25 only"
+msgstr "Apenas BM25"
+
+#: web/templates/partials/search.html:154
+#: web/templates/partials/search.html:155
+msgid "Retrieval mode"
+msgstr "Modo de busca"
+
+#: web/templates/partials/search.html:158
 msgid "Hybrid"
 msgstr "Híbrido"
 
-#: web/templates/partials/search.html:124
-msgid "Cross-encoder reranker"
-msgstr "Reranker cross-encoder"
+#: web/templates/partials/search.html:170
+msgid "Semantic weight"
+msgstr "Peso semântico"
 
-#: web/templates/partials/search.html:125
+#: web/templates/partials/search.html:170
+msgid "Lexical weight"
+msgstr "Peso lexical"
+
+#: web/templates/partials/search.html:185
+msgid "Cross-encoder reranker — ships in M2 #4"
+msgstr "Rerank por encoder cruzado — disponível em M2 #4"
+
+#: web/templates/partials/search.html:186
 msgid "Rerank"
 msgstr "Rerank"
 
-#: web/templates/partials/search.html:126
-msgid "on"
-msgstr "on"
-
-#: web/templates/partials/search.html:126
+#: web/templates/partials/search.html:187
 msgid "off"
 msgstr "off"
 
-#: web/templates/partials/search.html:128
-msgid "Maximal Marginal Relevance λ"
-msgstr "Maximal Marginal Relevance λ"
+#: web/templates/partials/search.html:192
+msgid "Maximal Marginal Relevance λ — ships in M3"
+msgstr "Maximal Marginal Relevance λ — disponível em M3"
 
-#: web/templates/partials/search.html:132
+#: web/templates/partials/search.html:213
+#: web/templates/partials/search.html:214
 msgid "Results per query"
 msgstr "Resultados por busca"
 
-#: web/templates/partials/search.html:145
+#: web/templates/partials/search.html:234
 msgid "results"
 msgstr "resultados"
 
-#: web/templates/partials/search.html:147
+#: web/templates/partials/search.html:236
 msgid "No results."
 msgstr "Nenhum resultado."
 
-#: web/templates/partials/search.html:155
+#: web/templates/partials/search.html:244
 msgid "Type a query to search"
 msgstr "Digite uma busca"
 
-#: web/templates/partials/search.html:158
+#: web/templates/partials/search.html:247
 msgid "Result layout"
 msgstr "Layout dos resultados"
 
-#: web/templates/partials/search.html:163
+#: web/templates/partials/search.html:252
 msgid "Grade"
 msgstr "Nota"
 
-#: web/templates/partials/search.html:169
+#: web/templates/partials/search.html:258
 msgid "Lista"
 msgstr "Lista"
 
-#: web/templates/partials/search.html:175
+#: web/templates/partials/search.html:264
 msgid "Compacto"
 msgstr "Compacto"
 
-#: web/templates/partials/search.html:193
-#: web/templates/partials/search.html:195
+#: web/templates/partials/search.html:282
+#: web/templates/partials/search.html:284
 msgid "Choose image…"
 msgstr "Escolher imagem…"
 
@@ -1645,4 +1665,10 @@ msgstr "Linha do tempo das cenas do filme"
 
 #~ msgid "Filter library"
 #~ msgstr "Filtrar acervo"
+
+#~ msgid "Hybrid retrieval weights"
+#~ msgstr "Pesos do retrieval híbrido"
+
+#~ msgid "on"
+#~ msgstr "on"
 
