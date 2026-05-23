@@ -1,4 +1,11 @@
-"""Structured catalog export routes."""
+"""Structured catalog export routes.
+
+HTTP concerns (Content-Type, Content-Disposition headers) live here, in
+the route layer — intentionally NOT in the exporter helpers. The
+exporters in ``cinemateca.exporters`` return plain strings/bytes only.
+This separation means the exporter functions can be called from non-HTTP
+contexts (CLI, tests) without dragging in FastAPI types.
+"""
 
 from __future__ import annotations
 

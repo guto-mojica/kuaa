@@ -170,42 +170,30 @@ def output_artifacts(cfg: Any) -> dict[str, dict[str, Any]]:
     }
 
 
-def _state_from_step_result(step: Any) -> str:
-    if getattr(step, "skipped", False):
-        return "skipped"
-    return "done" if getattr(step, "success", False) else "error"
-
-
 def steps_snapshot(result: Any | None) -> list[dict[str, Any]]:
-    """Normalize PipelineResult or StepResults step records."""
+    """Normalize PipelineResult or StepResults step records.
+
+    Both :class:`~cinemateca.pipeline.StepRun` (from ``run_steps``) and
+    :class:`~cinemateca.pipeline.StepResult` (from the legacy ``run``
+    orchestrator) now expose a ``.state`` property, so a single branch
+    handles both types.
+    """
 
     if result is None:
         return []
-    if hasattr(result, "runs"):
-        runs = getattr(result, "runs")
-        return [
-            {
-                "name": run.name,
-                "state": run.state,
-                "duration_s": run.duration_s,
-                "error": run.error,
-                "output": _coerce_jsonable(run.output),
-            }
-            for run in runs
-        ]
-    if hasattr(result, "steps"):
-        steps = getattr(result, "steps")
-        return [
-            {
-                "name": step.name,
-                "state": _state_from_step_result(step),
-                "duration_s": step.duration_s,
-                "error": step.error,
-                "output": _coerce_jsonable(step.output),
-            }
-            for step in steps
-        ]
-    return []
+    # Unified: both StepRun (result.runs) and StepResult (result.steps)
+    # expose .state, so the same serialisation loop works for both.
+    runs = getattr(result, "runs", None) or getattr(result, "steps", None) or []
+    return [
+        {
+            "name": r.name,
+            "state": r.state,
+            "duration_s": r.duration_s,
+            "error": r.error,
+            "output": _coerce_jsonable(r.output),
+        }
+        for r in runs
+    ]
 
 
 def infer_status(result: Any | None, explicit_status: str | None = None) -> str:

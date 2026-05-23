@@ -149,6 +149,19 @@ class StepResult:
     output: Any = None
     error: str | None = None
 
+    @property
+    def state(self) -> str:
+        """Return a unified state string matching StepRun.state vocabulary.
+
+        Values: ``"skipped"`` / ``"done"`` / ``"error"``.
+        This mirrors the ``state`` field on :class:`StepRun` so both
+        result types expose the same attribute and :func:`steps_snapshot`
+        can use a single branch.
+        """
+        if self.skipped:
+            return "skipped"
+        return "done" if self.success else "error"
+
 
 @dataclass
 class PipelineResult:

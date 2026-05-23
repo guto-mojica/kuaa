@@ -1,4 +1,9 @@
-"""Domain-aware catalog export assembly."""
+"""Domain-aware catalog export assembly.
+
+These serialization helpers return plain strings/bytes. HTTP concerns
+(Content-Type, Content-Disposition) are set by the route layer — not
+here. The exporters own the data shape; the routes own the wire format.
+"""
 
 from __future__ import annotations
 

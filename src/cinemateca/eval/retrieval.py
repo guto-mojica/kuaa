@@ -64,7 +64,9 @@ def run_retrieval_eval(
 
     from cinemateca.device import device_from_config
     from cinemateca.embeddings import SemanticSearch
+    from cinemateca.models.base import ImageEmbedder  # noqa: F401 — type annotation
     from cinemateca.models.clip.openclip import OpenClipEmbedder
+    from cinemateca.models.registry import get_image_embedder
 
     try:
         embeddings, mapping, kf_df = OpenClipEmbedder.load(emb_path, map_path)
@@ -81,7 +83,7 @@ def run_retrieval_eval(
             f"Search index declares total_vectors={declared} but has {n_map} mapped rows"
         )
 
-    embedder = OpenClipEmbedder(cfg, device_from_config(cfg))
+    embedder: ImageEmbedder = get_image_embedder(cfg, device_from_config(cfg))
     searcher = SemanticSearch(embeddings, kf_df, embedder)
     index_scene_ids = tuple(scene_id_key(v) for v in kf_df["scene_id"].tolist())
 
