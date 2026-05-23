@@ -333,6 +333,16 @@
 .scenes-prefs-row:hover { background: var(--c-hover); }
 .scenes-prefs-row input { margin: 0; accent-color: var(--c-accent); }
 .scenes-prefs-row > span { user-select: none; }
+/* Inline hint that follows a sort/group option ("longest first",
+   "most pinned first"). Same visual weight as the .v badge on the
+   tool button so the popover reads as a secondary clarifier, not a
+   competing label. */
+.scenes-prefs-row__hint {
+  margin-left: 6px;
+  color: var(--c-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
 
 /* ─── Appearance: card-density modifiers ─────────────────────────────────
    ``$store.cenasAppearance.density`` ∈ {comfortable, compact}. The

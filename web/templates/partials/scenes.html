@@ -247,15 +247,140 @@
       </div>
     </div>
 
-    <button type="button" class="tool">
-      <span class="ico">{{ icon('group', 14) }}</span>
-      {{ _('Grouped by') }} <span class="v">{{ _('Film') }}</span>
-    </button>
+    {# ── Grouped by: radio popover. The Alpine store
+         ``$store.cenasGroup.by`` is the source of truth; an inline
+         ``<input type="hidden" name="group" :value="$store.cenasGroup.by">``
+         mirrors the choice into the hx-include scope so the grid
+         refresh request carries ?group=… alongside any active
+         tags/keyword. Changing the radio fires Alpine reactivity
+         (which updates the hidden input via :value) and dispatches
+         a manual ``htmx:trigger 'refresh'`` to the popover's
+         hx-trigger so the grid re-renders. #}
+    <div class="filter-wrap"
+         x-data="{ open: false }"
+         @click.outside="open = false"
+         @keydown.escape.window="open = false">
+      <button type="button"
+              class="tool"
+              :class="{ 'tool--active': open || $store.cenasGroup.by !== 'film' }"
+              :aria-expanded="open ? 'true' : 'false'"
+              aria-haspopup="true"
+              @click="open = !open">
+        <span class="ico">{{ icon('group', 14) }}</span>
+        {{ _('Grouped by') }}
+        <span class="v"
+              x-text="({film: '{{ _('Film') }}',
+                       tipo: '{{ _('Type') }}',
+                       none: '{{ _('None') }}'})[$store.cenasGroup.by]">
+          {{ _('Film') }}
+        </span>
+      </button>
+      <div class="scenes-filter-popover"
+           role="dialog"
+           :aria-hidden="open ? 'false' : 'true'"
+           x-show="open"
+           x-cloak
+           x-transition.opacity.duration.120ms
+           id="scenes-group-popover"
+           hx-get="/api/scenes"
+           hx-trigger="change from:input, refresh"
+           hx-target="#scenes-grid"
+           hx-swap="innerHTML"
+           hx-include="#scenes-toolrow">
+        <header class="scenes-filter-popover__head">
+          <span class="scenes-filter-popover__title">{{ _('Group scenes by') }}</span>
+        </header>
+        <div class="scenes-prefs-rows">
+          <label class="scenes-prefs-row">
+            <input type="radio" name="group_choice" value="film"
+                   x-model="$store.cenasGroup.by">
+            <span>{{ _('Film') }}</span>
+          </label>
+          <label class="scenes-prefs-row">
+            <input type="radio" name="group_choice" value="tipo"
+                   x-model="$store.cenasGroup.by">
+            <span>{{ _('Type') }}</span>
+          </label>
+          <label class="scenes-prefs-row">
+            <input type="radio" name="group_choice" value="none"
+                   x-model="$store.cenasGroup.by">
+            <span>{{ _('None (flat)') }}</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
     <span class="div" aria-hidden="true"></span>
-    <button type="button" class="tool">
-      <span class="ico">{{ icon('sort', 14) }}</span>
-      {{ _('Sorted by') }} <span class="v">{{ _('Timecode') }}</span>
-    </button>
+
+    {# ── Sorted by: same popover pattern as Group. The mirrored
+         ``name="sort"`` hidden input carries the choice into the
+         /api/scenes refresh URL. ``$store.cenasSort.by`` is the
+         persisted client signal; the server treats unknown values
+         as the timecode default in ``_VALID_SORTS``. #}
+    <div class="filter-wrap"
+         x-data="{ open: false }"
+         @click.outside="open = false"
+         @keydown.escape.window="open = false">
+      <button type="button"
+              class="tool"
+              :class="{ 'tool--active': open || $store.cenasSort.by !== 'timecode' }"
+              :aria-expanded="open ? 'true' : 'false'"
+              aria-haspopup="true"
+              @click="open = !open">
+        <span class="ico">{{ icon('sort', 14) }}</span>
+        {{ _('Sorted by') }}
+        <span class="v"
+              x-text="({timecode: '{{ _('Timecode') }}',
+                       duration: '{{ _('Duration') }}',
+                       pins: '{{ _('Pin count') }}'})[$store.cenasSort.by]">
+          {{ _('Timecode') }}
+        </span>
+      </button>
+      <div class="scenes-filter-popover"
+           role="dialog"
+           :aria-hidden="open ? 'false' : 'true'"
+           x-show="open"
+           x-cloak
+           x-transition.opacity.duration.120ms
+           id="scenes-sort-popover"
+           hx-get="/api/scenes"
+           hx-trigger="change from:input, refresh"
+           hx-target="#scenes-grid"
+           hx-swap="innerHTML"
+           hx-include="#scenes-toolrow">
+        <header class="scenes-filter-popover__head">
+          <span class="scenes-filter-popover__title">{{ _('Sort scenes by') }}</span>
+        </header>
+        <div class="scenes-prefs-rows">
+          <label class="scenes-prefs-row">
+            <input type="radio" name="sort_choice" value="timecode"
+                   x-model="$store.cenasSort.by">
+            <span>{{ _('Timecode') }}</span>
+          </label>
+          <label class="scenes-prefs-row">
+            <input type="radio" name="sort_choice" value="duration"
+                   x-model="$store.cenasSort.by">
+            <span>{{ _('Duration') }} <span class="scenes-prefs-row__hint">{{ _('longest first') }}</span></span>
+          </label>
+          <label class="scenes-prefs-row">
+            <input type="radio" name="sort_choice" value="pins"
+                   x-model="$store.cenasSort.by">
+            <span>{{ _('Pin count') }} <span class="scenes-prefs-row__hint">{{ _('most pinned first') }}</span></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    {# Hidden inputs live OUTSIDE the popovers so they're part of
+       ``#scenes-toolrow`` regardless of which popover is open. The
+       hx-include picks them up on every grid refresh (find input,
+       tag pill, group radio, sort radio). The :value bindings stay
+       in sync with the Alpine stores. The radio inputs above use
+       distinct ``name="..._choice"`` so they DON'T also ride along
+       as a duplicate form value — only the hidden mirrors do. #}
+    <input type="hidden" name="group" :value="$store.cenasGroup.by">
+    <input type="hidden" name="sort" :value="$store.cenasSort.by">
+
     <span class="grow" aria-hidden="true"></span>
     {# ``.find`` keyword input — HTMX-swaps the grid on every change. The
        form-level hx-* attributes inherit to the input; we keep the

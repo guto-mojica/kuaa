@@ -460,14 +460,21 @@
   var KEYS = {
     appearance: 'mojica:cenas:appearance',
     fields:     'mojica:cenas:fields',
+    group:      'mojica:cenas:group',
+    sort:       'mojica:cenas:sort',
     view:       'mojica:buscar:view',
   };
 
   // Defaults — also the source of truth for "what fields exist". The
   // Fields popover renders one row per key here in declaration order.
+  // ``group`` / ``sort`` mirror the server's ``_VALID_GROUPS`` /
+  // ``_VALID_SORTS`` defaults — keep the two in sync if either is
+  // edited.
   var DEFAULTS = {
     appearance: { density: 'comfortable' },
     fields:     { timecode: true, pin_count: true, version: true, sub: true, tipo: true },
+    group:      { by: 'film' },
+    sort:       { by: 'timecode' },
     view:       { mode: 'grid' },
   };
 
@@ -519,12 +526,16 @@
 
     window.Alpine.store('cenasAppearance', loadPrefs(KEYS.appearance, DEFAULTS.appearance));
     window.Alpine.store('cenasFields',     loadPrefs(KEYS.fields,     DEFAULTS.fields));
+    window.Alpine.store('cenasGroup',      loadPrefs(KEYS.group,      DEFAULTS.group));
+    window.Alpine.store('cenasSort',       loadPrefs(KEYS.sort,       DEFAULTS.sort));
     window.Alpine.store('buscarView',      loadPrefs(KEYS.view,       DEFAULTS.view));
 
     // Persistence effects must register AFTER the stores exist; same
     // alpine:init handler keeps the relative ordering deterministic.
     persistOnChange('cenasAppearance', KEYS.appearance, ['density']);
     persistOnChange('cenasFields',     KEYS.fields,     ['timecode', 'pin_count', 'version', 'sub', 'tipo']);
+    persistOnChange('cenasGroup',      KEYS.group,      ['by']);
+    persistOnChange('cenasSort',       KEYS.sort,       ['by']);
     persistOnChange('buscarView',      KEYS.view,       ['mode']);
   });
 })();
