@@ -36,6 +36,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+# ─── Utilities ───────────────────────────────────────────────────────────────
+
+
 def slugify(text: str) -> str:
     """Convert an arbitrary string into a safe slug.
 
@@ -54,6 +57,8 @@ def slugify(text: str) -> str:
     text = re.sub(r"[^a-z0-9_-]", "", text)
     return text
 
+
+# ─── Step registry ───────────────────────────────────────────────────────────
 
 # Canonical pipeline step order. The single source of truth for which
 # steps exist and in what order they run.
@@ -106,6 +111,9 @@ STEP_DEPS: dict[str, tuple[str, ...]] = {
     "audio_extract": ("scene_detection",),
     "audio_embed": ("audio_extract",),
 }
+
+
+# ─── Result dataclasses ──────────────────────────────────────────────────────
 
 
 class StepCancelled(Exception):
@@ -200,6 +208,9 @@ class PipelineResult:
         return "\n".join(lines)
 
 
+# ─── Per-film path resolver ──────────────────────────────────────────────────
+
+
 @dataclass
 class _FilmPaths:
     """Resolved per-film output directories (used when a slug is set)."""
@@ -209,6 +220,9 @@ class _FilmPaths:
     frames_dir: Path
     embeddings_dir: Path
     audio_dir: Path
+
+
+# ─── Pipeline ────────────────────────────────────────────────────────────────
 
 
 class CatalogPipeline:
