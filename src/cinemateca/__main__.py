@@ -53,7 +53,22 @@ def serve(
     Replaces the legacy ``uv run app.py`` invocation. Opens
     ``http://<host>:<port>``.
     """
+    import os
+    import sys
     import uvicorn
+    from pathlib import Path
+
+    # api/ is not an installed package (only src/ is in pyproject packages.find).
+    # Add the project root so uvicorn can import "api.server" both in the main
+    # process and in reload subprocesses (which inherit PYTHONPATH, not sys.path).
+    project_root = str(Path(__file__).resolve().parent.parent.parent)
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+    existing_pp = os.environ.get("PYTHONPATH", "")
+    if project_root not in existing_pp.split(os.pathsep):
+        os.environ["PYTHONPATH"] = (
+            f"{project_root}{os.pathsep}{existing_pp}" if existing_pp else project_root
+        )
 
     uvicorn.run("api.server:app", host=host, port=port, reload=reload)
 
