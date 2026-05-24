@@ -7,8 +7,10 @@ groups scenes by film for the new ``.c-cp`` markup.
 
 T9: Routes accept an optional ``?film=<slug>`` query parameter.
 ``slug=None`` → aggregate view across all registered films;
-``slug=<value>`` → narrowed to a single film's group (unknown slug →
-``ValueError`` from ``FilmContext.for_film``, legacy contract).
+``slug=<value>`` → narrowed to a single film's group. Unknown slugs are
+normalised to ``None`` by ``film_slug_query`` (api/deps.py) and silently
+render the aggregate view — stale cookies / casing drift never 500 the
+fragment routes.
 """
 
 from __future__ import annotations
@@ -58,8 +60,9 @@ async def tab_scenes(
 
     ``slug=None`` → library-wide grouped grid (one ``.group`` heading
     per film). ``slug=<value>`` → narrowed to a single film's group;
-    unknown slugs surface a ``ValueError`` from ``FilmContext.for_film``
-    (the legacy contract pinned by ``test_tab_scenes_unknown_slug_raises``).
+    unknown slugs are normalised to ``None`` by ``film_slug_query``
+    (api/deps.py) and silently render the aggregate view — pinned by
+    ``test_tab_scenes_unknown_slug_falls_back_to_aggregate``.
     The redesigned grid keeps the same visual scaffolding either way —
     when only one film matches the user still sees the per-film header
     row above its scenecards.
@@ -107,8 +110,9 @@ async def api_scenes(
 
     Response is the new ``scenes_grid.html`` partial — film/tipo
     headings + scenecards in the Mojica markup. ``?film=<slug>``
-    narrows the result to a single film's group; unknown slugs
-    surface a ``ValueError`` (legacy contract).
+    narrows the result to a single film's group; unknown slugs are
+    normalised to ``None`` by ``film_slug_query`` and silently render
+    the aggregate grid (same guard as ``/tab/scenes``).
     """
     cfg = get_config()
     selected_scene_id = _parse_selected_scene_id(request)

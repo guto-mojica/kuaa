@@ -123,12 +123,13 @@ class TestScenesRouteMultiFilm:
         """Unknown slug → aggregate view.
 
         ``film_slug_query`` validates the query param before route dispatch:
-        stale or invalid film slugs resolve to ``None`` so bookmarked links
-        do not 500. The fallback must be honest aggregate content, not an
-        empty per-film page.
+        stale or invalid film slugs resolve to ``None``, so bookmarked
+        links render the same library-wide grouped grid as omitting the
+        param entirely.
         """
         r = two_film_client.get("/tab/scenes?film=ghost")
         assert r.status_code == 200, r.text[:300]
+        # Aggregate view: total scenes from both films + both group headings.
         assert '<span class="v">5</span>' in r.text
         assert "Film A" in r.text
         assert "Film B" in r.text
