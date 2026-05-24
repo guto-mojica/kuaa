@@ -1,0 +1,118 @@
+# Cinemateca imgsearch — Continuous Integration
+#
+# Three jobs: lint (strict), test (strict), typecheck (report-only).
+#
+# Install strategy: we use the `full` extra + `dev` group. Why not a lighter
+# extra like `[search]`?  Several tests import `cinemateca.models.describer.*`
+# (transformers + GGUF backends), `cinemateca.models.clap.*`, and the FastAPI
+# stack directly — none of which live under `[search]`. The hermetic test
+# fixtures mock model weights so no GB-scale weight download happens at test
+# time, but the wheels still need to be present at import time.
+#
+# Disk/time budget: this pulls torch (~800MB compressed; ~1.1GB unpacked) plus
+# transformers, llama-cpp-python, ultralytics, facenet, etc. Total venv ~5.8GB.
+# A free ubuntu-latest runner has ~14GB free; uv's aggressive caching keeps
+# repeat installs under a minute. Cold cache ~3-5 min. Acceptable for a
+# portfolio repo at this scale; revisit if CI minutes become a concern.
+#
+# Python matrix: 3.10 (declared minimum) + 3.12 (forward compat). Skipping
+# 3.11 (covered by .python-version locally) and 3.13 (transformers/torch lag).
+# OS: ubuntu-latest only. Portfolio repo; macOS/Windows runners cost 10x+.
+#
+# Mypy is report-only via `continue-on-error` because there are ~27 pre-existing
+# errors. A dedicated cleanup pass is out-of-scope for the CI bootstrap.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel in-flight runs on the same ref when a new push lands.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint (ruff + black)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Lint and format only need the dev group, not the heavy ML extras.
+      # `--only-group dev` keeps this job cheap (<30s cold).
+      - name: Install dev tooling
+        run: uv sync --only-group dev
+
+      - name: Ruff (lint)
+        run: uv run ruff check .
+
+      - name: Black (format check)
+        run: uv run black --check .
+
+  test:
+    name: Tests (pytest)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install project (full extra + dev group)
+        run: uv sync --extra full --group dev
+
+      - name: Pytest
+        run: uv run pytest tests/ -q
+
+  typecheck:
+    name: Typecheck (mypy, report-only)
+    runs-on: ubuntu-latest
+    # Pre-existing ~27 mypy errors; don't gate merges on them.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install project (full extra + dev group)
+        run: uv sync --extra full --group dev
+
+      - name: Mypy
+        run: uv run mypy src api
