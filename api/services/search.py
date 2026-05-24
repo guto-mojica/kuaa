@@ -170,6 +170,18 @@ class SearchIndex:
     ``embedder`` are populated and mutually shape-consistent. For
     ``MISSING`` / ``CORRUPT`` the route renders the no-index UI state
     instead of 500-ing; ``detail`` carries a log-friendly reason.
+
+    .. warning::
+       ``frozen=True`` prevents *field reassignment* but does NOT
+       prevent mutation of the field contents — ``embeddings``
+       (numpy array) and ``kf_df`` (pandas DataFrame) are mutable
+       objects, and instances of this dataclass are SHARED across
+       requests via the module-level cache (:func:`load_index`).
+       Callers must treat both fields as read-only. If you need to
+       transform the keyframe frame, copy first
+       (``index.kf_df.copy()``) — an in-place ``inplace=True`` op or a
+       ``kf_df['rank'] = …`` assignment will silently corrupt the
+       cached index for every subsequent request on this film.
     """
 
     status: IndexStatus
@@ -305,33 +317,47 @@ def clear_index_cache() -> None:
     invalidation. ``tests/conftest.py`` calls it per test so a
     populated/corrupt index from one test cannot leak into the next
     (the role the old ``search._load_index.cache_clear()`` played).
+
+    Also flushes the BM25 ``@lru_cache(32)`` so two tests with
+    coincidentally-identical cache keys (same metadata_dir path string +
+    same file (mtime, size) stamps + same k1/b/stopwords) can never reuse
+    each other's index. The file-stamp signature alone is the right
+    invalidation in production, but tests routinely build different
+    on-disk shapes under the SAME tmp_path string within the same
+    pytest session — the lru_cache key collision is real there.
     """
     with _cache_lock:
         _index_cache.clear()
+    _cached_bm25_index.cache_clear()
 
 
 # ── BM25 loader: disk reads + merged tag-index + mtime+size cache ────────────
 
 
-def _file_stamp(path: Path) -> tuple[float, int]:
-    """``(mtime, size)`` of a file, or ``(0.0, 0)`` if absent.
+def _file_stamp(path: Path) -> tuple[int, int]:
+    """``(mtime_ns, size)`` of a file, or ``(0, 0)`` if absent.
 
     Used as a cache key — bumps on any write, including ones that land
-    within the same mtime tick (size differs).
+    within the same wall-clock second (size differs) AND ones that
+    don't change size at all (mtime_ns differs by ≥1 ns). Float
+    ``st_mtime`` cannot distinguish sub-second writes at modern
+    epochs because the IEEE-754 double resolution near 1.7e9 seconds
+    is ~2.4e-7 s — quick consecutive writes lose their stamp
+    distinction. Nanosecond ints sidestep the problem entirely.
     """
     try:
         st = path.stat()
     except FileNotFoundError:
-        return (0.0, 0)
-    return (st.st_mtime, st.st_size)
+        return (0, 0)
+    return (st.st_mtime_ns, st.st_size)
 
 
 @lru_cache(maxsize=32)
 def _cached_bm25_index(
     metadata_dir: str,
-    descriptions_stamp: tuple[float, int],
-    scene_tags_stamp: tuple[float, int],
-    manual_annotations_stamp: tuple[float, int],
+    descriptions_stamp: tuple[int, int],
+    scene_tags_stamp: tuple[int, int],
+    manual_annotations_stamp: tuple[int, int],
     stopwords_lang: str | None,
     k1: float,
     b: float,
@@ -500,45 +526,57 @@ def aggregate_search(
     retriever_mode: str = "clip",
     sem_w: float = 0.70,
     bm25_w: float = 0.30,
+    rrf_k: int = DEFAULT_RRF_K,
 ) -> list[dict]:
-    """Run per-film search and merge top results by score.
+    """Run cross-film search using GLOBAL retrieval lists, not per-film.
 
     For ``modality == "text"`` only in this plan; image / audio / fusion
-    modalities are wired in Plans 3-5. The merger is a plain sort by
-    score across films — comparable because every film runs the SAME
-    retriever (every film in one request shares ``retriever_mode``).
+    modalities are wired in Plans 3-5.
 
-    When ``tags`` is non-empty, each film's hits are restricted to scenes
-    whose ``scene_id`` is in EVERY selected tag's list (AND intersection),
-    mirroring ``SemanticSearch.combined``'s per-film semantics. A film
-    that lacks any of the selected tags contributes zero hits. The tag
-    filter applies to ALL three retriever modes (CLIP, BM25, hybrid) —
-    `?retriever=bm25&tags=outdoor` does NOT silently ignore the tag.
+    Pipeline (all three modes):
+      1. Walk every registered film. For each, compute the per-film
+         CLIP cosine list (best keyframe per scene_id, descending) and,
+         for non-``clip`` modes, the per-film BM25 hit list. Skip films
+         whose CLIP index is missing/corrupt or whose tag-intersection
+         (when ``tags`` is non-empty) is empty.
+      2. Concatenate every film's lists into two GLOBAL ranked lists
+         keyed by ``(film_slug, scene_id)`` — the global CLIP list
+         sorted by cosine, the global BM25 list sorted by raw BM25 score.
+      3. Dispatch by ``retriever_mode``:
 
-    ``min_similarity`` is a cosine-score floor applied only to CLIP-side
-    scores. It is NOT applied to BM25 scores (different scale) or to the
-    fused RRF scores in hybrid mode (different scale again). For pure
-    ``retriever_mode="clip"`` the threshold behaves exactly as before.
+         * ``"clip"`` — surface the global CLIP list (cosine is cross-
+           film-comparable; the legacy path's score and ordering are
+           preserved byte-for-byte, since this is the same set of items
+           in the same order).
+         * ``"bm25"`` — surface the global BM25 list. Per-film IDF
+           variance means raw BM25 scores are only approximately
+           comparable cross-film, but rank-sort by raw score is a
+           defensible heuristic (and identical to the legacy code).
+         * ``"hybrid"`` — fuse the global CLIP and global BM25 lists
+           via weighted RRF. The previous implementation ran per-film
+           RRF and then sorted across films by raw RRF score, which is
+           DEGENERATE: every film's per-film rank-1 contribution gets
+           the same score ``1/(rrf_k+1)``, so the cross-film top-K
+           tied scores and ordering was decided by film-iteration
+           order, not signal strength. Global RRF assigns each item
+           a single global rank per side, breaking the tie.
 
-    ``retriever_mode`` selects the per-film retrieval pipeline:
+      4. Materialise the top_k as hit dicts. Keyframe filepath uses the
+         per-film best-cosine row when available (the same
+         ``best_row_by_sid`` map the CLIP pass built); pure BM25-only
+         scenes fall back to the first kf_df row for that scene_id —
+         deterministic.
 
-      * ``"clip"`` — inline CLIP cosine over the per-film index. Pin
-        for pre-M2 ordering; the per-hit dict shape and tie-break order
-        are byte-identical to the legacy code path.
-      * ``"bm25"`` — per-film ``BM25Index.query`` results. Scores are
-        BM25 (not cosine); the cross-film merge sorts by raw BM25 score
-        because every film uses the same ``rank_bm25.BM25Okapi``
-        parameters (k1, b) so the scales are comparable.
-      * ``"hybrid"`` — RRF fusion of CLIP cosine + BM25 with weights
-        ``sem_w`` / ``bm25_w``. A film whose BM25 corpus is empty
-        (no ``scene_descriptions.json`` / ``scene_tags.json``)
-        silently degrades to clip-only for THAT film — the merge
-        across films still proceeds.
+    ``tags`` AND-intersects across selected tags via the same
+    ``normalize_tag_index`` / ``scene_id_key`` pipeline used by
+    ``SemanticSearch.combined`` — applied identically to the CLIP and
+    BM25 sides so ``?retriever=bm25&tags=outdoor`` cannot silently
+    ignore the tag.
 
-    Per-film widening: every mode pulls ``top_k * 4`` hits per film
-    before the cross-film merge so the final top_k after dedupe by
-    ``(film_slug, scene_id)`` still has enough density to fill the
-    requested K (mirrors ``search_text``'s keyframe-density widening).
+    ``min_similarity`` floors the CLIP cosine before it enters the
+    global list. It is NOT applied to BM25 scores (different scale) or
+    to fused RRF scores (different scale again) — same contract as the
+    legacy code.
     """
     from cinemateca.library import scan_library
     from cinemateca.retrieval.hybrid import fuse_rrf
@@ -564,14 +602,15 @@ def aggregate_search(
     text_vec = text_vec / (norm + 1e-12)
 
     selected_tags = list(tags) if tags else []
-    # Widen the per-film retrieval window so the cross-film merge has
-    # enough density to fill `top_k` after the dedupe pass. Mirrors
-    # `search_text`'s 4× widening for the keyframes-per-scene ceiling.
+    # Widen the per-film retrieval window so the global pool stays dense
+    # enough to fill ``top_k`` after fusion. ``raw_k`` per film is
+    # sufficient because the global lists union all films' top-raw_k —
+    # the global rank-1 from any film is guaranteed to enter.
     raw_k = max(top_k * 4, 1)
 
     logger.info(
         "aggregate_search: query=%r films=%d top_k=%d tags=%s min_sim=%.3f "
-        "retriever=%s sem_w=%.2f bm25_w=%.2f",
+        "retriever=%s sem_w=%.2f bm25_w=%.2f rrf_k=%d",
         query,
         len(films),
         top_k,
@@ -580,16 +619,26 @@ def aggregate_search(
         retriever_mode,
         sem_w,
         bm25_w,
+        rrf_k,
     )
 
-    all_hits: list[dict] = []
-    per_film_kept = 0
+    # Per-film state cache. Keys are film slugs; values carry every
+    # object the materialisation step (Phase 4) needs to build a hit
+    # dict — film metadata, the CLIP index (kf_df), best-row-by-sid
+    # map, fps, and the scene-id → kf_meta lookup. We populate it once
+    # per film during Phase 1 so Phase 4 is pure look-up.
+    PerFilm = dict  # alias for readability — kept structural to avoid a dataclass for one local
+    per_film: dict[str, PerFilm] = {}
+    # GLOBAL ranked lists. Keys are (film_slug, scene_id) tuples.
+    # ``fuse_rrf`` only requires hashable keys; the int-only type hint
+    # is a documentation choice, not a runtime constraint.
+    global_clip: list[tuple[tuple[str, int], float]] = []
+    global_bm25: list[tuple[tuple[str, int], float]] = []
+
     for film in films:
         try:
             idx = _get_search_index(cfg, film.slug)
         except ValueError as exc:
-            # Registered film whose directory has been removed manually —
-            # skip silently rather than crash the whole aggregate.
             logger.warning("aggregate_search: skip film %s — %s", film.slug, exc)
             continue
         if idx.status is not IndexStatus.OK:
@@ -599,10 +648,6 @@ def aggregate_search(
                 idx.status,
             )
             continue
-        # Load the film's keyframe metadata ONCE per film so timecode lookup
-        # is O(1) per hit. ``meta_by_scene`` may be empty (unprocessed film
-        # or missing JSON) — in that case timecode falls back to "" and the
-        # template hides the span.
         ctx = FilmContext.for_film(cfg, film.slug)
         kf_meta = load_json(ctx.metadata_dir / "keyframes_metadata.json") or []
         fps = derive_fps(kf_meta)
@@ -625,21 +670,11 @@ def aggregate_search(
         scores: np.ndarray = idx.embeddings @ text_vec  # type: ignore[operator]
 
         # CLIP-side ranked list — `(scene_id, cosine_score)` descending.
-        # Used directly in `"clip"` mode and as the semantic input to
-        # RRF in `"hybrid"` mode. min_similarity (a cosine-scale floor)
-        # is applied here so the pre-RRF list never carries CLIP-side
-        # noise scenes.
-        #
-        # Multi-keyframe dedupe: a single scene may have multiple
+        # Best-keyframe-per-scene: a single scene may have multiple
         # keyframes (Phase-1 density), so the same scene_id can appear N
-        # times in ``scores`` at different rows. We keep the row index
-        # with the HIGHEST cosine per scene_id so the surfaced
-        # ``keyframe_path`` points at the actual best-matching frame —
-        # the contract pinned by ``test_aggregate_dedup_picks_best_
-        # keyframe_per_scene``. ``best_row_by_sid`` carries that row
-        # mapping forward into the per-mode dispatch below so BM25 /
-        # hybrid hits can resolve to the same "best CLIP keyframe" row
-        # without re-scanning ``kf_df``.
+        # times in ``scores`` at different rows. Keep the row index with
+        # the HIGHEST cosine per scene_id so the surfaced
+        # ``keyframe_path`` points at the actual best-matching frame.
         best_score_by_sid: dict[int, float] = {}
         best_row_by_sid: dict[int, int] = {}
         for i, score in enumerate(scores):
@@ -656,135 +691,134 @@ def aggregate_search(
                 best_row_by_sid[sid] = i
         clip_ranked: list[tuple[int, float]] = sorted(
             best_score_by_sid.items(), key=lambda p: p[1], reverse=True
-        )
+        )[:raw_k]
 
-        # Build the per-film hit list (sid, score) based on retriever_mode.
-        per_film_hits: list[tuple[int, float]]
-        if retriever_mode == "clip":
-            per_film_hits = clip_ranked[:raw_k]
-        else:
+        # BM25-side ranked list. ``"clip"`` mode skips BM25 loading
+        # entirely (no need to pay the disk read for a corpus we'll
+        # ignore). A film whose BM25 corpus is empty contributes
+        # nothing to the global BM25 list — in hybrid mode that scene
+        # still surfaces via CLIP-only contribution, in pure-bm25 mode
+        # it surfaces nothing (which is correct: BM25 has no signal).
+        bm25_hits: list[tuple[int, float]] = []
+        if retriever_mode != "clip":
             try:
                 bm25 = _get_bm25_index_for_ctx(ctx)
             except (FileNotFoundError, OSError, ValueError):
-                # Narrow set of loader failure modes: missing dir, IO error,
-                # malformed slug/path, or unparsable JSON. Anything else
-                # (AttributeError, ImportError, …) is a programming bug we
-                # WANT to surface, not silently absorb.
+                # Narrow set of loader failure modes — anything else is
+                # a programming bug we want to surface, not silently
+                # absorb. The film simply contributes no BM25 entries.
                 logger.warning(
-                    "aggregate_search: bm25 loader failed for %s; degrading to clip for this film",
+                    "aggregate_search: bm25 loader failed for %s; "
+                    "contributing no BM25 entries for this film",
                     film.slug,
                     exc_info=True,
                 )
                 bm25 = None
-
             if bm25 is None or bm25.model is None:
-                # Empty BM25 corpus → silent clip-only fallback for this
-                # film. The cross-film merge still proceeds.
                 logger.info(
-                    "aggregate_search: film=%s bm25 empty; degrading to clip "
+                    "aggregate_search: film=%s bm25 empty; no BM25 entries "
                     "(mode=%s requested)",
                     film.slug,
                     retriever_mode,
                 )
-                per_film_hits = clip_ranked[:raw_k]
             else:
                 bm25_hits = bm25.query(query, top_k=raw_k)
-                # Tag filter applies to BM25 hits too. Without this,
-                # ?retriever=bm25&tags=outdoor would silently ignore the
-                # tag selection — the clip path filters via the same
-                # `allowed_scene_keys` set above.
                 if allowed_scene_keys is not None:
                     bm25_hits = [
-                        (sid, s) for sid, s in bm25_hits if scene_id_key(sid) in allowed_scene_keys
+                        (sid, s)
+                        for sid, s in bm25_hits
+                        if scene_id_key(sid) in allowed_scene_keys
                     ]
-                if retriever_mode == "bm25":
-                    per_film_hits = bm25_hits[:raw_k]
-                else:  # "hybrid"
-                    per_film_hits = fuse_rrf(
-                        clip_ranked,
-                        bm25_hits,
-                        sem_w=sem_w,
-                        bm25_w=bm25_w,
-                    )[:raw_k]
 
-        # Materialise hit dicts. The keyframe filepath is resolved from
-        # idx.kf_df by scene_id. For scenes the CLIP pass already saw
-        # (CLIP / hybrid modes, plus BM25-mode scenes that also have a
-        # cosine score), use the best-cosine row index recorded above
-        # — that's the contract from
-        # ``test_aggregate_dedup_picks_best_keyframe_per_scene``. For
-        # pure BM25 hits whose scene_id is below the cosine floor or
-        # absent from the CLIP top, fall back to the first kf_df row
-        # matching that scene_id (deterministic — kf_df ordering is
-        # stable across loads).
-        film_added = 0
-        for sid, score in per_film_hits:
-            best_i = best_row_by_sid.get(sid)
-            if best_i is not None:
-                row = idx.kf_df.iloc[best_i]  # type: ignore[union-attr]
-            else:
-                row_mask = idx.kf_df["scene_id"] == sid  # type: ignore[union-attr]
-                if not row_mask.any():
-                    continue
-                row = idx.kf_df[row_mask].iloc[0]  # type: ignore[union-attr]
-            meta = meta_by_scene.get(sid)
-            start_s = float(meta.get("start_time_s") or 0.0) if meta else 0.0
-            timecode = to_smpte(start_s, fps) if start_s > 0 else ""
-            all_hits.append(
-                {
-                    "film_slug": film.slug,
-                    "film_title": film.title,
-                    "scene_id": sid,
-                    "score": float(score),
-                    "keyframe_path": str(row["filepath"]),
-                    "timecode": timecode,
-                }
-            )
-            film_added += 1
-        # Per-film diagnostic: the score distribution is the input the
-        # threshold/reranker operates on, so log enough to tune both.
-        # n_vectors is the index size; top3 lets you see whether the
-        # query genuinely has signal in this film vs being uniform noise.
-        # We log CLIP's raw cosine top3 unconditionally so the diagnostic
-        # surface is identical across retriever modes (the BM25 / RRF
-        # scores are mode-specific and would dilute the log).
+        per_film[film.slug] = {
+            "film": film,
+            "kf_df": idx.kf_df,
+            "best_row_by_sid": best_row_by_sid,
+            "fps": fps,
+            "meta_by_scene": meta_by_scene,
+        }
+        for sid, s in clip_ranked:
+            global_clip.append(((film.slug, sid), s))
+        for sid, s in bm25_hits:
+            global_bm25.append(((film.slug, sid), s))
+
         if scores.size:
             top3 = np.sort(scores)[-3:][::-1]
             logger.info(
-                "aggregate_search: film=%s n_vectors=%d top3=%s kept=%d " "(retriever=%s)",
+                "aggregate_search: film=%s n_vectors=%d top3=%s "
+                "clip_n=%d bm25_n=%d (retriever=%s)",
                 film.slug,
                 int(scores.size),
                 [round(float(s), 3) for s in top3],
-                film_added,
+                len(clip_ranked),
+                len(bm25_hits),
                 retriever_mode,
             )
-        per_film_kept += film_added
 
-    all_hits.sort(key=lambda h: -h["score"])
-    # Dedupe by (film_slug, scene_id). With multiple keyframes per scene
-    # (Phase-1 density fix) the same scene can rank N times in a row.
-    # Keeping the first occurrence per scene preserves the highest-score
-    # keyframe (the list is sorted descending). Result: at most one card
-    # per scene in the UI, and the displayed keyframe is the one that
-    # actually matches the query — not always the middle frame.
-    seen: set[tuple[str, int]] = set()
-    deduped: list[dict] = []
-    for h in all_hits:
-        key = (h["film_slug"], h["scene_id"])
-        if key in seen:
+    # Phase 2: build globally-ranked lists.
+    global_clip.sort(key=lambda p: p[1], reverse=True)
+    global_bm25.sort(key=lambda p: p[1], reverse=True)
+
+    # Phase 3: dispatch by mode. ``ranked`` is the unified output:
+    # a list of ``((film_slug, scene_id), score)`` pairs, top first.
+    ranked: list[tuple[tuple[str, int], float]]
+    if retriever_mode == "clip":
+        ranked = global_clip
+    elif retriever_mode == "bm25":
+        ranked = global_bm25
+    else:  # "hybrid"
+        ranked = fuse_rrf(
+            global_clip,
+            global_bm25,
+            sem_w=sem_w,
+            bm25_w=bm25_w,
+            k_rrf=rrf_k,
+        )
+
+    # Phase 4: materialise hit dicts. Keys are already unique
+    # ((film_slug, scene_id)) so no dedupe pass is needed.
+    all_hits: list[dict] = []
+    for (slug, sid), score in ranked[:top_k]:
+        state = per_film.get(slug)
+        if state is None:  # defensive — every key came from per_film
             continue
-        seen.add(key)
-        deduped.append(h)
-    result = deduped[:top_k]
+        kf_df = state["kf_df"]
+        best_i = state["best_row_by_sid"].get(sid)
+        if best_i is not None:
+            row = kf_df.iloc[best_i]
+        else:
+            # BM25-only scene whose cosine was below ``min_similarity``
+            # or is otherwise absent from the CLIP-side map. Fall back
+            # to the first kf_df row for that scene_id — deterministic
+            # because kf_df row order is stable across loads.
+            row_mask = kf_df["scene_id"] == sid
+            if not row_mask.any():
+                continue
+            row = kf_df[row_mask].iloc[0]
+        meta = state["meta_by_scene"].get(sid)
+        start_s = float(meta.get("start_time_s") or 0.0) if meta else 0.0
+        timecode = to_smpte(start_s, state["fps"]) if start_s > 0 else ""
+        all_hits.append(
+            {
+                "film_slug": slug,
+                "film_title": state["film"].title,
+                "scene_id": sid,
+                "score": float(score),
+                "keyframe_path": str(row["filepath"]),
+                "timecode": timecode,
+            }
+        )
+
     logger.info(
-        "aggregate_search: query=%r raw_kept=%d dedup_kept=%d returned=%d top_score=%.3f",
+        "aggregate_search: query=%r global_clip=%d global_bm25=%d "
+        "returned=%d top_score=%.6f",
         query,
-        per_film_kept,
-        len(deduped),
-        len(result),
-        float(result[0]["score"]) if result else 0.0,
+        len(global_clip),
+        len(global_bm25),
+        len(all_hits),
+        float(all_hits[0]["score"]) if all_hits else 0.0,
     )
-    return result
+    return all_hits
 
 
 # ── Result conversion ─────────────────────────────────────────────────────────
@@ -978,10 +1012,21 @@ def search_hybrid(
     # Mirrors search_text's keyframe-density widening (4× ceiling).
     raw_k = top_k * 4
 
+    # Compute the best-cosine row index per scene_id, IGNORING
+    # min_similarity. Used by the BM25-only / fused backfill paths so a
+    # BM25-only scene with multiple keyframes surfaces its best-cosine
+    # keyframe rather than ``iloc[0]`` — parity with the CLIP-side
+    # dedup (best-keyframe-per-scene). For pure-CLIP mode this is
+    # unnecessary (search_text already dedupes); we compute it here
+    # only for the bm25 / hybrid branches that follow.
+    best_row_by_sid = _best_row_by_sid_from_embeddings(index, query)
+
     if retriever_mode == "bm25":
         # BM25 scores aren't cosine — min_similarity does not apply.
         hits = bm25.query(query, top_k=raw_k)
-        return _bm25_hits_to_dataframe(hits, index, tags, tag_index, top_k)
+        return _bm25_hits_to_dataframe(
+            hits, index, tags, tag_index, top_k, best_row_by_sid=best_row_by_sid
+        )
 
     # retriever_mode == "hybrid". min_similarity flows through search_text
     # below, pre-filtering the CLIP side before RRF fusion.
@@ -997,7 +1042,83 @@ def search_hybrid(
 
     fused = fuse_rrf(clip_ranked, bm25_hits, sem_w=sem_w, bm25_w=bm25_w, k_rrf=rrf_k)[:top_k]
 
-    return _fused_to_dataframe(fused, clip_df, index, tags, tag_index, top_k)
+    return _fused_to_dataframe(
+        fused, clip_df, index, tags, tag_index, top_k, best_row_by_sid=best_row_by_sid
+    )
+
+
+def _best_row_by_sid_from_embeddings(
+    index: SearchIndex, query: str
+) -> dict[int, int]:
+    """Map ``scene_id → kf_df row index of the highest-cosine keyframe``.
+
+    The map is computed against the FULL embeddings matrix with NO
+    min_similarity floor — its purpose is to pick the "best frame to
+    display" for a scene that surfaces via BM25 alone (where the
+    cosine never made it past the floor). Cosine ties are resolved by
+    keeping the first row encountered (deterministic, matches the
+    aggregate path's behaviour).
+
+    Returns an empty dict on a degenerate index (no embedder / no
+    rows). Callers treat the empty dict the same as "no best-row
+    info" and fall back to ``iloc[0]`` per scene_id.
+    """
+    import numpy as np
+
+    if (
+        index.embeddings is None
+        or index.kf_df is None
+        or index.embedder is None
+        or len(index.kf_df) == 0
+    ):
+        return {}
+    text_vec = index.embedder.encode_text(query)  # type: ignore[union-attr]
+    norm = float(np.linalg.norm(text_vec))
+    text_vec = text_vec / (norm + 1e-12)
+    scores = index.embeddings @ text_vec  # type: ignore[operator]
+    best_score_by_sid: dict[int, float] = {}
+    best_row_by_sid: dict[int, int] = {}
+    for i, score in enumerate(scores):
+        s = float(score)
+        row = index.kf_df.iloc[i]  # type: ignore[union-attr]
+        sid = int(row["scene_id"])
+        prev = best_score_by_sid.get(sid)
+        if prev is None or s > prev:
+            best_score_by_sid[sid] = s
+            best_row_by_sid[sid] = i
+    return best_row_by_sid
+
+
+def _allowed_scene_ids_for_tags(tags: list[str], tag_index: dict) -> set[int] | None:
+    """AND-intersect the selected tags' scene-id memberships.
+
+    Returns ``None`` when no tags are requested (no filter to apply).
+    Returns a (possibly empty) ``set[int]`` of canonical scene_ids when
+    tags ARE requested — including the empty case where the tag_index
+    is empty or none of the tags exist in it. Callers must treat an
+    empty set as "no scene matches" (NOT "no filter"), matching the
+    AND-intersection contract used by ``SemanticSearch.combined`` and
+    ``aggregate_search``'s CLIP path.
+
+    The conversion is `int(sid)` rather than ``scene_id_key`` because
+    BM25Index emits int sids and the per-film kf_df ``scene_id`` column
+    is int — staying in the int domain avoids a redundant str cast for
+    the per-film hybrid / bm25 paths. Mixed-type tag_index values
+    (str manual + int LLM) round-trip safely through ``int()``.
+    """
+    if not tags:
+        return None
+    allowed: set[int] | None = None
+    for t in tags:
+        sids = tag_index.get(t, []) if isinstance(tag_index, dict) else []
+        tag_sids: set[int] = set()
+        for sid in sids:
+            try:
+                tag_sids.add(int(sid))
+            except (TypeError, ValueError):
+                continue
+        allowed = tag_sids if allowed is None else (allowed & tag_sids)
+    return allowed if allowed is not None else set()
 
 
 def _bm25_hits_to_dataframe(
@@ -1006,6 +1127,8 @@ def _bm25_hits_to_dataframe(
     tags: list[str],
     tag_index: dict,
     top_k: int,
+    *,
+    best_row_by_sid: dict[int, int] | None = None,
 ) -> pd.DataFrame:
     """Materialise BM25-only hits into the ``search_text`` DataFrame shape.
 
@@ -1013,25 +1136,58 @@ def _bm25_hits_to_dataframe(
     template only cares about ordering. We expose the BM25 score as
     ``similarity`` for shape-compat; routes that surface raw scores can
     distinguish via the ``retriever`` query param.
+
+    Tag filter is AND-intersection (parity with the CLIP path and
+    ``aggregate_search``). When ``tags`` are requested but no scene
+    matches all of them — including the degenerate case where the film
+    has no tag_index at all — the result is empty rather than
+    silently-unfiltered.
+
+    ``best_row_by_sid`` (optional) selects which keyframe row to surface
+    for scenes with multiple keyframes. When provided, the highest-cosine
+    row is used (parity with CLIP-side dedup); when absent the per-scene
+    first row of ``kf_df`` is used. Callers in ``search_hybrid`` pass
+    the map so a BM25-only multi-keyframe scene surfaces its best frame.
     """
     import pandas as pd
 
     if not hits:
         return pd.DataFrame(columns=["scene_id", "similarity"])
     df = pd.DataFrame(hits, columns=["scene_id", "similarity"])
-    if tags and tag_index:
-        keep_sids: set[int] = set()
-        for t in tags:
-            for sid in tag_index.get(t, []):
-                keep_sids.add(int(sid))
-        df = df[df["scene_id"].isin(keep_sids)].reset_index(drop=True)
-    if hasattr(index, "kf_df") and index.kf_df is not None:
-        df = df.merge(
-            index.kf_df.drop_duplicates(subset="scene_id", keep="first"),
-            on="scene_id",
-            how="left",
-        )
+    allowed = _allowed_scene_ids_for_tags(tags, tag_index)
+    if allowed is not None:
+        df = df[df["scene_id"].isin(allowed)].reset_index(drop=True)
+    if hasattr(index, "kf_df") and index.kf_df is not None and not df.empty:
+        kf_picked = _pick_kf_rows_by_sid(index.kf_df, df["scene_id"].tolist(), best_row_by_sid)
+        df = df.merge(kf_picked, on="scene_id", how="left")
     return df.head(top_k).reset_index(drop=True)
+
+
+def _pick_kf_rows_by_sid(
+    kf_df, sids: list[int], best_row_by_sid: dict[int, int] | None
+):
+    """Pick one ``kf_df`` row per requested scene_id.
+
+    Selection rule:
+      * If ``best_row_by_sid`` is provided AND has an entry for the sid,
+        return the row at that index (the highest-cosine keyframe).
+      * Otherwise fall back to the first ``kf_df`` row matching the sid
+        (deterministic — kf_df ordering is stable across loads).
+
+    Returns a DataFrame with one row per input sid that exists in
+    ``kf_df``. ``sids`` ordering is preserved.
+    """
+    import pandas as pd
+
+    rows = []
+    for sid in sids:
+        if best_row_by_sid and sid in best_row_by_sid:
+            rows.append(kf_df.iloc[best_row_by_sid[sid]])
+            continue
+        mask = kf_df["scene_id"] == sid
+        if mask.any():
+            rows.append(kf_df[mask].iloc[0])
+    return pd.DataFrame(rows).reset_index(drop=True)
 
 
 def _fused_to_dataframe(
@@ -1041,12 +1197,26 @@ def _fused_to_dataframe(
     tags: list[str],
     tag_index: dict,
     top_k: int,
+    *,
+    best_row_by_sid: dict[int, int] | None = None,
 ) -> pd.DataFrame:
     """Materialise the fused ranking, reusing ``clip_df`` rows when present.
 
     BM25-only hits (scenes the CLIP top-K didn't surface) are back-filled
     from ``index.kf_df`` so every row carries the keyframe columns the
-    template expects.
+    template expects. The backfill triggers on ``filepath.isna()`` —
+    the column name SemanticSearch.by_text / .by_image / .combined emit
+    (NOT ``img_filename``, which never exists in the merged df and used
+    to make this whole branch dead code).
+
+    ``best_row_by_sid`` (optional) makes the backfill pick the
+    highest-cosine keyframe of each BM25-only scene, matching how
+    CLIP-side hits already dedup-by-best-keyframe. Without it, the
+    backfill falls back to the first kf_df row per sid.
+
+    Tag filter is AND-intersection (parity with CLIP / aggregate); when
+    tags are requested but no scene matches all of them, the result is
+    empty rather than silently-unfiltered.
     """
     import pandas as pd
 
@@ -1063,24 +1233,27 @@ def _fused_to_dataframe(
         merged = fused_df
     merged["similarity"] = merged["fused_score"]
     merged = merged.drop(columns=["fused_score"])
-    if tags and tag_index:
-        keep_sids: set[int] = set()
-        for t in tags:
-            for sid in tag_index.get(t, []):
-                keep_sids.add(int(sid))
-        merged = merged[merged["scene_id"].isin(keep_sids)].reset_index(drop=True)
-    if hasattr(index, "kf_df") and index.kf_df is not None:
-        # Backfill keyframe metadata for BM25-only hits.
-        if "img_filename" in merged.columns:
-            missing_mask = merged["img_filename"].isna()
+    allowed = _allowed_scene_ids_for_tags(tags, tag_index)
+    if allowed is not None:
+        merged = merged[merged["scene_id"].isin(allowed)].reset_index(drop=True)
+    if hasattr(index, "kf_df") and index.kf_df is not None and not merged.empty:
+        # Backfill keyframe metadata for BM25-only hits. ``filepath`` is
+        # the column SemanticSearch emits; when clip_df contributed
+        # nothing for a scene_id, the left-merge above leaves it NaN
+        # and we patch from index.kf_df. If ``filepath`` itself is
+        # missing from the merged frame (clip_df was empty), every row
+        # needs patching.
+        if "filepath" in merged.columns:
+            missing_mask = merged["filepath"].isna()
         else:
-            missing_mask = pd.Series([False] * len(merged))
+            missing_mask = pd.Series([True] * len(merged), index=merged.index)
         missing = merged[missing_mask]
         if not missing.empty:
+            kf_picked = _pick_kf_rows_by_sid(
+                index.kf_df, missing["scene_id"].tolist(), best_row_by_sid
+            )
             patched = missing[["scene_id", "similarity"]].merge(
-                index.kf_df.drop_duplicates(subset="scene_id", keep="first"),
-                on="scene_id",
-                how="left",
+                kf_picked, on="scene_id", how="left"
             )
             merged = pd.concat(
                 [merged[~merged["scene_id"].isin(patched["scene_id"])], patched],

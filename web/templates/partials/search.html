@@ -36,12 +36,22 @@
 
   {# ── Search row: qbar + chips + knobs ─────────────────────────────── #}
   <div class="search-wrap">
+    {# hx-sync="this:replace" coordinates with the inner #search-input
+       (which also fires /api/search on keyup-delay). Without it, a fast
+       typist who then presses Enter can have two parallel requests in
+       flight; whichever completes last wins, surfacing stale results
+       for a now-different query. ``replace`` aborts the in-flight
+       request and starts the new one — the user always sees the latest
+       query's response. The same hx-sync on the input below uses
+       ``closest form`` so both ends share the same coordination scope.
+    #}
     <form id="search-text-form"
           class="qbar"
           hx-get="/api/search"
           hx-trigger="submit"
           hx-target="#search-results"
           hx-include="#search-text-form, #search-tag-panel"
+          hx-sync="this:replace"
           hx-push-url="true">
       {# Carry the active film slug into the search GET — without this the
          hx-include only pulls q + tags and the URL-bar ?film=<slug> never
@@ -72,7 +82,8 @@
                hx-get="/api/search"
                hx-trigger="keyup changed delay:500ms"
                hx-target="#search-results"
-               hx-include="#search-text-form, #search-tag-panel">
+               hx-include="#search-text-form, #search-tag-panel"
+               hx-sync="closest form:replace">
         <span class="kbd">⌘K</span>
       </label>
       <button type="submit" class="fx-btn primary">
@@ -138,9 +149,15 @@
                 :aria-expanded="open ? 'true' : 'false'"
                 aria-haspopup="dialog">
           <span class="k">{{ _("Híbrido") }}</span>
+          {# |tojson emits a properly-escaped JSON string literal (with
+             double quotes + backslash-escaping) — safe to inline as a JS
+             string value even when the translation contains apostrophes,
+             newlines, or any other char that would break a hand-rolled
+             single-quoted literal. Drop the surrounding `'…'` wrappers
+             the previous version had. #}
           <span class="v acc" x-text="(
-            { clip: '{{ _('CLIP only') }}',
-              bm25: '{{ _('BM25 only') }}',
+            { clip: {{ _('CLIP only')|tojson }},
+              bm25: {{ _('BM25 only')|tojson }},
               hybrid: 'sem ' + Number($store.buscarRetrieval.sem_w).toFixed(2) +
                       ' bm25 ' + (1 - Number($store.buscarRetrieval.sem_w)).toFixed(2)
             })[$store.buscarRetrieval.mode]
@@ -308,7 +325,8 @@
          hx-get="/api/search"
          hx-trigger="change from:input"
          hx-target="#search-results"
-         hx-include="#search-text-form, #search-tag-panel">
+         hx-include="#search-text-form, #search-tag-panel"
+         hx-sync="#search-text-form:replace">
       {% for tag in available_tags %}
       <label class="tag-pill{% if tag in highlighted_tags %} tag-pill--matched{% endif %}">
         <input type="checkbox" name="tags" value="{{ tag }}">{{ tag }}

@@ -467,8 +467,20 @@ window.ToastBus = (function () {
 
   /**
    * Load a JSON-encoded prefs payload from localStorage and merge it
-   * onto a defaults object. Missing keys + parse failures both fall
-   * back to defaults rather than leaving the store half-populated.
+   * onto a defaults object. Missing keys + parse failures fall back
+   * to defaults rather than leaving the store half-populated.
+   *
+   * Per-key type-coercion against the defaults shape: a numeric
+   * default rejects any incoming value that ``Number()`` can't make
+   * finite (``null``, ``undefined``, ``"abc"`` all fall back to the
+   * default), and a string default rejects empty / non-string values.
+   * Without this, an old / hand-edited / partial localStorage entry
+   * like ``{"mode":"hybrid","sem_w":null}`` would surface as
+   * ``Number(null).toFixed(2) === "0.00"`` (OK by luck) or
+   * ``Number(undefined).toFixed(2) === "NaN"`` (the actual hazard)
+   * in the hidden HTMX form mirror, then the FastAPI route would
+   * 422 on every search. Defensive coercion here is cheap and means
+   * a corrupt prefs entry never wedges the search UI.
    */
   function loadPrefs(key, defaults) {
     try {
@@ -476,7 +488,28 @@ window.ToastBus = (function () {
       if (!raw) return Object.assign({}, defaults);
       var parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== 'object') return Object.assign({}, defaults);
-      return Object.assign({}, defaults, parsed);
+      var out = Object.assign({}, defaults);
+      for (var k in defaults) {
+        if (!Object.prototype.hasOwnProperty.call(defaults, k)) continue;
+        if (!Object.prototype.hasOwnProperty.call(parsed, k)) continue;
+        var v = parsed[k];
+        var dt = typeof defaults[k];
+        if (dt === 'number') {
+          // Accept only actual JSON numbers (typeof === 'number') that
+          // are finite. Reject null / undefined / strings / NaN /
+          // Infinity outright — they fall back to defaults instead of
+          // coercing to 0 via Number(null) and then surfacing as the
+          // wrong slider value.
+          if (typeof v === 'number' && Number.isFinite(v)) out[k] = v;
+        } else if (dt === 'string') {
+          if (typeof v === 'string' && v.length > 0) out[k] = v;
+        } else if (dt === 'boolean') {
+          if (typeof v === 'boolean') out[k] = v;
+        } else {
+          out[k] = v;
+        }
+      }
+      return out;
     } catch (e) {
       return Object.assign({}, defaults);
     }

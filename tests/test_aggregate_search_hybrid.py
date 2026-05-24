@@ -293,6 +293,113 @@ def test_aggregate_bm25_mode_respects_tag_filter(
     ) not in pairs, "B:1 (menina, NOT outdoor) leaked through — tag filter not applied to BM25 hits"
 
 
+@pytest.fixture()
+def degeneracy_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> object:
+    """Two 3-doc films, each contributing a rank-1 CLIP + rank-1 BM25 scene.
+
+    With ≥3 docs per film, BM25 IDF on a one-doc match is strictly
+    positive — so the per-film top-1 in each film has score
+    ``sem_w/(rrf_k+1) + bm25_w/(rrf_k+1) = 1/(rrf_k+1)``. Cross-film
+    these two scenes would tie under per-film-RRF + raw-score sort
+    (the bug). Global RRF must break the tie by global-rank.
+    """
+    library_dir = tmp_path / "library"
+    library_dir.mkdir()
+    register_film(library_dir, slug="a", title="A", year=2000, raw_filename="a.mp4")
+    register_film(library_dir, slug="b", title="B", year=2001, raw_filename="b.mp4")
+    _make_film_with_embeddings(
+        library_dir,
+        "a",
+        [[0.0, 1.0], [1.0, 0.0], [0.5, 0.5]],
+        descriptions=["apple", "banana", "cherry"],
+    )
+    _make_film_with_embeddings(
+        library_dir,
+        "b",
+        [[1.0, 0.0], [0.0, 1.0], [0.5, 0.5]],
+        descriptions=["banana", "durian", "elderberry"],
+    )
+
+    class StubEmbedder:
+        def encode_text(self, q: str) -> np.ndarray:
+            return np.array([1.0, 0.0], dtype=np.float32)
+
+    monkeypatch.setattr("api.services.search._get_embedder", lambda cfg: StubEmbedder())
+    return _cfg(library_dir)
+
+
+def test_aggregate_hybrid_no_cross_film_top_score_ties(degeneracy_fixture: object) -> None:
+    """Cross-film hybrid ordering must use GLOBAL RRF, not per-film RRF + sort.
+
+    With per-film RRF, every film's per-film rank-1 scene tops out at
+    ``sem_w/(rrf_k+1) + bm25_w/(rrf_k+1) = 1/(rrf_k+1)``. With two
+    films both contributing a rank-1 scene from BOTH the CLIP side
+    (A:1, B:0 each cosine 1) AND the BM25 side (banana hits in
+    each), the cross-film naive sort sees two identical-score
+    scenes at the top — they TIE, and which one displays first is
+    determined by film-iteration order, not signal strength.
+
+    Global RRF assigns ranks across the union of per-film hits;
+    only ONE scene can be globally rank 1 per side, so the top
+    results have distinct scores reflecting their global standing.
+    Failure mode under per-film RRF: ``hits[0]['score'] == hits[1]['score']``.
+    """
+    hits = aggregate_search(
+        degeneracy_fixture,
+        query="banana",
+        modality="text",
+        top_k=6,
+        tags=[],
+        min_similarity=0.0,
+        retriever_mode="hybrid",
+        sem_w=0.7,
+        bm25_w=0.3,
+    )
+    assert len(hits) >= 2, "fixture must produce at least 2 hybrid hits"
+    top_keys = {(h["film_slug"], h["scene_id"]) for h in hits[:2]}
+    assert top_keys == {("a", 1), ("b", 0)}, (
+        f"top-2 must still be the two combined-signal scenes, got {top_keys}"
+    )
+    top, second = hits[0]["score"], hits[1]["score"]
+    assert top > second, (
+        f"hybrid cross-film ordering must be strict: top={top} second={second} — "
+        f"per-film RRF is degenerate (each per-film rank-1 yields the same score), "
+        f"global RRF is required to disambiguate"
+    )
+
+
+def test_aggregate_search_honours_rrf_k(two_film_library_cfg: object) -> None:
+    """``aggregate_search`` accepts an ``rrf_k`` kwarg that reaches ``fuse_rrf``.
+
+    Pre-fix: ``aggregate_search`` hard-coded ``DEFAULT_RRF_K`` in its
+    fuse_rrf call, so ``config/default.yaml`` → ``search.bm25.rrf_k``
+    was a dead knob. We verify here that running the same query with
+    rrf_k=1 yields a top-1 fused score >5× larger than with rrf_k=60 —
+    same ordering, sharper magnitude. Once the route plumbs the config
+    value through, an operator changing rrf_k in YAML actually changes
+    fusion behaviour.
+    """
+    common = dict(
+        query="menina",
+        modality="text",
+        top_k=5,
+        tags=[],
+        min_similarity=0.0,
+        retriever_mode="hybrid",
+        sem_w=0.7,
+        bm25_w=0.3,
+    )
+    hits_default = aggregate_search(two_film_library_cfg, **common, rrf_k=60)
+    hits_small = aggregate_search(two_film_library_cfg, **common, rrf_k=1)
+    assert hits_default and hits_small, "fixture must produce hits in both runs"
+    top_default = hits_default[0]["score"]
+    top_small = hits_small[0]["score"]
+    assert top_small > top_default * 5, (
+        f"rrf_k=1 must yield much larger fused score than rrf_k=60: "
+        f"small={top_small} default={top_default}"
+    )
+
+
 def test_aggregate_hybrid_falls_back_to_clip_when_bm25_empty(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

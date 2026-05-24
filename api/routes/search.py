@@ -213,7 +213,7 @@ async def api_search(
     # being ``None`` uses the config default for that side; that lets a
     # client pass a partial override (``?sem_w=0.5`` alone) without
     # also having to set ``bm25_w``.
-    from cinemateca.retrieval.hybrid import resolve_weights
+    from cinemateca.retrieval.hybrid import DEFAULT_RRF_K, resolve_weights
 
     defaults = (float(cfg.search.hybrid_sem_w), float(cfg.search.hybrid_bm25_w))
     sw, bw = resolve_weights(
@@ -221,6 +221,13 @@ async def api_search(
         bm25_w=bm25_w if bm25_w is not None else defaults[1],
         defaults=defaults,
     )
+
+    # rrf_k is a static config knob (no per-request override) — read once
+    # per request so changing config/default.yaml takes effect after a
+    # reload without code changes. Falls back to DEFAULT_RRF_K when the
+    # config block is absent (older configs / unit-test SimpleNamespace).
+    bm25_cfg = getattr(cfg.search, "bm25", None)
+    rrf_k = int(getattr(bm25_cfg, "rrf_k", DEFAULT_RRF_K)) if bm25_cfg else DEFAULT_RRF_K
 
     logger.info(
         "api_search: query=%r slug=%s tags=%s top_k=%d min_sim=%.3f "
@@ -248,7 +255,7 @@ async def api_search(
         # pure-CLIP regardless of mode — the regression-snapshot test
         # (which calls without ``?film=`` and pinned ``retriever=clip``)
         # remains byte-stable.
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         try:
             hits = await loop.run_in_executor(
                 None,
@@ -262,6 +269,7 @@ async def api_search(
                     retriever_mode=retriever,
                     sem_w=sw,
                     bm25_w=bw,
+                    rrf_k=rrf_k,
                 ),
             )
         except NotImplementedError:
@@ -339,7 +347,7 @@ async def api_search(
         return _no_index_response(request)
 
     tag_index = load_tag_index(ctx.metadata_dir) if tags else {}
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     if retriever == "clip":
         # Regression pin: pre-M2 pure-CLIP path is the existing
         # search_text (with the wider-window + dedupe semantics the
@@ -366,6 +374,7 @@ async def api_search(
                 retriever_mode=retriever,
                 sem_w=sw,
                 bm25_w=bw,
+                rrf_k=rrf_k,
             ),
         )
 
@@ -436,7 +445,7 @@ async def api_search_image(
         tmp_path = Path(tmp.name)
 
     try:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         results_df = await loop.run_in_executor(
             None, search_service.search_image, index, tmp_path, top_k
         )

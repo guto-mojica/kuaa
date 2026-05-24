@@ -12,9 +12,12 @@ treats them as rank = "absent" → contributes 0 to the BM25 term.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 
 from cinemateca.retrieval.tokenize import tokenize
+
+logger = logging.getLogger(__name__)
 
 
 def build_corpus(
@@ -60,6 +63,7 @@ def build_corpus(
 
     all_sids = sorted(set(desc_by_sid) | set(tags_by_sid))
     docs: list[tuple[int, list[str]]] = []
+    pruned_by_stopwords = 0
     for sid in all_sids:
         desc = desc_by_sid.get(sid, "")
         tags = tags_by_sid.get(sid, [])
@@ -69,6 +73,31 @@ def build_corpus(
         text = (desc + " " + " ".join(tags)).strip() if (desc or tags) else ""
         tokens = tokenize(text, stopwords_lang=stopwords_lang)
         if not tokens:
+            # Distinguish two empty-token shapes:
+            #   * text itself was empty (no desc + no tags) — silently
+            #     skipped, the docstring documents this is expected.
+            #   * text was NON-EMPTY but the tokenizer threw everything
+            #     away (stopword over-pruning, pure-punctuation rows).
+            #     This is a silent recall loss for hybrid mode — emit a
+            #     debug log so operators tuning stopwords can see how
+            #     much corpus they're losing.
+            if text:
+                pruned_by_stopwords += 1
+                logger.debug(
+                    "build_corpus: scene_id=%s text=%r tokenized to empty "
+                    "(stopwords_lang=%s); not indexed",
+                    sid,
+                    text,
+                    stopwords_lang,
+                )
             continue
         docs.append((sid, tokens))
+    if pruned_by_stopwords:
+        logger.info(
+            "build_corpus: %d scene(s) had non-empty text but tokenized "
+            "to empty under stopwords_lang=%s — those scenes are "
+            "BM25-invisible (will rank via CLIP only in hybrid mode)",
+            pruned_by_stopwords,
+            stopwords_lang,
+        )
     return docs
