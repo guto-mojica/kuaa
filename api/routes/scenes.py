@@ -50,6 +50,8 @@ def _parse_selected_scene_id(request: Request) -> int | None:
 async def tab_scenes(
     request: Request,
     slug: str | None = Depends(film_slug_query),
+    group: str = "film",
+    sort: str = "timecode",
 ) -> HTMLResponse:
     """Render the Cenas (Scenes) tab partial.
 
@@ -60,10 +62,20 @@ async def tab_scenes(
     The redesigned grid keeps the same visual scaffolding either way —
     when only one film matches the user still sees the per-film header
     row above its scenecards.
+
+    ``group`` ∈ {film, tipo, none} and ``sort`` ∈ {timecode, duration,
+    pins} drive the toolrow's Group / Sort popovers — unknown values
+    silently fall through to defaults in the service layer.
     """
     cfg = get_config()
     selected_scene_id = _parse_selected_scene_id(request)
-    context = build_cenas_context(cfg, selected_scene_id=selected_scene_id, slug=slug)
+    context = build_cenas_context(
+        cfg,
+        selected_scene_id=selected_scene_id,
+        slug=slug,
+        group=group,
+        sort=sort,
+    )
     return templates.TemplateResponse(
         request,
         "partials/scenes.html",
@@ -77,15 +89,22 @@ async def api_scenes(
     tags: list[str] = Query(default=[]),
     q: str = "",
     slug: str | None = Depends(film_slug_query),
+    group: str = "film",
+    sort: str = "timecode",
 ) -> HTMLResponse:
     """Return the filtered Cenas grid fragment for HTMX swaps.
 
     The toolrow's ``.find`` input fires ``GET /api/scenes?q=<query>``
     on keyup; legacy tag-filter callers still pass ``tags[]``. The
-    response is the new ``scenes_grid.html`` partial — film headings +
-    scenecards in the Mojica markup. ``?film=<slug>`` narrows the
-    result to a single film's group; unknown slugs surface a
-    ``ValueError`` (legacy contract).
+    Group / Sort popovers add ``group`` / ``sort`` hidden inputs to
+    the same hx-include scope (``#scenes-toolrow``) so a change in
+    any of the four (q, tags, group, sort) refreshes the grid with
+    every other parameter preserved.
+
+    Response is the new ``scenes_grid.html`` partial — film/tipo
+    headings + scenecards in the Mojica markup. ``?film=<slug>``
+    narrows the result to a single film's group; unknown slugs
+    surface a ``ValueError`` (legacy contract).
     """
     cfg = get_config()
     selected_scene_id = _parse_selected_scene_id(request)
@@ -95,6 +114,8 @@ async def api_scenes(
         keyword=q,
         selected_scene_id=selected_scene_id,
         slug=slug,
+        group=group,
+        sort=sort,
     )
     # The grid partial only needs ``groups_by_film`` +
     # ``selected_scene_id``; slim the dict so callers don't bloat

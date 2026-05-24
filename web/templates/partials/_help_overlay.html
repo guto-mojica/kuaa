@@ -1,12 +1,12 @@
 {#- Keyboard help overlay (Phase 7 / Task 28).
 
-    Rendered once into base.html at page load (hidden); ``mojica.js``
-    toggles ``[hidden]`` on the outer ``.kh-back`` div in response to
-    the ``?`` keypress. The DOM here is purely server-rendered (no
-    HTMX) so the open path can render its first frame instantly without
-    any network round trip — the user mashed `?` to find a shortcut, and
-    making them wait for an XHR before reading the legend would defeat
-    the point.
+    Rendered once into base.html at page load (closed); ``mojica.js``
+    registers an Alpine store (``Alpine.store('help', { open: false })``)
+    on alpine:init and ``window.Help.{open,close,toggle}`` flip that
+    store. The markup below reacts via ``x-show="$store.help.open"``,
+    so opening the overlay is one assignment instead of a DOM walk. The
+    DOM stays server-rendered (no HTMX) so the first frame after the
+    user mashes ``?`` paints the legend without any network round trip.
 
     Class names follow web/static/css/polish.css verbatim:
       * ``.kh-back``  — backdrop (fixed, full-viewport, blurred)
@@ -18,6 +18,22 @@
       * ``.kh-row`` — single shortcut row (description + keys)
       * ``.kh-row .desc``, ``.kh-row .keys``, ``.kh-row .keys .k``,
         ``.kh-row .keys .sep``
+
+    Alpine bindings on the root element:
+      * ``x-show="$store.help.open"`` + ``x-cloak`` — reactive visibility;
+        x-cloak keeps the overlay hidden during the brief window before
+        Alpine processes the DOM on first paint.
+      * ``@click.self="$store.help.open = false"`` — backdrop click
+        dismisses. ``.self`` ensures the handler only fires when the
+        click target IS .kh-back (i.e. the user clicked outside the
+        panel); clicks inside .kh-panel hit one of its descendants and
+        bypass this handler entirely.
+      * ``@keydown.escape.window`` — Esc dismisses, but only when help
+        is the active surface. ``.window`` is required because focus is
+        rarely on the overlay element itself when Esc is pressed.
+        ``$event.preventDefault()`` runs only when help is open so the
+        keystroke can still propagate to other handlers (palette's own
+        Esc, future surfaces) when help is closed.
 
     Mutual exclusion with the command palette is enforced on the JS
     side (see ``window.Help`` and the ⌘K block in mojica.js): opening
@@ -32,11 +48,18 @@
     the help overlay rather than after stumbling onto /eval blind.
 -#}
 {% from "partials/_icons.html" import icon %}
-<div class="kh-back" id="help" hidden role="dialog" aria-modal="true" aria-labelledby="kh-title">
+<div class="kh-back" id="help"
+     role="dialog" aria-modal="true" aria-labelledby="kh-title"
+     x-show="$store.help.open"
+     x-cloak
+     @click.self="$store.help.open = false"
+     @keydown.escape.window="if ($store.help.open) { $event.preventDefault(); $store.help.open = false }">
   <div class="kh-panel" role="document" data-prevent-close>
     <div class="kh-head">
       <h2 id="kh-title">{{ _('Keyboard shortcuts') }} <span class="pip">?</span></h2>
-      <button class="close" type="button" data-action="close-help" aria-label="{{ _('Close') }}">{{ icon('x', 14) }}</button>
+      <button class="close" type="button"
+              @click="$store.help.open = false"
+              aria-label="{{ _('Close') }}">{{ icon('x', 14) }}</button>
     </div>
     <div class="kh-body">
 

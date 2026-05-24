@@ -122,8 +122,12 @@
 // Global notification bus. Any HTMX response can trigger a toast by
 // emitting an `HX-Trigger` header with a "toast" event payload. JS code
 // (e.g. future client-side flows) can call `window.ToastBus.push(spec)`
-// directly. The bus creates `.toast` elements inside the
-// `#toast-root` div (rendered by base.html under .fx-app).
+// directly. The bus is backed by ``Alpine.store('toasts')`` and the
+// ``#toast-root`` div in base.html renders the queue with x-for —
+// pushing a spec into ``store.items`` reactively materialises a
+// ``.toast`` card, and the per-toast auto-dismiss + click handlers
+// flip ``exiting`` on the item so the ``p-toast-out`` keyframe runs
+// before the entry is spliced out of the array.
 //
 // Server contract (FastAPI):
 //   response.headers["HX-Trigger"] = json.dumps({"toast": {
@@ -134,21 +138,25 @@
 //   }})
 //
 // HTMX dispatches a CustomEvent named "toast" with `evt.detail` = the
-// payload above; the listener below pipes it straight into `push()`.
+// payload above; the listener below pipes it straight into push().
 //
 // The bus is exposed on `window.ToastBus` so devtools / manual flows can
 // call it without a server round-trip (`window.ToastBus.push({title:'Hi'})`).
-window.ToastBus = (function () {
+// Tests pin both the ``ToastBus`` and ``toast-root`` literals plus the
+// ``'toast'`` event-name string — all three survive this refactor.
+(function () {
   'use strict';
 
   // Default auto-dismiss delay (ms). Matches the prototype's 3500ms.
   var DEFAULT_DURATION = 3500;
   // How long the exit animation runs before the element is removed.
-  // Keep in sync with `@keyframes p-toast-out` in polish.css (200ms).
+  // Keep in sync with ``@keyframes p-toast-out`` in polish.css (200ms).
   var EXIT_MS = 200;
 
-  function rootEl() {
-    return document.getElementById('toast-root');
+  function toastsStore() {
+    return window.Alpine && window.Alpine.store
+      ? window.Alpine.store('toasts')
+      : null;
   }
 
   function makeId() {
@@ -158,105 +166,91 @@ window.ToastBus = (function () {
     return 't-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
   }
 
-  /**
-   * Push a new toast onto the host. Returns the toast id so callers can
-   * remove it manually (e.g. when a follow-up request resolves before
-   * the auto-dismiss fires).
-   *
-   * @param {Object} spec
-   * @param {string} spec.title — required, top line
-   * @param {string} [spec.sub] — optional second line
-   * @param {string} [spec.kind] — 'info' | 'success' | 'warn' | 'error'
-   * @param {number} [spec.duration] — auto-dismiss ms; 0 disables
-   */
-  function push(spec) {
-    spec = spec || {};
-    var root = rootEl();
-    if (!root) return null;
+  // Register the store on alpine:init. Methods live on the store
+  // so x-for-bound buttons can call ``$store.toasts.remove(t.id)``
+  // directly without bouncing through ``window.ToastBus``.
+  document.addEventListener('alpine:init', function () {
+    if (!(window.Alpine && typeof window.Alpine.store === 'function')) return;
+    window.Alpine.store('toasts', {
+      items: [],
+      /**
+       * Push a new toast onto the host. Returns the toast id so callers
+       * can remove it manually (e.g. when a follow-up request resolves
+       * before the auto-dismiss fires).
+       *
+       * @param {Object} spec
+       * @param {string} spec.title — required, top line
+       * @param {string} [spec.sub] — optional second line
+       * @param {string} [spec.kind] — 'info' | 'success' | 'warn' | 'error'
+       * @param {number} [spec.duration] — auto-dismiss ms; 0 disables
+       */
+      push: function (spec) {
+        // Some htmx versions wrap the HX-Trigger detail in an array
+        // when the value is non-scalar; normalise both shapes here so
+        // every push() call site stays simple.
+        if (Array.isArray(spec)) spec = spec[0];
+        if (!spec) return null;
+        var id = makeId();
+        var duration = (typeof spec.duration === 'number')
+          ? spec.duration
+          : DEFAULT_DURATION;
+        this.items.push({
+          id: id,
+          kind: spec.kind || 'info',
+          title: spec.title || '',
+          sub: spec.sub || '',
+          exiting: false,
+        });
+        var self = this;
+        if (duration > 0) {
+          setTimeout(function () { self.remove(id); }, duration);
+        }
+        return id;
+      },
+      /**
+       * Remove a toast by id. Flips ``exiting`` first so the
+       * p-toast-out keyframes animation runs; the entry is spliced
+       * out of ``items`` after EXIT_MS (which removes the DOM via
+       * the x-for binding).
+       */
+      remove: function (id) {
+        if (!id) return;
+        var t = this.items.find(function (x) { return x.id === id; });
+        if (!t || t.exiting) return; // idempotent
+        t.exiting = true;
+        var self = this;
+        setTimeout(function () {
+          self.items = self.items.filter(function (x) { return x.id !== id; });
+        }, EXIT_MS);
+      },
+    });
+  });
 
-    var id = makeId();
-    var kind = spec.kind || 'info';
-    var duration = (typeof spec.duration === 'number')
-      ? spec.duration
-      : DEFAULT_DURATION;
+  // ``window.ToastBus`` is the public surface — thin wrapper that
+  // routes into the store. Kept as a stable name so devtools, future
+  // client-side flows, and test_mojica_js_contains_toast_bus all
+  // continue to see ``ToastBus`` in the bundle.
+  window.ToastBus = {
+    push: function (spec) {
+      var s = toastsStore();
+      return s ? s.push(spec) : null;
+    },
+    remove: function (id) {
+      var s = toastsStore();
+      if (s) s.remove(id);
+    },
+  };
 
-    var el = document.createElement('div');
-    el.dataset.toastId = id;
-    el.className = 'toast ' + kind;
-    // role='alert' for errors so screen readers interrupt; role='status'
-    // (the default for #toast-root's aria-live="polite") for the rest.
-    el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
-
-    // Build the inner DOM imperatively so the title/sub are set via
-    // textContent (XSS-safe — server may pass user-supplied film titles
-    // or scene tags through, and the HX-Trigger payload is JSON-decoded
-    // by htmx with no markup stripping).
-    var ic = document.createElement('div');
-    ic.className = 'ic';
-
-    var body = document.createElement('div');
-    body.className = 'body';
-    var ttl = document.createElement('div');
-    ttl.className = 'ttl';
-    ttl.textContent = spec.title || '';
-    body.appendChild(ttl);
-    if (spec.sub) {
-      var sub = document.createElement('div');
-      sub.className = 'sub';
-      sub.textContent = spec.sub;
-      body.appendChild(sub);
-    }
-
-    var close = document.createElement('button');
-    close.className = 'close';
-    close.type = 'button';
-    close.setAttribute('aria-label', 'Close');
-    close.textContent = '×'; // ×
-    close.addEventListener('click', function () { remove(id); });
-
-    el.appendChild(ic);
-    el.appendChild(body);
-    el.appendChild(close);
-    root.appendChild(el);
-
-    if (duration > 0) {
-      setTimeout(function () { remove(id); }, duration);
-    }
-    return id;
-  }
-
-  /**
-   * Remove a toast by id. Adds the .exiting class first so the
-   * `p-toast-out` keyframes animation runs; the element is removed
-   * from the DOM after EXIT_MS.
-   */
-  function remove(id) {
-    if (!id) return;
-    var el = document.querySelector('[data-toast-id="' + id + '"]');
-    if (!el) return;
-    if (el.classList.contains('exiting')) return; // idempotent
-    el.classList.add('exiting');
-    setTimeout(function () {
-      if (el.parentNode) el.parentNode.removeChild(el);
-    }, EXIT_MS);
-  }
-
-  // HX-Trigger integration: htmx fires a CustomEvent named exactly after
-  // each key in the JSON payload. `HX-Trigger: {"toast": {...}}` ⇒ a
-  // "toast" event with `evt.detail` = the inner object. We listen on
-  // document.body so the bus picks up triggers from any HTMX-aware
-  // response, including SSE-driven swaps.
-  function onToastEvent(evt) {
-    var detail = evt && evt.detail;
-    if (!detail) return;
-    // Some htmx versions wrap the detail in an array when the trigger
-    // value is non-scalar; normalise both shapes.
-    if (Array.isArray(detail)) detail = detail[0];
-    push(detail);
-  }
-  document.body.addEventListener('toast', onToastEvent);
-
-  return { push: push, remove: remove };
+  // HX-Trigger integration: htmx fires a CustomEvent named exactly
+  // after each key in the JSON payload. ``HX-Trigger: {"toast": {...}}``
+  // ⇒ a "toast" event with ``evt.detail`` = the inner object. We
+  // listen on document.body so the bus picks up triggers from any
+  // HTMX-aware response, including SSE-driven swaps. The store's
+  // push() handles the array-wrapping normalisation, so this listener
+  // is a one-liner forwarder.
+  document.body.addEventListener('toast', function (evt) {
+    window.ToastBus.push(evt && evt.detail);
+  });
 })();
 
 // ─── Keyboard router (Phase 7 · Tasks 27 + 28) ────────────────────────
@@ -318,11 +312,23 @@ window.ToastBus = (function () {
   }
 
   // ── Help overlay state machine ──────────────────────────────────────
-  // The DOM is rendered once at page load by partials/_help_overlay.html;
-  // we just flip the [hidden] attribute on the outer #help node. Keeping
-  // the markup in place means the open path renders the legend in the
-  // same frame as the keypress, which is the whole point of a help
-  // surface bound to a one-key shortcut.
+  // State now lives in an Alpine store (``Alpine.store('help').open``)
+  // so the markup in partials/_help_overlay.html can react with
+  // ``x-show`` / ``@click`` / ``@keydown.escape.window`` directives.
+  // The functions below are thin wrappers that flip the store; we keep
+  // their named-function form because the public JS contract test
+  // (``test_mojica_js_contains_help_toggle``) and downstream call-sites
+  // (the ⌘K block, palette callbacks, future TopBar "?" button) all
+  // address them through ``window.Help.{open,close,toggle}`` rather than
+  // touching Alpine directly. Keeping the wrappers also means the file
+  // works on the rare error page that loads mojica.js without Alpine
+  // — every helper no-ops cleanly when the store is unavailable.
+  function helpStore() {
+    return window.Alpine && window.Alpine.store
+      ? window.Alpine.store('help')
+      : null;
+  }
+
   function openHelp() {
     // Mutual exclusion: only one polish surface is on screen at a time.
     // If the palette is open, dismiss it first so the help legend takes
@@ -330,50 +336,45 @@ window.ToastBus = (function () {
     if (window.Palette && typeof window.Palette.close === 'function') {
       window.Palette.close();
     }
-    var help = document.getElementById('help');
-    if (!help) return;
-    help.hidden = false;
+    var s = helpStore();
+    if (s) s.open = true;
   }
 
   function closeHelp() {
-    var help = document.getElementById('help');
-    if (!help) return;
-    help.hidden = true;
+    var s = helpStore();
+    if (s) s.open = false;
   }
 
   function toggleHelp() {
-    var help = document.getElementById('help');
-    if (!help) return;
-    if (help.hidden) openHelp();
-    else closeHelp();
+    var s = helpStore();
+    if (s) s.open = !s.open;
   }
 
-  function helpIsOpen() {
-    var help = document.getElementById('help');
-    return !!(help && !help.hidden);
-  }
-
-  // Backdrop + close-button click handler. The .kh-back element IS the
-  // backdrop, so a click whose target is the outer #help element (not
-  // a child) means the user clicked outside the panel — dismiss. The
-  // .kh-panel carries [data-prevent-close] (kept for parity with the
-  // palette scaffold even though the target check below is the actual
-  // guard) and stops events at its boundary because clicks on the panel
-  // hit one of its descendants, not #help itself.
-  document.addEventListener('click', function (e) {
-    if (!helpIsOpen()) return;
-    var help = document.getElementById('help');
-    // Backdrop click — the click event's target is the #help element
-    // itself only when nothing inside .kh-panel intercepted it.
-    if (e.target === help) {
-      closeHelp();
-      return;
-    }
-    // Explicit close button (anywhere inside the panel).
-    if (e.target.closest && e.target.closest('[data-action="close-help"]')) {
-      closeHelp();
+  // Register the stores as soon as Alpine boots. ``alpine:init`` fires
+  // once, right before Alpine walks the DOM, so both stores are ready
+  // by the time _help_overlay's ``x-show="$store.help.open"`` and
+  // _palette.html's ``x-show="$store.palette.open"`` are first
+  // evaluated. Deferred-script ordering guarantees mojica.js runs
+  // before DOMContentLoaded (which is when the CDN build calls
+  // Alpine.start()), so this listener is always attached in time.
+  //
+  // The palette store is registered eagerly even though palette.js
+  // itself is loaded on demand — the markup needs the store before
+  // the user's first ⌘K so the closed state is reactive from the
+  // first paint instead of relying on an inline ``hidden`` attribute.
+  document.addEventListener('alpine:init', function () {
+    if (window.Alpine && typeof window.Alpine.store === 'function') {
+      window.Alpine.store('help', { open: false });
+      window.Alpine.store('palette', { open: false });
     }
   });
+
+  // Backdrop click, close-button click, and Esc-to-dismiss are now
+  // declared on the overlay element itself via Alpine directives
+  // (@click.self / @click / @keydown.escape.window). The legacy
+  // document.addEventListener('click', …) handler that walked the DOM
+  // to detect backdrop vs panel clicks is gone — Alpine's $event.target
+  // check is the same logic in a clearer location.
 
   // Expose a small public surface so future flows (e.g. a "?" button on
   // the TopBar, or Task 27's palette gaining a "Show shortcuts" action)
@@ -397,14 +398,11 @@ window.ToastBus = (function () {
       return;
     }
 
-    // Esc — close help if it is the active surface. The palette installs
-    // its own Esc handler inside palette.js; this branch only fires when
-    // the palette is closed and help is open, so the two never fight.
-    if (e.key === 'Escape' && helpIsOpen()) {
-      e.preventDefault();
-      closeHelp();
-      return;
-    }
+    // Esc-when-help-open is now handled declaratively in
+    // _help_overlay.html (``@keydown.escape.window``) so the keyboard
+    // router no longer needs a branch for it. The palette still owns
+    // its own Esc handler in palette.js; mutual exclusion is preserved
+    // because openHelp/openPalette dismiss each other before opening.
 
     // Below this line: single-key shortcuts. The "in field" guard
     // suppresses them when the user is typing into an input/textarea so
@@ -414,7 +412,15 @@ window.ToastBus = (function () {
     // already on screen either.
     var ae = document.activeElement;
     var inField = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable);
-    var paletteOpen = !!(document.getElementById('palette') && !document.getElementById('palette').hidden);
+    // Palette-open state lives in Alpine.store('palette'); fall back to a
+    // simple ``false`` if the store hasn't initialised yet (the first
+    // single-key shortcut after page load would otherwise race the
+    // alpine:init handler, which is harmless here — the palette can't
+    // be open if the store isn't even registered).
+    var paletteStore = window.Alpine && window.Alpine.store
+      ? window.Alpine.store('palette')
+      : null;
+    var paletteOpen = !!(paletteStore && paletteStore.open);
     if (inField || paletteOpen) return;
 
     // ? — toggle keyboard help overlay. Bare key only; modifier
@@ -428,41 +434,64 @@ window.ToastBus = (function () {
   });
 })();
 
-// ── Buscar retrieval prefs (Hybrid Search Task E1) ─────────────────────
-// Persisted Alpine store backing the Buscar tab's knob-row popovers
+// ─── UI preferences (Cenas Appearance/Fields/Group/Sort + Buscar view + Buscar retrieval) ───
+// localStorage-backed Alpine stores driving toolrow popovers in
+// scenes.html (Appearance + Fields + Group + Sort), the view-toggle
+// segments in search.html (Grade / Lista / Compacto), and the M2
+// Hybrid Search retrieval-mode popovers (retriever / sem_w / top_k).
+// The server can't see localStorage, so these toggles are client-only —
+// Alpine reactively binds class names on the appropriate container to
+// flip layout, per-field visibility, and the hidden HTMX form mirrors.
+// Persistence survives reloads and tab swaps.
+//
+// Store shape (all reactive Alpine proxies):
+//   $store.cenasAppearance.density       // 'comfortable' | 'compact'
+//   $store.cenasFields.{timecode,pin_count,version,sub,tipo}  // bool
+//   $store.cenasGroup.by                  // group key
+//   $store.cenasSort.by                   // sort key
+//   $store.buscarView.mode                // 'grid' | 'list' | 'compact'
+//   $store.buscarRetrieval.{mode,sem_w,top_k}
+//
+// The ``buscarRetrieval`` store backs the Buscar tab's knob-row popovers
 // (retriever / sem_w / bm25_w / top_k). Defaults mirror the canonical
 // hybrid baseline so a first-paint UI never drifts from the server
 // contract: ``retriever=hybrid``, ``sem_w=0.70``, ``bm25_w=0.30``,
-// ``top_k=9`` (UI preference; the route's FastAPI default is 8, see the
-// E1 task plan — the hidden HTMX mirror in E2 sends the UI value on
-// every request, so the divergence is intentional).
+// ``top_k=9`` (UI preference; the route's FastAPI default is 8 — the
+// hidden HTMX mirror sends the UI value on every request, so the
+// divergence is intentional). Keep ``mode`` / ``sem_w`` / ``top_k`` in
+// sync with the ``/api/search`` query params in ``api/routes/search.py``.
 //
-// The IIFE pattern mirrors the Mojica-redesign prefs block (which
-// already ships ``cenasGroup`` / ``cenasSort`` / ``buscarView`` on the
-// design branch): same KEYS/DEFAULTS shape, same ``loadPrefs`` /
-// ``savePrefs`` / ``persistOnChange`` helpers, same ``alpine:init``
-// registration. When the two branches converge, the helpers collapse
-// into one block and the KEYS/DEFAULTS objects merge — no schema rewrite
-// is needed because each store is keyed independently in localStorage.
-//
-// A corrupt or absent payload silently falls back to defaults via the
-// try/catch in ``loadPrefs`` — a malformed entry must not break Buscar.
+// Defaults are "everything visible, comfortable density, grid view,
+// hybrid retrieval"; users only ever pay storage cost when they
+// deviate from defaults. A corrupt or absent payload silently falls
+// back to defaults via the try/catch in ``loadPrefs`` — a malformed
+// localStorage entry must not break the page or wedge the search UI.
 (function () {
   'use strict';
 
   // localStorage key namespace. Prefixed so future prefs don't collide
   // with any other localStorage usage in the app (eval grader, etc.).
   var KEYS = {
-    retrieval: 'mojica:buscar:retrieval',
+    appearance: 'mojica:cenas:appearance',
+    fields:     'mojica:cenas:fields',
+    group:      'mojica:cenas:group',
+    sort:       'mojica:cenas:sort',
+    view:       'mojica:buscar:view',
+    retrieval:  'mojica:buscar:retrieval',
   };
 
   // Defaults — also the source of truth for "what fields exist". The
-  // ``mode`` / ``sem_w`` / ``bm25_w`` / ``top_k`` fields mirror the
-  // ``retriever`` / ``sem_w`` / ``bm25_w`` / ``top_k`` query params on
-  // ``/api/search`` and ``/api/search/aggregate`` (D1/D2). Keep this in
-  // sync with ``api/routes/search.py`` if the route's defaults change.
+  // Fields popover renders one row per key here in declaration order.
+  // ``group`` / ``sort`` mirror the server's ``_VALID_GROUPS`` /
+  // ``_VALID_SORTS`` defaults — keep the two in sync if either is
+  // edited. ``retrieval`` mirrors ``/api/search`` query params.
   var DEFAULTS = {
-    retrieval: { mode: 'hybrid', sem_w: 0.70, top_k: 9 },
+    appearance: { density: 'comfortable' },
+    fields:     { timecode: true, pin_count: true, version: true, sub: true, tipo: true },
+    group:      { by: 'film' },
+    sort:       { by: 'timecode' },
+    view:       { mode: 'grid' },
+    retrieval:  { mode: 'hybrid', sem_w: 0.70, top_k: 9 },
   };
 
   /**
@@ -544,10 +573,20 @@ window.ToastBus = (function () {
   document.addEventListener('alpine:init', function () {
     if (!(window.Alpine && typeof window.Alpine.store === 'function')) return;
 
-    window.Alpine.store('buscarRetrieval', loadPrefs(KEYS.retrieval, DEFAULTS.retrieval));
+    window.Alpine.store('cenasAppearance', loadPrefs(KEYS.appearance, DEFAULTS.appearance));
+    window.Alpine.store('cenasFields',     loadPrefs(KEYS.fields,     DEFAULTS.fields));
+    window.Alpine.store('cenasGroup',      loadPrefs(KEYS.group,      DEFAULTS.group));
+    window.Alpine.store('cenasSort',       loadPrefs(KEYS.sort,       DEFAULTS.sort));
+    window.Alpine.store('buscarView',      loadPrefs(KEYS.view,       DEFAULTS.view));
+    window.Alpine.store('buscarRetrieval', loadPrefs(KEYS.retrieval,  DEFAULTS.retrieval));
 
     // Persistence effects must register AFTER the stores exist; same
     // alpine:init handler keeps the relative ordering deterministic.
-    persistOnChange('buscarRetrieval', KEYS.retrieval, ['mode', 'sem_w', 'top_k']);
+    persistOnChange('cenasAppearance', KEYS.appearance, ['density']);
+    persistOnChange('cenasFields',     KEYS.fields,     ['timecode', 'pin_count', 'version', 'sub', 'tipo']);
+    persistOnChange('cenasGroup',      KEYS.group,      ['by']);
+    persistOnChange('cenasSort',       KEYS.sort,       ['by']);
+    persistOnChange('buscarView',      KEYS.view,       ['mode']);
+    persistOnChange('buscarRetrieval', KEYS.retrieval,  ['mode', 'sem_w', 'top_k']);
   });
 })();

@@ -583,13 +583,14 @@ def _film_for_grid(film: Any, kf_meta: list) -> SimpleNamespace:
     )
 
 
-def _card_to_scene(card: dict) -> dict:
+def _card_to_scene(card: dict, *, film_ns: SimpleNamespace | None = None) -> dict:
     """Convert a catalog ``build_cards`` dict to the grid template's scene shape.
 
     Adds the keys the new template reads (``id``, ``slug``, ``tipo``,
-    ``pin_count``, ``version``, ``keyframe_url``) while preserving the
-    original ``scene_id`` / ``timecode`` keys so any downstream code that
-    still consumes the catalog shape keeps working.
+    ``pin_count``, ``version``, ``keyframe_url``, ``start_s``,
+    ``duration_s``, ``film``) while preserving the original
+    ``scene_id`` / ``timecode`` keys so any downstream code that still
+    consumes the catalog shape keeps working.
 
     ``slug`` here is the *scene* slug shown on the card body (e.g.
     ``"scene 351"``) — distinct from the *film* slug carried by the
@@ -597,6 +598,14 @@ def _card_to_scene(card: dict) -> dict:
     today it falls back to ``f"scene {scene_id}"``; later phases can
     swap in a curated scene title (e.g. from a description's first
     clause) without touching the template.
+
+    ``film_ns`` is the per-scene Film namespace (slug, title, year,
+    director_last) used by the scenes_grid template's per-card sub
+    line + hx-get URL. When omitted (legacy callers) the caller is
+    responsible for inferring the film from the enclosing group —
+    which works for ``group=film`` only. New callers MUST pass it so
+    ``group=tipo`` / ``group=none`` can mix scenes across films and
+    each card still resolves its own inspector URL.
     """
     sid = card.get("scene_id")
     try:
@@ -609,6 +618,12 @@ def _card_to_scene(card: dict) -> dict:
         "slug": f"scene {sid_int}",
         "keyframe_url": card.get("img_url") or "",
         "timecode": card.get("timecode") or "",
+        # Raw seconds — surfaced for the Cenas grid's Sort-by-Duration
+        # path; the SMPTE ``timecode`` field stays the human-readable
+        # render. ``start_s`` is also the canonical key for
+        # Sort-by-Timecode (more precise than the truncated string).
+        "start_s": float(card.get("start_s") or 0.0),
+        "duration_s": float(card.get("duration_s") or 0.0),
         "tipo": tipo_of(
             list(card.get("all_tags") or card.get("tags") or []),
             card.get("full_description") or card.get("description") or "",
@@ -618,7 +633,67 @@ def _card_to_scene(card: dict) -> dict:
         # that lands in a later plan; the template hides the ``.ver``
         # pill when this is falsy.
         "version": card.get("version") or None,
+        # Per-scene film namespace — needed for cross-film groupings
+        # (``group=tipo`` / ``group=none``) where the enclosing group
+        # heading no longer carries a single film identity.
+        "film": film_ns,
     }
+
+
+_VALID_GROUPS = frozenset({"film", "tipo", "none"})
+_VALID_SORTS = frozenset({"timecode", "duration", "pins"})
+
+# Stable display order for the ``group=tipo`` headings — narrative
+# arc that mirrors how a curator reads through a film (title cards →
+# interiors → exteriors → dialogues → transitions). Keeps the
+# headings in the same order across films instead of dict-iteration
+# noise. New ``tipo`` values added in ``tipo_of`` MUST also land
+# here or they'll fall through to the end in alphabetical order.
+_TIPO_DISPLAY_ORDER = (
+    "cartela",
+    "interior",
+    "exterior",
+    "dialogo",
+    "transicao",
+)
+_TIPO_LABEL = {
+    "cartela": "Cartela",
+    "interior": "Interior",
+    "exterior": "Exterior",
+    "dialogo": "Diálogo",
+    "transicao": "Transição",
+}
+
+
+def _sort_scenes(scenes: list[dict], sort: str) -> list[dict]:
+    """Stable sort of scene dicts by the requested key.
+
+    ``timecode`` (default) → ``start_s`` ascending. The keyframe
+    extractor already emits in this order, so the sort is mostly
+    a no-op but it stays explicit so a future shuffled input still
+    produces a sensible grid.
+
+    ``duration`` → longest first. Matches the curator's "show me the
+    long takes" intuition; short clips drift to the bottom.
+
+    ``pins`` → ``pin_count`` descending; ties break by ``start_s``
+    so two unpinned scenes stay in their original timecode order.
+    """
+
+    if sort == "duration":
+        return sorted(scenes, key=lambda s: -float(s.get("duration_s") or 0.0))
+    if sort == "pins":
+        return sorted(
+            scenes,
+            key=lambda s: (
+                -int(s.get("pin_count") or 0),
+                float(s.get("start_s") or 0.0),
+            ),
+        )
+    # ``timecode`` is the default — explicit sort keeps the function
+    # honest for shuffled inputs even if today's pipeline emits
+    # in-order.
+    return sorted(scenes, key=lambda s: float(s.get("start_s") or 0.0))
 
 
 def _build_groups_by_film(
@@ -627,14 +702,17 @@ def _build_groups_by_film(
     tags: list[str],
     keyword: str,
     slug: str | None = None,
+    group: str = "film",
+    sort: str = "timecode",
 ) -> tuple[list[dict], list[Any], int, float, set[str]]:
     """Walk the library and produce the ``groups_by_film`` template payload.
 
     Returns a tuple ``(groups, films, total_scenes, total_runtime_s,
     all_tags)`` where:
 
-      * ``groups`` is the ordered list of ``{"film": SimpleNamespace,
-        "scenes": [scene_dict, ...], "match_count": int}`` dicts the
+      * ``groups`` is the ordered list of ``{"film", "scenes",
+        "match_count", "heading_label", "heading_sub",
+        "heading_total", "is_grouped", "heading_dot"}`` dicts the
         template iterates on. Films with zero matching scenes after
         ``tags`` / ``keyword`` filtering are dropped (the heading would
         otherwise sit above an empty card area).
@@ -649,15 +727,39 @@ def _build_groups_by_film(
         as the legacy ``available_tags`` value for backwards-compat
         (the tag-filter UI moves to the right pane in a later task but
         the legacy filter must keep working).
+
+    ``group`` ∈ {"film", "tipo", "none"} — controls heading layout.
+
+      * ``film`` (default) — one group per film, heading carries
+        the film's title + year + director.
+      * ``tipo`` — one group per scene tipo (cartela / interior /
+        exterior / dialogo / transicao), each containing scenes from
+        every film matching that tipo. Heading carries the tipo
+        label and the cross-film count.
+      * ``none`` — a single flat group with no visible heading
+        (``is_grouped=False``), all scenes sorted across the library
+        as one bag.
+
+    ``sort`` ∈ {"timecode", "duration", "pins"} — see ``_sort_scenes``.
+    Sort is applied AFTER grouping so each visible bucket is sorted
+    internally; the inter-group order is determined by group identity
+    (film registration order for ``film``, ``_TIPO_DISPLAY_ORDER`` for
+    ``tipo``).
     """
     from cinemateca.library import scan_library
 
     library_dir = Path(cfg.paths.library_dir)
-    groups: list[dict] = []
     films: list[Any] = []
     total_scenes = 0
     total_runtime_s = 0.0
     all_tags: set[str] = set()
+
+    # Normalise unknown values silently — a stray ?group=foobar query
+    # shouldn't 5xx the page. Default to the safest option in each case.
+    if group not in _VALID_GROUPS:
+        group = "film"
+    if sort not in _VALID_SORTS:
+        sort = "timecode"
 
     # Per-film slug filter (sidebar-driven): only render the matching
     # film's group. The aggregate path still walks the whole library so
@@ -674,6 +776,9 @@ def _build_groups_by_film(
             FilmContext.for_film(cfg, slug)
         all_films = [f for f in all_films if f.slug == slug]
 
+    # Phase 1: build a flat ``(film_ns, [scene_dict])`` list per film.
+    # Phase 2 below regroups + sorts based on ``group`` / ``sort``.
+    per_film: list[tuple[SimpleNamespace, list[dict]]] = []
     for film in all_films:
         films.append(film)
         try:
@@ -696,19 +801,134 @@ def _build_groups_by_film(
             # Per-film empty result after filtering — don't emit a
             # heading the user can't drill into.
             continue
-        scenes = [_card_to_scene(c) for c in cards]
         film_ns = _film_for_grid(film, kf_meta)
+        scenes = [_card_to_scene(c, film_ns=film_ns) for c in cards]
         total_scenes += len(scenes)
         total_runtime_s += film_ns.runtime_s
-        groups.append(
+        per_film.append((film_ns, scenes))
+
+    groups = _regroup(per_film, group=group, sort=sort)
+    return groups, films, total_scenes, total_runtime_s, all_tags
+
+
+def _regroup(
+    per_film: list[tuple[SimpleNamespace, list[dict]]],
+    *,
+    group: str,
+    sort: str,
+) -> list[dict]:
+    """Apply ``group`` + ``sort`` to the per-film scene lists.
+
+    Each returned group carries everything the scenes_grid template
+    needs to render its heading + scenecards regardless of which
+    grouping mode is active — see ``_build_groups_by_film`` for the
+    contract.
+    """
+
+    if group == "none":
+        # One flat group across the whole library. ``is_grouped=False``
+        # tells the template to skip the .group heading bar entirely.
+        # ``film`` is set to the first scene's film so backward-compat
+        # downstream code that still reads ``group.film.*`` doesn't
+        # blow up — but the template's per-card path now reads from
+        # ``s.film.*`` instead.
+        flat_scenes: list[dict] = []
+        for _f, scenes in per_film:
+            flat_scenes.extend(scenes)
+        flat_scenes = _sort_scenes(flat_scenes, sort)
+        if not flat_scenes:
+            return []
+        first_film = flat_scenes[0].get("film") or (
+            per_film[0][0] if per_film else None
+        )
+        return [
+            {
+                "film": first_film,
+                "scenes": flat_scenes,
+                "match_count": len(flat_scenes),
+                "is_grouped": False,
+                "heading_label": "",
+                "heading_sub": "",
+                "heading_total": 0,
+                "heading_dot": "var(--c-accent)",
+            }
+        ]
+
+    if group == "tipo":
+        # One group per tipo (cartela / interior / exterior / dialogo /
+        # transicao). Scenes from multiple films share a group; each
+        # card resolves its own film via ``s.film.*`` for the inspector
+        # URL. Groups appear in ``_TIPO_DISPLAY_ORDER`` regardless of
+        # which tipos actually have content — empty ones drop out.
+        by_tipo: dict[str, list[dict]] = {}
+        for _f, scenes in per_film:
+            for s in scenes:
+                tipo = str(s.get("tipo") or "transicao")
+                by_tipo.setdefault(tipo, []).append(s)
+        out: list[dict] = []
+        seen_tipos: set[str] = set()
+        ordered_tipos = list(_TIPO_DISPLAY_ORDER) + sorted(
+            t for t in by_tipo if t not in _TIPO_DISPLAY_ORDER
+        )
+        for tipo in ordered_tipos:
+            scenes = by_tipo.get(tipo) or []
+            if not scenes or tipo in seen_tipos:
+                continue
+            seen_tipos.add(tipo)
+            sorted_scenes = _sort_scenes(scenes, sort)
+            # Synthetic ``film`` namespace for legacy template paths
+            # that still expect ``group.film``. The fields the template
+            # reads under ``group.film.*`` for the HEADING (title /
+            # year / director) get tipo-specific values; per-card
+            # rendering reads ``s.film.*`` instead so each card's
+            # film identity stays correct.
+            label = _TIPO_LABEL.get(tipo, tipo.capitalize())
+            tipo_ns = SimpleNamespace(
+                slug=tipo,
+                title=label,
+                year=None,
+                director=None,
+                director_last=None,
+                scene_count=len(scenes),
+                runtime_tc="",
+                runtime_s=0.0,
+            )
+            out.append(
+                {
+                    "film": tipo_ns,
+                    "scenes": sorted_scenes,
+                    "match_count": len(sorted_scenes),
+                    "is_grouped": True,
+                    "heading_label": label,
+                    "heading_sub": "",
+                    "heading_total": len(sorted_scenes),
+                    "heading_dot": f"var(--c-cat-{tipo})",
+                }
+            )
+        return out
+
+    # Default: ``group=film`` — one group per film, sorted within.
+    out = []
+    for film_ns, scenes in per_film:
+        sorted_scenes = _sort_scenes(scenes, sort)
+        sub_parts: list[str] = []
+        if film_ns.year:
+            sub_parts.append(str(film_ns.year))
+        if film_ns.director:
+            sub_parts.append(film_ns.director)
+        out.append(
             {
                 "film": film_ns,
-                "scenes": scenes,
-                "match_count": len(scenes),
+                "scenes": sorted_scenes,
+                "match_count": len(sorted_scenes),
+                "is_grouped": True,
+                "heading_label": film_ns.title,
+                "heading_sub": " · ".join(sub_parts),
+                "heading_total": film_ns.scene_count,
+                "heading_dot": "var(--c-accent)",
             }
         )
-
-    return groups, films, total_scenes, total_runtime_s, all_tags
+    return out
 
 
 def build_cenas_context(
@@ -718,6 +938,8 @@ def build_cenas_context(
     keyword: str = "",
     selected_scene_id: int | None = None,
     slug: str | None = None,
+    group: str = "film",
+    sort: str = "timecode",
 ) -> dict:
     """Return the full Cenas-tab template context.
 
@@ -754,17 +976,27 @@ def build_cenas_context(
         total_scenes,
         total_runtime_s,
         all_tags,
-    ) = _build_groups_by_film(cfg, tags=tags, keyword=keyword, slug=slug)
+    ) = _build_groups_by_film(
+        cfg, tags=tags, keyword=keyword, slug=slug, group=group, sort=sort
+    )
 
     # Flat cards list — preserves the legacy context key so older
     # template includes and tests that read ``cards`` directly do not
     # break during the transition. Pulls from each group's scenes so
-    # the keyword/tag filter applied above is honoured.
+    # the keyword/tag filter applied above is honoured. We iterate
+    # under a different name so the outer ``group`` argument (used
+    # again below for ``active_group``) isn't shadowed by the dict
+    # element here.
     flat_cards: list[dict] = []
-    for group in groups:
-        slug = group["film"].slug
-        for s in group["scenes"]:
-            flat_cards.append({**s, "film_slug": slug})
+    for grp in groups:
+        # Prefer each scene's own per-card film (group=tipo / group=none
+        # can mix films within one group); fall back to the group's
+        # film namespace for the group=film path where every scene
+        # shares the heading's film.
+        for s in grp["scenes"]:
+            scene_film = s.get("film") or grp.get("film")
+            film_slug = getattr(scene_film, "slug", None) or ""
+            flat_cards.append({**s, "film_slug": film_slug})
 
     return {
         "groups_by_film": groups,
@@ -791,4 +1023,11 @@ def build_cenas_context(
         # value on full-page navigation (and the inspector route can
         # plumb it through later if needed).
         "query": keyword,
+        # Active group/sort — surfaced so the toolrow's hidden inputs
+        # and the radio popovers can seed their initial values on
+        # full-page navigation. Normalised to a value in the
+        # ``_VALID_*`` sets so the template never has to defend
+        # against ``?group=foobar``.
+        "active_group": group if group in _VALID_GROUPS else "film",
+        "active_sort": sort if sort in _VALID_SORTS else "timecode",
     }

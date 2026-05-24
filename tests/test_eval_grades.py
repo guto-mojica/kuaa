@@ -133,3 +133,58 @@ def test_multiple_query_scene_pairs(tmp_path: Path):
     assert loaded.grades[("q1", "jeca/1")].grade == Grade.RELEVANT
     assert loaded.grades[("q1", "jeca/2")].grade == Grade.WEAKLY
     assert loaded.grades[("q2", "jeca/1")].grade == Grade.IRRELEVANT
+
+
+# ── load_run_per_annotator: multi-annotator preservation ─────────────────────
+
+
+def test_load_run_per_annotator_keeps_each_grader(tmp_path: Path):
+    """Two annotators on the same (q,s) — both grades survive the load.
+
+    The default ``load_run`` collapses across graders (last-write-wins),
+    which makes inter-annotator-agreement math impossible. The new
+    ``load_run_per_annotator`` view groups by grader so the IAA panel
+    in the right pane can compare them.
+    """
+
+    from cinemateca.eval.grades import load_run_per_annotator
+
+    run = EvalRun(run_id="r1", root=tmp_path)
+    save_grade(run, query_id="q1", scene_id="s1", grader="rg", grade=Grade.RELEVANT)
+    save_grade(
+        run, query_id="q1", scene_id="s1", grader="jr", grade=Grade.HIGHLY_RELEVANT
+    )
+
+    per_annot = load_run_per_annotator(run)
+    assert ("q1", "s1") in per_annot
+    bucket = per_annot[("q1", "s1")]
+    assert set(bucket) == {"rg", "jr"}
+    assert bucket["rg"].grade == Grade.RELEVANT
+    assert bucket["jr"].grade == Grade.HIGHLY_RELEVANT
+
+
+def test_load_run_per_annotator_regrade_supersedes_self(tmp_path: Path):
+    """A regrade by the same grader overwrites their earlier vote only."""
+
+    from cinemateca.eval.grades import load_run_per_annotator
+
+    run = EvalRun(run_id="r1", root=tmp_path)
+    save_grade(run, query_id="q1", scene_id="s1", grader="rg", grade=Grade.WEAKLY)
+    save_grade(run, query_id="q1", scene_id="s1", grader="jr", grade=Grade.RELEVANT)
+    save_grade(run, query_id="q1", scene_id="s1", grader="rg", grade=Grade.HIGHLY_RELEVANT)
+
+    per_annot = load_run_per_annotator(run)
+    bucket = per_annot[("q1", "s1")]
+    # rg's WEAKLY was superseded by their later HIGHLY_RELEVANT —
+    # jr's RELEVANT stays put even though it was older than rg's regrade.
+    assert bucket["rg"].grade == Grade.HIGHLY_RELEVANT
+    assert bucket["jr"].grade == Grade.RELEVANT
+
+
+def test_load_run_per_annotator_missing_file(tmp_path: Path):
+    """Missing JSONL → empty dict, mirroring ``load_run``."""
+
+    from cinemateca.eval.grades import load_run_per_annotator
+
+    run = EvalRun(run_id="never_written", root=tmp_path)
+    assert load_run_per_annotator(run) == {}

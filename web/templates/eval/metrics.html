@@ -4,9 +4,9 @@
    Precision@3, Inversions) even when no grades exist — values are
    zeroed via build_eval_context defaults. The histogram fans
    highest-grade first (3, 2, 1, 0, skip). The save / skip buttons
-   carry data-action attributes so Task 32's keyboard router can
-   trigger them; the actual save POST hits /api/eval/grade with the
-   currently-focused row's scene_id. #}
+   bind @click to the evalApp component (eval.js); the keyboard
+   shortcuts (⌘⏎ / S) reach the same methods. The actual save POST
+   hits /api/eval/grade with the currently-focused row's scene_id. #}
 <aside class="ev-rp">
   <div class="head">
     <h3>
@@ -39,6 +39,14 @@
         <span class="val">
           <span class="n">{{ '%.2f'|format(ndcg5) }}</span>
           <span class="d">{{ _('vs ideal') }}</span>
+          {# Delta vs the previous nDCG@5 the grader saw in this session.
+             Populated client-side by eval.js (refreshMetrics → setMetric)
+             — it caches the prior value and writes +.07 / -.07 here on
+             every save. Empty on first paint; revealed once the JS has
+             computed a non-zero delta. Lives inside .val so the
+             existing ``.ev-met .val .delta`` rule (margin-left: auto)
+             pushes it flush to the right edge. #}
+          <span class="delta" data-key="ndcg_at_5" aria-hidden="true"></span>
         </span>
         <span class="bar" style="--p: {{ '%d'|format((ndcg5 * 100)|round(0, 'common')|int) }}%;"></span>
       </div>
@@ -78,6 +86,64 @@
       {% endfor %}
     </div>
 
+    {# Inter-annotator agreement panel — only rendered when the run
+       has ≥ 2 annotators with at least one shared (q, s) judgment.
+       Built by eval_service._build_iaa from per-annotator JSONL
+       grades; SKIP entries are excluded from both the matrix and κ.
+       The qualitative label ("substantial" / "moderate" / "fair" /
+       "slight" / "poor") follows Landis & Koch 1977 thresholds. #}
+    {% if iaa is defined and iaa.enabled %}
+    <div class="ev-sect">
+      <span>{{ _('INTER-ANNOTATOR · vs') }} {{ iaa.other.initials }}</span>
+      <a title="{{ _('shared (q, s) judgments') }}">{{ iaa.shared }} {{ _('pairs') }}</a>
+    </div>
+    <div class="ev-iaa">
+      <div class="h">
+        <div class="l">
+          <div class="av">{{ iaa.other.initials }}</div>
+          <span>{{ iaa.other.name }}</span>
+        </div>
+        <div class="r"><b>{{ iaa.agree_pct }}%</b> {{ _('agreement') }}</div>
+      </div>
+      <div class="kappa">
+        <span class="label">{{ _("Cohen's κ") }}</span>
+        <span class="val">{{ '%.2f'|format(iaa.kappa) }}</span>
+        <span class="qual">{{ _(iaa.quality_label) }}</span>
+      </div>
+      {# Confusion matrix — 6×6 grid. Row labels = SELF grade (0/1/2/3).
+         Column labels = OTHER grade (0/1/2/3). Diagonal cells are
+         perfect agreement (.diag .hi); off-by-one cells are .mid;
+         the right edge column and bottom edge row carry totals.
+         SKIP is intentionally excluded from this 4×4 grid (rendered
+         as its own row in the histogram above instead). #}
+      <div class="matrix" role="grid" aria-label="{{ _('Agreement confusion matrix') }}">
+        <span class="h-cell"></span>
+        <span class="h-cell">0</span>
+        <span class="h-cell">1</span>
+        <span class="h-cell">2</span>
+        <span class="h-cell">3</span>
+        <span class="h-cell">{{ iaa.other.initials }}</span>
+
+        {% for row in range(4) %}
+          <span class="h-cell">{{ row }}</span>
+          {% for col in range(4) %}
+            {% set cell = iaa.confusion[row][col] %}
+            {% set is_diag = (row == col) %}
+            {% set is_adj = (row != col) and ((row - col)|abs == 1) and cell > 0 %}
+            <span class="c{% if is_diag %} diag hi{% elif is_adj %} mid{% endif %}">{{ cell }}</span>
+          {% endfor %}
+          <span class="c">{{ iaa.row_totals[row] }}</span>
+        {% endfor %}
+
+        <span class="h-cell" style="font-weight:600;color:var(--c-text);">{{ iaa.self.initials }}</span>
+        {% for col in range(4) %}
+          <span class="c">{{ iaa.col_totals[col] }}</span>
+        {% endfor %}
+        <span class="c diag" style="background:var(--c-border);color:var(--c-text);">{{ iaa.grand_total }}</span>
+      </div>
+    </div>
+    {% endif %}
+
     <div class="ev-sect">
       <span>{{ _('SESSION') }}</span>
     </div>
@@ -105,11 +171,11 @@
     </div>
 
     <div class="ev-saverow">
-      <button class="ev-save" type="button" data-action="save-advance">
+      <button class="ev-save" type="button" @click="saveAndAdvance()">
         <span>{{ _('SAVE & ADVANCE') }}</span>
         <span class="kbd">⌘⏎</span>
       </button>
-      <button class="ev-skip" type="button" data-action="skip">
+      <button class="ev-skip" type="button" @click="skipCurrent()">
         <span>{{ _('SKIP') }}</span>
         <span class="kbd">⇧S</span>
       </button>

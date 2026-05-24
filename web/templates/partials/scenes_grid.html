@@ -35,25 +35,53 @@
    Cenas inspector ignores it but the route still accepts it).
 #}
 {% from "partials/_icons.html" import icon %}
+{# Each scene now carries its own ``s.film`` namespace (slug, title,
+   year, director_last) so cross-film groupings (``group=tipo`` /
+   ``group=none``) render each card's inspector URL + sub line from
+   the scene's OWN film instead of inheriting from the enclosing
+   group heading. For the legacy ``group=film`` path the heading
+   film and per-card film are the same — no visible change.
+
+   The group heading itself reads from new context keys:
+     ``group.is_grouped``  — False on ``group=none`` (flat layout)
+     ``group.heading_label`` / ``heading_sub`` / ``heading_total`` /
+     ``heading_dot``
+   The legacy ``group.film.*`` keys are still populated for the
+   runtime-tc meta cell on ``group=film``; for ``group=tipo`` /
+   ``group=none`` they carry a synthetic namespace (tipo label or
+   first-scene fallback) — the template guards on
+   ``group.film.runtime_tc`` so the empty cases skip the meta. #}
 {% if not groups_by_film %}
   <div class="empty-state">
     <p>{{ _("No scenes match the filters.") }}</p>
   </div>
 {% else %}
   {% for group in groups_by_film %}
+    {% if group.is_grouped %}
     <div class="group">
       <span class="chev" aria-hidden="true">{{ icon('chev-d', 12) }}</span>
-      <span class="dot" style="background: var(--c-accent);" aria-hidden="true"></span>
-      <span class="name">{{ group.film.title }}</span>
-      <span style="color: var(--c-muted); font-size: 11.5px;">{% if group.film.year %}{{ group.film.year }}{% endif %}{% if group.film.director %} · {{ group.film.director }}{% endif %}</span>
-      <span class="ct">{{ group.match_count }} / {{ group.film.scene_count }}</span>
+      <span class="dot" style="background: {{ group.heading_dot or 'var(--c-accent)' }};" aria-hidden="true"></span>
+      <span class="name">{{ group.heading_label }}</span>
+      {% if group.heading_sub %}
+      <span style="color: var(--c-muted); font-size: 11.5px;">{{ group.heading_sub }}</span>
+      {% endif %}
+      <span class="ct">{{ group.match_count }}{% if group.heading_total %} / {{ group.heading_total }}{% endif %}</span>
+      {% if group.film and group.film.runtime_tc %}
       <span class="meta"><span>runtime {{ group.film.runtime_tc }}</span></span>
+      {% endif %}
     </div>
+    {% endif %}
     {% for s in group.scenes %}
       {% set tipo = s.tipo or 'transicao' %}
+      {# Per-scene film: prefer the scene's own ``film`` (added by
+         ``_card_to_scene``) so cross-film grouping is honoured.
+         Falls back to ``group.film`` for legacy shapes / single-
+         film groups where every scene shares the heading's film. #}
+      {% set film = s.film or group.film %}
+      {% set film_slug = (film.slug if film else '') %}
       <article class="scenecard{% if selected_scene_id is not none and s.id == selected_scene_id %} sel{% endif %}"
                data-scene-id="{{ s.id }}"
-               hx-get="/api/scenes/{{ s.id }}/inspector?film={{ group.film.slug }}&tab=properties&kind=cenas"
+               hx-get="/api/scenes/{{ s.id }}/inspector?film={{ film_slug }}&tab=properties&kind=cenas"
                hx-target="#right-pane"
                hx-swap="innerHTML"
                hx-trigger="click">
@@ -67,8 +95,8 @@
           <h3 class="name fx-truncate">{{ s.slug }}</h3>
           <div class="sub">
             <span class="dot-f" style="background: var(--c-accent);" aria-hidden="true"></span>
-            <span>{{ group.film.director_last or group.film.title }}</span>
-            {% if group.film.year %}<span>· {{ group.film.year }}</span>{% endif %}
+            <span>{% if film %}{{ film.director_last or film.title }}{% endif %}</span>
+            {% if film and film.year %}<span>· {{ film.year }}</span>{% endif %}
             <span class="acts">
               <button type="button" class="fx-icbtn sm" title="{{ _('More') }}" aria-label="{{ _('More') }}">{{ icon('more', 14) }}</button>
             </span>

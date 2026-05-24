@@ -87,6 +87,13 @@
 /* ── END Mojica token block ─ component CSS below is legacy v0.3, untouched
    in Task 2 and gets rewritten per-tab in Phases 1–10. ─────────────────── */
 
+/* ── Framework helpers ─────────────────────────────────────────────────────────
+   Alpine `x-cloak` keeps elements hidden until Alpine has processed the DOM,
+   so panels marked `x-show="…"` don't flash visible during page load. The
+   rule is global because cloaked elements can appear anywhere; Alpine
+   removes the attribute as soon as init completes. */
+[x-cloak] { display: none !important; }
+
 /* ── Reset ─────────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
