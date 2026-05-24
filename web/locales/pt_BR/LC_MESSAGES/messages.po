@@ -1445,8 +1445,8 @@ msgid "Search the library — describe a scene, paste an image…"
 msgstr "Buscar no acervo — descreva uma cena, cole uma imagem…"
 
 #: web/templates/partials/search.html:87
-msgid "Search modality"
-msgstr "Modalidade de busca"
+msgid "Input type"
+msgstr "Tipo de entrada"
 
 # ── Search tab ────────────────────────────────────────────────────────
 #: web/templates/partials/search.html:95

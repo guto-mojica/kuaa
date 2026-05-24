@@ -1473,8 +1473,8 @@ msgid "Search the library — describe a scene, paste an image…"
 msgstr ""
 
 #: web/templates/partials/search.html:87
-msgid "Search modality"
-msgstr ""
+msgid "Input type"
+msgstr "Input type"
 
 #: web/templates/partials/search.html:95
 msgid "Text"

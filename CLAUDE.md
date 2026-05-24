@@ -332,8 +332,9 @@ Keep this list updated as steps complete.
 `docs/superpowers/specs/2026-05-19-multimodal-retrieval-and-launch-design.md`.
 Dual purpose: take the project to a credible public v1.0 launch, and produce
 a portfolio piece for the maintainer's applied-ML / retrieval career
-transition. Scope is locked; if risks fire, timeline extends rather than
-features cut.
+transition. Scope is *not* locked — if risks fire, engineering can drop or
+defer features; timeline extension is one option among several. Grilled
+2026-05-24 (correction to an earlier "scope locked" framing).
 
 ### Month 1 — Foundation
 - [x] **Multi-film library** — `films.json` registry; per-film `data/library/<slug>/`

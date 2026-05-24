@@ -84,7 +84,7 @@
        Multimodal land in M2/M3 and stay disabled until their backends
        exist. Disabled chips render with aria-disabled + .disabled so a
        screen-reader announces them as unavailable instead of clickable. #}
-    <div class="modes" role="tablist" aria-label="{{ _('Search modality') }}">
+    <div class="modes" role="tablist" aria-label="{{ _('Input type') }}">
       <button type="button"
               class="chip{% if active_mode == 'text' %} on{% endif %}"
               data-mode="text"
