@@ -372,10 +372,7 @@ def _all_modes(args: argparse.Namespace) -> int:
             {
                 "retriever": payload["context"].get("retriever"),
                 "metrics": payload["metrics"],
-                "queries": [
-                    {"id": q["id"], "metrics": q["metrics"]}
-                    for q in payload["queries"]
-                ],
+                "queries": [{"id": q["id"], "metrics": q["metrics"]} for q in payload["queries"]],
             }
             for payload in mode_runs
         ],
@@ -412,8 +409,7 @@ def _all_modes(args: argparse.Namespace) -> int:
     if sweep_payloads:
         md_lines.extend(
             [
-                "## k_rrf sweep (hybrid, "
-                f"sem_w={args.sem_weight}, bm25_w={args.bm25_weight})",
+                "## k_rrf sweep (hybrid, " f"sem_w={args.sem_weight}, bm25_w={args.bm25_weight})",
                 "",
                 _krrf_sweep_table(sweep_payloads),
                 "",

@@ -276,9 +276,7 @@ def _hybrid_rank(
 
     # Build a sid -> clip_row lookup so fused rows inherit filepath when CLIP
     # surfaced them; otherwise fall back to first-keyframe per sid.
-    clip_row_by_sid: dict[int, dict[str, Any]] = {
-        int(r["scene_id"]): r for r in clip_rows
-    }
+    clip_row_by_sid: dict[int, dict[str, Any]] = {int(r["scene_id"]): r for r in clip_rows}
     first_row_by_sid: dict[int, str] = {}
     if kf_df is not None and len(kf_df) > 0:
         for r in kf_df.itertuples(index=False):
