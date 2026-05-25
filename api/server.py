@@ -244,6 +244,7 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     # tab--active). The new ``active_tab`` overlay in the chrome dict carries
     # the PT slug used by the chrome shell.
     merged["legacy_active_tab"] = active_tab
+    merged["cfg"] = cfg
     # NOTE: ``current_slug`` is already in ``merged`` via the chrome bag,
     # so it is NOT passed as an explicit kwarg here (would trigger a
     # multiple-values TypeError at call time). The chrome bag is the
