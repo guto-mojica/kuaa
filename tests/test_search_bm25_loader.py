@@ -119,9 +119,9 @@ def test_clear_index_cache_also_clears_bm25_lru_cache(tmp_path: Path) -> None:
 
     ctx = _make_ctx(tmp_path)
     _ = _get_bm25_index_for_ctx(ctx)
-    assert _cached_bm25_index.cache_info().currsize >= 1, (
-        "sanity check: BM25 loader must populate the lru_cache"
-    )
+    assert (
+        _cached_bm25_index.cache_info().currsize >= 1
+    ), "sanity check: BM25 loader must populate the lru_cache"
     clear_index_cache()
     assert _cached_bm25_index.cache_info().currsize == 0, (
         "clear_index_cache() must also flush _cached_bm25_index — "
@@ -143,3 +143,104 @@ def test_loader_cache_invalidates_on_manual_annotations_change(tmp_path: Path) -
     )
     b = _get_bm25_index_for_ctx(ctx)
     assert b is not a, "manual_annotations.json write must invalidate the BM25 cache"
+
+
+# ── T7: new tests for the core ``cinemateca.search.bm25`` module ─────────────
+#
+# These exercise the relocated module directly (rather than via the
+# ``api.services.search`` re-export shim) so the boundary holds even if
+# the shim is later trimmed further. The 3-doc corpora here mirror the
+# fixture above — rank_bm25 IDF on a 2-doc corpus with df=1 collapses
+# every query score to 0 (BM25Index.query drops zero-score hits), so a
+# 2-doc plan-as-written would assert against an empty list.
+
+
+def _write_three_doc_metadata(metadata_dir: Path) -> None:
+    """Three-document corpus — enough for non-degenerate BM25 IDF.
+
+    With ≥3 docs and df=1 for a query term, the IDF is positive and
+    :meth:`BM25Index.query` returns the matching scene.
+    """
+    metadata_dir.mkdir(parents=True, exist_ok=True)
+    (metadata_dir / "scene_descriptions.json").write_text(
+        json.dumps(
+            [
+                {"scene_id": 1, "description": "a man on a horse outdoor"},
+                {"scene_id": 2, "description": "interior shot of a house"},
+                {"scene_id": 3, "description": "a red car on the road"},
+            ]
+        )
+    )
+    (metadata_dir / "scene_tags.json").write_text(json.dumps({}))
+    (metadata_dir / "manual_annotations.json").write_text("{}")
+
+
+def test_bm25_index_for_dir_builds_corpus(tmp_path: Path) -> None:
+    """``bm25_index_for_dir`` (the pure-Path loader) builds a queryable index."""
+    from cinemateca.search.bm25 import bm25_index_for_dir, clear_bm25_cache
+
+    clear_bm25_cache()
+    _write_three_doc_metadata(tmp_path)
+    idx = bm25_index_for_dir(
+        metadata_dir=tmp_path,
+        stopwords_lang=None,
+        k1=1.5,
+        b=0.75,
+    )
+    hits = idx.query("horse", top_k=5)
+    assert len(hits) == 1
+    assert hits[0][0] == 1
+    clear_bm25_cache()
+
+
+def test_bm25_index_for_dir_empty_corpus_returns_no_hits(tmp_path: Path) -> None:
+    """An empty descriptions + empty tags corpus yields a no-match index."""
+    from cinemateca.search.bm25 import bm25_index_for_dir, clear_bm25_cache
+
+    clear_bm25_cache()
+    (tmp_path / "scene_descriptions.json").write_text("[]")
+    (tmp_path / "scene_tags.json").write_text("{}")
+    (tmp_path / "manual_annotations.json").write_text("{}")
+    idx = bm25_index_for_dir(
+        metadata_dir=tmp_path,
+        stopwords_lang=None,
+        k1=1.5,
+        b=0.75,
+    )
+    assert idx.query("anything", top_k=5) == []
+    clear_bm25_cache()
+
+
+def test_reindex_bm25_clears_slot(tmp_path: Path) -> None:
+    """``reindex_bm25(ctx)`` must invalidate the BM25 cache.
+
+    After reindex, the next load reads fresh on-disk descriptions —
+    proven by querying a token that only exists in the new corpus.
+    """
+    from types import SimpleNamespace
+
+    from cinemateca.search.bm25 import (
+        bm25_index_for_dir,
+        clear_bm25_cache,
+        reindex_bm25,
+    )
+
+    clear_bm25_cache()
+    _write_three_doc_metadata(tmp_path)
+    ctx = SimpleNamespace(metadata_dir=tmp_path, slug="alpha")
+    _ = bm25_index_for_dir(metadata_dir=tmp_path, stopwords_lang=None, k1=1.5, b=0.75)
+    reindex_bm25(ctx)
+    # Replace the corpus and verify the new tokens are queryable.
+    (tmp_path / "scene_descriptions.json").write_text(
+        json.dumps(
+            [
+                {"scene_id": 99, "description": "fresh new content"},
+                {"scene_id": 100, "description": "another fresh segment"},
+                {"scene_id": 101, "description": "third fresh keyframe"},
+            ]
+        )
+    )
+    idx2 = bm25_index_for_dir(metadata_dir=tmp_path, stopwords_lang=None, k1=1.5, b=0.75)
+    hits = idx2.query("content", top_k=5)
+    assert hits and hits[0][0] == 99
+    clear_bm25_cache()
