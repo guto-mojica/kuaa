@@ -167,6 +167,19 @@ retrieval:
                             # when ?w= is omitted; clamped to [0, 1] downstream.
     k_each: 50              # per-modality top-k pulled before merge (bounded
                             # union size when libraries grow past ~Jeca scale).
+  rhymes:
+    diversity: 0.5         # MMR λ — 0 = pure diversity, 1 = pure relevance.
+                           # Default 0.5 matches the M3 plan; lighter values
+                           # (0.3) emphasise novelty for the curator-pair eval
+                           # set, heavier (0.7) for tighter relevance.
+    k_candidates: 30       # Pre-MMR kNN pool size. Default 30 covers Jeca
+                           # Tatu's ~412 scenes at top_n=10 (3× pool).
+                           # Read by api.services.rhymes_service when
+                           # ?lambda= / ?k_candidates= are omitted.
+    k_final: 10            # Post-MMR result length. Today unused (top_n is
+                           # passed straight through); reserved for a future
+                           # M3.5 refinement where the slider rules ≠ the
+                           # service-default ``k``.
 
 # ── Rimas Visuais (cross-film visual rhymes) ─────────────────────────────────
 # Read-only knobs for the Rimas tab's kNN over CLIP keyframes. Defaults match
