@@ -31,44 +31,19 @@ from pathlib import Path
 from typing import Any
 
 from api.services.film_context import FilmContext
+
+# Path / URL / timecode utilities (relocated to cinemateca.library.paths).
+# Re-exported here so existing call sites (scenes_service, annotations,
+# rhymes_service, etc.) keep importing from api.services.catalog.
+from cinemateca.library.paths import (
+    derive_fps,
+    keyframe_url,
+    load_json,
+    to_smpte,
+)
 from cinemateca.scene_ids import scene_id_key
 
 logger = logging.getLogger(__name__)
-
-
-# ── Shared primitives (consumed by scenes + Phase 3b/3c annotate/search) ──────
-
-def load_json(path: Path) -> list | dict | None:
-    """Load a JSON file, or return ``None`` if it does not exist.
-
-    The exact prior ``_load_json`` body (scenes.py / annotate.py had
-    identical copies). Kept permissive on return type because callers
-    apply their own ``or []`` / ``or {}`` defaulting, matching the old
-    behaviour.
-    """
-    if path.exists():
-        with open(path, encoding="utf-8") as f:
-            return json.load(f)
-    return None
-
-
-def keyframe_url(filepath: str | Path, data_dir: Path) -> str | None:
-    """Convert a stored keyframe filepath to a ``/media/...`` URL.
-
-    Tries the path as-stored and relative to CWD, returning the first
-    that resolves *inside* ``data_dir``; ``None`` otherwise (e.g. a path
-    outside the served root). This unifies the two prior copies
-    (``scenes._keyframe_url`` took a ``Path``; ``search._keyframe_url``
-    took a ``str``) — accepting both keeps every call site byte-identical.
-    """
-    fp = Path(filepath)
-    for candidate in (fp, Path.cwd() / fp):
-        try:
-            rel = candidate.resolve().relative_to(data_dir.resolve())
-            return f"/media/{rel.as_posix()}"
-        except ValueError:
-            continue
-    return None
 
 
 # ── Metadata + tag index ──────────────────────────────────────────────────────
@@ -128,36 +103,6 @@ def load_metadata(metadata_dir: Path) -> tuple[list, dict, dict, dict]:
     tag_index = normalize_tag_index(merge_tag_index(llm_tags, annotations))
 
     return kf_meta, desc_by_scene, vis_by_scene, tag_index
-
-
-# ── SMPTE timecode utilities ──────────────────────────────────────────────────
-
-def to_smpte(seconds: float, fps: float = 24.0) -> str:
-    """Convert a time-in-seconds to SMPTE ``HH:MM:SS:FF`` notation."""
-    fps_int = max(1, round(fps))
-    total_frames = int(seconds * fps)
-    ff = total_frames % fps_int
-    rest = total_frames // fps_int
-    ss = rest % 60
-    mm = (rest // 60) % 60
-    hh = rest // 3600
-    return f"{hh:02d}:{mm:02d}:{ss:02d}:{ff:02d}"
-
-
-def derive_fps(kf_meta: list) -> float:
-    """Infer original video FPS from keyframe metadata entries.
-
-    Uses the first entry where both ``start_frame`` and ``start_time_s``
-    are positive (the first scene always starts at 0 s / frame 0, so it
-    is useless for derivation). Falls back to 24.0 when no suitable
-    entry exists.
-    """
-    for entry in kf_meta:
-        t = float(entry.get("start_time_s") or 0.0)
-        f = int(entry.get("start_frame") or 0)
-        if t > 0 and f > 0:
-            return f / t
-    return 24.0
 
 
 # ── Scene-card construction ───────────────────────────────────────────────────
