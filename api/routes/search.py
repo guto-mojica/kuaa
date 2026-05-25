@@ -82,6 +82,7 @@ async def api_search(
     sem_w: float | None = None,
     bm25_w: float | None = None,
     modality: str = "text",
+    w: float | None = None,
     reranker_enabled: bool | None = None,
     slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
@@ -92,7 +93,10 @@ async def api_search(
     :mod:`cinemateca.search.audio` (CLAP joint text+audio space) — the
     rest of the text-only knobs (``tags``, ``retriever``, ``sem_w``,
     ``bm25_w``) are ignored on the audio path because CLAP doesn't
-    expose them.
+    expose them. ``"fusion"`` linearly combines CLIP keyframe + CLAP
+    audio cosines under ``w`` (defaults to
+    ``cfg.retrieval.fusion.visual_weight`` — fallback ``0.5``; clamped
+    into ``[0, 1]`` for UX-friendliness over 422-rejecting).
 
     ``reranker_enabled`` is the M3 pre-flight 3.3 chip-toggle override.
     Today it is *accepted and logged only* — the production dispatchers
@@ -108,6 +112,8 @@ async def api_search(
     cfg = get_config()
     if modality == "audio":
         return await _api_search_audio(request, q=q, top_k=top_k, slug=slug, cfg=cfg)
+    if modality == "fusion":
+        return await _api_search_fusion(request, q=q, top_k=top_k, w=w, slug=slug, cfg=cfg)
     min_sim = float(getattr(cfg.embeddings, "min_similarity", 0.0) or 0.0)
     retriever, sw, bw, rrf_k = search_service.resolve_retriever_args(cfg, retriever, sem_w, bm25_w)
     logger.info(
@@ -156,6 +162,49 @@ async def _api_search_audio(
     )
     if no_index:
         return _no_index_response(request)
+    card_dicts = search_service.audio_hits_to_template_dicts(cfg, payload, per_film_slug=slug)
+    results = search_service.enrich_hits_with_film_metadata(cfg, card_dicts, per_film_slug=slug)
+    return _render_results(request, slug=slug, cfg=cfg, results=results, query=q)
+
+
+async def _api_search_fusion(
+    request: Request,
+    *,
+    q: str,
+    top_k: int,
+    w: float | None,
+    slug: str | None,
+    cfg,
+) -> HTMLResponse:
+    """Cross-modal CLIP × CLAP fusion search.
+
+    Linear late-fusion: ``score = w * clip_cosine + (1 - w) * clap_cosine``.
+    ``w`` defaults to ``cfg.retrieval.fusion.visual_weight`` (0.5 unless
+    overridden in local config). Clamped to ``[0, 1]`` — UX-friendly
+    slider can briefly overshoot.
+
+    Thin shim around :func:`search_service.dispatch_fusion_search`; the
+    matmul + per-modality top-k go through the thread executor.
+    """
+    if w is None:
+        fusion_cfg = getattr(getattr(cfg, "retrieval", None), "fusion", None)
+        weight = float(getattr(fusion_cfg, "visual_weight", 0.5) if fusion_cfg else 0.5)
+    else:
+        weight = max(0.0, min(1.0, float(w)))
+    logger.info(
+        f"api_search modality=fusion q={q!r} slug={slug or '(agg)'} "
+        f"top_k={top_k} w={weight:.3f}"
+    )
+    ctx = FilmContext.for_film(cfg, slug) if slug is not None else None
+    payload, no_index = await asyncio.get_running_loop().run_in_executor(
+        None,
+        lambda: search_service.dispatch_fusion_search(cfg, ctx, q, top_k, visual_weight=weight),
+    )
+    if no_index:
+        return _no_index_response(request)
+    # Fusion hits share the audio-hit shape (scene_id, score, film_slug,
+    # film_title) and need the same enrichment path. Reuse the audio
+    # template converter.
     card_dicts = search_service.audio_hits_to_template_dicts(cfg, payload, per_film_slug=slug)
     results = search_service.enrich_hits_with_film_metadata(cfg, card_dicts, per_film_slug=slug)
     return _render_results(request, slug=slug, cfg=cfg, results=results, query=q)
