@@ -36,7 +36,7 @@ import tempfile
 from pathlib import Path
 
 from api.services.catalog import derive_fps, keyframe_url, load_json, to_smpte
-from api.services.film_context import FilmContext
+from cinemateca.library import FilmContext
 from cinemateca.annotator import load as _annotator_load
 from cinemateca.annotator import save as _annotator_save
 

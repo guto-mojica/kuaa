@@ -52,7 +52,7 @@ from api.services.catalog import (
     load_tag_index,
     to_smpte,
 )
-from api.services.film_context import FilmContext
+from cinemateca.library import FilmContext
 
 logger = logging.getLogger(__name__)
 

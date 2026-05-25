@@ -326,7 +326,7 @@ class _StubPipeline:
 
 def _patch_pipeline(jobs_mod, monkeypatch, behavior="ok"):
     import cinemateca.pipeline as pl
-    from api.services.film_context import FilmContext
+    from cinemateca.library import FilmContext
 
     _StubPipeline.behavior = behavior
     monkeypatch.setattr(pl, "CatalogPipeline", _StubPipeline)

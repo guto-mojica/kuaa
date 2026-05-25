@@ -17,7 +17,7 @@ from fastapi.responses import HTMLResponse
 from api.deps import film_slug_query, get_config, make_ctx
 from api.services import search as search_service
 from api.services.catalog import derive_fps, load_json
-from api.services.film_context import FilmContext
+from cinemateca.library import FilmContext
 from api.templates import templates
 
 logger = logging.getLogger(__name__)

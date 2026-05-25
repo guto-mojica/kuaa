@@ -61,7 +61,7 @@ def _register_alpha(library_dir: Path) -> None:
 
 
 def test_missing_files_yield_missing_status(tmp_path: Path) -> None:
-    from api.services.film_context import FilmContext
+    from cinemateca.library import FilmContext
 
     _register_alpha(tmp_path)
     cfg = SimpleNamespace(paths=SimpleNamespace(library_dir=str(tmp_path)))
@@ -104,7 +104,7 @@ def test_wellformed_index_loads_ok(tmp_path: Path, monkeypatch) -> None:
 
     monkeypatch.setattr(real_open_clip, "OpenClipEmbedder", FakeEmbedder)
 
-    from api.services.film_context import FilmContext
+    from cinemateca.library import FilmContext
 
     _register_alpha(tmp_path)
     cfg = SimpleNamespace(paths=SimpleNamespace(library_dir=str(tmp_path)))

@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from api.services.film_context import FilmContext
+from cinemateca.library import FilmContext
 
 
 def _cfg(library_dir: Path, data_dir: Path | None = None) -> object:

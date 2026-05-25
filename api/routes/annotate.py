@@ -30,7 +30,7 @@ from api.services.annotations import (
     save_annotations,
     save_description,
 )
-from api.services.film_context import FilmContext
+from cinemateca.library import FilmContext
 from api.templates import templates
 
 logger = logging.getLogger(__name__)

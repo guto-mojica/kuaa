@@ -547,7 +547,7 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
     raises ``StepCancelled`` when the job's cancel flag is set.
     """
 
-    from api.services.film_context import FilmContext
+    from cinemateca.library import FilmContext
     from cinemateca.pipeline import CatalogPipeline, StepCancelled, StepResults, StepRun
     from cinemateca.run_manifest import write_run_manifest
 
