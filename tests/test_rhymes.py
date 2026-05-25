@@ -7,7 +7,8 @@ from pathlib import Path
 
 import numpy as np
 
-from cinemateca.rhymes import Rhyme, _extract_scene_ids, find_rhymes
+from cinemateca.rhymes import Rhyme, find_rhymes
+from cinemateca.rhymes.algorithm import _extract_scene_ids
 
 
 def _write_film(

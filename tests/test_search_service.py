@@ -35,7 +35,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from api.services.film_context import FilmContext
+from cinemateca.library import FilmContext
 from api.services.search import (
     IndexStatus,
     UploadRejected,
@@ -556,15 +556,20 @@ class TestSceneDedup:
                 rows["similarity"] = scores[order[:top_k]]
                 return rows.reset_index(drop=True)
 
-        # Monkeypatch SemanticSearch inside search_image's local import.
-        import cinemateca.embeddings as _emb
-        _orig = _emb.SemanticSearch
-        _emb.SemanticSearch = _Searcher
+        # Monkeypatch SemanticSearch at its post-T9 home in
+        # ``cinemateca.search.clip``. The verb hoisted the
+        # ``from cinemateca.embeddings import SemanticSearch`` to module
+        # scope, so patching the source module ``cinemateca.embeddings``
+        # no longer reaches the already-bound name inside ``clip``;
+        # patch the module where the verb actually looks up the symbol.
+        import cinemateca.search.clip as _clip_mod
+        _orig = _clip_mod.SemanticSearch
+        _clip_mod.SemanticSearch = _Searcher
         try:
             from pathlib import Path
             df = search_image(index, Path("/tmp/fake.jpg"), top_k=8)
         finally:
-            _emb.SemanticSearch = _orig
+            _clip_mod.SemanticSearch = _orig
 
         assert len(df) == 3, f"expected 3 deduped rows, got {len(df)}"
         assert sorted(df["scene_id"].tolist()) == [1, 2, 3]
@@ -583,8 +588,12 @@ class TestAggregateSearchDedup:
         per (film_slug, scene_id) in the final result."""
         from types import SimpleNamespace
 
-        from api.services import search as svc
+        import sys
+
+        import cinemateca.search.aggregate as _csa_ref  # noqa: F401 — ensure loaded
         from cinemateca.library import register_film
+
+        csa = sys.modules["cinemateca.search.aggregate"]
 
         # ── Two-film library with 3 keyframes per scene each ──
         library_dir = tmp_path / "library"
@@ -648,11 +657,11 @@ class TestAggregateSearchDedup:
             def encode_text(self, q):
                 return np.array([1.0, 0.0], dtype="float32")
 
-        monkeypatch.setattr(svc, "_get_search_index", fake_index)
-        monkeypatch.setattr(svc, "_get_embedder", lambda _cfg: _Embedder())
+        monkeypatch.setattr(csa, "_get_search_index", fake_index)
+        monkeypatch.setattr(csa, "_get_embedder", lambda _cfg: _Embedder())
 
         # ── Run aggregate search ──
-        hits = svc.aggregate_search(cfg, query="x", modality="text", top_k=10)
+        hits = csa.aggregate_search(cfg, query="x", modality="text", top_k=10)
 
         # 2 films × 2 scenes = 4 dedup'd hits max.
         assert len(hits) == 4, f"expected 4 deduped hits, got {len(hits)}\n{hits}"
@@ -667,9 +676,13 @@ class TestAggregateSearchDedup:
         highest cosine score in that scene."""
         from types import SimpleNamespace
 
-        from api.services import search as svc
+        import sys
+
+        import cinemateca.search.aggregate as _csa_ref  # noqa: F401 — ensure loaded
         from api.services.search import IndexStatus, SearchIndex
         from cinemateca.library import register_film
+
+        csa = sys.modules["cinemateca.search.aggregate"]
 
         library_dir = tmp_path / "library"
         register_film(library_dir, slug="film_a", title="Film A", year=None,
@@ -714,10 +727,10 @@ class TestAggregateSearchDedup:
             def encode_text(self, q):
                 return np.array([1.0, 0.0], dtype="float32")
 
-        monkeypatch.setattr(svc, "_get_search_index", fake_index)
-        monkeypatch.setattr(svc, "_get_embedder", lambda _cfg: _Embedder())
+        monkeypatch.setattr(csa, "_get_search_index", fake_index)
+        monkeypatch.setattr(csa, "_get_embedder", lambda _cfg: _Embedder())
 
-        hits = svc.aggregate_search(cfg, query="x", modality="text", top_k=10)
+        hits = csa.aggregate_search(cfg, query="x", modality="text", top_k=10)
         assert len(hits) == 1
         assert hits[0]["keyframe_path"] == "kf_02.jpg", (
             f"expected best-matching keyframe (kf_02), got {hits[0]['keyframe_path']}"

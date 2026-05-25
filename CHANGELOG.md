@@ -47,16 +47,95 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 - **base.html** — novo layout de shell (TopBar de 52px + IconRail de 56px +
   LeftPane de 248px + área principal + painel direito opcional).
 - **i18n** — ~280 novos msgids extraídos e traduzidos PT/EN.
+- **Refactor P1 · pacote `cinemateca.search` extraído** — toda a lógica de
+  busca saiu de `api/services/search.py` (1388 → **235 LOC**, teto 250) e
+  `api/routes/search.py` (471 → **148 LOC**, teto 150) para um pacote novo
+  em `src/cinemateca/search/` (14 arquivos: `__init__`, `types`,
+  `_dispatch`, `_lookup`, `_results`, `_tag_index`, `display`, `upload`,
+  `cache`, `bm25`, `clip`, `hybrid`, `aggregate`, `rerank`). API pública
+  pequena e tipada: 4 verbos (`find`, `aggregate`, `reindex_bm25`,
+  `rerank`) + 7 tipos (`Query`, `Filters`, `HybridWeights`, `Hit`,
+  `SearchResult`, `SearchMode`, `UploadRejected`). Comportamento
+  preservado byte-a-byte — verificado por 8 testes hermetic-snapshot
+  (`tests/test_p1_search_snapshot.py`) sobre cenários `/api/search`
+  reais (single-film CLIP/BM25/hybrid, aggregate, image upload, tag
+  filter, min-sim, retriever=clip pin). ~36 novos testes unitários nos
+  módulos extraídos. Spec em
+  `docs/superpowers/specs/2026-05-24-deep-modules-refactor-design.md`;
+  plano em `docs/superpowers/plans/2026-05-24-deep-modules-refactor-p1-search.md`.
+- **Refactor P2 · pacote `cinemateca.library` extraído** — fold de
+  `src/cinemateca/library.py` (217 LOC) + `api/services/film_context.py`
+  (138 LOC, **deletado**) + a metade data-access de `api/services/catalog.py`
+  em um pacote de 6 arquivos (~620 LOC totais): `registry.py` + `scan.py` +
+  `context.py` + `paths.py` + `metadata.py` + `__init__.py` (este último
+  expõe o novo handle tipado `Library`). `api/services/catalog.py`:
+  403 → **250 LOC** (exatamente no cap, sem mais exemption). Seis
+  carve-outs `cinemateca → api.services.*` apagados de `.importlinter`
+  (sobram 2, ambos P5 follow-ups: `aggregate -> services.search` e
+  `_dispatch -> api.deps`). Surface pública: `from cinemateca.library
+  import Library, Film, FilmContext, list_films, get_film, register_film,
+  remove_film, scan_library, library_state, load_registry, save_registry,
+  load_json, keyframe_url, to_smpte, derive_fps, load_tag_index,
+  load_metadata` (16+ nomes em `__all__`). Comportamento preservado —
+  verificado pelos 8 snapshots P1 + 17 novos testes (7 em
+  `test_library_scan.py` + 10 em `test_library_handle.py`); suite total
+  **774 passando**. Spec em
+  `docs/superpowers/specs/2026-05-24-deep-modules-refactor-design.md`;
+  plano em `docs/superpowers/plans/2026-05-25-deep-modules-refactor-p2-library.md`.
+- **Refactor P3 · extração de services** — três subsistemas extraídos de
+  `api/services/` para pacotes em `src/cinemateca/`:
+
+  - **`cinemateca.annotations`** (P3.A) — promove `cinemateca.annotator`
+    em pacote de 4 arquivos: `io.py` + `descriptions.py` + `scenes.py` +
+    `__init__.py`. Absorve a metade data-access + lógica de negócio de
+    `api/services/annotations.py`. Service: 577 → **129 LOC**. Removido
+    de `EXEMPTIONS`.
+  - **`cinemateca.rhymes`** (P3.B) — promove `cinemateca/rhymes.py` em
+    pacote de 5 arquivos: `algorithm.py` + `metadata.py` + `enrich.py` +
+    `config.py` + `anchor.py`. Absorve lógica de enriquecimento +
+    per-scene metadata loaders. Service: 470 → **194 LOC**. Removido de
+    `EXEMPTIONS`.
+  - **`cinemateca.eval` estendido** (P3.C) — adiciona `paths.py` ao
+    pacote existente; estende `datasets.py` + `grades.py` +
+    `grader_metrics.py` com config/data-access/IAA helpers. Service:
+    564 → **244 LOC**. Removido de `EXEMPTIONS`.
+
+  Adicionalmente: `FilmContext.from_paths` constructor adicionado +
+  `Library.context` agora levanta `KeyError` (alinhado com
+  `Library.get_film`; elimina workaround SimpleNamespace flagado no P2
+  review) (P3.0). `.importlinter` zerado: os 2 follow-ups P5 de P1/P2
+  (`aggregate -> services.search` e `_dispatch -> api.deps`) resolvidos
+  movendo helpers para `cinemateca.search.aggregate` e parametrizando
+  BM25 tunables como kwargs em `_dispatch.find()` (P3.D). Suite:
+  **774 → 777 passando** (+3 testes). Spec:
+  `docs/superpowers/specs/2026-05-24-deep-modules-refactor-design.md`;
+  plano: `docs/superpowers/plans/2026-05-25-deep-modules-refactor-p3-services.md`.
+- **Camadas arquiteturais policiadas em CI** — `.importlinter` proíbe
+  `src/cinemateca/*` de importar `api/*` (camada de núcleo HTTP-agnóstica);
+  novo `scripts/check_loc_budget.py` enforça `api/services/*.py ≤ 250 LOC`
+  e `api/routes/*.py ≤ 150 LOC` (com 2 exemptions documentadas para
+  arquivos cujo refactor cai em P3). Ambos rodam no workflow GH Actions
+  `.github/workflows/refactor-guards.yml` em todo PR.
 
 ### Notas
 
-- Suite de testes: **425 → 546 passando** (baseline → pós-redesign).
+- Suite de testes: **425 → 546 passando** (baseline → pós-redesign);
+  **~625 → ~738 passando** após o refactor P1 (~110 testes novos no
+  pacote `cinemateca.search`); **758 → 774 passando** após o refactor P2
+  (+17 testes novos no pacote `cinemateca.library` — 7 em
+  `test_library_scan.py` + 10 em `test_library_handle.py`).
 - **32 novos commits** distribuídos em **10 fases** (Tasks 1–36) na branch
   `worktree-mojica-redesign`.
 - O markup legado `.shell > .sidebar` de v0.3 segue aninhado dentro de
   `.ch-main` como wrap transicional — o unwrap final do conteúdo das abas
   (Phase 2 expansion) está adiado; o novo chrome cobre tudo visualmente e
   nenhuma regressão é exposta ao usuário final.
+- **Falhas pré-existentes (NÃO regressões dos refactors P1/P2/P3):**
+  `tests/test_cli_reembed_all.py::TestServe::test_serve_delegates_to_uvicorn_run`
+  e `tests/test_routes_multi_film.py::TestScenesRouteMultiFilm::test_tab_scenes_unknown_slug_raises`
+  falham na branch base também (verificado via `git stash` em T1 e
+  re-verificado em cada T* subsequente). Tratamento fica fora do escopo
+  de P1/P2/P3.
 
 ---
 

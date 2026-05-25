@@ -1,31 +1,29 @@
-"""Resolved artifact-path context for a film (or the global library).
+"""Per-film on-disk context handle.
 
 ``FilmContext`` is the single place that answers "where does this film's
-data live on disk". Before Phase 3a every route recomputed
-``Path(cfg.paths.metadata_dir)`` / ``Path(cfg.paths.data_dir).resolve()``
-inline; that scattered path math is now centralized here.
+artefacts live on disk".  Every route that needs paths goes through this
+object; no consumer recomputes ``cfg.paths.*`` inline.
 
-Multi-film extension point (post-recovery epic — NOT v0.3)
-----------------------------------------------------------
-The data layout is FLAT and single-film/global: every film shares one
-``metadata_dir`` / ``frames_dir`` / ``embeddings_dir`` (see
-``cinemateca.library``'s single-film note). The Phase-5 maintainer
-decision is that **v0.3 stays SINGLE-FILM** with an honest library
-placeholder; a true per-film data model is deferred to a later
-multi-film epic. This class is still modelled so that future move is
-additive, NOT a rewrite of call sites — keep this seam:
+Constructors
+------------
+Two class-methods build a ``FilmContext``:
 
-  * ``slug`` is already carried (currently ``None`` for the global
-    context) so a future ``FilmContext.for_film(cfg, slug)`` can resolve
-    per-film subdirectories while keeping the same attribute surface.
-  * Path resolution goes through this object, so when the multi-film
-    epic changes where a film's artefacts live, only :meth:`from_config`
-    / a new ``for_film`` constructor changes — every consumer
-    (catalog/annotations/search services) is untouched.
+* ``for_film(cfg, slug)`` — primary entry point used by the FastAPI layer.
+  Reads ``cfg.paths.library_dir`` from the injected config object and
+  creates missing subdirectories on first access.  Raises ``ValueError``
+  for an unregistered slug (legacy contract — 16 call sites and the
+  ``try/except ValueError`` in ``api/deps.py:216`` depend on this).
 
-Phase 3a deliberately implements ONLY the global/flat constructor. It
-does NOT implement multi-film resolution — that is a future product
-decision.
+* ``from_paths(*, library_dir, slug, data_dir)`` — config-free constructor
+  added in P3 for service-layer and test code that already holds resolved
+  paths.  Raises ``KeyError`` for an unregistered slug, matching the
+  ``Library.get_film`` contract.
+
+Exception-contract asymmetry (intentional)
+------------------------------------------
+``for_film`` raises ``ValueError``; ``from_paths`` raises ``KeyError``.
+This asymmetry is preserved for backward compatibility.  A future cleanup
+may unify them — see ``docs/superpowers/plans/`` for the P3 plan note.
 """
 
 from __future__ import annotations
@@ -90,7 +88,43 @@ class FilmContext:
         )
 
     @classmethod
-    def for_film(cls, cfg: Any, slug: str) -> FilmContext:
+    def from_paths(
+        cls,
+        *,
+        library_dir: Path,
+        slug: str,
+        data_dir: Path,
+    ) -> "FilmContext":
+        """Build a per-film context from explicit paths (no cfg object needed).
+
+        ``library_dir`` is the films-registry root; ``data_dir`` is the ``/media``
+        mount root (typically one level above ``library_dir``).
+
+        Raises:
+            ValueError: slug contains a path-traversal component (``'../x'``).
+            KeyError: slug is not in the registry.
+        """
+        if not slug or slug != Path(slug).name:
+            raise ValueError(f"Invalid slug: {slug!r}")
+        from cinemateca.library.registry import load_registry
+
+        registry = load_registry(library_dir)
+        if slug not in registry:
+            raise KeyError(f"Film not registered: {slug!r}")
+        film_dir = library_dir / slug
+        for sub in ("raw", "metadata", "frames", "embeddings"):
+            (film_dir / sub).mkdir(parents=True, exist_ok=True)
+        return cls(
+            slug=slug,
+            raw_path=film_dir / "raw",
+            data_dir=Path(data_dir).resolve(),
+            metadata_dir=film_dir / "metadata",
+            frames_dir=film_dir / "frames",
+            embeddings_dir=film_dir / "embeddings",
+        )
+
+    @classmethod
+    def for_film(cls, cfg: Any, slug: str) -> "FilmContext":
         """Build a per-film context from a loaded ``Config`` and a slug.
 
         The film must exist as a directory under ``cfg.paths.library_dir/``
@@ -114,13 +148,15 @@ class FilmContext:
         # its own .name; "../secret" becomes "secret" and the comparison fails.
         if not slug or slug != Path(slug).name:
             raise ValueError(f"Invalid slug: {slug!r}")
-        from cinemateca.library import load_registry
+        from cinemateca.library.registry import load_registry
         library_dir = Path(cfg.paths.library_dir)
         film_dir = library_dir / slug
         # Registry is the single gate — unregistered slugs are rejected even
         # if a directory happens to exist on disk (orphaned dirs, manual creates).
         registry = load_registry(library_dir)
         if slug not in registry:
+            # Note: raises ValueError for legacy compat (16 callers + api/deps.py:216
+            # catch this); from_paths() raises KeyError for new code.
             raise ValueError(f"Film not registered: {slug!r}")
         # Create subdirs on first access for films registered without migration.
         for sub in ("raw", "metadata", "frames", "embeddings"):

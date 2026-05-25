@@ -359,6 +359,51 @@ defer features; timeline extension is one option among several. Grilled
   persistence + P@K / nDCG / inversions / Cohen's κ metrics + keyboard router
   (0/1/2/3/S, j/k, ⌘⏎) + `cinemateca eval seed` CLI complete on
   `worktree-mojica-redesign`. M3 curator-pair seed work continues.
+- [x] **Deep-modules refactor P1 — `cinemateca.search`** — extracted from
+  `api/services/search.py` (1388 → **235** LOC, cap 250) and
+  `api/routes/search.py` (471 → **148** LOC, cap 150) into a typed
+  4-verb / 7-type public API (`find`, `aggregate`, `reindex_bm25`,
+  `rerank` + `Query` / `Filters` / `HybridWeights` / `Hit` /
+  `SearchResult` / `SearchMode` / `UploadRejected`). 14 files under
+  `src/cinemateca/search/`. Layer rules enforced by CI (`import-linter`
+  contract `cinemateca → api forbidden` + `scripts/check_loc_budget.py`).
+  Behavior preserved byte-for-byte via 8 hermetic snapshot tests. Spec:
+  `docs/superpowers/specs/2026-05-24-deep-modules-refactor-design.md`;
+  plan: `docs/superpowers/plans/2026-05-24-deep-modules-refactor-p1-search.md`.
+- [x] **Deep-modules refactor P2 — `cinemateca.library`** — extracted
+  from `src/cinemateca/library.py` (217 LOC) + `api/services/film_context.py`
+  (138 LOC, **deleted**) + the data-access half of `api/services/catalog.py`
+  into a 6-file package (~620 LOC): `registry.py` + `scan.py` + `context.py`
+  + `paths.py` + `metadata.py` + `__init__.py` (with the new typed `Library`
+  handle: `list/get/register/remove/context/state` methods). `api/services/
+  catalog.py`: 403 → **250 LOC** (exactly at cap; no longer exempted). Six
+  `cinemateca → api.services.*` carve-outs deleted from `.importlinter`;
+  2 remain as documented P5 follow-ups (`aggregate -> services.search`,
+  `_dispatch -> api.deps`). Public surface: 16+ names in
+  `cinemateca.library.__all__` (`Library`, `Film`, `FilmContext`,
+  `list_films`, `get_film`, `register_film`, `remove_film`,
+  `scan_library`, `library_state`, `load_registry`, `save_registry`,
+  `load_json`, `keyframe_url`, `to_smpte`, `derive_fps`,
+  `load_tag_index`, `load_metadata`). Behavior preserved — verified by
+  the 8 P1 snapshots + 17 new tests (7 in `test_library_scan.py` + 10
+  in `test_library_handle.py`); full suite **774 passing**. Spec:
+  `docs/superpowers/specs/2026-05-24-deep-modules-refactor-design.md`;
+  plan: `docs/superpowers/plans/2026-05-25-deep-modules-refactor-p2-library.md`.
+- [x] **Deep-modules refactor P3 — services extraction** — three
+  subsystems extracted (`cinemateca.annotations`, `cinemateca.rhymes`,
+  `cinemateca.eval`). Three services slimmed: `annotations.py` 577 →
+  **129**, `rhymes_service.py` 470 → **194**, `eval_service.py` 564 →
+  **244** (all removed from LOC budget EXEMPTIONS). `FilmContext.from_paths`
+  constructor added + `Library.context` raises `KeyError` (aligned with
+  `Library.get_film`; eliminates the SimpleNamespace workaround flagged
+  in P2 review). `.importlinter` zero carve-outs: both P5 follow-ups
+  from P1/P2 reviews (`aggregate -> services.search`,
+  `_dispatch -> api.deps`) resolved by moving helpers to
+  `cinemateca.search.aggregate` and parametrising BM25 tunables as
+  kwargs in `_dispatch.find()`. Suite: **774 → 777 passing**. Spec:
+  `docs/superpowers/specs/2026-05-24-deep-modules-refactor-design.md`;
+  plan:
+  `docs/superpowers/plans/2026-05-25-deep-modules-refactor-p3-services.md`.
 - [ ] Pre-launch LinkedIn "I'm building this" post
 
 ### Month 2 — Retrieval depth + audio (HARD FREEZE on new features)
@@ -378,7 +423,7 @@ defer features; timeline extension is one option among several. Grilled
   `docs/superpowers/plans/2026-05-23-hybrid-search.md`. F1 (eval ablation
   on Jeca Tatu) ainda pendente — corrida manual requer dados reais.
   **Próximo:** M2 #4 cross-encoder reranker.
-- [ ] Cross-encoder reranker (text default; VLM-as-judge opt-in)
+- [ ] Cross-encoder reranker (text default; VLM-as-judge opt-in) — lands in `cinemateca.search.rerank`
 - [ ] Multilingual visual model (SigLIP-multilingual; M-CLIP fallback)
 - [ ] CLAP archival-audio sanity check (pre-commit gate on Jeca Tatu)
 

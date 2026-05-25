@@ -1,0 +1,48 @@
+name: refactor-guards
+
+# Enforces the P1 deep-modules refactor invariants on every PR that touches
+# the layered code (or the guard scripts themselves):
+#
+#   1. LOC budget: api/services/*.py ≤ 250, api/routes/*.py ≤ 150.
+#      Exemptions are listed explicitly in scripts/check_loc_budget.py;
+#      lifting one requires a CHANGELOG entry + reviewer sign-off.
+#   2. Layer contracts (import-linter):
+#        a. cinemateca/* does not import api/* (P2 carve-outs documented
+#           in .importlinter; each one deletes when its target relocates).
+#        b. api/routes/search.py does not directly import cinemateca/search,
+#           cinemateca/retrieval, or cinemateca/embeddings — it goes through
+#           api/services/search.py.
+#
+# Run locally with:
+#   uv run python scripts/check_loc_budget.py && uv run lint-imports
+
+on:
+  pull_request:
+    paths:
+      - "src/cinemateca/**"
+      - "api/**"
+      - "scripts/check_loc_budget.py"
+      - ".importlinter"
+      - ".github/workflows/refactor-guards.yml"
+  push:
+    branches: [main]
+
+jobs:
+  layer-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+      - name: Install dev deps
+        run: uv sync --extra full --group dev
+      - name: LOC budget (api/services ≤ 250, api/routes ≤ 150)
+        run: uv run python scripts/check_loc_budget.py
+      - name: import-linter (layer contracts)
+        run: uv run lint-imports

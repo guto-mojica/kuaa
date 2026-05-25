@@ -131,10 +131,12 @@ def tmp_config(tmp_path, monkeypatch):
 
     import api.routes as routes_pkg
     import api.server as server
+    import api.services as services_pkg
 
     mods = [server]
-    for info in pkgutil.iter_modules(routes_pkg.__path__):
-        mods.append(importlib.import_module(f"{routes_pkg.__name__}.{info.name}"))
+    for pkg in (routes_pkg, services_pkg):
+        for info in pkgutil.iter_modules(pkg.__path__):
+            mods.append(importlib.import_module(f"{pkg.__name__}.{info.name}"))
 
     for mod in mods:
         if hasattr(mod, "get_config"):

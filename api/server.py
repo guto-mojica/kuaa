@@ -31,7 +31,7 @@ from api.routes import (
 )
 from api.services.annotations import build_annotate_context
 from api.services.chrome_service import build_chrome_context
-from api.services.film_context import FilmContext
+from cinemateca.library import FilmContext
 from api.services.rhymes_service import build_rimas_context
 from api.services.scenes_service import build_cenas_context, build_timeline_context
 from api.templates import templates

@@ -1,0 +1,39 @@
+[importlinter]
+root_packages =
+    cinemateca
+    api
+
+[importlinter:contract:no-core-imports-api]
+# All carve-outs resolved as of P3/T14. The BM25-tunables lazy import
+# (cinemateca.search._dispatch -> api.deps) was eliminated by
+# parameterising find() with bm25_stopwords_lang / bm25_k1 / bm25_b
+# kwargs whose defaults mirror the legacy fallback path (None/1.5/0.75).
+#
+# Rule for future work: PREFER inlining a small helper over adding a
+# carve-out (see cinemateca.search.bm25 for the pattern). Add a new
+# ignore_imports entry only when inlining is impractical, with a one-line
+# justification in the commit message.
+name=cinemateca core must not import api/
+type=forbidden
+source_modules=
+    cinemateca
+forbidden_modules=
+    api
+
+[importlinter:contract:routes-not-direct-core]
+# T15 dropped the route's direct import of ``cinemateca.retrieval.hybrid``
+# (``DEFAULT_RRF_K`` / ``resolve_weights`` now live behind
+# ``api.services.search.resolve_retriever_args``). ``allow_indirect_imports
+# = True`` keeps transitive chains routed through ``api.services.*`` legal;
+# direct imports from ``api.routes.search`` into core packages would fail
+# this contract. T16 wires this contract (and the LOC budget) into CI via
+# .github/workflows/refactor-guards.yml.
+name=routes use services, not core directly
+type=forbidden
+source_modules=
+    api.routes.search
+forbidden_modules=
+    cinemateca.search
+    cinemateca.retrieval
+    cinemateca.embeddings
+allow_indirect_imports=True

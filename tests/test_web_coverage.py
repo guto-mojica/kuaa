@@ -205,7 +205,7 @@ class TestAnnotationSaveClear:
     The on-disk shape (STR scene-id key, lower-kebab tags, empty
     fragments dropped) is produced by the *route*
     (``api/routes/annotate.py``: ``ann[str(scene_id)] = [...]`` with the
-    normalizing list-comp); ``cinemateca.annotator.save`` just
+    normalizing list-comp); ``cinemateca.annotations.save`` just
     ``json.dump``s. These tests assert that route-side contract.
 
     Hermetic: the annotations file lives in the temp metadata dir
@@ -573,7 +573,7 @@ def test_corrupt_index_root_defect_still_in_ai_core_but_caught_by_service(
     """
     import pandas as pd
 
-    from api.services.film_context import FilmContext
+    from cinemateca.library import FilmContext
     from api.services.search import IndexStatus, load_index
     from cinemateca.embeddings import SemanticSearch
     from cinemateca.models.clip.openclip import OpenClipEmbedder
