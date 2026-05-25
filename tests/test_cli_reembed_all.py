@@ -371,9 +371,10 @@ class TestServe:
     def test_serve_delegates_to_uvicorn_run(self, monkeypatch, runner):
         captured: dict = {}
 
-        def fake_run(target, *, host, port, reload):
-            captured.update(dict(target=target, host=host, port=port,
-                                  reload=reload))
+        def fake_run(target, *, host, port, reload, app_dir):
+            captured.update(
+                dict(target=target, host=host, port=port, reload=reload, app_dir=app_dir)
+            )
 
         monkeypatch.setattr("uvicorn.run", fake_run)
 
@@ -384,5 +385,7 @@ class TestServe:
         )
         assert result.exit_code == 0, result.stdout + result.stderr
         assert captured["target"] == "api.server:app"
+        assert captured["host"] == "127.0.0.1"
         assert captured["port"] == 9999
         assert captured["reload"] is False
+        assert Path(captured["app_dir"]).resolve() == Path(__file__).parents[1].resolve()
