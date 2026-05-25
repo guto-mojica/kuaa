@@ -41,10 +41,16 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from api.services.catalog import derive_fps, keyframe_url, load_json, to_smpte
-from cinemateca.library import FilmContext
 from cinemateca import library
+from cinemateca.library import FilmContext
 from cinemateca.rhymes import Rhyme, find_rhymes
+from cinemateca.rhymes.metadata import (  # noqa: F401
+    description_for as _description_for,
+    load_scene_meta as _load_scene_meta,
+    resolve_timecode as _resolve_timecode,
+    tags_for as _tags_for,
+)
+from api.services.catalog import keyframe_url, load_json
 
 logger = logging.getLogger(__name__)
 
@@ -79,100 +85,6 @@ def _default_anchor(films: list[Any]) -> tuple[str | None, int | None]:
     if slug is None:
         return None, None
     return slug, 1
-
-
-def _load_scene_meta(cfg: Any, slug: str, scene_id: int) -> dict | None:
-    """Return the anchor scene's metadata dict, or ``None`` if unresolvable.
-
-    Mirrors :func:`api.services.scenes_service.build_inspector_context`'s
-    on-disk lookup pattern: read ``keyframes_metadata.json`` for the
-    keyframe + timecode, ``scene_descriptions.json`` for the moondream
-    caption, and ``scene_tags.json`` / ``manual_annotations.json``
-    (merged) for the tag list. Anything the file system cannot answer
-    collapses to a sensible default (``""`` / ``[]``) so the template
-    never sees ``None`` on a sub-field.
-
-    Returns ``None`` only when the scene id itself cannot be located in
-    the film's keyframe metadata — that is the signal Task 22's template
-    uses to render the "anchor missing" empty state.
-    """
-    try:
-        ctx = FilmContext.for_film(cfg, slug)
-    except ValueError as exc:
-        logger.info("rimas: unresolvable slug %r → empty anchor (%s)", slug, exc)
-        return None
-
-    kf_meta = load_json(ctx.metadata_dir / "keyframes_metadata.json") or []
-    if not isinstance(kf_meta, list):
-        return None
-
-    entry: dict | None = None
-    for e in kf_meta:
-        try:
-            if int(e.get("scene_id")) == scene_id:
-                entry = e
-                break
-        except (TypeError, ValueError):
-            continue
-    if entry is None:
-        return None
-
-    fps = derive_fps(kf_meta)
-    start_s = float(entry.get("start_time_s") or 0.0)
-    end_s = float(entry.get("end_time_s") or 0.0)
-    timecode = to_smpte(start_s, fps) if start_s > 0 else ""
-
-    description = _description_for(ctx.metadata_dir, scene_id)
-    tags = _tags_for(ctx.metadata_dir, scene_id)
-
-    return {
-        "scene_id": scene_id,
-        "id": scene_id,
-        "film_slug": slug,
-        "keyframe_url": keyframe_url(entry.get("filepath", ""), ctx.data_dir) or "",
-        "timecode": timecode,
-        "start_s": start_s,
-        "end_s": end_s,
-        "title": None,
-        "description": description,
-        "tags": tags,
-    }
-
-
-def _description_for(metadata_dir: Path, scene_id: int) -> str:
-    """Look up the moondream description for ``scene_id`` (``""`` if absent)."""
-    descs = load_json(metadata_dir / "scene_descriptions.json") or []
-    if not isinstance(descs, list):
-        return ""
-    for entry in descs:
-        sid = entry.get("scene_id")
-        if sid is None:
-            continue
-        try:
-            if int(sid) == scene_id:
-                return str(entry.get("description") or "")
-        except (TypeError, ValueError):
-            continue
-    return ""
-
-
-def _tags_for(metadata_dir: Path, scene_id: int) -> list[str]:
-    """Return the merged (LLM + manual) tag list for ``scene_id`` (``[]`` if absent)."""
-    from api.services.catalog import load_tag_index
-
-    merged = load_tag_index(metadata_dir) or {}
-    tags: list[str] = []
-    for tag, sids in merged.items():
-        if not isinstance(sids, (list, set, tuple)):
-            continue
-        for sid in sids:
-            try:
-                if int(sid) == scene_id:
-                    tags.append(tag)
-                    break
-            except (TypeError, ValueError):
-                continue
-    return tags
 
 
 def _enrich_rhyme(cfg: Any, rhyme: Rhyme, films_by_id: dict) -> dict:
@@ -231,26 +143,6 @@ def _resolve_keyframe_url(cfg: Any, slug: str, scene_id: int) -> str:
         try:
             if int(entry.get("scene_id")) == scene_id:
                 return keyframe_url(entry.get("filepath", ""), ctx.data_dir) or ""
-        except (TypeError, ValueError):
-            continue
-    return ""
-
-
-def _resolve_timecode(cfg: Any, slug: str, scene_id: int) -> str:
-    """Return the SMPTE timecode of ``(slug, scene_id)``'s start, or ``""``."""
-    try:
-        ctx = FilmContext.for_film(cfg, slug)
-    except ValueError:
-        return ""
-    kf_meta = load_json(ctx.metadata_dir / "keyframes_metadata.json") or []
-    if not isinstance(kf_meta, list) or not kf_meta:
-        return ""
-    fps = derive_fps(kf_meta)
-    for entry in kf_meta:
-        try:
-            if int(entry.get("scene_id")) == scene_id:
-                start_s = float(entry.get("start_time_s") or 0.0)
-                return to_smpte(start_s, fps) if start_s > 0 else ""
         except (TypeError, ValueError):
             continue
     return ""
