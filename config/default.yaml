@@ -136,6 +136,26 @@ search:
   # the per-modality score breakdown actually exists.
   signals_enabled: false
 
+# ── Retrieval (Month-2/3 reranker + future fusion knobs) ─────────────────────
+# Separate from ``search:`` because ``search:`` owns UI-surfaced display knobs
+# (chips, modality gates, k defaults) while ``retrieval:`` owns the deeper
+# scoring-pipeline knobs that the cfg-aware service wrappers read at dispatch
+# time. M3 introduces the cross-encoder reranker block; future M3 fusion +
+# MMR diversity knobs land here too. Read by ``api.services.search``
+# (Task 3.2: ``apply_reranker`` consults ``retrieval.reranker.*``).
+retrieval:
+  reranker:
+    enabled: false          # M3 pre-flight 3.2: default-off for snapshot safety.
+                            # Task 3.3 + the per-call UI toggle (?reranker_enabled=)
+                            # flips it on. Spec says "default on" but existing
+                            # hybrid regression snapshots assume no rerank reorder,
+                            # so we keep it off at the config layer and let the
+                            # chip + admin override drive the live experience.
+    top_k_in: 20            # max hits the cross-encoder sees (cost cap).
+    model: "default"        # 'default' → BAAI/bge-reranker-v2-m3
+                            # 'noop'    → passthrough escape hatch (tests / UI off)
+                            # any other string → HF model id
+
 # ── Rimas Visuais (cross-film visual rhymes) ─────────────────────────────────
 # Read-only knobs for the Rimas tab's kNN over CLIP keyframes. Defaults match
 # the prototype expectation in docs/superpowers/plans/2026-05-20-mojica-frame-redesign.md

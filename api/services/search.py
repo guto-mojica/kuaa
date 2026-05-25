@@ -20,6 +20,10 @@ from typing import TYPE_CHECKING, Any
 from api.services.catalog import keyframe_url  # noqa: F401  — used by routes
 from cinemateca.library import FilmContext
 
+# Cross-encoder rerank verb (Task 3.1). Aliased so tests can monkeypatch
+# ``api.services.search.search_rerank`` without bypassing the wrapper.
+from cinemateca.search import rerank as search_rerank  # noqa: F401
+
 # Result conversion + Mojica context + films-by-id lookup (T8). T15
 # adds ``enrich_hits_with_film_metadata`` re-export so the slim route
 # layer doesn't import ``cinemateca.search._lookup`` directly (keeps
@@ -81,7 +85,7 @@ from cinemateca.search.hybrid import (  # noqa: F401
 
 # Upload validation (T5). UploadRejected re-exported for the legacy
 # ``api.services.search.UploadRejected`` import path used by routes + tests.
-from cinemateca.search.types import UploadRejected  # noqa: F401
+from cinemateca.search.types import SearchResult, UploadRejected  # noqa: F401
 from cinemateca.search.upload import (
     MAX_UPLOAD_BYTES,  # noqa: F401
     validate_upload,  # noqa: F401
@@ -107,6 +111,48 @@ def _get_bm25_index_for_ctx(ctx: FilmContext) -> BM25Index:
     k1 = float(getattr(bm25_cfg, "k1", 1.5)) if bm25_cfg else 1.5
     b = float(getattr(bm25_cfg, "b", 0.75)) if bm25_cfg else 0.75
     return bm25_index_for_ctx(ctx, stopwords_lang=stopwords_lang, k1=k1, b=b)
+
+
+# ── Cross-encoder reranker (Task 3.2) ────────────────────────────────────────
+# ``apply_reranker`` is the cfg-aware wrapper over the pure
+# :func:`cinemateca.search.rerank` verb (imported above as ``search_rerank``).
+# Callers invoke it once at the OUTERMOST :class:`SearchResult` boundary so we
+# never double-rerank when an aggregate path composes sub-results internally.
+# The reader helper centralises the ``retrieval.reranker.*`` defaults so a
+# cfg without the block (or without ``retrieval`` at all) doesn't raise.
+
+
+def _reranker_settings(cfg: Any) -> tuple[bool, str, int]:
+    """Read ``retrieval.reranker.{enabled,model,top_k_in}`` with defaults.
+
+    Defaults: ``enabled=True``, ``model='default'``, ``top_k_in=20``. A cfg
+    missing ``retrieval`` or ``retrieval.reranker`` falls back to all-defaults
+    silently — callers should never see an ``AttributeError`` from a partial
+    config.
+    """
+    rr = getattr(getattr(cfg, "retrieval", None), "reranker", None)
+    if rr is None:
+        return (True, "default", 20)
+    return (
+        bool(getattr(rr, "enabled", True)),
+        str(getattr(rr, "model", "default")),
+        int(getattr(rr, "top_k_in", 20)),
+    )
+
+
+def apply_reranker(result: SearchResult, *, cfg: Any) -> SearchResult:
+    """Apply the cross-encoder reranker to a :class:`SearchResult`.
+
+    Reads ``retrieval.reranker.*`` from ``cfg``; short-circuits when
+    ``enabled=False``. Safe to call unconditionally at the outermost
+    boundary of any retriever path that produces a :class:`SearchResult`.
+    Tests can stub the underlying verb with
+    ``monkeypatch.setattr(svc, "search_rerank", ...)``.
+    """
+    enabled, model, top_k_in = _reranker_settings(cfg)
+    if not enabled:
+        return result
+    return search_rerank(result, model=model, top_k_in=top_k_in)
 
 
 def dispatch_audio_search(
