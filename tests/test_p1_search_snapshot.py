@@ -154,3 +154,104 @@ def test_text_search_clip_single_film(small_library):
         "text_clip_single_film",
         payload,
     )
+
+
+def test_text_search_hybrid_single_film(small_library):
+    client = TestClient(app)
+    r = client.get("/api/search", params={
+        "q": "horse", "top_k": 5, "retriever": "hybrid", "film": "alpha",
+    })
+    assert r.status_code == 200
+    payload = {"status": r.status_code, "html": _slim(r.text)}
+    _assert_or_update(
+        SNAPSHOTS_DIR / "p1_search_text.json",
+        "text_hybrid_single_film",
+        payload,
+    )
+
+
+def test_text_search_bm25_single_film(small_library):
+    client = TestClient(app)
+    r = client.get("/api/search", params={
+        "q": "horse", "top_k": 5, "retriever": "bm25", "film": "alpha",
+    })
+    assert r.status_code == 200
+    payload = {"status": r.status_code, "html": _slim(r.text)}
+    _assert_or_update(
+        SNAPSHOTS_DIR / "p1_search_text.json",
+        "text_bm25_single_film",
+        payload,
+    )
+
+
+def test_text_search_with_tag_filter(small_library):
+    client = TestClient(app)
+    r = client.get("/api/search", params=[
+        ("q", "horse"), ("top_k", "5"),
+        ("retriever", "clip"), ("film", "alpha"),
+        ("tags", "outdoor"),
+    ])
+    assert r.status_code == 200
+    payload = {"status": r.status_code, "html": _slim(r.text)}
+    _assert_or_update(
+        SNAPSHOTS_DIR / "p1_search_text.json",
+        "text_clip_with_tag",
+        payload,
+    )
+
+
+def test_text_search_aggregate_across_films(small_library):
+    client = TestClient(app)
+    r = client.get("/api/search", params={
+        "q": "horse", "top_k": 5, "retriever": "clip",
+    })  # no ?film= → aggregate path
+    assert r.status_code == 200
+    payload = {"status": r.status_code, "html": _slim(r.text)}
+    _assert_or_update(
+        SNAPSHOTS_DIR / "p1_search_text.json",
+        "text_clip_aggregate",
+        payload,
+    )
+
+
+def test_image_search_single_film(small_library):
+    client = TestClient(app)
+    img_bytes = b"\xff\xd8\xff\xd9"  # tiny stub JPEG
+    r = client.post(
+        "/api/search/image",
+        params={"film": "alpha", "top_k": 5},
+        files={"file": ("frame.jpg", img_bytes, "image/jpeg")},
+    )
+    assert r.status_code == 200
+    payload = {"status": r.status_code, "html": _slim(r.text)}
+    _assert_or_update(
+        SNAPSHOTS_DIR / "p1_search_image.json",
+        "image_single_film",
+        payload,
+    )
+
+
+def test_no_index_response(tmp_config):
+    """Empty library → /api/search returns the no-index UI state."""
+    client = TestClient(app)
+    r = client.get("/api/search", params={"q": "horse", "top_k": 5})
+    assert r.status_code == 200
+    payload = {"status": r.status_code, "html": _slim(r.text)}
+    _assert_or_update(
+        SNAPSHOTS_DIR / "p1_search_edge.json",
+        "no_index_empty_library",
+        payload,
+    )
+
+
+def test_short_query_returns_empty(tmp_config):
+    """Query shorter than 2 chars short-circuits to an empty HTMLResponse."""
+    client = TestClient(app)
+    r = client.get("/api/search", params={"q": "a", "top_k": 5})
+    assert r.status_code == 200
+    payload = {"status": r.status_code, "html": _slim(r.text)}
+    _assert_or_update(
+        SNAPSHOTS_DIR / "p1_search_edge.json",
+        "short_query",
+        payload,
+    )
