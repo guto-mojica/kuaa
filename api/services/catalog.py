@@ -25,7 +25,6 @@ validation is Phase 3c; it is intentionally absent here.)
 
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -41,68 +40,19 @@ from cinemateca.library.paths import (
     load_json,
     to_smpte,
 )
+
+# Per-film metadata loaders (relocated to cinemateca.library.metadata).
+# Re-exported here so existing call sites keep their imports stable.
+# NOTE: load_tag_index is now LENIENT on malformed scene_tags.json (logs
+# warning + returns empty) — previously raised JSONDecodeError. Matches
+# the P1 cinemateca.search._tag_index behavior.
+from cinemateca.library.metadata import (  # noqa: F401
+    load_metadata,
+    load_tag_index,
+)
 from cinemateca.scene_ids import scene_id_key
 
 logger = logging.getLogger(__name__)
-
-
-# ── Metadata + tag index ──────────────────────────────────────────────────────
-
-def load_tag_index(metadata_dir: Path) -> dict:
-    """Load the RAW merged (un-normalized) inverted tag index.
-
-    Mirrors ``search._load_tag_index`` exactly: read ``scene_tags.json``
-    (LLM, INT ids) + ``manual_annotations.json`` (STR keys) and
-    ``merge_tag_index`` them WITHOUT normalizing. Search depends on this
-    raw shape — ``SemanticSearch.combined`` normalizes internally
-    (Phase 1c), so passing a pre-normalized index would change nothing
-    for filtering but would diverge from the characterized contract.
-    Only the *keys* are used for ``available_tags`` (identical either
-    way, since normalization never drops/renames tags).
-    """
-    from cinemateca.annotator import load as load_annotations
-    from cinemateca.annotator import merge_tag_index
-
-    tags_path = metadata_dir / "scene_tags.json"
-    llm_tags: dict = {}
-    if tags_path.exists():
-        with open(tags_path, encoding="utf-8") as f:
-            llm_tags = json.load(f)
-    annotations = load_annotations(metadata_dir)
-    return merge_tag_index(llm_tags, annotations)
-
-
-def load_metadata(metadata_dir: Path) -> tuple[list, dict, dict, dict]:
-    """Return ``(kf_meta, desc_by_scene, vis_by_scene, tag_index)``.
-
-    Verbatim port of ``scenes._load_metadata``. The returned
-    ``tag_index`` is NORMALIZED (``{tag: {canonical str id}}`` via
-    ``normalize_tag_index``) so every downstream membership test the
-    scenes path does is str-vs-str. ``desc_by_scene`` / ``vis_by_scene``
-    are keyed by canonical str id (``scene_id_key``).
-    """
-    from cinemateca.annotator import load as load_annotations
-    from cinemateca.annotator import merge_tag_index
-    from cinemateca.scene_ids import normalize_tag_index
-
-    kf_meta = load_json(metadata_dir / "keyframes_metadata.json") or []
-    descriptions = load_json(metadata_dir / "scene_descriptions.json") or []
-    llm_tags = load_json(metadata_dir / "scene_tags.json") or {}
-    visual_data = load_json(metadata_dir / "visual_analysis.json") or []
-    annotations = load_annotations(metadata_dir)
-
-    desc_by_scene = {
-        scene_id_key(d["scene_id"]): d for d in descriptions if "scene_id" in d
-    }
-    vis_by_scene = {
-        scene_id_key(v["scene_id"]): v for v in visual_data if "scene_id" in v
-    }
-    # merge_tag_index yields a hybrid index with mixed int (LLM) / str
-    # (manual) value types. Normalize to canonical str ids here so every
-    # downstream membership test is str-vs-str.
-    tag_index = normalize_tag_index(merge_tag_index(llm_tags, annotations))
-
-    return kf_meta, desc_by_scene, vis_by_scene, tag_index
 
 
 # ── Scene-card construction ───────────────────────────────────────────────────

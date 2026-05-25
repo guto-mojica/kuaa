@@ -7,14 +7,18 @@ Public API:
         scan_library, library_state,
         register_film, delete_film, load_registry, save_registry,
         load_json, keyframe_url, to_smpte, derive_fps,
+        load_tag_index, load_metadata,
         # Added in subsequent P2 tasks:
         # Library,                        # T10
-        # load_tag_index, load_metadata,  # T5
     )
 """
 from __future__ import annotations
 
 from cinemateca.library.context import FilmContext
+from cinemateca.library.metadata import (
+    load_metadata,
+    load_tag_index,
+)
 from cinemateca.library.paths import (
     derive_fps,
     keyframe_url,
@@ -43,7 +47,9 @@ __all__ = [
     "keyframe_url",
     "library_state",
     "load_json",
+    "load_metadata",
     "load_registry",
+    "load_tag_index",
     "register_film",
     "save_registry",
     "scan_library",
