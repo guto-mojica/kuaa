@@ -1,0 +1,212 @@
+{
+  "dialogue close-up|w=0.5": [
+    {
+      "rank": 0,
+      "scene_id": 140
+    },
+    {
+      "rank": 1,
+      "scene_id": 80
+    },
+    {
+      "rank": 2,
+      "scene_id": 268
+    },
+    {
+      "rank": 3,
+      "scene_id": 240
+    },
+    {
+      "rank": 4,
+      "scene_id": 326
+    },
+    {
+      "rank": 5,
+      "scene_id": 298
+    },
+    {
+      "rank": 6,
+      "scene_id": 219
+    },
+    {
+      "rank": 7,
+      "scene_id": 402
+    },
+    {
+      "rank": 8,
+      "scene_id": 79
+    },
+    {
+      "rank": 9,
+      "scene_id": 325
+    }
+  ],
+  "festive crowd music|w=0.5": [
+    {
+      "rank": 0,
+      "scene_id": 297
+    },
+    {
+      "rank": 1,
+      "scene_id": 298
+    },
+    {
+      "rank": 2,
+      "scene_id": 380
+    },
+    {
+      "rank": 3,
+      "scene_id": 268
+    },
+    {
+      "rank": 4,
+      "scene_id": 32
+    },
+    {
+      "rank": 5,
+      "scene_id": 239
+    },
+    {
+      "rank": 6,
+      "scene_id": 73
+    },
+    {
+      "rank": 7,
+      "scene_id": 265
+    },
+    {
+      "rank": 8,
+      "scene_id": 260
+    },
+    {
+      "rank": 9,
+      "scene_id": 375
+    }
+  ],
+  "orchestral score over landscape|w=0.3": [
+    {
+      "rank": 0,
+      "scene_id": 240
+    },
+    {
+      "rank": 1,
+      "scene_id": 214
+    },
+    {
+      "rank": 2,
+      "scene_id": 4
+    },
+    {
+      "rank": 3,
+      "scene_id": 5
+    },
+    {
+      "rank": 4,
+      "scene_id": 29
+    },
+    {
+      "rank": 5,
+      "scene_id": 367
+    },
+    {
+      "rank": 6,
+      "scene_id": 71
+    },
+    {
+      "rank": 7,
+      "scene_id": 260
+    },
+    {
+      "rank": 8,
+      "scene_id": 373
+    },
+    {
+      "rank": 9,
+      "scene_id": 68
+    }
+  ],
+  "quiet scene with melancholic music|w=0.5": [
+    {
+      "rank": 0,
+      "scene_id": 132
+    },
+    {
+      "rank": 1,
+      "scene_id": 4
+    },
+    {
+      "rank": 2,
+      "scene_id": 175
+    },
+    {
+      "rank": 3,
+      "scene_id": 174
+    },
+    {
+      "rank": 4,
+      "scene_id": 216
+    },
+    {
+      "rank": 5,
+      "scene_id": 367
+    },
+    {
+      "rank": 6,
+      "scene_id": 5
+    },
+    {
+      "rank": 7,
+      "scene_id": 373
+    },
+    {
+      "rank": 8,
+      "scene_id": 29
+    },
+    {
+      "rank": 9,
+      "scene_id": 2
+    }
+  ],
+  "silent footsteps at night|w=0.7": [
+    {
+      "rank": 0,
+      "scene_id": 93
+    },
+    {
+      "rank": 1,
+      "scene_id": 153
+    },
+    {
+      "rank": 2,
+      "scene_id": 151
+    },
+    {
+      "rank": 3,
+      "scene_id": 372
+    },
+    {
+      "rank": 4,
+      "scene_id": 91
+    },
+    {
+      "rank": 5,
+      "scene_id": 231
+    },
+    {
+      "rank": 6,
+      "scene_id": 150
+    },
+    {
+      "rank": 7,
+      "scene_id": 65
+    },
+    {
+      "rank": 8,
+      "scene_id": 11
+    },
+    {
+      "rank": 9,
+      "scene_id": 1
+    }
+  ]
+}
