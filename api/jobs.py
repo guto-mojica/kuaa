@@ -34,13 +34,17 @@ active job is never evicted.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import queue
 import threading
 import time
 import uuid
+from collections import deque
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +69,180 @@ _TERMINAL = (STATUS_DONE, STATUS_ERROR, STATUS_CANCELLED)
 # registry; evict oldest first. The active job is never counted/evicted.
 MAX_RETAINED_TERMINAL_JOBS = 20
 
+# Per-job log ring buffer. A 30-minute pipeline at typical verbosity
+# produces ~200 lines; 500 leaves comfortable headroom and bounds RAM
+# at ~100KB per job (a log row is ~200B serialised). Survives page
+# navigation because it lives on JobState in the in-memory registry.
+LOG_BUFFER_MAXLEN = 500
+
+# Per-subscriber SSE event queue size. Large enough that a brief
+# network back-pressure stall (a few seconds) doesn't drop events; if
+# a consumer is genuinely dead we'd rather drop on its side than block
+# the producer thread. The replay path on reconnect catches it up from
+# the JobState log buffer.
+SUBSCRIBER_QUEUE_MAXLEN = 500
+
+
+# ── Pub/sub event broadcaster ─────────────────────────────────────────────────
+
+
+# An event is a (name, data) tuple. ``name`` is one of:
+#   * ``"update"``      — stepper progress signal (data: None)
+#   * ``"log"``         — a captured pipeline log row (data: dict with
+#                         ``t`` / ``lv`` / ``m`` keys; matches the
+#                         ``processing_log_line.html`` template shape)
+#   * ``"done"`` / ``"error"`` / ``"cancelled"`` — terminal signals
+#                         (data: None). The SSE generator renders the
+#                         final stepper at emit time.
+Event = tuple[str, Any]
+
+
+class EventBroadcaster:
+    """Fan-out events to all currently-subscribed consumer queues.
+
+    Replaces the old single-consumer ``queue.Queue`` so multiple SSE
+    streams (two browser tabs, reloads, the log pane + the stepper
+    div) can all consume the same job's progress without racing each
+    other for events.
+
+    Producer side (called from the pipeline worker thread) uses
+    :meth:`publish`; consumers (the SSE generator) get a per-connection
+    queue via :meth:`subscribe` and MUST call :meth:`unsubscribe` when
+    their connection closes so a dead client doesn't leak a queue for
+    the rest of the job.
+
+    Slow-consumer policy: if a subscriber's queue is full, the event
+    is silently dropped FOR THAT SUBSCRIBER ONLY — the producer never
+    blocks, and other subscribers keep flowing. A reconnecting client
+    catches up from the JobState log buffer (which is the durable
+    layer); the broadcaster itself is the live wire only.
+    """
+
+    def __init__(self) -> None:
+        self._subscribers: list[queue.Queue] = []
+        self._lock = threading.Lock()
+
+    def subscribe(self, maxsize: int = SUBSCRIBER_QUEUE_MAXLEN) -> queue.Queue:
+        q: queue.Queue = queue.Queue(maxsize=maxsize)
+        with self._lock:
+            self._subscribers.append(q)
+        return q
+
+    def unsubscribe(self, q: queue.Queue) -> None:
+        with self._lock:
+            try:
+                self._subscribers.remove(q)
+            except ValueError:
+                pass  # already unsubscribed; idempotent
+
+    def publish(self, event: Event) -> None:
+        # Snapshot the subscriber list under the lock so a concurrent
+        # subscribe/unsubscribe can't mutate it while we iterate.
+        with self._lock:
+            subs = list(self._subscribers)
+        for q in subs:
+            try:
+                q.put_nowait(event)
+            except queue.Full:
+                # Slow consumer: drop the event for this subscriber.
+                # See class docstring for rationale.
+                pass
+
+    def subscriber_count(self) -> int:
+        with self._lock:
+            return len(self._subscribers)
+
+
+# ── Pipeline log capture ──────────────────────────────────────────────────────
+
+
+# Logger namespaces whose output we want to surface in the Processing
+# UI. ``cinemateca.*`` is the entire AI core; ``api.jobs`` is this
+# module itself (so the runner's "step start / step finish" lines
+# also surface). Tightly scoped so unrelated noise (httpx, uvicorn,
+# asyncio) never lands in the user-visible log pane.
+_PIPELINE_LOGGER_NAMES = ("cinemateca", "api.jobs")
+
+# Python logging levelno → template ``lv`` code. The template
+# (processing_log_line.html + proc.css) ships rules for i / d / w / s
+# (success). 'e' is added for error/critical so a future CSS rule can
+# style it distinctly; today it falls through to the default span
+# styling which is still legible.
+_LEVEL_LV = {
+    logging.DEBUG: "d",
+    logging.INFO: "i",
+    logging.WARNING: "w",
+    logging.ERROR: "e",
+    logging.CRITICAL: "e",
+}
+
+
+class _JobLogHandler(logging.Handler):
+    """A logging.Handler that routes captured records onto a
+    :class:`JobState` (durable ring buffer + live broadcast).
+
+    Construct via :func:`install_pipeline_log_handler` (the
+    contextmanager that attaches/detaches it).
+    """
+
+    def __init__(self, job: JobState) -> None:
+        super().__init__(level=logging.DEBUG)
+        self._job = job
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            row = {
+                "t": time.strftime("%H:%M:%S", time.localtime(record.created)),
+                "lv": _LEVEL_LV.get(record.levelno, "i"),
+                "m": record.getMessage(),
+            }
+        except Exception:  # noqa: BLE001 — handler MUST NOT raise
+            return
+        # Buffer first (durable layer) then broadcast (live layer) so a
+        # consumer that subscribes between the two operations still
+        # sees the row on replay.
+        self._job.log.append(row)
+        try:
+            self._job.publish("log", row)
+        except Exception:  # noqa: BLE001 — broadcaster failure must
+            # not crash a producer logger (extremely defensive; the
+            # broadcaster's publish is itself try/except internally).
+            pass
+
+
+@contextlib.contextmanager
+def install_pipeline_log_handler(job: JobState) -> Iterator[_JobLogHandler]:
+    """Context manager that attaches a :class:`_JobLogHandler` to the
+    pipeline logger namespaces for the duration of the ``with`` block.
+
+    We also temporarily lower each target logger's ``level`` to DEBUG
+    so INFO/DEBUG records actually reach the handler (the project
+    default is INFO; in a fresh test process the root WARNING level
+    would otherwise drop everything below WARNING before our handler
+    sees it). The original levels are restored in ``finally`` so a
+    crash inside the runner cannot leak verbose logging across the
+    rest of the server's lifetime.
+    """
+    handler = _JobLogHandler(job)
+    attached = [logging.getLogger(name) for name in _PIPELINE_LOGGER_NAMES]
+    saved_levels = [lg.level for lg in attached]
+    for lg in attached:
+        lg.addHandler(handler)
+        if lg.level == logging.NOTSET or lg.level > logging.DEBUG:
+            lg.setLevel(logging.DEBUG)
+    try:
+        yield handler
+    finally:
+        for lg, original in zip(attached, saved_levels):
+            try:
+                lg.removeHandler(handler)
+            except Exception:  # noqa: BLE001 — removal MUST be idempotent
+                pass
+            try:
+                lg.setLevel(original)
+            except Exception:  # noqa: BLE001 — defensive: never raise
+                pass
+
 
 @dataclass
 class StepInfo:
@@ -83,12 +261,41 @@ class JobState:
     status: str = STATUS_RUNNING  # created|running|done|error|cancelled
     steps: list[StepInfo] = field(default_factory=list)
     progress: float = 0.0
-    events: queue.Queue = field(default_factory=queue.Queue)
+    # Multi-consumer event bus. Replaces the old single-consumer
+    # ``queue.Queue`` so multiple SSE streams to the same job (two
+    # tabs, reload-during-run, the log pane + the stepper div) all
+    # see the same events without racing.
+    broadcaster: EventBroadcaster = field(default_factory=EventBroadcaster, repr=False)
+    # Bounded ring buffer of captured pipeline log lines. Each row:
+    # ``{"t": "HH:MM:SS", "lv": "i|d|w|e|s", "m": "message text"}``
+    # matching ``processing_log_line.html``. This is the durable
+    # layer that lets a user navigate away and return to a full
+    # replay of what the pipeline did while they were gone.
+    log: deque = field(
+        default_factory=lambda: deque(maxlen=LOG_BUFFER_MAXLEN),
+        repr=False,
+    )
     error_msg: str = ""
     total_duration_s: float = 0.0
     created_at: float = field(default_factory=time.time)
     # Cooperative-cancel flag; the runner polls it between steps.
     _cancel: threading.Event = field(default_factory=threading.Event, repr=False)
+
+    # ── Pub/sub convenience methods ──────────────────────────────────
+    def publish(self, name: str, data: Any = None) -> None:
+        """Publish ``(name, data)`` to every live subscriber.
+
+        Convenience wrapper so producer code reads as
+        ``job.publish("update")`` / ``job.publish("log", row)`` rather
+        than reaching into ``job.broadcaster`` directly.
+        """
+        self.broadcaster.publish((name, data))
+
+    def subscribe(self, maxsize: int = SUBSCRIBER_QUEUE_MAXLEN) -> queue.Queue:
+        return self.broadcaster.subscribe(maxsize=maxsize)
+
+    def unsubscribe(self, q: queue.Queue) -> None:
+        self.broadcaster.unsubscribe(q)
 
     @property
     def video_name(self) -> str:
@@ -339,7 +546,6 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
     cooperative: ``run_steps`` polls ``cancel_check`` between steps and
     raises ``StepCancelled`` when the job's cancel flag is set.
     """
-    from pathlib import PurePosixPath
 
     from api.services.film_context import FilmContext
     from cinemateca.pipeline import CatalogPipeline, StepCancelled, StepResults, StepRun
@@ -349,6 +555,10 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
     job.status = STATUS_RUNNING
 
     slug = _slug_for_video(job.video_path, cfg)
+    logger.info(
+        "[job=%s] runner entered — video=%s slug=%s steps=%s",
+        job.id, job.video_path, slug, sorted(enabled_steps),
+    )
     ctx = FilmContext.for_film(cfg, slug)
     ctx.metadata_dir.mkdir(parents=True, exist_ok=True)
     ctx.frames_dir.mkdir(parents=True, exist_ok=True)
@@ -390,7 +600,7 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
         if s.name not in enabled_steps:
             s.state = "skipped"
     if any(s.state == "skipped" for s in job.steps):
-        job.events.put("update")
+        job.publish("update")
 
     def _recompute_progress() -> None:
         done = sum(
@@ -406,7 +616,8 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
             return
         if phase == "start":
             step.state = "active"
-            job.events.put("update")
+            logger.info("[job=%s] step %s — start", job.id, name)
+            job.publish("update")
             return
         # phase == "finish"
         step.state = run.state
@@ -418,58 +629,69 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
         elif run.state == "blocked":
             step.detail = run.error or ""
         _recompute_progress()
-        job.events.put("update")
-
-    try:
-        results = pipeline.run_steps(
-            job.video_path,
-            steps=[name for name, _ in STEP_DEFS if name in enabled_steps],
-            progress_cb=progress_cb,
-            cancel_check=lambda: job.cancel_requested,
+        logger.info(
+            "[job=%s] step %s — finish (state=%s, %.1fs)",
+            job.id, name, run.state, run.duration_s,
         )
-    except StepCancelled:
-        job.status = STATUS_CANCELLED
-        _recompute_progress()
+        job.publish("update")
+
+    # Install the pipeline log handler so every record emitted by
+    # cinemateca.* and api.jobs during this job's lifetime lands in
+    # the durable ring buffer + broadcasts to live SSE consumers.
+    # The outer try/finally guarantees the handler is removed even on
+    # an early-return exception path, so the next job starts with a
+    # clean logging tree.
+    with install_pipeline_log_handler(job):
+        try:
+            results = pipeline.run_steps(
+                job.video_path,
+                steps=[name for name, _ in STEP_DEFS if name in enabled_steps],
+                progress_cb=progress_cb,
+                cancel_check=lambda: job.cancel_requested,
+            )
+        except StepCancelled:
+            job.status = STATUS_CANCELLED
+            _recompute_progress()
+            job.total_duration_s = time.time() - t_start
+            if not job.error_msg:
+                job.error_msg = "Cancelled by user."
+            _write_manifest(
+                _snapshot_job_steps(),
+                status=STATUS_CANCELLED,
+                error=job.error_msg,
+            )
+            job.publish("cancelled")
+            logger.info("[job=%s] cancelled after %.1fs", job.id, job.total_duration_s)
+            _prune_registry()
+            return
+        except Exception as exc:  # defensive: run_steps wraps step errors,
+            # so this only fires on an orchestration-level fault.
+            job.error_msg = str(exc)
+            job.status = STATUS_ERROR
+            _recompute_progress()
+            job.total_duration_s = time.time() - t_start
+            _write_manifest(status=STATUS_ERROR, error=job.error_msg)
+            job.publish("error")
+            logger.exception("[job=%s] crashed in run_steps", job.id)
+            _prune_registry()
+            return
+
+        had_error = any(
+            r.state in ("error", "blocked") for r in results.runs
+        )
+        job.status = STATUS_ERROR if had_error else STATUS_DONE
+        job.progress = 1.0
         job.total_duration_s = time.time() - t_start
-        if not job.error_msg:
-            job.error_msg = "Cancelled by user."
         _write_manifest(
-            _snapshot_job_steps(),
-            status=STATUS_CANCELLED,
-            error=job.error_msg,
+            results,
+            status=job.status,
+            error=job.error_msg or None,
         )
-        job.events.put("cancelled")
-        logger.info("Job %s cancelled after %.1fs", job.id, job.total_duration_s)
+        job.publish("error" if had_error else "done")
+        logger.info(
+            "[job=%s] finished — %.1fs, status=%s",
+            job.id,
+            job.total_duration_s,
+            job.status,
+        )
         _prune_registry()
-        return
-    except Exception as exc:  # defensive: run_steps wraps step errors,
-        # so this only fires on an orchestration-level fault.
-        job.error_msg = str(exc)
-        job.status = STATUS_ERROR
-        _recompute_progress()
-        job.total_duration_s = time.time() - t_start
-        _write_manifest(status=STATUS_ERROR, error=job.error_msg)
-        job.events.put("error")
-        logger.exception("Job %s crashed in run_steps", job.id)
-        _prune_registry()
-        return
-
-    had_error = any(
-        r.state in ("error", "blocked") for r in results.runs
-    )
-    job.status = STATUS_ERROR if had_error else STATUS_DONE
-    job.progress = 1.0
-    job.total_duration_s = time.time() - t_start
-    _write_manifest(
-        results,
-        status=job.status,
-        error=job.error_msg or None,
-    )
-    job.events.put("error" if had_error else "done")
-    logger.info(
-        "Job %s finished — %.1fs, status=%s",
-        job.id,
-        job.total_duration_s,
-        job.status,
-    )
-    _prune_registry()

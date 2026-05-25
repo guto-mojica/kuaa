@@ -26,15 +26,14 @@
   var BOUND_FLAG = '__mojicaLogAutoscrollBound';
 
   /**
-   * Bind log auto-scroll behaviour to `#proc-log` when present.
+   * Bind per-node listeners for `#proc-log` when present.
    *
-   * - Scrolls `.lines` to the bottom on SSE-driven swap events.
-   * - Suspends auto-scroll once the user scrolls up manually.
-   * - Resumes when the user scrolls back to (near) the bottom.
-   * - Respects the [data-autoscroll] checkbox (checked by default).
-   *
-   * Safe to call repeatedly: the per-node BOUND_FLAG short-circuits
-   * duplicate listener registration when HTMX re-renders the tab.
+   * Idempotent per ``.lines`` node via the BOUND_FLAG sentinel. The
+   * DOCUMENT-LEVEL listeners (htmx:sseMessage / htmx:afterSettle)
+   * are registered exactly once in init(), NOT here — re-binding
+   * them per tab-swap would accumulate handlers that close over
+   * detached .lines nodes and leak memory + run dead callbacks on
+   * every SSE event.
    */
   function bindLogAutoscroll() {
     var log = document.getElementById('proc-log');
@@ -48,7 +47,7 @@
 
     // pinned: are we tracking the bottom? Starts true so newly-rendered
     // logs auto-scroll on first paint.
-    var pinned = true;
+    lines.__mojicaLogPinned = true;
 
     // Track manual scroll: as soon as the user moves more than
     // BOTTOM_TOLERANCE px above the bottom, un-pin. Re-pin when they
@@ -56,32 +55,7 @@
     lines.addEventListener('scroll', function () {
       var distanceFromBottom =
         lines.scrollHeight - lines.scrollTop - lines.clientHeight;
-      pinned = distanceFromBottom < BOTTOM_TOLERANCE;
-    });
-
-    function scrollToBottomIfPinned() {
-      var enabled = autoscrollBox ? autoscrollBox.checked : true;
-      if (enabled && pinned) {
-        lines.scrollTop = lines.scrollHeight;
-      }
-    }
-
-    // SSE events fire on the element with hx-ext="sse". htmx dispatches
-    // `htmx:sseMessage` synchronously per event; `htmx:afterSettle`
-    // fires after the swap has been applied to the DOM. We bind both
-    // to be robust against future swap-target changes and to handle
-    // non-SSE swaps that land inside `#proc-log` (e.g. a future
-    // "clear log" button).
-    document.body.addEventListener('htmx:sseMessage', function (evt) {
-      if (log.contains(evt.target) || evt.target === log) {
-        // Defer to next tick so the swap has actually mutated the DOM.
-        setTimeout(scrollToBottomIfPinned, 0);
-      }
-    });
-    document.body.addEventListener('htmx:afterSettle', function (evt) {
-      if (log.contains(evt.target) || evt.target === log) {
-        scrollToBottomIfPinned();
-      }
+      lines.__mojicaLogPinned = distanceFromBottom < BOTTOM_TOLERANCE;
     });
 
     // When the user re-ticks the checkbox after un-ticking it, snap
@@ -89,25 +63,52 @@
     if (autoscrollBox) {
       autoscrollBox.addEventListener('change', function () {
         if (autoscrollBox.checked) {
-          pinned = true;
+          lines.__mojicaLogPinned = true;
           lines.scrollTop = lines.scrollHeight;
         }
       });
     }
 
-    // Initial scroll on load: server may have rendered seed lines.
-    scrollToBottomIfPinned();
+    // Initial scroll on load: server may have rendered buffered
+    // ``initial_log_lines`` (the durable JobState.log replay path).
+    scrollToBottomIfPinned(log, lines);
+  }
+
+  function scrollToBottomIfPinned(log, lines) {
+    if (!log || !lines) {
+      log = document.getElementById('proc-log');
+      if (!log) return;
+      lines = log.querySelector('.lines');
+      if (!lines) return;
+    }
+    var autoscrollBox = log.querySelector('[data-autoscroll]');
+    var enabled = autoscrollBox ? autoscrollBox.checked : true;
+    if (enabled && lines.__mojicaLogPinned !== false) {
+      lines.scrollTop = lines.scrollHeight;
+    }
   }
 
   // ── Bootstrap ──────────────────────────────────────────────────────
-  // HTMX tab swaps can replace `#proc-log` (or insert it for the first
-  // time when navigating to /processing). Rebind on every settle that
-  // brings the log into existence; the BOUND_FLAG guard makes repeats
-  // cheap.
+  // The two body listeners below MUST be registered exactly once for
+  // the lifetime of the page. Previously they lived inside
+  // bindLogAutoscroll() and were re-added on every HTMX tab swap (the
+  // BOUND_FLAG guard only protected the per-.lines listeners). That
+  // caused listener-and-detached-DOM accumulation on every Processing
+  // tab visit. By moving them to init(), each handler exists exactly
+  // once and always operates on the CURRENT #proc-log / .lines lookup.
   function init() {
     bindLogAutoscroll();
     document.body.addEventListener('htmx:afterSettle', function () {
       bindLogAutoscroll();
+      // Defer one tick so the freshly-swapped DOM is committed.
+      setTimeout(scrollToBottomIfPinned, 0);
+    });
+    document.body.addEventListener('htmx:sseMessage', function (evt) {
+      var log = document.getElementById('proc-log');
+      if (!log) return;
+      if (log.contains(evt.target) || evt.target === log) {
+        setTimeout(scrollToBottomIfPinned, 0);
+      }
     });
   }
 

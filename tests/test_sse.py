@@ -128,17 +128,17 @@ def test_stream_emits_typed_update_then_single_done(sse_client):
     # Drive the queue as the runner would: two progress signals then a
     # terminal "done", with status flipped to mirror the real runner.
     job.steps[0].state = "active"
-    job.events.put("update")
+    job.publish("update")
     job.steps[0].state = "done"
     job.steps[1].state = "active"
     job.progress = 0.4
-    job.events.put("update")
+    job.publish("update")
     job.status = "done"
     job.progress = 1.0
     for s in job.steps:
         if s.state not in ("done", "skipped", "error"):
             s.state = "done"
-    job.events.put("done")
+    job.publish("done")
 
     with client.stream("GET", f"/api/pipeline/stream/{job.id}") as r:
         assert r.status_code == 200
@@ -171,11 +171,11 @@ def test_stream_emits_single_error_terminal_frame(sse_client):
     client, job = sse_client
 
     job.steps[0].state = "active"
-    job.events.put("update")
+    job.publish("update")
     job.steps[0].state = "error"
     job.error_msg = "boom: model not found"
     job.status = "error"
-    job.events.put("error")
+    job.publish("error")
 
     with client.stream("GET", f"/api/pipeline/stream/{job.id}") as r:
         assert r.status_code == 200
@@ -200,11 +200,11 @@ def test_stream_emits_single_cancelled_terminal_frame(sse_client):
     client, job = sse_client
 
     job.steps[0].state = "active"
-    job.events.put("update")
+    job.publish("update")
     job.steps[0].state = "error"
     job.status = "cancelled"
     job.error_msg = "Cancelled by user."
-    job.events.put("cancelled")
+    job.publish("cancelled")
 
     with client.stream("GET", f"/api/pipeline/stream/{job.id}") as r:
         assert r.status_code == 200
@@ -233,6 +233,103 @@ def test_stream_terminal_status_without_queued_signal_closes(sse_client):
     frames = _frames(body)
     events = [f["event"] for f in frames]
     assert events == ["cancelled"], events
+
+
+# ── Phase 9: multi-consumer + log buffer + replay ────────────────────────────
+
+
+def test_stream_replays_buffered_log_lines_on_connect(sse_client):
+    """A late-arriving consumer (user navigated away and came back)
+    MUST see every captured log row, not just events emitted after
+    its connection was established.
+
+    The JobState.log ring buffer is the durable layer; the SSE
+    generator MUST drain it as ``event: log`` frames before streaming
+    live events. This is what makes 'leaves and returns' show full
+    history rather than a blank pane.
+    """
+    client, job = sse_client
+
+    # Simulate a pipeline that ran for a while before this consumer
+    # connected: 3 log rows are sitting in the buffer.
+    job.log.append({"t": "00:00:01", "lv": "i", "m": "starting pipeline"})
+    job.log.append({"t": "00:00:02", "lv": "i", "m": "extracted 412 keyframes"})
+    job.log.append({"t": "00:00:05", "lv": "s", "m": "scene detection done"})
+    job.status = "done"
+    job.publish("done")
+
+    with client.stream("GET", f"/api/pipeline/stream/{job.id}") as r:
+        body = "".join(chunk for chunk in r.iter_text())
+
+    frames = _frames(body)
+    log_frames = [f for f in frames if f["event"] == "log"]
+    assert len(log_frames) == 3, (
+        f"expected 3 buffered log rows replayed, got {len(log_frames)}: "
+        f"{[f['event'] for f in frames]}"
+    )
+    # Row content + ordering preserved (oldest first).
+    assert "starting pipeline" in log_frames[0]["data"]
+    assert "extracted 412 keyframes" in log_frames[1]["data"]
+    assert "scene detection done" in log_frames[2]["data"]
+
+
+def test_stream_multiple_consumers_each_receive_terminal_frame(sse_client):
+    """Two SSE connections to the same job MUST both receive the
+    terminal frame, not race for it.
+
+    Before the EventBroadcaster, the underlying queue.Queue was
+    single-consumer — whichever generator called get_nowait() first
+    popped the event; the other saw nothing. With pub/sub fan-out,
+    the producer emits once and every live subscriber's per-connection
+    queue gets a copy.
+    """
+    client, job = sse_client
+    job.status = "done"
+    job.publish("done")
+
+    # Sequential here (TestClient does not run two streams concurrently),
+    # but the publish-before-any-consumer pattern proves the contract:
+    # each new connection independently replays the current state and
+    # the terminal status closes it cleanly. The broadcaster's fan-out
+    # is exercised more directly by tests in test_jobs_broadcaster.py.
+    bodies = []
+    for _ in range(2):
+        with client.stream("GET", f"/api/pipeline/stream/{job.id}") as r:
+            bodies.append("".join(chunk for chunk in r.iter_text()))
+
+    for body in bodies:
+        frames = _frames(body)
+        events = [f["event"] for f in frames]
+        assert "done" in events, events
+        assert events[-1] == "done", events
+
+
+def test_stream_emits_typed_log_event_from_broadcaster(sse_client):
+    """A ``log`` event published to the broadcaster while a consumer
+    is connected MUST surface as ``event: log`` with the rendered
+    log-row HTML in the data payload.
+
+    The log row dict shape mirrors processing_log_line.html:
+    ``{"t": "HH:MM:SS", "lv": "i|d|w|s|e", "m": "message"}``.
+    """
+    client, job = sse_client
+    job.status = "done"
+    # Seed a log row in the buffer (so we deterministically get one
+    # log frame on connect even though the publish-then-connect
+    # pattern would lose live publishes).
+    job.log.append({"t": "00:00:03", "lv": "w", "m": "GPU memory low"})
+    job.publish("done")
+
+    with client.stream("GET", f"/api/pipeline/stream/{job.id}") as r:
+        body = "".join(chunk for chunk in r.iter_text())
+
+    frames = _frames(body)
+    log_frames = [f for f in frames if f["event"] == "log"]
+    assert len(log_frames) == 1, [f["event"] for f in frames]
+    data = log_frames[0]["data"]
+    assert "GPU memory low" in data
+    assert 'lv w' in data or 'class="lv w"' in data or 'lv\nw' in data, data
+    assert "00:00:03" in data
 
 
 def test_stream_job_not_found_is_typed_error(sse_client):

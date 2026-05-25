@@ -235,9 +235,31 @@
 .p-log .l-row .lv.s { background: var(--c-green-bg); color: var(--c-green); }
 .p-log .l-row .lv.w { background: var(--c-orange-bg); color: var(--c-orange); }
 .p-log .l-row .lv.d { background: var(--c-accent-bg); color: var(--c-accent); }
+/* ERROR / CRITICAL captured-pipeline rows (api/jobs.py _LEVEL_LV maps
+   logging.ERROR + logging.CRITICAL → 'e'). Uses the existing red
+   palette tokens with safe fallbacks so the row visually stands out. */
+.p-log .l-row .lv.e { background: var(--c-red-bg, #4a1d1d); color: var(--c-red, #ff7474); }
 .p-log .l-row .m { color: var(--c-text-2); }
 .p-log .l-row .m .v { color: var(--c-text); }
 .p-log .l-row .m b { color: var(--c-accent); font-weight: 500; }
+
+/* Empty-state placeholder for the live log container. When .lines has
+   zero log-row children (fresh page, no SSE events yet, no buffered
+   replay), show a single muted line. As soon as an htmx swap appends
+   the first .l-row, :empty stops matching and the placeholder vanishes
+   — no JS, no DOM cleanup required.
+
+   ``data-empty-text`` on the .lines element carries the translated
+   string (see processing.html) so this single CSS rule serves every
+   locale via attr(). */
+.p-log .lines:empty::before {
+  content: attr(data-empty-text);
+  display: block;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: var(--c-muted);
+  padding: 8px 0;
+}
 
 /* Right side: stats + queue */
 .p-side { display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }

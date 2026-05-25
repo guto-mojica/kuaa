@@ -404,6 +404,11 @@ def test_cancellation_mid_run_yields_cancelled_terminal(jobs_mod, monkeypatch):
     _patch_pipeline(jobs_mod, monkeypatch, "hang")
     jid = jobs_mod.start_job("v.mp4", {"frame_extraction"}, object())
     job = jobs_mod.get_job(jid)
+    # Subscribe BEFORE the cancel so the broadcaster's terminal
+    # publish lands in our probe queue. This is the contract the SSE
+    # generator depends on: the runner must publish ("cancelled", None)
+    # when a cancel request reaches the cooperative-cancel boundary.
+    probe = job.subscribe()
     t0 = time.time()
     while job.status != jobs_mod.STATUS_RUNNING and time.time() - t0 < 2:
         time.sleep(0.01)
@@ -411,11 +416,10 @@ def test_cancellation_mid_run_yields_cancelled_terminal(jobs_mod, monkeypatch):
     assert jobs_mod.cancel_job(jid) is True
     _wait_terminal(job)
     assert job.status == jobs_mod.STATUS_CANCELLED
-    # A terminal "cancelled" signal must be queued for the SSE stream.
     drained = []
-    while not job.events.empty():
-        drained.append(job.events.get_nowait())
-    assert "cancelled" in drained, drained
+    while not probe.empty():
+        drained.append(probe.get_nowait())
+    assert ("cancelled", None) in drained, drained
 
 
 def test_cancel_unknown_or_finished_job_returns_false(jobs_mod, monkeypatch):
