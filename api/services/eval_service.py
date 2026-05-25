@@ -33,14 +33,19 @@ from cinemateca.eval.grades import (
     EvalRun,
     Grade,
     GradeEntry,
-    LoadedRun,
-    grades_by_query as _grades_by_query,  # noqa: F401
-    grades_for_query as _grades_for_query,  # noqa: F401
     load_run,
     load_run_per_annotator,
 )
+from cinemateca.eval.grades import (
+    grades_by_query as _grades_by_query,  # noqa: F401
+)
+from cinemateca.eval.grades import (
+    grades_for_query as _grades_for_query,  # noqa: F401
+)
 from cinemateca.eval.paths import (  # noqa: F401
     eval_root as _eval_root,
+)
+from cinemateca.eval.paths import (
     eval_run_id as _eval_run_id,
 )
 
