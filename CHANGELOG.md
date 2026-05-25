@@ -34,6 +34,38 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ### Adicionado
 
+- **M3 pre-flight · Busca por áudio end-to-end (CLAP)** — `/api/search`
+  agora aceita `?modality=audio`, despachando para o novo módulo
+  `cinemateca.search.audio` (`AudioIndex` + `load_audio_index` +
+  `search_audio`) com cache por `mtime+size` por `FilmContext` (M3
+  pre-flight 1.1, 1.2, 1.3). Snapshot de regressão Jeca Tatu fixado em
+  `tests/fixtures/audio_search_regression.json` (1.4).
+- **M3 pre-flight · UI chip de áudio** — `search.audio_enabled: true` no
+  config default; chips de modalidade na superfície Buscar ligados ao
+  store Alpine `buscarRetrieval`; submissão em modo áudio dispara o
+  endpoint correto; strings PT/EN extraídas (Áudio/Soundtrack) e ARIA
+  labels para tipo de input (M3 pre-flight 2.1, 2.2, 2.3).
+- **M3 pre-flight · Cross-encoder reranker (stub preenchido)** — implementação
+  real em `cinemateca.search.rerank` (default `BAAI/bge-reranker-v2-m3`;
+  escape hatch `model="noop"` para hermeticidade de testes); novo wrapper
+  de serviço `apply_reranker(result, *, cfg)` honra
+  `cfg.retrieval.reranker.{enabled,model,top_k_in}` (M3 pre-flight 3.1,
+  3.2). Chip Rerank vira affordance ao vivo na UI (3.3). Default
+  `retrieval.reranker.enabled: false` — sem regressão comportamental;
+  fiação nos dispatchers de produção fica como follow-up Task 3.2b.
+- **M3 pre-flight · Backend visual SigLIP2-multilingual** — novo embedder
+  em `cinemateca.models.clip.siglip_multilingual` (`SiglipMultilingualEmbedder`)
+  registrado via `cfg.models.image_embedder` (M3 pre-flight 4.1). Acervo
+  re-embeddado com `google/siglip2-large-patch16-256` (1024 dim, multilíngue,
+  visão+texto) — Jeca Tatu 1236×1024 e Edwin Porter 21×1024 (4.2, 4.3).
+  Backups das embeddings CLIP/OpenCLIP preservados como `.clip_openclip.npy`
+  por filme para rollback rápido. SigLIP2-large-256 substituído pelo id
+  inventado pelo plano (`siglip-large-multilingual` não existe na HF).
+- **M3 pre-flight · CLAP archival sanity gate** — novo comando
+  `cinemateca eval clap-sanity` aplica um piso P@5 sobre 5 queries
+  curadas em `tests/fixtures/clap_sanity_jeca_tatu.json`; sai com código
+  não-zero em FAIL para uso em pre-commit / CI; baseline atual P@5=0.60
+  por query (M3 pre-flight 5.1, 5.2, 5.3).
 - **M2 #3 · Busca Híbrida (CLIP ⊕ BM25 via RRF)** — `/api/search` agora aceita
   `?retriever=clip|bm25|hybrid` + pesos `sem_w` / `bm25_w`. Padrão flipado
   para `hybrid`; `?retriever=clip` reproduz a ordenação pré-M2 byte-a-byte
@@ -61,6 +93,18 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ### Mudado
 
+- **M3 pre-flight · `Hit.rerank_score: float | None = None`** adicionado
+  a `cinemateca.search.types` (campo aditivo, back-compat para callers
+  existentes).
+- **M3 pre-flight · `cinemateca.search.cache` + `aggregate`** agora
+  despacham o embedder de imagem em query-time via
+  `cinemateca.models.registry` em vez de hard-coded `OpenClipEmbedder()`;
+  resolve o mismatch CLIP→SigLIP2 no caminho de busca após o re-embed
+  (M3 pre-flight 4.2).
+- **M3 pre-flight · `models.image_embedder` default** agora
+  `siglip_multilingual` após o re-embed library-wide. Procedimento de
+  rollback documentado em `docs/MIGRATIONS.md` (restaurar
+  `.clip_openclip.npy` + reverter o flag de config).
 - **Design tokens** — troca completa da paleta de Celluloid Amber para o
   roxo Frame.io.
 - **Split de CSS** — `main.css` foi quebrado em 12 módulos (um por superfície:
@@ -139,6 +183,16 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
   arquivos cujo refactor cai em P3). Ambos rodam no workflow GH Actions
   `.github/workflows/refactor-guards.yml` em todo PR.
 
+### Documentação
+
+- **`docs/MIGRATIONS.md`** — registro de migração de embeddings
+  (OpenCLIP → SigLIP2-large-256), incluindo procedimento de rollback
+  via `.clip_openclip.npy` por filme (M3 pre-flight 4.3).
+- **CLAUDE.md** — tracker M2 atualizado: itens 4 (reranker), 5
+  (multilingual visual model) e 6 (CLAP sanity gate) marcados como
+  concluídos com notas de adaptação; item 1 (CLAP áudio na UI) marcado
+  como concluído. Tracker M3 ganha bullet de pre-flight (Phases 0–5).
+
 ### Notas
 
 - Suite de testes: **425 → 546 passando** (baseline → pós-redesign);
@@ -158,6 +212,14 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
   falham na branch base também (verificado via `git stash` em T1 e
   re-verificado em cada T* subsequente). Tratamento fica fora do escopo
   de P1/P2/P3.
+- **M3 pre-flight (Phases 0–5)** — suite final na `m3-preflight`:
+  **812 passando, 2 skipped, 1 falhando** (24.2s). A única falha,
+  `tests/test_search_regression_snapshot.py::test_pre_m2_snapshot_matches_or_updates`,
+  é drift esperado: o snapshot fixa a ordenação pure-CLIP pré-M2 contra
+  o acervo local da maintainer, e a Phase 4.3 re-embeddou tudo com
+  SigLIP2 — então as embeddings subjacentes mudaram by design. Re-pin
+  do snapshot (com `UPDATE_HYBRID_SNAPSHOT=1`) entra como follow-up
+  trivial; não é regressão das Phases 0–5.
 
 ---
 
