@@ -8,6 +8,10 @@ import os
 import stat
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from cinemateca.library.context import FilmContext
 
 logger = logging.getLogger(__name__)
 
@@ -169,11 +173,6 @@ def normalize_tags(raw: str) -> list[str]:
 
 
 # ── Service-layer convenience wrappers (take a FilmContext) ──────────────────
-
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from cinemateca.library.context import FilmContext
 
 
 def load_annotations(ctx: "FilmContext") -> dict:

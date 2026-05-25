@@ -4,7 +4,7 @@ This module owns what used to live inline in ``api/routes/annotate.py``:
 
   * loading/saving the manual-annotations dict (``load_annotations`` /
     ``save_annotations``) — ``save_annotations`` is the persist seam and
-    is crash-safe because the underlying ``cinemateca.annotator.save``
+    is crash-safe because the underlying ``cinemateca.annotations.io.save``
     now writes atomically (same-dir temp file + ``os.replace``);
   * the route-side tag-normalization list-comp, centralized as the
     documented :func:`normalize_tags` helper so the save path and any
