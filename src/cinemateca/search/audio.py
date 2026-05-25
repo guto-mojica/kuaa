@@ -12,17 +12,32 @@ import logging
 import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 import numpy as np
 
 if TYPE_CHECKING:
-    from cinemateca.models.base import AudioEmbedder  # noqa: F401
+    from cinemateca.models.base import AudioEmbedder
 
 logger = logging.getLogger(__name__)
 
 _CLAP_EMB_NAME = "clap_embeddings.npy"
 _CLAP_MAP_NAME = "audio_mapping.json"
+
+
+class AudioMappingRow(TypedDict):
+    """One row of the parallel ``AudioIndex.mapping`` list.
+
+    ``scene_id`` is the integer scene id (the join key against the rest
+    of the pipeline). ``wav_path`` is the relative path under the film
+    dir. ``start_time_s`` / ``end_time_s`` are scene boundaries in
+    seconds; ``None`` when the writer didn't supply them.
+    """
+
+    scene_id: int
+    wav_path: str
+    start_time_s: float | None
+    end_time_s: float | None
 
 
 @dataclass(frozen=True)
@@ -35,7 +50,7 @@ class AudioIndex:
     """
 
     embeddings: np.ndarray
-    mapping: list[dict]
+    mapping: list[AudioMappingRow]
 
 
 # Module-level cache, mtime+size-keyed (matches api/services/search.py's
@@ -72,23 +87,36 @@ def load_audio_index(audio_dir: Path) -> AudioIndex | None:
         # dict-of-parallel-arrays; older / synthetic writers may emit a
         # list-of-dicts directly. Both shapes map to the same row-aligned
         # AudioIndex.mapping contract.
+        mapping: list[AudioMappingRow]
         if isinstance(mapping_raw, dict) and "scene_ids" in mapping_raw:
             sids = mapping_raw["scene_ids"]
             wavs = mapping_raw.get("wav_paths") or [""] * len(sids)
             starts = mapping_raw.get("start_times_s") or [None] * len(sids)
             ends = mapping_raw.get("end_times_s") or [None] * len(sids)
             mapping = [
-                {
-                    "scene_id": int(sids[i]),
-                    "wav_path": str(wavs[i]),
-                    "start_time_s": starts[i],
-                    "end_time_s": ends[i],
-                }
+                AudioMappingRow(
+                    scene_id=int(sids[i]),
+                    wav_path=str(wavs[i]),
+                    start_time_s=(float(starts[i]) if starts[i] is not None else None),
+                    end_time_s=(float(ends[i]) if ends[i] is not None else None),
+                )
                 for i in range(len(sids))
             ]
         elif isinstance(mapping_raw, list):
-            # already row-shaped; pass through (coerce scene_id to int defensively)
-            mapping = [{**m, "scene_id": int(m["scene_id"])} for m in mapping_raw]
+            # already row-shaped; widen to AudioMappingRow (coerce types defensively)
+            mapping = [
+                AudioMappingRow(
+                    scene_id=int(m["scene_id"]),
+                    wav_path=str(m.get("wav_path", "")),
+                    start_time_s=(
+                        float(m["start_time_s"]) if m.get("start_time_s") is not None else None
+                    ),
+                    end_time_s=(
+                        float(m["end_time_s"]) if m.get("end_time_s") is not None else None
+                    ),
+                )
+                for m in mapping_raw
+            ]
         else:
             raise ValueError(
                 f"Unrecognised CLAP mapping shape at {map_path}: "
@@ -107,3 +135,40 @@ def load_audio_index(audio_dir: Path) -> AudioIndex | None:
         idx = AudioIndex(embeddings=embeddings, mapping=mapping)
         _CACHE[audio_dir] = (key, idx)
         return idx
+
+
+def search_audio(
+    index: AudioIndex,
+    embedder: AudioEmbedder,
+    query_text: str,
+    *,
+    top_k: int = 10,
+) -> list[dict]:
+    """Cosine-similarity search over CLAP embeddings.
+
+    Returns a list of dicts ``{"scene_id": int, "score": float}`` ordered
+    by descending score. ``query_text`` is encoded via
+    ``embedder.encode_text`` (L2-normalised — CLAP backend guarantees
+    this). Cosine reduces to a dot product because both sides are
+    pre-normalised.
+    """
+    if not query_text.strip():
+        return []
+    q = embedder.encode_text(query_text)
+    if q.ndim != 1 or q.shape[0] != index.embeddings.shape[1]:
+        raise ValueError(
+            f"Query vector dim {q.shape} incompatible with index dim "
+            f"{index.embeddings.shape[1]}"
+        )
+    scores = index.embeddings @ q  # (N,) cosines
+    k = min(int(top_k), scores.shape[0])
+    # np.argpartition is O(N) and faster than argsort for k << N.
+    if k <= 0:
+        return []
+    top_idx = np.argpartition(-scores, k - 1)[:k]
+    top_idx = top_idx[np.argsort(-scores[top_idx])]
+    out: list[dict] = []
+    for i in top_idx:
+        m = index.mapping[int(i)]
+        out.append({"scene_id": int(m["scene_id"]), "score": float(scores[int(i)])})
+    return out

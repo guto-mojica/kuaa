@@ -105,3 +105,46 @@ def test_load_audio_index_rejects_row_count_mismatch(tmp_path: Path) -> None:
     )
     with pytest.raises(ValueError, match="row count"):
         load_audio_index(audio_dir)
+
+
+def test_search_audio_returns_top_k_by_cosine(tmp_path: Path) -> None:
+    _write_fake_clap_index(tmp_path, n=8, dim=4)
+    idx = load_audio_index(tmp_path / "audio")
+    assert idx is not None
+
+    # Fake an embedder whose encode_text returns the first row of the
+    # matrix — top-1 must then be scene_id=0 with score = 1.0.
+    class _StubEmbedder:
+        def encode_text(self, text: str) -> np.ndarray:
+            return idx.embeddings[0].copy()
+
+    from cinemateca.search.audio import search_audio
+
+    hits = search_audio(idx, _StubEmbedder(), "anything", top_k=3)
+    assert [h["scene_id"] for h in hits][0] == 0
+    assert hits[0]["score"] == pytest.approx(1.0, abs=1e-5)
+    assert len(hits) == 3
+    # Scores monotonic descending
+    scores = [h["score"] for h in hits]
+    assert scores == sorted(scores, reverse=True)
+
+
+def test_search_audio_top_k_clamped_to_index_size(tmp_path: Path) -> None:
+    _write_fake_clap_index(tmp_path, n=3, dim=4)
+    idx = load_audio_index(tmp_path / "audio")
+
+    class _Stub:
+        def encode_text(self, text: str) -> np.ndarray:
+            return np.ones(4, dtype="float32") / 2.0
+
+    from cinemateca.search.audio import search_audio
+
+    hits = search_audio(idx, _Stub(), "x", top_k=999)
+    assert len(hits) == 3
+
+
+def test_load_audio_index_caches_by_stat(tmp_path: Path) -> None:
+    _write_fake_clap_index(tmp_path, n=2, dim=4)
+    idx1 = load_audio_index(tmp_path / "audio")
+    idx2 = load_audio_index(tmp_path / "audio")
+    assert idx1 is idx2, "second load on unchanged files should hit cache"
