@@ -4,10 +4,50 @@
   "library": "jeca_tatu",
   "p_at_5_floor": 0.4,
   "queries": [
-    {"id": "music_orchestral", "query": "orchestral music", "expected_scene_ids": []},
-    {"id": "dialogue_pt",      "query": "two men talking",  "expected_scene_ids": []},
-    {"id": "silence_wind",     "query": "silence with wind", "expected_scene_ids": []},
-    {"id": "footsteps",        "query": "footsteps on wood floor", "expected_scene_ids": []},
-    {"id": "festive",          "query": "festive music with crowd", "expected_scene_ids": []}
+    {
+      "id": "music_orchestral",
+      "query": "orchestral music",
+      "expected_scene_ids": [
+        240,
+        367,
+        214
+      ]
+    },
+    {
+      "id": "dialogue_pt",
+      "query": "two men talking",
+      "expected_scene_ids": [
+        350,
+        206,
+        392
+      ]
+    },
+    {
+      "id": "silence_wind",
+      "query": "silence with wind",
+      "expected_scene_ids": [
+        151,
+        353,
+        153
+      ]
+    },
+    {
+      "id": "footsteps",
+      "query": "footsteps on wood floor",
+      "expected_scene_ids": [
+        93,
+        374,
+        334
+      ]
+    },
+    {
+      "id": "festive",
+      "query": "festive music with crowd",
+      "expected_scene_ids": [
+        298,
+        297,
+        32
+      ]
+    }
   ]
 }
