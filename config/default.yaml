@@ -80,7 +80,7 @@ embeddings:
   # ``models.image_embedder: siglip_multilingual``. Default keeps the
   # OpenClip backend bit-identical, so leaving this set is a no-op
   # under the default backend.
-  model_id: "google/siglip-large-patch16-256-multilingual"
+  model_id: "google/siglip2-large-patch16-256"
   # Arquivo de saída (relativo a embeddings_dir)
   filename: "keyframe_embeddings.npy"
   mapping_filename: "index_mapping.json"
@@ -206,7 +206,7 @@ llm:
 
 # ── Model backends (pluggable — see docs/PROTOCOL_OPTION.md) ──────────────────
 models:
-  image_embedder: clip_openclip            # clip_openclip | siglip_multilingual
+  image_embedder: siglip_multilingual      # clip_openclip | siglip_multilingual
   # ``siglip_multilingual`` lands as an opt-in alternative in M3 pre-flight
   # Task 4.1. Default stays clip_openclip until Task 4.2 smoke validation
   # on Jeca Tatu and Task 4.3 library-wide re-embed are user-gated through.

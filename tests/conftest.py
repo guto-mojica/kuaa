@@ -99,6 +99,18 @@ def tmp_config(tmp_path, monkeypatch):
         d.mkdir(parents=True, exist_ok=True)
         setattr(cfg.paths, name, d)
 
+    # Pin the image-embedder backend to the OpenClip baseline for hermetic
+    # tests. Default.yaml flipped to ``siglip_multilingual`` in M3
+    # pre-flight Task 4.2; that backend lazily loads ~2 GB of SigLIP2
+    # weights via HuggingFace on first call. Every existing test fixture
+    # monkeypatches ``cinemateca.models.clip.openclip.OpenClipEmbedder``
+    # (the registry's ``clip_openclip`` branch resolves to that same
+    # class), so pinning ``clip_openclip`` here keeps the existing seam
+    # working without touching every test fixture. SigLIP-specific tests
+    # bypass tmp_config entirely (see test_siglip_multilingual_backend.py).
+    if hasattr(cfg, "models") and hasattr(cfg.models, "image_embedder"):
+        cfg.models.image_embedder = "clip_openclip"
+
     import api.deps as deps
 
     deps.get_config.cache_clear()

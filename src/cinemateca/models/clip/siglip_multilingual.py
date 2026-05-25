@@ -13,10 +13,12 @@ Public surface mirrors :class:`cinemateca.models.clip.openclip.OpenClipEmbedder`
 * ``encode_images(paths) -> np.ndarray`` shape ``(N, D)``
 * ``save(embeddings, keyframes_df, output_dir, …) -> (emb_path, map_path)``
 
-The default model id is ``google/siglip-large-patch16-256-multilingual``
-— a multilingual SigLIP checkpoint with a 768-dim projection that
-overlaps Brazilian Portuguese tokens out of the box. Override via
-``cfg.embeddings.model_id`` for experimentation.
+The default model id is ``google/siglip2-large-patch16-256`` — a
+natively multilingual SigLIP2 checkpoint (current-generation, Feb 2025)
+with a 1024-dim projection that overlaps Brazilian Portuguese tokens
+out of the box. The original SigLIP only ships multilingual at the
+base size; the "large + multilingual" combination lives in the SigLIP2
+namespace. Override via ``cfg.embeddings.model_id`` for experimentation.
 
 Task 4.1 of the M3 pre-flight plan ships only the backend + registry
 wiring; the default stays ``clip_openclip`` until Task 4.2 (smoke
@@ -42,7 +44,7 @@ logger = logging.getLogger(__name__)
 AutoModel: Any = None
 AutoProcessor: Any = None
 
-_DEFAULT_MODEL_ID = "google/siglip-large-patch16-256-multilingual"
+_DEFAULT_MODEL_ID = "google/siglip2-large-patch16-256"
 
 
 class SiglipMultilingualEmbedder:
@@ -129,7 +131,7 @@ class SiglipMultilingualEmbedder:
 
         self._load_model()
         if not image_paths:
-            dim = int(getattr(self._model.config, "projection_dim", 768))
+            dim = int(getattr(self._model.config, "projection_dim", 1024))
             return np.zeros((0, dim), dtype="float32")
 
         all_chunks: list[np.ndarray] = []
