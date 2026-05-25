@@ -88,6 +88,10 @@
          route accepts the param but live wiring through the dispatchers
          lands in Task 3.2b. #}
       <input type="hidden" name="reranker_enabled" :value="$store.buscarRetrieval.rerank_enabled">
+      {# Fusion w mirror — read by the /api/search route when modality=fusion.
+         Always emitted (cost: one extra query-string field); the route clamps to
+         [0,1] and ignores it when modality != fusion. #}
+      <input type="hidden" name="w" :value="$store.buscarRetrieval.fusion_w">
 
       <label class="qinput" for="search-input">
         <span class="ico">{{ icon('search', 18) }}</span>
@@ -164,9 +168,9 @@
               role="tab"
               :aria-selected="mode === 'multimodal' ? 'true' : 'false'"
               {% if not cfg.search.multimodal_enabled %}disabled aria-disabled="true"{% endif %}
-              @click="mode = 'multimodal'; $refs.searchResults && ($refs.searchResults.innerHTML = '')">
+              @click="mode = 'multimodal'; $store.buscarRetrieval.modality = 'fusion'; $refs.searchResults && ($refs.searchResults.innerHTML = ''); htmx.trigger('#search-text-form', 'submit')">
         <span class="ico">{{ icon('rhymes', 14) }}</span>
-        {{ _("Multimodal") }}
+        {{ _("Fusion") }}
       </button>
 
       <span class="div-v" aria-hidden="true"></span>
@@ -300,6 +304,48 @@
               {{ n }}
             </label>
             {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      {# Fusion w popover — only visible when modality=fusion (the chip click
+         sets the store; this knob disappears otherwise). Slider [0, 1] in 0.05
+         steps. Readout: "visual X · audio 1-X" so the user reads the symmetry
+         directly. The hidden #w mirror above is always emitted because Alpine
+         x-show only toggles CSS, not the input's value binding. #}
+      <div class="knob knob-popover"
+           x-data="{ open: false }"
+           x-show="$store.buscarRetrieval.modality === 'fusion'"
+           x-cloak>
+        <button type="button"
+                class="knob-toggle"
+                @click="open = !open"
+                :aria-expanded="open ? 'true' : 'false'"
+                aria-haspopup="dialog">
+          <span class="k">{{ _("Fusion") }}</span>
+          <span class="v acc"
+                x-text="'visual ' + Number($store.buscarRetrieval.fusion_w).toFixed(2) +
+                        ' · audio ' + (1 - Number($store.buscarRetrieval.fusion_w)).toFixed(2)"></span>
+        </button>
+        <div class="popover"
+             x-show="open"
+             x-cloak
+             @click.outside="open = false"
+             role="dialog"
+             aria-label="{{ _('Visual ↔ Audio weight') }}">
+          <h3>{{ _("Visual ↔ Audio weight") }}</h3>
+          <div class="slider-row">
+            <label for="fusion-w-slider">
+              {{ _("Visual weight") }} ↔ {{ _("Audio weight") }}
+            </label>
+            <input type="range"
+                   id="fusion-w-slider"
+                   min="0" max="1" step="0.05"
+                   x-model.number="$store.buscarRetrieval.fusion_w">
+            <span class="slider-readout">
+              {{ _("visual") }} <span x-text="Number($store.buscarRetrieval.fusion_w).toFixed(2)"></span>
+              · {{ _("audio") }} <span x-text="(1 - Number($store.buscarRetrieval.fusion_w)).toFixed(2)"></span>
+            </span>
           </div>
         </div>
       </div>

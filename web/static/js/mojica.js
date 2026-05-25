@@ -498,7 +498,7 @@
     // dispatcher wiring deferred to Task 3.2b) users would just see
     // confusion. Start "off"; flipping the chip is an explicit
     // opt-in once the backend honours it.
-    retrieval:  { mode: 'hybrid', sem_w: 0.70, top_k: 9, modality: 'text', rerank_enabled: false },
+    retrieval:  { mode: 'hybrid', sem_w: 0.70, top_k: 9, modality: 'text', rerank_enabled: false, fusion_w: 0.5 },
   };
 
   /**
@@ -594,6 +594,6 @@
     persistOnChange('cenasGroup',      KEYS.group,      ['by']);
     persistOnChange('cenasSort',       KEYS.sort,       ['by']);
     persistOnChange('buscarView',      KEYS.view,       ['mode']);
-    persistOnChange('buscarRetrieval', KEYS.retrieval,  ['mode', 'sem_w', 'top_k', 'modality', 'rerank_enabled']);
+    persistOnChange('buscarRetrieval', KEYS.retrieval,  ['mode', 'sem_w', 'top_k', 'modality', 'rerank_enabled', 'fusion_w']);
   });
 })();

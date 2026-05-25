@@ -34,6 +34,19 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ### Adicionado
 
+- **Busca fusion cross-modal (M3 #1) — `?modality=fusion&w=0.5`.**
+  Combinação linear tardia de cosines CLIP × CLAP sob um peso `w`
+  ajustável (slider 0..1 no popover "visual ↔ áudio"). Default 0.5;
+  chip "Fusion" no Buscar. Implementação: `dispatch_fusion_search`
+  espelha o dispatcher de áudio (per-film via `?film=...`, agregado
+  cross-film sem `?film=`). Cobertura: 4 testes unitários em
+  `search_fusion`, 8 testes de serviço (incluindo regressão da forma
+  dict-of-parallel-arrays do `index_mapping.json` SigLIP2 que quebrou
+  a primeira execução real), 5 testes de rota, 1 snapshot real-data
+  (Jeca Tatu, skipif-guarded). `retrieval.fusion.{visual_weight, k_each}`
+  no `config/default.yaml`; reranker stays opt-in (Tarefa 3.2b ainda
+  pendente para plumbing live). 5 queries × 0.3/0.5/0.7 ranks pinned
+  em `tests/fixtures/fusion_search_regression.json`.
 - **M3 pre-flight · Busca por áudio end-to-end (CLAP)** — `/api/search`
   agora aceita `?modality=audio`, despachando para o novo módulo
   `cinemateca.search.audio` (`AudioIndex` + `load_audio_index` +

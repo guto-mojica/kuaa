@@ -38,6 +38,8 @@ machinery now shared with the other web test modules.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 # ── Group 1: empty-data smoke tests (must PASS) ───────────────────────────────
@@ -366,9 +368,16 @@ def test_buscar_renders_modes_and_knobs(client):
     # ``data-mode`` attribute is stable across locales.
     for mode in ("text", "image", "audio", "multimodal"):
         assert f'data-mode="{mode}"' in html
-    # Disabled chips for the M2/M3 modalities (audio + multimodal off
-    # by default in config). ``disabled`` lands on the <button>.
-    assert "disabled aria-disabled" in html
+    # All four modality chips are live by default now: M2 lit Audio
+    # (``audio_enabled``) and M3 #1 lit Fusion (``multimodal_enabled``).
+    # The disabled affordance still exists in the template — it's gated
+    # on the per-modality ``cfg.search.*_enabled`` flags and re-engages
+    # if any flag flips back to false.
+    for mode in ("text", "image", "audio", "multimodal"):
+        chip = re.search(rf'<button[^>]*data-mode="{mode}"[^>]*>', html)
+        assert chip and " disabled" not in chip.group(0), (
+            f"chip {mode!r} unexpectedly disabled"
+        )
     # Retrieval knob row — Hybrid + k are interactive Alpine popovers
     # (``.knob.knob-popover``); Rerank + MMR remain read-only chips
     # (``.knob[data-state="readonly"]``). Hybrid Search plan Task E2

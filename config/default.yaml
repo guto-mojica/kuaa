@@ -136,7 +136,7 @@ search:
   # Modality gates (each toggles its chip on/off in the Buscar tab).
   image_enabled: true         # existing image-similarity search
   audio_enabled: true         # M3: CLAP audio-only retrieval lit up
-  multimodal_enabled: false   # M3: fusion lands in plan #2 of M3
+  multimodal_enabled: true    # M3 #1: fusion live (CLIP × CLAP linear late-fusion)
   # M2: the right inspector's Signals panel (.b-sigs) is gated on this until
   # the per-modality score breakdown actually exists.
   signals_enabled: false
@@ -160,6 +160,13 @@ retrieval:
     model: "default"        # 'default' → BAAI/bge-reranker-v2-m3
                             # 'noop'    → passthrough escape hatch (tests / UI off)
                             # any other string → HF model id
+  fusion:
+    visual_weight: 0.5      # M3 #1 default — score = w*clip + (1-w)*clap.
+                            # M4 ablation will compare 0.3 / 0.5 / 0.7.
+                            # Read by ``api.routes.search._api_search_fusion``
+                            # when ?w= is omitted; clamped to [0, 1] downstream.
+    k_each: 50              # per-modality top-k pulled before merge (bounded
+                            # union size when libraries grow past ~Jeca scale).
 
 # ── Rimas Visuais (cross-film visual rhymes) ─────────────────────────────────
 # Read-only knobs for the Rimas tab's kNN over CLIP keyframes. Defaults match

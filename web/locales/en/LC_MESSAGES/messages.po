@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cinemateca-ai 0.3.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-25 13:55-0400\n"
+"POT-Creation-Date: 2026-05-25 18:02-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -301,7 +301,7 @@ msgstr ""
 #: web/templates/partials/_icon_rail.html:31
 #: web/templates/partials/_topbar.html:46
 #: web/templates/partials/annotate_scene.html:93
-#: web/templates/partials/search.html:108
+#: web/templates/partials/search.html:112
 msgid "Search"
 msgstr "Search"
 
@@ -1283,7 +1283,7 @@ msgstr ""
 
 #: web/templates/partials/rimas.html:40 web/templates/partials/rimas.html:115
 #: web/templates/partials/scenes.html:421
-#: web/templates/partials/search.html:321
+#: web/templates/partials/search.html:367
 #, fuzzy
 msgid "films"
 msgstr "Film"
@@ -1440,7 +1440,7 @@ msgid "Comfortable"
 msgstr ""
 
 #: web/templates/partials/scenes.html:115
-#: web/templates/partials/search.html:359
+#: web/templates/partials/search.html:405
 msgid "Compact"
 msgstr ""
 
@@ -1576,123 +1576,145 @@ msgstr ""
 msgid "Find similar"
 msgstr ""
 
-#: web/templates/partials/search.html:99
+#: web/templates/partials/search.html:103
 msgid "Search the library — describe a scene, paste an image…"
 msgstr ""
 
-#: web/templates/partials/search.html:116
+#: web/templates/partials/search.html:120
 msgid "Input type"
 msgstr "Input type"
 
-#: web/templates/partials/search.html:136
+#: web/templates/partials/search.html:140
 msgid "Text"
 msgstr "Text"
 
-#: web/templates/partials/search.html:147
+#: web/templates/partials/search.html:151
 msgid "Image"
 msgstr "Image"
 
-#: web/templates/partials/search.html:158
+#: web/templates/partials/search.html:162
 msgid "Audio"
 msgstr "Audio"
 
-#: web/templates/partials/search.html:169
-msgid "Multimodal"
-msgstr ""
+#: web/templates/partials/search.html:173
+#: web/templates/partials/search.html:325
+msgid "Fusion"
+msgstr "Fusion"
 
-#: web/templates/partials/search.html:186
+#: web/templates/partials/search.html:190
 msgid "Híbrido"
 msgstr "Hybrid"
 
-#: web/templates/partials/search.html:194
-#: web/templates/partials/search.html:214
+#: web/templates/partials/search.html:198
+#: web/templates/partials/search.html:218
 msgid "CLIP only"
 msgstr "CLIP only"
 
-#: web/templates/partials/search.html:195
-#: web/templates/partials/search.html:218
+#: web/templates/partials/search.html:199
+#: web/templates/partials/search.html:222
 msgid "BM25 only"
 msgstr "BM25 only"
 
-#: web/templates/partials/search.html:206
-#: web/templates/partials/search.html:207
+#: web/templates/partials/search.html:210
+#: web/templates/partials/search.html:211
 msgid "Retrieval mode"
 msgstr "Retrieval mode"
 
-#: web/templates/partials/search.html:210
+#: web/templates/partials/search.html:214
 msgid "Hybrid"
 msgstr "Hybrid"
 
-#: web/templates/partials/search.html:222
+#: web/templates/partials/search.html:226
 msgid "Semantic weight"
 msgstr "Semantic weight"
 
-#: web/templates/partials/search.html:222
+#: web/templates/partials/search.html:226
 msgid "Lexical weight"
 msgstr "Lexical weight"
 
-#: web/templates/partials/search.html:251
+#: web/templates/partials/search.html:255
 msgid "Rerank"
 msgstr "Rerank"
 
-#: web/templates/partials/search.html:254
+#: web/templates/partials/search.html:258
 msgid "on"
 msgstr ""
 
-#: web/templates/partials/search.html:255
+#: web/templates/partials/search.html:259
 msgid "off"
 msgstr "off"
 
-#: web/templates/partials/search.html:262
-#: web/templates/partials/search.html:263
+#: web/templates/partials/search.html:266
+#: web/templates/partials/search.html:267
 msgid "Cross-encoder reranker"
 msgstr ""
 
-#: web/templates/partials/search.html:266
+#: web/templates/partials/search.html:270
 msgid "Enable reranking"
 msgstr ""
 
-#: web/templates/partials/search.html:268
+#: web/templates/partials/search.html:272
 msgid "Default model: bge-reranker-v2-m3 — multilingual, ~100ms per query on CPU."
 msgstr ""
 
-#: web/templates/partials/search.html:273
+#: web/templates/partials/search.html:277
 msgid "Maximal Marginal Relevance λ — ships in M3"
 msgstr "Maximal Marginal Relevance λ — ships in M3"
 
-#: web/templates/partials/search.html:294
-#: web/templates/partials/search.html:295
+#: web/templates/partials/search.html:298
+#: web/templates/partials/search.html:299
 msgid "Results per query"
 msgstr "Results per query"
 
-#: web/templates/partials/search.html:315
+#: web/templates/partials/search.html:335
+#: web/templates/partials/search.html:336
+msgid "Visual ↔ Audio weight"
+msgstr "Visual ↔ Audio weight"
+
+#: web/templates/partials/search.html:339
+msgid "Visual weight"
+msgstr "Visual weight"
+
+#: web/templates/partials/search.html:339
+msgid "Audio weight"
+msgstr "Audio weight"
+
+#: web/templates/partials/search.html:346
+msgid "visual"
+msgstr "visual"
+
+#: web/templates/partials/search.html:347
+msgid "audio"
+msgstr "audio"
+
+#: web/templates/partials/search.html:361
 #, fuzzy
 msgid "results"
 msgstr "No results."
 
-#: web/templates/partials/search.html:317
+#: web/templates/partials/search.html:363
 msgid "No results."
 msgstr "No results."
 
-#: web/templates/partials/search.html:325
+#: web/templates/partials/search.html:371
 msgid "Type a query to search"
 msgstr ""
 
-#: web/templates/partials/search.html:336
+#: web/templates/partials/search.html:382
 msgid "Result layout"
 msgstr ""
 
-#: web/templates/partials/search.html:343
+#: web/templates/partials/search.html:389
 msgid "Grid"
 msgstr ""
 
-#: web/templates/partials/search.html:351
+#: web/templates/partials/search.html:397
 msgid "List"
 msgstr ""
 
-#: web/templates/partials/search.html:377
-#: web/templates/partials/search.html:384
-#: web/templates/partials/search.html:386
+#: web/templates/partials/search.html:423
+#: web/templates/partials/search.html:430
+#: web/templates/partials/search.html:432
 msgid "Choose image…"
 msgstr "Choose image…"
 
@@ -1815,5 +1837,8 @@ msgstr ""
 #~ msgstr ""
 
 #~ msgid "Soundtrack"
+#~ msgstr ""
+
+#~ msgid "Multimodal"
 #~ msgstr ""
 
