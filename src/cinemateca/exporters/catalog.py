@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from cinemateca.annotator import load as load_annotations
+from cinemateca.annotations import load as load_annotations
 from cinemateca.domain import DomainPack, export_record, load_domain_from_config
 from cinemateca.scene_ids import scene_id_key
 

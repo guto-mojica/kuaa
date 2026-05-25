@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from cinemateca.annotator import FILENAME as MANUAL_ANNOTATIONS_FILENAME
+from cinemateca.annotations import FILENAME as MANUAL_ANNOTATIONS_FILENAME
 from cinemateca.scene_ids import scene_id_key
 
 

@@ -205,7 +205,7 @@ class TestAnnotationSaveClear:
     The on-disk shape (STR scene-id key, lower-kebab tags, empty
     fragments dropped) is produced by the *route*
     (``api/routes/annotate.py``: ``ann[str(scene_id)] = [...]`` with the
-    normalizing list-comp); ``cinemateca.annotator.save`` just
+    normalizing list-comp); ``cinemateca.annotations.save`` just
     ``json.dump``s. These tests assert that route-side contract.
 
     Hermetic: the annotations file lives in the temp metadata dir

@@ -3,7 +3,7 @@ tests/test_annotations_service.py
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Phase 3b: direct unit tests for the extracted annotations service
 (``api/services/annotations.py``) and the now-atomic
-``cinemateca.annotator.save``.
+``cinemateca.annotations.save``.
 
 These are NEW units (the service did not exist before Phase 3b), so
 they ADD coverage on top of the Phase 0/1/2 route regression net and
@@ -49,7 +49,7 @@ from api.services.annotations import (
     scene_context,
 )
 from cinemateca.library import FilmContext
-from cinemateca.annotator import FILENAME
+from cinemateca.annotations import FILENAME
 
 # ── normalize_tags ────────────────────────────────────────────────────────────
 
