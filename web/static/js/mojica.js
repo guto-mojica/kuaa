@@ -492,7 +492,7 @@
     group:      { by: 'film' },
     sort:       { by: 'timecode' },
     view:       { mode: 'grid' },
-    retrieval:  { mode: 'hybrid', sem_w: 0.70, top_k: 9 },
+    retrieval:  { mode: 'hybrid', sem_w: 0.70, top_k: 9, modality: 'text' },
   };
 
   /**
@@ -588,6 +588,6 @@
     persistOnChange('cenasGroup',      KEYS.group,      ['by']);
     persistOnChange('cenasSort',       KEYS.sort,       ['by']);
     persistOnChange('buscarView',      KEYS.view,       ['mode']);
-    persistOnChange('buscarRetrieval', KEYS.retrieval,  ['mode', 'sem_w', 'top_k']);
+    persistOnChange('buscarRetrieval', KEYS.retrieval,  ['mode', 'sem_w', 'top_k', 'modality']);
   });
 })();

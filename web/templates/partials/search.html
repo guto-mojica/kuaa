@@ -79,6 +79,11 @@
       <input type="hidden" name="sem_w"     :value="$store.buscarRetrieval.sem_w">
       <input type="hidden" name="bm25_w"    :value="(1 - Number($store.buscarRetrieval.sem_w)).toFixed(2)">
       <input type="hidden" name="top_k"     :value="$store.buscarRetrieval.top_k">
+      {# Modality mirror — the chip click writes ``$store.buscarRetrieval.modality``
+         and this hidden input carries it into every HTMX search submission so the
+         FastAPI route sees the picked modality (text | audio | image | fusion).
+         Image still POSTs to its own endpoint; fusion lands in M3 plan #2. #}
+      <input type="hidden" name="modality" :value="$store.buscarRetrieval.modality">
 
       <label class="qinput" for="search-input">
         <span class="ico">{{ icon('search', 18) }}</span>
@@ -122,7 +127,7 @@
               data-mode="text"
               role="tab"
               :aria-selected="mode === 'text' ? 'true' : 'false'"
-              @click="mode = 'text'; $refs.searchResults && ($refs.searchResults.innerHTML = '')">
+              @click="mode = 'text'; $store.buscarRetrieval.modality = 'text'; $refs.searchResults && ($refs.searchResults.innerHTML = ''); htmx.trigger('#search-text-form', 'submit')">
         <span class="ico">{{ icon('search', 14) }}</span>
         {{ _("Text") }}
       </button>
@@ -144,7 +149,7 @@
               role="tab"
               :aria-selected="mode === 'audio' ? 'true' : 'false'"
               {% if not cfg.search.audio_enabled %}disabled aria-disabled="true"{% endif %}
-              @click="mode = 'audio'; $refs.searchResults && ($refs.searchResults.innerHTML = '')">
+              @click="mode = 'audio'; $store.buscarRetrieval.modality = 'audio'; $refs.searchResults && ($refs.searchResults.innerHTML = ''); htmx.trigger('#search-text-form', 'submit')">
         <span class="ico">{{ icon('audio', 14) }}</span>
         {{ _("Soundtrack") }}
       </button>
