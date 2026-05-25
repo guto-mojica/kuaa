@@ -479,6 +479,7 @@
     sort:       'mojica:cenas:sort',
     view:       'mojica:buscar:view',
     retrieval:  'mojica:buscar:retrieval',
+    rimasRetrieval: 'mojica:rimas:retrieval',  // M3 — Rimas Visuais MMR knobs
   };
 
   // Defaults — also the source of truth for "what fields exist". The
@@ -499,6 +500,12 @@
     // confusion. Start "off"; flipping the chip is an explicit
     // opt-in once the backend honours it.
     retrieval:  { mode: 'hybrid', sem_w: 0.70, top_k: 9, modality: 'text', rerank_enabled: false, fusion_w: 0.5 },
+    // ``rimasRetrieval`` mirrors ``retrieval.rhymes.{diversity, k_candidates}``
+    // in ``config/default.yaml`` and feeds the Diversidade slider on the
+    // Rimas Visuais tab (Task 4.2). ``diversity`` is MMR lambda (0=pure
+    // similarity, 1=pure diversity); ``k_candidates`` is the kNN pool
+    // size the MMR rerank draws from before truncating to ``k_final``.
+    rimasRetrieval: { diversity: 0.5, k_candidates: 30 },
   };
 
   /**
@@ -586,6 +593,7 @@
     window.Alpine.store('cenasSort',       loadPrefs(KEYS.sort,       DEFAULTS.sort));
     window.Alpine.store('buscarView',      loadPrefs(KEYS.view,       DEFAULTS.view));
     window.Alpine.store('buscarRetrieval', loadPrefs(KEYS.retrieval,  DEFAULTS.retrieval));
+    window.Alpine.store('rimasRetrieval',  loadPrefs(KEYS.rimasRetrieval, DEFAULTS.rimasRetrieval));
 
     // Persistence effects must register AFTER the stores exist; same
     // alpine:init handler keeps the relative ordering deterministic.
@@ -595,5 +603,6 @@
     persistOnChange('cenasSort',       KEYS.sort,       ['by']);
     persistOnChange('buscarView',      KEYS.view,       ['mode']);
     persistOnChange('buscarRetrieval', KEYS.retrieval,  ['mode', 'sem_w', 'top_k', 'modality', 'rerank_enabled', 'fusion_w']);
+    persistOnChange('rimasRetrieval',  KEYS.rimasRetrieval, ['diversity', 'k_candidates']);
   });
 })();
