@@ -54,9 +54,6 @@ correctness-preserving lock.
 from __future__ import annotations
 
 import logging
-import threading
-from dataclasses import dataclass
-from enum import Enum
 from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -72,6 +69,23 @@ from api.services.catalog import (
 )
 from api.services.film_context import FilmContext
 from cinemateca.retrieval.hybrid import DEFAULT_RRF_K
+
+# CLIP search-index loader + mtime/size cache — relocated to
+# cinemateca.search.cache. Re-exported here so the legacy
+# ``api.services.search.{IndexStatus, SearchIndex, load_index,
+# clear_index_cache}`` import path keeps working for routes and the
+# existing test suite (TestLoadIndexValidation, TestCacheInvalidation,
+# TestFilmContextWiring). The ``_index_cache`` mapping is re-exported
+# under its legacy name as well so tests that poke the dict directly
+# (none today, but several reach in via ``cache_mod._index_cache`` in
+# T6's own test file) continue to find it via either path.
+from cinemateca.search.cache import (
+    IndexStatus,  # noqa: F401
+    SearchIndex,  # noqa: F401
+    _index_cache,  # noqa: F401  — legacy name for tests that poke the dict
+    load_index,  # noqa: F401
+)
+from cinemateca.search.cache import clear_index_cache as _core_clear_index_cache
 
 # Degenerate-tag display filter — relocated to cinemateca.search.display.
 # Re-exported under the legacy underscored names so external callers and
@@ -100,174 +114,23 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class IndexStatus(str, Enum):
-    """Outcome of attempting to load the search index."""
-
-    OK = "ok"
-    MISSING = "missing"  # .npy and/or mapping file absent
-    CORRUPT = "corrupt"  # files present but shape-inconsistent / unreadable
-
-
-@dataclass(frozen=True)
-class SearchIndex:
-    """A loaded (or failed) CLIP search index.
-
-    ``status is IndexStatus.OK`` guarantees ``embeddings``, ``kf_df`` and
-    ``embedder`` are populated and mutually shape-consistent. For
-    ``MISSING`` / ``CORRUPT`` the route renders the no-index UI state
-    instead of 500-ing; ``detail`` carries a log-friendly reason.
-
-    .. warning::
-       ``frozen=True`` prevents *field reassignment* but does NOT
-       prevent mutation of the field contents — ``embeddings``
-       (numpy array) and ``kf_df`` (pandas DataFrame) are mutable
-       objects, and instances of this dataclass are SHARED across
-       requests via the module-level cache (:func:`load_index`).
-       Callers must treat both fields as read-only. If you need to
-       transform the keyframe frame, copy first
-       (``index.kf_df.copy()``) — an in-place ``inplace=True`` op or a
-       ``kf_df['rank'] = …`` assignment will silently corrupt the
-       cached index for every subsequent request on this film.
-    """
-
-    status: IndexStatus
-    embeddings: object | None = None
-    kf_df: object | None = None
-    embedder: object | None = None
-    detail: str = ""
-
-    @property
-    def ok(self) -> bool:
-        return self.status is IndexStatus.OK
-
-
-# ── mtime/size-aware index cache ──────────────────────────────────────────────
-
-# key: (slug_or_none, embeddings_path_str, mapping_path_str)
-# value: (signature, SearchIndex) where signature is the combined stat tuple of
-# both files at load time. A changed signature => reload.
-# The slug component isolates each film's cache slot so per-film indices
-# never collide (two films that happen to share a path string are distinct).
-_index_cache: dict[tuple[str | None, str, str], tuple[tuple, SearchIndex]] = {}
-_cache_lock = threading.Lock()
-
-
-def _stat_sig(path: Path) -> tuple[int, int] | None:
-    """Return ``(st_mtime_ns, st_size)`` for *path*, or ``None`` if absent.
-
-    ``None`` participates in the cache signature so an index file
-    appearing or disappearing also invalidates the cached entry.
-    """
-    try:
-        st = path.stat()
-    except (FileNotFoundError, NotADirectoryError):
-        return None
-    return (st.st_mtime_ns, st.st_size)
-
-
-def _load_and_validate(emb_path: Path, map_path: Path) -> SearchIndex:
-    """Load the index from disk and validate its shape coherence.
-
-    Validation done HERE (not in the AI core ``embeddings.py``):
-
-      * either file missing                       -> MISSING
-      * unreadable / malformed mapping or npy     -> CORRUPT
-      * embeddings row count != keyframe-map rows  -> CORRUPT
-
-    The successful path is byte-equivalent to the old route's
-    ``CLIPEmbedder.load`` + ``CLIPEmbedder()`` construction, so a
-    well-formed index behaves exactly as before.
-    """
-    if not emb_path.exists() or not map_path.exists():
-        logger.warning("Search index not found at %s", emb_path.parent)
-        return SearchIndex(IndexStatus.MISSING, detail="index files absent")
-
-    from cinemateca.models.clip.openclip import OpenClipEmbedder
-
-    try:
-        embeddings, mapping, kf_df = OpenClipEmbedder.load(emb_path, map_path)
-    except Exception as exc:  # malformed .npy / .json, missing keys, etc.
-        logger.warning("Search index unreadable (%s): %s", emb_path.parent, exc)
-        return SearchIndex(IndexStatus.CORRUPT, detail=f"unreadable: {exc}")
-
-    n_emb = int(getattr(embeddings, "shape", [0])[0])
-    n_map = len(kf_df)
-    declared = mapping.get("total_vectors")
-    if n_emb != n_map:
-        logger.warning(
-            "Corrupt search index: %d embedding rows vs %d keyframe-map " "rows (%s)",
-            n_emb,
-            n_map,
-            emb_path.parent,
-        )
-        return SearchIndex(
-            IndexStatus.CORRUPT,
-            detail=f"row mismatch: {n_emb} embeddings vs {n_map} mapping rows",
-        )
-    if declared is not None and declared != n_map:
-        logger.warning(
-            "Corrupt search index: mapping declares total_vectors=%s but "
-            "has %d keyframe rows (%s)",
-            declared,
-            n_map,
-            emb_path.parent,
-        )
-        return SearchIndex(
-            IndexStatus.CORRUPT,
-            detail=(f"mapping total_vectors={declared} != {n_map} keyframe rows"),
-        )
-
-    embedder = OpenClipEmbedder()
-    logger.info("Search index loaded: %d vectors", n_map)
-    return SearchIndex(IndexStatus.OK, embeddings=embeddings, kf_df=kf_df, embedder=embedder)
-
-
-def load_index(ctx: FilmContext, *, mapping_filename: str, embeddings_filename: str) -> SearchIndex:
-    """Return the (cached) :class:`SearchIndex` for *ctx*'s embeddings dir.
-
-    The result is cached keyed by the embeddings + mapping file paths and
-    their ``(mtime_ns, size)`` signature. If either file is changed,
-    added or removed since the cached load, the index is reloaded
-    transparently — a regenerated index is picked up WITHOUT a process
-    restart (the prior ``@lru_cache`` keyed only on the dir string never
-    did this).
-
-    Always returns a ``SearchIndex`` (never ``None`` / never raises for a
-    missing/corrupt index): the route inspects ``.status`` and renders
-    the no-index UI state for ``MISSING`` / ``CORRUPT``.
-    """
-    emb_path = ctx.embeddings_dir / embeddings_filename
-    map_path = ctx.embeddings_dir / mapping_filename
-    key = (ctx.slug, str(emb_path), str(map_path))
-    sig = (_stat_sig(emb_path), _stat_sig(map_path))
-
-    with _cache_lock:
-        cached = _index_cache.get(key)
-        if cached is not None and cached[0] == sig:
-            return cached[1]
-        index = _load_and_validate(emb_path, map_path)
-        _index_cache[key] = (sig, index)
-        return index
-
-
 def clear_index_cache() -> None:
-    """Drop every cached index entry (test-isolation hook).
+    """Drop every cached index entry + BM25 lru_cache (test-isolation hook).
+
+    Wraps :func:`cinemateca.search.cache.clear_index_cache` to also
+    flush the local BM25 ``@lru_cache(32)`` defined further down. T7
+    will move BM25 into ``cinemateca.search.bm25`` and have that module
+    self-register via ``register_cache_clearer`` at import time, at
+    which point this wrapper collapses back into a single re-export.
 
     Production code never needs this — the stat signature handles
     invalidation. ``tests/conftest.py`` calls it per test so a
-    populated/corrupt index from one test cannot leak into the next
-    (the role the old ``search._load_index.cache_clear()`` played).
-
-    Also flushes the BM25 ``@lru_cache(32)`` so two tests with
-    coincidentally-identical cache keys (same metadata_dir path string +
-    same file (mtime, size) stamps + same k1/b/stopwords) can never reuse
-    each other's index. The file-stamp signature alone is the right
-    invalidation in production, but tests routinely build different
+    populated/corrupt index from one test cannot leak into the next.
+    The BM25 flush is required because tests routinely build different
     on-disk shapes under the SAME tmp_path string within the same
     pytest session — the lru_cache key collision is real there.
     """
-    with _cache_lock:
-        _index_cache.clear()
+    _core_clear_index_cache()
     _cached_bm25_index.cache_clear()
 
 
@@ -656,8 +519,7 @@ def aggregate_search(
                 bm25 = None
             if bm25 is None or bm25.model is None:
                 logger.info(
-                    "aggregate_search: film=%s bm25 empty; no BM25 entries "
-                    "(mode=%s requested)",
+                    "aggregate_search: film=%s bm25 empty; no BM25 entries " "(mode=%s requested)",
                     film.slug,
                     retriever_mode,
                 )
@@ -665,9 +527,7 @@ def aggregate_search(
                 bm25_hits = bm25.query(query, top_k=raw_k)
                 if allowed_scene_keys is not None:
                     bm25_hits = [
-                        (sid, s)
-                        for sid, s in bm25_hits
-                        if scene_id_key(sid) in allowed_scene_keys
+                        (sid, s) for sid, s in bm25_hits if scene_id_key(sid) in allowed_scene_keys
                     ]
 
         per_film[film.slug] = {
@@ -750,8 +610,7 @@ def aggregate_search(
         )
 
     logger.info(
-        "aggregate_search: query=%r global_clip=%d global_bm25=%d "
-        "returned=%d top_score=%.6f",
+        "aggregate_search: query=%r global_clip=%d global_bm25=%d " "returned=%d top_score=%.6f",
         query,
         len(global_clip),
         len(global_bm25),
@@ -949,9 +808,7 @@ def search_hybrid(
     )
 
 
-def _best_row_by_sid_from_embeddings(
-    index: SearchIndex, query: str
-) -> dict[int, int]:
+def _best_row_by_sid_from_embeddings(index: SearchIndex, query: str) -> dict[int, int]:
     """Map ``scene_id → kf_df row index of the highest-cosine keyframe``.
 
     The map is computed against the FULL embeddings matrix with NO
@@ -1065,9 +922,7 @@ def _bm25_hits_to_dataframe(
     return df.head(top_k).reset_index(drop=True)
 
 
-def _pick_kf_rows_by_sid(
-    kf_df, sids: list[int], best_row_by_sid: dict[int, int] | None
-):
+def _pick_kf_rows_by_sid(kf_df, sids: list[int], best_row_by_sid: dict[int, int] | None):
     """Pick one ``kf_df`` row per requested scene_id.
 
     Selection rule:
