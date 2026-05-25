@@ -56,7 +56,50 @@
     <div class="controls">
       <span class="knob"><span class="k">{{ _('Model') }}</span><span class="v">CLIP-L/14</span></span>
       <span class="knob"><span class="k">{{ _('Distance') }}</span><span class="v">cosine</span></span>
+      {# Diversidade (MMR λ) — interactive M3 popover. Slider live-fires the
+         /api/rimas/echoes fragment so the grid updates on every step without
+         a full tab swap. The anchor + echo query params are preserved so the
+         anchor stays selected across re-fires. #}
+      {% if anchor_scene %}
+      <div class="knob knob-popover" x-data="{ open: false }">
+        <button type="button"
+                class="knob-toggle"
+                @click="open = !open"
+                :aria-expanded="open ? 'true' : 'false'"
+                aria-haspopup="dialog">
+          <span class="k">{{ _('Diversidade') }}</span>
+          <span class="v acc"
+                x-text="'λ ' + Number($store.rimasRetrieval.diversity).toFixed(2)"></span>
+        </button>
+        <div class="popover"
+             x-show="open"
+             x-cloak
+             @click.outside="open = false"
+             role="dialog"
+             aria-label="{{ _('Visual rhyme diversity') }}">
+          <h3>{{ _('Visual rhyme diversity') }}</h3>
+          <div class="slider-row">
+            <label for="rimas-lambda-slider">
+              {{ _('More relevance') }} ↔ {{ _('More diversity') }}
+            </label>
+            <input type="range"
+                   id="rimas-lambda-slider"
+                   min="0" max="1" step="0.05"
+                   x-model.number="$store.rimasRetrieval.diversity"
+                   @change="htmx.ajax('GET', '/api/rimas/echoes?' + new URLSearchParams({
+                     anchor: '{{ anchor_scene.film_slug }}/{{ anchor_scene.scene_id }}',
+                     lambda: $store.rimasRetrieval.diversity,
+                     k_candidates: $store.rimasRetrieval.k_candidates,
+                   }).toString(), '#rimas-echoes')">
+            <span class="slider-readout">
+              λ <span x-text="Number($store.rimasRetrieval.diversity).toFixed(2)"></span>
+            </span>
+          </div>
+        </div>
+      </div>
+      {% else %}
       <span class="knob"><span class="k">MMR</span><span class="v">λ {{ '%.2f'|format(mmr_lambda) }}</span></span>
+      {% endif %}
       <span class="knob"><span class="k">{{ _('Cross-film') }}</span><span class="v acc">{{ _('required') }}</span></span>
       <span class="knob"><span class="k">k</span><span class="v">{{ k }}</span></span>
       <span class="knob"><span class="k">{{ _('Threshold') }}</span><span class="v">{{ '%.2f'|format(threshold) }}</span></span>
