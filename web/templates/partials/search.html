@@ -151,7 +151,7 @@
               {% if not cfg.search.audio_enabled %}disabled aria-disabled="true"{% endif %}
               @click="mode = 'audio'; $store.buscarRetrieval.modality = 'audio'; $refs.searchResults && ($refs.searchResults.innerHTML = ''); htmx.trigger('#search-text-form', 'submit')">
         <span class="ico">{{ icon('audio', 14) }}</span>
-        {{ _("Soundtrack") }}
+        {{ _("Audio") }}
       </button>
       <button type="button"
               class="chip{% if not cfg.search.multimodal_enabled %} disabled{% endif %}"
