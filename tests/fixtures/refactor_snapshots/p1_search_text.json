@@ -1,0 +1,6 @@
+{
+  "text_clip_single_film": {
+    "html": "<div class=\"empty-state\"> <p>\u00cdndice de busca n\u00e3o encontrado. Execute o pipeline com a etapa Embeddings primeiro.</p> </div>",
+    "status": 200
+  }
+}

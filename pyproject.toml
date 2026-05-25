@@ -122,6 +122,10 @@ dev = [
     # previously satisfied by system-Python leak; made explicit when uv.lock
     # enforces a clean isolated venv.
     "httpx>=0.25",
+    # import-linter enforces the P1 deep-modules invariant: cinemateca.*
+    # must not import api.*; api.routes.search must go through services,
+    # not directly into cinemateca.search. See .importlinter.
+    "import-linter>=2.0",
 ]
 
 # ── Ferramentas de desenvolvimento ────────────────────────────────────────────

@@ -1,0 +1,34 @@
+[importlinter]
+root_packages =
+    cinemateca
+    api
+
+[importlinter:contract:no-core-imports-api]
+name=cinemateca core must not import api/
+type=forbidden
+source_modules=
+    cinemateca
+forbidden_modules=
+    api
+
+[importlinter:contract:routes-not-direct-core]
+# Provisional — relaxed during P1 because routes currently call FilmContext
+# directly AND import cinemateca.retrieval.hybrid for DEFAULT_RRF_K /
+# resolve_weights. ``allow_indirect_imports = True`` so transitive chains
+# routed through ``api.services.*`` are NOT flagged; only direct imports
+# from ``api.routes.search`` into core packages would fail this contract.
+# ``ignore_imports`` carves out the one direct chain that exists today and
+# will be removed in Tasks 14/15 when the route stops calling helpers in
+# ``cinemateca.retrieval`` directly. Task 16 tightens by deleting the
+# ignore entry.
+name=routes use services, not core directly
+type=forbidden
+source_modules=
+    api.routes.search
+forbidden_modules=
+    cinemateca.search
+    cinemateca.retrieval
+    cinemateca.embeddings
+allow_indirect_imports=True
+ignore_imports=
+    api.routes.search -> cinemateca.retrieval.hybrid
