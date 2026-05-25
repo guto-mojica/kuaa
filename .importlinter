@@ -4,31 +4,21 @@ root_packages =
     api
 
 [importlinter:contract:no-core-imports-api]
-# Remaining ignore_imports entries are intentional carve-outs that survive
-# P2. Each one references a helper that has NOT yet migrated out of `api/`;
-# every entry corresponds to a real import and `lint-imports` reports no
-# unmatched ignores (audited 2026-05-25 / T7).
+# All carve-outs resolved as of P3/T14. The BM25-tunables lazy import
+# (cinemateca.search._dispatch -> api.deps) was eliminated by
+# parameterising find() with bm25_stopwords_lang / bm25_k1 / bm25_b
+# kwargs whose defaults mirror the legacy fallback path (None/1.5/0.75).
 #
-# Future P1-style extractions should still PREFER inlining a small helper
-# over adding a carve-out — see cinemateca.search.bm25 (zero api/* imports
-# after T7's `_load_tag_index` inline) for the pattern. Add a new entry
-# only when inlining is impractical (helper is large or shared across many
-# extracted modules), with a one-line justification in the commit message.
-#
-# Remaining cleanup TODO list (delete each ignore_imports line when its
-# target moves out of `api/`):
-#   * api.deps.get_config           -> cinemateca.config.get_config
-#                                      (lazy BM25-tunables resolution in
-#                                      cinemateca.search._dispatch; P5
-#                                      cleanup).
+# Rule for future work: PREFER inlining a small helper over adding a
+# carve-out (see cinemateca.search.bm25 for the pattern). Add a new
+# ignore_imports entry only when inlining is impractical, with a one-line
+# justification in the commit message.
 name=cinemateca core must not import api/
 type=forbidden
 source_modules=
     cinemateca
 forbidden_modules=
     api
-ignore_imports=
-    cinemateca.search._dispatch -> api.deps
 
 [importlinter:contract:routes-not-direct-core]
 # T15 dropped the route's direct import of ``cinemateca.retrieval.hybrid``

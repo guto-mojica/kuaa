@@ -18,18 +18,15 @@ Design notes:
     ``mode="clip"`` to match what actually ran.
   * Missing or corrupt CLIP index → ``SearchResult(hits=[], no_index=True)``.
     The caller (the slim route in T15) renders the empty-state HTML.
-  * BM25 tunables (``stopwords_lang``, ``k1``, ``b``) are resolved lazily
-    via :func:`api.deps.get_config`. When the app config isn't wired up
-    (unit tests in isolation), the resolver falls back to the same
-    defaults the legacy ``api/services/search._get_bm25_index_for_ctx``
-    used (``None / 1.5 / 0.75``) — verbatim parity with the prior path.
+  * BM25 tunables (``stopwords_lang``, ``k1``, ``b``) are accepted as
+    kwargs with defaults that match the legacy fallback path
+    (``None / 1.5 / 0.75``). Callers that resolve ``cfg.search.bm25``
+    should pass the values explicitly; callers without a config wired up
+    (unit tests) continue to work unchanged with the defaults.
 
-Module hygiene: this module imports
-:func:`cinemateca.library.load_tag_index` lazily when ``filters.tags``
-is non-empty. After P2/T7 the ``api.services.catalog -> _dispatch``
-carve-out in ``.importlinter`` was deleted. The remaining
-``_dispatch -> api.deps`` ignore (lazy ``get_config`` read for BM25
-tunables) is intentional and lands in a later cleanup phase.
+Module hygiene: this module has zero imports from ``api.*``. The only
+lazy import is :func:`cinemateca.library.load_tag_index` (loaded only
+when ``filters.tags`` is non-empty) which lives in core.
 """
 
 from __future__ import annotations
@@ -64,17 +61,25 @@ def find(
     top_k: int = 20,
     filters: Filters | None = None,
     weights: HybridWeights | None = None,
+    # BM25 tunables — defaults mirror the legacy fallback (None / 1.5 / 0.75)
+    # so callers without an explicit config keep identical behaviour.
+    # Callers that resolve cfg.search.bm25 should pass the values explicitly.
+    bm25_stopwords_lang: str | None = None,
+    bm25_k1: float = 1.5,
+    bm25_b: float = 0.75,
 ) -> SearchResult:
     """Run a search against a single film.
 
     ``film`` is duck-typed: it must expose ``.slug``, ``.metadata_dir``
     and ``.embeddings_dir`` (the current producer is
-    :class:`api.services.film_context.FilmContext`; P2 swaps in
-    ``cinemateca.library.Library`` without changing the duck-typed
-    surface).
+    :class:`cinemateca.library.FilmContext`).
 
     Image queries are CLIP-only — ``mode`` is ignored and forced to
     ``"clip"`` in the returned :class:`SearchResult`.
+
+    ``bm25_stopwords_lang``, ``bm25_k1``, and ``bm25_b`` tune the BM25
+    index.  The defaults (``None / 1.5 / 0.75``) match the prior lazy-
+    config fallback path, so existing callers need no changes.
     """
     filters = filters or Filters()
     weights = weights or HybridWeights()
@@ -101,7 +106,13 @@ def find(
         raise ValueError("Query must have text or image_path set")
 
     tag_index = _load_tag_index(film) if filters.tags else {}
-    bm25 = _load_bm25_for_mode(film, mode)
+    bm25 = _load_bm25_for_mode(
+        film,
+        mode,
+        bm25_stopwords_lang=bm25_stopwords_lang,
+        bm25_k1=bm25_k1,
+        bm25_b=bm25_b,
+    )
 
     df = search_hybrid(
         index,
@@ -131,39 +142,29 @@ def _load_tag_index(film: Any) -> dict:
     return load_tag_index(film.metadata_dir) or {}
 
 
-def _load_bm25_for_mode(film: Any, mode: SearchMode):
+def _load_bm25_for_mode(
+    film: Any,
+    mode: SearchMode,
+    *,
+    bm25_stopwords_lang: str | None = None,
+    bm25_k1: float = 1.5,
+    bm25_b: float = 0.75,
+):
     """Build the BM25 index for the film, or ``None`` for clip mode.
 
-    Reads ``cfg.search.bm25`` tunables lazily; falls back to the same
-    defaults the legacy ``_get_bm25_index_for_ctx`` used when no app
-    config is wired up (unit-test isolation).
+    Tunables are received as kwargs (resolved by the caller from
+    ``cfg.search.bm25`` when available).  Defaults match the legacy
+    fallback path (``None / 1.5 / 0.75``) — no api.* import needed.
     """
     if mode == "clip":
         return None
     from cinemateca.search.bm25 import bm25_index_for_ctx
 
-    stopwords_lang: str | None = None
-    k1 = 1.5
-    b = 0.75
-    try:
-        from api.deps import get_config
-
-        cfg = get_config()
-        bm25_cfg = getattr(cfg.search, "bm25", None) if hasattr(cfg, "search") else None
-        if bm25_cfg is not None:
-            stopwords_lang = getattr(bm25_cfg, "stopwords_lang", None)
-            k1 = float(getattr(bm25_cfg, "k1", 1.5))
-            b = float(getattr(bm25_cfg, "b", 0.75))
-    except Exception:
-        # No app config wired (unit-test isolation) — defaults match the
-        # legacy ``_get_bm25_index_for_ctx`` fallback path byte-for-byte.
-        pass
-
     return bm25_index_for_ctx(
         film,
-        stopwords_lang=stopwords_lang,
-        k1=k1,
-        b=b,
+        stopwords_lang=bm25_stopwords_lang,
+        k1=bm25_k1,
+        b=bm25_b,
     )
 
 
