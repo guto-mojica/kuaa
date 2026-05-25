@@ -4,14 +4,30 @@ root_packages =
     api
 
 [importlinter:contract:no-core-imports-api]
-# When a P1 extraction needs a helper that still lives in `api/services/*`
-# (most commonly catalog.{load_tag_index, keyframe_url, to_smpte}, or
-# film_context.FilmContext), implementers should PREFER inlining a small
-# helper over adding a carve-out — see cinemateca.search.bm25._load_tag_index
-# for the pattern. If inlining is impractical (helper is large, or used by
-# many extracted modules), add an `ignore_imports` entry below with a one-line
-# justification in the commit message. P2 will move those helpers under
-# `cinemateca.library` and the carve-outs delete.
+# All P1 ignore_imports entries below are transitional carve-outs that
+# survive into P2. Each one references a helper that should live under
+# `cinemateca.library` (the catalog / film_context relocations) or
+# `cinemateca.config` (`api.deps.get_config`) and will delete the moment
+# its target moves. Audited 2026-05-25 (T16): every entry corresponds to
+# a real import and `lint-imports` reports no unmatched ignores.
+#
+# Future P1-style extractions should still PREFER inlining a small helper
+# over adding a carve-out — see cinemateca.search.bm25 (zero api/* imports
+# after T7's `_load_tag_index` inline) for the pattern. Add a new entry
+# only when inlining is impractical (helper is large or shared across many
+# extracted modules), with a one-line justification in the commit message.
+#
+# P2 cleanup TODO list (delete each ignore_imports line when its target
+# moves out of `api/`):
+#   * api.services.catalog          -> cinemateca.library.catalog
+#   * api.services.film_context     -> cinemateca.library.film_context
+#   * api.services.search           -> the public `cinemateca.search.*`
+#                                      verbs are already the long-term home;
+#                                      this remaining edge is the legacy
+#                                      `has_indexed_films` lookup in
+#                                      aggregate.py, which will move with
+#                                      catalog.
+#   * api.deps.get_config           -> cinemateca.config.get_config
 name=cinemateca core must not import api/
 type=forbidden
 source_modules=
@@ -34,7 +50,8 @@ ignore_imports=
 # ``api.services.search.resolve_retriever_args``). ``allow_indirect_imports
 # = True`` keeps transitive chains routed through ``api.services.*`` legal;
 # direct imports from ``api.routes.search`` into core packages would fail
-# this contract. Task 16 will further tighten.
+# this contract. T16 wires this contract (and the LOC budget) into CI via
+# .github/workflows/refactor-guards.yml.
 name=routes use services, not core directly
 type=forbidden
 source_modules=
