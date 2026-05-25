@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cinemateca-ai 0.3.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-25 17:51-0400\n"
+"POT-Creation-Date: 2026-05-25 18:02-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pt_BR\n"
@@ -298,7 +298,7 @@ msgstr "Navegação"
 #: web/templates/partials/_icon_rail.html:31
 #: web/templates/partials/_topbar.html:46
 #: web/templates/partials/annotate_scene.html:93
-#: web/templates/partials/search.html:108
+#: web/templates/partials/search.html:112
 msgid "Search"
 msgstr "Buscar"
 
@@ -1256,7 +1256,7 @@ msgstr "rimas em"
 # ── Processing tab ────────────────────────────────────────────────────
 #: web/templates/partials/rimas.html:40 web/templates/partials/rimas.html:115
 #: web/templates/partials/scenes.html:421
-#: web/templates/partials/search.html:321
+#: web/templates/partials/search.html:367
 msgid "films"
 msgstr "filmes"
 
@@ -1414,7 +1414,7 @@ msgid "Comfortable"
 msgstr ""
 
 #: web/templates/partials/scenes.html:115
-#: web/templates/partials/search.html:359
+#: web/templates/partials/search.html:405
 msgid "Compact"
 msgstr "Compacto"
 
@@ -1555,125 +1555,147 @@ msgstr "editar"
 msgid "Find similar"
 msgstr "Buscar semelhantes"
 
-#: web/templates/partials/search.html:99
+#: web/templates/partials/search.html:103
 msgid "Search the library — describe a scene, paste an image…"
 msgstr "Buscar no acervo — descreva uma cena, cole uma imagem…"
 
-#: web/templates/partials/search.html:116
+#: web/templates/partials/search.html:120
 msgid "Input type"
 msgstr "Tipo de entrada"
 
 # ── Search tab ────────────────────────────────────────────────────────
-#: web/templates/partials/search.html:136
+#: web/templates/partials/search.html:140
 msgid "Text"
 msgstr "Texto"
 
-#: web/templates/partials/search.html:147
+#: web/templates/partials/search.html:151
 msgid "Image"
 msgstr "Imagem"
 
-#: web/templates/partials/search.html:158
+#: web/templates/partials/search.html:162
 msgid "Audio"
 msgstr "Áudio"
 
-#: web/templates/partials/search.html:169
+#: web/templates/partials/search.html:173
+#: web/templates/partials/search.html:325
 msgid "Fusion"
 msgstr "Fusão"
 
-#: web/templates/partials/search.html:186
+#: web/templates/partials/search.html:190
 msgid "Híbrido"
 msgstr "Híbrido"
 
-#: web/templates/partials/search.html:194
-#: web/templates/partials/search.html:214
+#: web/templates/partials/search.html:198
+#: web/templates/partials/search.html:218
 msgid "CLIP only"
 msgstr "Apenas CLIP"
 
-#: web/templates/partials/search.html:195
-#: web/templates/partials/search.html:218
+#: web/templates/partials/search.html:199
+#: web/templates/partials/search.html:222
 msgid "BM25 only"
 msgstr "Apenas BM25"
 
-#: web/templates/partials/search.html:206
-#: web/templates/partials/search.html:207
+#: web/templates/partials/search.html:210
+#: web/templates/partials/search.html:211
 msgid "Retrieval mode"
 msgstr "Modo de busca"
 
-#: web/templates/partials/search.html:210
+#: web/templates/partials/search.html:214
 msgid "Hybrid"
 msgstr "Híbrido"
 
-#: web/templates/partials/search.html:222
+#: web/templates/partials/search.html:226
 msgid "Semantic weight"
 msgstr "Peso semântico"
 
-#: web/templates/partials/search.html:222
+#: web/templates/partials/search.html:226
 msgid "Lexical weight"
 msgstr "Peso lexical"
 
-#: web/templates/partials/search.html:251
+#: web/templates/partials/search.html:255
 msgid "Rerank"
 msgstr "Rerank"
 
-#: web/templates/partials/search.html:254
+#: web/templates/partials/search.html:258
 msgid "on"
 msgstr "ligado"
 
-#: web/templates/partials/search.html:255
+#: web/templates/partials/search.html:259
 msgid "off"
 msgstr "desligado"
 
-#: web/templates/partials/search.html:262
-#: web/templates/partials/search.html:263
+#: web/templates/partials/search.html:266
+#: web/templates/partials/search.html:267
 msgid "Cross-encoder reranker"
 msgstr "Reordenador cross-encoder"
 
-#: web/templates/partials/search.html:266
+#: web/templates/partials/search.html:270
 msgid "Enable reranking"
 msgstr "Ativar reordenação"
 
-#: web/templates/partials/search.html:268
+#: web/templates/partials/search.html:272
 msgid "Default model: bge-reranker-v2-m3 — multilingual, ~100ms per query on CPU."
 msgstr ""
 "Modelo padrão: bge-reranker-v2-m3 — multilíngue, ~100ms por consulta em "
 "CPU."
 
-#: web/templates/partials/search.html:273
+#: web/templates/partials/search.html:277
 msgid "Maximal Marginal Relevance λ — ships in M3"
 msgstr "Maximal Marginal Relevance λ — disponível em M3"
 
-#: web/templates/partials/search.html:294
-#: web/templates/partials/search.html:295
+#: web/templates/partials/search.html:298
+#: web/templates/partials/search.html:299
 msgid "Results per query"
 msgstr "Resultados por busca"
 
-#: web/templates/partials/search.html:315
+#: web/templates/partials/search.html:335
+#: web/templates/partials/search.html:336
+msgid "Visual ↔ Audio weight"
+msgstr "Peso visual ↔ áudio"
+
+#: web/templates/partials/search.html:339
+msgid "Visual weight"
+msgstr "Peso visual"
+
+#: web/templates/partials/search.html:339
+msgid "Audio weight"
+msgstr "Peso áudio"
+
+#: web/templates/partials/search.html:346
+msgid "visual"
+msgstr "visual"
+
+#: web/templates/partials/search.html:347
+msgid "audio"
+msgstr "áudio"
+
+#: web/templates/partials/search.html:361
 msgid "results"
 msgstr "resultados"
 
-#: web/templates/partials/search.html:317
+#: web/templates/partials/search.html:363
 msgid "No results."
 msgstr "Nenhum resultado."
 
-#: web/templates/partials/search.html:325
+#: web/templates/partials/search.html:371
 msgid "Type a query to search"
 msgstr "Digite uma busca"
 
-#: web/templates/partials/search.html:336
+#: web/templates/partials/search.html:382
 msgid "Result layout"
 msgstr "Layout dos resultados"
 
-#: web/templates/partials/search.html:343
+#: web/templates/partials/search.html:389
 msgid "Grid"
 msgstr "Grade"
 
-#: web/templates/partials/search.html:351
+#: web/templates/partials/search.html:397
 msgid "List"
 msgstr "Lista"
 
-#: web/templates/partials/search.html:377
-#: web/templates/partials/search.html:384
-#: web/templates/partials/search.html:386
+#: web/templates/partials/search.html:423
+#: web/templates/partials/search.html:430
+#: web/templates/partials/search.html:432
 msgid "Choose image…"
 msgstr "Escolher imagem…"
 
