@@ -81,13 +81,24 @@ async def api_search(
     retriever: str = "hybrid",
     sem_w: float | None = None,
     bm25_w: float | None = None,
+    modality: str = "text",
     slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
-    """Text semantic search across one (``?film=<slug>``) or all films."""
+    """Semantic search across one (``?film=<slug>``) or all films.
+
+    ``modality`` selects the retrieval space (default ``"text"`` keeps
+    the legacy CLIP/BM25/hybrid behaviour). ``"audio"`` routes through
+    :mod:`cinemateca.search.audio` (CLAP joint text+audio space) — the
+    rest of the text-only knobs (``tags``, ``retriever``, ``sem_w``,
+    ``bm25_w``) are ignored on the audio path because CLAP doesn't
+    expose them.
+    """
     q = q.strip()
     if len(q) < 2:
         return HTMLResponse("")
     cfg = get_config()
+    if modality == "audio":
+        return await _api_search_audio(request, q=q, top_k=top_k, slug=slug, cfg=cfg)
     min_sim = float(getattr(cfg.embeddings, "min_similarity", 0.0) or 0.0)
     retriever, sw, bw, rrf_k = search_service.resolve_retriever_args(cfg, retriever, sem_w, bm25_w)
     logger.info(
@@ -109,6 +120,35 @@ async def api_search(
     return _render_results(
         request, slug=slug, cfg=cfg, results=results, query=q, highlighted_tags=set(tags)
     )
+
+
+async def _api_search_audio(
+    request: Request,
+    *,
+    q: str,
+    top_k: int,
+    slug: str | None,
+    cfg,
+) -> HTMLResponse:
+    """Audio-only search dispatch (CLAP joint text+audio space).
+
+    Thin shim: thread-pool offloads the encoder + dot-product into a
+    worker thread (CLAP encode + matmul are blocking + non-trivial),
+    then enriches the raw ``{scene_id, score}`` hits with the per-film
+    template fields the ``.b-card`` partial expects (``img_url``,
+    ``timecode``, ``similarity``, plus description / tags via the
+    existing CLIP-side enrichment helper).
+    """
+    logger.info(f"api_search modality=audio q={q!r} slug={slug or '(agg)'} top_k={top_k}")
+    ctx = FilmContext.for_film(cfg, slug) if slug is not None else None
+    payload, no_index = await asyncio.get_running_loop().run_in_executor(
+        None, lambda: search_service.dispatch_audio_search(cfg, ctx, q, top_k)
+    )
+    if no_index:
+        return _no_index_response(request)
+    card_dicts = search_service.audio_hits_to_template_dicts(cfg, payload, per_film_slug=slug)
+    results = search_service.enrich_hits_with_film_metadata(cfg, card_dicts, per_film_slug=slug)
+    return _render_results(request, slug=slug, cfg=cfg, results=results, query=q)
 
 
 @router.post("/api/search/image", response_class=HTMLResponse)
