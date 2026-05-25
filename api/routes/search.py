@@ -82,6 +82,7 @@ async def api_search(
     sem_w: float | None = None,
     bm25_w: float | None = None,
     modality: str = "text",
+    reranker_enabled: bool | None = None,
     slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
     """Semantic search across one (``?film=<slug>``) or all films.
@@ -92,6 +93,14 @@ async def api_search(
     rest of the text-only knobs (``tags``, ``retriever``, ``sem_w``,
     ``bm25_w``) are ignored on the audio path because CLAP doesn't
     expose them.
+
+    ``reranker_enabled`` is the M3 pre-flight 3.3 chip-toggle override.
+    Today it is *accepted and logged only* — the production dispatchers
+    still return ``pd.DataFrame`` / ``list[dict]`` rather than
+    ``SearchResult``, so ``apply_reranker`` cannot be plumbed through
+    yet. Live wiring lands in Task 3.2b once the dispatchers migrate.
+    The param is shipped now so the UI affordance + URL/state shape are
+    stable before backend follow-up.
     """
     q = q.strip()
     if len(q) < 2:
@@ -103,7 +112,8 @@ async def api_search(
     retriever, sw, bw, rrf_k = search_service.resolve_retriever_args(cfg, retriever, sem_w, bm25_w)
     logger.info(
         f"api_search q={q!r} slug={slug or '(agg)'} retriever={retriever} top_k={top_k} "
-        f"min_sim={min_sim:.3f} sw={sw:.3f} bw={bw:.3f} tags={list(tags) or None}"
+        f"min_sim={min_sim:.3f} sw={sw:.3f} bw={bw:.3f} tags={list(tags) or None} "
+        f"reranker_enabled={reranker_enabled}"
     )
     ctx = FilmContext.for_film(cfg, slug) if slug is not None else None
     args = (cfg, ctx, q, tags, top_k, min_sim, retriever, sw, bw, rrf_k)
