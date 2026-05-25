@@ -127,8 +127,19 @@ def dispatch_text_search(
     results list. Pulls the BM25 index + tag index lazily so the per-film
     fast path doesn't read disk when ``retriever == "clip"`` and ``tags``
     is empty (preserving the legacy behaviour).
+
+    When ``cfg.search.rerank_enabled`` is true the per-film first stage
+    retrieves ``reranker.top_k`` candidates (default 50), then
+    ``rerank_dataframe`` re-scores them with a cross-encoder and trims to
+    the original ``top_k``. Aggregate mode is not reranked (each per-film
+    result is already trimmed before aggregation).
     """
     from api.services.catalog import load_tag_index
+
+    rerank_enabled = bool(getattr(cfg.search, "rerank_enabled", False))
+    reranker_cfg = getattr(cfg.search, "reranker", None)
+    candidate_k = int(getattr(reranker_cfg, "top_k", 50)) if reranker_cfg else 50
+    rerank_model = getattr(reranker_cfg, "model", "default") if reranker_cfg else "default"
 
     if ctx is None:
         try:
@@ -158,24 +169,40 @@ def dispatch_text_search(
     if not index.ok:
         return None, True
     tag_index = load_tag_index(ctx.metadata_dir) if tags else {}
+
+    # Widen first-stage retrieval when reranking so the cross-encoder has
+    # enough candidates to reshuffle. Trimming to ``top_k`` happens after.
+    first_k = max(top_k, candidate_k) if rerank_enabled and q else top_k
+
     if retriever == "clip":
-        return search_text(index, q, tags, tag_index, top_k, min_sim), False
-    bm25 = _get_bm25_index_for_ctx(ctx)
-    return (
-        search_hybrid(
+        result_df = search_text(index, q, tags, tag_index, first_k, min_sim)
+    else:
+        bm25 = _get_bm25_index_for_ctx(ctx)
+        result_df = search_hybrid(
             index,
             bm25=bm25,
             query=q,
             tags=tags,
             tag_index=tag_index,
-            top_k=top_k,
+            top_k=first_k,
             min_similarity=min_sim,
             retriever_mode=retriever,
             sem_w=sw,
             bm25_w=bw,
             rrf_k=rrf_k,
-        ),
-        False,
-    )
+        )
+
+    if rerank_enabled and q:
+        from cinemateca.search.rerank import rerank_dataframe
+
+        result_df = rerank_dataframe(
+            result_df,
+            query=q,
+            metadata_dir=ctx.metadata_dir,
+            top_k=top_k,
+            model=rerank_model,
+        )
+
+    return result_df, False
 
 

@@ -59,6 +59,9 @@ full = [
     "transformers>=4.44,<5",
     "einops>=0.7",
     "huggingface-hub>=0.20",
+    # Cross-encoder reranker (M2). CrossEncoder ships inside sentence-transformers;
+    # it re-uses the torch + transformers wheels already in this extra.
+    "sentence-transformers>=3.0",
     # pyvips[binary] — moondream2's trust_remote_code module (image_crops.py) does
     # `import pyvips` at model-load time; [binary] bundles libvips so no system
     # libvips is required (matches the cross-platform / no-source-build goal).

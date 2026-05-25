@@ -126,7 +126,10 @@ search:
     b: 0.75                    # length normalisation
     stopwords_lang: null       # null = no stopword removal
     rrf_k: 60                  # RRF rank-shift constant (Cormack et al.)
-  rerank_enabled: false       # M2: cross-encoder reranker
+  rerank_enabled: false       # M2: cross-encoder reranker (enable in local.yaml after validating on real data)
+  reranker:
+    model: "cross-encoder/ms-marco-MiniLM-L-12-v2"  # ~70 MB, CPU-friendly
+    top_k: 50    # candidates fed to the cross-encoder from first-stage retrieval
   mmr_lambda: 0.5             # Maximal Marginal Relevance λ
   # Modality gates (each toggles its chip on/off in the Buscar tab).
   image_enabled: true         # existing image-similarity search
