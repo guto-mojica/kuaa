@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import logging
 
+from api.deps import get_config
 from cinemateca.library import FilmContext
 from cinemateca.annotations.io import (  # noqa: F401
     load_annotations,
@@ -97,7 +98,9 @@ def build_annotate_context(
     scenes, desc_by_scene, annotations, filter_mode, all_done, no_data = _scene_list_with_fallback(
         ctx, filter_mode
     )
-    panel = scene_context(ctx, scenes, scene_id, desc_by_scene, annotations)
+    cfg = get_config()
+    demo_threads = bool(getattr(getattr(cfg, "collaboration", None), "demo_threads_enabled", False))
+    panel = scene_context(ctx, scenes, scene_id, desc_by_scene, annotations, demo_threads_enabled=demo_threads)
 
     return {
         "filter": filter_mode,
@@ -121,4 +124,6 @@ def build_scene_panel(ctx: FilmContext, scene_id: int | None, filter_mode: str) 
     scenes, desc_by_scene, annotations, _filter, _all_done, _no_data = _scene_list_with_fallback(
         ctx, filter_mode
     )
-    return scene_context(ctx, scenes, scene_id, desc_by_scene, annotations)
+    cfg = get_config()
+    demo_threads = bool(getattr(getattr(cfg, "collaboration", None), "demo_threads_enabled", False))
+    return scene_context(ctx, scenes, scene_id, desc_by_scene, annotations, demo_threads_enabled=demo_threads)

@@ -39,22 +39,6 @@ _BROKEN_LLM = "One or two sentences about subject"
 # code changes.
 
 
-def _demo_threads_enabled() -> bool:
-    """Lazy read of ``cfg.collaboration.demo_threads_enabled``.
-
-    Imports inside the function so test fixtures that don't initialize
-    the full config (or that swap in their own narrow stub) never trip
-    on an import-time dependency. Failures default to ``False`` so the
-    pre-demo empty state is the safe fallback.
-    """
-    try:
-        from api.deps import get_config  # noqa: PLC0415
-
-        cfg = get_config()
-        return bool(getattr(cfg.collaboration, "demo_threads_enabled", False))
-    except Exception:
-        return False
-
 
 def _demo_thread(timecode: str) -> list[dict]:
     """Return a small fixed curator+viewer thread for the inspector.
@@ -188,6 +172,8 @@ def scene_context(
     scene_id: int | None,
     desc_by_scene: dict,
     annotations: dict,
+    *,
+    demo_threads_enabled: bool = False,
 ) -> dict:
     """Build the template context for the annotate scene panel.
 
@@ -263,7 +249,7 @@ def scene_context(
 
     # Collaboration overlays — populated only when the demo-threads flag
     # is on. v1.1 collaboration epic will replace this with a real backend.
-    if _demo_threads_enabled():
+    if demo_threads_enabled:
         demo_pins = _demo_pins(tc_smpte)
         demo_popup = _demo_comment_popup(tc_smpte)
         demo_markers: list[dict] = list(_DEMO_MARKERS)
