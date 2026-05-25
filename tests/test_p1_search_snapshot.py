@@ -126,6 +126,18 @@ def small_library(tmp_config, monkeypatch):
     return cfg
 
 
+def _client() -> TestClient:
+    """TestClient with locale pinned to ``en`` — mirrors conftest._make_client.
+
+    The default locale is pt_BR; the en catalog has empty msgstrs that fall
+    back to English msgids. Pinning en here keeps snapshots stable against
+    pt_BR translation edits during the rest of P1.
+    """
+    c = TestClient(app)
+    c.cookies.set("locale", "en")
+    return c
+
+
 def _assert_or_update(snapshot_path: Path, key: str, payload: dict) -> None:
     data = _load_or_init(snapshot_path)
     if UPDATE:
@@ -143,7 +155,7 @@ def _assert_or_update(snapshot_path: Path, key: str, payload: dict) -> None:
 
 
 def test_text_search_clip_single_film(small_library):
-    client = TestClient(app)
+    client = _client()
     r = client.get("/api/search", params={
         "q": "horse", "top_k": 5, "retriever": "clip", "film": "alpha",
     })
@@ -157,7 +169,7 @@ def test_text_search_clip_single_film(small_library):
 
 
 def test_text_search_hybrid_single_film(small_library):
-    client = TestClient(app)
+    client = _client()
     r = client.get("/api/search", params={
         "q": "horse", "top_k": 5, "retriever": "hybrid", "film": "alpha",
     })
@@ -171,7 +183,7 @@ def test_text_search_hybrid_single_film(small_library):
 
 
 def test_text_search_bm25_single_film(small_library):
-    client = TestClient(app)
+    client = _client()
     r = client.get("/api/search", params={
         "q": "horse", "top_k": 5, "retriever": "bm25", "film": "alpha",
     })
@@ -185,7 +197,7 @@ def test_text_search_bm25_single_film(small_library):
 
 
 def test_text_search_with_tag_filter(small_library):
-    client = TestClient(app)
+    client = _client()
     r = client.get("/api/search", params=[
         ("q", "horse"), ("top_k", "5"),
         ("retriever", "clip"), ("film", "alpha"),
@@ -201,7 +213,7 @@ def test_text_search_with_tag_filter(small_library):
 
 
 def test_text_search_aggregate_across_films(small_library):
-    client = TestClient(app)
+    client = _client()
     r = client.get("/api/search", params={
         "q": "horse", "top_k": 5, "retriever": "clip",
     })  # no ?film= → aggregate path
@@ -215,7 +227,7 @@ def test_text_search_aggregate_across_films(small_library):
 
 
 def test_image_search_single_film(small_library):
-    client = TestClient(app)
+    client = _client()
     img_bytes = b"\xff\xd8\xff\xd9"  # tiny stub JPEG
     r = client.post(
         "/api/search/image",
@@ -233,7 +245,7 @@ def test_image_search_single_film(small_library):
 
 def test_no_index_response(tmp_config):
     """Empty library → /api/search returns the no-index UI state."""
-    client = TestClient(app)
+    client = _client()
     r = client.get("/api/search", params={"q": "horse", "top_k": 5})
     assert r.status_code == 200
     payload = {"status": r.status_code, "html": _slim(r.text)}
@@ -246,7 +258,7 @@ def test_no_index_response(tmp_config):
 
 def test_short_query_returns_empty(tmp_config):
     """Query shorter than 2 chars short-circuits to an empty HTMLResponse."""
-    client = TestClient(app)
+    client = _client()
     r = client.get("/api/search", params={"q": "a", "top_k": 5})
     assert r.status_code == 200
     payload = {"status": r.status_code, "html": _slim(r.text)}

@@ -1,6 +1,6 @@
 {
   "no_index_empty_library": {
-    "html": "<div class=\"empty-state\"> <p>\u00cdndice de busca n\u00e3o encontrado. Execute o pipeline com a etapa Embeddings primeiro.</p> </div>",
+    "html": "<div class=\"empty-state\"> <p>No search index found. Run the pipeline with the Embeddings step first.</p> </div>",
     "status": 200
   },
   "short_query": {
