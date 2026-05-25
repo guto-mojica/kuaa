@@ -54,7 +54,6 @@ correctness-preserving lock.
 from __future__ import annotations
 
 import logging
-import re
 import threading
 from dataclasses import dataclass
 from enum import Enum
@@ -74,74 +73,20 @@ from api.services.catalog import (
 from api.services.film_context import FilmContext
 from cinemateca.retrieval.hybrid import DEFAULT_RRF_K
 
+# Degenerate-tag display filter — relocated to cinemateca.search.display.
+# Re-exported under the legacy underscored names so external callers and
+# the existing ``TestDegenerateTagFilter`` suite keep working.
+from cinemateca.search.display import (
+    filter_degenerate_tags as _filter_degenerate_tags,  # noqa: F401
+)
+from cinemateca.search.display import is_degenerate_tag as _is_degenerate_tag  # noqa: F401
+
 if TYPE_CHECKING:
     import pandas as pd
 
     from cinemateca.retrieval.bm25 import BM25Index
 
 logger = logging.getLogger(__name__)
-
-# ── Degenerate-tag display filter ─────────────────────────────────────────────
-# scene_tags.json carries raw model-output fragments alongside the curated
-# tag vocabulary — full captions, stuck-token repetitions, enumerated lists.
-# They explode the visible tag-pill grid and add no signal (the long-tail
-# entries cover 1–2 scenes each), so the displayed vocabulary drops them.
-# Filtering is DISPLAY-ONLY: the underlying tag_index is unmodified, so a
-# search request that arrives with a degenerate-looking ``tags=...`` query
-# (manually crafted URL) still works on the per-film path.
-_DEGENERATE_TAG_MAX_LEN = 20
-_DEGENERATE_TAG_MAX_HYPHENS = 2
-_REPEATED_TOKEN_RE = re.compile(r"\b(\w+)(?:[-\s]\1\b){2,}", re.IGNORECASE)
-_TRAILING_NUMBER_RE = re.compile(r"-\d+$")
-_DIGIT_LED_RE = re.compile(r"^\d+-")
-_ARTICLE_LED_RE = re.compile(r"^(a|the)-", re.IGNORECASE)
-
-
-def _is_degenerate_tag(tag: str) -> bool:
-    """True when ``tag`` looks like raw model output, not a curated label.
-
-    Filters target the specific patterns Moondream leaks into
-    ``scene_tags.json``:
-      * empty / pure digit (``"1"``, ``"42"``)
-      * longer than ``_DEGENERATE_TAG_MAX_LEN`` chars (full captions)
-      * embedded ``.`` mid-string (sentence fragments)
-      * trailing ``.`` paired with an article-led prefix
-        (``"a-baby-in-a-basket."`` / ``"the-setting-is-a-farm."``).
-        Bare trailing ``.`` survives (``"farm."``, ``"rural-field."``).
-      * repeated-token sequences (``"gate-gate-gate"``)
-      * digit-led enumeration prefix (``"1-cow"``, ``"3-sky"``)
-      * de-dup numeric suffix (``"man-in-hat-2"``, ``"woman-in-dress-3"``)
-      * >``_DEGENERATE_TAG_MAX_HYPHENS`` hyphens (curated tags are 0-2;
-        more means multi-clause sentence fragments)
-
-    Display-only — the underlying ``tag_index`` is unmodified, so a user
-    who types a filtered tag into the URL still gets a working filter on
-    the per-film search path.
-    """
-    if not tag:
-        return True
-    if tag.isdigit():
-        return True
-    if len(tag) > _DEGENERATE_TAG_MAX_LEN:
-        return True
-    if "." in tag.rstrip("."):
-        return True
-    if tag.endswith(".") and _ARTICLE_LED_RE.match(tag):
-        return True
-    if _REPEATED_TOKEN_RE.search(tag):
-        return True
-    if tag.count("-") > _DEGENERATE_TAG_MAX_HYPHENS:
-        return True
-    if _DIGIT_LED_RE.match(tag):
-        return True
-    if _TRAILING_NUMBER_RE.search(tag):
-        return True
-    return False
-
-
-def _filter_degenerate_tags(tags) -> list[str]:
-    """Drop degenerate-looking tag strings from the displayed vocabulary."""
-    return [t for t in tags if not _is_degenerate_tag(t)]
 
 
 # Server-side upload guards for image search. The cap is intentionally
