@@ -160,6 +160,13 @@ retrieval:
     model: "default"        # 'default' → BAAI/bge-reranker-v2-m3
                             # 'noop'    → passthrough escape hatch (tests / UI off)
                             # any other string → HF model id
+  fusion:
+    visual_weight: 0.5      # M3 #1 default — score = w*clip + (1-w)*clap.
+                            # M4 ablation will compare 0.3 / 0.5 / 0.7.
+                            # Read by ``api.routes.search._api_search_fusion``
+                            # when ?w= is omitted; clamped to [0, 1] downstream.
+    k_each: 50              # per-modality top-k pulled before merge (bounded
+                            # union size when libraries grow past ~Jeca scale).
 
 # ── Rimas Visuais (cross-film visual rhymes) ─────────────────────────────────
 # Read-only knobs for the Rimas tab's kNN over CLIP keyframes. Defaults match
