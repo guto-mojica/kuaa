@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cinemateca-ai 0.3.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-21 02:48-0400\n"
+"POT-Creation-Date: 2026-05-21 18:06-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -17,51 +17,13 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: web/templates/about_page.html:18 web/templates/base.html:115
+#: web/templates/about_page.html:18 web/templates/partials/_left_pane.html:81
 msgid "About"
 msgstr "About"
 
-#: web/templates/base.html:10
+#: web/templates/base.html:13
 msgid "Mojica · Cinemateca Digital"
 msgstr ""
-
-#: web/templates/base.html:86
-msgid "Filter library"
-msgstr "Filter library"
-
-#: web/templates/base.html:141 web/templates/partials/_help_overlay.html:47
-#: web/templates/partials/_icon_rail.html:26
-#: web/templates/partials/_icon_rail.html:27
-#: web/templates/partials/_topbar.html:46
-#: web/templates/partials/annotate_scene.html:93
-#: web/templates/partials/search.html:68
-msgid "Search"
-msgstr "Search"
-
-#: web/templates/base.html:151 web/templates/partials/_help_overlay.html:48
-#: web/templates/partials/_icon_rail.html:30
-#: web/templates/partials/_icon_rail.html:31
-#: web/templates/partials/_topbar.html:47
-msgid "Scenes"
-msgstr "Scenes"
-
-#: web/templates/base.html:161 web/templates/partials/_help_overlay.html:49
-#: web/templates/partials/_icon_rail.html:34
-#: web/templates/partials/_icon_rail.html:35
-#: web/templates/partials/_topbar.html:48
-#: web/templates/partials/scenes_inspector.html:46
-#: web/templates/partials/scenes_inspector.html:166
-msgid "Annotate"
-msgstr "Annotate"
-
-#: web/templates/base.html:171 web/templates/partials/_help_overlay.html:51
-#: web/templates/partials/_icon_rail.html:45
-#: web/templates/partials/_icon_rail.html:46
-#: web/templates/partials/_topbar.html:50
-#: web/templates/partials/processing.html:36
-#: web/templates/partials/processing_job.html:42
-msgid "Processing"
-msgstr "Processing"
 
 #: web/templates/eval/layout.html:21
 msgid "Mojica · Eval set builder"
@@ -312,11 +274,45 @@ msgstr "Close"
 msgid "Navigation"
 msgstr ""
 
+#: web/templates/partials/_help_overlay.html:47
+#: web/templates/partials/_icon_rail.html:30
+#: web/templates/partials/_icon_rail.html:31
+#: web/templates/partials/_topbar.html:46
+#: web/templates/partials/annotate_scene.html:93
+#: web/templates/partials/search.html:68
+msgid "Search"
+msgstr "Search"
+
+#: web/templates/partials/_help_overlay.html:48
+#: web/templates/partials/_icon_rail.html:34
+#: web/templates/partials/_icon_rail.html:35
+#: web/templates/partials/_topbar.html:47
+msgid "Scenes"
+msgstr "Scenes"
+
+#: web/templates/partials/_help_overlay.html:49
+#: web/templates/partials/_icon_rail.html:38
+#: web/templates/partials/_icon_rail.html:39
+#: web/templates/partials/_topbar.html:48
+#: web/templates/partials/scenes_inspector.html:46
+#: web/templates/partials/scenes_inspector.html:166
+msgid "Annotate"
+msgstr "Annotate"
+
 #: web/templates/partials/_help_overlay.html:50
 #: web/templates/partials/rimas.html:36
 #, fuzzy
 msgid "Visual rhymes"
 msgstr "Visual analysis"
+
+#: web/templates/partials/_help_overlay.html:51
+#: web/templates/partials/_icon_rail.html:49
+#: web/templates/partials/_icon_rail.html:50
+#: web/templates/partials/_topbar.html:50
+#: web/templates/partials/processing.html:36
+#: web/templates/partials/processing_job.html:47
+msgid "Processing"
+msgstr "Processing"
 
 #: web/templates/partials/_help_overlay.html:52
 msgid "Next · previous item"
@@ -427,7 +423,7 @@ msgstr ""
 
 #: web/templates/partials/_help_overlay.html:145
 #: web/templates/partials/annotate_scene.html:157
-#: web/templates/partials/search_inspector.html:184
+#: web/templates/partials/search_inspector.html:192
 msgid "Add tag"
 msgstr ""
 
@@ -446,24 +442,24 @@ msgstr ""
 msgid "Filter"
 msgstr "Filter library"
 
-#: web/templates/partials/_icon_rail.html:18
+#: web/templates/partials/_icon_rail.html:22
 msgid "Tab navigation"
 msgstr ""
 
-#: web/templates/partials/_icon_rail.html:22
-#: web/templates/partials/_icon_rail.html:23
+#: web/templates/partials/_icon_rail.html:26
+#: web/templates/partials/_icon_rail.html:27
 #: web/templates/partials/_topbar.html:27
 msgid "Home"
 msgstr ""
 
-#: web/templates/partials/_icon_rail.html:38
-#: web/templates/partials/_icon_rail.html:39
+#: web/templates/partials/_icon_rail.html:42
+#: web/templates/partials/_icon_rail.html:43
 #: web/templates/partials/_topbar.html:49
 msgid "Rhymes"
 msgstr ""
 
-#: web/templates/partials/_icon_rail.html:54
-#: web/templates/partials/_icon_rail.html:55
+#: web/templates/partials/_icon_rail.html:58
+#: web/templates/partials/_icon_rail.html:59
 #: web/templates/partials/annotate.html:229
 #: web/templates/partials/search_timeline.html:56
 #, fuzzy
@@ -488,6 +484,10 @@ msgstr ""
 
 #: web/templates/partials/_left_pane.html:49
 msgid "Index pending"
+msgstr ""
+
+#: web/templates/partials/_left_pane.html:64
+msgid "Language"
 msgstr ""
 
 #: web/templates/partials/_left_pane_body.html:25
@@ -574,30 +574,31 @@ msgstr ""
 msgid "Main tabs"
 msgstr "Manual tags"
 
-#: web/templates/partials/_topbar.html:67
+#: web/templates/partials/_topbar.html:72
 msgid "Filters · ⇧⌘F"
 msgstr ""
 
-#: web/templates/partials/_topbar.html:68
+#: web/templates/partials/_topbar.html:73
 msgid "Notifications"
 msgstr ""
 
-#: web/templates/partials/_topbar.html:72
+#: web/templates/partials/_topbar.html:77
 msgid "Import media · ⌘U"
 msgstr ""
 
-#: web/templates/partials/_topbar.html:76
+#: web/templates/partials/_topbar.html:81
 #, python-format
 msgid "%(n)d viewers online"
 msgstr ""
 
-#: web/templates/partials/_topbar.html:90
+#: web/templates/partials/_topbar.html:95
+#: web/templates/partials/annotate_comments.html:107
 #: web/templates/partials/scenes_inspector.html:49
 #, fuzzy
 msgid "Share"
 msgstr "Save"
 
-#: web/templates/partials/_topbar.html:94
+#: web/templates/partials/_topbar.html:99
 msgid "Anonymous"
 msgstr ""
 
@@ -692,7 +693,7 @@ msgstr ""
 
 #: web/templates/partials/add_film_form.html:23
 #: web/templates/partials/annotate_desc_edit.html:22
-#: web/templates/partials/processing_job.html:59
+#: web/templates/partials/processing_job.html:64
 #: web/templates/partials/remove_film_confirm.html:15
 msgid "Cancel"
 msgstr "Cancel"
@@ -708,7 +709,7 @@ msgstr ""
 #: web/templates/partials/annotate.html:98
 #: web/templates/partials/annotate_props.html:68
 #: web/templates/partials/scenes_inspector.html:135
-#: web/templates/partials/search_inspector.html:113
+#: web/templates/partials/search_inspector.html:121
 #: web/templates/partials/search_results.html:73
 msgid "indexed"
 msgstr ""
@@ -727,7 +728,7 @@ msgstr ""
 #: web/templates/partials/annotate_scene.html:96
 #: web/templates/partials/scenes_grid.html:73
 #: web/templates/partials/scenes_inspector.html:55
-#: web/templates/partials/search_inspector.html:65
+#: web/templates/partials/search_inspector.html:73
 #: web/templates/partials/search_results.html:103
 msgid "More"
 msgstr ""
@@ -735,7 +736,7 @@ msgstr ""
 #: web/templates/partials/annotate.html:106
 #: web/templates/partials/annotate_scene.html:96
 #: web/templates/partials/scenes_inspector.html:55
-#: web/templates/partials/search_inspector.html:65
+#: web/templates/partials/search_inspector.html:73
 #, fuzzy
 msgid "More actions"
 msgstr "Model attributions"
@@ -756,7 +757,7 @@ msgid "Previous scene"
 msgstr ""
 
 #: web/templates/partials/annotate.html:192
-#: web/templates/partials/rimas.html:88
+#: web/templates/partials/rimas.html:93
 #: web/templates/partials/rimas_inspector.html:50
 #: web/templates/partials/rimas_inspector.html:60
 msgid "scene"
@@ -835,6 +836,7 @@ msgid "Edit"
 msgstr ""
 
 #: web/templates/partials/annotate_comments.html:46
+#: web/templates/partials/annotate_comments.html:105
 #: web/templates/partials/inspector_activity.html:30
 msgid "Reply"
 msgstr ""
@@ -852,6 +854,14 @@ msgstr "No LLM description"
 #, fuzzy
 msgid "Add description"
 msgstr "LLM description"
+
+#: web/templates/partials/annotate_comments.html:82
+msgid "PINNED"
+msgstr ""
+
+#: web/templates/partials/annotate_comments.html:106
+msgid "Resolve"
+msgstr ""
 
 #: web/templates/partials/annotate_desc_edit.html:11
 msgid ""
@@ -932,13 +942,13 @@ msgid "Comments"
 msgstr ""
 
 #: web/templates/partials/annotate_scene.html:77
-#: web/templates/partials/search_inspector.html:52
+#: web/templates/partials/search_inspector.html:60
 #, fuzzy
 msgid "Annotations"
 msgstr "Annotate"
 
 #: web/templates/partials/annotate_scene.html:87
-#: web/templates/partials/search_inspector.html:62
+#: web/templates/partials/search_inspector.html:70
 msgid "Properties"
 msgstr ""
 
@@ -952,10 +962,10 @@ msgid "Search annotations"
 msgstr ""
 
 #: web/templates/partials/annotate_scene.html:104
-#: web/templates/partials/rimas.html:76
+#: web/templates/partials/rimas.html:81
 #: web/templates/partials/rimas_echoes.html:48
 #: web/templates/partials/scenes_inspector.html:79
-#: web/templates/partials/search_inspector.html:100
+#: web/templates/partials/search_inspector.html:108
 #: web/templates/partials/search_timeline.html:73
 #: web/templates/partials/search_timeline.html:74
 #, fuzzy, python-format
@@ -976,37 +986,37 @@ msgid "Commenting at this timecode"
 msgstr ""
 
 #: web/templates/partials/annotate_scene.html:154
-#: web/templates/partials/search_inspector.html:183
+#: web/templates/partials/search_inspector.html:191
 msgid "Pin"
 msgstr ""
 
 #: web/templates/partials/annotate_scene.html:154
-#: web/templates/partials/search_inspector.html:183
+#: web/templates/partials/search_inspector.html:191
 msgid "Add pin"
 msgstr ""
 
 #: web/templates/partials/annotate_scene.html:157
-#: web/templates/partials/search_inspector.html:184
+#: web/templates/partials/search_inspector.html:192
 msgid "Tag"
 msgstr ""
 
 #: web/templates/partials/annotate_scene.html:160
-#: web/templates/partials/search_inspector.html:185
+#: web/templates/partials/search_inspector.html:193
 msgid "Attach"
 msgstr ""
 
 #: web/templates/partials/annotate_scene.html:160
-#: web/templates/partials/search_inspector.html:185
+#: web/templates/partials/search_inspector.html:193
 msgid "Attach file"
 msgstr ""
 
 #: web/templates/partials/annotate_scene.html:163
-#: web/templates/partials/search_inspector.html:186
+#: web/templates/partials/search_inspector.html:194
 msgid "Emoji"
 msgstr ""
 
 #: web/templates/partials/annotate_scene.html:163
-#: web/templates/partials/search_inspector.html:186
+#: web/templates/partials/search_inspector.html:194
 msgid "Insert emoji"
 msgstr ""
 
@@ -1077,6 +1087,7 @@ msgid "Current tags"
 msgstr ""
 
 #: web/templates/partials/inspector_properties.html:15
+#: web/templates/partials/scenes.html:129
 msgid "Scene"
 msgstr "Scene"
 
@@ -1139,25 +1150,25 @@ msgstr ""
 msgid "Waiting for events…"
 msgstr ""
 
-#: web/templates/partials/processing_job.html:46
+#: web/templates/partials/processing_job.html:51
 msgid "started at"
 msgstr ""
 
-#: web/templates/partials/processing_job.html:52
-#: web/templates/partials/search_inspector.html:68
+#: web/templates/partials/processing_job.html:57
+#: web/templates/partials/search_inspector.html:76
 msgid "Expand"
 msgstr ""
 
-#: web/templates/partials/processing_job.html:74
+#: web/templates/partials/processing_job.html:79
 msgid "complete"
 msgstr ""
 
-#: web/templates/partials/processing_job.html:78
+#: web/templates/partials/processing_job.html:83
 #, fuzzy
 msgid "step"
 msgstr "Steps"
 
-#: web/templates/partials/processing_job.html:81
+#: web/templates/partials/processing_job.html:86
 msgid "ETA"
 msgstr ""
 
@@ -1179,7 +1190,7 @@ msgid "frames"
 msgstr ""
 
 #: web/templates/partials/processing_stats.html:19
-#: web/templates/partials/scenes.html:95
+#: web/templates/partials/scenes.html:96
 #: web/templates/partials/search_timeline.html:45
 msgid "scenes"
 msgstr "scenes"
@@ -1236,12 +1247,12 @@ msgstr ""
 msgid "+ wipe data"
 msgstr ""
 
-#: web/templates/partials/rimas.html:40 web/templates/partials/rimas.html:114
+#: web/templates/partials/rimas.html:40 web/templates/partials/rimas.html:115
 msgid "rhymes in"
 msgstr ""
 
-#: web/templates/partials/rimas.html:40 web/templates/partials/rimas.html:114
-#: web/templates/partials/scenes.html:98 web/templates/partials/search.html:151
+#: web/templates/partials/rimas.html:40 web/templates/partials/rimas.html:115
+#: web/templates/partials/scenes.html:99 web/templates/partials/search.html:151
 #, fuzzy
 msgid "films"
 msgstr "Film"
@@ -1250,52 +1261,73 @@ msgstr "Film"
 msgid "Pick an anchor scene to discover cross-film visual echoes."
 msgstr ""
 
-#: web/templates/partials/rimas.html:46
+#: web/templates/partials/rimas.html:51
+msgid "Pick a new anchor scene"
+msgstr ""
+
+#: web/templates/partials/rimas.html:51
 msgid "Swap anchor"
 msgstr ""
 
-#: web/templates/partials/rimas.html:47
+#: web/templates/partials/rimas.html:52
 #, fuzzy
 msgid "Save collection"
 msgstr "Scene detection"
 
-#: web/templates/partials/rimas.html:52
+#: web/templates/partials/rimas.html:57
 msgid "Model"
 msgstr ""
 
-#: web/templates/partials/rimas.html:53
+#: web/templates/partials/rimas.html:58
 msgid "Distance"
 msgstr ""
 
-#: web/templates/partials/rimas.html:55
+#: web/templates/partials/rimas.html:60
 msgid "Cross-film"
 msgstr ""
 
-#: web/templates/partials/rimas.html:55
+#: web/templates/partials/rimas.html:60
 msgid "required"
 msgstr ""
 
-#: web/templates/partials/rimas.html:57
+#: web/templates/partials/rimas.html:62
 msgid "Threshold"
 msgstr ""
 
-#: web/templates/partials/rimas.html:68
+#: web/templates/partials/rimas.html:73
 #: web/templates/partials/rimas_inspector.html:43
 msgid "Anchor"
 msgstr ""
 
-#: web/templates/partials/rimas.html:74
+#: web/templates/partials/rimas.html:79
 msgid "Reference scene · fixed embedding"
 msgstr ""
 
-#: web/templates/partials/rimas.html:107
+#: web/templates/partials/rimas.html:117
+msgid "rhymes"
+msgstr ""
+
+#: web/templates/partials/rimas.html:134
+msgid "No anchor selected"
+msgstr ""
+
+#: web/templates/partials/rimas.html:136
+msgid "Open a scene in the Scenes tab and click"
+msgstr ""
+
+#: web/templates/partials/rimas.html:137
+#: web/templates/partials/scenes_inspector.html:170
+msgid "Find visual rhymes"
+msgstr ""
+
+#: web/templates/partials/rimas.html:138
+msgid "to explore cross-film visual echoes."
+msgstr ""
+
+#: web/templates/partials/rimas.html:142
 msgid ""
 "No processed films yet — run the embeddings pipeline to enable Rimas "
 "Visuais."
-msgstr ""
-
-#: web/templates/partials/rimas.html:116
-msgid "rhymes"
 msgstr ""
 
 #: web/templates/partials/rimas_echoes.html:49
@@ -1339,20 +1371,24 @@ msgstr ""
 msgid "Shared tags"
 msgstr ""
 
-#: web/templates/partials/rimas_inspector.html:121
+#: web/templates/partials/rimas_inspector.html:125
+msgid "Set as anchor"
+msgstr ""
+
+#: web/templates/partials/rimas_inspector.html:128
 msgid "Open rhyme scene"
 msgstr ""
 
-#: web/templates/partials/rimas_inspector.html:125
+#: web/templates/partials/rimas_inspector.html:132
 #, fuzzy
 msgid "Annotate rhyme"
 msgstr "Annotate"
 
-#: web/templates/partials/rimas_inspector.html:129
+#: web/templates/partials/rimas_inspector.html:136
 msgid "Pick a rhyme on the left to see the comparison."
 msgstr ""
 
-#: web/templates/partials/rimas_inspector.html:133
+#: web/templates/partials/rimas_inspector.html:140
 msgid "No anchor selected."
 msgstr ""
 
@@ -1386,12 +1422,16 @@ msgstr ""
 msgid "Search…"
 msgstr "Search"
 
-#: web/templates/partials/scenes.html:101
+#: web/templates/partials/scenes.html:102
 msgid "runtime"
 msgstr ""
 
-#: web/templates/partials/scenes.html:104
+#: web/templates/partials/scenes.html:105
 msgid "keyframes"
+msgstr ""
+
+#: web/templates/partials/scenes.html:133
+msgid "Select a scene to see its details."
 msgstr ""
 
 #: web/templates/partials/scenes_grid.html:40
@@ -1407,7 +1447,7 @@ msgid "Item selected"
 msgstr ""
 
 #: web/templates/partials/scenes_inspector.html:86
-#: web/templates/partials/search_inspector.html:107
+#: web/templates/partials/search_inspector.html:115
 msgid "dir."
 msgstr ""
 
@@ -1426,10 +1466,6 @@ msgstr ""
 
 #: web/templates/partials/scenes_inspector.html:162
 msgid "Find similar"
-msgstr ""
-
-#: web/templates/partials/scenes_inspector.html:170
-msgid "Find visual rhymes"
 msgstr ""
 
 #: web/templates/partials/search.html:60
@@ -1522,36 +1558,50 @@ msgstr ""
 msgid "Choose image…"
 msgstr "Choose image…"
 
-#: web/templates/partials/search_inspector.html:42
+#: web/templates/partials/search_inspector.html:31
+#, fuzzy
+msgid "Result details"
+msgstr "No results."
+
+#: web/templates/partials/search_inspector.html:34
+#, fuzzy
+msgid "Select a result"
+msgstr "No results."
+
+#: web/templates/partials/search_inspector.html:35
+msgid "Click a card to see its keyframe, annotations, and visual rhymes here."
+msgstr ""
+
+#: web/templates/partials/search_inspector.html:50
 msgid "Activity"
 msgstr ""
 
-#: web/templates/partials/search_inspector.html:68
+#: web/templates/partials/search_inspector.html:76
 msgid "Expand inspector"
 msgstr ""
 
-#: web/templates/partials/search_inspector.html:87
+#: web/templates/partials/search_inspector.html:95
 #, python-format
 msgid "%(n)d annotations"
 msgstr ""
 
-#: web/templates/partials/search_inspector.html:130
+#: web/templates/partials/search_inspector.html:138
 msgid "Why this result"
 msgstr ""
 
-#: web/templates/partials/search_inspector.html:149
+#: web/templates/partials/search_inspector.html:157
 msgid "Visual rhymes · cross-film"
 msgstr ""
 
-#: web/templates/partials/search_inspector.html:151
+#: web/templates/partials/search_inspector.html:159
 msgid "See all"
 msgstr ""
 
-#: web/templates/partials/search_inspector.html:176
+#: web/templates/partials/search_inspector.html:184
 msgid "Add a comment or annotation…"
 msgstr ""
 
-#: web/templates/partials/search_inspector.html:188
+#: web/templates/partials/search_inspector.html:196
 msgid "Comment"
 msgstr ""
 
@@ -1610,4 +1660,7 @@ msgstr ""
 
 #~ msgid "blocked"
 #~ msgstr "blocked"
+
+#~ msgid "Filter library"
+#~ msgstr "Filter library"
 

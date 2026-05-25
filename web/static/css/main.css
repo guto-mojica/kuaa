@@ -99,6 +99,7 @@
 
 html, body { margin: 0; padding: 0; height: 100%; }
 body {
+    display: flex; flex-direction: column;
     background: var(--c-bg);
     color: var(--c-text);
     font-family: var(--font-sans);
@@ -1376,4 +1377,4 @@ button.tree-node {
 /* ── Utility ───────────────────────────────────────────────────────────────── */
 .text-muted     { color: var(--c-text-muted); font-size: 0.875rem; }
 .text-secondary { color: var(--c-text-secondary); }
-.tab-panel      { min-height: 0; }
+.tab-panel      { display: flex; flex: 1; min-height: 0; }

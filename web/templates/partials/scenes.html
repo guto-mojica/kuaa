@@ -407,32 +407,54 @@
     </form>
   </div>
 
-  {# ── Countrow: library-wide stats. Tabular figures formatted via Python
-       so the template stays declarative; the dot-separator on totals
-       follows the PT-BR convention (1.234) even when the locale is `en`
-       so the visual rhythm of the countrow stays consistent. #}
-  <div class="countrow">
-    <span class="chev" aria-hidden="true">{{ icon('chev-d', 12) }}</span>
-    <span class="v">{{ '{:,}'.format(total_scenes).replace(',', '.') }}</span>
-    <span class="lab">{{ _('scenes') }}</span>
-    <span class="div" aria-hidden="true"></span>
-    <span class="v">{{ film_count }}</span>
-    <span class="lab">{{ _('films') }}</span>
-    <span class="div" aria-hidden="true"></span>
-    <span class="v">{{ total_runtime_str }}</span>
-    <span class="lab">{{ _('runtime') }}</span>
-    <span class="div" aria-hidden="true"></span>
-    <span class="v">{{ total_keyframes_size }}</span>
-    <span class="lab">{{ _('keyframes') }}</span>
-  </div>
+  {# ── Scroll wrapper: countrow + grid scroll together; toolrow stays
+       fixed at top. A plain div (not the grid itself) is the scroll
+       container so overflow-y: auto works reliably regardless of the
+       grid's implicit track sizing. #}
+  <div class="scroll">
+    <div class="countrow">
+      <span class="chev" aria-hidden="true">{{ icon('chev-d', 12) }}</span>
+      <span class="v">{{ '{:,}'.format(total_scenes).replace(',', '.') }}</span>
+      <span class="lab">{{ _('scenes') }}</span>
+      <span class="div" aria-hidden="true"></span>
+      <span class="v">{{ film_count }}</span>
+      <span class="lab">{{ _('films') }}</span>
+      <span class="div" aria-hidden="true"></span>
+      <span class="v">{{ total_runtime_str }}</span>
+      <span class="lab">{{ _('runtime') }}</span>
+      <span class="div" aria-hidden="true"></span>
+      <span class="v">{{ total_keyframes_size }}</span>
+      <span class="lab">{{ _('keyframes') }}</span>
+    </div>
 
-  {# ── Grid (HTMX swap target for the .find input). The included partial
-       renders one ``.group`` heading per film followed by its scenecards. #}
-  <div id="scenes-grid" class="grid">
-    {% include "partials/scenes_grid.html" %}
+    {# ── Grid (HTMX swap target for the .find input). The included partial
+         renders one ``.group`` heading per film followed by its scenecards. #}
+    <div id="scenes-grid" class="grid">
+      {% include "partials/scenes_grid.html" %}
+    </div>
   </div>
 
 </section>
 
 {% endif %}
+
+{# ── Scene inspector — right pane, always present as a flex sibling of .c-cp.
+     id="right-pane" matches the hx-target on every scenecard.
+     hx-swap="innerHTML" replaces the <section class="c-rp"> below with the
+     route's response (partials/scenes_inspector.html), which also renders a
+     <section class="c-rp"> — so the outer aside is the neutral HTMX target
+     and the section carries the .c-rp CSS (width 380px, flex column, etc.). #}
+<aside id="right-pane">
+  <section class="c-rp">
+    <div class="head">
+      <div class="l">
+        <span>{{ _('Scene') }}</span>
+      </div>
+    </div>
+    <div class="inner">
+      <p style="font-size: 12px; color: var(--c-muted); padding: 12px 0;">{{ _('Select a scene to see its details.') }}</p>
+    </div>
+  </section>
+</aside>
+
 </div>

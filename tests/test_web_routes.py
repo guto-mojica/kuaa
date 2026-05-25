@@ -145,8 +145,9 @@ def test_base_shell_renders_chrome(client):
     assert 'class="ch-rail"' in html
     # LeftPane (not compact on Buscar).
     assert 'class="ch-lp"' in html
-    # Body wrapper has the right-pane modifier (Buscar has a right pane).
-    assert "with-right" in html
+    # Buscar's right pane lives inside .tab-panel (not ch-right), so no
+    # with-right grid modifier; the inspector container is present though.
+    assert 'id="right-pane"' in html
     # Active tab tag uses the PT slug.
     assert 'data-active-tab="buscar"' in html
 

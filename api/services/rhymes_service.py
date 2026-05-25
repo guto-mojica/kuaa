@@ -392,8 +392,9 @@ def build_rimas_context(
     films_by_id = {f.slug: f for f in films}
 
     slug, scene_id = _parse_anchor(anchor)
-    if slug is None or scene_id is None:
-        slug, scene_id = _default_anchor(films)
+    # No implicit default anchor: show the empty state when ?anchor= is absent.
+    # The UX entry points are: scenes inspector "Find visual rhymes" button, or
+    # the Rimas tab's own anchor-picker controls once wired.
 
     anchor_data = (
         _load_scene_meta(cfg, slug, scene_id) if slug is not None and scene_id is not None else None
@@ -465,4 +466,5 @@ def build_rimas_context(
         "k": top_n,
         "mmr_lambda": mmr_lambda,
         "threshold": threshold,
+        "library_has_scenes": any(getattr(f, "is_processed", False) for f in films),
     }

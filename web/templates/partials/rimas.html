@@ -43,7 +43,12 @@
         {% endif %}
       </div>
       <div class="r">
-        <button class="fx-btn secondary">{{ icon('image', 14) }} {{ _('Swap anchor') }}</button>
+        <button class="fx-btn secondary"
+                hx-get="/tab/rimas"
+                hx-target="#ch-main"
+                hx-swap="innerHTML"
+                hx-push-url="/rimas"
+                title="{{ _('Pick a new anchor scene') }}">{{ icon('image', 14) }} {{ _('Swap anchor') }}</button>
         <button class="fx-btn secondary">{{ icon('share', 14) }} {{ _('Save collection') }}</button>
       </div>
     </header>
@@ -60,7 +65,7 @@
 
     <div class="scroll">
       {% if anchor_scene %}
-        <section class="r-anchor" data-film-slug="{{ anchor_scene.film_slug }}" data-scene-id="{{ anchor_scene.scene_id }}">
+        <section class="r-anchor" id="rimas-anchor" data-film-slug="{{ anchor_scene.film_slug }}" data-scene-id="{{ anchor_scene.scene_id }}">
           <div class="kf-wrap">
             <div class="kf"{% if anchor_scene.keyframe_url %} style="background-image: url('{{ anchor_scene.keyframe_url }}');"{% endif %}></div>
             <span class="kf-label">
@@ -103,28 +108,42 @@
             {% endif %}
           </div>
         </section>
+        <div class="caption">
+          <h2>
+            {% if echoes %}
+              {% set film_count = echoes|map(attribute='film_slug')|unique|list|length %}
+              <b>{{ echoes|length }}</b> {{ _('rhymes in') }} <b>{{ film_count }}</b> {{ _('films') }}
+            {% else %}
+              <b>0</b> {{ _('rhymes') }}
+            {% endif %}
+          </h2>
+          <span class="meta">
+            <span>k={{ k }} · MMR λ {{ '%.2f'|format(mmr_lambda) }}</span>
+          </span>
+        </div>
+
+        {# rimas_echoes.html's outer <div> already carries id="rimas-echoes"
+           + class="r-grid"; the fragment is its own HTMX swap target so
+           no extra wrapper is needed here. #}
+        {% include "partials/rimas_echoes.html" %}
+
       {% else %}
-        <p class="empty-state">{{ _('No processed films yet — run the embeddings pipeline to enable Rimas Visuais.') }}</p>
+        {# Empty state: no anchor selected or no processed films. #}
+        {% if library_has_scenes %}
+          <div class="empty-state" style="padding: 40px 24px; display: flex; flex-direction: column; gap: 10px;">
+            <p style="font-size: 14px; font-weight: 600; color: var(--c-text);">{{ _('No anchor selected') }}</p>
+            <p style="font-size: 12.5px; color: var(--c-muted); line-height: 1.55;">
+              {{ _('Open a scene in the Scenes tab and click') }}
+              <span style="font-family: var(--font-mono); font-size: 11.5px; color: var(--c-text-2);">{{ _('Find visual rhymes') }}</span>
+              {{ _('to explore cross-film visual echoes.') }}
+            </p>
+          </div>
+        {% else %}
+          <p class="empty-state" style="padding: 40px 24px;">{{ _('No processed films yet — run the embeddings pipeline to enable Rimas Visuais.') }}</p>
+        {% endif %}
+        {# Keep the swap target present so anchor-switch HTMX calls always resolve. #}
+        <div id="rimas-echoes" class="r-grid" style="display:none;"></div>
       {% endif %}
-
-      <div class="caption">
-        <h2>
-          {% if echoes %}
-            {% set film_count = echoes|map(attribute='film_slug')|unique|list|length %}
-            <b>{{ echoes|length }}</b> {{ _('rhymes in') }} <b>{{ film_count }}</b> {{ _('films') }}
-          {% else %}
-            <b>0</b> {{ _('rhymes') }}
-          {% endif %}
-        </h2>
-        <span class="meta">
-          <span>k={{ k }} · MMR λ {{ '%.2f'|format(mmr_lambda) }}</span>
-        </span>
-      </div>
-
-      {# rimas_echoes.html's outer <div> already carries id="rimas-echoes"
-         + class="r-grid"; the fragment is its own HTMX swap target so
-         no extra wrapper is needed here. #}
-      {% include "partials/rimas_echoes.html" %}
     </div>
   </section>
 

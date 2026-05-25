@@ -117,7 +117,14 @@
 
     <div class="r-actions">
       {% if selected_echo %}
-        <a class="fx-btn primary" href="/scenes?film={{ selected_echo.film_slug }}&scene={{ selected_echo.scene_id }}">
+        <button class="fx-btn primary"
+                hx-get="/tab/rimas?anchor={{ selected_echo.film_slug }}/{{ selected_echo.scene_id }}"
+                hx-target="#ch-main"
+                hx-swap="innerHTML"
+                hx-push-url="/rimas?anchor={{ selected_echo.film_slug }}/{{ selected_echo.scene_id }}">
+          {{ icon('rhymes', 14) }} {{ _('Set as anchor') }}
+        </button>
+        <a class="fx-btn secondary" href="/scenes?film={{ selected_echo.film_slug }}&scene={{ selected_echo.scene_id }}">
           <span>{{ _('Open rhyme scene') }}</span>
           <span class="kbd">↵</span>
         </a>
