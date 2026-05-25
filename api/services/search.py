@@ -117,6 +117,15 @@ from cinemateca.search.cache import (
     load_index,  # noqa: F401
 )
 
+# CLIP search verbs — relocated to cinemateca.search.clip (T9). The
+# names are re-exported here so external callers
+# (``search_service.search_text`` / ``search_service.search_image``)
+# and internal callers (``search_hybrid``) keep working unchanged.
+from cinemateca.search.clip import (
+    search_image,  # noqa: F401
+    search_text,  # noqa: F401
+)
+
 # Degenerate-tag display filter — relocated to cinemateca.search.display.
 # Re-exported under the legacy underscored names so external callers and
 # the existing ``TestDegenerateTagFilter`` suite keep working.
@@ -555,71 +564,10 @@ def aggregate_search(
     return all_hits
 
 
-# ── Search orchestration ──────────────────────────────────────────────────────
-
-
-def search_text(
-    index: SearchIndex,
-    query: str,
-    tags: list[str],
-    tag_index: dict,
-    top_k: int,
-    min_similarity: float = 0.0,
-):
-    """Run a text (optionally tag-filtered) semantic search.
-
-    Mirrors the prior route logic exactly: with ``tags`` it calls
-    ``SemanticSearch.combined`` passing the RAW merged ``tag_index``
-    (``combined`` self-normalizes — Phase 1c contract preserved); without
-    tags it calls ``by_text``. Caller (route) is responsible for running
-    this in an executor — kept sync here so the service stays
-    framework-agnostic and unit-testable without an event loop.
-
-    ``min_similarity`` post-filters the result DataFrame (CLIP returns
-    top-K unconditionally, so unrelated queries surface noise scenes;
-    the threshold drops anything below the cosine floor). 0.0 disables
-    the filter (default for back-compat with unit tests).
-    """
-    from cinemateca.embeddings import SemanticSearch
-
-    searcher = SemanticSearch(index.embeddings, index.kf_df, index.embedder)
-    # The underlying searcher returns the global top-K by similarity; with
-    # multiple keyframes per scene that top-K may concentrate inside one
-    # scene's keyframe block, starving other scenes. Ask for a wider
-    # window (top_k * kf_per_scene) so the post-dedupe top-K still has
-    # ``top_k`` distinct scenes to choose from. The wider window only
-    # affects ranking, not embedding cost.
-    raw_k = top_k * 4  # 4× is the configured ceiling for keyframes_per_scene
-    if tags:
-        df = searcher.combined(query, tags, tag_index, raw_k)
-    else:
-        df = searcher.by_text(query, raw_k)
-    n_raw = len(df)
-    top_raw = float(df["similarity"].iloc[0]) if n_raw and "similarity" in df.columns else 0.0
-    if min_similarity > 0.0 and not df.empty and "similarity" in df.columns:
-        df = df[df["similarity"] >= min_similarity].reset_index(drop=True)
-    # Dedupe by scene_id (Phase-1 density fix). The DataFrame is already
-    # ordered by similarity descending, so ``drop_duplicates`` keeps the
-    # first occurrence per scene = the best-matching keyframe of that
-    # scene. Trim to ``top_k`` AFTER dedup so the UI gets the requested
-    # number of *scenes*, not keyframes.
-    n_after_floor = len(df)
-    if not df.empty and "scene_id" in df.columns:
-        df = df.drop_duplicates(subset="scene_id", keep="first").reset_index(drop=True)
-    df = df.head(top_k).reset_index(drop=True)
-    logger.info(
-        "search_text: query=%r top_k=%d tags=%s min_sim=%.3f "
-        "raw_hits=%d top_score=%.3f kept_after_floor=%d dedup_kept=%d",
-        query,
-        top_k,
-        tags or None,
-        min_similarity,
-        n_raw,
-        top_raw,
-        n_after_floor,
-        len(df),
-    )
-    return df
+# ── Hybrid search dispatch ────────────────────────────────────────────────────
+# CLIP verbs (search_text / search_image) live in cinemateca.search.clip (T9);
+# re-exported at the top of this file. The hybrid dispatcher + its helpers
+# move to cinemateca.search.hybrid in T10.
 
 
 def search_hybrid(
@@ -927,17 +875,4 @@ def _fused_to_dataframe(
     return merged.head(top_k).reset_index(drop=True)
 
 
-def search_image(index: SearchIndex, image_path: Path, top_k: int):
-    """Run an image-similarity semantic search (sync; see :func:`search_text`).
-
-    Applies the same scene_id dedupe as :func:`search_text` so the UI
-    receives at most one card per scene, displaying the best-matching
-    keyframe (rather than three near-duplicate rows from the same shot).
-    """
-    from cinemateca.embeddings import SemanticSearch
-
-    searcher = SemanticSearch(index.embeddings, index.kf_df, index.embedder)
-    df = searcher.by_image(image_path, top_k * 4)
-    if not df.empty and "scene_id" in df.columns:
-        df = df.drop_duplicates(subset="scene_id", keep="first").reset_index(drop=True)
-    return df.head(top_k).reset_index(drop=True)
+# ``search_image`` relocated to cinemateca.search.clip (T9) — re-exported above.
