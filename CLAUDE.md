@@ -16,9 +16,9 @@ Cinemateca-imgsearch is an offline audiovisual cataloguing system for film archi
 It takes video files and produces searchable metadata (scenes, faces, objects,
 natural-language descriptions, semantic embeddings).
 
-The main branch is currently **migrating from v0.2.1 (Streamlit) to v0.3.0
-(FastAPI + HTMX + Jinja2)**. The Streamlit app remains functional as
-`app_streamlit.py` until feature parity is reached.
+The interface is **FastAPI + HTMX + Jinja2** (v0.3.0+). The legacy Streamlit
+app was removed once parity was confirmed; the FastAPI surface is the only
+supported UI.
 
 ---
 
@@ -87,6 +87,13 @@ Terms to avoid because they carry domain ambiguity:
 
 ```
 src/cinemateca/      AI core. HTTP-agnostic logic. Cleanly importable.
+  search/              4-verb / 7-type retrieval API (find / aggregate / reindex_bm25 / rerank).
+  library/             Registry + scan + FilmContext + per-film metadata loaders.
+  annotations/         Manual tags + descriptions + annotate-tab scene builders.
+  rhymes/              Cross-film visual-rhyme algorithm + enrichment.
+  eval/                Eval-set datasets + grades + IAA / κ metrics.
+  retrieval/           BM25Index + RRF fusion primitives.
+  models/              Protocol-typed model backends + registry.
 api/                 Thin HTTP layer. Each route calls src/cinemateca/ and returns JSON or HTML.
 web/templates/       Jinja2. base.html + partials/ for HTMX fragments.
 web/static/          CSS, vendored htmx.min.js, icons.
@@ -95,12 +102,18 @@ config/              default.yaml (versioned) + local.yaml (gitignored).
 tests/               pytest, no heavy-model dependencies in test_smoke.
 docs/                DESIGN_SYSTEM.md (visual source of truth), PROTOCOL_OPTION.md (pluggable model-backend design).
 app.py               FastAPI entrypoint (uvicorn api.server:app).
-app_streamlit.py     Legacy entrypoint. Removed at end of migration.
 ```
 
 **Rule:** AI logic lives in `src/cinemateca/`. If you're about to write model inference,
 video parsing, or embedding computation inside `api/` or `web/`, stop and move it to
 `src/cinemateca/`.
+
+**Deep-modules invariant (P1/P2/P3 refactor):** the `cinemateca.*` packages
+must not import from `api/*`. This is enforced by `import-linter` (see
+`.importlinter`); the matching LOC budget per service module is enforced
+by `scripts/check_loc_budget.py`. Both run in CI
+(`.github/workflows/refactor-guards.yml`). Public surface of each package
+lives in its `__init__.py`; everything else is implementation detail.
 
 ---
 
@@ -134,7 +147,7 @@ from or push to GitHub. The discipline below avoids stale-code conflicts.
 - Push when the user confirms (`git push origin main` or to a working branch).
 - If working on a feature branch, mention it in the commit summary so the user
   knows what to merge later.
-- Update the migration tracker at the bottom of this file when relevant.
+- Update the launch tracker at the bottom of this file when relevant.
 
 **What Claude Code will not do without explicit user request:**
 
@@ -163,10 +176,7 @@ uv run cinemateca <cmd> --help                 # flags for any subcommand
 # Run the FastAPI interface (v0.3.0+)
 uv run cinemateca serve                        # http://127.0.0.1:8501 (--reload by default)
 uv run cinemateca serve --port 9000 --no-reload
-# Legacy `uv run app.py` still works (delegates to `cinemateca serve`).
-
-# Run the legacy Streamlit interface (during migration)
-uv run streamlit run app_streamlit.py
+# `uv run app.py` still works (delegates to `cinemateca serve`).
 
 # Tests
 uv run pytest tests/ -q
@@ -240,8 +250,8 @@ CPU-only build, so it is safe to leave enabled either way.
 
 **Files expected to change frequently:**
 
-- `web/templates/**` during migration.
-- `api/routes/**` during migration.
+- `web/templates/**` for UI / partial work.
+- `api/routes/**` for endpoint work.
 - `CHANGELOG.md` with each significant feature.
 
 ---
@@ -292,37 +302,16 @@ a new pattern. Don't duplicate here — reference.
 
 ---
 
-## v0.2.1 → v0.3.0 migration tracker
+## v0.2.1 → v0.3.0 migration
 
-Last updated: in the commit message that touched CLAUDE.md.
-
-- [x] Folder structure (`api/`, `web/`, `docs/`) created
-- [x] `library.py` in `src/cinemateca/` to manage film collection
-- [x] FastAPI app skeleton running on `localhost:8501`
-- [x] Base layout (sidebar + main) in `web/templates/base.html`
-- [x] Search tab functional via HTMX
-- [x] Scenes tab functional via HTMX
-- [x] Annotate tab functional via HTMX
-- [x] Processing tab with SSE
-- [x] About modal
-- [x] i18n PT/EN extracted and translated
-- [x] Streamlit parity confirmed → tagged `v0.2.1-streamlit-final`
-- [x] uv adopted for env/deps (config-only, lockfile deferred — see docs/superpowers/specs/2026-05-16-uv-migration-scaffold-design.md)
-- [x] FastAPI regression recovery (Phases 0–8): regressions fixed (full-page parity, Processing render, scene-id tag filtering, SSE close), service layer, pipeline gating/cancellation, single-film v0.3 (multi-film deferred), i18n/a11y/offline, tests 18→208 — see docs/RELEASE_VERIFICATION.md
-- [x] Pluggable model backends (PROTOCOL_OPTION Steps 1–2): 5 Protocols +
-  registry, all roles moved, hard cutover (no shims), describer replaced
-  with keyless offline Moondream-2 GGUF (transformers removed) — see
-  docs/superpowers/specs/2026-05-17-pluggable-model-backends-design.md
-- [x] Describer default reverted to HF transformers Moondream2 @2025-01-09
-  (deployment ease: keyless, GPU via prebuilt PyTorch wheels on Win/Mac/Linux,
-  no source build). GGUF kept opt-in. transformers pinned >=4.44,<5 (tf5
-  hard-fails for every moondream2 revision, verified). uv.lock now committed.
-  See docs/superpowers/plans/2026-05-18-transformers-describer-default.md
-- [x] Multi-film library: per-film dirs, native file picker, film registration
-  and removal, `scan_library` multi-film aware, Processing dropdown synced to
-  active-film cookie, slug read from `film.json`
-
-Keep this list updated as steps complete.
+**Complete.** The Streamlit UI was retired once FastAPI + HTMX reached
+parity; `app_streamlit.py` and the `streamlit` / `gui` dependency entries
+are gone. Tag `v0.2.1-streamlit-final` is the last Streamlit-era commit
+for anyone who needs to recover historical UI behaviour. Major milestones
+along the way (folder restructure, pluggable model backends, transformers
+Moondream2 default, multi-film library) are captured commit-by-commit in
+`CHANGELOG.md` and `docs/RELEASE_VERIFICATION.md`. Forward work continues
+under the v0.3.0 → v1.0.0 launch tracker below.
 
 ---
 

@@ -108,7 +108,6 @@ cd cinemateca-imgsearch
 uv venv
 uv sync --extra full --group dev
 uv run app.py                 # FastAPI + HTMX, opens at http://localhost:8501
-# Legacy Streamlit UI (during migration): uv run streamlit run app_streamlit.py
 ```
 
 ### Public demo quickstart
@@ -233,8 +232,6 @@ uv sync --extra full --group dev
 
 # 4. Iniciar a interface (FastAPI + HTMX)
 uv run app.py
-# Interface Streamlit legada (durante a migração):
-#   uv run streamlit run app_streamlit.py
 ```
 
 Para instruções detalhadas, incluindo instalação do FFmpeg e configuração para

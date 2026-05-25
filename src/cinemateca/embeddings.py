@@ -92,10 +92,9 @@ class SemanticSearch:
         """
         if filter_tags and tag_index:
             # SOLE / REQUIRED normalization for the search path — do not
-            # delete believing the caller already normalized. Every real
-            # caller passes the RAW hybrid index straight in:
-            # api/routes/search.py (~L123) hands over merge_tag_index(...)
-            # untouched, and app_streamlit.py (~L255) does the same. That
+            # delete believing the caller already normalized. The real
+            # caller (api/routes/search.py, around line 123) passes the RAW
+            # hybrid index straight in: merge_tag_index(...) untouched. That
             # hybrid mixes int (LLM) and str (manual) scene ids. If this
             # normalize_tag_index call is removed the membership test below
             # silently mismatches and tag-filtered search returns nothing.

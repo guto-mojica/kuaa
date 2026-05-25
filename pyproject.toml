@@ -73,8 +73,6 @@ full = [
     "python-multipart>=0.0.7",
     "aiofiles>=23.0",
     "babel>=2.14",
-    # legacy Streamlit (removed after parity confirmed)
-    "streamlit>=1.28",
 ]
 # v0.3.0 web interface: pip install -e ".[web]"
 web = [
@@ -84,11 +82,6 @@ web = [
     "python-multipart>=0.0.7",
     "aiofiles>=23.0",
     "babel>=2.14",
-]
-# Somente GUI (legacy Streamlit): pip install -e ".[gui]"
-gui = [
-    "streamlit>=1.28",
-    "rich>=13.0",
 ]
 # Somente busca: pip install -e ".[search]"
 search = [
