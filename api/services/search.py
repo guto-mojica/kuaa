@@ -2,19 +2,13 @@
 
 After P1's deep-modules refactor (T3–T13) the search domain logic lives
 in :mod:`cinemateca.search`. This module is the HTTP-adapter surface the
-route layer (``api/routes/search.py``) and the legacy test suite import
-through. It re-exports the symbols the FastAPI app and tests pin against,
-and owns three small wrappers that need the FastAPI app config:
-
-  * :func:`_get_embedder` — module-scope so unit tests monkeypatch it to
-    bypass real CLIP-model load;
-  * :func:`_get_search_index` — resolves per-film embeddings dir +
-    ``cfg.embeddings`` filenames, then delegates to :func:`load_index`;
-  * :func:`_get_bm25_index_for_ctx` — resolves ``cfg.search.bm25``
-    tunables, then delegates to
-    :func:`cinemateca.search.bm25.bm25_index_for_ctx`;
-  * :func:`has_indexed_films` — library-wide "any OK index?" probe used
-    by the route to distinguish "no index yet" from "no hits".
+route layer + legacy test suite import through. It re-exports the
+symbols the FastAPI app and tests pin against, plus a few small wrappers
+that need the FastAPI app config (``_get_embedder`` monkeypatched by
+tests; ``_get_search_index`` / ``_get_bm25_index_for_ctx`` resolve
+``cfg.embeddings`` / ``cfg.search.bm25`` and forward to
+:mod:`cinemateca.search`; ``has_indexed_films`` probes the library;
+``dispatch_text_search`` orchestrates the per-film vs aggregate branch).
 """
 
 from __future__ import annotations
@@ -26,10 +20,14 @@ from typing import TYPE_CHECKING, Any
 from api.services.catalog import keyframe_url  # noqa: F401  — used by routes
 from api.services.film_context import FilmContext
 
-# Result conversion + Mojica context + films-by-id lookup (T8).
+# Result conversion + Mojica context + films-by-id lookup (T8). T15
+# adds ``enrich_hits_with_film_metadata`` re-export so the slim route
+# layer doesn't import ``cinemateca.search._lookup`` directly (keeps
+# the routes-not-direct-core import-linter contract clean).
 from cinemateca.search._lookup import (
     build_search_context,  # noqa: F401
     build_search_context_aggregate,  # noqa: F401
+    enrich_hits_with_film_metadata,  # noqa: F401
     films_by_id_lookup,  # noqa: F401
 )
 from cinemateca.search._results import results_to_dicts  # noqa: F401
@@ -37,7 +35,12 @@ from cinemateca.search._results import results_to_dicts  # noqa: F401
 # Aggregate cross-film search (T11) — still reads ``_get_embedder`` and
 # ``_get_search_index`` off this module via lazy attribute access, so the
 # monkeypatches on ``api.services.search._get_*`` keep hitting the call path.
-from cinemateca.search.aggregate import aggregate_search  # noqa: F401
+# T15 adds ``aggregate_hits_to_template_dicts`` re-export (same rationale
+# as the ``enrich_hits_with_film_metadata`` re-export above).
+from cinemateca.search.aggregate import (  # noqa: F401
+    aggregate_hits_to_template_dicts,
+    aggregate_search,
+)
 
 # BM25 loader + lru_cache (T7) — module self-registers its cache flusher
 # with cinemateca.search.cache so ``clear_index_cache()`` flushes BM25.
@@ -65,8 +68,13 @@ from cinemateca.search.display import (
     filter_degenerate_tags as _filter_degenerate_tags,  # noqa: F401
 )
 
-# Hybrid dispatch (T10).
-from cinemateca.search.hybrid import search_hybrid  # noqa: F401
+# Hybrid dispatch (T10). T15 adds ``resolve_retriever_args`` so the
+# slim route imports HTTP-input normalisation from this layer rather
+# than reaching into ``cinemateca.search.hybrid`` directly.
+from cinemateca.search.hybrid import (  # noqa: F401
+    resolve_retriever_args,
+    search_hybrid,
+)
 
 # Upload validation (T5). UploadRejected re-exported for the legacy
 # ``api.services.search.UploadRejected`` import path used by routes + tests.
@@ -89,13 +97,9 @@ _DEFAULT_MAPPING_FILENAME = "index_mapping.json"
 
 
 def _get_bm25_index_for_ctx(ctx: FilmContext) -> BM25Index:
-    """Load + cache the BM25 index for one film, using app-config tunables.
-
-    Resolves ``cfg.search.bm25`` for ``stopwords_lang`` / ``k1`` / ``b``
-    via :func:`api.deps.get_config`, then forwards to
-    :func:`cinemateca.search.bm25.bm25_index_for_ctx`. ``get_config`` is
-    imported lazily so this module stays loadable without the FastAPI
-    app config wired up (matters for unit tests).
+    """Load + cache the BM25 index for one film. Resolves ``cfg.search.bm25``
+    tunables (``stopwords_lang`` / ``k1`` / ``b``) via lazy ``get_config``
+    so this module stays loadable without the FastAPI app wired up.
     """
     from api.deps import get_config
     from cinemateca.search.bm25 import bm25_index_for_ctx
@@ -109,12 +113,9 @@ def _get_bm25_index_for_ctx(ctx: FilmContext) -> BM25Index:
 
 
 def _get_embedder(cfg: Any) -> object:
-    """Return a fresh ``OpenClipEmbedder`` instance.
-
-    Module-scope so unit tests monkeypatch
-    ``api.services.search._get_embedder`` to avoid loading the real CLIP
-    model. ``cfg`` is accepted for API consistency / future routing but
-    currently ignored.
+    """Return a fresh ``OpenClipEmbedder``. Module-scope so unit tests
+    monkeypatch ``api.services.search._get_embedder`` to avoid loading
+    the real CLIP model. ``cfg`` is accepted but currently ignored.
     """
     from cinemateca.models.clip.openclip import OpenClipEmbedder
 
@@ -122,12 +123,9 @@ def _get_embedder(cfg: Any) -> object:
 
 
 def _get_search_index(cfg: Any, slug: str) -> SearchIndex:
-    """Return the (cached) :class:`SearchIndex` for the film identified by *slug*.
-
-    Resolves the per-film embeddings dir via :meth:`FilmContext.for_film`,
-    then delegates to :func:`load_index` with canonical filenames
-    (``cfg.embeddings.*`` if present, otherwise the module-level
-    defaults for minimal test configs).
+    """Return the (cached) :class:`SearchIndex` for ``slug``. Reads
+    ``cfg.embeddings.*`` filenames when present, otherwise falls back
+    to the module-level defaults for minimal test configs.
     """
     emb_cfg = getattr(cfg, "embeddings", None)
     embeddings_filename = (
@@ -142,21 +140,87 @@ def _get_search_index(cfg: Any, slug: str) -> SearchIndex:
     )
     ctx = FilmContext.for_film(cfg, slug)
     return load_index(
+        ctx, embeddings_filename=embeddings_filename, mapping_filename=mapping_filename
+    )
+
+
+def dispatch_text_search(
+    cfg: Any,
+    ctx: Any | None,
+    q: str,
+    tags: list[str],
+    top_k: int,
+    min_sim: float,
+    retriever: str,
+    sw: float,
+    bw: float,
+    rrf_k: int,
+) -> tuple[Any, bool]:
+    """Run text search; return ``(payload, no_index)``.
+
+    ``ctx=None`` → cross-film aggregate (``payload`` = list of hit dicts).
+    ``ctx`` given → per-film (``payload`` = a DataFrame). ``no_index=True``
+    signals the route should render the no-index empty state instead of a
+    results list. Pulls the BM25 index + tag index lazily so the per-film
+    fast path doesn't read disk when ``retriever == "clip"`` and ``tags``
+    is empty (preserving the legacy behaviour).
+    """
+    from api.services.catalog import load_tag_index
+
+    if ctx is None:
+        try:
+            hits = aggregate_search(
+                cfg,
+                query=q,
+                modality="text",
+                top_k=top_k,
+                tags=tags,
+                min_similarity=min_sim,
+                retriever_mode=retriever,
+                sem_w=sw,
+                bm25_w=bw,
+                rrf_k=rrf_k,
+            )
+        except NotImplementedError:
+            return [], True
+        if not hits and not has_indexed_films(cfg):
+            return [], True
+        return hits, False
+
+    index = load_index(
         ctx,
-        embeddings_filename=embeddings_filename,
-        mapping_filename=mapping_filename,
+        mapping_filename=cfg.embeddings.mapping_filename,
+        embeddings_filename=cfg.embeddings.filename,
+    )
+    if not index.ok:
+        return None, True
+    tag_index = load_tag_index(ctx.metadata_dir) if tags else {}
+    if retriever == "clip":
+        return search_text(index, q, tags, tag_index, top_k, min_sim), False
+    bm25 = _get_bm25_index_for_ctx(ctx)
+    return (
+        search_hybrid(
+            index,
+            bm25=bm25,
+            query=q,
+            tags=tags,
+            tag_index=tag_index,
+            top_k=top_k,
+            min_similarity=min_sim,
+            retriever_mode=retriever,
+            sem_w=sw,
+            bm25_w=bw,
+            rrf_k=rrf_k,
+        ),
+        False,
     )
 
 
 def has_indexed_films(cfg: Any) -> bool:
     """``True`` iff at least one registered film has an OK :class:`SearchIndex`.
 
-    Lets the route distinguish two empty-hit cases:
-
-      * no indexed films yet → render "No search index found" (user must
-        run the embeddings pipeline);
-      * indexed films exist but the query produced zero hits above
-        ``min_similarity`` → render "No results".
+    Lets the route distinguish "no indexed films yet" (run the pipeline)
+    from "indexed films exist but the query matched nothing" (no results).
     """
     from cinemateca.library import scan_library
 

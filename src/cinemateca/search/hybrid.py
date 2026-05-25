@@ -29,12 +29,12 @@ dispatcher without dragging in FastAPI app config.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 
-from cinemateca.retrieval.hybrid import DEFAULT_RRF_K, fuse_rrf
+from cinemateca.retrieval.hybrid import DEFAULT_RRF_K, fuse_rrf, resolve_weights
 from cinemateca.search.cache import SearchIndex
 from cinemateca.search.clip import search_text
 
@@ -42,6 +42,39 @@ if TYPE_CHECKING:
     from cinemateca.retrieval.bm25 import BM25Index  # noqa: F401  — used in annotations
 
 logger = logging.getLogger(__name__)
+
+_VALID_RETRIEVERS = {"clip", "bm25", "hybrid"}
+
+
+def resolve_retriever_args(
+    cfg: Any,
+    retriever: str,
+    sem_w: float | None,
+    bm25_w: float | None,
+) -> tuple[str, float, float, int]:
+    """Normalise raw HTTP retriever args → ``(retriever, sem_w, bm25_w, rrf_k)``.
+
+    Pulls defaults from ``cfg.search.hybrid_sem_w`` / ``hybrid_bm25_w`` and
+    the optional ``cfg.search.bm25.rrf_k`` knob; clamps weights via
+    :func:`resolve_weights`; falls back to ``"hybrid"`` on an unknown
+    retriever string (matches the route's "don't 4xx on bookmarked URLs"
+    policy — logged at WARNING). Either of ``sem_w`` / ``bm25_w`` being
+    ``None`` uses the config default for that side.
+    """
+    if retriever not in _VALID_RETRIEVERS:
+        logger.warning(
+            "resolve_retriever_args: unknown retriever=%r — falling back to hybrid", retriever
+        )
+        retriever = "hybrid"
+    defaults = (float(cfg.search.hybrid_sem_w), float(cfg.search.hybrid_bm25_w))
+    sw, bw = resolve_weights(
+        sem_w=sem_w if sem_w is not None else defaults[0],
+        bm25_w=bm25_w if bm25_w is not None else defaults[1],
+        defaults=defaults,
+    )
+    bm25_cfg = getattr(cfg.search, "bm25", None)
+    rrf_k = int(getattr(bm25_cfg, "rrf_k", DEFAULT_RRF_K)) if bm25_cfg else DEFAULT_RRF_K
+    return retriever, sw, bw, rrf_k
 
 
 def search_hybrid(

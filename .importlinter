@@ -20,6 +20,7 @@ forbidden_modules=
     api
 ignore_imports=
     cinemateca.search._results -> api.services.catalog
+    cinemateca.search._lookup -> api.services.catalog
     cinemateca.search._lookup -> api.services.film_context
     cinemateca.search.aggregate -> api.services.catalog
     cinemateca.search.aggregate -> api.services.film_context
@@ -28,15 +29,12 @@ ignore_imports=
     cinemateca.search._dispatch -> api.deps
 
 [importlinter:contract:routes-not-direct-core]
-# Provisional — relaxed during P1 because routes currently call FilmContext
-# directly AND import cinemateca.retrieval.hybrid for DEFAULT_RRF_K /
-# resolve_weights. ``allow_indirect_imports = True`` so transitive chains
-# routed through ``api.services.*`` are NOT flagged; only direct imports
-# from ``api.routes.search`` into core packages would fail this contract.
-# ``ignore_imports`` carves out the one direct chain that exists today and
-# will be removed in Tasks 14/15 when the route stops calling helpers in
-# ``cinemateca.retrieval`` directly. Task 16 tightens by deleting the
-# ignore entry.
+# T15 dropped the route's direct import of ``cinemateca.retrieval.hybrid``
+# (``DEFAULT_RRF_K`` / ``resolve_weights`` now live behind
+# ``api.services.search.resolve_retriever_args``). ``allow_indirect_imports
+# = True`` keeps transitive chains routed through ``api.services.*`` legal;
+# direct imports from ``api.routes.search`` into core packages would fail
+# this contract. Task 16 will further tighten.
 name=routes use services, not core directly
 type=forbidden
 source_modules=
@@ -46,5 +44,3 @@ forbidden_modules=
     cinemateca.retrieval
     cinemateca.embeddings
 allow_indirect_imports=True
-ignore_imports=
-    api.routes.search -> cinemateca.retrieval.hybrid

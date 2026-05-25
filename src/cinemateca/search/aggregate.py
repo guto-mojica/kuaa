@@ -443,3 +443,35 @@ def aggregate(
         query=query,
         no_index=no_index,
     )
+
+
+def aggregate_hits_to_template_dicts(cfg: Any, hits: list[dict]) -> list[dict]:
+    """Convert ``aggregate_search`` raw hits to ``.b-card``-shaped template dicts.
+
+    Relocated from the aggregate path of ``api/routes/search.py`` (T15).
+    The ``data_dir`` MUST be the media-mount root (``cfg.paths.data_dir``),
+    not ``library_dir`` — otherwise ``keyframe_url``'s ``relative_to``
+    check fails for filepaths stored under ``data/frames/...`` or
+    ``data/library/<slug>/...`` and the template gets
+    ``img_url=None`` for every row.
+
+    Aggregate hits already carry ``film_slug`` / ``film_title`` /
+    ``timecode`` (computed by ``aggregate_search``). Template uses
+    ``r.similarity``; aggregate_search emits ``score`` (cosine over the
+    per-film index) — aliased here so the same ``partials/search_results.html``
+    works for the per-film and aggregate paths.
+    """
+    from api.services.catalog import keyframe_url
+
+    data_dir = Path(cfg.paths.data_dir).resolve()
+    return [
+        {
+            "film_slug": h["film_slug"],
+            "film_title": h["film_title"],
+            "scene_id": h["scene_id"],
+            "similarity": h["score"],
+            "img_url": keyframe_url(h["keyframe_path"], data_dir),
+            "timecode": h["timecode"],
+        }
+        for h in hits
+    ]
