@@ -14,9 +14,11 @@ CAPS = {
     "api/routes": 150,
 }
 
-# Exemptions during the migration. Each entry is a `(path, until_commit)`
-# tuple, NOT a permanent allowance — remove once the migration task
-# specified in the spec lands.
+# Exemptions during the migration. Each entry names a file currently
+# over its cap; the entry stays until the cap-violating commit is
+# refactored away (a "P*" phase task). Files that already meet their
+# cap are NOT exempted — adding them would silently disable the guard
+# the moment a future edit pushed them over.
 EXEMPTIONS: set[str] = {
     # P1 will remove these as services slim down.
     "api/services/search.py",
@@ -26,16 +28,12 @@ EXEMPTIONS: set[str] = {
     "api/services/rhymes_service.py",
     "api/services/catalog.py",
     "api/services/about_service.py",
-    "api/services/chrome_service.py",
     "api/services/processing_service.py",
-    "api/services/film_context.py",
-    "api/services/palette_service.py",
     "api/routes/search.py",
     "api/routes/scenes.py",
     "api/routes/processing.py",
     "api/routes/library.py",
     "api/routes/annotate.py",
-    "api/routes/about.py",
     "api/routes/eval.py",
 }
 
@@ -48,7 +46,7 @@ def main() -> int:
             rel = str(py.relative_to(root))
             if rel in EXEMPTIONS:
                 continue
-            lines = py.read_text().count("\n")
+            lines = len(py.read_text().splitlines())
             if lines > cap:
                 violations.append((rel, lines, cap))
     if violations:
