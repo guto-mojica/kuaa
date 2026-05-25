@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from types import SimpleNamespace
+
 from cinemateca.annotations.io import load_annotations
 from cinemateca.library import FilmContext, derive_fps, keyframe_url, load_json, to_smpte
 
@@ -303,7 +305,7 @@ def scene_context(
     }
 
 
-def resolve_selected_film(ctx: FilmContext):
+def resolve_selected_film(ctx: FilmContext) -> SimpleNamespace | None:
     """Return the ``Film`` registered for ``ctx.slug``, or ``None``.
 
     Used by :func:`build_annotate_context` to populate the Mojica
@@ -332,8 +334,6 @@ def resolve_selected_film(ctx: FilmContext):
         # template reads (title / year). A future maintainer can
         # promote this to a real ``scan_library`` lookup if more fields
         # are needed; for the breadcrumb the title is enough.
-        from types import SimpleNamespace
-
         return SimpleNamespace(
             slug=ctx.slug,
             title=entry.get("title") or ctx.slug,

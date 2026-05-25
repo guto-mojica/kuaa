@@ -44,9 +44,6 @@ from typing import Any
 from cinemateca import library
 from cinemateca.library import FilmContext
 from cinemateca.rhymes import Rhyme, find_rhymes
-from cinemateca.rhymes.anchor import (  # noqa: F401
-    default_anchor as _default_anchor,
-)
 from cinemateca.rhymes.anchor import (
     parse_anchor as _parse_anchor,
 )
