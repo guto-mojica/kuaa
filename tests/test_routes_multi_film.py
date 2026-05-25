@@ -119,16 +119,15 @@ class TestScenesRouteMultiFilm:
         assert "Film B" in r.text
         assert "Film A" not in r.text
 
-    def test_tab_scenes_unknown_slug_raises(self, two_film_client):
-        """Unknown slug → FilmContext.for_film raises ValueError.
+    def test_tab_scenes_unknown_slug_falls_back_to_aggregate(self, two_film_client):
+        """Unknown slug → film_slug_query returns None → aggregate view (200).
 
-        The route does not currently catch ValueError from for_film (that
-        guard lands in T10). TestClient propagates server exceptions by
-        default; the test uses pytest.raises to pin this behavior — an
-        exception is visible, a silent wrong result is not.
+        film_slug_query validates the slug against the library dir and
+        silently returns None for unregistered slugs rather than raising,
+        so the tab renders the aggregate grid instead of 500-ing.
         """
-        with pytest.raises(ValueError, match="Film not registered"):
-            two_film_client.get("/tab/scenes?film=ghost")
+        r = two_film_client.get("/tab/scenes?film=ghost")
+        assert r.status_code == 200
 
 
 class TestScenesGridAggregate:

@@ -371,9 +371,9 @@ class TestServe:
     def test_serve_delegates_to_uvicorn_run(self, monkeypatch, runner):
         captured: dict = {}
 
-        def fake_run(target, *, host, port, reload):
+        def fake_run(target, *, host, port, reload, app_dir=None):
             captured.update(dict(target=target, host=host, port=port,
-                                  reload=reload))
+                                  reload=reload, app_dir=app_dir))
 
         monkeypatch.setattr("uvicorn.run", fake_run)
 
