@@ -237,14 +237,16 @@ def build_inspector_context(
     tags = _tags_for(ctx.metadata_dir, scene_id)
 
     # scene_index is 1-based for the "Scene N / M" display in the
-    # properties tab. ``total`` is the number of scenes in the film
-    # (length of keyframes_metadata.json).
-    total_scenes = len(kf_meta)
-    scene_index = 1
+    # properties tab. Deduplicate by scene_id — detector writes N
+    # keyframes per scene; only unique ids count toward the total.
+    unique_ids = list(dict.fromkeys(
+        e.get("scene_id") for e in kf_meta if e.get("scene_id") is not None
+    ))
+    total_scenes = len(unique_ids)
+    scene_index = (unique_ids.index(scene_id) + 1) if scene_id in unique_ids else 1
     for i, e in enumerate(kf_meta, start=1):
         try:
             if int(e.get("scene_id")) == scene_id:
-                scene_index = i
                 break
         except (TypeError, ValueError):
             continue

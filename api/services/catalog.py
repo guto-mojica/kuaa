@@ -90,6 +90,18 @@ def build_cards(
                 filtered.append(s)
         scenes = filtered
 
+    # Deduplicate by scene_id — the detector writes N keyframes per scene
+    # (N=3 by default) for embedding density. The scene browser shows one
+    # card per scene; search deduplicates at query time via max(similarity).
+    seen_scene_ids: set = set()
+    unique_scenes: list = []
+    for s in scenes:
+        sid = scene_id_key(s.get("scene_id", ""))
+        if sid not in seen_scene_ids:
+            seen_scene_ids.add(sid)
+            unique_scenes.append(s)
+    scenes = unique_scenes
+
     cards = []
     for s in scenes:
         sid = scene_id_key(s.get("scene_id", ""))

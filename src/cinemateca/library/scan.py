@@ -63,7 +63,9 @@ def scan_library(library_dir: Path) -> list[Film]:
                 with open(kf_path, encoding="utf-8") as f:
                     kf_meta = json.load(f)
                 if isinstance(kf_meta, list):
-                    scene_count = len(kf_meta)
+                    # Count unique scene_id values — the detector emits
+                    # N rows per scene (N keyframes for embedding density).
+                    scene_count = len({e.get("scene_id") for e in kf_meta})
             except (json.JSONDecodeError, OSError) as exc:
                 logger.warning(
                     "Unreadable keyframes_metadata.json for %s: %s", slug, exc

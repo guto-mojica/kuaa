@@ -129,6 +129,7 @@
   <div hx-ext="sse"
        sse-connect="/api/pipeline/stream/{{ job.id }}"
        sse-close="done,error,cancelled"
+       hx-on:htmx:sseClose="htmx.ajax('GET', '/api/pipeline/job-card/{{ job.id }}', {target: '#job-{{ job.id }}', swap: 'outerHTML'})"
        style="margin-top: 6px;">
     <div sse-swap="update,done,error,cancelled" hx-swap="innerHTML">
       {% include "partials/processing_stepper.html" with context %}
