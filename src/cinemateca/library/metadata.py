@@ -1,8 +1,18 @@
 """Per-film metadata loaders — read keyframes / descriptions / tags / visual JSON.
 
-Lenient on malformed ``scene_tags.json`` (logs + empty) matching the P1
-``cinemateca.search._tag_index.load_tag_index`` behavior. The catalog
-twin (which raised) is updated when the relocated import lands.
+Deliberate divergence in this module: :func:`load_tag_index` is LENIENT on
+malformed ``scene_tags.json`` (logs + returns ``{}``) while
+:func:`load_metadata` reads the same file via :func:`load_json` STRICTLY
+(propagates ``json.JSONDecodeError``). The asymmetry is inherited from P1
+(``cinemateca.search._tag_index`` was lenient; the catalog twin
+was strict) and preserved here on purpose:
+
+  * Search-tab paths (which call :func:`load_tag_index`) degrade gracefully
+    on a corrupted tag file — the search still returns CLIP-only results.
+  * Scenes-tab paths (which call :func:`load_metadata`) surface the error
+    immediately because the corruption blocks scene rendering anyway.
+
+When P3+ unifies the two paths, pick one behavior across the module.
 """
 from __future__ import annotations
 

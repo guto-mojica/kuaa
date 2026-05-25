@@ -61,19 +61,30 @@ class Library:
                 return f
         raise KeyError(f"Film not registered: {slug!r}")
 
-    def context(self, slug: str, *, data_dir: Path | None = None) -> FilmContext:
+    def context(self, slug: str, *, data_dir: Path) -> FilmContext:
         """Build a FilmContext for ``slug``.
 
-        ``data_dir`` defaults to ``library_dir`` if not supplied — mirrors
-        the FilmContext.for_film fallback. Pass a value when the media
-        mount root differs from the library root.
+        ``data_dir`` is REQUIRED — it is the ``/media`` mount root for
+        keyframe URL resolution. In production this is ``cfg.paths.data_dir``,
+        which typically sits ONE LEVEL ABOVE ``library_dir`` (e.g.
+        ``data/`` vs ``data/library/``). Defaulting ``data_dir`` to
+        ``library_dir`` (an earlier shape of this method) silently mangled
+        ``/media/...`` URLs because the resolved paths fell outside the
+        actual served root — kept required to force the caller to think
+        about it.
+
+        Implementation note: this synthesizes a SimpleNamespace ``cfg`` to
+        call the existing ``FilmContext.for_film(cfg, slug)``. P3 should
+        add ``FilmContext.from_paths(library_dir, slug, *, data_dir)``
+        and have this method call THAT directly — the workaround leaks
+        ``cfg``-shaped duck typing into the Library handle.
         """
         from types import SimpleNamespace
 
         cfg = SimpleNamespace(
             paths=SimpleNamespace(
                 library_dir=str(self.library_dir),
-                data_dir=str(data_dir or self.library_dir),
+                data_dir=str(data_dir),
             )
         )
         return FilmContext.for_film(cfg, slug)
