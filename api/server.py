@@ -165,7 +165,8 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     # .ch-main) see the same values they did before. The ``processing``
     # builder still re-supplies ``films`` downstream — that override is
     # intentional (see merge below), not a bug.
-    chrome_ctx = build_chrome_context(cfg, current_slug=current_slug)
+    bucket_param = request.query_params.get("bucket") or None
+    chrome_ctx = build_chrome_context(cfg, current_slug=current_slug, current_bucket=bucket_param)
 
     base_ctx = {
         "active_tab": active_tab,
@@ -222,16 +223,9 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     elif active_tab == "scenes":
         # ``?film=<slug>`` narrows the .c-cp grid to a single film's
         # group; ``slug=None`` keeps the library-wide aggregate view.
-        # Without this branch the full-page route rendered the aggregate
-        # grid even when the URL bar / sidebar advertised a selected
-        # film, so picking a film and the LeftPane marking the row
-        # active had no effect on the visible thumbnails. The HTMX
-        # fragment routes (``/tab/scenes``, ``/api/scenes``) always
-        # threaded the slug through; this branch restores parity.
-        # ``?scene=<id>`` deep-link parsing stays a fragment-only
-        # concern (the right-pane inspector lives on a separate swap),
-        # so ``selected_scene_id`` is left at the builder's default.
-        tab_ctx = build_cenas_context(cfg, slug=current_slug)
+        # ``?bucket=<tipo>`` filters to scenes of that tipo (exterior /
+        # cartela / dialogo / interior) — the Coleções links use it.
+        tab_ctx = build_cenas_context(cfg, slug=current_slug, bucket=bucket_param)
     elif active_tab == "annotate":
         fctx = (
             FilmContext.for_film(cfg, current_slug)

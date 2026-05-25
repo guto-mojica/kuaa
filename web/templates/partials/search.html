@@ -174,7 +174,7 @@
                 @click="open = !open"
                 :aria-expanded="open ? 'true' : 'false'"
                 aria-haspopup="dialog">
-          <span class="k">{{ _("Híbrido") }}</span>
+          <span class="k" x-text="({ clip: 'CLIP', bm25: 'BM25', hybrid: '{{ _("Híbrido") }}' })[$store.buscarRetrieval.mode]"></span>
           {# |tojson emits a properly-escaped JSON string literal (with
              double quotes + backslash-escaping) — safe to inline as a JS
              string value even when the translation contains apostrophes,

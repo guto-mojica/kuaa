@@ -52,6 +52,7 @@ async def tab_scenes(
     slug: str | None = Depends(film_slug_query),
     group: str = "film",
     sort: str = "timecode",
+    bucket: str | None = Query(default=None),
 ) -> HTMLResponse:
     """Render the Cenas (Scenes) tab partial.
 
@@ -75,6 +76,7 @@ async def tab_scenes(
         slug=slug,
         group=group,
         sort=sort,
+        bucket=bucket,
     )
     return templates.TemplateResponse(
         request,
@@ -91,6 +93,7 @@ async def api_scenes(
     slug: str | None = Depends(film_slug_query),
     group: str = "film",
     sort: str = "timecode",
+    bucket: str | None = Query(default=None),
 ) -> HTMLResponse:
     """Return the filtered Cenas grid fragment for HTMX swaps.
 
@@ -116,6 +119,7 @@ async def api_scenes(
         slug=slug,
         group=group,
         sort=sort,
+        bucket=bucket,
     )
     # The grid partial only needs ``groups_by_film`` +
     # ``selected_scene_id``; slim the dict so callers don't bloat

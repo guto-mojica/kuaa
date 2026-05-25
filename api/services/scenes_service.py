@@ -704,6 +704,7 @@ def _build_groups_by_film(
     slug: str | None = None,
     group: str = "film",
     sort: str = "timecode",
+    bucket: str | None = None,
 ) -> tuple[list[dict], list[Any], int, float, set[str]]:
     """Walk the library and produce the ``groups_by_film`` template payload.
 
@@ -803,6 +804,10 @@ def _build_groups_by_film(
             continue
         film_ns = _film_for_grid(film, kf_meta)
         scenes = [_card_to_scene(c, film_ns=film_ns) for c in cards]
+        if bucket:
+            scenes = [s for s in scenes if s.get("tipo") == bucket]
+        if not scenes:
+            continue
         total_scenes += len(scenes)
         total_runtime_s += film_ns.runtime_s
         per_film.append((film_ns, scenes))
@@ -940,6 +945,7 @@ def build_cenas_context(
     slug: str | None = None,
     group: str = "film",
     sort: str = "timecode",
+    bucket: str | None = None,
 ) -> dict:
     """Return the full Cenas-tab template context.
 
@@ -977,7 +983,7 @@ def build_cenas_context(
         total_runtime_s,
         all_tags,
     ) = _build_groups_by_film(
-        cfg, tags=tags, keyword=keyword, slug=slug, group=group, sort=sort
+        cfg, tags=tags, keyword=keyword, slug=slug, group=group, sort=sort, bucket=bucket
     )
 
     # Flat cards list — preserves the legacy context key so older

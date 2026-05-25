@@ -59,7 +59,7 @@ class ChromeContext(TypedDict):
     notification_count: int
 
 
-def _default_collections(films: list[Film], total_scenes: int) -> list[dict[str, Any]]:
+def _default_collections(films: list[Film], total_scenes: int, current_bucket: str | None = None) -> list[dict[str, Any]]:
     """Return the curated default-collection list rendered in the LeftPane.
 
     Five entries match the Mojica prototype's ``Coleções`` section:
@@ -80,7 +80,7 @@ def _default_collections(films: list[Film], total_scenes: int) -> list[dict[str,
     # wraps each one in `_()` so the per-request locale is honoured.
     return [
         {
-            "active": True,
+            "active": current_bucket is None,
             "label": "Entire library",
             "icon": "grid",
             "count": total_scenes,
@@ -88,7 +88,7 @@ def _default_collections(films: list[Film], total_scenes: int) -> list[dict[str,
             "url": "/scenes",
         },
         {
-            "active": False,
+            "active": current_bucket == "exterior",
             "label": "Rural exteriors",
             "icon": "folder",
             "count": 142,
@@ -96,7 +96,7 @@ def _default_collections(films: list[Film], total_scenes: int) -> list[dict[str,
             "url": "/scenes?bucket=exterior",
         },
         {
-            "active": False,
+            "active": current_bucket == "cartela",
             "label": "Title cards",
             "icon": "folder",
             "count": 28,
@@ -104,7 +104,7 @@ def _default_collections(films: list[Film], total_scenes: int) -> list[dict[str,
             "url": "/scenes?bucket=cartela",
         },
         {
-            "active": False,
+            "active": current_bucket == "dialogo",
             "label": "Dialogues",
             "icon": "folder",
             "count": 96,
@@ -112,7 +112,7 @@ def _default_collections(films: list[Film], total_scenes: int) -> list[dict[str,
             "url": "/scenes?bucket=dialogo",
         },
         {
-            "active": False,
+            "active": current_bucket == "interior",
             "label": "Night scenes",
             "icon": "folder",
             "count": 73,
@@ -122,7 +122,7 @@ def _default_collections(films: list[Film], total_scenes: int) -> list[dict[str,
     ]
 
 
-def build_chrome_context(cfg: Any, current_slug: str | None = None) -> ChromeContext:
+def build_chrome_context(cfg: Any, current_slug: str | None = None, current_bucket: str | None = None) -> ChromeContext:
     """Return the chrome bag merged into every full-page template context.
 
     The result is a flat dict ready to be ``**`` -unpacked into
@@ -198,7 +198,7 @@ def build_chrome_context(cfg: Any, current_slug: str | None = None) -> ChromeCon
     # captures container duration into the registry.
     total_runtime_minutes = sum(getattr(f, "runtime_minutes", 0) or 0 for f in films)
 
-    collections = _default_collections(films, lstate.scene_count)
+    collections = _default_collections(films, lstate.scene_count, current_bucket=current_bucket)
 
     return {
         "films": films,
