@@ -81,22 +81,23 @@ from cinemateca.search.display import (
 )
 from cinemateca.search.display import is_degenerate_tag as _is_degenerate_tag  # noqa: F401
 
+# Upload validation — relocated to cinemateca.search.upload.
+# UploadRejected lives in cinemateca.search.types (re-exported here so the
+# existing ``api.services.search.UploadRejected`` import path keeps working
+# for routes and the legacy ``TestValidateUpload`` suite).
+from cinemateca.search.types import UploadRejected  # noqa: F401
+from cinemateca.search.upload import (
+    ALLOWED_IMAGE_SUFFIXES,  # noqa: F401
+    MAX_UPLOAD_BYTES,  # noqa: F401
+    validate_upload,  # noqa: F401
+)
+
 if TYPE_CHECKING:
     import pandas as pd
 
     from cinemateca.retrieval.bm25 import BM25Index
 
 logger = logging.getLogger(__name__)
-
-
-# Server-side upload guards for image search. The cap is intentionally
-# generous for a still frame (a 4K JPEG is well under this) while still
-# refusing arbitrarily large / non-image payloads instead of streaming
-# them into a tempfile and a CLIP forward pass.
-MAX_UPLOAD_BYTES = 8 * 1024 * 1024  # 8 MiB
-ALLOWED_IMAGE_SUFFIXES = frozenset(
-    {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif", ".tif", ".tiff"}
-)
 
 
 class IndexStatus(str, Enum):
@@ -138,12 +139,6 @@ class SearchIndex:
     @property
     def ok(self) -> bool:
         return self.status is IndexStatus.OK
-
-
-class UploadRejected(Exception):
-    """Raised by :func:`validate_upload` when an image upload fails the
-    server-side size / content-type guards. The route turns this into a
-    clear UI message rather than processing arbitrary input."""
 
 
 # ── mtime/size-aware index cache ──────────────────────────────────────────────
@@ -792,44 +787,6 @@ def results_to_dicts(
                 d["timecode"] = to_smpte(start_s, fps) if start_s > 0 else ""
         out.append(d)
     return out
-
-
-# ── Upload validation ─────────────────────────────────────────────────────────
-
-
-def validate_upload(filename: str | None, content_type: str | None, data: bytes) -> str:
-    """Validate an image-search upload; return a safe file suffix.
-
-    Rejects (raising :class:`UploadRejected`) when:
-
-      * the body is empty,
-      * the body exceeds :data:`MAX_UPLOAD_BYTES`,
-      * the declared content-type is present and is not ``image/*``,
-      * the filename suffix is not a known image suffix.
-
-    Returns the lower-cased suffix to use for the temp file (defaulting
-    to ``.jpg`` only when a content-type positively identifies an image
-    but the filename had no usable extension).
-    """
-    if not data:
-        raise UploadRejected("empty upload")
-    if len(data) > MAX_UPLOAD_BYTES:
-        raise UploadRejected(f"file too large ({len(data)} bytes > {MAX_UPLOAD_BYTES} limit)")
-
-    ctype = (content_type or "").split(";", 1)[0].strip().lower()
-    if ctype and not ctype.startswith("image/"):
-        raise UploadRejected(f"unsupported content-type: {ctype!r}")
-
-    suffix = Path(filename or "").suffix.lower()
-    if suffix:
-        if suffix not in ALLOWED_IMAGE_SUFFIXES:
-            raise UploadRejected(f"unsupported file type: {suffix!r}")
-        return suffix
-    # No suffix on the filename: only accept if the content-type itself
-    # asserted an image (ctype.startswith("image/") already checked).
-    if ctype.startswith("image/"):
-        return ".jpg"
-    raise UploadRejected("missing image file extension and content-type")
 
 
 # ── Search orchestration ──────────────────────────────────────────────────────
