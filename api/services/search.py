@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from api.services.catalog import keyframe_url  # noqa: F401  — used by routes
-from api.services.film_context import FilmContext
+from cinemateca.library import FilmContext
 
 # Result conversion + Mojica context + films-by-id lookup (T8). T15
 # adds ``enrich_hits_with_film_metadata`` re-export so the slim route

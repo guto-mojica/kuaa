@@ -7,7 +7,7 @@ import json
 import time
 from pathlib import Path
 
-from api.services.film_context import FilmContext
+from cinemateca.library import FilmContext
 from api.services.search import _get_bm25_index_for_ctx
 
 

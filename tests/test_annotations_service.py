@@ -48,7 +48,7 @@ from api.services.annotations import (
     save_description,
     scene_context,
 )
-from api.services.film_context import FilmContext
+from cinemateca.library import FilmContext
 from cinemateca.annotator import FILENAME
 
 # ── normalize_tags ────────────────────────────────────────────────────────────

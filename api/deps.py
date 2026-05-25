@@ -205,7 +205,7 @@ def film_ctx(request: Request, cfg=None):
     """
     from pathlib import Path
 
-    from api.services.film_context import FilmContext
+    from cinemateca.library import FilmContext
 
     if cfg is None:
         cfg = get_config()

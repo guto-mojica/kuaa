@@ -35,7 +35,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from api.services.film_context import FilmContext
+from cinemateca.library import FilmContext
 from api.services.search import (
     IndexStatus,
     UploadRejected,

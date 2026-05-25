@@ -42,7 +42,7 @@ from pathlib import Path
 from typing import Any
 
 from api.services.catalog import derive_fps, keyframe_url, load_json, to_smpte
-from api.services.film_context import FilmContext
+from cinemateca.library import FilmContext
 from cinemateca import library
 from cinemateca.rhymes import Rhyme, find_rhymes
 

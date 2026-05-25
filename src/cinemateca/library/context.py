@@ -114,7 +114,7 @@ class FilmContext:
         # its own .name; "../secret" becomes "secret" and the comparison fails.
         if not slug or slug != Path(slug).name:
             raise ValueError(f"Invalid slug: {slug!r}")
-        from cinemateca.library import load_registry
+        from cinemateca.library.registry import load_registry
         library_dir = Path(cfg.paths.library_dir)
         film_dir = library_dir / slug
         # Registry is the single gate — unregistered slugs are rejected even
