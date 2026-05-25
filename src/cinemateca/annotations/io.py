@@ -139,3 +139,57 @@ def merge_tag_index(
                 merged[tag].append(scene_id)
 
     return merged
+
+
+# ── Tag normalization ────────────────────────────────────────────────────────
+
+
+def normalize_tags(raw: str) -> list[str]:
+    """Normalize a raw comma-separated tag string to canonical tags.
+
+    Splits on commas, then for each fragment: strips surrounding
+    whitespace, drops it entirely if empty after stripping, lowercases,
+    and replaces internal spaces with hyphens (compound-tag convention,
+    e.g. ``"Open Field"`` -> ``"open-field"``).
+
+    This is the EXACT transformation the annotate save route did inline
+    (``[t.strip().lower().replace(" ", "-") for t in raw.split(",")
+    if t.strip()]``), centralized so every consumer normalizes
+    identically. Behaviour is byte-identical: order preserved,
+    duplicates NOT collapsed (the prior code did not dedupe), empty
+    fragments dropped.
+
+    Args:
+        raw: User-entered tag string, e.g. ``"Rural,, Open Field ,"``.
+
+    Returns:
+        Normalized tag list, e.g. ``["rural", "open-field"]``.
+    """
+    return [t.strip().lower().replace(" ", "-") for t in raw.split(",") if t.strip()]
+
+
+# ── Service-layer convenience wrappers (take a FilmContext) ──────────────────
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from cinemateca.library.context import FilmContext
+
+
+def load_annotations(ctx: "FilmContext") -> dict:
+    """Load the manual-annotations dict for ``ctx``.
+
+    Thin pass-through to :func:`load`, keyed by the context's
+    ``metadata_dir``. Returns ``{}`` when the file is absent.
+    """
+    return load(ctx.metadata_dir)
+
+
+def save_annotations(ctx: "FilmContext", data: dict) -> Path:
+    """Persist the manual-annotations dict for ``ctx`` atomically.
+
+    Delegates to :func:`save`, which writes via a same-directory temp
+    file + ``os.replace`` so a crash mid-write cannot leave a truncated
+    ``manual_annotations.json``. Returns the path written.
+    """
+    return save(ctx.metadata_dir, data)

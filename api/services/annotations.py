@@ -37,8 +37,11 @@ from pathlib import Path
 
 from api.services.catalog import derive_fps, keyframe_url, load_json, to_smpte
 from cinemateca.library import FilmContext
-from cinemateca.annotator import load as _annotator_load
-from cinemateca.annotator import save as _annotator_save
+from cinemateca.annotations.io import (  # noqa: F401
+    load_annotations,
+    normalize_tags,
+    save_annotations,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -66,59 +69,6 @@ def normalize_annotate_tab(tab: str | None) -> str:
     if tab in _VALID_ANNOTATE_TABS:
         return tab
     return "comments"
-
-
-# ── Tag normalization ─────────────────────────────────────────────────────────
-
-
-def normalize_tags(raw: str) -> list[str]:
-    """Normalize a raw comma-separated tag string to canonical tags.
-
-    Splits on commas, then for each fragment: strips surrounding
-    whitespace, drops it entirely if empty after stripping, lowercases,
-    and replaces internal spaces with hyphens (compound-tag convention,
-    e.g. ``"Open Field"`` -> ``"open-field"``).
-
-    This is the EXACT transformation the annotate save route did inline
-    (``[t.strip().lower().replace(" ", "-") for t in raw.split(",")
-    if t.strip()]``), centralized so every consumer normalizes
-    identically. Behaviour is byte-identical: order preserved,
-    duplicates NOT collapsed (the prior code did not dedupe), empty
-    fragments dropped.
-
-    Args:
-        raw: User-entered tag string, e.g. ``"Rural,, Open Field ,"``.
-
-    Returns:
-        Normalized tag list, e.g. ``["rural", "open-field"]``.
-    """
-    return [t.strip().lower().replace(" ", "-") for t in raw.split(",") if t.strip()]
-
-
-# ── Persistence (atomic via cinemateca.annotator.save) ────────────────────────
-
-
-def load_annotations(ctx: FilmContext) -> dict:
-    """Load the manual-annotations dict for ``ctx``.
-
-    Thin pass-through to ``cinemateca.annotator.load`` (keyed by the
-    context's ``metadata_dir``). Returns ``{}`` when the file is absent,
-    matching prior behaviour.
-    """
-    return _annotator_load(ctx.metadata_dir)
-
-
-def save_annotations(ctx: FilmContext, data: dict) -> Path:
-    """Persist the manual-annotations dict for ``ctx`` atomically.
-
-    Delegates to ``cinemateca.annotator.save``, which now writes via a
-    same-directory temp file + ``os.replace`` so a crash mid-write
-    cannot leave a truncated ``manual_annotations.json``. The on-disk
-    JSON bytes are identical to the previous plain rewrite (same
-    ``indent=2, ensure_ascii=False``); only the write mechanism is
-    crash-safe. Returns the path written.
-    """
-    return _annotator_save(ctx.metadata_dir, data)
 
 
 def save_description(ctx: FilmContext, scene_id: int, new_text: str) -> None:
