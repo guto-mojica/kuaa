@@ -370,6 +370,25 @@ defer features; timeline extension is one option among several. Grilled
   Behavior preserved byte-for-byte via 8 hermetic snapshot tests. Spec:
   `docs/superpowers/specs/2026-05-24-deep-modules-refactor-design.md`;
   plan: `docs/superpowers/plans/2026-05-24-deep-modules-refactor-p1-search.md`.
+- [x] **Deep-modules refactor P2 — `cinemateca.library`** — extracted
+  from `src/cinemateca/library.py` (217 LOC) + `api/services/film_context.py`
+  (138 LOC, **deleted**) + the data-access half of `api/services/catalog.py`
+  into a 6-file package (~620 LOC): `registry.py` + `scan.py` + `context.py`
+  + `paths.py` + `metadata.py` + `__init__.py` (with the new typed `Library`
+  handle: `list/get/register/remove/context/state` methods). `api/services/
+  catalog.py`: 403 → **250 LOC** (exactly at cap; no longer exempted). Six
+  `cinemateca → api.services.*` carve-outs deleted from `.importlinter`;
+  2 remain as documented P5 follow-ups (`aggregate -> services.search`,
+  `_dispatch -> api.deps`). Public surface: 16+ names in
+  `cinemateca.library.__all__` (`Library`, `Film`, `FilmContext`,
+  `list_films`, `get_film`, `register_film`, `remove_film`,
+  `scan_library`, `library_state`, `load_registry`, `save_registry`,
+  `load_json`, `keyframe_url`, `to_smpte`, `derive_fps`,
+  `load_tag_index`, `load_metadata`). Behavior preserved — verified by
+  the 8 P1 snapshots + 17 new tests (7 in `test_library_scan.py` + 10
+  in `test_library_handle.py`); full suite **774 passing**. Spec:
+  `docs/superpowers/specs/2026-05-24-deep-modules-refactor-design.md`;
+  plan: `docs/superpowers/plans/2026-05-25-deep-modules-refactor-p2-library.md`.
 - [ ] Pre-launch LinkedIn "I'm building this" post
 
 ### Month 2 — Retrieval depth + audio (HARD FREEZE on new features)
