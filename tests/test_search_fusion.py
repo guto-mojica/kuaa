@@ -3,10 +3,8 @@
 Linear late-fusion: score = w * clip_cosine + (1-w) * clap_cosine.
 At w=1.0 must equal pure CLIP retrieval. At w=0.0 must equal pure CLAP.
 """
-from __future__ import annotations
 
-import json
-from pathlib import Path
+from __future__ import annotations
 
 import numpy as np
 import pytest
@@ -14,8 +12,8 @@ import pytest
 from cinemateca.search.fusion import FusionConfig, search_fusion
 
 
-def _build_index_pair(tmp_path: Path, n: int = 6, dim: int = 4):
-    """Write a CLIP-style + CLAP-style index under tmp_path."""
+def _build_index_pair(n: int = 6, dim: int = 4):
+    """Return a stub CLIP-style + CLAP-style index pair."""
     rng = np.random.default_rng(0)
     clip = rng.standard_normal((n, dim)).astype("float32")
     clip /= np.linalg.norm(clip, axis=1, keepdims=True)
@@ -26,8 +24,10 @@ def _build_index_pair(tmp_path: Path, n: int = 6, dim: int = 4):
 
 class _StubClipEmbedder:
     """Returns ``encode_text`` as a known row, so cosine = 1.0 for that row."""
+
     def __init__(self, vec: np.ndarray) -> None:
         self.vec = vec
+
     def encode_text(self, text: str) -> np.ndarray:
         return self.vec.copy()
 
@@ -35,12 +35,13 @@ class _StubClipEmbedder:
 class _StubClapEmbedder:
     def __init__(self, vec: np.ndarray) -> None:
         self.vec = vec
+
     def encode_text(self, text: str) -> np.ndarray:
         return self.vec.copy()
 
 
-def test_fusion_w_one_reduces_to_pure_clip(tmp_path: Path) -> None:
-    clip, clap = _build_index_pair(tmp_path, n=6, dim=4)
+def test_fusion_w_one_reduces_to_pure_clip() -> None:
+    clip, clap = _build_index_pair(n=6, dim=4)
     # Stub query embeddings: query equals clip-row-2 → CLIP top-1 is sid=2.
     clip_stub = _StubClipEmbedder(clip[2])
     clap_stub = _StubClapEmbedder(np.zeros(4, dtype="float32"))  # zero CLAP score
@@ -58,8 +59,8 @@ def test_fusion_w_one_reduces_to_pure_clip(tmp_path: Path) -> None:
     assert hits[0]["score"] == pytest.approx(1.0, abs=1e-5)
 
 
-def test_fusion_w_zero_reduces_to_pure_clap(tmp_path: Path) -> None:
-    clip, clap = _build_index_pair(tmp_path, n=6, dim=4)
+def test_fusion_w_zero_reduces_to_pure_clap() -> None:
+    clip, clap = _build_index_pair(n=6, dim=4)
     clip_stub = _StubClipEmbedder(np.zeros(4, dtype="float32"))
     clap_stub = _StubClapEmbedder(clap[4])
     hits = search_fusion(

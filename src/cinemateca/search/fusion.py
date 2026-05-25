@@ -7,22 +7,20 @@ L2-normalised at write time, so cosine reduces to a dot product.
 **No alternative fusion algorithms** — RRF / score-rank / learned fusion
 are explicitly out of scope per the M3 spec freeze line.
 """
+
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from typing import Protocol
 
 import numpy as np
 
-logger = logging.getLogger(__name__)
-
 
 @dataclass(frozen=True)
 class FusionConfig:
     visual_weight: float = 0.5
-    k_each: int = 50      # per-modality top-k pulled before merge
-    k_final: int = 10     # final returned length
+    k_each: int = 50  # per-modality top-k pulled before merge
+    k_final: int = 10  # final returned length
 
 
 class _TextEncoder(Protocol):
@@ -74,13 +72,13 @@ def search_fusion(
 
     q_clip = clip_embedder.encode_text(query_text)
     q_clap = clap_embedder.encode_text(query_text)
-    if q_clip.shape[0] != clip_emb.shape[1]:
+    if q_clip.ndim != 1 or q_clip.shape[0] != clip_emb.shape[1]:
         raise ValueError(
-            f"CLIP query dim {q_clip.shape[0]} vs index dim {clip_emb.shape[1]}"
+            f"CLIP query vector dim {q_clip.shape} incompatible with index dim {clip_emb.shape[1]}"
         )
-    if q_clap.shape[0] != clap_emb.shape[1]:
+    if q_clap.ndim != 1 or q_clap.shape[0] != clap_emb.shape[1]:
         raise ValueError(
-            f"CLAP query dim {q_clap.shape[0]} vs index dim {clap_emb.shape[1]}"
+            f"CLAP query vector dim {q_clap.shape} incompatible with index dim {clap_emb.shape[1]}"
         )
 
     clip_cos = clip_emb @ q_clip  # (N_clip,)
@@ -110,11 +108,13 @@ def search_fusion(
     for sid in all_sids:
         cs = clip_scores.get(sid, 0.0)
         as_ = clap_scores.get(sid, 0.0)
-        rows.append({
-            "scene_id": sid,
-            "score": w * cs + (1.0 - w) * as_,
-            "clip_score": cs,
-            "clap_score": as_,
-        })
+        rows.append(
+            {
+                "scene_id": sid,
+                "score": w * cs + (1.0 - w) * as_,
+                "clip_score": cs,
+                "clap_score": as_,
+            }
+        )
     rows.sort(key=lambda r: r["score"], reverse=True)
     return rows[: int(cfg.k_final)]
