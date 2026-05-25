@@ -2,21 +2,19 @@
 
 Extracted from ``api/services/search.py::results_to_dicts`` (T8). The
 function is byte-equivalent to the prior implementation: each result
-row gains a resolved ``img_url`` (via ``api.services.catalog.keyframe_url``)
+row gains a resolved ``img_url`` (via ``cinemateca.library.keyframe_url``)
 and, when ``meta_by_scene`` is supplied, a SMPTE ``timecode`` field
-computed from ``start_time_s`` (via ``api.services.catalog.to_smpte``).
+computed from ``start_time_s`` (via ``cinemateca.library.to_smpte``).
 
-The ``api.services.catalog`` imports cross the ``cinemateca → api``
-boundary that ``no-core-imports-api`` normally forbids. The import is
-carved out in ``.importlinter`` because both helpers will move under
-``cinemateca.library`` in P2; the carve-out deletes then.
+Both helpers moved under ``cinemateca.library`` in P2/T4 — the prior
+``api.services.catalog`` carve-out was deleted in T7.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from api.services.catalog import keyframe_url, to_smpte
+from cinemateca.library import keyframe_url, to_smpte
 
 
 def results_to_dicts(

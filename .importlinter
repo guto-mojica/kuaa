@@ -4,12 +4,10 @@ root_packages =
     api
 
 [importlinter:contract:no-core-imports-api]
-# All P1 ignore_imports entries below are transitional carve-outs that
-# survive into P2. Each one references a helper that should live under
-# `cinemateca.library` (the catalog / film_context relocations) or
-# `cinemateca.config` (`api.deps.get_config`) and will delete the moment
-# its target moves. Audited 2026-05-25 (T16): every entry corresponds to
-# a real import and `lint-imports` reports no unmatched ignores.
+# Remaining ignore_imports entries are intentional carve-outs that survive
+# P2. Each one references a helper that has NOT yet migrated out of `api/`;
+# every entry corresponds to a real import and `lint-imports` reports no
+# unmatched ignores (audited 2026-05-25 / T7).
 #
 # Future P1-style extractions should still PREFER inlining a small helper
 # over adding a carve-out — see cinemateca.search.bm25 (zero api/* imports
@@ -17,17 +15,19 @@ root_packages =
 # only when inlining is impractical (helper is large or shared across many
 # extracted modules), with a one-line justification in the commit message.
 #
-# P2 cleanup TODO list (delete each ignore_imports line when its target
-# moves out of `api/`):
-#   * api.services.catalog          -> cinemateca.library.catalog
-#   * api.services.film_context     -> cinemateca.library.film_context
+# Remaining cleanup TODO list (delete each ignore_imports line when its
+# target moves out of `api/`):
 #   * api.services.search           -> the public `cinemateca.search.*`
 #                                      verbs are already the long-term home;
 #                                      this remaining edge is the legacy
 #                                      `has_indexed_films` lookup in
-#                                      aggregate.py, which will move with
-#                                      catalog.
+#                                      aggregate.py + the lazy
+#                                      `_get_embedder` / `_get_search_index`
+#                                      attribute reads (P5 cleanup).
 #   * api.deps.get_config           -> cinemateca.config.get_config
+#                                      (lazy BM25-tunables resolution in
+#                                      cinemateca.search._dispatch; P5
+#                                      cleanup).
 name=cinemateca core must not import api/
 type=forbidden
 source_modules=
@@ -35,13 +35,7 @@ source_modules=
 forbidden_modules=
     api
 ignore_imports=
-    cinemateca.search._results -> api.services.catalog
-    cinemateca.search._lookup -> api.services.catalog
-    cinemateca.search._lookup -> api.services.film_context
-    cinemateca.search.aggregate -> api.services.catalog
-    cinemateca.search.aggregate -> api.services.film_context
     cinemateca.search.aggregate -> api.services.search
-    cinemateca.search._dispatch -> api.services.catalog
     cinemateca.search._dispatch -> api.deps
 
 [importlinter:contract:routes-not-direct-core]

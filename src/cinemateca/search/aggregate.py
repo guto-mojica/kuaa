@@ -42,8 +42,13 @@ from typing import Any
 
 import numpy as np
 
-from api.services.catalog import derive_fps, load_json, load_tag_index, to_smpte
-from api.services.film_context import FilmContext
+from cinemateca.library import (
+    FilmContext,
+    derive_fps,
+    load_json,
+    load_tag_index,
+    to_smpte,
+)
 from cinemateca.retrieval.hybrid import DEFAULT_RRF_K, fuse_rrf
 from cinemateca.scene_ids import normalize_tag_index, scene_id_key
 from cinemateca.search.cache import IndexStatus
@@ -461,7 +466,7 @@ def aggregate_hits_to_template_dicts(cfg: Any, hits: list[dict]) -> list[dict]:
     per-film index) — aliased here so the same ``partials/search_results.html``
     works for the per-film and aggregate paths.
     """
-    from api.services.catalog import keyframe_url
+    from cinemateca.library import keyframe_url
 
     data_dir = Path(cfg.paths.data_dir).resolve()
     return [

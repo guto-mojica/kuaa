@@ -2,15 +2,10 @@
 aggregate search-context builders. Private to the search package.
 
 Extracted from ``api/services/search.py`` (T8). All four helpers were
-sized to fit inside ``cinemateca.search`` (no external pull-throughs
-on the per-film path; the aggregate path crosses into
-``api.services.film_context`` for the per-film loop, carved out in
-``.importlinter``).
-
-The ``api.services.film_context`` import for
-:func:`build_search_context_aggregate` is the only cross of the
-``cinemateca → api`` boundary in this module — it disappears in P2
-when ``FilmContext`` migrates under ``cinemateca.library``.
+sized to fit inside ``cinemateca.search``. After P2/T7 every helper
+(``FilmContext``, ``load_json``, ``load_tag_index``) lives under
+``cinemateca.library`` — the prior ``api.services.*`` carve-outs in
+``.importlinter`` have been deleted.
 """
 
 from __future__ import annotations
@@ -39,16 +34,12 @@ def enrich_hits_with_film_metadata(
     ``tags`` to ``[]``, both of which the template handles. ``pin_count``
     is always 0 today; the persistence layer for pins lands later in M1.
 
-    Relocated from ``api/routes/search.py`` (T15). The lazy imports of
-    ``api.services.catalog`` (``load_json`` + ``load_tag_index``) and
-    ``api.services.film_context`` are the P2-cleanup carve-outs already
-    documented for this module. ``load_tag_index`` is sourced from the
-    catalog twin (not the cinemateca twin) to preserve byte-identical
-    snapshot output on malformed ``scene_tags.json`` — the two loaders
-    diverge only on that unhappy path (see ``_tag_index.py`` docstring).
+    Relocated from ``api/routes/search.py`` (T15). The helpers
+    (``load_json``, ``load_tag_index``, ``FilmContext``) live under
+    ``cinemateca.library`` after P2/T3-T5 — the previous lazy
+    ``api.services.*`` shim imports were retired in T7.
     """
-    from api.services.catalog import load_json, load_tag_index
-    from api.services.film_context import FilmContext
+    from cinemateca.library import FilmContext, load_json, load_tag_index
 
     desc_cache: dict[str, dict[int, str]] = {}
     tag_cache: dict[str, dict[int, list[str]]] = {}
@@ -214,8 +205,7 @@ def build_search_context_aggregate(cfg: Any) -> dict:
     path expose the same context shape. ``films_by_id`` is populated
     here so the template's title/year lookup resolves on every card.
     """
-    from api.services.film_context import FilmContext
-    from cinemateca.library import scan_library
+    from cinemateca.library import FilmContext, scan_library
 
     library_dir = Path(cfg.paths.library_dir)
     all_tags: set[str] = set()

@@ -24,12 +24,12 @@ Design notes:
     defaults the legacy ``api/services/search._get_bm25_index_for_ctx``
     used (``None / 1.5 / 0.75``) — verbatim parity with the prior path.
 
-Module hygiene: this module imports :func:`api.services.catalog.load_tag_index`
-when ``filters.tags`` is non-empty. The carve-out is recorded in
-``.importlinter`` (T11 already carved
-``cinemateca.search.aggregate -> api.services.catalog``; T13 adds the
-same line for ``_dispatch``). P2 will move ``load_tag_index`` under
-``cinemateca.library`` and the carve-out deletes.
+Module hygiene: this module imports
+:func:`cinemateca.library.load_tag_index` lazily when ``filters.tags``
+is non-empty. After P2/T7 the ``api.services.catalog -> _dispatch``
+carve-out in ``.importlinter`` was deleted. The remaining
+``_dispatch -> api.deps`` ignore (lazy ``get_config`` read for BM25
+tunables) is intentional and lands in a later cleanup phase.
 """
 
 from __future__ import annotations
@@ -126,7 +126,7 @@ def find(
 
 def _load_tag_index(film: Any) -> dict:
     """Lazy import to keep the module importable without ``api.*`` wired up."""
-    from api.services.catalog import load_tag_index
+    from cinemateca.library import load_tag_index
 
     return load_tag_index(film.metadata_dir) or {}
 
