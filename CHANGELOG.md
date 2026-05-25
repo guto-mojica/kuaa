@@ -68,7 +68,7 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
   novo `scripts/check_loc_budget.py` enforça `api/services/*.py ≤ 250 LOC`
   e `api/routes/*.py ≤ 150 LOC` (com 2 exemptions documentadas para
   arquivos cujo refactor cai em P3). Ambos rodam no workflow GH Actions
-  `.github/workflows/architecture.yml` em todo PR.
+  `.github/workflows/refactor-guards.yml` em todo PR.
 
 ### Notas
 
