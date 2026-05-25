@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cinemateca-ai 0.3.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-25 18:02-0400\n"
+"POT-Creation-Date: 2026-05-25 19:28-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -779,7 +779,7 @@ msgid "Previous scene"
 msgstr ""
 
 #: web/templates/partials/annotate.html:192
-#: web/templates/partials/rimas.html:93
+#: web/templates/partials/rimas.html:136
 #: web/templates/partials/rimas_inspector.html:50
 #: web/templates/partials/rimas_inspector.html:60
 msgid "scene"
@@ -991,7 +991,7 @@ msgid "Search annotations"
 msgstr ""
 
 #: web/templates/partials/annotate_scene.html:104
-#: web/templates/partials/rimas.html:81
+#: web/templates/partials/rimas.html:124
 #: web/templates/partials/rimas_echoes.html:48
 #: web/templates/partials/scenes_inspector.html:79
 #: web/templates/partials/search_inspector.html:108
@@ -1277,11 +1277,11 @@ msgstr ""
 msgid "+ wipe data"
 msgstr ""
 
-#: web/templates/partials/rimas.html:40 web/templates/partials/rimas.html:115
+#: web/templates/partials/rimas.html:40 web/templates/partials/rimas.html:158
 msgid "rhymes in"
 msgstr ""
 
-#: web/templates/partials/rimas.html:40 web/templates/partials/rimas.html:115
+#: web/templates/partials/rimas.html:40 web/templates/partials/rimas.html:158
 #: web/templates/partials/scenes.html:421
 #: web/templates/partials/search.html:367
 #, fuzzy
@@ -1313,49 +1313,65 @@ msgstr ""
 msgid "Distance"
 msgstr ""
 
-#: web/templates/partials/rimas.html:60
+#: web/templates/partials/rimas.html:70
+msgid "Diversidade"
+msgstr "Diversity"
+
+#: web/templates/partials/rimas.html:79 web/templates/partials/rimas.html:80
+msgid "Visual rhyme diversity"
+msgstr "Visual rhyme diversity"
+
+#: web/templates/partials/rimas.html:83
+msgid "More relevance"
+msgstr "More relevance"
+
+#: web/templates/partials/rimas.html:83
+msgid "More diversity"
+msgstr "More diversity"
+
+#: web/templates/partials/rimas.html:103
 msgid "Cross-film"
 msgstr ""
 
-#: web/templates/partials/rimas.html:60
+#: web/templates/partials/rimas.html:103
 msgid "required"
 msgstr ""
 
-#: web/templates/partials/rimas.html:62
+#: web/templates/partials/rimas.html:105
 msgid "Threshold"
 msgstr ""
 
-#: web/templates/partials/rimas.html:73
+#: web/templates/partials/rimas.html:116
 #: web/templates/partials/rimas_inspector.html:43
 msgid "Anchor"
 msgstr ""
 
-#: web/templates/partials/rimas.html:79
+#: web/templates/partials/rimas.html:122
 msgid "Reference scene · fixed embedding"
 msgstr ""
 
-#: web/templates/partials/rimas.html:117
+#: web/templates/partials/rimas.html:160
 msgid "rhymes"
 msgstr ""
 
-#: web/templates/partials/rimas.html:134
+#: web/templates/partials/rimas.html:177
 msgid "No anchor selected"
 msgstr ""
 
-#: web/templates/partials/rimas.html:136
+#: web/templates/partials/rimas.html:179
 msgid "Open a scene in the Scenes tab and click"
 msgstr ""
 
-#: web/templates/partials/rimas.html:137
+#: web/templates/partials/rimas.html:180
 #: web/templates/partials/scenes_inspector.html:170
 msgid "Find visual rhymes"
 msgstr ""
 
-#: web/templates/partials/rimas.html:138
+#: web/templates/partials/rimas.html:181
 msgid "to explore cross-film visual echoes."
 msgstr ""
 
-#: web/templates/partials/rimas.html:142
+#: web/templates/partials/rimas.html:185
 msgid ""
 "No processed films yet — run the embeddings pipeline to enable Rimas "
 "Visuais."
