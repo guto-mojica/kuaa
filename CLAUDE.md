@@ -440,7 +440,12 @@ defer features; timeline extension is one option among several. Grilled
   as follow-up Task 3.2b), SigLIP2-multilingual rolled out library-wide,
   CLAP archival sanity gate (`cinemateca eval clap-sanity`). See
   `docs/superpowers/plans/2026-05-24-m3-preflight-m2-cleanup.md`.
-- [ ] Cross-modal CLIP × CLAP fusion search
+- [x] Cross-modal CLIP × CLAP fusion search — `?modality=fusion&w=0.5`,
+      linear late-fusion (`score = w·clip + (1-w)·clap`), UI slider with
+      `visual ↔ audio` weight popover, regression-pinned on Jeca Tatu
+      (skipif-guarded). Implementation: `dispatch_fusion_search` mirrors
+      the audio dispatcher; CLIP `index_mapping.json` normalised for the
+      SigLIP2 parallel-array shape that broke the first real-data run.
 - [x] Visual rhymes (cross-film kNN + MMR diversity) — stub MVP shipped with
   Mojica redesign: cosine kNN cross-film over existing CLIP keyframe embeddings,
   `Rimas Visuais` tab fully wired (anchor + echoes UI). MMR / diversity
