@@ -1,6 +1,7 @@
 """cinemateca.annotations — manual annotation persistence + tag merge."""
 from __future__ import annotations
 
+from cinemateca.annotations.descriptions import save_description
 from cinemateca.annotations.io import (
     FILENAME,
     load,
@@ -19,4 +20,5 @@ __all__ = [
     "normalize_tags",
     "save",
     "save_annotations",
+    "save_description",
 ]
