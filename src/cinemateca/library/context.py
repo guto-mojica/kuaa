@@ -90,7 +90,43 @@ class FilmContext:
         )
 
     @classmethod
-    def for_film(cls, cfg: Any, slug: str) -> FilmContext:
+    def from_paths(
+        cls,
+        *,
+        library_dir: Path,
+        slug: str,
+        data_dir: Path,
+    ) -> "FilmContext":
+        """Build a per-film context from explicit paths (no cfg object needed).
+
+        ``library_dir`` is the films-registry root; ``data_dir`` is the ``/media``
+        mount root (typically one level above ``library_dir``).
+
+        Raises:
+            ValueError: slug contains a path-traversal component (``'../x'``).
+            KeyError: slug is not in the registry.
+        """
+        if not slug or slug != Path(slug).name:
+            raise ValueError(f"Invalid slug: {slug!r}")
+        from cinemateca.library.registry import load_registry
+
+        registry = load_registry(library_dir)
+        if slug not in registry:
+            raise KeyError(f"Film not registered: {slug!r}")
+        film_dir = library_dir / slug
+        for sub in ("raw", "metadata", "frames", "embeddings"):
+            (film_dir / sub).mkdir(parents=True, exist_ok=True)
+        return cls(
+            slug=slug,
+            raw_path=film_dir / "raw",
+            data_dir=Path(data_dir).resolve(),
+            metadata_dir=film_dir / "metadata",
+            frames_dir=film_dir / "frames",
+            embeddings_dir=film_dir / "embeddings",
+        )
+
+    @classmethod
+    def for_film(cls, cfg: Any, slug: str) -> "FilmContext":
         """Build a per-film context from a loaded ``Config`` and a slug.
 
         The film must exist as a directory under ``cfg.paths.library_dir/``
