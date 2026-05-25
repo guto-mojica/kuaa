@@ -72,7 +72,13 @@ def _load_tag_index(metadata_dir: Path) -> dict:
     with manual annotations (STR scene_id keys) via
     ``cinemateca.annotator.merge_tag_index``. Returns the RAW
     (un-normalised) merged inverted index — same shape as
-    ``catalog.load_tag_index``, byte-for-byte.
+    ``catalog.load_tag_index``, shape-for-shape.
+
+    One resilience addition vs the catalog twin: malformed JSON in
+    ``scene_tags.json`` is tolerated here (logged + empty), matching the
+    malformed-descriptions handling at the bottom of ``_cached_bm25_index``.
+    The catalog twin still raises on the same condition — divergence is
+    intentional, observed only on the unhappy path.
 
     Inlined here (rather than imported from ``api.services.catalog``)
     so the ``cinemateca`` package stays free of any ``api`` import —

@@ -4,6 +4,14 @@ root_packages =
     api
 
 [importlinter:contract:no-core-imports-api]
+# When a P1 extraction needs a helper that still lives in `api/services/*`
+# (most commonly catalog.{load_tag_index, keyframe_url, to_smpte}, or
+# film_context.FilmContext), implementers should PREFER inlining a small
+# helper over adding a carve-out — see cinemateca.search.bm25._load_tag_index
+# for the pattern. If inlining is impractical (helper is large, or used by
+# many extracted modules), add an `ignore_imports` entry below with a one-line
+# justification in the commit message. P2 will move those helpers under
+# `cinemateca.library` and the carve-outs delete.
 name=cinemateca core must not import api/
 type=forbidden
 source_modules=
