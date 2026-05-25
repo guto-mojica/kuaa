@@ -117,14 +117,9 @@
       <span class="k">{{ _("Tags") }}</span>
       <span class="v">
         {% set tag_list = selected_scene.tags or [] %}
-        {% for t in tag_list[:4] %}
+        {% for t in tag_list %}
           <span class="fx-pill">{{ t }}</span>
         {% endfor %}
-        {% if tag_list|length > 4 %}
-          <span class="fx-mono" style="color: var(--c-muted); font-size: 10.5px;">
-            +{{ tag_list|length - 4 }}
-          </span>
-        {% endif %}
         {% if not tag_list %}—{% endif %}
       </span>
 
