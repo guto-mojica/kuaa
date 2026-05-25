@@ -31,6 +31,7 @@
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/proc.css') }}">
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/polish.css') }}">
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/about.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/home.css') }}">
     <script src="{{ request.url_for('static', path='js/htmx.min.js') }}" defer></script>
     <script src="{{ request.url_for('static', path='js/htmx-ext-sse.js') }}" defer></script>
     {# Script order matters — mojica.js MUST execute BEFORE alpine.min.js.
@@ -106,7 +107,9 @@
            wrapper (see search.html, scenes.html, annotate.html,
            processing.html, rimas.html) so this slot drops straight into the
            include. #}
-        {% if legacy_active_tab == 'search' %}
+        {% if legacy_active_tab == 'home' %}
+            {% include "partials/home.html" %}
+        {% elif legacy_active_tab == 'search' %}
             {% include "partials/search.html" %}
         {% elif legacy_active_tab == 'scenes' %}
             {% include "partials/scenes.html" %}

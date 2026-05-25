@@ -1,0 +1,54 @@
+{# ── Home tab — library overview grid ──────────────────────────────────────
+   Renders one film card per registered film: thumbnail (first keyframe if
+   processed, otherwise a gradient placeholder), title, year, and scene
+   count badge. Clicking a card navigates to /scenes?film=<slug>.
+   Context: film_cards — list of {"film": Film, "thumbnail_url": str|None}.
+#}
+{% from "partials/_icons.html" import icon %}
+<div class="tab-panel">
+<section class="home-cp">
+
+  <header class="home-header">
+    <h1>{{ _("Library") }}</h1>
+    <span class="home-count">
+      {{ film_cards | length }} {{ _("films") }}
+    </span>
+  </header>
+
+  {% if film_cards %}
+  <div class="home-grid">
+    {% for card in film_cards %}
+    <a class="home-card" href="/scenes?film={{ card.film.slug }}">
+      <div class="home-card__thumb">
+        {% if card.thumbnail_url %}
+          <img src="{{ card.thumbnail_url }}" alt="{{ card.film.title }}" loading="lazy">
+        {% else %}
+          <div class="home-card__placeholder"></div>
+        {% endif %}
+        <span class="home-card__badge {% if card.film.is_processed %}home-card__badge--processed{% else %}home-card__badge--raw{% endif %}">
+          {% if card.film.is_processed %}
+            {{ card.film.scene_count }} {{ _("scenes") }}
+          {% else %}
+            {{ _("unprocessed") }}
+          {% endif %}
+        </span>
+      </div>
+      <div class="home-card__info">
+        <span class="home-card__title" title="{{ card.film.title }}">{{ card.film.title }}</span>
+        <span class="home-card__meta">
+          {% if card.film.year %}{{ card.film.year }}{% else %}—{% endif %}
+        </span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="home-empty">
+    <p>{{ _("No films in library yet.") }}</p>
+    <p>{{ _("Use the + button in the sidebar to add your first film.") }}</p>
+  </div>
+  {% endif %}
+
+</section>
+</div>

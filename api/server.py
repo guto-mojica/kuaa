@@ -31,7 +31,7 @@ from api.routes import (
 )
 from api.services.annotations import build_annotate_context
 from api.services.chrome_service import build_chrome_context
-from cinemateca.library import FilmContext
+from cinemateca.library import FilmContext, scan_library, keyframe_url, load_json
 from api.services.rhymes_service import build_rimas_context
 from api.services.scenes_service import build_cenas_context, build_timeline_context
 from api.templates import templates
@@ -111,13 +111,37 @@ _TAB_CONTEXT_BUILDERS = {
 # Kept here (not in deps.py) because it concerns route-level page composition,
 # not per-request locale or film context. Phase 2+ tasks may move some of this
 # into the page templates themselves once they extend base.html directly.
+def build_home_context(cfg: object) -> dict:
+    """Return film-card list for the home library-overview page.
+
+    Each card carries the Film object plus the URL of its first keyframe
+    (or None when the film has not been processed yet).
+    """
+    library_dir = Path(cfg.paths.library_dir)
+    films = list(scan_library(library_dir))
+    film_cards = []
+    for film in films:
+        thumbnail_url = None
+        try:
+            from cinemateca.library import FilmContext as _FC
+            ctx = _FC.for_film(cfg, film.slug)
+            kf_meta = load_json(ctx.metadata_dir / "keyframes_metadata.json") or []
+            if isinstance(kf_meta, list) and kf_meta:
+                thumbnail_url = keyframe_url(kf_meta[0].get("filepath", ""), ctx.data_dir)
+        except Exception:
+            pass
+        film_cards.append({"film": film, "thumbnail_url": thumbnail_url})
+    return {"film_cards": film_cards}
+
+
 _TAB_CHROME = {
     # has_right_pane=False for every tab: each tab manages its own right pane
     # inside .tab-panel (via .b-rp, .c-rp, .r-rp, etc.). Setting True would add
     # an empty ch-right 380px grid column AND a duplicate id="right-pane" element,
     # breaking HTMX targeting and stealing layout space from ch-main.
+    "home":   {"active_tab": "home",   "compact_lp": False, "has_right_pane": False},
     "search": {"active_tab": "buscar", "compact_lp": False, "has_right_pane": False},
-    "scenes": {"active_tab": "cenas", "compact_lp": False, "has_right_pane": False},
+    "scenes": {"active_tab": "cenas",  "compact_lp": False, "has_right_pane": False},
     "annotate": {"active_tab": "anotar", "compact_lp": True, "has_right_pane": False},
     # NOTE: the body's data-active-tab uses the short slug "proc" (not the
     # full PT "processamento") so the topbar tab chip's `data-tab="proc"`
@@ -176,7 +200,9 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     # `{**base_ctx, **tab_ctx}`: tab_ctx wins on key collisions. The
     # `processing` builder deliberately re-supplies `films`, overriding the
     # base value here; that override is intended, not a bug.
-    if active_tab == "search":
+    if active_tab == "home":
+        tab_ctx = build_home_context(cfg)
+    elif active_tab == "search":
         tab_ctx = search.build_search_context(current_slug)
         # Mojica Task 10: ``?q=<text>`` survives push-url navigation back
         # to ``/search`` (HTMX rewrites the bar on every form submit), so
@@ -265,7 +291,7 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request) -> HTMLResponse:
-    return render_page(request, "search")
+    return render_page(request, "home")
 
 
 @app.get("/search", response_class=HTMLResponse)

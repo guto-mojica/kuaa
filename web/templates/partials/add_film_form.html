@@ -3,8 +3,9 @@
 {% endif %}
 <form class="add-film-form"
       hx-post="/api/library/add"
-      hx-target="#library-tree"
+      hx-target="#lp-scroll"
       hx-swap="innerHTML">
+    <input type="hidden" name="source" value="left-pane">
     <input class="filter-input"
            type="text"
            name="video_path"
@@ -18,8 +19,8 @@
     <div class="add-film-form__actions">
         <button type="submit" class="tree-node tree-node--add">{{ _("Add") }}</button>
         <div class="tree-node"
-             hx-get="/api/library/filter"
-             hx-target="#library-tree"
+             hx-get="/api/library/tree"
+             hx-target="#lp-scroll"
              hx-swap="innerHTML">{{ _("Cancel") }}</div>
     </div>
 </form>

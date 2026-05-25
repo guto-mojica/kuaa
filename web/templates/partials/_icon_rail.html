@@ -21,7 +21,7 @@
 {% set rail_film_qs = "?film=" ~ current_slug if current_slug else "" %}
 <nav class="ch-rail" aria-label="{{ _('Tab navigation') }}">
   <div class="stack">
-    <a class="ic"
+    <a class="ic{% if active_tab == 'home' %} on{% endif %}"
        href="/"
        title="{{ _('Home') }}"
        data-tip="{{ _('Home') }}">{{ icon('home', 18) }}</a>

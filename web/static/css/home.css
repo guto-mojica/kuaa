@@ -1,0 +1,141 @@
+/* ── Home tab — library overview grid ────────────────────────────── */
+
+.home-cp {
+  padding: 28px 32px;
+  overflow-y: auto;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.home-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.home-header h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--c-text);
+  margin: 0;
+}
+
+.home-header .home-count {
+  font-size: 0.8125rem;
+  color: var(--c-muted);
+}
+
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.home-card {
+  display: block;
+  background: var(--c-raised);
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.home-card:hover {
+  background: var(--c-hover);
+  border-color: var(--c-border-2);
+}
+
+.home-card__thumb {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: var(--c-panel);
+  overflow: hidden;
+}
+
+.home-card__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.home-card__placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, var(--c-panel) 0%, var(--c-border) 100%);
+}
+
+.home-card__badge {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1.4;
+}
+
+.home-card__badge--processed {
+  background: var(--c-accent-bg);
+  color: var(--c-accent-2);
+}
+
+.home-card__badge--raw {
+  background: rgba(0,0,0,0.5);
+  color: var(--c-muted);
+}
+
+.home-card__info {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.home-card__title {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--c-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-card__meta {
+  font-size: 0.75rem;
+  color: var(--c-muted);
+}
+
+.home-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 240px;
+  color: var(--c-muted);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* ── Processing tab — add-film affordance ─────────────────────────── */
+
+.p-add-film {
+  margin-bottom: 16px;
+}
+
+.p-add-film__form {
+  margin-top: 10px;
+  padding: 14px;
+  background: var(--c-raised);
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 480px;
+}

@@ -149,6 +149,7 @@ async def api_library_add(
     request: Request,
     video_path: str = Form(...),
     title: str = Form(default=""),
+    source: str = Form(default=""),
 ) -> HTMLResponse:
     from cinemateca.library import register_film
     from cinemateca.pipeline import slugify
@@ -194,7 +195,17 @@ async def api_library_add(
     if not link.exists() and not link.is_symlink():
         link.symlink_to(video.resolve())
 
-    return _tree_response(request)
+    if source == "processing":
+        return Response(
+            status_code=200,
+            headers={"HX-Redirect": f"/processing?film={slug}"},
+        )
+
+    return templates.TemplateResponse(
+        request,
+        "partials/_left_pane_body.html",
+        _chrome_filter_ctx(request, ""),
+    )
 
 
 @router.get("/api/library/remove-confirm/{slug}", response_class=HTMLResponse)

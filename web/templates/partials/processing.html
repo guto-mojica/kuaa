@@ -36,6 +36,40 @@
         {{ _("Processing") }}
         {% if jobs %}<span class="pip">{{ jobs | length }} {{ _("active") }}</span>{% endif %}
       </h1>
+
+      {#- Add-film form: register a video from any path so it appears in
+          the selector below. Alpine toggles the form open/closed; on
+          success the server issues HX-Redirect back to /processing with
+          the new slug pre-selected. -#}
+      <div class="p-add-film" x-data="{ open: false }">
+        <button type="button"
+                class="fx-btn secondary"
+                @click="open = !open"
+                :aria-expanded="open">
+          {{ icon('plus', 14) }} {{ _("Add film…") }}
+        </button>
+        <form x-show="open"
+              x-cloak
+              class="p-add-film__form"
+              hx-post="/api/library/add"
+              hx-swap="none">
+          <input type="hidden" name="source" value="processing">
+          <input class="filter-input"
+                 type="text"
+                 name="video_path"
+                 placeholder="{{ _('Absolute path to video file') }}"
+                 required>
+          <input class="filter-input"
+                 type="text"
+                 name="title"
+                 placeholder="{{ _('Title (optional)') }}">
+          <div style="display:flex; gap:8px; margin-top:6px;">
+            <button type="submit" class="fx-btn primary">{{ _("Register") }}</button>
+            <button type="button" class="fx-btn secondary" @click="open = false">{{ _("Cancel") }}</button>
+          </div>
+        </form>
+      </div>
+
       <div class="acts">
         {#- Launch form: ``video_path`` select + ``steps`` checkboxes —
             same POST shape as v0.2.x so ``/api/pipeline/start`` is
