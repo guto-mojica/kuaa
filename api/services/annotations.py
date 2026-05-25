@@ -13,10 +13,10 @@ This module owns what used to live inline in ``api/routes/annotate.py``:
     (``_build_scene_list`` / ``_scene_context``) and the annotate-tab
     context builder (``build_annotate_context``).
 
-Shared JSON-load and keyframe-URL primitives are NOT reimplemented here
-— they delegate to ``api/services/catalog.py`` (``load_json`` /
-``keyframe_url``, Phase 3a). Path resolution flows through
-:class:`FilmContext` for consistency with the catalog service.
+Data-access and business logic live in ``cinemateca.annotations.*``
+(``scenes.py``, ``io.py``). This module is a thin template-layer adapter:
+it calls those pure helpers and composes the Jinja template context for
+the annotate route. Path resolution flows through :class:`FilmContext`.
 
 Behaviour is byte-preserved relative to the pre-extraction route code:
 this is a refactor, not a feature change. In particular the

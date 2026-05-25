@@ -13,13 +13,8 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
-
 from cinemateca.annotations.io import load_annotations
 from cinemateca.library import FilmContext, derive_fps, keyframe_url, load_json, to_smpte
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
