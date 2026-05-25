@@ -47,16 +47,46 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 - **base.html** — novo layout de shell (TopBar de 52px + IconRail de 56px +
   LeftPane de 248px + área principal + painel direito opcional).
 - **i18n** — ~280 novos msgids extraídos e traduzidos PT/EN.
+- **Refactor P1 · pacote `cinemateca.search` extraído** — toda a lógica de
+  busca saiu de `api/services/search.py` (1388 → **235 LOC**, teto 250) e
+  `api/routes/search.py` (471 → **148 LOC**, teto 150) para um pacote novo
+  em `src/cinemateca/search/` (14 arquivos: `__init__`, `types`,
+  `_dispatch`, `_lookup`, `_results`, `_tag_index`, `display`, `upload`,
+  `cache`, `bm25`, `clip`, `hybrid`, `aggregate`, `rerank`). API pública
+  pequena e tipada: 4 verbos (`find`, `aggregate`, `reindex_bm25`,
+  `rerank`) + 7 tipos (`Query`, `Filters`, `HybridWeights`, `Hit`,
+  `SearchResult`, `SearchMode`, `UploadRejected`). Comportamento
+  preservado byte-a-byte — verificado por 8 testes hermetic-snapshot
+  (`tests/test_p1_search_snapshot.py`) sobre cenários `/api/search`
+  reais (single-film CLIP/BM25/hybrid, aggregate, image upload, tag
+  filter, min-sim, retriever=clip pin). ~36 novos testes unitários nos
+  módulos extraídos. Spec em
+  `docs/superpowers/specs/2026-05-24-deep-modules-refactor-design.md`;
+  plano em `docs/superpowers/plans/2026-05-24-deep-modules-refactor-p1-search.md`.
+- **Camadas arquiteturais policiadas em CI** — `.importlinter` proíbe
+  `src/cinemateca/*` de importar `api/*` (camada de núcleo HTTP-agnóstica);
+  novo `scripts/check_loc_budget.py` enforça `api/services/*.py ≤ 250 LOC`
+  e `api/routes/*.py ≤ 150 LOC` (com 2 exemptions documentadas para
+  arquivos cujo refactor cai em P3). Ambos rodam no workflow GH Actions
+  `.github/workflows/refactor-guards.yml` em todo PR.
 
 ### Notas
 
-- Suite de testes: **425 → 546 passando** (baseline → pós-redesign).
+- Suite de testes: **425 → 546 passando** (baseline → pós-redesign);
+  **~625 → ~738 passando** após o refactor P1 (~110 testes novos no
+  pacote `cinemateca.search`).
 - **32 novos commits** distribuídos em **10 fases** (Tasks 1–36) na branch
   `worktree-mojica-redesign`.
 - O markup legado `.shell > .sidebar` de v0.3 segue aninhado dentro de
   `.ch-main` como wrap transicional — o unwrap final do conteúdo das abas
   (Phase 2 expansion) está adiado; o novo chrome cobre tudo visualmente e
   nenhuma regressão é exposta ao usuário final.
+- **Falhas pré-existentes (NÃO regressões do refactor P1):**
+  `tests/test_cli_reembed_all.py::TestServe::test_serve_delegates_to_uvicorn_run`
+  e `tests/test_routes_multi_film.py::TestScenesRouteMultiFilm::test_tab_scenes_unknown_slug_raises`
+  falham na branch base também (verificado via `git stash` em T1 e
+  re-verificado em cada T* subsequente). Tratamento fica fora do escopo
+  de P1.
 
 ---
 

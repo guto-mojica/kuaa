@@ -556,15 +556,20 @@ class TestSceneDedup:
                 rows["similarity"] = scores[order[:top_k]]
                 return rows.reset_index(drop=True)
 
-        # Monkeypatch SemanticSearch inside search_image's local import.
-        import cinemateca.embeddings as _emb
-        _orig = _emb.SemanticSearch
-        _emb.SemanticSearch = _Searcher
+        # Monkeypatch SemanticSearch at its post-T9 home in
+        # ``cinemateca.search.clip``. The verb hoisted the
+        # ``from cinemateca.embeddings import SemanticSearch`` to module
+        # scope, so patching the source module ``cinemateca.embeddings``
+        # no longer reaches the already-bound name inside ``clip``;
+        # patch the module where the verb actually looks up the symbol.
+        import cinemateca.search.clip as _clip_mod
+        _orig = _clip_mod.SemanticSearch
+        _clip_mod.SemanticSearch = _Searcher
         try:
             from pathlib import Path
             df = search_image(index, Path("/tmp/fake.jpg"), top_k=8)
         finally:
-            _emb.SemanticSearch = _orig
+            _clip_mod.SemanticSearch = _orig
 
         assert len(df) == 3, f"expected 3 deduped rows, got {len(df)}"
         assert sorted(df["scene_id"].tolist()) == [1, 2, 3]
