@@ -75,6 +75,8 @@ def build_rimas_context(
     *,
     anchor: str | None,
     echo: str | None = None,
+    lambda_diversity: float | None = None,
+    k_candidates: int | None = None,
 ) -> dict:
     """Build the Rimas Visuais template context.
 
@@ -123,6 +125,16 @@ def build_rimas_context(
 
     top_n, mmr_lambda, threshold = _rimas_cfg(cfg)
 
+    # Resolve MMR kwargs: explicit > cfg.retrieval.rhymes.{diversity,k_candidates}
+    # > hard defaults. Task 3.3 lands the cfg block; until then the getattr-chain
+    # falls through to the hard defaults (0.5 / 30) which match the plan's spec
+    # defaults.
+    rhymes_cfg = getattr(getattr(cfg, "retrieval", None), "rhymes", None)
+    if lambda_diversity is None:
+        lambda_diversity = float(getattr(rhymes_cfg, "diversity", 0.5))
+    if k_candidates is None:
+        k_candidates = int(getattr(rhymes_cfg, "k_candidates", 30))
+
     rhymes: list[Rhyme] = []
     if anchor_data is not None and slug is not None and scene_id is not None:
         rhymes = find_rhymes(
@@ -130,6 +142,8 @@ def build_rimas_context(
             anchor_slug=slug,
             anchor_scene_id=scene_id,
             top_n=top_n,
+            lambda_diversity=lambda_diversity,
+            k_candidates=k_candidates,
         )
 
     enriched = [_enrich_rhyme(cfg, r, films_by_id) for r in rhymes]
@@ -168,12 +182,14 @@ def build_rimas_context(
                 pass
 
     logger.info(
-        "rimas: anchor=%s/%s films=%d echoes=%d (k=%d) selected_echo=%s",
+        "rimas: anchor=%s/%s films=%d echoes=%d (k=%d, lambda=%.2f, k_candidates=%d) selected_echo=%s",
         slug,
         scene_id,
         len(films),
         len(enriched),
         top_n,
+        lambda_diversity,
+        k_candidates,
         f"{echo_slug}/{echo_scene_id}" if selected_echo else None,
     )
 
@@ -185,7 +201,8 @@ def build_rimas_context(
         "selected_echo_id": selected_echo_id,
         "shared_tags": shared,
         "k": top_n,
-        "mmr_lambda": mmr_lambda,
+        "mmr_lambda": lambda_diversity,
+        "k_candidates": k_candidates,
         "threshold": threshold,
         "library_has_scenes": any(getattr(f, "is_processed", False) for f in films),
     }
