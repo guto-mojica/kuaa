@@ -130,8 +130,8 @@ search:
   mmr_lambda: 0.5             # Maximal Marginal Relevance λ
   # Modality gates (each toggles its chip on/off in the Buscar tab).
   image_enabled: true         # existing image-similarity search
-  audio_enabled: false        # M2: CLAP audio-only search
-  multimodal_enabled: false   # M3: cross-modal CLIP×CLAP fusion
+  audio_enabled: true         # M3: CLAP audio-only retrieval lit up
+  multimodal_enabled: false   # M3: fusion lands in plan #2 of M3
   # M2: the right inspector's Signals panel (.b-sigs) is gated on this until
   # the per-modality score breakdown actually exists.
   signals_enabled: false
