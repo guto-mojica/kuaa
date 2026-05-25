@@ -446,10 +446,14 @@ defer features; timeline extension is one option among several. Grilled
       (skipif-guarded). Implementation: `dispatch_fusion_search` mirrors
       the audio dispatcher; CLIP `index_mapping.json` normalised for the
       SigLIP2 parallel-array shape that broke the first real-data run.
-- [x] Visual rhymes (cross-film kNN + MMR diversity) — stub MVP shipped with
-  Mojica redesign: cosine kNN cross-film over existing CLIP keyframe embeddings,
-  `Rimas Visuais` tab fully wired (anchor + echoes UI). MMR / diversity
-  controls and curated single-anchor refinements deferred to M3.
+- [x] Visual rhymes (cross-film kNN + MMR diversity) — MMR live in M3:
+  `?lambda=` + `?k_candidates=` query params on `/tab/rimas`,
+  `/api/rimas/echoes`, `/api/rimas/inspector`; UI Diversidade popover
+  with range slider fires live HTMX updates on the echo grid. Default
+  λ=0.5 / k_candidates=30 via `cfg.retrieval.rhymes`. Acceptance check
+  on real 2-film library (10 tests) confirms cross_film_only +
+  MMR-runs-cleanly + unique-scene diversification. Curated single-anchor
+  refinements still deferred to M4 stretch.
 - [ ] 50–100 curator-annotated eval pairs
 - [ ] Landing-page README draft; blog post outline
 

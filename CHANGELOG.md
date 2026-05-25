@@ -34,6 +34,19 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ### Adicionado
 
+- **Rimas Visuais agora diversificam via MMR rerank (M3 #2).** Novo
+  popover "Diversidade" na aba Rimas com slider λ no intervalo [0, 1]
+  (passo 0.05); query params `?lambda=` + `?k_candidates=` em
+  `/tab/rimas`, `/api/rimas/echoes` e `/api/rimas/inspector` fazem
+  override do default. Default λ=0.5 / k_candidates=30 vêm de
+  `retrieval.rhymes.*` no `config/default.yaml`. Implementação:
+  `mmr_rerank()` (Carbonell-Goldstein 1998) sobre embeddings CLIP
+  keyframe; `find_rhymes` puxa `k_candidates` antes do rerank quando
+  `λ < 1.0`. Cobertura: 6 testes unitários (`mmr_rerank`), 3 testes
+  funcionais (`find_rhymes` com MMR), 4 testes de serviço, 6 testes
+  de rota (3 endpoints × 2 cenários), 10 testes de aceitação em
+  biblioteca real (Jeca Tatu + Edwin Porter, SigLIP2). Sliders +
+  store `rimasRetrieval` localStorage-persistidos.
 - **Busca fusion cross-modal (M3 #1) — `?modality=fusion&w=0.5`.**
   Combinação linear tardia de cosines CLIP × CLAP sob um peso `w`
   ajustável (slider 0..1 no popover "visual ↔ áudio"). Default 0.5;
