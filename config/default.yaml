@@ -120,7 +120,12 @@ search:
   # are display-only.
   hybrid_sem_w: 0.70
   hybrid_bm25_w: 0.30
-  hybrid_enabled: false       # M2: hybrid retrieval
+  hybrid_enabled: true        # M2 default (Plan 4 of 8) — was: false
+  bm25:
+    k1: 1.5                    # BM25 saturation
+    b: 0.75                    # length normalisation
+    stopwords_lang: null       # null = no stopword removal
+    rrf_k: 60                  # RRF rank-shift constant (Cormack et al.)
   rerank_enabled: false       # M2: cross-encoder reranker
   mmr_lambda: 0.5             # Maximal Marginal Relevance λ
   # Modality gates (each toggles its chip on/off in the Buscar tab).

@@ -173,21 +173,73 @@ async def api_search(
     q: str = "",
     tags: list[str] = Query(default=[]),
     top_k: int = 8,
+    retriever: str = "hybrid",
+    sem_w: float | None = None,
+    bm25_w: float | None = None,
     slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
+    """Text semantic search across one (``?film=<slug>``) or all films.
+
+    M2 dispatch (Task D1): ``retriever`` selects between three retrieval
+    pipelines (``clip`` | ``bm25`` | ``hybrid``). The pre-M2 default was
+    pure-CLIP — ``?retriever=clip`` faithfully reproduces that path and
+    is the regression pin (``tests/test_search_regression_snapshot.py``).
+    The new default is ``hybrid``; an unknown value warns + falls back to
+    the default rather than 4xx-ing (clients constructing URLs by hand
+    should not break the UI).
+
+    ``sem_w`` / ``bm25_w`` are optional float overrides (both ``None`` ⇒
+    use ``cfg.search.hybrid_sem_w`` / ``hybrid_bm25_w``). They are
+    clamped to ``[0, 1]`` by :func:`resolve_weights`; the degenerate
+    ``(0, 0)`` case falls back to the configured defaults so the fused
+    ordering doesn't become incidentally tie-broken.
+    """
     q = q.strip()
     if len(q) < 2:
         return HTMLResponse("")
 
     cfg = get_config()
     min_sim = float(getattr(cfg.embeddings, "min_similarity", 0.0) or 0.0)
+
+    # Resolve retriever mode. Unknown values warn + fall back to "hybrid"
+    # — the route stays a render path, not a 4xx surface, since users may
+    # bookmark URLs with arbitrary params.
+    valid_modes = {"clip", "bm25", "hybrid"}
+    if retriever not in valid_modes:
+        logger.warning("api_search: unknown retriever=%r — falling back to hybrid", retriever)
+        retriever = "hybrid"
+
+    # Resolve weights with clamp + degenerate-zero fallback. Either param
+    # being ``None`` uses the config default for that side; that lets a
+    # client pass a partial override (``?sem_w=0.5`` alone) without
+    # also having to set ``bm25_w``.
+    from cinemateca.retrieval.hybrid import DEFAULT_RRF_K, resolve_weights
+
+    defaults = (float(cfg.search.hybrid_sem_w), float(cfg.search.hybrid_bm25_w))
+    sw, bw = resolve_weights(
+        sem_w=sem_w if sem_w is not None else defaults[0],
+        bm25_w=bm25_w if bm25_w is not None else defaults[1],
+        defaults=defaults,
+    )
+
+    # rrf_k is a static config knob (no per-request override) — read once
+    # per request so changing config/default.yaml takes effect after a
+    # reload without code changes. Falls back to DEFAULT_RRF_K when the
+    # config block is absent (older configs / unit-test SimpleNamespace).
+    bm25_cfg = getattr(cfg.search, "bm25", None)
+    rrf_k = int(getattr(bm25_cfg, "rrf_k", DEFAULT_RRF_K)) if bm25_cfg else DEFAULT_RRF_K
+
     logger.info(
-        "api_search: query=%r slug=%s tags=%s top_k=%d min_sim=%.3f",
+        "api_search: query=%r slug=%s tags=%s top_k=%d min_sim=%.3f "
+        "retriever=%s sem_w=%.3f bm25_w=%.3f",
         q,
         slug or "(aggregate)",
         list(tags) or None,
         top_k,
         min_sim,
+        retriever,
+        sw,
+        bw,
     )
 
     if slug is None:
@@ -196,7 +248,14 @@ async def api_search(
         # supported in aggregate mode (per-film tag post-filtering lands in
         # a later plan); fall back to no-index response when there are no
         # indexed films.
-        loop = asyncio.get_event_loop()
+        #
+        # ``retriever_mode`` / ``sem_w`` / ``bm25_w`` are pre-staged into
+        # ``aggregate_search``'s signature here; Task D2 fills in the
+        # actual cross-film hybrid logic. For now aggregate stays
+        # pure-CLIP regardless of mode — the regression-snapshot test
+        # (which calls without ``?film=`` and pinned ``retriever=clip``)
+        # remains byte-stable.
+        loop = asyncio.get_running_loop()
         try:
             hits = await loop.run_in_executor(
                 None,
@@ -207,6 +266,10 @@ async def api_search(
                     top_k=top_k,
                     tags=tags,
                     min_similarity=min_sim,
+                    retriever_mode=retriever,
+                    sem_w=sw,
+                    bm25_w=bw,
+                    rrf_k=rrf_k,
                 ),
             )
         except NotImplementedError:
@@ -284,10 +347,36 @@ async def api_search(
         return _no_index_response(request)
 
     tag_index = load_tag_index(ctx.metadata_dir) if tags else {}
-    loop = asyncio.get_event_loop()
-    results_df = await loop.run_in_executor(
-        None, search_service.search_text, index, q, tags, tag_index, top_k, min_sim
-    )
+    loop = asyncio.get_running_loop()
+    if retriever == "clip":
+        # Regression pin: pre-M2 pure-CLIP path is the existing
+        # search_text (with the wider-window + dedupe semantics the
+        # snapshot was captured against).
+        results_df = await loop.run_in_executor(
+            None, search_service.search_text, index, q, tags, tag_index, top_k, min_sim
+        )
+    else:
+        # bm25 / hybrid — load the per-film BM25 index (cached by
+        # 3-file mtime+size) and let search_hybrid orchestrate.
+        # search_hybrid is sync + keyword-only, so wrap in a lambda for
+        # run_in_executor's positional-only contract.
+        bm25 = search_service._get_bm25_index_for_ctx(ctx)
+        results_df = await loop.run_in_executor(
+            None,
+            lambda: search_service.search_hybrid(
+                index,
+                bm25=bm25,
+                query=q,
+                tags=tags,
+                tag_index=tag_index,
+                top_k=top_k,
+                min_similarity=min_sim,
+                retriever_mode=retriever,
+                sem_w=sw,
+                bm25_w=bw,
+                rrf_k=rrf_k,
+            ),
+        )
 
     meta_by_scene, fps = _kf_meta(ctx)
     results = _enrich_with_film_metadata(
@@ -356,7 +445,7 @@ async def api_search_image(
         tmp_path = Path(tmp.name)
 
     try:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         results_df = await loop.run_in_executor(
             None, search_service.search_image, index, tmp_path, top_k
         )

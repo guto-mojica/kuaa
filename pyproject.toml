@@ -30,6 +30,9 @@ dependencies = [
     "pandas>=2.0",
     "Pillow>=10.0",
     "opencv-python>=4.8",
+    # BM25 lexical retrieval for M2 hybrid search (CLIP ⊕ BM25 via RRF).
+    # PyPI name is `rank-bm25` (hyphen); import path is `rank_bm25` (underscore).
+    "rank-bm25>=0.2.2",
     "tqdm>=4.65",
     # Typer 0.12+ bundles rich for colored, auto-generated help and ships
     # the `cinemateca` CLI tree (`serve`, `process`, `info`, `library *`,

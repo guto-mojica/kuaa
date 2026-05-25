@@ -12,6 +12,17 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ### Adicionado
 
+- **M2 #3 · Busca Híbrida (CLIP ⊕ BM25 via RRF)** — `/api/search` agora aceita
+  `?retriever=clip|bm25|hybrid` + pesos `sem_w` / `bm25_w`. Padrão flipado
+  para `hybrid`; `?retriever=clip` reproduz a ordenação pré-M2 byte-a-byte
+  (regression pin, snapshot committed em `tests/fixtures/hybrid_search_regression.json`).
+  Novo pacote `src/cinemateca/retrieval/` (tokenize + corpus + bm25 + hybrid)
+  alimenta o serviço `search_hybrid()` orquestrador. Aggregate cross-film
+  honra o mesmo modo de retriever. Bring-forward de Alpine.js (3.14.9) para
+  popovers interativos (botões Híbrido + k); Rerank/MMR ficam como chips
+  read-only com micro-badges M2/M3. ~24 commits, +30 testes na suite.
+  Spec/plano em `docs/superpowers/specs/2026-05-23-hybrid-search-design.md`
+  e `docs/superpowers/plans/2026-05-23-hybrid-search.md`.
 - **Mojica · Frame.io redesign** — nova identidade visual (dark frio + acento
   roxo), chrome de 5 abas (adiciona **Rimas Visuais** para rimas visuais
   cross-film), abas Buscar/Cenas/Anotar/Proc redesenhadas, nova superfície

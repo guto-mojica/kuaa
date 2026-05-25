@@ -25,13 +25,17 @@
     enrichment), this template will swap on the outer card id instead.
     Until then the inner stepper is the live source of truth and the
     outer header reflects the state at GET time.
+
+    The previous ``hx-trigger="every 3s" hx-swap="outerHTML"`` on this
+    article was REMOVED: the outer poll tore down the inner SSE div on
+    every 3-second cycle (htmx-ext-sse closed the EventSource on
+    htmx:beforeCleanupElement and re-opened a new one in the new card),
+    which dropped frames and caused visible flicker. The inner SSE is
+    the live source of truth — the redundant outer chrome reflects the
+    state at GET time and updates only on full-page navigation, which
+    is acceptable until Task 25 wires SSE through the whole card.
 -#}
-<article class="p-active" id="job-{{ job.id }}" data-job-id="{{ job.id }}"
-  {% if job.status in ('running', 'created') %}
-  hx-get="/api/pipeline/job-card/{{ job.id }}"
-  hx-trigger="every 3s"
-  hx-swap="outerHTML"
-  {% endif %}>
+<article class="p-active" id="job-{{ job.id }}" data-job-id="{{ job.id }}">
   <div class="head">
     <div class="l">
       {% if job.film_thumb %}

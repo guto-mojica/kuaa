@@ -99,8 +99,34 @@
   </div>
 
   <div class="p-body">
+    {#- Live SSE log pane.
+
+        The container itself opens an EventSource at
+        ``/api/pipeline/stream/<job.id>``; the inner ``.lines`` div
+        carries ``sse-swap="log" hx-swap="beforeend"`` so each
+        ``event: log`` frame APPENDS a row instead of replacing the
+        whole pane. The stream also carries ``update`` / ``done`` /
+        ``error`` / ``cancelled`` frames for the stepper inside the
+        job card — those event names aren't listed in this pane's
+        sse-swap so htmx silently ignores them here (the per-job
+        card has its own listener for them).
+
+        ``sse-close`` on the wrapper triggers ``source.close()`` on
+        any terminal event so the EventSource doesn't auto-reconnect
+        after the server closes the stream.
+
+        Pre-existing log history (the durable ring buffer on
+        JobState) is rendered server-side as
+        ``initial_log_lines`` — that's what makes a user who
+        navigates away and returns mid-job see the full transcript
+        before SSE even reconnects. The CSS rule
+        ``.p-log .lines:empty::before`` paints the "Waiting…"
+        placeholder when the buffer is empty AND no live row has
+        arrived yet, removing it automatically on first append. -#}
     <div class="p-log" id="proc-log"
-         {% if jobs %}hx-ext="sse" sse-connect="/api/pipeline/stream/{{ jobs[0].id }}" sse-swap="update"{% endif %}>
+         {% if jobs %}hx-ext="sse"
+         sse-connect="/api/pipeline/stream/{{ jobs[0].id }}"
+         sse-close="done,error,cancelled"{% endif %}>
       <div class="head">
         <div class="l">
           <span class="dot"></span>
@@ -115,13 +141,11 @@
           </label>
         </div>
       </div>
-      <div class="lines">
+      <div class="lines"
+           data-empty-text="{{ _('Waiting for events…') }}"
+           {% if jobs %}sse-swap="log" hx-swap="beforeend"{% endif %}>
         {% for line in initial_log_lines %}
           {% include "partials/processing_log_line.html" %}
-        {% else %}
-          <p class="fx-mono" style="font-size: 11px; color: var(--c-muted);">
-            {{ _("Waiting for events…") }}
-          </p>
         {% endfor %}
       </div>
     </div>

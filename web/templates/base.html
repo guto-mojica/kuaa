@@ -55,11 +55,22 @@
        command palette, and keyboard-help overlay. Single IIFE, no
        external deps. #}
     <script src="{{ request.url_for('static', path='js/mojica.js') }}" defer></script>
-    {# Alpine.js — client-only state sprinkles (chip toggles, panel
-       visibility, modal close, file-input filename). Alpine's
-       MutationObserver picks up DOM nodes inserted by htmx swaps
-       automatically, so no extra wiring is needed for fragments.
-       Pinned to 3.14.9 (see web/static/js/alpine.min.js). #}
+    {# Alpine.js — client-only state sprinkles: chip toggles, panel
+       visibility, modal close, file-input filename, M2 Hybrid Search
+       knob popovers + tag chips on Buscar, Cenas Appearance / Fields /
+       Group / Sort popovers. Alpine's MutationObserver picks up DOM
+       nodes inserted by htmx swaps automatically, so no extra wiring
+       is needed for fragments. Pinned to 3.14.9 (see
+       web/static/js/alpine.min.js).
+
+       Script order matters: mojica.js MUST execute BEFORE alpine.min.js.
+       Reason: Alpine 3 auto-starts the moment its bundle loads if
+       document.readyState !== 'loading' (true for any deferred script),
+       and dispatches ``alpine:init`` synchronously inside its own
+       execution — before any later-deferred listener can register.
+       Loading mojica.js first gets every ``alpine:init`` listener armed
+       before Alpine boots; the IIFE bodies never touch ``window.Alpine``
+       synchronously, only inside listeners or on-demand helpers. #}
     <script src="{{ request.url_for('static', path='js/alpine.min.js') }}" defer></script>
 </head>
 <body class="fx-app"

@@ -26,15 +26,14 @@
   var BOUND_FLAG = '__mojicaLogAutoscrollBound';
 
   /**
-   * Bind log auto-scroll behaviour to `#proc-log` when present.
+   * Bind per-node listeners for `#proc-log` when present.
    *
-   * - Scrolls `.lines` to the bottom on SSE-driven swap events.
-   * - Suspends auto-scroll once the user scrolls up manually.
-   * - Resumes when the user scrolls back to (near) the bottom.
-   * - Respects the [data-autoscroll] checkbox (checked by default).
-   *
-   * Safe to call repeatedly: the per-node BOUND_FLAG short-circuits
-   * duplicate listener registration when HTMX re-renders the tab.
+   * Idempotent per ``.lines`` node via the BOUND_FLAG sentinel. The
+   * DOCUMENT-LEVEL listeners (htmx:sseMessage / htmx:afterSettle)
+   * are registered exactly once in init(), NOT here — re-binding
+   * them per tab-swap would accumulate handlers that close over
+   * detached .lines nodes and leak memory + run dead callbacks on
+   * every SSE event.
    */
   function bindLogAutoscroll() {
     var log = document.getElementById('proc-log');
@@ -48,7 +47,7 @@
 
     // pinned: are we tracking the bottom? Starts true so newly-rendered
     // logs auto-scroll on first paint.
-    var pinned = true;
+    lines.__mojicaLogPinned = true;
 
     // Track manual scroll: as soon as the user moves more than
     // BOTTOM_TOLERANCE px above the bottom, un-pin. Re-pin when they
@@ -56,32 +55,7 @@
     lines.addEventListener('scroll', function () {
       var distanceFromBottom =
         lines.scrollHeight - lines.scrollTop - lines.clientHeight;
-      pinned = distanceFromBottom < BOTTOM_TOLERANCE;
-    });
-
-    function scrollToBottomIfPinned() {
-      var enabled = autoscrollBox ? autoscrollBox.checked : true;
-      if (enabled && pinned) {
-        lines.scrollTop = lines.scrollHeight;
-      }
-    }
-
-    // SSE events fire on the element with hx-ext="sse". htmx dispatches
-    // `htmx:sseMessage` synchronously per event; `htmx:afterSettle`
-    // fires after the swap has been applied to the DOM. We bind both
-    // to be robust against future swap-target changes and to handle
-    // non-SSE swaps that land inside `#proc-log` (e.g. a future
-    // "clear log" button).
-    document.body.addEventListener('htmx:sseMessage', function (evt) {
-      if (log.contains(evt.target) || evt.target === log) {
-        // Defer to next tick so the swap has actually mutated the DOM.
-        setTimeout(scrollToBottomIfPinned, 0);
-      }
-    });
-    document.body.addEventListener('htmx:afterSettle', function (evt) {
-      if (log.contains(evt.target) || evt.target === log) {
-        scrollToBottomIfPinned();
-      }
+      lines.__mojicaLogPinned = distanceFromBottom < BOTTOM_TOLERANCE;
     });
 
     // When the user re-ticks the checkbox after un-ticking it, snap
@@ -89,25 +63,52 @@
     if (autoscrollBox) {
       autoscrollBox.addEventListener('change', function () {
         if (autoscrollBox.checked) {
-          pinned = true;
+          lines.__mojicaLogPinned = true;
           lines.scrollTop = lines.scrollHeight;
         }
       });
     }
 
-    // Initial scroll on load: server may have rendered seed lines.
-    scrollToBottomIfPinned();
+    // Initial scroll on load: server may have rendered buffered
+    // ``initial_log_lines`` (the durable JobState.log replay path).
+    scrollToBottomIfPinned(log, lines);
+  }
+
+  function scrollToBottomIfPinned(log, lines) {
+    if (!log || !lines) {
+      log = document.getElementById('proc-log');
+      if (!log) return;
+      lines = log.querySelector('.lines');
+      if (!lines) return;
+    }
+    var autoscrollBox = log.querySelector('[data-autoscroll]');
+    var enabled = autoscrollBox ? autoscrollBox.checked : true;
+    if (enabled && lines.__mojicaLogPinned !== false) {
+      lines.scrollTop = lines.scrollHeight;
+    }
   }
 
   // ── Bootstrap ──────────────────────────────────────────────────────
-  // HTMX tab swaps can replace `#proc-log` (or insert it for the first
-  // time when navigating to /processing). Rebind on every settle that
-  // brings the log into existence; the BOUND_FLAG guard makes repeats
-  // cheap.
+  // The two body listeners below MUST be registered exactly once for
+  // the lifetime of the page. Previously they lived inside
+  // bindLogAutoscroll() and were re-added on every HTMX tab swap (the
+  // BOUND_FLAG guard only protected the per-.lines listeners). That
+  // caused listener-and-detached-DOM accumulation on every Processing
+  // tab visit. By moving them to init(), each handler exists exactly
+  // once and always operates on the CURRENT #proc-log / .lines lookup.
   function init() {
     bindLogAutoscroll();
     document.body.addEventListener('htmx:afterSettle', function () {
       bindLogAutoscroll();
+      // Defer one tick so the freshly-swapped DOM is committed.
+      setTimeout(scrollToBottomIfPinned, 0);
+    });
+    document.body.addEventListener('htmx:sseMessage', function (evt) {
+      var log = document.getElementById('proc-log');
+      if (!log) return;
+      if (log.contains(evt.target) || evt.target === log) {
+        setTimeout(scrollToBottomIfPinned, 0);
+      }
     });
   }
 
@@ -434,24 +435,38 @@
   });
 })();
 
-// ─── UI preferences (Cenas Appearance / Fields + Buscar view) ────────
+// ─── UI preferences (Cenas Appearance/Fields/Group/Sort + Buscar view + Buscar retrieval) ───
 // localStorage-backed Alpine stores driving toolrow popovers in
-// scenes.html (Appearance + Fields) and the view-toggle segments in
-// search.html (Grade / Lista / Compacto). The server can't see
-// localStorage, so these toggles are client-only — Alpine reactively
-// binds class names on the appropriate container to flip layout and
-// per-field visibility. Persistence survives reloads and tab swaps.
+// scenes.html (Appearance + Fields + Group + Sort), the view-toggle
+// segments in search.html (Grade / Lista / Compacto), and the M2
+// Hybrid Search retrieval-mode popovers (retriever / sem_w / top_k).
+// The server can't see localStorage, so these toggles are client-only —
+// Alpine reactively binds class names on the appropriate container to
+// flip layout, per-field visibility, and the hidden HTMX form mirrors.
+// Persistence survives reloads and tab swaps.
 //
 // Store shape (all reactive Alpine proxies):
-//   $store.cenasAppearance.density   // 'comfortable' | 'compact'
+//   $store.cenasAppearance.density       // 'comfortable' | 'compact'
 //   $store.cenasFields.{timecode,pin_count,version,sub,tipo}  // bool
-//   $store.buscarView.mode           // 'grid' | 'list' | 'compact'
+//   $store.cenasGroup.by                  // group key
+//   $store.cenasSort.by                   // sort key
+//   $store.buscarView.mode                // 'grid' | 'list' | 'compact'
+//   $store.buscarRetrieval.{mode,sem_w,top_k}
 //
-// Defaults are "everything visible, comfortable density, grid view";
-// users only ever pay storage cost when they deviate from defaults.
-// A corrupt or absent payload silently falls back to defaults — the
-// try/catch keeps a malformed localStorage entry from breaking the
-// page entirely.
+// The ``buscarRetrieval`` store backs the Buscar tab's knob-row popovers
+// (retriever / sem_w / bm25_w / top_k). Defaults mirror the canonical
+// hybrid baseline so a first-paint UI never drifts from the server
+// contract: ``retriever=hybrid``, ``sem_w=0.70``, ``bm25_w=0.30``,
+// ``top_k=9`` (UI preference; the route's FastAPI default is 8 — the
+// hidden HTMX mirror sends the UI value on every request, so the
+// divergence is intentional). Keep ``mode`` / ``sem_w`` / ``top_k`` in
+// sync with the ``/api/search`` query params in ``api/routes/search.py``.
+//
+// Defaults are "everything visible, comfortable density, grid view,
+// hybrid retrieval"; users only ever pay storage cost when they
+// deviate from defaults. A corrupt or absent payload silently falls
+// back to defaults via the try/catch in ``loadPrefs`` — a malformed
+// localStorage entry must not break the page or wedge the search UI.
 (function () {
   'use strict';
 
@@ -463,25 +478,39 @@
     group:      'mojica:cenas:group',
     sort:       'mojica:cenas:sort',
     view:       'mojica:buscar:view',
+    retrieval:  'mojica:buscar:retrieval',
   };
 
   // Defaults — also the source of truth for "what fields exist". The
   // Fields popover renders one row per key here in declaration order.
   // ``group`` / ``sort`` mirror the server's ``_VALID_GROUPS`` /
   // ``_VALID_SORTS`` defaults — keep the two in sync if either is
-  // edited.
+  // edited. ``retrieval`` mirrors ``/api/search`` query params.
   var DEFAULTS = {
     appearance: { density: 'comfortable' },
     fields:     { timecode: true, pin_count: true, version: true, sub: true, tipo: true },
     group:      { by: 'film' },
     sort:       { by: 'timecode' },
     view:       { mode: 'grid' },
+    retrieval:  { mode: 'hybrid', sem_w: 0.70, top_k: 9 },
   };
 
   /**
    * Load a JSON-encoded prefs payload from localStorage and merge it
-   * onto a defaults object. Missing keys + parse failures both fall
-   * back to defaults rather than leaving the store half-populated.
+   * onto a defaults object. Missing keys + parse failures fall back
+   * to defaults rather than leaving the store half-populated.
+   *
+   * Per-key type-coercion against the defaults shape: a numeric
+   * default rejects any incoming value that ``Number()`` can't make
+   * finite (``null``, ``undefined``, ``"abc"`` all fall back to the
+   * default), and a string default rejects empty / non-string values.
+   * Without this, an old / hand-edited / partial localStorage entry
+   * like ``{"mode":"hybrid","sem_w":null}`` would surface as
+   * ``Number(null).toFixed(2) === "0.00"`` (OK by luck) or
+   * ``Number(undefined).toFixed(2) === "NaN"`` (the actual hazard)
+   * in the hidden HTMX form mirror, then the FastAPI route would
+   * 422 on every search. Defensive coercion here is cheap and means
+   * a corrupt prefs entry never wedges the search UI.
    */
   function loadPrefs(key, defaults) {
     try {
@@ -489,7 +518,28 @@
       if (!raw) return Object.assign({}, defaults);
       var parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== 'object') return Object.assign({}, defaults);
-      return Object.assign({}, defaults, parsed);
+      var out = Object.assign({}, defaults);
+      for (var k in defaults) {
+        if (!Object.prototype.hasOwnProperty.call(defaults, k)) continue;
+        if (!Object.prototype.hasOwnProperty.call(parsed, k)) continue;
+        var v = parsed[k];
+        var dt = typeof defaults[k];
+        if (dt === 'number') {
+          // Accept only actual JSON numbers (typeof === 'number') that
+          // are finite. Reject null / undefined / strings / NaN /
+          // Infinity outright — they fall back to defaults instead of
+          // coercing to 0 via Number(null) and then surfacing as the
+          // wrong slider value.
+          if (typeof v === 'number' && Number.isFinite(v)) out[k] = v;
+        } else if (dt === 'string') {
+          if (typeof v === 'string' && v.length > 0) out[k] = v;
+        } else if (dt === 'boolean') {
+          if (typeof v === 'boolean') out[k] = v;
+        } else {
+          out[k] = v;
+        }
+      }
+      return out;
     } catch (e) {
       return Object.assign({}, defaults);
     }
@@ -529,6 +579,7 @@
     window.Alpine.store('cenasGroup',      loadPrefs(KEYS.group,      DEFAULTS.group));
     window.Alpine.store('cenasSort',       loadPrefs(KEYS.sort,       DEFAULTS.sort));
     window.Alpine.store('buscarView',      loadPrefs(KEYS.view,       DEFAULTS.view));
+    window.Alpine.store('buscarRetrieval', loadPrefs(KEYS.retrieval,  DEFAULTS.retrieval));
 
     // Persistence effects must register AFTER the stores exist; same
     // alpine:init handler keeps the relative ordering deterministic.
@@ -537,5 +588,6 @@
     persistOnChange('cenasGroup',      KEYS.group,      ['by']);
     persistOnChange('cenasSort',       KEYS.sort,       ['by']);
     persistOnChange('buscarView',      KEYS.view,       ['mode']);
+    persistOnChange('buscarRetrieval', KEYS.retrieval,  ['mode', 'sem_w', 'top_k']);
   });
 })();
