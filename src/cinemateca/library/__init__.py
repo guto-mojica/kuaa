@@ -3,11 +3,10 @@
 Public API:
 
     from cinemateca.library import (
-        Film, LibraryState,
+        Film, LibraryState, FilmContext,
         scan_library, library_state,
         register_film, delete_film, load_registry, save_registry,
         # Added in subsequent P2 tasks:
-        # FilmContext,                    # T3
         # Library,                        # T10
         # load_json, keyframe_url,        # T4
         # to_smpte, derive_fps,           # T4
@@ -16,6 +15,7 @@ Public API:
 """
 from __future__ import annotations
 
+from cinemateca.library.context import FilmContext
 from cinemateca.library.registry import (
     Film,
     delete_film,
@@ -31,6 +31,7 @@ from cinemateca.library.scan import (
 
 __all__ = [
     "Film",
+    "FilmContext",
     "LibraryState",
     "delete_film",
     "library_state",
