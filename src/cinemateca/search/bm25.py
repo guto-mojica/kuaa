@@ -44,7 +44,7 @@ from pathlib import Path
 from typing import Any
 
 from cinemateca.retrieval.bm25 import BM25Index
-from cinemateca.search._tag_index import load_tag_index
+from cinemateca.library.metadata import load_tag_index
 from cinemateca.search.cache import register_cache_clearer
 
 logger = logging.getLogger(__name__)

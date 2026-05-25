@@ -18,7 +18,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from cinemateca.search._tag_index import load_tag_index
+from cinemateca.library.metadata import load_tag_index
 from cinemateca.search.display import filter_degenerate_tags
 
 
