@@ -1,5 +1,9 @@
 """Cross-film hybrid dispatch in ``aggregate_search``.
 
+Note: ``_get_embedder`` monkeypatches target ``cinemateca.search.aggregate``
+(the module), accessed via ``sys.modules`` because the ``aggregate`` function
+name shadows the submodule in the ``cinemateca.search`` package namespace.
+
 Task D2 — the per-film fan-out branches on ``retriever_mode``:
 
   * ``"clip"``   — inline cosine over the per-film CLIP index, identical
@@ -27,14 +31,20 @@ paths are integration-tested end-to-end.
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
+import cinemateca.search.aggregate as _csa_module_ref  # noqa: F401 — ensure loaded
 from api.services.search import aggregate_search
 from cinemateca.library import register_film
+
+# The submodule is shadowed in cinemateca.search by the `aggregate` function
+# re-export; access via sys.modules to reach the module object reliably.
+_AGGREGATE_MODULE = sys.modules["cinemateca.search.aggregate"]
 
 # ── Inline two-film fixture helpers (mirrors test_multi_film_search.py) ──────
 
@@ -153,7 +163,7 @@ def two_film_library_cfg(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> obj
         def encode_text(self, q: str) -> np.ndarray:
             return np.array([1.0, 0.0], dtype=np.float32)
 
-    monkeypatch.setattr("api.services.search._get_embedder", lambda cfg: StubEmbedder())
+    monkeypatch.setattr(_AGGREGATE_MODULE, "_get_embedder", lambda cfg: StubEmbedder())
     return _cfg(library_dir)
 
 
@@ -324,7 +334,7 @@ def degeneracy_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> objec
         def encode_text(self, q: str) -> np.ndarray:
             return np.array([1.0, 0.0], dtype=np.float32)
 
-    monkeypatch.setattr("api.services.search._get_embedder", lambda cfg: StubEmbedder())
+    monkeypatch.setattr(_AGGREGATE_MODULE, "_get_embedder", lambda cfg: StubEmbedder())
     return _cfg(library_dir)
 
 
@@ -421,7 +431,7 @@ def test_aggregate_hybrid_falls_back_to_clip_when_bm25_empty(
         def encode_text(self, q: str) -> np.ndarray:
             return np.array([1.0, 0.0], dtype=np.float32)
 
-    monkeypatch.setattr("api.services.search._get_embedder", lambda cfg: StubEmbedder())
+    monkeypatch.setattr(_AGGREGATE_MODULE, "_get_embedder", lambda cfg: StubEmbedder())
 
     hits = aggregate_search(
         _cfg(library_dir),

@@ -17,21 +17,10 @@ route call site (``api/routes/search.py``) and the 18 cross-film tests
 typed ``aggregate(query, *, cfg, ...)`` wrapper lands in T13 — verbatim
 move first, signature reshape behind a stable public surface second.
 
-Module hygiene note: this module makes a LAZY call into
-``api.services.search`` for two helpers — ``_get_embedder`` (the CLIP
-text-encoder factory) and ``_get_search_index`` (the per-film
-``SearchIndex`` loader). The lazy attribute access (NOT a top-level
-``from ... import``) is intentional: tests across the suite monkeypatch
-``api.services.search._get_embedder`` / ``_get_search_index`` to avoid
-loading the real ~4 s CLIP model, and we MUST keep those monkeypatches
-on the call path. Reading the attribute from the module at call time
-(rather than binding the function reference at import time) preserves
-that contract byte-for-byte. The import is also lazy because
-``api/services/search.py`` re-exports this module's :func:`aggregate_search`
-back to its old name — a top-level ``from api.services import search``
-here would deadlock the module-load order. T14 collapses both shims
-into the public ``cinemateca.search.find()`` verb and the lazy
-attribute reads disappear.
+T13 (P3.D.1): ``_get_embedder``, ``_get_search_index``, and
+``has_indexed_films`` now live here. ``api.services.search`` re-exports
+them for backward compatibility. Tests should monkeypatch
+``cinemateca.search.aggregate._get_embedder`` / ``_get_search_index``.
 """
 
 from __future__ import annotations
@@ -51,7 +40,7 @@ from cinemateca.library import (
 )
 from cinemateca.retrieval.hybrid import DEFAULT_RRF_K, fuse_rrf
 from cinemateca.scene_ids import normalize_tag_index, scene_id_key
-from cinemateca.search.cache import IndexStatus
+from cinemateca.search.cache import IndexStatus, SearchIndex, load_index
 from cinemateca.search.types import (
     Filters,
     Hit,
@@ -62,6 +51,79 @@ from cinemateca.search.types import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Canonical filenames for the per-film CLIP index. Mirror
+# ``config/default.yaml`` → ``embeddings.*``; used as defaults when
+# ``cfg.embeddings`` is absent (unit tests with minimal configs).
+_DEFAULT_EMBEDDINGS_FILENAME = "keyframe_embeddings.npy"
+_DEFAULT_MAPPING_FILENAME = "index_mapping.json"
+
+
+def _get_embedder(cfg: Any) -> object:
+    """Return a fresh ``OpenClipEmbedder``. Module-scope so unit tests
+    monkeypatch ``cinemateca.search.aggregate._get_embedder`` to avoid
+    loading the real CLIP model. ``cfg`` is accepted but currently ignored.
+    """
+    from cinemateca.models.clip.openclip import OpenClipEmbedder
+
+    return OpenClipEmbedder()
+
+
+def _get_search_index(cfg: Any, slug: str) -> SearchIndex:
+    """Return the (cached) :class:`SearchIndex` for ``slug``. Reads
+    ``cfg.embeddings.*`` filenames when present, otherwise falls back
+    to the module-level defaults for minimal test configs.
+    """
+    emb_cfg = getattr(cfg, "embeddings", None)
+    embeddings_filename = (
+        getattr(emb_cfg, "filename", _DEFAULT_EMBEDDINGS_FILENAME)
+        if emb_cfg is not None
+        else _DEFAULT_EMBEDDINGS_FILENAME
+    )
+    mapping_filename = (
+        getattr(emb_cfg, "mapping_filename", _DEFAULT_MAPPING_FILENAME)
+        if emb_cfg is not None
+        else _DEFAULT_MAPPING_FILENAME
+    )
+    ctx = FilmContext.for_film(cfg, slug)
+    return load_index(
+        ctx, embeddings_filename=embeddings_filename, mapping_filename=mapping_filename
+    )
+
+
+def _get_bm25_index_for_ctx_with_cfg(cfg: Any, ctx: FilmContext) -> object:
+    """Load + cache the BM25 index for one film.
+
+    Resolves ``cfg.search.bm25`` tunables (``stopwords_lang`` / ``k1`` /
+    ``b``) directly from the supplied ``cfg`` object — no ``api.deps``
+    dependency needed because aggregate callers already hold ``cfg``.
+    """
+    from cinemateca.search.bm25 import bm25_index_for_ctx
+
+    bm25_cfg = getattr(cfg.search, "bm25", None) if hasattr(cfg, "search") else None
+    stopwords_lang = getattr(bm25_cfg, "stopwords_lang", None) if bm25_cfg else None
+    k1 = float(getattr(bm25_cfg, "k1", 1.5)) if bm25_cfg else 1.5
+    b = float(getattr(bm25_cfg, "b", 0.75)) if bm25_cfg else 0.75
+    return bm25_index_for_ctx(ctx, stopwords_lang=stopwords_lang, k1=k1, b=b)
+
+
+def has_indexed_films(cfg: Any) -> bool:
+    """``True`` iff at least one registered film has an OK :class:`SearchIndex`.
+
+    Lets the route distinguish "no indexed films yet" (run the pipeline)
+    from "indexed films exist but the query matched nothing" (no results).
+    """
+    from cinemateca.library import scan_library
+
+    library_dir = Path(cfg.paths.library_dir)
+    for film in scan_library(library_dir):
+        try:
+            idx = _get_search_index(cfg, film.slug)
+        except ValueError:
+            continue
+        if idx.status is IndexStatus.OK:
+            return True
+    return False
 
 
 def aggregate_search(
@@ -127,13 +189,6 @@ def aggregate_search(
     to fused RRF scores (different scale again) — same contract as the
     legacy code.
     """
-    # Lazy attribute reads on api.services.search so the existing
-    # monkeypatches (test_multi_film_search / test_aggregate_search_hybrid /
-    # test_p1_search_snapshot all setattr on the legacy module path) keep
-    # hitting the call sites below. ``_get_search_index`` and
-    # ``_get_embedder`` migrate under cinemateca.search in a follow-up;
-    # until then this is the documented contract.
-    from api.services import search as _legacy_search
     from cinemateca.library import scan_library
 
     if modality != "text":
@@ -149,7 +204,7 @@ def aggregate_search(
     if not films:
         return []
 
-    embedder = _legacy_search._get_embedder(cfg)
+    embedder = _get_embedder(cfg)
 
     text_vec: np.ndarray = embedder.encode_text(query)  # type: ignore[union-attr]
     norm = float(np.linalg.norm(text_vec))
@@ -191,7 +246,7 @@ def aggregate_search(
 
     for film in films:
         try:
-            idx = _legacy_search._get_search_index(cfg, film.slug)
+            idx = _get_search_index(cfg, film.slug)
         except ValueError as exc:
             logger.warning("aggregate_search: skip film %s — %s", film.slug, exc)
             continue
@@ -256,7 +311,7 @@ def aggregate_search(
         bm25_hits: list[tuple[int, float]] = []
         if retriever_mode != "clip":
             try:
-                bm25 = _legacy_search._get_bm25_index_for_ctx(ctx)
+                bm25 = _get_bm25_index_for_ctx_with_cfg(cfg, ctx)
             except (FileNotFoundError, OSError, ValueError):
                 # Narrow set of loader failure modes — anything else is
                 # a programming bug we want to surface, not silently
@@ -377,12 +432,6 @@ def aggregate_search(
 # with the locked P1 API surface — typed in, typed out. P2 replaces the
 # ``cfg=`` argument with ``library=Library`` once the Library type
 # lands; the rest of the signature stays.
-#
-# ``no_index`` resolution uses :func:`api.services.search.has_indexed_films`
-# directly. The carve-out
-# ``cinemateca.search.aggregate -> api.services.search`` already exists
-# in ``.importlinter`` from T11 (the lazy ``_get_embedder`` /
-# ``_get_search_index`` reads) — no additional rule needed for T13.
 
 
 def aggregate(
@@ -438,8 +487,6 @@ def aggregate(
     if hits:
         no_index = False
     else:
-        from api.services.search import has_indexed_films
-
         no_index = not has_indexed_films(cfg)
     return SearchResult(
         hits=hits,

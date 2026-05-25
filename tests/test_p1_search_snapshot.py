@@ -59,9 +59,16 @@ def small_library(tmp_config, monkeypatch):
         whose embedder produces 4-dim vectors matching the stub .npy.
     """
     cfg = tmp_config
-    from api.services import search as svc
+    import sys
+
+    import cinemateca.search.aggregate as _csa_ref  # noqa: F401 — ensure module is loaded
     from cinemateca.library import register_film
     from cinemateca.models.clip import openclip as openclip_mod
+
+    # Access the MODULE object via sys.modules — `cinemateca.search.aggregate`
+    # as an attribute resolves to the `aggregate` function re-exported by the
+    # package __init__, not the submodule.
+    _csa_mod = sys.modules["cinemateca.search.aggregate"]
 
     real_load = openclip_mod.OpenClipEmbedder.load
 
@@ -77,7 +84,7 @@ def small_library(tmp_config, monkeypatch):
 
         load = staticmethod(real_load)
 
-    monkeypatch.setattr(svc, "_get_embedder", lambda cfg: FakeEmbedder())
+    monkeypatch.setattr(_csa_mod, "_get_embedder", lambda cfg: FakeEmbedder())
     monkeypatch.setattr(openclip_mod, "OpenClipEmbedder", FakeEmbedder)
 
     library_dir = Path(cfg.paths.library_dir)

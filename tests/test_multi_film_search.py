@@ -2,15 +2,21 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
+import cinemateca.search.aggregate as _csa_module_ref  # noqa: F401 — ensure loaded
 from api.services.catalog import build_scenes_context_aggregate
 from api.services.search import aggregate_search
 from cinemateca.library import register_film
+
+# The submodule is shadowed in cinemateca.search by the `aggregate` function
+# re-export; access via sys.modules to reach the module object reliably.
+_AGGREGATE_MODULE = sys.modules["cinemateca.search.aggregate"]
 
 
 def _make_film(library_dir: Path, slug: str, scene_ids: list[int]) -> None:
@@ -144,7 +150,7 @@ def test_aggregate_search_empty_library_does_not_load_embedder(
             "_get_embedder was called on an empty library — CLIP eager-load bug"
         )
 
-    monkeypatch.setattr("api.services.search._get_embedder", _should_not_load)
+    monkeypatch.setattr(_AGGREGATE_MODULE, "_get_embedder", _should_not_load)
 
     result = aggregate_search(
         _cfg(library_dir), query="anything", modality="text", top_k=10
@@ -171,9 +177,7 @@ def test_aggregate_text_search_returns_results_from_both_films(
         def encode_text(self, q: str) -> np.ndarray:
             return np.array([1.0, 0.0], dtype=np.float32)
 
-    monkeypatch.setattr(
-        "api.services.search._get_embedder", lambda cfg: StubEmbedder()
-    )
+    monkeypatch.setattr(_AGGREGATE_MODULE, "_get_embedder", lambda cfg: StubEmbedder())
 
     results = aggregate_search(
         _cfg(library_dir), query="anything", modality="text", top_k=2
@@ -217,9 +221,7 @@ def test_aggregate_search_filters_by_tags_per_film(
         def encode_text(self, q: str) -> np.ndarray:
             return np.array([1.0, 0.0], dtype=np.float32)
 
-    monkeypatch.setattr(
-        "api.services.search._get_embedder", lambda cfg: StubEmbedder()
-    )
+    monkeypatch.setattr(_AGGREGATE_MODULE, "_get_embedder", lambda cfg: StubEmbedder())
 
     results = aggregate_search(
         _cfg(library_dir), query="anything", modality="text", top_k=8,
@@ -250,9 +252,7 @@ def test_aggregate_search_skips_films_missing_selected_tag(
         def encode_text(self, q: str) -> np.ndarray:
             return np.array([1.0, 0.0], dtype=np.float32)
 
-    monkeypatch.setattr(
-        "api.services.search._get_embedder", lambda cfg: StubEmbedder()
-    )
+    monkeypatch.setattr(_AGGREGATE_MODULE, "_get_embedder", lambda cfg: StubEmbedder())
 
     results = aggregate_search(
         _cfg(library_dir), query="anything", modality="text", top_k=8,
@@ -276,9 +276,7 @@ def test_aggregate_search_no_tags_unchanged(
         def encode_text(self, q: str) -> np.ndarray:
             return np.array([1.0, 0.0], dtype=np.float32)
 
-    monkeypatch.setattr(
-        "api.services.search._get_embedder", lambda cfg: StubEmbedder()
-    )
+    monkeypatch.setattr(_AGGREGATE_MODULE, "_get_embedder", lambda cfg: StubEmbedder())
 
     results_default = aggregate_search(
         _cfg(library_dir), query="anything", modality="text", top_k=8
@@ -344,9 +342,7 @@ def test_aggregate_search_includes_timecode_per_hit(
         def encode_text(self, q: str) -> np.ndarray:
             return np.array([1.0, 0.0], dtype=np.float32)
 
-    monkeypatch.setattr(
-        "api.services.search._get_embedder", lambda cfg: StubEmbedder()
-    )
+    monkeypatch.setattr(_AGGREGATE_MODULE, "_get_embedder", lambda cfg: StubEmbedder())
 
     results = aggregate_search(
         _cfg(library_dir), query="anything", modality="text", top_k=2
@@ -380,9 +376,7 @@ def test_aggregate_search_drops_below_min_similarity(
         def encode_text(self, q: str) -> np.ndarray:
             return np.array([1.0, 0.0], dtype=np.float32)
 
-    monkeypatch.setattr(
-        "api.services.search._get_embedder", lambda cfg: StubEmbedder()
-    )
+    monkeypatch.setattr(_AGGREGATE_MODULE, "_get_embedder", lambda cfg: StubEmbedder())
 
     # No threshold → both hits returned.
     no_floor = aggregate_search(

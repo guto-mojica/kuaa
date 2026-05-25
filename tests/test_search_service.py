@@ -588,8 +588,12 @@ class TestAggregateSearchDedup:
         per (film_slug, scene_id) in the final result."""
         from types import SimpleNamespace
 
-        from api.services import search as svc
+        import sys
+
+        import cinemateca.search.aggregate as _csa_ref  # noqa: F401 — ensure loaded
         from cinemateca.library import register_film
+
+        csa = sys.modules["cinemateca.search.aggregate"]
 
         # ── Two-film library with 3 keyframes per scene each ──
         library_dir = tmp_path / "library"
@@ -653,11 +657,11 @@ class TestAggregateSearchDedup:
             def encode_text(self, q):
                 return np.array([1.0, 0.0], dtype="float32")
 
-        monkeypatch.setattr(svc, "_get_search_index", fake_index)
-        monkeypatch.setattr(svc, "_get_embedder", lambda _cfg: _Embedder())
+        monkeypatch.setattr(csa, "_get_search_index", fake_index)
+        monkeypatch.setattr(csa, "_get_embedder", lambda _cfg: _Embedder())
 
         # ── Run aggregate search ──
-        hits = svc.aggregate_search(cfg, query="x", modality="text", top_k=10)
+        hits = csa.aggregate_search(cfg, query="x", modality="text", top_k=10)
 
         # 2 films × 2 scenes = 4 dedup'd hits max.
         assert len(hits) == 4, f"expected 4 deduped hits, got {len(hits)}\n{hits}"
@@ -672,9 +676,13 @@ class TestAggregateSearchDedup:
         highest cosine score in that scene."""
         from types import SimpleNamespace
 
-        from api.services import search as svc
+        import sys
+
+        import cinemateca.search.aggregate as _csa_ref  # noqa: F401 — ensure loaded
         from api.services.search import IndexStatus, SearchIndex
         from cinemateca.library import register_film
+
+        csa = sys.modules["cinemateca.search.aggregate"]
 
         library_dir = tmp_path / "library"
         register_film(library_dir, slug="film_a", title="Film A", year=None,
@@ -719,10 +727,10 @@ class TestAggregateSearchDedup:
             def encode_text(self, q):
                 return np.array([1.0, 0.0], dtype="float32")
 
-        monkeypatch.setattr(svc, "_get_search_index", fake_index)
-        monkeypatch.setattr(svc, "_get_embedder", lambda _cfg: _Embedder())
+        monkeypatch.setattr(csa, "_get_search_index", fake_index)
+        monkeypatch.setattr(csa, "_get_embedder", lambda _cfg: _Embedder())
 
-        hits = svc.aggregate_search(cfg, query="x", modality="text", top_k=10)
+        hits = csa.aggregate_search(cfg, query="x", modality="text", top_k=10)
         assert len(hits) == 1
         assert hits[0]["keyframe_path"] == "kf_02.jpg", (
             f"expected best-matching keyframe (kf_02), got {hits[0]['keyframe_path']}"
