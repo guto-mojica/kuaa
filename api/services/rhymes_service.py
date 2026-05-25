@@ -44,66 +44,33 @@ from typing import Any
 from cinemateca import library
 from cinemateca.library import FilmContext
 from cinemateca.rhymes import Rhyme, find_rhymes
-from cinemateca.rhymes.metadata import (  # noqa: F401
-    description_for as _description_for,
-    load_scene_meta as _load_scene_meta,
+from cinemateca.rhymes.anchor import (  # noqa: F401
+    default_anchor as _default_anchor,
 )
+from cinemateca.rhymes.anchor import (
+    parse_anchor as _parse_anchor,
+)
+from cinemateca.rhymes.config import rimas_cfg as _rimas_cfg  # noqa: F401
 from cinemateca.rhymes.enrich import (  # noqa: F401
     enrich_rhyme as _enrich_rhyme,
+)
+from cinemateca.rhymes.enrich import (
     select_echo as _select_echo,
+)
+from cinemateca.rhymes.enrich import (
     shared_tags as _shared_tags,
+)
+from cinemateca.rhymes.enrich import (
     signals_for_pair as _signals_for_pair,
 )
-
+from cinemateca.rhymes.metadata import (  # noqa: F401
+    description_for as _description_for,
+)
+from cinemateca.rhymes.metadata import (
+    load_scene_meta as _load_scene_meta,
+)
 
 logger = logging.getLogger(__name__)
-
-
-def _parse_anchor(anchor: str | None) -> tuple[str | None, int | None]:
-    """Split the ``?anchor=`` query value into ``(slug, scene_id)``.
-
-    Accepts ``"<slug>/<scene_id>"``; anything else (missing param,
-    missing slash, non-int scene_id) returns ``(None, None)`` so the
-    caller falls back to the default-anchor branch.
-    """
-    if not anchor or "/" not in anchor:
-        return None, None
-    slug, scene_id_s = anchor.split("/", 1)
-    if not slug:
-        return None, None
-    try:
-        return slug, int(scene_id_s)
-    except (TypeError, ValueError):
-        return None, None
-
-
-def _default_anchor(films: list[Any]) -> tuple[str | None, int | None]:
-    """Pick the first processed film and scene 1 as the default anchor.
-
-    "Processed" = ``is_processed`` flag from
-    :func:`cinemateca.library.scan_library`, which derives from
-    ``scene_count > 0``. Returns ``(None, None)`` when no film qualifies
-    so the caller can render the empty-state branch.
-    """
-    slug = next((f.slug for f in films if getattr(f, "is_processed", False)), None)
-    if slug is None:
-        return None, None
-    return slug, 1
-
-
-def _rimas_cfg(cfg: Any) -> tuple[int, float, float]:
-    """Read ``cfg.rimas.{top_n,mmr_lambda,threshold}`` with sensible defaults.
-
-    Test configs built off a minimal SimpleNamespace may omit the
-    ``rimas`` section entirely. The defaults here mirror
-    ``config/default.yaml`` so a missing config never collapses the
-    page.
-    """
-    rimas = getattr(cfg, "rimas", None)
-    top_n = int(getattr(rimas, "top_n", 8))
-    mmr_lambda = float(getattr(rimas, "mmr_lambda", 0.5))
-    threshold = float(getattr(rimas, "threshold", 0.75))
-    return top_n, mmr_lambda, threshold
 
 
 def build_rimas_context(
