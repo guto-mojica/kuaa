@@ -5,6 +5,7 @@ exercise the reranking *plumbing* (DTO mapping, response shape) without
 the real cross-encoder model. M2 implementation work removes this stub
 file's body but keeps the public signature.
 """
+
 from __future__ import annotations
 
 from cinemateca.search.types import SearchResult

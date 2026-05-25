@@ -1,4 +1,5 @@
 """rerank() is a stub in P1 — M2 fills in the body."""
+
 from __future__ import annotations
 
 import pytest

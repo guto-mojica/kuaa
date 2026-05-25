@@ -4,6 +4,7 @@ Caps codify the P1 deep-modules refactor invariant: services are HTTP
 adapters (<= 250 LOC), routes are HTTP shape + render (<= 150 LOC). Bumps
 require a CHANGELOG entry and reviewer sign-off.
 """
+
 from __future__ import annotations
 
 import sys

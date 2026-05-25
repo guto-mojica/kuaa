@@ -359,6 +359,17 @@ defer features; timeline extension is one option among several. Grilled
   persistence + P@K / nDCG / inversions / Cohen's κ metrics + keyboard router
   (0/1/2/3/S, j/k, ⌘⏎) + `cinemateca eval seed` CLI complete on
   `worktree-mojica-redesign`. M3 curator-pair seed work continues.
+- [x] **Deep-modules refactor P1 — `cinemateca.search`** — extracted from
+  `api/services/search.py` (1388 → **235** LOC, cap 250) and
+  `api/routes/search.py` (471 → **148** LOC, cap 150) into a typed
+  4-verb / 7-type public API (`find`, `aggregate`, `reindex_bm25`,
+  `rerank` + `Query` / `Filters` / `HybridWeights` / `Hit` /
+  `SearchResult` / `SearchMode` / `UploadRejected`). 14 files under
+  `src/cinemateca/search/`. Layer rules enforced by CI (`import-linter`
+  contract `cinemateca → api forbidden` + `scripts/check_loc_budget.py`).
+  Behavior preserved byte-for-byte via 8 hermetic snapshot tests. Spec:
+  `docs/superpowers/specs/2026-05-24-deep-modules-refactor-design.md`;
+  plan: `docs/superpowers/plans/2026-05-24-deep-modules-refactor-p1-search.md`.
 - [ ] Pre-launch LinkedIn "I'm building this" post
 
 ### Month 2 — Retrieval depth + audio (HARD FREEZE on new features)
@@ -378,7 +389,7 @@ defer features; timeline extension is one option among several. Grilled
   `docs/superpowers/plans/2026-05-23-hybrid-search.md`. F1 (eval ablation
   on Jeca Tatu) ainda pendente — corrida manual requer dados reais.
   **Próximo:** M2 #4 cross-encoder reranker.
-- [ ] Cross-encoder reranker (text default; VLM-as-judge opt-in)
+- [ ] Cross-encoder reranker (text default; VLM-as-judge opt-in) — lands in `cinemateca.search.rerank`
 - [ ] Multilingual visual model (SigLIP-multilingual; M-CLIP fallback)
 - [ ] CLAP archival-audio sanity check (pre-commit gate on Jeca Tatu)
 
