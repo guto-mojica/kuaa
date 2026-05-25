@@ -23,7 +23,6 @@ CAPS = {
 EXEMPTIONS: set[str] = {
     # P1 will remove these as services slim down.
     "api/services/scenes_service.py",
-    "api/services/annotations.py",
     "api/services/eval_service.py",
     "api/services/rhymes_service.py",
     "api/services/about_service.py",

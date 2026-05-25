@@ -28,6 +28,10 @@ root_packages =
 #                                      (lazy BM25-tunables resolution in
 #                                      cinemateca.search._dispatch; P5
 #                                      cleanup).
+#   * api.deps.get_config           -> cinemateca.config.get_config
+#                                      (lazy demo-threads flag resolution in
+#                                      cinemateca.annotations.scenes._demo_threads_enabled;
+#                                      P5 cleanup alongside search._dispatch).
 name=cinemateca core must not import api/
 type=forbidden
 source_modules=
@@ -37,6 +41,7 @@ forbidden_modules=
 ignore_imports=
     cinemateca.search.aggregate -> api.services.search
     cinemateca.search._dispatch -> api.deps
+    cinemateca.annotations.scenes -> api.deps
 
 [importlinter:contract:routes-not-direct-core]
 # T15 dropped the route's direct import of ``cinemateca.retrieval.hybrid``
