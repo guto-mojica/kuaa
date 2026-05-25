@@ -17,12 +17,11 @@ namespace.
 
 from __future__ import annotations
 
-import json
 import os
 from collections import Counter
-from pathlib import Path
 from typing import Any
 
+from cinemateca.eval.datasets import load_queries as _load_queries  # noqa: F401
 from cinemateca.eval.grader_metrics import (
     cohen_kappa,
     histogram,
@@ -35,8 +34,14 @@ from cinemateca.eval.grades import (
     Grade,
     GradeEntry,
     LoadedRun,
+    grades_by_query as _grades_by_query,  # noqa: F401
+    grades_for_query as _grades_for_query,  # noqa: F401
     load_run,
     load_run_per_annotator,
+)
+from cinemateca.eval.paths import (  # noqa: F401
+    eval_root as _eval_root,
+    eval_run_id as _eval_run_id,
 )
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -257,71 +262,10 @@ def compute_query_metrics(cfg, *, query_id: str | None = None) -> dict[str, Any]
 
 
 # ── Internals (patched in tests) ──────────────────────────────────────────────
-
-
-def _eval_root(cfg) -> Path:
-    """Resolve the eval data root from config, falling back to ``data/eval``.
-
-    Tests ``monkeypatch.setattr`` this function to redirect writes to
-    a tmp dir. The runtime path goes through ``cfg.eval.root`` (new
-    config block added in Task 30) when present; otherwise it derives
-    a path under ``cfg.paths.data_dir`` to stay inside the project
-    sandbox; otherwise the literal ``"data/eval"`` fallback.
-    """
-
-    eval_cfg = getattr(cfg, "eval", None)
-    if eval_cfg is not None:
-        root = getattr(eval_cfg, "root", None)
-        if root:
-            return Path(root)
-    paths = getattr(cfg, "paths", None)
-    if paths is not None:
-        data_dir = getattr(paths, "data_dir", None)
-        if data_dir:
-            return Path(data_dir) / "eval"
-    return Path("data/eval")
-
-
-def _eval_run_id(cfg) -> str:
-    """Resolve the current run id from config, falling back to ``"default"``."""
-
-    eval_cfg = getattr(cfg, "eval", None)
-    if eval_cfg is not None:
-        run_id = getattr(eval_cfg, "run_id", None)
-        if run_id:
-            return str(run_id)
-    return "default"
-
-
-def _load_queries(root: Path, run_id: str) -> list[dict[str, Any]]:
-    """Load the curated query list for the run. Empty when missing.
-
-    Task 33 ships the seeded queries file; until then this returns
-    ``[]`` and the /eval page renders an empty-state queue.
-    """
-
-    queries_path = root / f"{run_id}.queries.json"
-    if not queries_path.exists():
-        return []
-    try:
-        return json.loads(queries_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return []
-
-
-def _grades_by_query(loaded: LoadedRun) -> dict[str, list[Grade]]:
-    """Group LoadedRun.grades by query_id."""
-
-    out: dict[str, list[Grade]] = {}
-    for (qid, _scene_id), entry in loaded.grades.items():
-        out.setdefault(qid, []).append(entry.grade)
-    return out
-
-
-def _grades_for_query(loaded: LoadedRun, query_id: str) -> list[Grade]:
-    """Return the grade list for a single query (any scene id)."""
-
-    return [entry.grade for (qid, _scene_id), entry in loaded.grades.items() if qid == query_id]
+# _eval_root, _eval_run_id, _load_queries, _grades_by_query, _grades_for_query
+# are re-exported from cinemateca.eval.{paths,datasets,grades} at the top of
+# this file. The ``as _underscored`` aliases preserve the module-level names
+# that test fixtures monkeypatch via ``monkeypatch.setattr(eval_service, "_eval_root", ...)``.
 
 
 def _annotator_summary(
