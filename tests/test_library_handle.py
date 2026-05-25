@@ -102,18 +102,12 @@ def test_filmcontext_from_paths_constructor(tmp_path):
 
 def test_filmcontext_from_paths_unregistered_raises_keyerror(tmp_path):
     """from_paths raises KeyError (not ValueError) for unregistered slug."""
-    import pytest
-    from cinemateca.library.context import FilmContext
-
     with pytest.raises(KeyError, match="ghost"):
         FilmContext.from_paths(library_dir=tmp_path, slug="ghost", data_dir=tmp_path)
 
 
 def test_filmcontext_from_paths_invalid_slug_raises_valueerror(tmp_path):
     """from_paths raises ValueError for traversal slugs (not KeyError)."""
-    import pytest
-    from cinemateca.library.context import FilmContext
-
     with pytest.raises(ValueError, match="Invalid slug"):
         FilmContext.from_paths(
             library_dir=tmp_path, slug="../etc", data_dir=tmp_path
