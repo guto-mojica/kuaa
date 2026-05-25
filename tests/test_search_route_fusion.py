@@ -21,6 +21,7 @@ HTTP route surface — params, dispatch, rendering.
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import numpy as np
@@ -189,12 +190,42 @@ def test_api_search_modality_fusion_clamps_w_out_of_range(
 
 
 def test_api_search_modality_fusion_w_default_uses_config(
-    client, tmp_config, patch_embedders
+    client, tmp_config, patch_embedders, caplog
 ) -> None:
     """Omitting ``w=`` must fall through to the config default
     (``cfg.retrieval.fusion.visual_weight``, fallback ``0.5``) without
-    erroring. The actual weight value is verified by the service-layer
-    tests; here we only assert the route reaches the dispatcher cleanly."""
+    erroring. Beyond reaching the dispatcher, pin the resolved value by
+    asserting the route's post-resolution log line reports ``w=0.500`` —
+    the FusionConfig default that the getattr-chain falls back to until
+    Task 3.2 wires the config block."""
+    library_dir = Path(tmp_config.paths.library_dir)
+    _register(library_dir, "jeca_tatu")
+    _seed_clip(library_dir / "jeca_tatu")
+    _seed_clap(library_dir / "jeca_tatu")
+
+    with caplog.at_level(logging.INFO, logger="api.routes.search"):
+        resp = client.get(
+            "/api/search",
+            params={
+                "q": "cats",
+                "modality": "fusion",
+                "film": "jeca_tatu",
+                "top_k": 3,
+            },
+        )
+    assert resp.status_code == 200
+    assert "b-card" in resp.text
+    # The route logs a single INFO line with the resolved weight; pin it
+    # to the expected fallback default.
+    weight_logs = [r.message for r in caplog.records if "modality=fusion" in r.message]
+    assert any(
+        "w=0.500" in m for m in weight_logs
+    ), f"Expected default w=0.500 to be logged; got {weight_logs!r}"
+
+
+def test_api_search_modality_fusion_clamps_w_negative(client, tmp_config, patch_embedders) -> None:
+    """``w=-0.5`` must be clamped to ``0.0`` (UX-friendly slider can briefly
+    undershoot), not 422-rejected. Mirrors the upper-clamp test."""
     library_dir = Path(tmp_config.paths.library_dir)
     _register(library_dir, "jeca_tatu")
     _seed_clip(library_dir / "jeca_tatu")
@@ -205,9 +236,11 @@ def test_api_search_modality_fusion_w_default_uses_config(
         params={
             "q": "cats",
             "modality": "fusion",
+            "w": -0.5,
             "film": "jeca_tatu",
             "top_k": 3,
         },
     )
     assert resp.status_code == 200
+    # Non-empty markup — the dispatcher ran and rendered results.
     assert "b-card" in resp.text

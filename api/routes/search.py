@@ -188,9 +188,12 @@ async def _api_search_fusion(
     """
     if w is None:
         fusion_cfg = getattr(getattr(cfg, "retrieval", None), "fusion", None)
-        weight = float(getattr(fusion_cfg, "visual_weight", 0.5) if fusion_cfg else 0.5)
+        weight_raw = float(getattr(fusion_cfg, "visual_weight", 0.5) if fusion_cfg else 0.5)
     else:
-        weight = max(0.0, min(1.0, float(w)))
+        weight_raw = float(w)
+    # Single clamp covers both branches — defends against malformed
+    # local.yaml overrides that bypass the FusionConfig dataclass validator.
+    weight = max(0.0, min(1.0, weight_raw))
     logger.info(
         f"api_search modality=fusion q={q!r} slug={slug or '(agg)'} "
         f"top_k={top_k} w={weight:.3f}"
@@ -202,9 +205,14 @@ async def _api_search_fusion(
     )
     if no_index:
         return _no_index_response(request)
-    # Fusion hits share the audio-hit shape (scene_id, score, film_slug,
-    # film_title) and need the same enrichment path. Reuse the audio
-    # template converter.
+    # Fusion hits carry per-modality (clip_score, clap_score) alongside the
+    # audio-hit shape (scene_id, score, film_slug, film_title). The audio
+    # template converter constructs only the shape the b-card partial
+    # renders today, so the per-modality scores are dropped at the template
+    # boundary on purpose. Revisit when the card needs to show
+    # "visual X.XX / audio Y.YY" — at that point widen the converter (or
+    # create a fusion-specific one) instead of teaching the audio helper
+    # about extra fields.
     card_dicts = search_service.audio_hits_to_template_dicts(cfg, payload, per_film_slug=slug)
     results = search_service.enrich_hits_with_film_metadata(cfg, card_dicts, per_film_slug=slug)
     return _render_results(request, slug=slug, cfg=cfg, results=results, query=q)
