@@ -3,7 +3,7 @@ tests/test_annotations_service.py
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Phase 3b: direct unit tests for the extracted annotations service
 (``api/services/annotations.py``) and the now-atomic
-``cinemateca.annotator.save``.
+``cinemateca.annotations.save``.
 
 These are NEW units (the service did not exist before Phase 3b), so
 they ADD coverage on top of the Phase 0/1/2 route regression net and
@@ -49,7 +49,7 @@ from api.services.annotations import (
     scene_context,
 )
 from cinemateca.library import FilmContext
-from cinemateca.annotator import FILENAME
+from cinemateca.annotations import FILENAME
 
 # ── normalize_tags ────────────────────────────────────────────────────────────
 
@@ -326,10 +326,18 @@ class TestSceneContext:
         assert broken["llm"] is None
 
     def test_build_scene_panel_matches_manual_composition(self, tmp_config, seed_metadata):
+        # build_scene_panel resolves the demo gate from get_config(); the
+        # direct scene_context call must use the same resolved value so the
+        # comparison is apples-to-apples.  tmp_config IS the patched config,
+        # so we read the flag from it rather than calling get_config() (which
+        # would read the module-level import, not the monkeypatched lambda).
         seed_metadata()
         ctx = FilmContext.from_config(tmp_config)
         scenes, desc, ann = build_scene_list(ctx, "all")
-        manual = scene_context(ctx, scenes, 352, desc, ann)
+        demo_threads = bool(
+            getattr(getattr(tmp_config, "collaboration", None), "demo_threads_enabled", False)
+        )
+        manual = scene_context(ctx, scenes, 352, desc, ann, demo_threads_enabled=demo_threads)
         via_panel = build_scene_panel(ctx, 352, "all")
         assert via_panel == manual
 

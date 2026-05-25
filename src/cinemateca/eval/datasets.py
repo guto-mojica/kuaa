@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -163,3 +164,19 @@ def load_dataset(path: str | Path) -> EvaluationDataset:
         label_status=str(raw.get("label_status") or "").strip(),
         path=dataset_path,
     )
+
+
+def load_queries(root: Path, run_id: str) -> list[dict[str, Any]]:
+    """Load the curated query list for the run. Empty when missing.
+
+    Task 33 ships the seeded queries file; until then this returns
+    ``[]`` and the /eval page renders an empty-state queue.
+    """
+
+    queries_path = root / f"{run_id}.queries.json"
+    if not queries_path.exists():
+        return []
+    try:
+        return json.loads(queries_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []

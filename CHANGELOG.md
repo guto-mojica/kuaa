@@ -82,6 +82,34 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
   **774 passando**. Spec em
   `docs/superpowers/specs/2026-05-24-deep-modules-refactor-design.md`;
   plano em `docs/superpowers/plans/2026-05-25-deep-modules-refactor-p2-library.md`.
+- **Refactor P3 · extração de services** — três subsistemas extraídos de
+  `api/services/` para pacotes em `src/cinemateca/`:
+
+  - **`cinemateca.annotations`** (P3.A) — promove `cinemateca.annotator`
+    em pacote de 4 arquivos: `io.py` + `descriptions.py` + `scenes.py` +
+    `__init__.py`. Absorve a metade data-access + lógica de negócio de
+    `api/services/annotations.py`. Service: 577 → **129 LOC**. Removido
+    de `EXEMPTIONS`.
+  - **`cinemateca.rhymes`** (P3.B) — promove `cinemateca/rhymes.py` em
+    pacote de 5 arquivos: `algorithm.py` + `metadata.py` + `enrich.py` +
+    `config.py` + `anchor.py`. Absorve lógica de enriquecimento +
+    per-scene metadata loaders. Service: 470 → **194 LOC**. Removido de
+    `EXEMPTIONS`.
+  - **`cinemateca.eval` estendido** (P3.C) — adiciona `paths.py` ao
+    pacote existente; estende `datasets.py` + `grades.py` +
+    `grader_metrics.py` com config/data-access/IAA helpers. Service:
+    564 → **244 LOC**. Removido de `EXEMPTIONS`.
+
+  Adicionalmente: `FilmContext.from_paths` constructor adicionado +
+  `Library.context` agora levanta `KeyError` (alinhado com
+  `Library.get_film`; elimina workaround SimpleNamespace flagado no P2
+  review) (P3.0). `.importlinter` zerado: os 2 follow-ups P5 de P1/P2
+  (`aggregate -> services.search` e `_dispatch -> api.deps`) resolvidos
+  movendo helpers para `cinemateca.search.aggregate` e parametrizando
+  BM25 tunables como kwargs em `_dispatch.find()` (P3.D). Suite:
+  **774 → 777 passando** (+3 testes). Spec:
+  `docs/superpowers/specs/2026-05-24-deep-modules-refactor-design.md`;
+  plano: `docs/superpowers/plans/2026-05-25-deep-modules-refactor-p3-services.md`.
 - **Camadas arquiteturais policiadas em CI** — `.importlinter` proíbe
   `src/cinemateca/*` de importar `api/*` (camada de núcleo HTTP-agnóstica);
   novo `scripts/check_loc_budget.py` enforça `api/services/*.py ≤ 250 LOC`
@@ -102,12 +130,12 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
   `.ch-main` como wrap transicional — o unwrap final do conteúdo das abas
   (Phase 2 expansion) está adiado; o novo chrome cobre tudo visualmente e
   nenhuma regressão é exposta ao usuário final.
-- **Falhas pré-existentes (NÃO regressões dos refactors P1/P2):**
+- **Falhas pré-existentes (NÃO regressões dos refactors P1/P2/P3):**
   `tests/test_cli_reembed_all.py::TestServe::test_serve_delegates_to_uvicorn_run`
   e `tests/test_routes_multi_film.py::TestScenesRouteMultiFilm::test_tab_scenes_unknown_slug_raises`
   falham na branch base também (verificado via `git stash` em T1 e
   re-verificado em cada T* subsequente). Tratamento fica fora do escopo
-  de P1/P2.
+  de P1/P2/P3.
 
 ---
 

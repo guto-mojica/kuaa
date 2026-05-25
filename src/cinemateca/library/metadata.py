@@ -34,8 +34,8 @@ def load_tag_index(metadata_dir: Path) -> dict:
 
     Tolerates malformed ``scene_tags.json`` (logs + treats as empty).
     """
-    from cinemateca.annotator import load as load_annotations
-    from cinemateca.annotator import merge_tag_index
+    from cinemateca.annotations import load as load_annotations
+    from cinemateca.annotations import merge_tag_index
 
     tags_path = metadata_dir / "scene_tags.json"
     llm_tags: dict = {}
@@ -58,8 +58,8 @@ def load_metadata(metadata_dir: Path) -> tuple[list, dict, dict, dict]:
     ``tag_index`` is NORMALIZED via ``normalize_tag_index``; ``desc_by_scene``
     and ``vis_by_scene`` are keyed by canonical str ids.
     """
-    from cinemateca.annotator import load as load_annotations
-    from cinemateca.annotator import merge_tag_index
+    from cinemateca.annotations import load as load_annotations
+    from cinemateca.annotations import merge_tag_index
     from cinemateca.scene_ids import normalize_tag_index
 
     kf_meta = load_json(metadata_dir / "keyframes_metadata.json") or []

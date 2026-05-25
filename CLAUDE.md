@@ -389,6 +389,21 @@ defer features; timeline extension is one option among several. Grilled
   in `test_library_handle.py`); full suite **774 passing**. Spec:
   `docs/superpowers/specs/2026-05-24-deep-modules-refactor-design.md`;
   plan: `docs/superpowers/plans/2026-05-25-deep-modules-refactor-p2-library.md`.
+- [x] **Deep-modules refactor P3 — services extraction** — three
+  subsystems extracted (`cinemateca.annotations`, `cinemateca.rhymes`,
+  `cinemateca.eval`). Three services slimmed: `annotations.py` 577 →
+  **129**, `rhymes_service.py` 470 → **194**, `eval_service.py` 564 →
+  **244** (all removed from LOC budget EXEMPTIONS). `FilmContext.from_paths`
+  constructor added + `Library.context` raises `KeyError` (aligned with
+  `Library.get_film`; eliminates the SimpleNamespace workaround flagged
+  in P2 review). `.importlinter` zero carve-outs: both P5 follow-ups
+  from P1/P2 reviews (`aggregate -> services.search`,
+  `_dispatch -> api.deps`) resolved by moving helpers to
+  `cinemateca.search.aggregate` and parametrising BM25 tunables as
+  kwargs in `_dispatch.find()`. Suite: **774 → 777 passing**. Spec:
+  `docs/superpowers/specs/2026-05-24-deep-modules-refactor-design.md`;
+  plan:
+  `docs/superpowers/plans/2026-05-25-deep-modules-refactor-p3-services.md`.
 - [ ] Pre-launch LinkedIn "I'm building this" post
 
 ### Month 2 — Retrieval depth + audio (HARD FREEZE on new features)

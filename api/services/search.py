@@ -14,7 +14,6 @@ tests; ``_get_search_index`` / ``_get_bm25_index_for_ctx`` resolve
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from api.services.catalog import keyframe_url  # noqa: F401  — used by routes
@@ -38,8 +37,11 @@ from cinemateca.search._results import results_to_dicts  # noqa: F401
 # T15 adds ``aggregate_hits_to_template_dicts`` re-export (same rationale
 # as the ``enrich_hits_with_film_metadata`` re-export above).
 from cinemateca.search.aggregate import (  # noqa: F401
+    _get_embedder,
+    _get_search_index,
     aggregate_hits_to_template_dicts,
     aggregate_search,
+    has_indexed_films,
 )
 
 # BM25 loader + lru_cache (T7) — module self-registers its cache flusher
@@ -89,13 +91,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Canonical filenames for the per-film CLIP index. Mirror
-# ``config/default.yaml`` → ``embeddings.*``; used as defaults when
-# ``cfg.embeddings`` is absent (unit tests with minimal configs).
-_DEFAULT_EMBEDDINGS_FILENAME = "keyframe_embeddings.npy"
-_DEFAULT_MAPPING_FILENAME = "index_mapping.json"
-
-
 def _get_bm25_index_for_ctx(ctx: FilmContext) -> BM25Index:
     """Load + cache the BM25 index for one film. Resolves ``cfg.search.bm25``
     tunables (``stopwords_lang`` / ``k1`` / ``b``) via lazy ``get_config``
@@ -110,38 +105,6 @@ def _get_bm25_index_for_ctx(ctx: FilmContext) -> BM25Index:
     k1 = float(getattr(bm25_cfg, "k1", 1.5)) if bm25_cfg else 1.5
     b = float(getattr(bm25_cfg, "b", 0.75)) if bm25_cfg else 0.75
     return bm25_index_for_ctx(ctx, stopwords_lang=stopwords_lang, k1=k1, b=b)
-
-
-def _get_embedder(cfg: Any) -> object:
-    """Return a fresh ``OpenClipEmbedder``. Module-scope so unit tests
-    monkeypatch ``api.services.search._get_embedder`` to avoid loading
-    the real CLIP model. ``cfg`` is accepted but currently ignored.
-    """
-    from cinemateca.models.clip.openclip import OpenClipEmbedder
-
-    return OpenClipEmbedder()
-
-
-def _get_search_index(cfg: Any, slug: str) -> SearchIndex:
-    """Return the (cached) :class:`SearchIndex` for ``slug``. Reads
-    ``cfg.embeddings.*`` filenames when present, otherwise falls back
-    to the module-level defaults for minimal test configs.
-    """
-    emb_cfg = getattr(cfg, "embeddings", None)
-    embeddings_filename = (
-        getattr(emb_cfg, "filename", _DEFAULT_EMBEDDINGS_FILENAME)
-        if emb_cfg is not None
-        else _DEFAULT_EMBEDDINGS_FILENAME
-    )
-    mapping_filename = (
-        getattr(emb_cfg, "mapping_filename", _DEFAULT_MAPPING_FILENAME)
-        if emb_cfg is not None
-        else _DEFAULT_MAPPING_FILENAME
-    )
-    ctx = FilmContext.for_film(cfg, slug)
-    return load_index(
-        ctx, embeddings_filename=embeddings_filename, mapping_filename=mapping_filename
-    )
 
 
 def dispatch_text_search(
@@ -216,20 +179,3 @@ def dispatch_text_search(
     )
 
 
-def has_indexed_films(cfg: Any) -> bool:
-    """``True`` iff at least one registered film has an OK :class:`SearchIndex`.
-
-    Lets the route distinguish "no indexed films yet" (run the pipeline)
-    from "indexed films exist but the query matched nothing" (no results).
-    """
-    from cinemateca.library import scan_library
-
-    library_dir = Path(cfg.paths.library_dir)
-    for film in scan_library(library_dir):
-        try:
-            idx = _get_search_index(cfg, film.slug)
-        except ValueError:
-            continue
-        if idx.status is IndexStatus.OK:
-            return True
-    return False

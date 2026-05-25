@@ -14,23 +14,28 @@ T11-extracted module's *callable shape*:
      CLIP embedder factory.
 
 Fixture style mirrors ``test_multi_film_search.py`` — inline per-film
-JSON + .npy + monkeypatched ``_get_embedder`` on the legacy module path
-(the relocated function still reaches into ``api.services.search`` for
-``_get_embedder`` / ``_get_search_index`` via lazy attribute access; the
-T11 docstring explains why).
+JSON + .npy + monkeypatched ``_get_embedder`` on ``cinemateca.search.aggregate``
+(the canonical home after T13; ``api.services.search`` re-exports the name
+but tests must patch the module where the function is actually called).
 """
 
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
+import cinemateca.search.aggregate as _csa_module_ref  # noqa: F401 — ensure loaded
 from cinemateca.library import register_film
 from cinemateca.search.aggregate import aggregate_search
+
+# The submodule is shadowed in cinemateca.search by the `aggregate` function
+# re-export; access via sys.modules to reach the module object reliably.
+_AGGREGATE_MODULE = sys.modules["cinemateca.search.aggregate"]
 
 
 def _make_film_with_embeddings(library_dir: Path, slug: str, vectors: list[list[float]]) -> None:
@@ -100,7 +105,7 @@ def small_library_aggregate_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPa
         def encode_text(self, q: str) -> np.ndarray:
             return np.array([1.0, 0.0], dtype=np.float32)
 
-    monkeypatch.setattr("api.services.search._get_embedder", lambda cfg: StubEmbedder())
+    monkeypatch.setattr(_AGGREGATE_MODULE, "_get_embedder", lambda cfg: StubEmbedder())
     return _cfg(library_dir)
 
 
@@ -149,7 +154,7 @@ def test_aggregate_search_empty_library_short_circuits(
     def _should_not_load(cfg: object) -> object:
         raise AssertionError("_get_embedder was called on an empty library — eager-load regression")
 
-    monkeypatch.setattr("api.services.search._get_embedder", _should_not_load)
+    monkeypatch.setattr(_AGGREGATE_MODULE, "_get_embedder", _should_not_load)
 
     hits = aggregate_search(_cfg(library_dir), query="anything", modality="text", top_k=10)
     assert hits == []

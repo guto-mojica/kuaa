@@ -218,3 +218,18 @@ def load_run_per_annotator(
         bucket[entry.grader] = entry
 
     return out
+
+
+def grades_by_query(loaded: LoadedRun) -> dict[str, list[Grade]]:
+    """Group LoadedRun.grades by query_id."""
+
+    out: dict[str, list[Grade]] = {}
+    for (qid, _scene_id), entry in loaded.grades.items():
+        out.setdefault(qid, []).append(entry.grade)
+    return out
+
+
+def grades_for_query(loaded: LoadedRun, query_id: str) -> list[Grade]:
+    """Return the grade list for a single query (any scene id)."""
+
+    return [entry.grade for (qid, _scene_id), entry in loaded.grades.items() if qid == query_id]
