@@ -228,6 +228,108 @@ def dispatch_audio_search(
     return all_hits[:top_k], False
 
 
+# ── Fusion helpers ───────────────────────────────────────────────────────────
+# ``_NullEncoder`` is handed to :func:`search_fusion` for whichever modality
+# isn't present for a given film. Hoisted to module scope so the class object
+# is allocated once at import time instead of once per per-film call.
+
+
+class _NullEncoder:
+    """Stub text encoder used when a modality is absent for a given film.
+
+    Paired with a ``(0, 1)`` stub embedding matrix so the dim guard in
+    :func:`cinemateca.search.fusion.search_fusion` passes; cosine ops over
+    the 0-row matrix produce an empty per-modality top-k and the modality
+    contributes no rows to the union (no active penalty, no encode cost).
+    """
+
+    def encode_text(self, text: str) -> Any:  # pragma: no cover - trivial
+        import numpy as np
+
+        return np.zeros(1, dtype="float32")
+
+
+def _fusion_per_film_by_paths(
+    *,
+    cfg: Any,
+    slug: str,
+    embeddings_dir: Path,
+    audio_dir: Path,
+    q: str,
+    top_k: int,
+    visual_weight: float,
+    k_each: int,
+    clip_embedder: Any | None,
+    clap_embedder: Any | None,
+) -> tuple[list[dict], bool, Any | None, Any | None]:
+    """Run fusion for one film, addressed purely by paths (no FilmContext).
+
+    Returns ``(hits, no_index, clip_embedder, clap_embedder)`` so the
+    aggregate caller can thread + reuse a single embedder instance across
+    films. ``no_index=True`` when neither CLIP nor CLAP indices exist.
+    """
+    import json as _json
+
+    import numpy as np
+
+    from cinemateca.models.registry import get_audio_embedder, get_image_embedder
+    from cinemateca.search.audio import load_audio_index
+    from cinemateca.search.fusion import FusionConfig, search_fusion
+
+    clip_emb_path = embeddings_dir / "keyframe_embeddings.npy"
+    clip_map_path = embeddings_dir / "index_mapping.json"
+
+    has_clip = clip_emb_path.exists() and clip_map_path.exists()
+    audio_idx = load_audio_index(audio_dir)
+    has_clap = audio_idx is not None
+
+    if not has_clip and not has_clap:
+        return [], True, clip_embedder, clap_embedder
+
+    # Lazy-load embedders only when we actually need them. The aggregate
+    # path threads instances back out so subsequent films reuse them.
+    if has_clip and clip_embedder is None:
+        clip_embedder = get_image_embedder(cfg, device=None)
+    if has_clap and clap_embedder is None:
+        clap_embedder = get_audio_embedder(cfg, device=None)
+
+    if has_clip:
+        clip_emb = np.load(clip_emb_path).astype("float32", copy=False)
+        clip_mapping = _json.loads(clip_map_path.read_text())
+    else:
+        # Build a (0, 1) stub matrix + a 1-dim NullEncoder so the dim guard in
+        # search_fusion passes; the modality contributes no rows to the union.
+        clip_emb = np.zeros((0, 1), dtype="float32")
+        clip_mapping = []
+
+    if has_clap:
+        assert audio_idx is not None  # narrow for mypy
+        clap_emb = audio_idx.embeddings
+        clap_mapping = [{"scene_id": int(m["scene_id"])} for m in audio_idx.mapping]
+    else:
+        # Same (0, 1) stub matrix + NullEncoder pattern as the CLIP-missing
+        # branch above; passes the dim guard, contributes no rows.
+        clap_emb = np.zeros((0, 1), dtype="float32")
+        clap_mapping = []
+
+    clip_for_call = clip_embedder if has_clip else _NullEncoder()
+    clap_for_call = clap_embedder if has_clap else _NullEncoder()
+
+    hits = search_fusion(
+        clip_emb=clip_emb,
+        clap_emb=clap_emb,
+        clip_mapping=clip_mapping,
+        clap_mapping=clap_mapping,
+        query_text=q,
+        clip_embedder=clip_for_call,
+        clap_embedder=clap_for_call,
+        cfg=FusionConfig(visual_weight=visual_weight, k_each=k_each, k_final=top_k),
+    )
+    for h in hits:
+        h["film_slug"] = slug
+    return hits, False, clip_embedder, clap_embedder
+
+
 def dispatch_fusion_search(
     cfg: Any,
     ctx: Any | None,
@@ -254,7 +356,10 @@ def dispatch_fusion_search(
       :func:`scan_library`, runs the per-film fusion logic for each
       film, and takes the global top-``top_k`` by fused score. Films
       with neither index are silently skipped. If NO film has any
-      index → ``([], True)``.
+      index → ``([], True)``. The aggregate path derives per-film
+      paths directly from ``cfg.paths.library_dir + film.slug`` and
+      deliberately avoids :meth:`FilmContext.for_film`, which would
+      mkdir per-film subdirs on every query.
 
     Hits carry ``film_slug`` (always) and ``film_title`` (aggregate
     path only — the per-film caller already knows the title). Per-hit
@@ -269,94 +374,29 @@ def dispatch_fusion_search(
     (e.g. ``cfg.retrieval.fusion.visual_weight``) live in the route
     layer (Task 3.1) and arrive here as kwargs.
     """
-    import json as _json
-
-    import numpy as np
-
     from cinemateca.library import scan_library
-    from cinemateca.models.registry import get_audio_embedder, get_image_embedder
-    from cinemateca.search.audio import load_audio_index
-    from cinemateca.search.fusion import FusionConfig, search_fusion
-
-    def _per_film(
-        film_ctx: Any,
-        *,
-        clip_embedder: Any | None,
-        clap_embedder: Any | None,
-    ) -> tuple[list[dict], bool, Any | None, Any | None]:
-        """Run fusion for one film. Returns
-        ``(hits, no_index, clip_embedder, clap_embedder)`` so the aggregate
-        path can thread + reuse a single embedder instance across films."""
-        clip_emb_path = film_ctx.embeddings_dir / "keyframe_embeddings.npy"
-        clip_map_path = film_ctx.embeddings_dir / "index_mapping.json"
-        audio_dir = Path(film_ctx.metadata_dir).parent / "audio"
-
-        has_clip = clip_emb_path.exists() and clip_map_path.exists()
-        audio_idx = load_audio_index(audio_dir)
-        has_clap = audio_idx is not None
-
-        if not has_clip and not has_clap:
-            return [], True, clip_embedder, clap_embedder
-
-        # Lazy-load embedders only when we actually need them. The aggregate
-        # path threads instances back out so subsequent films reuse them.
-        if has_clip and clip_embedder is None:
-            clip_embedder = get_image_embedder(cfg, device=None)
-        if has_clap and clap_embedder is None:
-            clap_embedder = get_audio_embedder(cfg, device=None)
-
-        # Load CLIP. Build a zero-row stub when missing so search_fusion's
-        # shape contract holds; the verb already special-cases ``N==0`` to
-        # skip that modality cleanly.
-        if has_clip:
-            clip_emb = np.load(clip_emb_path).astype("float32", copy=False)
-            clip_mapping = _json.loads(clip_map_path.read_text())
-        else:
-            # CLAP-only: we need SOME dim for the stub; reuse the CLAP query
-            # dim by encoding one probe so we don't hardcode 512/1024. But
-            # since search_fusion only reads dim from clip_emb.shape[1] when
-            # N>0, an empty (0, D) array with D=1 is enough — the verb skips
-            # the encode + cosine path entirely.
-            clip_emb = np.zeros((0, 1), dtype="float32")
-            clip_mapping = []
-
-        if has_clap:
-            assert audio_idx is not None  # narrow for mypy
-            clap_emb = audio_idx.embeddings
-            clap_mapping = [{"scene_id": int(m["scene_id"])} for m in audio_idx.mapping]
-        else:
-            clap_emb = np.zeros((0, 1), dtype="float32")
-            clap_mapping = []
-
-        # If a modality is absent, hand search_fusion a stub embedder for
-        # that side so it never tries to call .encode_text on ``None``.
-        # The verb's zero-N short-circuit means the stub is never invoked.
-        class _NullEncoder:
-            def encode_text(self, text: str) -> np.ndarray:
-                return np.zeros(1, dtype="float32")
-
-        clip_for_call = clip_embedder if has_clip else _NullEncoder()
-        clap_for_call = clap_embedder if has_clap else _NullEncoder()
-
-        hits = search_fusion(
-            clip_emb=clip_emb,
-            clap_emb=clap_emb,
-            clip_mapping=clip_mapping,
-            clap_mapping=clap_mapping,
-            query_text=q,
-            clip_embedder=clip_for_call,
-            clap_embedder=clap_for_call,
-            cfg=FusionConfig(visual_weight=visual_weight, k_each=k_each, k_final=top_k),
-        )
-        for h in hits:
-            h["film_slug"] = film_ctx.slug
-        return hits, False, clip_embedder, clap_embedder
 
     if ctx is not None:
-        hits, no_index, _, _ = _per_film(ctx, clip_embedder=None, clap_embedder=None)
+        embeddings_dir = ctx.embeddings_dir
+        audio_dir = Path(ctx.metadata_dir).parent / "audio"
+        hits, no_index, _, _ = _fusion_per_film_by_paths(
+            cfg=cfg,
+            slug=ctx.slug,
+            embeddings_dir=embeddings_dir,
+            audio_dir=audio_dir,
+            q=q,
+            top_k=top_k,
+            visual_weight=visual_weight,
+            k_each=k_each,
+            clip_embedder=None,
+            clap_embedder=None,
+        )
         return hits, no_index
 
     # Aggregate. Walk the registry; skip films with neither modality.
+    # Derive per-film paths directly — do NOT call FilmContext.for_film
+    # here, it mkdir's raw/metadata/frames/embeddings on every call (same
+    # avoidance as dispatch_audio_search above).
     library_dir = Path(cfg.paths.library_dir)
     films = list(scan_library(library_dir))
     if not films:
@@ -366,12 +406,19 @@ def dispatch_fusion_search(
     all_hits: list[dict] = []
     any_film = False
     for film in films:
-        try:
-            film_ctx = FilmContext.for_film(cfg, film.slug)
-        except ValueError:
-            continue
-        film_hits, film_no_index, clip_embedder, clap_embedder = _per_film(
-            film_ctx, clip_embedder=clip_embedder, clap_embedder=clap_embedder
+        film_embeddings_dir = library_dir / film.slug / "embeddings"
+        film_audio_dir = library_dir / film.slug / "audio"
+        film_hits, film_no_index, clip_embedder, clap_embedder = _fusion_per_film_by_paths(
+            cfg=cfg,
+            slug=film.slug,
+            embeddings_dir=film_embeddings_dir,
+            audio_dir=film_audio_dir,
+            q=q,
+            top_k=top_k,
+            visual_weight=visual_weight,
+            k_each=k_each,
+            clip_embedder=clip_embedder,
+            clap_embedder=clap_embedder,
         )
         if film_no_index:
             continue

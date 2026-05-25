@@ -130,6 +130,12 @@ def test_dispatch_fusion_search_per_film_returns_hits(tmp_config, monkeypatch) -
         assert h["film_slug"] == "jeca_tatu"
     scores = [h["score"] for h in hits]
     assert scores == sorted(scores, reverse=True)
+    # Default visual_weight=0.5 → score == 0.5*clip + 0.5*clap. Asserting the
+    # linear-fusion formula here guards against silent reweighting.
+    for h in hits:
+        assert h["score"] == pytest.approx(
+            0.5 * h["clip_score"] + 0.5 * h["clap_score"], abs=1e-5
+        ), f"Fusion formula violated for {h}"
 
 
 def test_dispatch_fusion_search_per_film_missing_audio_falls_back_to_clip_only(
@@ -232,3 +238,42 @@ def test_dispatch_fusion_search_aggregate_no_films_returns_no_index(
     hits, no_index = dispatch_fusion_search(tmp_config, None, "x", top_k=5)
     assert hits == []
     assert no_index is True
+
+
+def test_dispatch_fusion_search_aggregate_loads_each_embedder_once(tmp_config, monkeypatch) -> None:
+    """Aggregate path must instantiate get_image_embedder + get_audio_embedder
+    at most once across all films, not once per film. Mirrors the
+    dispatch_audio_search contract."""
+    from api.services.search import dispatch_fusion_search
+
+    library_dir = Path(tmp_config.paths.library_dir)
+    _register(library_dir, "film_a", title="Film A")
+    _seed_clip(library_dir / "film_a")
+    _seed_clap(library_dir / "film_a")
+    _register(library_dir, "film_b", title="Film B")
+    _seed_clip(library_dir / "film_b")
+    _seed_clap(library_dir / "film_b")
+
+    call_counts = {"image": 0, "audio": 0}
+
+    def _img(cfg, device=None):
+        call_counts["image"] += 1
+        return _Stub(4)
+
+    def _aud(cfg, device=None):
+        call_counts["audio"] += 1
+        return _Stub(4)
+
+    import cinemateca.models.registry as registry
+
+    monkeypatch.setattr(registry, "get_image_embedder", _img)
+    monkeypatch.setattr(registry, "get_audio_embedder", _aud)
+
+    hits, no_index = dispatch_fusion_search(tmp_config, None, "x", top_k=5)
+
+    assert no_index is False
+    assert len(hits) > 0
+    assert call_counts == {
+        "image": 1,
+        "audio": 1,
+    }, f"Expected each embedder loaded exactly once across films, got {call_counts}"
