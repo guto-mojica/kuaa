@@ -249,6 +249,33 @@ class _NullEncoder:
         return np.zeros(1, dtype="float32")
 
 
+def _normalise_clip_mapping(raw: Any) -> list[dict]:
+    """Coerce a CLIP ``index_mapping.json`` payload to ``list[dict]`` with
+    at least the ``scene_id`` key. Handles both on-disk shapes:
+
+    * **dict-of-parallel-arrays** (current OpenClip / SigLIP2 writer):
+      ``{"scene_ids": [...], "keyframe_paths": [...], ...}`` — keys may
+      include any subset of the parallel arrays.
+    * **list-of-dicts** (legacy / synthetic test fixtures):
+      ``[{"scene_id": int, ...}, ...]`` — already row-shaped.
+
+    Mirrors :func:`cinemateca.search.audio.load_audio_index`'s CLAP
+    normaliser. Extra fields are preserved on the list-of-dicts side
+    but ignored from the dict-of-arrays side (only ``scene_ids`` is
+    load-bearing for fusion's score lookup).
+    """
+    if isinstance(raw, dict) and "scene_ids" in raw:
+        sids = raw["scene_ids"]
+        return [{"scene_id": int(sids[i])} for i in range(len(sids))]
+    if isinstance(raw, list):
+        # Coerce defensively — scene_id may be float/str in legacy files.
+        return [{"scene_id": int(m["scene_id"])} for m in raw]
+    raise ValueError(
+        "Unrecognised CLIP index_mapping shape: expected dict with "
+        "'scene_ids' key or list of dicts."
+    )
+
+
 def _fusion_per_film_by_paths(
     *,
     cfg: Any,
@@ -295,7 +322,7 @@ def _fusion_per_film_by_paths(
 
     if has_clip:
         clip_emb = np.load(clip_emb_path).astype("float32", copy=False)
-        clip_mapping = _json.loads(clip_map_path.read_text())
+        clip_mapping = _normalise_clip_mapping(_json.loads(clip_map_path.read_text()))
     else:
         # Build a (0, 1) stub matrix + a 1-dim NullEncoder so the dim guard in
         # search_fusion passes; the modality contributes no rows to the union.

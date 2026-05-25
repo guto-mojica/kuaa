@@ -38,13 +38,25 @@ class _Stub:
 # ── Fixture helpers ──────────────────────────────────────────────────────────
 
 
-def _seed_clip(film_dir: Path, *, dim: int = 4, n: int = 4) -> None:
+def _seed_clip(
+    film_dir: Path, *, dim: int = 4, n: int = 4, shape: str = "legacy"
+) -> None:
     """Write a synthetic CLIP keyframe index under ``<film_dir>/embeddings/``.
 
     Rows are basis-like vectors so cosines vs the ``_Stub(dim)`` unit-query
     are deterministic and not all-zero. The exact ordering doesn't matter
     for fusion tests — we only assert presence, slug tagging, and that
     monotonic-descending property of the final sort.
+
+    ``shape`` controls the on-disk mapping JSON layout:
+
+    * ``"legacy"`` (default): row-shaped ``[{"scene_id": int, ...}, ...]``.
+      Used by the bulk of the suite — leaving the kwarg unset preserves
+      every existing test's behaviour.
+    * ``"parallel"``: the real ``OpenClipEmbedder`` / SigLIP2-writer
+      payload — a dict of parallel arrays carrying ``scene_ids`` +
+      ``keyframe_paths`` + ``keyframe_ids``. Tests exercising the
+      dict-shape branch of ``_normalise_clip_mapping`` use this.
     """
     emb_dir = film_dir / "embeddings"
     emb_dir.mkdir(parents=True, exist_ok=True)
@@ -52,7 +64,22 @@ def _seed_clip(film_dir: Path, *, dim: int = 4, n: int = 4) -> None:
     emb = rng.standard_normal((n, dim)).astype("float32")
     emb /= np.linalg.norm(emb, axis=1, keepdims=True)
     np.save(emb_dir / "keyframe_embeddings.npy", emb)
-    mapping = [{"scene_id": i, "filepath": f"frames/s{i:04d}.jpg"} for i in range(n)]
+    if shape == "legacy":
+        mapping: object = [
+            {"scene_id": i, "filepath": f"frames/s{i:04d}.jpg"} for i in range(n)
+        ]
+    elif shape == "parallel":
+        mapping = {
+            "model": "stub-siglip2",
+            "dimension": dim,
+            "total_vectors": n,
+            "normalized": True,
+            "scene_ids": list(range(n)),
+            "keyframe_paths": [f"frames/s{i:04d}.jpg" for i in range(n)],
+            "keyframe_ids": list(range(n)),
+        }
+    else:
+        raise ValueError(f"Unknown _seed_clip shape: {shape!r}")
     (emb_dir / "index_mapping.json").write_text(json.dumps(mapping))
 
 
@@ -277,3 +304,34 @@ def test_dispatch_fusion_search_aggregate_loads_each_embedder_once(tmp_config, m
         "image": 1,
         "audio": 1,
     }, f"Expected each embedder loaded exactly once across films, got {call_counts}"
+
+
+def test_dispatch_fusion_search_per_film_parallel_array_clip_mapping(
+    tmp_config, monkeypatch
+) -> None:
+    """Real SigLIP2-writer CLIP ``index_mapping.json`` shape (dict of
+    parallel arrays) must work end-to-end through ``dispatch_fusion_search``.
+
+    Locks the regression that broke Jeca Tatu fusion on the M3 plan-2
+    real-data snapshot run: the dispatcher previously parsed the JSON
+    raw and dereferenced it as ``list[dict]``, which raises ``KeyError: 0``
+    on the dict shape. ``_normalise_clip_mapping`` coerces both shapes
+    to the row-of-dicts contract ``search_fusion`` expects.
+    """
+    from api.services.search import dispatch_fusion_search
+
+    library_dir = Path(tmp_config.paths.library_dir)
+    _register(library_dir, "jeca_tatu")
+    _seed_clip(library_dir / "jeca_tatu", shape="parallel")
+    _seed_clap(library_dir / "jeca_tatu")
+    _patch_embedders(monkeypatch)
+
+    ctx = FilmContext.for_film(tmp_config, "jeca_tatu")
+    hits, no_index = dispatch_fusion_search(tmp_config, ctx, "x", top_k=5)
+
+    assert no_index is False
+    assert len(hits) > 0
+    # Parallel-array shape carries only scene_ids; the fusion hit dicts
+    # should still have scene_id pulled out correctly.
+    assert all(isinstance(h["scene_id"], int) for h in hits)
+    assert all(h["film_slug"] == "jeca_tatu" for h in hits)
