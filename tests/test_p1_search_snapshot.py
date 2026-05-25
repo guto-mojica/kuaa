@@ -45,18 +45,35 @@ def small_library(tmp_config, monkeypatch):
 
     Mirrors tests/test_multi_film_search.py's fixture style: real on-disk
     JSON + .npy stubs + monkeypatched embedder.
+
+    The CLIP embedder is stubbed via two surfaces:
+
+      * ``api.services.search._get_embedder`` — used by ``aggregate_search``
+        (cross-film path) to encode the query text once.
+      * ``cinemateca.models.clip.openclip.OpenClipEmbedder`` — replaced with
+        a fake that keeps the real ``.load`` staticmethod (the on-disk
+        mapping is well-formed) but stubs the constructor + ``encode_*``
+        instance methods so ``_load_and_validate`` builds a SearchIndex
+        whose embedder produces 4-dim vectors matching the stub .npy.
     """
     cfg = tmp_config
     from cinemateca.library import register_film
+    from cinemateca.models.clip import openclip as openclip_mod
     from api.services import search as svc
 
+    real_load = openclip_mod.OpenClipEmbedder.load
+
     class FakeEmbedder:
+        def __init__(self, *args, **kwargs):
+            pass
         def encode_text(self, q: str) -> np.ndarray:
             return np.ones(4, dtype=np.float32)
         def encode_image_single(self, path) -> np.ndarray:
             return np.ones(4, dtype=np.float32)
+        load = staticmethod(real_load)
 
     monkeypatch.setattr(svc, "_get_embedder", lambda cfg: FakeEmbedder())
+    monkeypatch.setattr(openclip_mod, "OpenClipEmbedder", FakeEmbedder)
 
     library_dir = Path(cfg.paths.library_dir)
     for slug, title in [("alpha", "Alpha"), ("beta", "Beta")]:
@@ -93,11 +110,15 @@ def small_library(tmp_config, monkeypatch):
         np.save(film_dir / "embeddings" / "keyframe_embeddings.npy", emb)
         (film_dir / "embeddings" / "index_mapping.json").write_text(
             json.dumps({
+                "model": "stub",
+                "dimension": 4,
                 "total_vectors": 2,
-                "vectors": [
-                    {"scene_id": 1, "filepath": str(film_dir / "frames" / "1.jpg")},
-                    {"scene_id": 2, "filepath": str(film_dir / "frames" / "2.jpg")},
+                "normalized": True,
+                "keyframe_paths": [
+                    str(film_dir / "frames" / "1.jpg"),
+                    str(film_dir / "frames" / "2.jpg"),
                 ],
+                "scene_ids": [1, 2],
             })
         )
         (film_dir / "frames" / "1.jpg").write_bytes(b"\xff\xd8\xff\xd9")
