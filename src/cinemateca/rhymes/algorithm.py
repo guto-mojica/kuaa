@@ -63,6 +63,9 @@ def find_rhymes(
     anchor_scene_id: int,
     top_n: int = 8,
     cross_film_only: bool = True,
+    *,
+    lambda_diversity: float = 1.0,
+    k_candidates: int | None = None,
 ) -> list[Rhyme]:
     """Top-N cosine neighbours of an anchor keyframe across the library.
 
@@ -74,6 +77,11 @@ def find_rhymes(
         cross_film_only: When ``True`` (default), candidates from
             ``anchor_slug`` itself are excluded — this is the product
             constraint for the Rimas Visuais tab.
+        lambda_diversity: λ ∈ [0, 1] passed to MMR rerank. Default 1.0 keeps
+            the M1 stub behaviour (pure kNN — MMR is skipped entirely).
+            Service-layer default in M3 is 0.5.
+        k_candidates: kNN pool size BEFORE MMR rerank. None (default) →
+            ``max(top_n * 3, 30)`` when MMR is active; ignored otherwise.
 
     Returns:
         Ranked ``Rhyme`` list, longest = ``top_n``. Returns ``[]`` if the
@@ -96,7 +104,13 @@ def find_rhymes(
     if not library_dir.exists():
         return []
 
-    candidates: list[tuple[float, str, int]] = []
+    # Pool size depends on whether MMR will rerank.
+    if lambda_diversity < 1.0:
+        pool = int(k_candidates) if k_candidates else max(top_n * 3, 30)
+    else:
+        pool = top_n
+
+    candidates_raw: list[tuple[float, str, int, np.ndarray]] = []
     for film_dir in sorted(library_dir.iterdir()):
         if not film_dir.is_dir():
             continue
@@ -108,19 +122,33 @@ def find_rhymes(
             continue
         vecs, scene_ids = film
         sims = vecs @ anchor_vec
-        for sim, scene_id in zip(sims, scene_ids):
-            candidates.append((float(sim), slug, int(scene_id)))
+        for sim, scene_id, vec in zip(sims, scene_ids, vecs):
+            candidates_raw.append((float(sim), slug, int(scene_id), vec.astype("float32")))
 
-    candidates.sort(key=lambda x: -x[0])
-    return [
+    candidates_raw.sort(key=lambda x: -x[0])
+    candidates_raw = candidates_raw[:pool]
+
+    rhymes = [
         Rhyme(
             film_slug=slug,
             scene_id=scene_id,
             score=sim,
             keyframe_path=library_dir / slug / "frames" / f"scene_{scene_id:04d}.jpg",
+            embedding=vec if lambda_diversity < 1.0 else None,
         )
-        for sim, slug, scene_id in candidates[:top_n]
+        for sim, slug, scene_id, vec in candidates_raw
     ]
+
+    if lambda_diversity < 1.0 and rhymes:
+        rhymes = mmr_rerank(
+            anchor_vec=anchor_vec,
+            candidates=rhymes,
+            lambda_diversity=lambda_diversity,
+            k_final=top_n,
+        )
+    else:
+        rhymes = rhymes[:top_n]
+    return rhymes
 
 
 def _extract_scene_ids(mapping: dict) -> list[int]:
