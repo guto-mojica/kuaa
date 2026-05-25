@@ -76,6 +76,11 @@ embeddings:
   model: "ViT-B-32"         # modelo CLIP open_clip
   pretrained: "openai"
   batch_size: 16
+  # SigLIP-multilingual override — only consulted when
+  # ``models.image_embedder: siglip_multilingual``. Default keeps the
+  # OpenClip backend bit-identical, so leaving this set is a no-op
+  # under the default backend.
+  model_id: "google/siglip-large-patch16-256-multilingual"
   # Arquivo de saída (relativo a embeddings_dir)
   filename: "keyframe_embeddings.npy"
   mapping_filename: "index_mapping.json"
@@ -201,7 +206,10 @@ llm:
 
 # ── Model backends (pluggable — see docs/PROTOCOL_OPTION.md) ──────────────────
 models:
-  image_embedder: clip_openclip            # clip_openclip
+  image_embedder: clip_openclip            # clip_openclip | siglip_multilingual
+  # ``siglip_multilingual`` lands as an opt-in alternative in M3 pre-flight
+  # Task 4.1. Default stays clip_openclip until Task 4.2 smoke validation
+  # on Jeca Tatu and Task 4.3 library-wide re-embed are user-gated through.
   face_detector: mtcnn_pytorch             # mtcnn_pytorch
   object_detector: yolov8                  # yolov8
   # Default: keyless, offline Moondream 2 via HF transformers. GPU comes from
