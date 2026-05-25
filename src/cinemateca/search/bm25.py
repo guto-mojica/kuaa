@@ -27,10 +27,12 @@ Public verbs:
 
 The module deliberately does NOT import from ``api.*`` — that boundary
 is enforced by import-linter (``cinemateca core must not import api/``).
-The merged tag-index composition that lived in
-``api.services.catalog.load_tag_index`` is inlined here using
-``cinemateca.annotator`` directly; semantics match byte-for-byte (raw,
-un-normalised, mixed-key dict).
+The merged tag-index composition that used to be inlined here was
+promoted to :mod:`cinemateca.search._tag_index` in T8 so the same
+loader can be shared with the Mojica context builders without
+re-introducing the ``api.services.catalog`` import. Semantics match
+byte-for-byte (raw, un-normalised, mixed-key dict; malformed
+``scene_tags.json`` tolerated).
 """
 
 from __future__ import annotations
@@ -42,6 +44,7 @@ from pathlib import Path
 from typing import Any
 
 from cinemateca.retrieval.bm25 import BM25Index
+from cinemateca.search._tag_index import load_tag_index
 from cinemateca.search.cache import register_cache_clearer
 
 logger = logging.getLogger(__name__)
@@ -65,41 +68,6 @@ def _file_stamp(path: Path) -> tuple[int, int]:
     return (st.st_mtime_ns, st.st_size)
 
 
-def _load_tag_index(metadata_dir: Path) -> dict:
-    """Inline copy of ``api.services.catalog.load_tag_index``.
-
-    Reads ``scene_tags.json`` (LLM-side, INT scene_id keys) and merges
-    with manual annotations (STR scene_id keys) via
-    ``cinemateca.annotator.merge_tag_index``. Returns the RAW
-    (un-normalised) merged inverted index — same shape as
-    ``catalog.load_tag_index``, shape-for-shape.
-
-    One resilience addition vs the catalog twin: malformed JSON in
-    ``scene_tags.json`` is tolerated here (logged + empty), matching the
-    malformed-descriptions handling at the bottom of ``_cached_bm25_index``.
-    The catalog twin still raises on the same condition — divergence is
-    intentional, observed only on the unhappy path.
-
-    Inlined here (rather than imported from ``api.services.catalog``)
-    so the ``cinemateca`` package stays free of any ``api`` import —
-    enforced by import-linter.
-    """
-    from cinemateca.annotator import load as load_annotations
-    from cinemateca.annotator import merge_tag_index
-
-    tags_path = metadata_dir / "scene_tags.json"
-    llm_tags: dict = {}
-    if tags_path.exists():
-        try:
-            with open(tags_path, encoding="utf-8") as f:
-                llm_tags = json.load(f)
-        except json.JSONDecodeError:
-            logger.warning("BM25: malformed %s; using empty tag index", tags_path)
-            llm_tags = {}
-    annotations = load_annotations(metadata_dir)
-    return merge_tag_index(llm_tags, annotations)
-
-
 @lru_cache(maxsize=32)
 def _cached_bm25_index(
     metadata_dir: str,
@@ -121,9 +89,9 @@ def _cached_bm25_index(
       * ``scene_tags.json`` — LLM-tag output (INT scene_id keys).
       * ``manual_annotations.json`` — manual tags (STR scene_id keys).
 
-    Tag merge semantics come from :func:`_load_tag_index` (the inlined
-    twin of ``catalog.load_tag_index`` — the single source of truth for
-    scene_id normalisation across both tag files).
+    Tag merge semantics come from :func:`cinemateca.search._tag_index.load_tag_index`
+    (the shared loader — single source of truth for scene_id
+    normalisation across both tag files within the search package).
     """
     md = Path(metadata_dir)
     descriptions_path = md / "scene_descriptions.json"
@@ -137,7 +105,7 @@ def _cached_bm25_index(
 
     # Merged LLM ⊕ manual tag index (raw, un-normalised) — the same
     # shape the old api.services.catalog.load_tag_index produced.
-    tag_index = _load_tag_index(md) or {}
+    tag_index = load_tag_index(md) or {}
 
     return BM25Index.build(
         descriptions=descriptions,

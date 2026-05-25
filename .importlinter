@@ -18,6 +18,9 @@ source_modules=
     cinemateca
 forbidden_modules=
     api
+ignore_imports=
+    cinemateca.search._results -> api.services.catalog
+    cinemateca.search._lookup -> api.services.film_context
 
 [importlinter:contract:routes-not-direct-core]
 # Provisional — relaxed during P1 because routes currently call FilmContext
