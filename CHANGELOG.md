@@ -10,6 +10,28 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ## [Não lançado]
 
+### Removido
+
+- **Fallback Streamlit (`app_streamlit.py`) excluído.** A interface
+  FastAPI + HTMX é agora a única superfície suportada. Após o refactor
+  P3 retirar `cinemateca.annotator`, o `app_streamlit.py` ficou com
+  imports quebrados (`ModuleNotFoundError: cinemateca.annotator`) e
+  passou a ser dead code com risco de uso acidental. Dependências
+  `streamlit>=1.28` removidas do extra `full` e o extra `gui` (que
+  empacotava apenas Streamlit + rich) foi excluído do `pyproject.toml`.
+  Para recuperar a UI legada veja a tag `v0.2.1-streamlit-final`.
+
+### Corrigido
+
+- **`POST /api/library/remove/{slug}` retornava 500.** A rota chamava
+  `delete_film(library_dir, slug)` posicionalmente, mas a assinatura é
+  `delete_film(library_dir: Path, *, slug: str)` — keyword-only após
+  `*`, resultando em `TypeError: delete_film() takes 1 positional
+  argument but 2 were given`. Trocado para `slug=slug`. Cobertura nova
+  em `tests/test_routes_library.py` (3 testes: remove válido, remove
+  com `?wipe=`, remove de slug desconhecido idempotente). Achado pela
+  revisão da série P1/P2/P3.
+
 ### Adicionado
 
 - **M2 #3 · Busca Híbrida (CLIP ⊕ BM25 via RRF)** — `/api/search` agora aceita

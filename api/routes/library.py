@@ -224,7 +224,7 @@ async def api_library_remove(
 
     registry = load_registry(library_dir)
     if slug in registry:
-        delete_film(library_dir, slug)
+        delete_film(library_dir, slug=slug)
 
     if wipe:
         film_dir = library_dir / slug
