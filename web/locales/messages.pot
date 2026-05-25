@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-25 13:55-0400\n"
+"POT-Creation-Date: 2026-05-25 17:51-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1539,7 +1539,7 @@ msgid "Audio"
 msgstr ""
 
 #: web/templates/partials/search.html:169
-msgid "Multimodal"
+msgid "Fusion"
 msgstr ""
 
 #: web/templates/partials/search.html:186

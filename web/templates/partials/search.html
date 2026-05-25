@@ -164,9 +164,9 @@
               role="tab"
               :aria-selected="mode === 'multimodal' ? 'true' : 'false'"
               {% if not cfg.search.multimodal_enabled %}disabled aria-disabled="true"{% endif %}
-              @click="mode = 'multimodal'; $refs.searchResults && ($refs.searchResults.innerHTML = '')">
+              @click="mode = 'multimodal'; $store.buscarRetrieval.modality = 'fusion'; $refs.searchResults && ($refs.searchResults.innerHTML = ''); htmx.trigger('#search-text-form', 'submit')">
         <span class="ico">{{ icon('rhymes', 14) }}</span>
-        {{ _("Multimodal") }}
+        {{ _("Fusion") }}
       </button>
 
       <span class="div-v" aria-hidden="true"></span>
