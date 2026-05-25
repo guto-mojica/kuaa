@@ -24,6 +24,8 @@ ignore_imports=
     cinemateca.search.aggregate -> api.services.catalog
     cinemateca.search.aggregate -> api.services.film_context
     cinemateca.search.aggregate -> api.services.search
+    cinemateca.search._dispatch -> api.services.catalog
+    cinemateca.search._dispatch -> api.deps
 
 [importlinter:contract:routes-not-direct-core]
 # Provisional — relaxed during P1 because routes currently call FilmContext

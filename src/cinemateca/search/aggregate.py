@@ -47,6 +47,14 @@ from api.services.film_context import FilmContext
 from cinemateca.retrieval.hybrid import DEFAULT_RRF_K, fuse_rrf
 from cinemateca.scene_ids import normalize_tag_index, scene_id_key
 from cinemateca.search.cache import IndexStatus
+from cinemateca.search.types import (
+    Filters,
+    Hit,
+    HybridWeights,
+    Query,
+    SearchMode,
+    SearchResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -356,3 +364,82 @@ def aggregate_search(
         float(all_hits[0]["score"]) if all_hits else 0.0,
     )
     return all_hits
+
+
+# ── Typed public wrapper (T13) ────────────────────────────────────────────────
+# ``aggregate(query, *, cfg, mode, top_k, filters, weights)`` is the public
+# verb. It wraps the legacy ``aggregate_search`` (above, dict-returning)
+# with the locked P1 API surface — typed in, typed out. P2 replaces the
+# ``cfg=`` argument with ``library=Library`` once the Library type
+# lands; the rest of the signature stays.
+#
+# ``no_index`` resolution uses :func:`api.services.search.has_indexed_films`
+# directly. The carve-out
+# ``cinemateca.search.aggregate -> api.services.search`` already exists
+# in ``.importlinter`` from T11 (the lazy ``_get_embedder`` /
+# ``_get_search_index`` reads) — no additional rule needed for T13.
+
+
+def aggregate(
+    query: Query,
+    *,
+    cfg: Any,
+    mode: SearchMode = "clip",
+    top_k: int = 20,
+    filters: Filters | None = None,
+    weights: HybridWeights | None = None,
+) -> SearchResult:
+    """Public verb: cross-film aggregate search.
+
+    Wraps the legacy :func:`aggregate_search` (dict-returning) with the
+    typed API. P1 supports text queries only — image / audio / fusion
+    modalities land in later plans. ``cfg`` is the existing app-config
+    handle; P2 replaces it with ``library=Library``.
+
+    Returns a typed :class:`SearchResult`. ``no_index=True`` carries the
+    empty-library / unindexed-films signal so the caller renders the
+    no-index UI state.
+    """
+    if query.text is None:
+        raise NotImplementedError(
+            "aggregate() supports text queries only in P1; "
+            "image / audio / fusion modalities land in later plans."
+        )
+    filters = filters or Filters()
+    weights = weights or HybridWeights()
+    raw = aggregate_search(
+        cfg,
+        query=query.text,
+        modality="text",
+        top_k=top_k,
+        tags=list(filters.tags) or None,
+        min_similarity=filters.min_similarity,
+        retriever_mode=mode,
+        sem_w=weights.sem_w,
+        bm25_w=weights.bm25_w,
+        rrf_k=weights.rrf_k,
+    )
+    hits = [
+        Hit(
+            scene_id=int(h["scene_id"]),
+            score=float(h["score"]),
+            keyframe_path=str(h.get("keyframe_path", "")),
+            film_slug=h.get("film_slug"),
+            film_title=h.get("film_title"),
+            timecode=h.get("timecode", ""),
+        )
+        for h in raw
+    ]
+    if hits:
+        no_index = False
+    else:
+        from api.services.search import has_indexed_films
+
+        no_index = not has_indexed_films(cfg)
+    return SearchResult(
+        hits=hits,
+        mode=mode,
+        weights=weights if mode == "hybrid" else None,
+        query=query,
+        no_index=no_index,
+    )
