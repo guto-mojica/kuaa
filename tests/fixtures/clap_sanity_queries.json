@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "description": "CLAP archival-audio sanity queries. Each query lists the scene_ids that any healthy CLAP backend should rank in the top-5 for the Jeca Tatu library. Recorded floor: P@5 >= 0.4 (i.e. >= 2 of the listed scenes must appear in the top-5).",
+  "library": "jeca_tatu",
+  "p_at_5_floor": 0.4,
+  "queries": [
+    {"id": "music_orchestral", "query": "orchestral music", "expected_scene_ids": []},
+    {"id": "dialogue_pt",      "query": "two men talking",  "expected_scene_ids": []},
+    {"id": "silence_wind",     "query": "silence with wind", "expected_scene_ids": []},
+    {"id": "footsteps",        "query": "footsteps on wood floor", "expected_scene_ids": []},
+    {"id": "festive",          "query": "festive music with crowd", "expected_scene_ids": []}
+  ]
+}
