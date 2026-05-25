@@ -1,26 +1,9 @@
-"""Catalog service — scene/metadata/card domain logic.
+"""Catalog service — scene-card and scenes-tab template builders.
 
-This module owns what used to be copy-pasted across ``api/routes/*``:
-
-  * shared JSON-load and keyframe-URL primitives (``load_json``,
-    ``keyframe_url``) — previously a private ``_load_json`` /
-    ``_keyframe_url`` in *each* of scenes.py / annotate.py / search.py;
-  * catalog metadata loading + tag-index merge/normalization
-    (``load_metadata``, ``load_tag_index``);
-  * scene-card construction + filtering (``build_cards``);
-  * the scenes-tab context builder (``build_scenes_context``).
-
-Scene-ID canonicalization is NOT reimplemented here — it delegates to
-``cinemateca.scene_ids`` (``scene_id_key`` / ``normalize_tag_index``,
-the Phase-1c helpers). Tag-index merge delegates to
-``cinemateca.annotator.merge_tag_index``. The service only orchestrates.
-
-All path resolution flows through :class:`FilmContext` instead of
-scattered ``cfg.paths.*`` reads (see ``api/services/film_context.py``).
-
-Behaviour is byte-preserved relative to the pre-extraction route code:
-this is a refactor, not a feature/validation change. (Corrupt-index
-validation is Phase 3c; it is intentionally absent here.)
+Path/URL/timecode utilities and per-film metadata loaders live in
+``cinemateca.library.{paths,metadata}`` and are re-exported below so
+existing call sites (``scenes_service``, ``annotations``, ``rhymes_service``,
+etc.) keep importing them from ``api.services.catalog``.
 """
 
 from __future__ import annotations
@@ -29,26 +12,16 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from api.services.film_context import FilmContext
-
-# Path / URL / timecode utilities (relocated to cinemateca.library.paths).
-# Re-exported here so existing call sites (scenes_service, annotations,
-# rhymes_service, etc.) keep importing from api.services.catalog.
-from cinemateca.library.paths import (
+from cinemateca.library import FilmContext, scan_library
+from cinemateca.library.metadata import (  # noqa: F401
+    load_metadata,
+    load_tag_index,
+)
+from cinemateca.library.paths import (  # noqa: F401
     derive_fps,
     keyframe_url,
     load_json,
     to_smpte,
-)
-
-# Per-film metadata loaders (relocated to cinemateca.library.metadata).
-# Re-exported here so existing call sites keep their imports stable.
-# NOTE: load_tag_index is now LENIENT on malformed scene_tags.json (logs
-# warning + returns empty) — previously raised JSONDecodeError. Matches
-# the P1 cinemateca.search._tag_index behavior.
-from cinemateca.library.metadata import (  # noqa: F401
-    load_metadata,
-    load_tag_index,
 )
 from cinemateca.scene_ids import scene_id_key
 
@@ -62,12 +35,10 @@ def _select_tags_by_frequency(
 ) -> list[str]:
     """Return up to n tags sampled across the global-frequency spectrum.
 
-    Tags are sorted ascending by corpus frequency (rare → common). When
-    the scene has ≤ n tags all are returned in that order. When it has
-    more, n tags are picked at evenly-spaced positions from the sorted
-    list so the selection spans the full diversity: from the most
-    scene-specific labels (low frequency) to the most generic ones
-    (high frequency), rather than taking the first n alphabetically.
+    Sorts ascending by corpus frequency (rare → common). If the scene has
+    > n tags, picks n at evenly-spaced positions so the selection spans
+    rare scene-specific labels to common generic ones, rather than taking
+    the first n alphabetically.
     """
     by_freq = sorted(scene_tags, key=lambda t: len(tag_index.get(t, [])))
     if len(by_freq) <= n:
@@ -179,10 +150,9 @@ def build_scenes_context(ctx: FilmContext) -> dict:
     """Build the scenes-tab template context (no tag/keyword filter).
 
     Shared by the ``/tab/scenes`` HTMX fragment and the ``/scenes``
-    full-page route so both render identical markup (including the
-    empty-state hint when no keyframes exist). Same keys/values the
-    template already consumes: ``cards``, ``available_tags``,
-    ``no_data``.
+    full-page route so both render identical markup, including the
+    empty-state hint when no keyframes exist. Keys: ``cards``,
+    ``available_tags``, ``no_data``.
     """
     kf_meta, desc_by_scene, vis_by_scene, tag_index = load_metadata(
         ctx.metadata_dir
@@ -217,19 +187,12 @@ def build_scenes_grid_aggregate(cfg: Any, tags: list[str], keyword: str) -> dict
     """Build the filtered scenes-grid context across ALL films.
 
     Filter-aware sibling of :func:`build_scenes_context_aggregate` for
-    the ``/api/scenes`` grid-refresh endpoint (HTMX tag/keyword changes).
-
-    Walks the library the same way the aggregate context builder does,
-    but applies *tags* and *keyword* filters per film via
-    :func:`build_cards`.  Each card is annotated with ``film_slug`` and
-    ``film_title`` so the template can group by film when desired.
-
-    Returns ``{"cards": all_cards}`` — matching the per-film
-    :func:`build_scenes_grid` return shape — so the same
-    ``scenes_grid.html`` partial works in both modes.
+    the ``/api/scenes`` grid-refresh endpoint. Walks the library and
+    applies *tags* and *keyword* per film via :func:`build_cards`. Each
+    card is annotated with ``film_slug`` / ``film_title`` for template
+    grouping. Returns ``{"cards": all_cards}`` — matching the per-film
+    return shape so the same partial works in both modes.
     """
-    from cinemateca.library import scan_library
-
     library_dir = Path(cfg.paths.library_dir)
     all_cards: list[dict] = []
     for film in scan_library(library_dir):
@@ -251,30 +214,19 @@ def build_scenes_grid_aggregate(cfg: Any, tags: list[str], keyword: str) -> dict
 def build_scenes_context_aggregate(cfg: Any) -> dict:
     """Build the scenes context across ALL films in the library.
 
-    For each film: load its per-film metadata, build cards from its
-    artefacts (path math through ``FilmContext.for_film``), annotate
-    each card with ``film_slug`` + ``film_title`` for the template
-    grouping, and concatenate.
+    For each film: load per-film metadata, build cards (path math via
+    ``FilmContext.for_film``), annotate each card with ``film_slug`` +
+    ``film_title``, and concatenate. Tolerates registered-but-unprocessed
+    films (no ``metadata/`` dir): ``load_metadata`` returns empty
+    containers and the film contributes zero cards.
 
-    Tolerates registered-but-unprocessed films (no ``metadata/`` dir):
-    ``load_metadata`` returns empty containers and the film contributes
-    zero cards without raising.
-
-    ``available_tags`` is the union of per-film tag-index keys, already
-    in their normalized form (matching ``build_scenes_context``'s shape).
-
-    ``no_data`` is True iff no card was produced across all films. This
+    ``available_tags`` is the union of per-film tag-index keys.
+    ``no_data`` is True iff no card was produced across all films —
     diverges intentionally from ``build_scenes_context``'s ``not kf_meta``
-    test: at the aggregate level "no data" means the whole library has
-    nothing renderable, not that any one film lacks keyframes. Callers
-    in T9 must surface this distinction in copy.
-
-    Performance: loads all per-film metadata from disk on every call.
-    For large libraries (~100+ films) consider a request-scoped cache
-    alongside the per-film search index cache T8 introduces.
+    test (aggregate "no data" means the whole library is empty, not one
+    film). Loads all per-film metadata from disk on every call; large
+    libraries (~100+ films) may want a request-scoped cache.
     """
-    from cinemateca.library import scan_library
-
     library_dir = Path(cfg.paths.library_dir)
     all_cards: list[dict] = []
     all_tags: set[str] = set()

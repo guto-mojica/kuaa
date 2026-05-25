@@ -26,7 +26,6 @@ EXEMPTIONS: set[str] = {
     "api/services/annotations.py",
     "api/services/eval_service.py",
     "api/services/rhymes_service.py",
-    "api/services/catalog.py",
     "api/services/about_service.py",
     "api/services/processing_service.py",
     "api/routes/scenes.py",
