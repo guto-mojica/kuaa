@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cinemateca-ai 0.3.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-24 14:58-0400\n"
+"POT-Creation-Date: 2026-05-25 13:55-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -301,7 +301,7 @@ msgstr ""
 #: web/templates/partials/_icon_rail.html:31
 #: web/templates/partials/_topbar.html:46
 #: web/templates/partials/annotate_scene.html:93
-#: web/templates/partials/search.html:99
+#: web/templates/partials/search.html:108
 msgid "Search"
 msgstr "Search"
 
@@ -332,7 +332,7 @@ msgstr "Visual analysis"
 #: web/templates/partials/_icon_rail.html:50
 #: web/templates/partials/_topbar.html:50
 #: web/templates/partials/processing.html:36
-#: web/templates/partials/processing_job.html:47
+#: web/templates/partials/processing_job.html:51
 msgid "Processing"
 msgstr "Processing"
 
@@ -459,7 +459,7 @@ msgstr ""
 
 #: web/templates/partials/_help_overlay.html:171
 #: web/templates/partials/annotate_scene.html:117
-#: web/templates/partials/processing.html:110
+#: web/templates/partials/processing.html:136
 #, fuzzy
 msgid "Filter"
 msgstr "Filter library"
@@ -715,7 +715,7 @@ msgstr ""
 
 #: web/templates/partials/add_film_form.html:23
 #: web/templates/partials/annotate_desc_edit.html:22
-#: web/templates/partials/processing_job.html:64
+#: web/templates/partials/processing_job.html:68
 #: web/templates/partials/remove_film_confirm.html:15
 msgid "Cancel"
 msgstr "Cancel"
@@ -737,7 +737,7 @@ msgid "indexed"
 msgstr ""
 
 #: web/templates/partials/annotate.html:100
-#: web/templates/partials/processing.html:111
+#: web/templates/partials/processing.html:137
 #: web/templates/partials/scenes_inspector.html:52
 msgid "Download"
 msgstr ""
@@ -1168,37 +1168,37 @@ msgstr "Starting…"
 msgid "No active jobs."
 msgstr "No active jobs."
 
-#: web/templates/partials/processing.html:107
+#: web/templates/partials/processing.html:133
 msgid "Log · SSE"
 msgstr ""
 
-#: web/templates/partials/processing.html:114
+#: web/templates/partials/processing.html:140
 msgid "auto-scroll"
 msgstr ""
 
-#: web/templates/partials/processing.html:123
+#: web/templates/partials/processing.html:145
 msgid "Waiting for events…"
 msgstr ""
 
-#: web/templates/partials/processing_job.html:51
+#: web/templates/partials/processing_job.html:55
 msgid "started at"
 msgstr ""
 
-#: web/templates/partials/processing_job.html:57
+#: web/templates/partials/processing_job.html:61
 #: web/templates/partials/search_inspector.html:76
 msgid "Expand"
 msgstr ""
 
-#: web/templates/partials/processing_job.html:79
+#: web/templates/partials/processing_job.html:83
 msgid "complete"
 msgstr ""
 
-#: web/templates/partials/processing_job.html:83
+#: web/templates/partials/processing_job.html:87
 #, fuzzy
 msgid "step"
 msgstr "Steps"
 
-#: web/templates/partials/processing_job.html:86
+#: web/templates/partials/processing_job.html:90
 msgid "ETA"
 msgstr ""
 
@@ -1283,7 +1283,7 @@ msgstr ""
 
 #: web/templates/partials/rimas.html:40 web/templates/partials/rimas.html:115
 #: web/templates/partials/scenes.html:421
-#: web/templates/partials/search.html:283
+#: web/templates/partials/search.html:321
 #, fuzzy
 msgid "films"
 msgstr "Film"
@@ -1440,7 +1440,7 @@ msgid "Comfortable"
 msgstr ""
 
 #: web/templates/partials/scenes.html:115
-#: web/templates/partials/search.html:321
+#: web/templates/partials/search.html:359
 msgid "Compact"
 msgstr ""
 
@@ -1576,110 +1576,123 @@ msgstr ""
 msgid "Find similar"
 msgstr ""
 
-#: web/templates/partials/search.html:90
+#: web/templates/partials/search.html:99
 msgid "Search the library — describe a scene, paste an image…"
 msgstr ""
 
-#: web/templates/partials/search.html:107
+#: web/templates/partials/search.html:116
 msgid "Input type"
 msgstr "Input type"
 
-#: web/templates/partials/search.html:127
+#: web/templates/partials/search.html:136
 msgid "Text"
 msgstr "Text"
 
-#: web/templates/partials/search.html:138
+#: web/templates/partials/search.html:147
 msgid "Image"
 msgstr "Image"
 
-#: web/templates/partials/search.html:149
-msgid "Soundtrack"
-msgstr ""
+#: web/templates/partials/search.html:158
+msgid "Audio"
+msgstr "Audio"
 
-#: web/templates/partials/search.html:160
+#: web/templates/partials/search.html:169
 msgid "Multimodal"
 msgstr ""
 
-#: web/templates/partials/search.html:177
+#: web/templates/partials/search.html:186
 msgid "Híbrido"
 msgstr "Hybrid"
 
-#: web/templates/partials/search.html:185
-#: web/templates/partials/search.html:205
+#: web/templates/partials/search.html:194
+#: web/templates/partials/search.html:214
 msgid "CLIP only"
 msgstr "CLIP only"
 
-#: web/templates/partials/search.html:186
-#: web/templates/partials/search.html:209
+#: web/templates/partials/search.html:195
+#: web/templates/partials/search.html:218
 msgid "BM25 only"
 msgstr "BM25 only"
 
-#: web/templates/partials/search.html:197
-#: web/templates/partials/search.html:198
+#: web/templates/partials/search.html:206
+#: web/templates/partials/search.html:207
 msgid "Retrieval mode"
 msgstr "Retrieval mode"
 
-#: web/templates/partials/search.html:201
+#: web/templates/partials/search.html:210
 msgid "Hybrid"
 msgstr "Hybrid"
 
-#: web/templates/partials/search.html:213
+#: web/templates/partials/search.html:222
 msgid "Semantic weight"
 msgstr "Semantic weight"
 
-#: web/templates/partials/search.html:213
+#: web/templates/partials/search.html:222
 msgid "Lexical weight"
 msgstr "Lexical weight"
 
-#: web/templates/partials/search.html:228
-msgid "Cross-encoder reranker — ships in M2 #4"
-msgstr "Cross-encoder reranker — ships in M2 #4"
-
-#: web/templates/partials/search.html:229
+#: web/templates/partials/search.html:251
 msgid "Rerank"
 msgstr "Rerank"
 
-#: web/templates/partials/search.html:230
+#: web/templates/partials/search.html:254
+msgid "on"
+msgstr ""
+
+#: web/templates/partials/search.html:255
 msgid "off"
 msgstr "off"
 
-#: web/templates/partials/search.html:235
+#: web/templates/partials/search.html:262
+#: web/templates/partials/search.html:263
+msgid "Cross-encoder reranker"
+msgstr ""
+
+#: web/templates/partials/search.html:266
+msgid "Enable reranking"
+msgstr ""
+
+#: web/templates/partials/search.html:268
+msgid "Default model: bge-reranker-v2-m3 — multilingual, ~100ms per query on CPU."
+msgstr ""
+
+#: web/templates/partials/search.html:273
 msgid "Maximal Marginal Relevance λ — ships in M3"
 msgstr "Maximal Marginal Relevance λ — ships in M3"
 
-#: web/templates/partials/search.html:256
-#: web/templates/partials/search.html:257
+#: web/templates/partials/search.html:294
+#: web/templates/partials/search.html:295
 msgid "Results per query"
 msgstr "Results per query"
 
-#: web/templates/partials/search.html:277
+#: web/templates/partials/search.html:315
 #, fuzzy
 msgid "results"
 msgstr "No results."
 
-#: web/templates/partials/search.html:279
+#: web/templates/partials/search.html:317
 msgid "No results."
 msgstr "No results."
 
-#: web/templates/partials/search.html:287
+#: web/templates/partials/search.html:325
 msgid "Type a query to search"
 msgstr ""
 
-#: web/templates/partials/search.html:298
+#: web/templates/partials/search.html:336
 msgid "Result layout"
 msgstr ""
 
-#: web/templates/partials/search.html:305
+#: web/templates/partials/search.html:343
 msgid "Grid"
 msgstr ""
 
-#: web/templates/partials/search.html:313
+#: web/templates/partials/search.html:351
 msgid "List"
 msgstr ""
 
-#: web/templates/partials/search.html:339
-#: web/templates/partials/search.html:346
-#: web/templates/partials/search.html:348
+#: web/templates/partials/search.html:377
+#: web/templates/partials/search.html:384
+#: web/templates/partials/search.html:386
 msgid "Choose image…"
 msgstr "Choose image…"
 
@@ -1799,5 +1812,8 @@ msgstr ""
 #~ msgstr ""
 
 #~ msgid "Maximal Marginal Relevance λ"
+#~ msgstr ""
+
+#~ msgid "Soundtrack"
 #~ msgstr ""
 

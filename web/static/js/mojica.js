@@ -492,7 +492,13 @@
     group:      { by: 'film' },
     sort:       { by: 'timecode' },
     view:       { mode: 'grid' },
-    retrieval:  { mode: 'hybrid', sem_w: 0.70, top_k: 9 },
+    // ``rerank_enabled`` defaults to ``false`` for parity with
+    // ``retrieval.reranker.enabled`` in ``config/default.yaml`` — if the
+    // chip said "on" while the backend ignored it (config disabled +
+    // dispatcher wiring deferred to Task 3.2b) users would just see
+    // confusion. Start "off"; flipping the chip is an explicit
+    // opt-in once the backend honours it.
+    retrieval:  { mode: 'hybrid', sem_w: 0.70, top_k: 9, modality: 'text', rerank_enabled: false },
   };
 
   /**
@@ -588,6 +594,6 @@
     persistOnChange('cenasGroup',      KEYS.group,      ['by']);
     persistOnChange('cenasSort',       KEYS.sort,       ['by']);
     persistOnChange('buscarView',      KEYS.view,       ['mode']);
-    persistOnChange('buscarRetrieval', KEYS.retrieval,  ['mode', 'sem_w', 'top_k']);
+    persistOnChange('buscarRetrieval', KEYS.retrieval,  ['mode', 'sem_w', 'top_k', 'modality', 'rerank_enabled']);
   });
 })();

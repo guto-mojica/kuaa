@@ -79,6 +79,15 @@
       <input type="hidden" name="sem_w"     :value="$store.buscarRetrieval.sem_w">
       <input type="hidden" name="bm25_w"    :value="(1 - Number($store.buscarRetrieval.sem_w)).toFixed(2)">
       <input type="hidden" name="top_k"     :value="$store.buscarRetrieval.top_k">
+      {# Modality mirror — the chip click writes ``$store.buscarRetrieval.modality``
+         and this hidden input carries it into every HTMX search submission so the
+         FastAPI route sees the picked modality (text | audio | image | fusion).
+         Image still POSTs to its own endpoint; fusion lands in M3 plan #2. #}
+      <input type="hidden" name="modality" :value="$store.buscarRetrieval.modality">
+      {# Rerank toggle mirror — M3 pre-flight 3.3. UI-only today; the
+         route accepts the param but live wiring through the dispatchers
+         lands in Task 3.2b. #}
+      <input type="hidden" name="reranker_enabled" :value="$store.buscarRetrieval.rerank_enabled">
 
       <label class="qinput" for="search-input">
         <span class="ico">{{ icon('search', 18) }}</span>
@@ -122,7 +131,7 @@
               data-mode="text"
               role="tab"
               :aria-selected="mode === 'text' ? 'true' : 'false'"
-              @click="mode = 'text'; $refs.searchResults && ($refs.searchResults.innerHTML = '')">
+              @click="mode = 'text'; $store.buscarRetrieval.modality = 'text'; $refs.searchResults && ($refs.searchResults.innerHTML = ''); htmx.trigger('#search-text-form', 'submit')">
         <span class="ico">{{ icon('search', 14) }}</span>
         {{ _("Text") }}
       </button>
@@ -144,9 +153,9 @@
               role="tab"
               :aria-selected="mode === 'audio' ? 'true' : 'false'"
               {% if not cfg.search.audio_enabled %}disabled aria-disabled="true"{% endif %}
-              @click="mode = 'audio'; $refs.searchResults && ($refs.searchResults.innerHTML = '')">
+              @click="mode = 'audio'; $store.buscarRetrieval.modality = 'audio'; $refs.searchResults && ($refs.searchResults.innerHTML = ''); htmx.trigger('#search-text-form', 'submit')">
         <span class="ico">{{ icon('audio', 14) }}</span>
-        {{ _("Soundtrack") }}
+        {{ _("Audio") }}
       </button>
       <button type="button"
               class="chip{% if not cfg.search.multimodal_enabled %} disabled{% endif %}"
@@ -224,11 +233,40 @@
         </div>
       </div>
 
-      {# Read-only Rerank chip — M2 #4 lights this up later. #}
-      <div class="knob" data-state="readonly" aria-disabled="true" title="{{ _('Cross-encoder reranker — ships in M2 #4') }}">
-        <span class="k">{{ _("Rerank") }}</span>
-        <span class="v">{{ _("off") }}</span>
-        <span class="readonly-badge">M2</span>
+      {# Rerank chip — M3 pre-flight 3.3. Toggles the cross-encoder
+         reranker. UI affordance only: the chip writes
+         ``$store.buscarRetrieval.rerank_enabled`` and the hidden
+         mirror below carries it into every search submit as
+         ``?reranker_enabled=``. The route accepts the param today but
+         the production dispatchers still return DataFrame / list[dict];
+         live wiring lands in Task 3.2b. Keep the chip in sync with the
+         config default (``retrieval.reranker.enabled: false``) so the
+         label matches what the server will actually do. #}
+      <div class="knob knob-popover" x-data="{ open: false }">
+        <button type="button"
+                class="knob-toggle"
+                @click="open = !open"
+                :aria-expanded="open ? 'true' : 'false'"
+                aria-haspopup="dialog">
+          <span class="k">{{ _("Rerank") }}</span>
+          <span class="v acc"
+                x-text="$store.buscarRetrieval.rerank_enabled
+                        ? {{ _('on')|tojson }}
+                        : {{ _('off')|tojson }}"></span>
+        </button>
+        <div class="popover"
+             x-show="open"
+             x-cloak
+             @click.outside="open = false"
+             role="dialog"
+             aria-label="{{ _('Cross-encoder reranker') }}">
+          <h3>{{ _("Cross-encoder reranker") }}</h3>
+          <label class="checkbox">
+            <input type="checkbox" x-model="$store.buscarRetrieval.rerank_enabled">
+            {{ _("Enable reranking") }}
+          </label>
+          <p class="hint">{{ _("Default model: bge-reranker-v2-m3 — multilingual, ~100ms per query on CPU.") }}</p>
+        </div>
       </div>
 
       {# Read-only MMR chip — M3 lights this up later. #}

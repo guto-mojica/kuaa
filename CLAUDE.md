@@ -396,7 +396,11 @@ defer features; timeline extension is one option among several. Grilled
 - [ ] Pre-launch LinkedIn "I'm building this" post
 
 ### Month 2 — Retrieval depth + audio (HARD FREEZE on new features)
-- [ ] CLAP audio embeddings complete; audio-only search in UI
+- [x] CLAP audio embeddings complete; audio-only search in UI — `/api/search?modality=audio`
+  dispatches to `cinemateca.search.audio.search_audio()` over the CLAP joint
+  text+audio space; Buscar surface ships an Áudio/Soundtrack chip wired
+  through Alpine; PT/EN i18n landed. Jeca Tatu regression snapshot pinned
+  at `tests/fixtures/audio_search_regression.json` (M3 pre-flight Phase 1+2).
 - [ ] Whisper transcripts indexed (faster-whisper, `Transcriber` Protocol)
 - [x] Hybrid search (CLIP ⊕ BM25, Reciprocal Rank Fusion) — shipped 2026-05-23
   on `worktree-hybrid-search-spec`. New package `src/cinemateca/retrieval/`
@@ -412,11 +416,30 @@ defer features; timeline extension is one option among several. Grilled
   `docs/superpowers/plans/2026-05-23-hybrid-search.md`. F1 (eval ablation
   on Jeca Tatu) ainda pendente — corrida manual requer dados reais.
   **Próximo:** M2 #4 cross-encoder reranker.
-- [ ] Cross-encoder reranker (text default; VLM-as-judge opt-in) — lands in `cinemateca.search.rerank`
-- [ ] Multilingual visual model (SigLIP-multilingual; M-CLIP fallback)
-- [ ] CLAP archival-audio sanity check (pre-commit gate on Jeca Tatu)
+- [x] Cross-encoder reranker (text default; VLM-as-judge opt-in) — lands in
+  `cinemateca.search.rerank` (BAAI/bge-reranker-v2-m3 default, `model="noop"`
+  escape hatch); `apply_reranker(result, *, cfg)` service wrapper ready
+  (UI affordance live; live wiring in production dispatchers tracked as
+  follow-up Task 3.2b — default off).
+- [x] Multilingual visual model (SigLIP-multilingual; M-CLIP fallback) —
+  `cinemateca.models.clip.siglip_multilingual.SiglipMultilingualEmbedder`
+  registered behind `models.image_embedder`; library uniformly re-embedded
+  with `google/siglip2-large-patch16-256` (1024 dim); CLIP backups preserved
+  as `.clip_openclip.npy` per-film for rollback (SigLIP2-large-256 substituted
+  for the plan's invented siglip-large-multilingual id; library uniformly
+  migrated). Registry-dispatch fix in `cinemateca.search.{cache,aggregate}`
+  so query-time text encoder honours the config flag.
+- [x] CLAP archival-audio sanity check (pre-commit gate on Jeca Tatu) —
+  `cinemateca eval clap-sanity` CLI; 5-query fixture, auto-picked baseline.
 
 ### Month 3 — Fusion + visual rhymes + eval annotation
+- [x] M3 pre-flight (close M2 leftovers) — Phases 0–5 shipped on
+  `m3-preflight`: audio search end-to-end (CLAP joint space + UI chip +
+  i18n + regression snapshot), reranker stub filled in (bge-reranker-v2-m3,
+  service wrapper, UI affordance — production dispatcher wiring tracked
+  as follow-up Task 3.2b), SigLIP2-multilingual rolled out library-wide,
+  CLAP archival sanity gate (`cinemateca eval clap-sanity`). See
+  `docs/superpowers/plans/2026-05-24-m3-preflight-m2-cleanup.md`.
 - [ ] Cross-modal CLIP × CLAP fusion search
 - [x] Visual rhymes (cross-film kNN + MMR diversity) — stub MVP shipped with
   Mojica redesign: cosine kNN cross-film over existing CLIP keyframe embeddings,

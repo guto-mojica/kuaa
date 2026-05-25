@@ -27,6 +27,14 @@ def get_image_embedder(cfg, device=None):
         from cinemateca.models.clip.openclip import OpenClipEmbedder
 
         return OpenClipEmbedder(cfg, device)
+    if name == "siglip_multilingual":
+        # M3 pre-flight Task 4.1: opt-in multilingual SigLIP backend.
+        # Default stays clip_openclip; Task 4.2/4.3 own the flip + re-embed.
+        from cinemateca.models.clip.siglip_multilingual import (
+            SiglipMultilingualEmbedder,
+        )
+
+        return SiglipMultilingualEmbedder(cfg, device)
     raise ValueError(f"Unknown image_embedder: {name!r}")
 
 

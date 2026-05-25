@@ -60,13 +60,19 @@ _DEFAULT_MAPPING_FILENAME = "index_mapping.json"
 
 
 def _get_embedder(cfg: Any) -> object:
-    """Return a fresh ``OpenClipEmbedder``. Module-scope so unit tests
-    monkeypatch ``cinemateca.search.aggregate._get_embedder`` to avoid
-    loading the real CLIP model. ``cfg`` is accepted but currently ignored.
-    """
-    from cinemateca.models.clip.openclip import OpenClipEmbedder
+    """Return a fresh image embedder via the registry. Module-scope so unit
+    tests monkeypatch ``cinemateca.search.aggregate._get_embedder`` to avoid
+    loading the real model.
 
-    return OpenClipEmbedder()
+    Dispatch honours ``cfg.models.image_embedder`` so the SigLIP-multilingual
+    backend (M3 pre-flight Task 4.2 flip) returns a SigLIP encoder whose
+    output dim matches the on-disk index, instead of the previous hardcoded
+    ``OpenClipEmbedder()`` which 500'd on dim mismatch against a 1024-dim
+    SigLIP index.
+    """
+    from cinemateca.models.registry import get_image_embedder
+
+    return get_image_embedder(cfg)
 
 
 def _get_search_index(cfg: Any, slug: str) -> SearchIndex:

@@ -76,6 +76,11 @@ embeddings:
   model: "ViT-B-32"         # modelo CLIP open_clip
   pretrained: "openai"
   batch_size: 16
+  # SigLIP-multilingual override — only consulted when
+  # ``models.image_embedder: siglip_multilingual``. Default keeps the
+  # OpenClip backend bit-identical, so leaving this set is a no-op
+  # under the default backend.
+  model_id: "google/siglip2-large-patch16-256"
   # Arquivo de saída (relativo a embeddings_dir)
   filename: "keyframe_embeddings.npy"
   mapping_filename: "index_mapping.json"
@@ -130,11 +135,31 @@ search:
   mmr_lambda: 0.5             # Maximal Marginal Relevance λ
   # Modality gates (each toggles its chip on/off in the Buscar tab).
   image_enabled: true         # existing image-similarity search
-  audio_enabled: false        # M2: CLAP audio-only search
-  multimodal_enabled: false   # M3: cross-modal CLIP×CLAP fusion
+  audio_enabled: true         # M3: CLAP audio-only retrieval lit up
+  multimodal_enabled: false   # M3: fusion lands in plan #2 of M3
   # M2: the right inspector's Signals panel (.b-sigs) is gated on this until
   # the per-modality score breakdown actually exists.
   signals_enabled: false
+
+# ── Retrieval (Month-2/3 reranker + future fusion knobs) ─────────────────────
+# Separate from ``search:`` because ``search:`` owns UI-surfaced display knobs
+# (chips, modality gates, k defaults) while ``retrieval:`` owns the deeper
+# scoring-pipeline knobs that the cfg-aware service wrappers read at dispatch
+# time. M3 introduces the cross-encoder reranker block; future M3 fusion +
+# MMR diversity knobs land here too. Read by ``api.services.search``
+# (Task 3.2: ``apply_reranker`` consults ``retrieval.reranker.*``).
+retrieval:
+  reranker:
+    enabled: false          # M3 pre-flight 3.2: default-off for snapshot safety.
+                            # Task 3.3 + the per-call UI toggle (?reranker_enabled=)
+                            # flips it on. Spec says "default on" but existing
+                            # hybrid regression snapshots assume no rerank reorder,
+                            # so we keep it off at the config layer and let the
+                            # chip + admin override drive the live experience.
+    top_k_in: 20            # max hits the cross-encoder sees (cost cap).
+    model: "default"        # 'default' → BAAI/bge-reranker-v2-m3
+                            # 'noop'    → passthrough escape hatch (tests / UI off)
+                            # any other string → HF model id
 
 # ── Rimas Visuais (cross-film visual rhymes) ─────────────────────────────────
 # Read-only knobs for the Rimas tab's kNN over CLIP keyframes. Defaults match
@@ -181,7 +206,10 @@ llm:
 
 # ── Model backends (pluggable — see docs/PROTOCOL_OPTION.md) ──────────────────
 models:
-  image_embedder: clip_openclip            # clip_openclip
+  image_embedder: siglip_multilingual      # clip_openclip | siglip_multilingual
+  # ``siglip_multilingual`` lands as an opt-in alternative in M3 pre-flight
+  # Task 4.1. Default stays clip_openclip until Task 4.2 smoke validation
+  # on Jeca Tatu and Task 4.3 library-wide re-embed are user-gated through.
   face_detector: mtcnn_pytorch             # mtcnn_pytorch
   object_detector: yolov8                  # yolov8
   # Default: keyless, offline Moondream 2 via HF transformers. GPU comes from

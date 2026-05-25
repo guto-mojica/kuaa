@@ -595,17 +595,24 @@ def test_search_toolrow_renders_hybrid_popover(client) -> None:
     assert 'name="top_k"' in body
 
 
-def test_search_toolrow_renders_readonly_rerank_and_mmr_badges(client) -> None:
-    """Rerank + MMR stay as obvious read-only chips with M2/M3 micro-badges
-    until their backends land — the test pins both the ``data-state`` and
-    the badge text so a future refactor cannot remove the cue."""
+def test_search_toolrow_renders_live_rerank_chip_and_readonly_mmr_badge(client) -> None:
+    """Rerank chip is LIVE (M3 pre-flight 3.3) — popover-backed, hidden mirror
+    submits ``?reranker_enabled=``. MMR stays a read-only M3 chip until its
+    backend lands. The test pins each chip's shape so a future refactor cannot
+    silently demote the rerank chip back to a static badge, or upgrade the MMR
+    chip before its backend is ready.
+    """
     resp = client.get("/tab/search")
     body = resp.text
-    # Read-only chips with explicit data-state for screen-reader + test pinning.
+    # MMR chip still a read-only badge with explicit data-state for screen
+    # readers + test pinning.
     assert 'data-state="readonly"' in body
-    # M2/M3 micro-badges visible.
-    assert ">M2<" in body
+    # MMR badge visible; M2 badge gone (Rerank chip is now live).
     assert ">M3<" in body
+    assert ">M2<" not in body
+    # Rerank chip is now a popover with the hidden form mirror that carries
+    # the toggle into every search submit.
+    assert 'name="reranker_enabled"' in body
 
 
 # ── Group 1f-bis: Cenas inspector (Task 16) ───────────────────────────────────
