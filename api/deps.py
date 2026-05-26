@@ -125,8 +125,8 @@ def make_ctx(request: Request, **kwargs) -> dict:
         "viewers": [],
         "notification_count": 0,
         "current_user": None,
-        # Mojica redesign (Task 10): the Buscar tab reads display-only
-        # retrieval knobs straight from ``cfg.search.*``. Exposing the
+        # Mojica redesign (Task 10+): the Buscar tab reads retrieval UI
+        # gates/defaults straight from ``cfg.search.*``. Exposing the
         # full config here keeps the routes simple and avoids a separate
         # dependency for templates.
         "cfg": get_config(),

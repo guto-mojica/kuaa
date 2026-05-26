@@ -23,12 +23,8 @@ service treats as the anchor; the service handles parsing + falling
 back to a default anchor + the empty-state branch (no params crash, no
 500s on unresolvable anchors).
 
-The Phase-1 placeholder route in ``api/server.py`` (``page_rimas``)
-remains: the full-page ``GET /rimas`` flows through ``render_page`` and
-into ``_TAB_CONTEXT_BUILDERS['rimas']``. Task 22 swaps that placeholder
-builder for :func:`api.services.rhymes_service.build_rimas_context`
-once the page template lands; for Task 21 the tab-fragment endpoints
-defined here are enough to exercise the service end-to-end.
+The full-page ``GET /rimas`` path in ``api/server.py`` now flows through
+``render_page`` and uses the same service builder as these fragment routes.
 """
 
 from __future__ import annotations

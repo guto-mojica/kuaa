@@ -225,7 +225,12 @@ async def api_search_image(
     top_k: int = 8,
     slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
-    """Image-similarity search (per-film only; aggregate image deferred)."""
+    """Image-similarity search.
+
+    When ``?film=<slug>`` is supplied this searches that film's visual index;
+    without a film it falls back to the legacy flat/global context rather than
+    the aggregate multi-film dispatcher.
+    """
     cfg = get_config()
     ctx = FilmContext.for_film(cfg, slug) if slug is not None else FilmContext.from_config(cfg)
     index = search_service.load_index(

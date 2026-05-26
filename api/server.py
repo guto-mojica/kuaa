@@ -297,10 +297,5 @@ async def page_processing(request: Request) -> HTMLResponse:
 
 @app.get("/rimas", response_class=HTMLResponse)
 async def page_rimas(request: Request) -> HTMLResponse:
-    """Rimas Visuais (cross-film visual rhymes) — Phase-5 placeholder.
-
-    The real builder + page template land in Phase 5; for Phase 1 this route
-    exists so the chrome shell, IconRail link, and ``data-active-tab='rimas'``
-    body attribute can be exercised end-to-end.
-    """
+    """Rimas Visuais (cross-film visual rhymes) full-page route."""
     return render_page(request, "rimas")

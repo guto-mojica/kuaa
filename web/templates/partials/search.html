@@ -17,13 +17,9 @@
        hx-target wiring keeps working; the inner partial is rewritten in
        Task 11 onto ``.b-card`` cards.
 
-   HTMX trigger simplification (vs the plan's snippet): we keep
-   ``hx-trigger="submit"`` only. The plan suggests
-   ``submit, change from:.chip`` so chip clicks re-fire the query, but the
-   chip click handler today only swaps which sub-panel is visible — there
-   is no per-modality API endpoint to GET. Adding the chip trigger here
-   would issue a duplicate text-search every time the user picks the image
-   chip. We'll wire it in M2 alongside the audio / multimodal endpoints.
+   Modality chips update the hidden ``modality`` mirror and submit the text
+   form for live text/audio/fusion searches. Image search stays on the separate
+   multipart endpoint, so the image chip only shows the upload panel.
 
    The right-inspector and bottom-timeline includes are ``ignore missing``
    guards so Tasks 12 + 13 can land their partials independently without
@@ -81,8 +77,8 @@
       <input type="hidden" name="top_k"     :value="$store.buscarRetrieval.top_k">
       {# Modality mirror — the chip click writes ``$store.buscarRetrieval.modality``
          and this hidden input carries it into every HTMX search submission so the
-         FastAPI route sees the picked modality (text | audio | image | fusion).
-         Image still POSTs to its own endpoint; fusion lands in M3 plan #2. #}
+         FastAPI route sees the picked modality (text | audio | fusion).
+         Image still POSTs to its own endpoint. #}
       <input type="hidden" name="modality" :value="$store.buscarRetrieval.modality">
       {# Rerank toggle mirror — M3 pre-flight 3.3. UI-only today; the
          route accepts the param but live wiring through the dispatchers
@@ -113,10 +109,10 @@
       </button>
     </form>
 
-    {# Modality chips. Image is the only modality wired today; Audio +
-       Multimodal land in M2/M3 and stay disabled until their backends
-       exist. Disabled chips render with aria-disabled + .disabled so a
-       screen-reader announces them as unavailable instead of clickable. #}
+    {# Modality chips. Text, image, audio, and fusion are live when their
+       matching config flags are enabled. Disabled chips render with
+       aria-disabled + .disabled so a screen-reader announces them as
+       unavailable instead of clickable. #}
     <div class="modes" role="tablist" aria-label="{{ _('Input type') }}">
       {# Modality chips:
          * ``:class="{ on: mode === '…' }"`` reactively flips the highlight
@@ -124,8 +120,7 @@
            ``disabled``) class so the disabled affordance is preserved.
          * ``:aria-selected`` mirrors the boolean for assistive tech.
          * ``@click`` only fires on enabled chips — the ``disabled`` attr
-           prevents the click event entirely, so audio/multimodal stay
-           inert until their backends light up in M2/M3.
+           prevents the click event entirely, so a gated modality stays inert.
          * Clearing #search-results on a flip reproduces the old inline
            script's behaviour; ``$refs.searchResults`` resolves inside
            this same x-data scope. #}

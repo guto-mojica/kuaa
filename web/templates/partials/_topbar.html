@@ -17,10 +17,10 @@
      notification_count  int — bell red dot (default 0)
      current_user        obj with .full_name / .initials (default None)
 
-   The Share button posts to /api/share/link, which doesn't exist yet
-   (collaboration epic). The button still renders; clicking it 404s. The
-   hx-* attributes are kept as the future contract — Task 8 / Phase 7 wire
-   the endpoint. #}
+   Prototype controls still visible here: filter, notifications, import,
+   Share, and user/collaboration chrome. /api/share/link does not exist yet, so
+   the UI wiring audit tracks the product decision to hide, disable, or wire
+   these controls before launch. #}
 {% from "partials/_icons.html" import icon %}
 <header class="ch-top">
   <div class="l">
