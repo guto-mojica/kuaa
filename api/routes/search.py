@@ -125,6 +125,7 @@ async def api_search_image(
         ctx,
         mapping_filename=cfg.embeddings.mapping_filename,
         embeddings_filename=cfg.embeddings.filename,
+        cfg=cfg,
     )
     if not index.ok:
         return _no_index_response(request)

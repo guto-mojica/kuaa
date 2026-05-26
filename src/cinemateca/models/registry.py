@@ -46,6 +46,10 @@ def get_image_embedder(cfg, device=None) -> "ImageEmbedder":
         from cinemateca.models.clip.openclip import OpenClipEmbedder
 
         return OpenClipEmbedder(cfg, device)
+    if name == "clip_mclip":
+        from cinemateca.models.clip.mclip import MClipEmbedder
+
+        return MClipEmbedder(cfg, device)
     raise ValueError(f"Unknown image_embedder: {name!r}")
 
 

@@ -96,12 +96,11 @@ class SearchIndex:
 
 # ── mtime/size-aware index cache ──────────────────────────────────────────────
 
-# key: (slug_or_none, embeddings_path_str, mapping_path_str)
+# key: (slug_or_none, embeddings_path_str, mapping_path_str, embedder_name)
 # value: (signature, SearchIndex) where signature is the combined stat tuple of
 # both files at load time. A changed signature => reload.
-# The slug component isolates each film's cache slot so per-film indices
-# never collide (two films that happen to share a path string are distinct).
-_index_cache: dict[tuple[str | None, str, str], tuple[tuple, SearchIndex]] = {}
+# The slug + embedder_name components isolate each film×embedder cache slot.
+_index_cache: dict[tuple[str | None, str, str, str], tuple[tuple, SearchIndex]] = {}
 _cache_lock = threading.Lock()
 
 # Sibling cache flushers (e.g. BM25 lru_cache) plug in via
@@ -196,6 +195,7 @@ def load_index(
     *,
     mapping_filename: str,
     embeddings_filename: str,
+    cfg: Any = None,
 ) -> SearchIndex:
     """Return the (cached) :class:`SearchIndex` for *ctx*'s embeddings dir.
 
@@ -217,7 +217,12 @@ def load_index(
     """
     emb_path = ctx.embeddings_dir / embeddings_filename
     map_path = ctx.embeddings_dir / mapping_filename
-    key = (ctx.slug, str(emb_path), str(map_path))
+    embedder_name = (
+        getattr(getattr(cfg, "models", None), "image_embedder", "clip_openclip")
+        if cfg is not None
+        else "clip_openclip"
+    )
+    key = (ctx.slug, str(emb_path), str(map_path), embedder_name)
     sig = (_stat_sig(emb_path), _stat_sig(map_path))
 
     with _cache_lock:
@@ -225,6 +230,23 @@ def load_index(
         if cached is not None and cached[0] == sig:
             return cached[1]
         index = _load_and_validate(emb_path, map_path)
+        # Swap embedder when a non-default backend is requested. The default
+        # path (clip_openclip) keeps the OpenClipEmbedder() already built by
+        # _load_and_validate so tests that monkeypatch openclip.OpenClipEmbedder
+        # continue to work without any changes.
+        if index.ok and embedder_name not in ("clip_openclip", None):
+            try:
+                from cinemateca.models.registry import get_image_embedder
+                alt_embedder = get_image_embedder(cfg)
+                index = SearchIndex(
+                    status=index.status,
+                    embeddings=index.embeddings,
+                    kf_df=index.kf_df,
+                    embedder=alt_embedder,
+                    detail=index.detail,
+                )
+            except Exception as exc:
+                logger.warning("load_index: embedder swap failed (%s), using default", exc)
         _index_cache[key] = (sig, index)
         return index
 

@@ -128,7 +128,7 @@ search:
     rrf_k: 60                  # RRF rank-shift constant (Cormack et al.)
   rerank_enabled: false       # M2: cross-encoder reranker (enable in local.yaml after validating on real data)
   reranker:
-    model: "cross-encoder/ms-marco-MiniLM-L-12-v2"  # ~70 MB, CPU-friendly
+    model: "cross-encoder/ms-marco-MiniLM-L-12-v2"  # English, ~70 MB, CPU-friendly; use mmarco-mMiniLMv2-L12-H384-v1 for multilingual
     top_k: 50    # candidates fed to the cross-encoder from first-stage retrieval
   mmr_lambda: 0.5             # Maximal Marginal Relevance λ
   # Modality gates (each toggles its chip on/off in the Buscar tab).
@@ -184,7 +184,7 @@ llm:
 
 # ── Model backends (pluggable — see docs/PROTOCOL_OPTION.md) ──────────────────
 models:
-  image_embedder: clip_openclip            # clip_openclip
+  image_embedder: clip_openclip            # clip_openclip | clip_mclip (multilingual, same 512-dim image space)
   face_detector: mtcnn_pytorch             # mtcnn_pytorch
   object_detector: yolov8                  # yolov8
   # Default: keyless, offline Moondream 2 via HF transformers. GPU comes from

@@ -60,13 +60,17 @@ _DEFAULT_MAPPING_FILENAME = "index_mapping.json"
 
 
 def _get_embedder(cfg: Any) -> object:
-    """Return a fresh ``OpenClipEmbedder``. Module-scope so unit tests
-    monkeypatch ``cinemateca.search.aggregate._get_embedder`` to avoid
-    loading the real CLIP model. ``cfg`` is accepted but currently ignored.
-    """
-    from cinemateca.models.clip.openclip import OpenClipEmbedder
+    """Return the configured image embedder via the model registry.
 
-    return OpenClipEmbedder()
+    Module-scope so unit tests monkeypatch
+    ``cinemateca.search.aggregate._get_embedder`` to avoid loading the real
+    model. ``cfg`` is forwarded to the registry so that switching
+    ``models.image_embedder`` in config (e.g. ``clip_mclip``) is picked up
+    here without any code change.
+    """
+    from cinemateca.models.registry import get_image_embedder
+
+    return get_image_embedder(cfg)
 
 
 def _get_search_index(cfg: Any, slug: str) -> SearchIndex:
@@ -87,7 +91,7 @@ def _get_search_index(cfg: Any, slug: str) -> SearchIndex:
     )
     ctx = FilmContext.for_film(cfg, slug)
     return load_index(
-        ctx, embeddings_filename=embeddings_filename, mapping_filename=mapping_filename
+        ctx, embeddings_filename=embeddings_filename, mapping_filename=mapping_filename, cfg=cfg
     )
 
 
