@@ -24,6 +24,7 @@
   // Per-element state: bound nodes are tagged with `__mojicaBound` so
   // re-running bindLogAutoscroll() after an HTMX swap is idempotent.
   var BOUND_FLAG = '__mojicaLogAutoscrollBound';
+  var DOWNLOAD_BOUND_FLAG = '__mojicaLogDownloadBound';
 
   /**
    * Bind per-node listeners for `#proc-log` when present.
@@ -88,6 +89,31 @@
     }
   }
 
+  function bindLogDownload() {
+    var log = document.getElementById('proc-log');
+    if (!log) return;
+    var button = log.querySelector('[data-download-log]');
+    if (!button || button[DOWNLOAD_BOUND_FLAG]) return;
+    button[DOWNLOAD_BOUND_FLAG] = true;
+    button.addEventListener('click', function () {
+      var lines = log.querySelectorAll('.l-row');
+      var out = [];
+      for (var i = 0; i < lines.length; i++) {
+        out.push(lines[i].textContent.replace(/\s+/g, ' ').trim());
+      }
+      var body = out.join('\n');
+      var blob = new Blob([body], { type: 'text/plain;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'cinemateca-processing-log.txt';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 0);
+    });
+  }
+
   // ── Bootstrap ──────────────────────────────────────────────────────
   // The two body listeners below MUST be registered exactly once for
   // the lifetime of the page. Previously they lived inside
@@ -98,8 +124,10 @@
   // once and always operates on the CURRENT #proc-log / .lines lookup.
   function init() {
     bindLogAutoscroll();
+    bindLogDownload();
     document.body.addEventListener('htmx:afterSettle', function () {
       bindLogAutoscroll();
+      bindLogDownload();
       // Defer one tick so the freshly-swapped DOM is committed.
       setTimeout(scrollToBottomIfPinned, 0);
     });
@@ -260,6 +288,8 @@
 //     including text inputs (the palette IS a text input — preventing it
 //     from opening while the user is typing a search query would be the
 //     opposite of useful).
+//   * Navigates between the five main tools on 1..5 when focus is not in
+//     a form field.
 //   * Toggles the keyboard help overlay on ``?`` (Shift + /). Guarded
 //     against typing in form fields — typing "what?" into an input must
 //     keep landing the character, not pop the legend.
@@ -432,14 +462,29 @@
       toggleHelp();
       return;
     }
+
+    var navMap = {
+      '1': '/search',
+      '2': '/scenes',
+      '3': '/annotate',
+      '4': '/rimas',
+      '5': '/processing',
+    };
+    if (Object.prototype.hasOwnProperty.call(navMap, e.key)) {
+      var hs = helpStore();
+      if (hs && hs.open) return;
+      e.preventDefault();
+      var film = new URLSearchParams(window.location.search).get('film');
+      window.location.href = navMap[e.key] + (film ? '?film=' + encodeURIComponent(film) : '');
+    }
   });
 })();
 
 // ─── UI preferences (Cenas Appearance/Fields/Group/Sort + Buscar view + Buscar retrieval) ───
 // localStorage-backed Alpine stores driving toolrow popovers in
 // scenes.html (Appearance + Fields + Group + Sort), the view-toggle
-// segments in search.html (Grade / Lista / Compacto), and the M2
-// Hybrid Search retrieval-mode popovers (retriever / sem_w / top_k).
+// segments in search.html (Grade / Lista / Compacto), and the Buscar
+// retrieval popovers (retriever / sem_w / top_k / fusion_w).
 // The server can't see localStorage, so these toggles are client-only —
 // Alpine reactively binds class names on the appropriate container to
 // flip layout, per-field visibility, and the hidden HTMX form mirrors.
@@ -451,10 +496,10 @@
 //   $store.cenasGroup.by                  // group key
 //   $store.cenasSort.by                   // sort key
 //   $store.buscarView.mode                // 'grid' | 'list' | 'compact'
-//   $store.buscarRetrieval.{mode,sem_w,top_k}
+//   $store.buscarRetrieval.{mode,sem_w,top_k,modality,fusion_w}
 //
 // The ``buscarRetrieval`` store backs the Buscar tab's knob-row popovers
-// (retriever / sem_w / bm25_w / top_k). Defaults mirror the canonical
+// (retriever / sem_w / bm25_w / top_k / fusion_w). Defaults mirror the canonical
 // hybrid baseline so a first-paint UI never drifts from the server
 // contract: ``retriever=hybrid``, ``sem_w=0.70``, ``bm25_w=0.30``,
 // ``top_k=9`` (UI preference; the route's FastAPI default is 8 — the
@@ -493,13 +538,7 @@
     group:      { by: 'film' },
     sort:       { by: 'timecode' },
     view:       { mode: 'grid' },
-    // ``rerank_enabled`` defaults to ``false`` for parity with
-    // ``retrieval.reranker.enabled`` in ``config/default.yaml`` — if the
-    // chip said "on" while the backend ignored it (config disabled +
-    // dispatcher wiring deferred to Task 3.2b) users would just see
-    // confusion. Start "off"; flipping the chip is an explicit
-    // opt-in once the backend honours it.
-    retrieval:  { mode: 'hybrid', sem_w: 0.70, top_k: 9, modality: 'text', rerank_enabled: false, fusion_w: 0.5 },
+    retrieval:  { mode: 'hybrid', sem_w: 0.70, top_k: 9, modality: 'text', fusion_w: 0.5 },
     // ``rimasRetrieval`` mirrors ``retrieval.rhymes.{diversity, k_candidates}``
     // in ``config/default.yaml`` and feeds the Diversidade slider on the
     // Rimas Visuais tab (Task 4.2). ``diversity`` is MMR lambda (0=pure
@@ -602,7 +641,7 @@
     persistOnChange('cenasGroup',      KEYS.group,      ['by']);
     persistOnChange('cenasSort',       KEYS.sort,       ['by']);
     persistOnChange('buscarView',      KEYS.view,       ['mode']);
-    persistOnChange('buscarRetrieval', KEYS.retrieval,  ['mode', 'sem_w', 'top_k', 'modality', 'rerank_enabled', 'fusion_w']);
+    persistOnChange('buscarRetrieval', KEYS.retrieval,  ['mode', 'sem_w', 'top_k', 'modality', 'fusion_w']);
     persistOnChange('rimasRetrieval',  KEYS.rimasRetrieval, ['diversity', 'k_candidates']);
   });
 })();

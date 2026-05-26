@@ -2,8 +2,8 @@
    Task 19 (Phase 4) of the Mojica redesign. Replaces the legacy v0.3
    tag-editor form with the Frame.io-style ``.a-rp`` shell: htabs row
    (Comments / Annotations / Properties), subhead with scene id + tag
-   pill + filter/sort icons, ``.a-thread`` content dispatched to one of
-   the three sub-partials, optional composer footer.
+   counts, ``.a-thread`` content dispatched to one of the three sub-partials,
+   optional composer footer.
 
    HTMX swap contract — preserved from the previous incarnation so the
    existing wiring keeps working:
@@ -86,19 +86,9 @@
             hx-swap="innerHTML">
       {{ icon('fields', 14) }} {{ _("Properties") }}
     </button>
-    <span class="gap" aria-hidden="true"></span>
-    <button type="button" class="ic" title="{{ _('Sort') }}" aria-label="{{ _('Sort') }}">
-      {{ icon('sort', 14) }}
-    </button>
-    <button type="button" class="ic" title="{{ _('Search') }}" aria-label="{{ _('Search annotations') }}">
-      {{ icon('search', 14) }}
-    </button>
-    <button type="button" class="ic" title="{{ _('More') }}" aria-label="{{ _('More actions') }}">
-      {{ icon('more', 14) }}
-    </button>
   </div>
 
-  {# ── Subhead: scene label + count pip · filter/sort icons ────────────── #}
+  {# ── Subhead: scene label + count pip ───────────────────────────────── #}
   <div class="subhead">
     <div class="l">
       <span>{{ _("Scene %(n)s") % {"n": "%03d"|format(selected_scene.scene_id or 0)} }}</span>
@@ -112,14 +102,6 @@
          matching. The visual nav lives in the stage's .a-pl player; this
          span is the textual position the regression suite locks down. #}
       <span class="annotate-nav__pos text-muted">{{ current_idx + 1 }} / {{ total }}</span>
-    </div>
-    <div class="r">
-      <button type="button" class="fx-icbtn sm" title="{{ _('Filter') }}" aria-label="{{ _('Filter') }}">
-        {{ icon('filter', 14) }}
-      </button>
-      <button type="button" class="fx-icbtn sm" title="{{ _('Sort') }}" aria-label="{{ _('Sort') }}">
-        {{ icon('sort', 14) }}
-      </button>
     </div>
   </div>
 

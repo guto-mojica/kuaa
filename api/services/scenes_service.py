@@ -642,6 +642,7 @@ def _card_to_scene(card: dict, *, film_ns: SimpleNamespace | None = None) -> dic
 
 _VALID_GROUPS = frozenset({"film", "tipo", "none"})
 _VALID_SORTS = frozenset({"timecode", "duration", "pins"})
+_VALID_BUCKETS = frozenset(_TIPOS)
 
 # Stable display order for the ``group=tipo`` headings — narrative
 # arc that mirrors how a curator reads through a film (title cards →
@@ -704,6 +705,7 @@ def _build_groups_by_film(
     slug: str | None = None,
     group: str = "film",
     sort: str = "timecode",
+    bucket: str | None = None,
 ) -> tuple[list[dict], list[Any], int, float, set[str]]:
     """Walk the library and produce the ``groups_by_film`` template payload.
 
@@ -745,6 +747,9 @@ def _build_groups_by_film(
     internally; the inter-group order is determined by group identity
     (film registration order for ``film``, ``_TIPO_DISPLAY_ORDER`` for
     ``tipo``).
+
+    ``bucket`` optionally narrows visible scenes to one tipo bucket. It backs
+    the left-pane collection shortcuts such as ``/scenes?bucket=exterior``.
     """
     from cinemateca.library import scan_library
 
@@ -760,6 +765,8 @@ def _build_groups_by_film(
         group = "film"
     if sort not in _VALID_SORTS:
         sort = "timecode"
+    if bucket not in _VALID_BUCKETS:
+        bucket = None
 
     # Per-film slug filter (sidebar-driven): only render the matching
     # film's group. The aggregate path still walks the whole library so
@@ -803,6 +810,10 @@ def _build_groups_by_film(
             continue
         film_ns = _film_for_grid(film, kf_meta)
         scenes = [_card_to_scene(c, film_ns=film_ns) for c in cards]
+        if bucket:
+            scenes = [s for s in scenes if s.get("tipo") == bucket]
+        if not scenes:
+            continue
         total_scenes += len(scenes)
         total_runtime_s += film_ns.runtime_s
         per_film.append((film_ns, scenes))
@@ -940,6 +951,7 @@ def build_cenas_context(
     slug: str | None = None,
     group: str = "film",
     sort: str = "timecode",
+    bucket: str | None = None,
 ) -> dict:
     """Return the full Cenas-tab template context.
 
@@ -977,7 +989,13 @@ def build_cenas_context(
         total_runtime_s,
         all_tags,
     ) = _build_groups_by_film(
-        cfg, tags=tags, keyword=keyword, slug=slug, group=group, sort=sort
+        cfg,
+        tags=tags,
+        keyword=keyword,
+        slug=slug,
+        group=group,
+        sort=sort,
+        bucket=bucket,
     )
 
     # Flat cards list — preserves the legacy context key so older
@@ -1009,13 +1027,12 @@ def build_cenas_context(
         # ``os.stat`` per keyframe — O(scenes) syscalls on every page
         # load). Em-dash placeholder until a cheap, cached source lands.
         "total_keyframes_size": "—",
-        # Toolrow pip placeholders. The "fields" control isn't wired
-        # today (the card layout is fixed) but the pip needs a number
-        # for the template literal; 2 is the count of currently-visible
-        # fields (name + tipo). The filter count reflects active tag
-        # filters the legacy callers still pass.
+        # First-paint toolrow counts. The fields control is client-side
+        # localStorage, so the server emits the default visible count; Alpine
+        # updates it after hydration if the user has hidden fields. The filter
+        # count reflects active tag filters plus a left-pane bucket shortcut.
         "visible_field_count": 2,
-        "active_filter_count": len(tags),
+        "active_filter_count": len(tags) + (1 if bucket in _VALID_BUCKETS else 0),
         "no_data": total_scenes == 0,
         "available_tags": sorted(all_tags),
         "cards": flat_cards,
@@ -1030,4 +1047,5 @@ def build_cenas_context(
         # against ``?group=foobar``.
         "active_group": group if group in _VALID_GROUPS else "film",
         "active_sort": sort if sort in _VALID_SORTS else "timecode",
+        "active_bucket": bucket if bucket in _VALID_BUCKETS else "",
     }

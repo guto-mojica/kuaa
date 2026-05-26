@@ -7,9 +7,8 @@ into stable categories the client renders in fixed order:
   * ``navigate`` — main tab destinations (Home, Search, Scenes, Annotate,
     Rhymes, Processing). The hotkeys ("1".."5") match the keyboard help
     overlay (Task 28).
-  * ``actions`` — global commands (start processing, add film, locale
-    switch, about). Distinct from ``navigate`` because they may trigger
-    state changes or modals rather than a URL transition.
+  * ``actions`` — backed global commands (locale switch, about). Distinct
+    from ``navigate`` because they may trigger server-side state changes.
   * ``films`` — registered library films, filtered by label.
   * ``scenes_recent`` — placeholder; populated in a later phase once a
     cheap per-film scene index exists. Empty for now so the empty-q
@@ -39,8 +38,6 @@ NAVIGATE: list[dict[str, Any]] = [
 ]
 
 ACTIONS: list[dict[str, Any]] = [
-    {"key": "new-job", "label": "Start processing", "icon": "play", "url": "/processing"},
-    {"key": "add-film", "label": "Add film", "icon": "plus", "url": "/processing"},
     {"key": "switch-pt", "label": "Switch to PT-BR", "icon": "globe", "url": "/api/locale/pt_BR"},
     {"key": "switch-en", "label": "Switch to English", "icon": "globe", "url": "/api/locale/en"},
     {"key": "about", "label": "About Cinemateca", "icon": "doc", "url": "/about"},

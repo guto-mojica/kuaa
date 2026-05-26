@@ -32,27 +32,23 @@
         {{ selected_scene.description }}
       </div>
       <div class="replyrow">
-        {# Edit / Re-generate keep the legacy contracts so the existing
+        {# Edit keeps the legacy contract so the existing
            ``annotate_desc_edit.html`` editor still mounts via the
            ``#annotate-llm-edit`` swap container below. The Anotar tab
            routes the edit form through ``/api/annotate/description/edit``
            and the save through ``/api/annotate/description``; both
            continue to work unchanged. #}
-        <a href="#"
+        <a href="/api/annotate/description/edit?scene_id={{ scene_id }}&filter={{ filter }}{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
            hx-get="/api/annotate/description/edit?scene_id={{ scene_id }}&filter={{ filter }}{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
            hx-target="#annotate-llm-edit"
            hx-swap="innerHTML">{{ _("Edit") }}</a>
-        {% if cfg.collaboration.threads_enabled %}
-          <a href="#">{{ _("Reply") }}</a>
-          <a href="#">{{ _("Re-generate") }}</a>
-        {% endif %}
       </div>
     </div>
   </div>
 {% else %}
   <p class="annotate-no-llm text-muted">
     {{ _("No LLM description") }}
-    <a href="#"
+    <a href="/api/annotate/description/edit?scene_id={{ scene_id }}&filter={{ filter }}{% if selected_scene and selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
        class="annotate-edit-trigger"
        hx-get="/api/annotate/description/edit?scene_id={{ scene_id }}&filter={{ filter }}{% if selected_scene and selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
        hx-target="#annotate-llm-edit"
@@ -68,8 +64,8 @@
 
 {# ── Demo curator + viewer thread ────────────────────────────────────────
    Renders the prototype's Frame.io-style comment stream (pinned curator
-   note with attachments + reactions, viewer reply) until the real
-   collaboration backend lands. Gated on
+   note with attachments + reactions, viewer reply) as read-only content
+   until the real collaboration backend lands. Gated on
    ``cfg.collaboration.demo_threads_enabled``. The body uses ``|safe`` —
    this is intentionally bound to ``_demo_thread()`` output in
    ``api/services/annotations.py``, whose bodies are static literal Python
@@ -77,7 +73,6 @@
    replaces ``selected_scene.comments`` with user-supplied content, the
    ``|safe`` filter MUST be removed (or replaced with an HTML sanitizer)
    — otherwise the curator field becomes an XSS vector. #}
-{% set _action_labels = {"reply": _("Reply"), "resolve": _("Resolve"), "share": _("Share")} %}
 {% if cfg.collaboration.demo_threads_enabled and selected_scene and selected_scene.comments %}
   {% for c in selected_scene.comments %}
     <div class="a-com {{ c.role }}{% if c.badge == 'pinned' %} pinned{% endif %}">
@@ -93,7 +88,7 @@
         {% if c.attachments %}
           <div class="attach">
             {% for a in c.attachments %}
-              <a class="att" href="#" data-kind="{{ a.kind }}">{{ a.name }}</a>
+              <span class="att" data-kind="{{ a.kind }}">{{ a.name }}</span>
             {% endfor %}
           </div>
         {% endif %}
@@ -106,12 +101,6 @@
             {% endfor %}
           </div>
         {% endif %}
-        <div class="replyrow">
-          {% for act in c.actions %}
-            {% set label = _action_labels.get(act) %}
-            {% if label %}<a href="#">{{ label }}</a>{% endif %}
-          {% endfor %}
-        </div>
       </div>
     </div>
   {% endfor %}

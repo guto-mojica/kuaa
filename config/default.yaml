@@ -115,8 +115,8 @@ audio_embeddings:
 # ── Search UI / retrieval knobs (Mojica redesign) ────────────────────────────
 # Controls surfaced in the Buscar tab's `.knob` row and modality chips.
 # Hybrid, audio, image, and fusion are live in the current branch. Rerank remains
-# accepted by the route but not yet applied by the production dispatchers; MMR is
-# still a Search-tab display/readiness knob rather than a Search result rerank.
+# accepted by the route but is hidden from the UI until production dispatchers
+# apply it. Search-tab MMR display was removed; MMR lives in Rimas.
 search:
   # Default ``k`` (top-K) surfaced in the "k" knob.
   top_k_default: 9
@@ -131,8 +131,8 @@ search:
     b: 0.75                    # length normalisation
     stopwords_lang: null       # null = no stopword removal
     rrf_k: 60                  # RRF rank-shift constant (Cormack et al.)
-  rerank_enabled: false       # M2: cross-encoder reranker
-  mmr_lambda: 0.5             # Maximal Marginal Relevance λ
+  rerank_enabled: false       # Back-compat route/config knob; UI-hidden.
+  mmr_lambda: 0.5             # Legacy Search config; Rimas uses retrieval.rhymes.
   # Modality gates (each toggles its chip on/off in the Buscar tab).
   image_enabled: true         # existing image-similarity search
   audio_enabled: true         # M3: CLAP audio-only retrieval lit up
@@ -145,18 +145,14 @@ search:
 # Separate from ``search:`` because ``search:`` owns UI-surfaced display knobs
 # (chips, modality gates, k defaults) while ``retrieval:`` owns the deeper
 # scoring-pipeline knobs that the cfg-aware service wrappers read at dispatch
-# time. M3 introduces the cross-encoder reranker block; future M3 fusion +
-# MMR diversity knobs land here too. Read by ``api.services.search``
-# (``apply_reranker`` consults ``retrieval.reranker.*``; the route-level UI
-# toggle still needs dispatcher plumbing before it changes live rankings).
+# time. Read by ``api.services.search`` and Rimas services. ``apply_reranker``
+# consults ``retrieval.reranker.*``; the visible UI toggle is hidden until
+# dispatcher plumbing changes live rankings.
 retrieval:
   reranker:
-    enabled: false          # M3 pre-flight 3.2: default-off for snapshot safety.
-                            # Task 3.3 + the per-call UI toggle (?reranker_enabled=)
-                            # flips it on. Spec says "default on" but existing
-                            # hybrid regression snapshots assume no rerank reorder,
-                            # so we keep it off at the config layer and let the
-                            # chip + admin override drive the live experience.
+    enabled: false          # Default-off for snapshot safety. The API accepts
+                            # ?reranker_enabled= for compatibility, but the UI
+                            # does not expose it until dispatchers honor it.
     top_k_in: 20            # max hits the cross-encoder sees (cost cap).
     model: "default"        # 'default' → BAAI/bge-reranker-v2-m3
                             # 'noop'    → passthrough escape hatch (tests / UI off)

@@ -4,7 +4,7 @@
 
      .stack (top)    Home + 4 main tabs (Buscar / Cenas / Anotar / Rimas)
      .spacer         flex spacer
-     .stack (bottom) Processamento (with badge when jobs > 0) + Settings
+     .stack (bottom) Processamento (with badge when jobs > 0)
 
    Context variables consumed (all defaulted by api/deps.make_ctx or
    filled by api/services/chrome_service.build_chrome_context):
@@ -53,10 +53,5 @@
         <span class="nb">{{ active_job_count }}</span>
       {% endif %}
     </a>
-    <button class="ic"
-            type="button"
-            title="{{ _('Settings') }}"
-            data-tip="{{ _('Settings') }}"
-            data-action="open-settings">{{ icon('settings', 18) }}</button>
   </div>
 </nav>

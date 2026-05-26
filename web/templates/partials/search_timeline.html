@@ -50,12 +50,6 @@
       <span class="tc">{% if selected_scene and selected_scene.timecode %}{{ selected_scene.timecode }}{% else %}00:00:00{% endif %}</span>
       <span>/</span>
       <span style="color: var(--c-text-2);">{{ selected_film.runtime_tc }}</span>
-      <button type="button" class="ib" title="{{ _('Play') }}" aria-label="{{ _('Play scene') }}">
-        {{ icon('play', 14) }}
-      </button>
-      <button type="button" class="ib" title="{{ _('Settings') }}" aria-label="{{ _('Timeline settings') }}">
-        {{ icon('settings', 14) }}
-      </button>
     </div>
   </div>
 

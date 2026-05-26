@@ -30,7 +30,7 @@ from api.routes import (
 from api.routes import (
     eval as eval_routes,
 )
-from api.services.annotations import build_annotate_context
+from api.services.annotations import build_annotate_context, normalize_annotate_tab
 from api.services.chrome_service import build_chrome_context
 from cinemateca.library import FilmContext
 from api.services.rhymes_service import build_rimas_context
@@ -233,16 +233,26 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
         # ``?scene=<id>`` deep-link parsing stays a fragment-only
         # concern (the right-pane inspector lives on a separate swap),
         # so ``selected_scene_id`` is left at the builder's default.
-        tab_ctx = build_cenas_context(cfg, slug=current_slug)
+        tab_ctx = build_cenas_context(
+            cfg,
+            slug=current_slug,
+            bucket=request.query_params.get("bucket"),
+        )
     elif active_tab == "annotate":
         fctx = (
             FilmContext.for_film(cfg, current_slug)
             if current_slug
             else FilmContext.from_config(cfg)
         )
+        filter_param = request.query_params.get("filter") or "no_llm"
+        scene_param = request.query_params.get("id")
+        try:
+            scene_id = int(scene_param) if scene_param is not None else None
+        except ValueError:
+            scene_id = None
         tab_ctx = {
-            **build_annotate_context(fctx),
-            "annotate_tab": "comments",
+            **build_annotate_context(fctx, filter_param, scene_id),
+            "annotate_tab": normalize_annotate_tab(request.query_params.get("tab") or "comments"),
         }
     else:
         tab_ctx = _TAB_CONTEXT_BUILDERS[active_tab]()

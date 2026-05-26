@@ -273,8 +273,8 @@ def test_topbar_active_tab(client, path, active):
 
 # ── Group 1d: IconRail + LeftPane (Task 8) ────────────────────────────────────
 #
-# The Mojica IconRail (56px column) renders five tab anchors plus Home and
-# Settings. The active tab carries the .ic.on class. The LeftPane (248px
+# The Mojica IconRail (56px column) renders five tab anchors plus Home.
+# The active tab carries the .ic.on class. The LeftPane (248px
 # container) renders a filter input + scroll body + status footer. Its filter
 # input HTMX-targets /api/library/tree which returns _left_pane_body.html.
 
@@ -339,8 +339,8 @@ def test_icon_rail_active_for_each_tab(client, path, active):
 #
 # The Mojica Buscar template rewrites the legacy text/image toggle + raw
 # scene-grid into a single ``.b-cp`` section with:
-#   * ``.search-wrap`` containing the qbar + 4 modality chips + retrieval
-#     knobs (Hybrid sem/bm25, Rerank, MMR, k),
+#   * ``.search-wrap`` containing the qbar + 4 modality chips + wired retrieval
+#     knobs (Hybrid sem/bm25, k, and Fusion weight when active),
 #   * ``.caption`` row (result/film/latency stats + view-toggle segments),
 #   * ``#search-results`` grid (the Task-11 .b-card cards land in this swap
 #     target),
@@ -378,18 +378,15 @@ def test_buscar_renders_modes_and_knobs(client):
         assert chip and " disabled" not in chip.group(0), (
             f"chip {mode!r} unexpectedly disabled"
         )
-    # Retrieval knob row — Hybrid + k are interactive Alpine popovers
-    # (``.knob.knob-popover``); Rerank + MMR remain read-only chips
-    # (``.knob[data-state="readonly"]``). Hybrid Search plan Task E2
+    # Retrieval knob row — only backed controls are visible. Hybrid + k are
+    # interactive Alpine popovers. Hybrid Search plan Task E2
     # moved the sem/bm25 readout from a server-rendered float to a
     # client-computed ``x-text`` driven by the buscarRetrieval store,
-    # so the bare ``sem 0.70`` substring no longer ships from the
-    # server. MMR's λ still renders server-side from cfg.search.
-    assert 'class="knob"' in html
+    # so the bare ``sem 0.70`` substring no longer ships from the server.
     assert 'knob-popover' in html
-    assert 'data-state="readonly"' in html
-    # MMR chip keeps its server-rendered λ readout from cfg.search.
-    assert "λ {:.2f}".format(0.50) in html  # mmr_lambda default
+    assert 'data-state="readonly"' not in html
+    assert "Rerank" not in html
+    assert "MMR" not in html
     # Caption row + view-toggle segments.
     assert 'class="caption"' in html
     assert 'data-view="grid"' in html
@@ -604,24 +601,14 @@ def test_search_toolrow_renders_hybrid_popover(client) -> None:
     assert 'name="top_k"' in body
 
 
-def test_search_toolrow_renders_live_rerank_chip_and_readonly_mmr_badge(client) -> None:
-    """Rerank chip is LIVE (M3 pre-flight 3.3) — popover-backed, hidden mirror
-    submits ``?reranker_enabled=``. MMR stays a read-only M3 chip until its
-    backend lands. The test pins each chip's shape so a future refactor cannot
-    silently demote the rerank chip back to a static badge, or upgrade the MMR
-    chip before its backend is ready.
-    """
+def test_search_toolrow_hides_unbacked_rerank_and_mmr_controls(client) -> None:
+    """Buscar exposes only controls backed by the current search dispatchers."""
     resp = client.get("/tab/search")
     body = resp.text
-    # MMR chip still a read-only badge with explicit data-state for screen
-    # readers + test pinning.
-    assert 'data-state="readonly"' in body
-    # MMR badge visible; M2 badge gone (Rerank chip is now live).
-    assert ">M3<" in body
-    assert ">M2<" not in body
-    # Rerank chip is now a popover with the hidden form mirror that carries
-    # the toggle into every search submit.
-    assert 'name="reranker_enabled"' in body
+    assert 'name="reranker_enabled"' not in body
+    assert "Rerank" not in body
+    assert "MMR" not in body
+    assert 'data-state="readonly"' not in body
 
 
 # ── Group 1f-bis: Cenas inspector (Task 16) ───────────────────────────────────
@@ -1271,6 +1258,22 @@ def test_api_scenes_group_tipo_emits_tipo_headings(client, seed_metadata):
     next_close = html.find("</div>", group_start)
     heading_html = html[group_start:next_close]
     assert "Default Film" not in heading_html
+
+
+def test_api_scenes_bucket_filters_by_tipo(client, seed_metadata):
+    """Left-pane collection shortcuts use ``?bucket=`` to filter scene tipos."""
+    seed_metadata()
+
+    r = client.get("/api/scenes?bucket=exterior")
+    assert r.status_code == 200, r.text[:300]
+    html = r.text
+    assert 'class="scenecard"' in html
+    assert "var(--c-cat-exterior)" in html
+
+    r = client.get("/api/scenes?bucket=interior")
+    assert r.status_code == 200, r.text[:300]
+    assert "No scenes match the filters." in r.text
+    assert 'class="scenecard"' not in r.text
 
 
 def test_api_scenes_unknown_group_falls_back_to_film(client, seed_metadata):

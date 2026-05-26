@@ -98,13 +98,9 @@ async def api_search(
     ``cfg.retrieval.fusion.visual_weight`` — fallback ``0.5``; clamped
     into ``[0, 1]`` for UX-friendliness over 422-rejecting).
 
-    ``reranker_enabled`` is the M3 pre-flight 3.3 chip-toggle override.
-    Today it is *accepted and logged only* — the production dispatchers
-    still return ``pd.DataFrame`` / ``list[dict]`` rather than
-    ``SearchResult``, so ``apply_reranker`` cannot be plumbed through
-    yet. Live wiring lands in Task 3.2b once the dispatchers migrate.
-    The param is shipped now so the UI affordance + URL/state shape are
-    stable before backend follow-up.
+    ``reranker_enabled`` is accepted for API/back-compat and logged, but the
+    visible UI no longer exposes the toggle until production dispatchers apply
+    ``apply_reranker`` to a typed ``SearchResult`` path.
     """
     q = q.strip()
     if len(q) < 2:

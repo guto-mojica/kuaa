@@ -1,14 +1,14 @@
 """Smoke: ``/api/search`` accepts ``?reranker_enabled=`` without 422.
 
-M3 pre-flight 3.3 ships the chip-toggle URL surface ahead of the live
-wiring. The route parameter exists; today it is *accepted and logged*
-only. Live reranking lands in Task 3.2b, after the production
-dispatchers migrate from ``DataFrame`` / ``list[dict]`` to
-``SearchResult``.
+M3 pre-flight 3.3 shipped the URL surface ahead of the live wiring.
+The visible Buscar UI now hides the Rerank control, but the route
+parameter stays accepted and logged for back-compat. Live reranking
+lands after the production dispatchers migrate from ``DataFrame`` /
+``list[dict]`` to ``SearchResult``.
 
 This regression pin keeps the route signature honest: if someone
-removes the param or types it wrong, FastAPI would 422 here and the
-UI's hidden mirror would silently fail every search submission.
+removes the param or types it wrong, FastAPI would 422 here and older
+bookmarks or clients using that query string would break.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ import logging
 
 
 def test_api_search_accepts_reranker_enabled_param(client) -> None:
-    """``?reranker_enabled=true`` must not 422 — the chip mirror depends on it."""
+    """``?reranker_enabled=true`` must not 422 for compatibility."""
     resp = client.get(
         "/api/search",
         params={"q": "anything", "reranker_enabled": "true"},
@@ -33,7 +33,7 @@ def test_api_search_accepts_reranker_enabled_param(client) -> None:
 
 
 def test_api_search_accepts_reranker_enabled_false(client) -> None:
-    """``?reranker_enabled=false`` is the chip's default-off shape — also must not 422."""
+    """``?reranker_enabled=false`` is accepted for compatibility too."""
     resp = client.get(
         "/api/search",
         params={"q": "anything", "reranker_enabled": "false"},
@@ -42,11 +42,11 @@ def test_api_search_accepts_reranker_enabled_false(client) -> None:
 
 
 def test_api_search_reranker_enabled_logged(client, caplog) -> None:
-    """Route logs the toggle so we can confirm the chip reaches the server.
+    """Route logs the value so compatibility callers remain observable.
 
-    Until Task 3.2b wires ``apply_reranker`` into the dispatcher path,
-    the log line is the only externally-observable signal that the chip
-    is reaching the backend. Keep it pinned.
+    Until the dispatchers call ``apply_reranker``, the log line is the
+    only externally-observable signal that the parameter reached the
+    backend. Keep it pinned.
     """
     with caplog.at_level(logging.INFO, logger="api.routes.search"):
         resp = client.get(

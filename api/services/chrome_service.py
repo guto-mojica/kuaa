@@ -4,14 +4,10 @@ Phase-1 / Task 8 introduces a single source of truth for the Mojica
 chrome context: the variables consumed by ``_topbar.html``,
 ``_icon_rail.html``, ``_left_pane.html`` and ``_left_pane_body.html``.
 
-Before Task 8 every full-page route built its own (sparse) chrome bag
-in ``api/server.py::render_page`` and ``api/deps.make_ctx`` defaulted
-the topbar keys (`active_job_count`, `viewers`, `notification_count`,
-`current_user`). Task 8 keeps those defaults — for routes that bypass
-``render_page`` (HTMX tab fragments, partial endpoints) — but lifts the
-real values into one builder so the new shell stays consistent across
-routes and the values can grow (real viewers, real match percentages)
-without touching every caller.
+Before Task 8 every full-page route built its own sparse chrome bag in
+``api/server.py::render_page``. The launch topbar now keeps only brand,
+breadcrumb, and tool tabs; collaboration/notification identity keys remain in
+the context for compatibility but are not rendered by the topbar.
 
 What this module does NOT do:
 
@@ -19,9 +15,8 @@ What this module does NOT do:
     in the (Month-2) search/Rimas pipeline and depends on a query, so
     ``film_match_pct`` ships as an empty dict for Phase 1. Search will
     overlay its own values when it lands.
-  * It does not source real viewers / a real notification feed — those
-    belong to the (later) collaboration epic; ``viewers``/
-    ``notification_count``/``current_user`` ship empty.
+  * It does not source real viewers / a real notification feed. Those belong
+    to the later collaboration epic and are not visible in launch chrome.
   * It does not persist collections — the five "default collections"
     are a curated static list (the Mojica prototype's
     Coleções/Compartilhados section) so the LeftPane renders the design
@@ -155,9 +150,9 @@ def build_chrome_context(cfg: Any, current_slug: str | None = None) -> ChromeCon
         * ``film_match_counts``: ``dict[slug, int]`` shown in the row's
           ``.m`` slot. Empty in Phase 1.
         * ``collections``: list of dicts (see :func:`_default_collections`).
-        * ``viewers``: list of viewer-stack dicts. Empty in Phase 1.
-        * ``current_user``: identity dict or ``None``. ``None`` in Phase 1.
-        * ``notification_count``: bell red-dot counter. ``0`` in Phase 1.
+        * ``viewers`` / ``current_user`` / ``notification_count``:
+          compatibility keys for future collaboration chrome. Not rendered by
+          the launch topbar.
     """
     from cinemateca.library import library_state, scan_library
 

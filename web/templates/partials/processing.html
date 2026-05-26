@@ -133,8 +133,11 @@
           <span>{{ _("Log · SSE") }}</span>
         </div>
         <div class="r">
-          <button type="button" class="fx-icbtn sm" title="{{ _('Filter') }}">{{ icon('filter', 14) }}</button>
-          <button type="button" class="fx-icbtn sm" title="{{ _('Download') }}">{{ icon('download', 14) }}</button>
+          <button type="button"
+                  class="fx-icbtn sm"
+                  title="{{ _('Download log') }}"
+                  aria-label="{{ _('Download log') }}"
+                  data-download-log>{{ icon('download', 14) }}</button>
           <label class="fx-mono" style="font-size:11px; color: var(--c-muted); display:inline-flex; align-items:center; gap:4px;">
             <input type="checkbox" data-autoscroll checked>
             {{ _("auto-scroll") }}

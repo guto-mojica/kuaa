@@ -380,6 +380,9 @@
        as a duplicate form value — only the hidden mirrors do. #}
     <input type="hidden" name="group" :value="$store.cenasGroup.by">
     <input type="hidden" name="sort" :value="$store.cenasSort.by">
+    {% if active_bucket %}
+    <input type="hidden" name="bucket" value="{{ active_bucket }}">
+    {% endif %}
 
     <span class="grow" aria-hidden="true"></span>
     {# ``.find`` keyword input — HTMX-swaps the grid on every change. The

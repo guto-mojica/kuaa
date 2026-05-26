@@ -7,7 +7,7 @@
          - ``.a-meta``      back button, breadcrumb, status pill, action chips.
          - ``.a-keyframe``  4:3 keyframe with pin / commentpop overlays.
          - ``.a-tl``        timeline scrubber + markers + avatar pips + ticks.
-         - ``.a-pl``        playback controls (prev / play / next / TC).
+         - ``.a-pl``        scene navigation and timecode readout.
 
      * ``.a-rp`` (right, mounted via ``partials/annotate_scene.html``)
          - htabs row    Comments · Annotations · Properties
@@ -70,7 +70,7 @@
 
 <section class="a-stage">
 
-  {# ── META BAR: back · breadcrumb · status · actions ─────────────────── #}
+  {# ── META BAR: back · breadcrumb · status · keyframe download ───────── #}
   <header class="a-meta">
     <div class="l">
       <button type="button"
@@ -97,15 +97,15 @@
         <span class="dot" aria-hidden="true"></span>
         {{ _("indexed") }}
       </span>
-      <button type="button" class="fx-icbtn" title="{{ _('Download') }}" aria-label="{{ _('Download') }}">
+      {% if selected_scene.keyframe_url %}
+      <a class="fx-icbtn"
+         href="{{ selected_scene.keyframe_url }}"
+         download
+         title="{{ _('Download keyframe') }}"
+         aria-label="{{ _('Download keyframe') }}">
         {{ icon('download', 14) }}
-      </button>
-      <button type="button" class="fx-icbtn" title="{{ _('Toggle right pane') }}" aria-label="{{ _('Toggle right pane') }}">
-        {{ icon('panel-r', 14) }}
-      </button>
-      <button type="button" class="fx-icbtn" title="{{ _('More') }}" aria-label="{{ _('More actions') }}">
-        {{ icon('more', 14) }}
-      </button>
+      </a>
+      {% endif %}
     </div>
   </header>
 
@@ -172,17 +172,16 @@
     {% endif %}
   </div>
 
-  {# ── PLAYBACK CONTROLS ──────────────────────────────────────────────── #}
+  {# ── Scene navigation ───────────────────────────────────────────────── #}
   <div class="a-pl">
     <div class="l">
       {% if selected_scene.prev_id is not none %}
-      <button type="button"
-              class="icp"
-              title="{{ _('Previous scene') }}"
-              aria-label="{{ _('Previous scene') }}"
-              hx-get="/api/annotate/scene?id={{ selected_scene.prev_id }}&filter={{ filter }}"
-              hx-target="#annotate-scene"
-              hx-swap="innerHTML">{{ icon('chev-l', 14) }}</button>
+      <a class="icp"
+         title="{{ _('Previous scene') }}"
+         aria-label="{{ _('Previous scene') }}"
+         href="/annotate?id={{ selected_scene.prev_id }}&filter={{ filter }}&tab={{ annotate_tab }}{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}">
+        {{ icon('chev-l', 14) }}
+      </a>
       {% else %}
       <button type="button" class="icp" disabled aria-disabled="true" title="{{ _('Previous scene') }}">
         {{ icon('chev-l', 14) }}
@@ -192,46 +191,22 @@
         {{ _("scene") }} <span class="v" style="color: var(--c-text);">{{ "%03d"|format(selected_scene.scene_id or 0) }}</span>
       </span>
       {% if selected_scene.next_id is not none %}
-      <button type="button"
-              class="icp"
-              title="{{ _('Next scene') }}"
-              aria-label="{{ _('Next scene') }}"
-              hx-get="/api/annotate/scene?id={{ selected_scene.next_id }}&filter={{ filter }}"
-              hx-target="#annotate-scene"
-              hx-swap="innerHTML">{{ icon('chev-r', 14) }}</button>
+      <a class="icp"
+         title="{{ _('Next scene') }}"
+         aria-label="{{ _('Next scene') }}"
+         href="/annotate?id={{ selected_scene.next_id }}&filter={{ filter }}&tab={{ annotate_tab }}{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}">
+        {{ icon('chev-r', 14) }}
+      </a>
       {% else %}
       <button type="button" class="icp" disabled aria-disabled="true" title="{{ _('Next scene') }}">
         {{ icon('chev-r', 14) }}
       </button>
       {% endif %}
     </div>
-    <div class="c">
-      <button type="button" class="icp" title="{{ _('Loop') }}" aria-label="{{ _('Loop') }}">
-        {{ icon('loop', 14) }}
-      </button>
-      <button type="button" class="icp" title="{{ _('Back 5s') }}" aria-label="{{ _('Back 5 seconds') }}">-5s</button>
-      <button type="button" class="icp primary" title="{{ _('Play') }}" aria-label="{{ _('Play') }}">
-        {{ icon('play', 14) }}
-      </button>
-      <button type="button" class="icp" title="{{ _('Forward 5s') }}" aria-label="{{ _('Forward 5 seconds') }}">+5s</button>
+    <div class="c" aria-label="{{ _('Scene timecode') }}">
       <span class="tc-now">{{ selected_scene.timecode }}</span>
       <span aria-hidden="true">/</span>
       <span class="tc-tot">{{ selected_scene.duration_tc }}</span>
-    </div>
-    <div class="r">
-      <button type="button" class="icp" title="{{ _('Volume') }}" aria-label="{{ _('Volume') }}">
-        {{ icon('volume', 14) }}
-      </button>
-      <button type="button" class="label" title="{{ _('Playback speed') }}">1.0×</button>
-      <button type="button" class="label on" title="{{ _('Quality') }}">
-        <span class="v">HD</span>
-      </button>
-      <button type="button" class="icp" title="{{ _('Settings') }}" aria-label="{{ _('Settings') }}">
-        {{ icon('settings', 14) }}
-      </button>
-      <button type="button" class="icp" title="{{ _('Fullscreen') }}" aria-label="{{ _('Fullscreen') }}">
-        {{ icon('expand', 14) }}
-      </button>
     </div>
   </div>
 </section>

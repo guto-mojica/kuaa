@@ -1,26 +1,17 @@
-{# Mojica TopBar — Phase-1 / Task 7.
-   Ported from claude_design/mojica-cinemateca/project/mojica-fr/chrome.jsx
-   lines 254–325 (TopBar component). Three sub-regions:
+{# Mojica TopBar.
 
-     .l    brand mark + wordmark + breadcrumb (collaboration trail)
+   Two sub-regions:
+     .l    brand mark + wordmark + breadcrumb
      .tabs 5 tab chips (Buscar / Cenas / Anotar / Rimas / Processamento) —
            PT slugs in `data-tab` match `data-active-tab` set on <body>
-     .r    filter / notifications / upload icon trio, viewers stack,
-           Share button, current-user avatar
 
    Context variables consumed (all defaulted in api/deps.make_ctx so this
    template renders even on routes that don't populate them):
      active_tab          PT slug — buscar / cenas / anotar / rimas / proc
      breadcrumb          list of {label, cur?, ver?} segments (default [])
      active_job_count    int — Processamento pip badge (default 0)
-     viewers             list of {initials} — viewers stack (default [])
-     notification_count  int — bell red dot (default 0)
-     current_user        obj with .full_name / .initials (default None)
-
-   Prototype controls still visible here: filter, notifications, import,
-   Share, and user/collaboration chrome. /api/share/link does not exist yet, so
-   the UI wiring audit tracks the product decision to hide, disable, or wire
-   these controls before launch. #}
+   Global prototype controls were removed for launch. Tool-level controls live
+   inside each tab, where visible actions must have backing behavior. #}
 {% from "partials/_icons.html" import icon %}
 <header class="ch-top">
   <div class="l">
@@ -33,7 +24,7 @@
       {% for seg in breadcrumb %}
         {% if not loop.first %}<span class="sep">/</span>{% endif %}
         {% if seg.ver %}
-          <button class="ver" type="button">{{ seg.label }} {{ icon('chev-d', 12) }}</button>
+          <span class="ver">{{ seg.label }}</span>
         {% else %}
           <span class="seg{% if seg.cur %} cur{% endif %}">{{ seg.label }}</span>
         {% endif %}
@@ -67,37 +58,4 @@
       </a>
     {% endfor %}
   </nav>
-
-  <div class="r">
-    <button class="fx-icbtn" data-tip="{{ _('Filters · ⇧⌘F') }}">{{ icon('filter', 14) }}</button>
-    <button class="fx-icbtn" data-tip="{{ _('Notifications') }}">
-      {{ icon('bell', 18) }}
-      {% if notification_count %}<span class="nb"></span>{% endif %}
-    </button>
-    <button class="fx-icbtn" data-tip="{{ _('Import media · ⌘U') }}">{{ icon('upload', 18) }}</button>
-    <span class="div" style="margin: 0 4px;"></span>
-
-    {% if viewers and viewers|length > 0 %}
-      <div class="viewers" data-tip="{{ _('%(n)d viewers online') % {'n': viewers|length} }}">
-        <div class="stack">
-          {% for v in viewers[:3] %}
-            <div class="av a{{ loop.index }}">{{ v.initials }}</div>
-          {% endfor %}
-        </div>
-        <span class="c">{{ viewers|length }}</span>
-      </div>
-    {% endif %}
-
-    <button class="fx-btn primary"
-            hx-post="/api/share/link"
-            hx-trigger="click"
-            hx-swap="none">
-      {{ icon('share', 14) }} {{ _('Share') }}
-    </button>
-    <span class="div" style="margin: 0 4px;"></span>
-
-    <div class="myav" data-tip="{{ current_user.full_name if current_user else _('Anonymous') }}">
-      {{ (current_user.initials if current_user else 'M') }}
-    </div>
-  </div>
 </header>

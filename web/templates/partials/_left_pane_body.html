@@ -7,7 +7,7 @@
    Three sections, separated by .fx-hr:
 
      1. Films     — registry-backed list with per-row progress bar.
-     2. Collections — five curated buckets (see chrome_service.
+     2. Collections — curated scene tipo shortcuts (see chrome_service.
         _default_collections); first one is the "Entire library" link.
      3. Shared (compartilhados) — public/exported collection links.
 
@@ -83,10 +83,6 @@
 {# ── Collections section ───────────────────────────────────────── #}
 <div class="fx-ph">
   <span>{{ _('Collections') }}</span>
-  <button class="add"
-          type="button"
-          title="{{ _('New collection') }}"
-          aria-label="{{ _('New collection') }}">{{ icon('plus', 12) }}</button>
 </div>
 
 {% for col in (collections or []) %}
