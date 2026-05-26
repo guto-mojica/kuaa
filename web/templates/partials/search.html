@@ -37,7 +37,17 @@
    flip preserves the original behaviour and uses x-refs so we don't
    reach across the DOM with getElementById. #}
 <section class="b-cp"
-         x-data="{ mode: '{{ active_mode }}' }">
+         x-data="{
+           mode: '{{ active_mode }}',
+           refreshSearch() {
+             this.$nextTick(() => {
+               const input = this.$refs.searchInput;
+               if (input && input.value.trim().length >= 2 && window.htmx) {
+                 window.htmx.trigger('#search-text-form', 'submit');
+               }
+             });
+           }
+         }">
 
   {# ── Search row: qbar + chips + knobs ─────────────────────────────── #}
   <div class="search-wrap">
@@ -84,12 +94,17 @@
          Always emitted (cost: one extra query-string field); the route clamps to
          [0,1] and ignores it when modality != fusion. #}
       <input type="hidden" name="w" :value="$store.buscarRetrieval.fusion_w">
+      {# Text reranker mirror — included on every HTMX search. The route ignores
+         it for non-text modalities and applies it only after card enrichment so
+         the cross-encoder can score scene descriptions. #}
+      <input type="hidden" name="reranker_enabled" :value="$store.buscarRetrieval.rerank_enabled ? 'true' : 'false'">
 
       <label class="qinput" for="search-input">
         <span class="ico">{{ icon('search', 18) }}</span>
         <input id="search-input"
                type="search"
                name="q"
+               x-ref="searchInput"
                autocomplete="off"
                value="{{ query or '' }}"
                placeholder="{{ _('Search the library — describe a scene, paste an image…') }}"
@@ -109,7 +124,7 @@
        matching config flags are enabled. Disabled chips render with
        aria-disabled + .disabled so a screen-reader announces them as
        unavailable instead of clickable. #}
-    <div class="modes" role="tablist" aria-label="{{ _('Input type') }}">
+    <div class="modes" role="tablist" aria-label="{{ _('Input type') }}" @change="refreshSearch()">
       {# Modality chips:
          * ``:class="{ on: mode === '…' }"`` reactively flips the highlight
            — Alpine merges this with the static ``chip`` (and optional
@@ -126,7 +141,7 @@
               data-mode="text"
               role="tab"
               :aria-selected="mode === 'text' ? 'true' : 'false'"
-              @click="mode = 'text'; $store.buscarRetrieval.modality = 'text'; $refs.searchResults && ($refs.searchResults.innerHTML = ''); htmx.trigger('#search-text-form', 'submit')">
+              @click="mode = 'text'; $store.buscarRetrieval.modality = 'text'; $refs.searchResults && ($refs.searchResults.innerHTML = ''); refreshSearch()">
         <span class="ico">{{ icon('search', 14) }}</span>
         {{ _("Text") }}
       </button>
@@ -148,7 +163,7 @@
               role="tab"
               :aria-selected="mode === 'audio' ? 'true' : 'false'"
               {% if not cfg.search.audio_enabled %}disabled aria-disabled="true"{% endif %}
-              @click="mode = 'audio'; $store.buscarRetrieval.modality = 'audio'; $refs.searchResults && ($refs.searchResults.innerHTML = ''); htmx.trigger('#search-text-form', 'submit')">
+              @click="mode = 'audio'; $store.buscarRetrieval.modality = 'audio'; $refs.searchResults && ($refs.searchResults.innerHTML = ''); refreshSearch()">
         <span class="ico">{{ icon('audio', 14) }}</span>
         {{ _("Audio") }}
       </button>
@@ -159,7 +174,7 @@
               role="tab"
               :aria-selected="mode === 'multimodal' ? 'true' : 'false'"
               {% if not cfg.search.multimodal_enabled %}disabled aria-disabled="true"{% endif %}
-              @click="mode = 'multimodal'; $store.buscarRetrieval.modality = 'fusion'; $refs.searchResults && ($refs.searchResults.innerHTML = ''); htmx.trigger('#search-text-form', 'submit')">
+              @click="mode = 'multimodal'; $store.buscarRetrieval.modality = 'fusion'; $refs.searchResults && ($refs.searchResults.innerHTML = ''); refreshSearch()">
         <span class="ico">{{ icon('rhymes', 14) }}</span>
         {{ _("Fusion") }}
       </button>
@@ -168,8 +183,7 @@
 
       {# ── Retrieval knobs ───────────────────────────────────────────────
          Only controls backed by the current search dispatchers are shown here.
-         Rerank remains accepted by the API for compatibility, but the UI hides
-         it until production dispatchers apply the cross-encoder result path. #}
+         MMR stays in Rimas; text reranking is live on Buscar text results. #}
 
       {# Hybrid popover. #}
       <div class="knob knob-popover" x-data="{ open: false }">
@@ -256,14 +270,43 @@
         </div>
       </div>
 
-      {# Fusion w popover — only visible when modality=fusion (the chip click
-         sets the store; this knob disappears otherwise). Slider [0, 1] in 0.05
+      {# Rerank popover — text-query cross-encoder applied after enrichment. #}
+      <div class="knob knob-popover"
+           x-data="{ open: false }"
+           x-show="mode === 'text'"
+           x-cloak>
+        <button type="button"
+                class="knob-toggle"
+                @click="open = !open"
+                :aria-expanded="open ? 'true' : 'false'"
+                aria-haspopup="dialog">
+          <span class="k">{{ _("Rerank") }}</span>
+          <span class="v"
+                :class="{ acc: $store.buscarRetrieval.rerank_enabled }"
+                x-text="$store.buscarRetrieval.rerank_enabled ? 'on' : 'off'"></span>
+        </button>
+        <div class="popover"
+             x-show="open"
+             x-cloak
+             @click.outside="open = false"
+             role="dialog"
+             aria-label="{{ _('Rerank') }}">
+          <h3>{{ _("Rerank") }}</h3>
+          <label class="radio">
+            <input type="checkbox" x-model="$store.buscarRetrieval.rerank_enabled">
+            {{ _("Cross-encoder rerank") }}
+          </label>
+        </div>
+      </div>
+
+      {# Fusion w popover — only visible when the Fusion chip is active
+         (the chip click sets the store; this knob disappears otherwise). Slider [0, 1] in 0.05
          steps. Readout: "visual X · audio 1-X" so the user reads the symmetry
          directly. The hidden #w mirror above is always emitted because Alpine
          x-show only toggles CSS, not the input's value binding. #}
       <div class="knob knob-popover"
            x-data="{ open: false }"
-           x-show="$store.buscarRetrieval.modality === 'fusion'"
+           x-show="mode === 'multimodal'"
            x-cloak>
         <button type="button"
                 class="knob-toggle"

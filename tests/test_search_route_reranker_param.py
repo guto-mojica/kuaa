@@ -1,10 +1,8 @@
 """Smoke: ``/api/search`` accepts ``?reranker_enabled=`` without 422.
 
-M3 pre-flight 3.3 shipped the URL surface ahead of the live wiring.
-The visible Buscar UI now hides the Rerank control, but the route
-parameter stays accepted and logged for back-compat. Live reranking
-lands after the production dispatchers migrate from ``DataFrame`` /
-``list[dict]`` to ``SearchResult``.
+The Buscar UI sends this request-level toggle for text results. The route
+logs the value and applies the reranker after card enrichment, where scene
+descriptions are available for the cross-encoder.
 
 This regression pin keeps the route signature honest: if someone
 removes the param or types it wrong, FastAPI would 422 here and older
@@ -17,7 +15,7 @@ import logging
 
 
 def test_api_search_accepts_reranker_enabled_param(client) -> None:
-    """``?reranker_enabled=true`` must not 422 for compatibility."""
+    """``?reranker_enabled=true`` must not 422."""
     resp = client.get(
         "/api/search",
         params={"q": "anything", "reranker_enabled": "true"},
@@ -33,7 +31,7 @@ def test_api_search_accepts_reranker_enabled_param(client) -> None:
 
 
 def test_api_search_accepts_reranker_enabled_false(client) -> None:
-    """``?reranker_enabled=false`` is accepted for compatibility too."""
+    """``?reranker_enabled=false`` is accepted too."""
     resp = client.get(
         "/api/search",
         params={"q": "anything", "reranker_enabled": "false"},
@@ -42,12 +40,7 @@ def test_api_search_accepts_reranker_enabled_false(client) -> None:
 
 
 def test_api_search_reranker_enabled_logged(client, caplog) -> None:
-    """Route logs the value so compatibility callers remain observable.
-
-    Until the dispatchers call ``apply_reranker``, the log line is the
-    only externally-observable signal that the parameter reached the
-    backend. Keep it pinned.
-    """
+    """Route logs the value so rerank requests remain observable."""
     with caplog.at_level(logging.INFO, logger="api.routes.search"):
         resp = client.get(
             "/api/search",
@@ -57,3 +50,48 @@ def test_api_search_reranker_enabled_logged(client, caplog) -> None:
     assert any(
         "reranker_enabled=True" in r.getMessage() for r in caplog.records
     ), "expected api_search INFO log to echo reranker_enabled=True"
+
+
+def test_api_search_threads_reranker_toggle_into_result_adapter(client, monkeypatch) -> None:
+    """The route passes the request toggle into the rerank adapter."""
+    import api.routes.search as route
+
+    captured: dict = {}
+
+    monkeypatch.setattr(
+        route.search_service,
+        "dispatch_text_search",
+        lambda *args: ([{"scene_id": 351, "score": 0.7, "film_slug": "default"}], False),
+    )
+    monkeypatch.setattr(
+        route.search_service,
+        "aggregate_hits_to_template_dicts",
+        lambda cfg, payload: payload,
+    )
+    monkeypatch.setattr(
+        route.search_service,
+        "enrich_hits_with_film_metadata",
+        lambda cfg, rows, per_film_slug=None: [
+            {
+                "film_slug": "default",
+                "scene_id": 351,
+                "similarity": 0.7,
+                "description": "a man walking outdoors",
+            }
+        ],
+    )
+    monkeypatch.setattr(route.search_service, "films_by_id_lookup", lambda cfg: {})
+
+    def fake_rerank(results, *, cfg, query, mode, enabled):
+        captured.update({"query": query, "mode": mode, "enabled": enabled})
+        return results
+
+    monkeypatch.setattr(route.search_service, "rerank_template_results", fake_rerank)
+
+    resp = client.get(
+        "/api/search",
+        params={"q": "walking", "reranker_enabled": "true", "retriever": "hybrid"},
+    )
+
+    assert resp.status_code == 200
+    assert captured == {"query": "walking", "mode": "hybrid", "enabled": True}

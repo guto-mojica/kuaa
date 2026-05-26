@@ -90,8 +90,8 @@ def build_processing_context() -> dict:
         item-status vocabulary.
       * ``active_step`` — sub-step detail for the right pane (.p-rp);
         ``None`` when no job is running so the partial omits the pane.
-      * ``gpu_metrics`` — empty by default; gated by
-        ``cfg.proc.gpu_metrics_enabled`` (off in shipped config).
+      * ``gpu_metrics`` — optional CPU/RAM/VRAM resource metrics gated by
+        ``cfg.proc.gpu_metrics_enabled``.
       * Each enriched ``JobState`` carries display fields
         (``film_title``, ``started_at_display``, ``elapsed_display``,
         ``active_step_idx``, …) the .p-active card header reads.
@@ -101,6 +101,7 @@ def build_processing_context() -> dict:
         aggregate_stats,
         build_active_step,
         build_job_queue,
+        build_resource_metrics,
         enrich_jobs,
     )
     from cinemateca.library import scan_library
@@ -124,6 +125,10 @@ def build_processing_context() -> dict:
     # + active), not just the currently running set.
     from api.jobs import _registry  # noqa: PLC0415 - service-layer access
 
+    active_step = build_active_step(jobs)
+    metrics_enabled = bool(getattr(getattr(cfg, "proc", None), "gpu_metrics_enabled", False))
+    gpu_metrics = build_resource_metrics() if metrics_enabled and active_step else []
+
     return {
         "films": films,
         "step_defs": STEP_DEFS,
@@ -131,8 +136,8 @@ def build_processing_context() -> dict:
         "initial_log_lines": initial_log_lines,
         "stats": aggregate_stats(library_dir),
         "job_queue": build_job_queue(_registry.all()),
-        "active_step": build_active_step(jobs),
-        "gpu_metrics": [],
+        "active_step": active_step,
+        "gpu_metrics": gpu_metrics,
         "cfg": cfg,
     }
 
@@ -185,13 +190,7 @@ async def api_pipeline_start(
             getattr(exc.active, "id", "?"),
         )
         return HTMLResponse(f'<p class="text-error">{exc}</p>', status_code=409)
-    job = get_job(job_id)
     logger.info("/api/pipeline/start — accepted job_id=%s", job_id)
-
-    if job is not None:
-        from api.services.processing_service import enrich_jobs  # noqa: PLC0415
-
-        enrich_jobs([job])
 
     # Derive the slug for the film being processed so we can update
     # active_film cookie and refresh the left-pane film list in one shot.
@@ -214,18 +213,23 @@ async def api_pipeline_start(
                 new_slug = film.slug
                 break
 
-    # Primary swap: job card for #processing-job
-    job_html = templates.env.get_template("partials/processing_job.html").render(
-        make_ctx(request, job=job, active_film=new_slug, current_slug=new_slug)
+    # Primary swap: full Processing tab. Re-rendering the tab after start is
+    # what mounts the SSE log pane and active-step/resource side pane for the
+    # accepted job; swapping only #processing-job left those live regions inert.
+    proc_ctx = build_processing_context()
+    tab_html = templates.env.get_template("partials/processing.html").render(
+        make_ctx(request, active_film=new_slug, current_slug=new_slug, **proc_ctx)
     )
 
     # OOB swap: left-pane film list with the new active film highlighted
     chrome_ctx = build_chrome_context(cfg, current_slug=new_slug)
-    lp_ctx = make_ctx(request, **chrome_ctx, active_film=new_slug, current_slug=new_slug)
+    lp_payload: dict[str, object] = dict(chrome_ctx)
+    lp_payload.update({"active_film": new_slug, "current_slug": new_slug})
+    lp_ctx = make_ctx(request, **lp_payload)
     lp_html = templates.env.get_template("partials/_left_pane_body.html").render(lp_ctx)
     oob = f'<div id="lp-scroll" hx-swap-oob="innerHTML">{lp_html}</div>'
 
-    response = HTMLResponse(job_html + oob)
+    response = HTMLResponse(tab_html + oob)
     response.set_cookie("active_film", new_slug, max_age=86400 * 365, httponly=False, samesite="lax")
     return response
 

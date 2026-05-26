@@ -17,8 +17,8 @@ from fastapi.responses import HTMLResponse
 from api.deps import film_slug_query, get_config, make_ctx
 from api.services import search as search_service
 from api.services.catalog import derive_fps, load_json
-from cinemateca.library import FilmContext
 from api.templates import templates
+from cinemateca.library import FilmContext
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -98,9 +98,9 @@ async def api_search(
     ``cfg.retrieval.fusion.visual_weight`` — fallback ``0.5``; clamped
     into ``[0, 1]`` for UX-friendliness over 422-rejecting).
 
-    ``reranker_enabled`` is accepted for API/back-compat and logged, but the
-    visible UI no longer exposes the toggle until production dispatchers apply
-    ``apply_reranker`` to a typed ``SearchResult`` path.
+    ``reranker_enabled`` controls the text-query cross-encoder reranker. The
+    route applies it after result enrichment so the reranker can score the
+    scene descriptions shown on cards.
     """
     q = q.strip()
     if len(q) < 2:
@@ -129,6 +129,13 @@ async def api_search(
         results = search_service.enrich_hits_with_film_metadata(cfg, agg) if agg else []
     else:
         results = _enriched_per_film(cfg, ctx, payload, slug)
+    results = search_service.rerank_template_results(
+        results,
+        cfg=cfg,
+        query=q,
+        mode=retriever,
+        enabled=reranker_enabled,
+    )
     return _render_results(
         request, slug=slug, cfg=cfg, results=results, query=q, highlighted_tags=set(tags)
     )

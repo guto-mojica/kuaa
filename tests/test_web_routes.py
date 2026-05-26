@@ -378,14 +378,14 @@ def test_buscar_renders_modes_and_knobs(client):
         assert chip and " disabled" not in chip.group(0), (
             f"chip {mode!r} unexpectedly disabled"
         )
-    # Retrieval knob row — only backed controls are visible. Hybrid + k are
-    # interactive Alpine popovers. Hybrid Search plan Task E2
+    # Retrieval knob row — only backed controls are visible. Hybrid + k +
+    # Rerank are interactive Alpine popovers. Hybrid Search plan Task E2
     # moved the sem/bm25 readout from a server-rendered float to a
     # client-computed ``x-text`` driven by the buscarRetrieval store,
     # so the bare ``sem 0.70`` substring no longer ships from the server.
     assert 'knob-popover' in html
     assert 'data-state="readonly"' not in html
-    assert "Rerank" not in html
+    assert "Rerank" in html
     assert "MMR" not in html
     # Caption row + view-toggle segments.
     assert 'class="caption"' in html
@@ -458,6 +458,20 @@ def test_library_tree_filter_endpoint(client):
     assert "Collections" in html or "Coleções" in html
     # The .ch-coll "Entire library" / "Acervo inteiro" row anchors the section.
     assert 'class="ch-coll' in html
+
+
+def test_left_pane_collection_counts_follow_scene_buckets(seed_metadata):
+    """Collection counts use the same tipo buckets as the Scenes filters."""
+    seeded = seed_metadata()
+    from api.services.chrome_service import build_chrome_context
+
+    ctx = build_chrome_context(seeded["cfg"])
+    counts = {c["category"]: c["count"] for c in ctx["collections"]}
+    assert counts[None] == 2
+    assert counts["exterior"] == 2
+    assert counts["cartela"] == 0
+    assert counts["dialogo"] == 0
+    assert counts["interior"] == 0
 
 
 # ── Group 1f: Buscar inspector (Task 12) ──────────────────────────────────────
@@ -594,6 +608,10 @@ def test_search_toolrow_renders_hybrid_popover(client) -> None:
     assert 'value="hybrid"' in body
     # Slider for sem_w (range input).
     assert 'type="range"' in body
+    # Changing backed retrieval controls refreshes the active query after
+    # Alpine has copied the new values into the hidden HTMX mirrors.
+    assert "refreshSearch()" in body
+    assert 'x-ref="searchInput"' in body
     # Hidden mirrors INSIDE #search-text-form for HTMX include.
     assert 'name="retriever"' in body
     assert 'name="sem_w"' in body
@@ -601,12 +619,14 @@ def test_search_toolrow_renders_hybrid_popover(client) -> None:
     assert 'name="top_k"' in body
 
 
-def test_search_toolrow_hides_unbacked_rerank_and_mmr_controls(client) -> None:
-    """Buscar exposes only controls backed by the current search dispatchers."""
+def test_search_toolrow_wires_rerank_and_hides_search_mmr(client) -> None:
+    """Buscar exposes backed text rerank but keeps Search-tab MMR hidden."""
     resp = client.get("/tab/search")
     body = resp.text
-    assert 'name="reranker_enabled"' not in body
-    assert "Rerank" not in body
+    assert 'name="reranker_enabled"' in body
+    assert "$store.buscarRetrieval.rerank_enabled" in body
+    assert "Rerank" in body
+    assert '@change="refreshSearch()"' in body
     assert "MMR" not in body
     assert 'data-state="readonly"' not in body
 
@@ -1175,8 +1195,12 @@ def test_scenes_toolrow_carries_group_and_sort_hidden_inputs(client, seed_metada
     assert 'id="scenes-sort-popover"' in html
     assert 'name="group_choice"' in html
     assert 'name="sort_choice"' in html
-    # Both popovers wire HTMX so a radio change refreshes the grid.
-    assert html.count('hx-target="#scenes-grid"') >= 2
+    # The toolrow owns the refresh request. Radio changes trigger it only
+    # after Alpine updates the hidden mirrors, avoiding stale group/sort
+    # query params.
+    assert 'hx-trigger="refresh"' in html
+    assert 'hx-target="#scenes-grid"' in html
+    assert 'refreshScenes()' in html
 
 
 def test_api_scenes_sort_duration_reorders_cards(client, seed_metadata):
@@ -1487,6 +1511,8 @@ def test_proc_renders_p_cp_with_top(client):
     assert 'class="p-top"' in html
     assert 'id="active-jobs"' in html
     assert 'class="p-log"' in html
+    assert 'hx-target="closest .tab-panel"' in html
+    assert 'hx-swap="outerHTML"' in html
 
 
 def test_proc_no_active_jobs_renders_empty_state(client):
@@ -1522,6 +1548,64 @@ def test_proc_stats_section_present(client):
     html = r.text
     assert 'class="p-stats"' in html
     assert 'class="p-queue"' in html
+
+
+def test_proc_active_step_renders_resource_metrics(client, inject_job, monkeypatch):
+    """The Processing right pane renders backed resource metrics when active."""
+    import api.services.processing_service as processing_service
+
+    monkeypatch.setattr(
+        processing_service,
+        "build_resource_metrics",
+        lambda: [{"label": "CPU", "value": 0.42}],
+    )
+    inject_job()
+    r = client.get("/processing")
+    assert r.status_code == 200, r.text[:500]
+    html = r.text
+    assert "RESOURCES" in html
+    assert "CPU" in html
+    assert "42%" in html
+
+
+def test_pipeline_start_response_refreshes_full_processing_tab(
+    client, seed_metadata, monkeypatch
+):
+    """Starting a job must return the full tab so live regions mount."""
+    import api.jobs as jobs
+    import api.routes.processing as processing
+
+    seeded = seed_metadata()
+    raw = seeded["cfg"].paths.library_dir / "default" / "raw" / "default.mp4"
+
+    def fake_start_job(video_path: str, enabled_steps: set[str], cfg) -> str:
+        job = jobs.JobState(
+            id="started1",
+            video_path=video_path,
+            status=jobs.STATUS_CREATED,
+            steps=[
+                jobs.StepInfo(name=name, label=label)
+                for name, label in jobs.STEP_DEFS
+            ],
+        )
+        job.steps[0].state = "active"
+        jobs._registry.add(job)
+        return job.id
+
+    monkeypatch.setattr(processing, "start_job", fake_start_job)
+
+    resp = client.post(
+        "/api/pipeline/start",
+        data={"video_path": str(raw), "steps": ["scene_detection"]},
+    )
+
+    assert resp.status_code == 200, resp.text[:500]
+    html = resp.text
+    assert 'class="p-cp"' in html
+    assert 'id="processing-job"' in html
+    assert 'id="proc-log"' in html
+    assert 'sse-connect="/api/pipeline/stream/started1"' in html
+    assert 'hx-swap-oob="innerHTML"' in html
 
 
 # ── Task 25 ───────────────────────────────────────────────────────────
@@ -1773,3 +1857,4 @@ def test_mojica_js_registers_buscar_retrieval_store(client) -> None:
     # Default values that the UI popovers will display.
     assert "'hybrid'" in body  # default retriever mode
     assert "0.70" in body  # default sem_w
+    assert "rerank_enabled" in body

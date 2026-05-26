@@ -73,7 +73,7 @@ Planned next:
 - Capture populated screenshots and release walkthrough videos.
 - Fill release notes with final artifact URL, checksums, metrics, and manifest
   excerpt.
-- Complete live reranker dispatcher wiring and per-modality eval slate scoring.
+- Complete per-modality eval slate scoring.
 - Docker packaging after the demo release path is stable.
 
 ### Project docs

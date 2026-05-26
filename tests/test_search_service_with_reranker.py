@@ -10,6 +10,7 @@ documented passthrough escape hatch) or monkeypatch ``search_rerank``.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
@@ -93,3 +94,49 @@ def test_apply_reranker_with_no_retrieval_attr_uses_defaults(monkeypatch):
     r = _make_result(1)
     svc.apply_reranker(r, cfg=cfg_empty)
     assert captured == {"model": "default", "top_k_in": 20}
+
+
+def test_rerank_template_results_orders_enriched_dicts(fake_cfg, monkeypatch):
+    """Route-level dict adapter feeds descriptions into the reranker."""
+    from api.services import search as svc
+
+    fake_cfg.retrieval.reranker.enabled = False
+
+    def fake_rerank(result, *, model, top_k_in):
+        assert [h.description for h in result.hits] == ["less relevant", "exact match"]
+        assert model == "noop"
+        assert top_k_in == 5
+        return replace(
+            result,
+            hits=[
+                replace(result.hits[1], rerank_score=10.0),
+                replace(result.hits[0], rerank_score=1.0),
+            ],
+        )
+
+    monkeypatch.setattr(svc, "search_rerank", fake_rerank)
+    rows = [
+        {
+            "film_slug": "default",
+            "scene_id": 351,
+            "similarity": 0.9,
+            "description": "less relevant",
+        },
+        {
+            "film_slug": "default",
+            "scene_id": 352,
+            "similarity": 0.4,
+            "description": "exact match",
+        },
+    ]
+
+    out = svc.rerank_template_results(
+        rows,
+        cfg=fake_cfg,
+        query="match",
+        mode="hybrid",
+        enabled=True,
+    )
+
+    assert [r["scene_id"] for r in out] == [352, 351]
+    assert out[0]["rerank_score"] == pytest.approx(10.0)

@@ -13,10 +13,10 @@ The tab partial wants more than ``{films, step_defs, jobs}``:
   * ``active_step`` — sub-step detail card for the right pane (.p-rp).
     Only present when a job is running; the substeps list is a
     pipeline-step-aware stub until a real instrumentation pass lands.
-  * ``gpu_metrics`` — empty by default. Populated only when
-    ``cfg.proc.gpu_metrics_enabled`` is true AND a measurement source
-    is wired (none today). The substeps partial omits the GPU card
-    entirely when the list is empty / the flag is off.
+  * ``gpu_metrics`` — resource metrics for the right pane. Populated when
+    ``cfg.proc.gpu_metrics_enabled`` is true from local psutil CPU/RAM data
+    and, when available, already-loaded torch CUDA memory data. The substeps
+    partial omits the card when the list is empty / the flag is off.
 
 All context fields default to safe empties so the partial renders the
 layout honestly on a fresh / empty install — no fake numbers.
@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 # Short, factual descriptions of what each pipeline step does — surfaced
 # in the .p-rp "what" paragraph and the synthetic substeps list. The
 # real backend doesn't expose per-step substeps yet; the list below is
-# a thin, honest placeholder ("loading model" / "running" / "persisting")
+# a thin, honest fallback ("loading model" / "running" / "persisting")
 # so the layout has content to render. When a future runner emits real
 # sub-step progress, ``active_step.substeps`` becomes the live source
 # and this fallback can be deleted.
@@ -249,6 +249,44 @@ def aggregate_stats(library_dir: Path) -> dict[str, Any]:
                 pass
 
     return stats
+
+
+# ── Resource metrics ────────────────────────────────────────────────────────────
+
+
+def _metric(label: str, value: float) -> dict[str, Any]:
+    """Clamp a 0..1 metric value into the shape the resource card renders."""
+    return {"label": label, "value": max(0.0, min(1.0, float(value)))}
+
+
+def build_resource_metrics() -> list[dict[str, Any]]:
+    """Return local CPU/RAM and optional accelerator memory metrics.
+
+    The function is deliberately best-effort. It never imports torch solely for
+    the UI card, because torch import can dominate a page refresh; if the
+    pipeline has already loaded torch and CUDA is available, VRAM appears too.
+    """
+    metrics: list[dict[str, Any]] = []
+    try:
+        import psutil
+
+        metrics.append(_metric("CPU", psutil.cpu_percent(interval=0.0) / 100.0))
+        metrics.append(_metric("RAM", psutil.virtual_memory().percent / 100.0))
+    except (ImportError, OSError):
+        pass
+
+    try:
+        import sys
+
+        torch = sys.modules.get("torch")
+        if torch is not None and torch.cuda.is_available():
+            free, total = torch.cuda.mem_get_info()
+            if total:
+                metrics.append(_metric("VRAM", 1.0 - (float(free) / float(total))))
+    except Exception as exc:  # pragma: no cover - hardware/runtime dependent
+        logger.debug("resource metric probe skipped: %s", exc)
+
+    return metrics
 
 
 # ── Job queue mapping ─────────────────────────────────────────────────────────

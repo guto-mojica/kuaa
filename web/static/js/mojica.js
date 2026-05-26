@@ -484,7 +484,7 @@
 // localStorage-backed Alpine stores driving toolrow popovers in
 // scenes.html (Appearance + Fields + Group + Sort), the view-toggle
 // segments in search.html (Grade / Lista / Compacto), and the Buscar
-// retrieval popovers (retriever / sem_w / top_k / fusion_w).
+// retrieval popovers (retriever / sem_w / top_k / rerank / fusion_w).
 // The server can't see localStorage, so these toggles are client-only —
 // Alpine reactively binds class names on the appropriate container to
 // flip layout, per-field visibility, and the hidden HTMX form mirrors.
@@ -496,10 +496,10 @@
 //   $store.cenasGroup.by                  // group key
 //   $store.cenasSort.by                   // sort key
 //   $store.buscarView.mode                // 'grid' | 'list' | 'compact'
-//   $store.buscarRetrieval.{mode,sem_w,top_k,modality,fusion_w}
+//   $store.buscarRetrieval.{mode,sem_w,top_k,modality,rerank_enabled,fusion_w}
 //
 // The ``buscarRetrieval`` store backs the Buscar tab's knob-row popovers
-// (retriever / sem_w / bm25_w / top_k / fusion_w). Defaults mirror the canonical
+// (retriever / sem_w / bm25_w / top_k / rerank / fusion_w). Defaults mirror the canonical
 // hybrid baseline so a first-paint UI never drifts from the server
 // contract: ``retriever=hybrid``, ``sem_w=0.70``, ``bm25_w=0.30``,
 // ``top_k=9`` (UI preference; the route's FastAPI default is 8 — the
@@ -538,7 +538,14 @@
     group:      { by: 'film' },
     sort:       { by: 'timecode' },
     view:       { mode: 'grid' },
-    retrieval:  { mode: 'hybrid', sem_w: 0.70, top_k: 9, modality: 'text', fusion_w: 0.5 },
+    retrieval:  {
+      mode: 'hybrid',
+      sem_w: 0.70,
+      top_k: 9,
+      modality: 'text',
+      rerank_enabled: false,
+      fusion_w: 0.5,
+    },
     // ``rimasRetrieval`` mirrors ``retrieval.rhymes.{diversity, k_candidates}``
     // in ``config/default.yaml`` and feeds the Diversidade slider on the
     // Rimas Visuais tab (Task 4.2). ``diversity`` is MMR lambda (0=pure
@@ -641,7 +648,7 @@
     persistOnChange('cenasGroup',      KEYS.group,      ['by']);
     persistOnChange('cenasSort',       KEYS.sort,       ['by']);
     persistOnChange('buscarView',      KEYS.view,       ['mode']);
-    persistOnChange('buscarRetrieval', KEYS.retrieval,  ['mode', 'sem_w', 'top_k', 'modality', 'fusion_w']);
+    persistOnChange('buscarRetrieval', KEYS.retrieval,  ['mode', 'sem_w', 'top_k', 'modality', 'rerank_enabled', 'fusion_w']);
     persistOnChange('rimasRetrieval',  KEYS.rimasRetrieval, ['diversity', 'k_candidates']);
   });
 })();

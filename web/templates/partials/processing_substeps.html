@@ -1,14 +1,13 @@
 {% from "partials/_icons.html" import icon %}
 {#- Right pane (.p-rp) "active step detail": shows the currently
-    running pipeline step's sub-steps + optional GPU resource block.
+    running pipeline step's sub-steps + optional resource block.
 
     M1 stub: ``active_step`` populated from the running job's current
     step (label + light description); ``substeps`` is a thin synthetic
     list ("loading model" / "running detection" / "persisting outputs")
     so the layout renders honestly without a real sub-step instrumentation
-    pass. GPU card is gated by ``cfg.proc.gpu_metrics_enabled`` — off by
-    default; when off the section is omitted (not a placeholder, by
-    design: a fake bar would lie about hardware utilisation). -#}
+    pass. Resource metrics are gated by ``cfg.proc.gpu_metrics_enabled``;
+    when no metric source is available the section is omitted. -#}
 <div class="head">
   <h3>
     <span class="dot"></span>
@@ -32,7 +31,7 @@
 
   {% if cfg.proc.gpu_metrics_enabled and gpu_metrics %}
   <section class="gpu-card">
-    <h3 class="sect-head">{{ _("GPU") }}</h3>
+    <h3 class="sect-head">{{ _("RESOURCES") }}</h3>
     {% for m in gpu_metrics %}
       <div class="gpu-row">
         <span class="lab">{{ m.label }}</span>

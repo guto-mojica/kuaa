@@ -63,6 +63,7 @@ STATUS_RUNNING = "running"
 STATUS_DONE = "done"
 STATUS_ERROR = "error"
 STATUS_CANCELLED = "cancelled"
+_ACTIVE = (STATUS_CREATED, STATUS_RUNNING)
 _TERMINAL = (STATUS_DONE, STATUS_ERROR, STATUS_CANCELLED)
 
 # Bounded retention: keep at most this many terminal jobs in the
@@ -369,12 +370,12 @@ class JobRegistry:
     def active(self) -> list[JobState]:
         with self._lock:
             return [
-                j for j in self._jobs.values() if j.status == STATUS_RUNNING
+                j for j in self._jobs.values() if j.status in _ACTIVE
             ]
 
     def _active_locked(self) -> JobState | None:
         for j in self._jobs.values():
-            if j.status == STATUS_RUNNING:
+            if j.status in _ACTIVE:
                 return j
         return None
 

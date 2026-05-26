@@ -56,9 +56,10 @@ the popover stays visible regardless of the active input type. Either the
 popover should disable when input type is not text, or the asymmetry should be
 surfaced in the chip — pending decision.
 
-**Rerank is not live in production dispatchers.** `/api/search` still accepts
-and logs `reranker_enabled` for compatibility, but the visible Buscar UI hides
-the control until active search dispatchers apply `apply_reranker`.
+**Rerank is live for text results only.** `/api/search` accepts and logs
+`reranker_enabled`, then applies the cross-encoder after card enrichment so
+scene descriptions are available. Image, audio, and fusion requests ignore the
+text reranker.
 
 ## Example dialogue
 

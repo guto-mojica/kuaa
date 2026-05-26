@@ -18,13 +18,14 @@ What this module does NOT do:
   * It does not source real viewers / a real notification feed. Those belong
     to the later collaboration epic and are not visible in launch chrome.
   * It does not persist collections — the five "default collections"
-    are a curated static list (the Mojica prototype's
-    Coleções/Compartilhados section) so the LeftPane renders the design
-    surface even before the persistence layer exists.
+    are a curated list (the Mojica prototype's Coleções section). Bucket
+    counts are computed from the same per-scene tipo classifier used by
+    the Scenes tab.
 """
 
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 from typing import Any, TypedDict
 
@@ -53,7 +54,43 @@ class ChromeContext(TypedDict):
     notification_count: int
 
 
-def _default_collections(films: list[Film], total_scenes: int) -> list[dict[str, Any]]:
+def _collection_counts(cfg: Any, films: list[Film]) -> Counter[str]:
+    """Count default collection buckets from per-film scene metadata.
+
+    The left-pane collection shortcuts route into ``/scenes?bucket=<tipo>``.
+    To keep the displayed counts honest, reuse the same ``tipo_of`` classifier
+    that builds Cenas cards instead of maintaining separate static metadata.
+    Missing or malformed per-film artefacts are skipped; the overall
+    ``Entire library`` count still comes from ``LibraryState.scene_count``.
+    """
+    from api.services.catalog import load_metadata
+    from api.services.scenes_service import tipo_of
+    from cinemateca.library import FilmContext
+    from cinemateca.scene_ids import scene_id_key
+
+    counts: Counter[str] = Counter()
+    for film in films:
+        try:
+            ctx = FilmContext.for_film(cfg, film.slug)
+            kf_meta, desc_by_scene, _vis_by_scene, tag_index = load_metadata(ctx.metadata_dir)
+        except (OSError, TypeError, ValueError):
+            continue
+
+        tags_by_scene: dict[str, list[str]] = {}
+        for tag, scene_ids in tag_index.items():
+            for scene_id in scene_ids:
+                tags_by_scene.setdefault(scene_id_key(scene_id), []).append(tag)
+
+        for entry in kf_meta:
+            if not isinstance(entry, dict) or "scene_id" not in entry:
+                continue
+            sid = scene_id_key(entry["scene_id"])
+            desc = desc_by_scene.get(sid, {}).get("description") or ""
+            counts[tipo_of(tags_by_scene.get(sid, []), desc)] += 1
+    return counts
+
+
+def _default_collections(total_scenes: int, bucket_counts: Counter[str]) -> list[dict[str, Any]]:
     """Return the curated default-collection list rendered in the LeftPane.
 
     Five entries match the Mojica prototype's ``Coleções`` section:
@@ -61,9 +98,8 @@ def _default_collections(films: list[Film], total_scenes: int) -> list[dict[str,
       * Entire library — active by default; count == sum of scenes
         across the registry.
       * Rural exteriors / Title cards / Dialogues / Night scenes — four
-        curated semantic buckets. Counts are static placeholders for
-        Phase 1; they become real once the (Month-2) Buscar pipeline
-        produces per-bucket inverted indices.
+        curated semantic buckets. Counts come from the per-scene tipo
+        classifier shared with the Cenas grid.
 
     The dicts intentionally carry localizable labels (the templates wrap
     them in ``_()``), an icon name resolved by the icon macro, a
@@ -85,7 +121,7 @@ def _default_collections(films: list[Film], total_scenes: int) -> list[dict[str,
             "active": False,
             "label": "Rural exteriors",
             "icon": "folder",
-            "count": 142,
+            "count": bucket_counts["exterior"],
             "category": "exterior",
             "url": "/scenes?bucket=exterior",
         },
@@ -93,7 +129,7 @@ def _default_collections(films: list[Film], total_scenes: int) -> list[dict[str,
             "active": False,
             "label": "Title cards",
             "icon": "folder",
-            "count": 28,
+            "count": bucket_counts["cartela"],
             "category": "cartela",
             "url": "/scenes?bucket=cartela",
         },
@@ -101,7 +137,7 @@ def _default_collections(films: list[Film], total_scenes: int) -> list[dict[str,
             "active": False,
             "label": "Dialogues",
             "icon": "folder",
-            "count": 96,
+            "count": bucket_counts["dialogo"],
             "category": "dialogo",
             "url": "/scenes?bucket=dialogo",
         },
@@ -109,7 +145,7 @@ def _default_collections(films: list[Film], total_scenes: int) -> list[dict[str,
             "active": False,
             "label": "Night scenes",
             "icon": "folder",
-            "count": 73,
+            "count": bucket_counts["interior"],
             "category": "interior",
             "url": "/scenes?bucket=interior",
         },
@@ -192,7 +228,7 @@ def build_chrome_context(cfg: Any, current_slug: str | None = None) -> ChromeCon
     # captures container duration into the registry.
     total_runtime_minutes = sum(getattr(f, "runtime_minutes", 0) or 0 for f in films)
 
-    collections = _default_collections(films, lstate.scene_count)
+    collections = _default_collections(lstate.scene_count, _collection_counts(cfg, films))
 
     return {
         "films": films,

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from api.services.catalog import keyframe_url  # noqa: F401  — used by routes
 from cinemateca.library import FilmContext
@@ -85,7 +85,13 @@ from cinemateca.search.hybrid import (  # noqa: F401
 
 # Upload validation (T5). UploadRejected re-exported for the legacy
 # ``api.services.search.UploadRejected`` import path used by routes + tests.
-from cinemateca.search.types import SearchResult, UploadRejected  # noqa: F401
+from cinemateca.search.types import (  # noqa: F401
+    Hit,
+    Query,
+    SearchMode,
+    SearchResult,
+    UploadRejected,
+)
 from cinemateca.search.upload import (
     MAX_UPLOAD_BYTES,  # noqa: F401
     validate_upload,  # noqa: F401
@@ -122,7 +128,7 @@ def _get_bm25_index_for_ctx(ctx: FilmContext) -> BM25Index:
 # cfg without the block (or without ``retrieval`` at all) doesn't raise.
 
 
-def _reranker_settings(cfg: Any) -> tuple[bool, str, int]:
+def _reranker_settings(cfg: Any, enabled_override: bool | None = None) -> tuple[bool, str, int]:
     """Read ``retrieval.reranker.{enabled,model,top_k_in}`` with defaults.
 
     Defaults: ``enabled=True``, ``model='default'``, ``top_k_in=20``. A cfg
@@ -132,27 +138,123 @@ def _reranker_settings(cfg: Any) -> tuple[bool, str, int]:
     """
     rr = getattr(getattr(cfg, "retrieval", None), "reranker", None)
     if rr is None:
-        return (True, "default", 20)
-    return (
-        bool(getattr(rr, "enabled", True)),
-        str(getattr(rr, "model", "default")),
-        int(getattr(rr, "top_k_in", 20)),
-    )
+        enabled, model, top_k_in = True, "default", 20
+    else:
+        enabled = bool(getattr(rr, "enabled", True))
+        model = str(getattr(rr, "model", "default"))
+        top_k_in = int(getattr(rr, "top_k_in", 20))
+    if enabled_override is not None:
+        enabled = bool(enabled_override)
+    return (enabled, model, top_k_in)
 
 
-def apply_reranker(result: SearchResult, *, cfg: Any) -> SearchResult:
+def apply_reranker(
+    result: SearchResult, *, cfg: Any, enabled_override: bool | None = None
+) -> SearchResult:
     """Apply the cross-encoder reranker to a :class:`SearchResult`.
 
-    Reads ``retrieval.reranker.*`` from ``cfg``; short-circuits when
-    ``enabled=False``. Safe to call unconditionally at the outermost
+    Reads ``retrieval.reranker.*`` from ``cfg``; ``enabled_override`` lets
+    the request-level ``?reranker_enabled=`` toggle opt in/out without
+    mutating global config. Safe to call unconditionally at the outermost
     boundary of any retriever path that produces a :class:`SearchResult`.
     Tests can stub the underlying verb with
     ``monkeypatch.setattr(svc, "search_rerank", ...)``.
     """
-    enabled, model, top_k_in = _reranker_settings(cfg)
+    enabled, model, top_k_in = _reranker_settings(cfg, enabled_override)
     if not enabled:
         return result
     return search_rerank(result, model=model, top_k_in=top_k_in)
+
+
+def _result_key(row: dict[str, Any]) -> tuple[str, int]:
+    return (str(row.get("film_slug") or ""), int(row.get("scene_id") or 0))
+
+
+def _row_score(row: dict[str, Any]) -> float:
+    raw = row.get("similarity", row.get("score", 0.0))
+    try:
+        return float(raw or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def rerank_template_results(
+    results: list[dict[str, Any]],
+    *,
+    cfg: Any,
+    query: str,
+    mode: str = "hybrid",
+    enabled: bool | None = None,
+) -> list[dict[str, Any]]:
+    """Apply the text reranker to enriched template-result dicts.
+
+    Current HTTP dispatchers still produce DataFrames / ``list[dict]`` before
+    route-level enrichment adds descriptions and tags. The cross-encoder needs
+    those descriptions, so adapt the final card dicts into ``SearchResult``,
+    rerank once, then return the same dict shape in reranked order.
+    """
+    if enabled is False or not results:
+        return results
+
+    originals: dict[tuple[str, int], dict[str, Any]] = {}
+    hits: list[Hit] = []
+    for row in results:
+        try:
+            sid = int(row.get("scene_id") or 0)
+        except (TypeError, ValueError):
+            continue
+        key = (str(row.get("film_slug") or ""), sid)
+        originals[key] = row
+        tags = row.get("tags") or []
+        hits.append(
+            Hit(
+                scene_id=sid,
+                score=_row_score(row),
+                keyframe_path=str(row.get("keyframe_path") or row.get("filepath") or ""),
+                film_slug=key[0] or None,
+                film_title=row.get("film_title"),
+                timecode=str(row.get("timecode") or ""),
+                description=str(row.get("description") or ""),
+                tags=list(tags) if isinstance(tags, list) else [],
+            )
+        )
+    if not hits:
+        return results
+
+    search_mode = cast(SearchMode, mode if mode in {"clip", "bm25", "hybrid"} else "hybrid")
+    search_result = SearchResult(
+        hits=hits,
+        mode=search_mode,
+        weights=None,
+        query=Query.text_query(query),
+        no_index=False,
+    )
+    try:
+        reranked = apply_reranker(search_result, cfg=cfg, enabled_override=enabled)
+    except Exception as exc:
+        logger.warning("reranker failed; leaving text results unchanged: %s", exc)
+        return results
+
+    ordered: list[dict[str, Any]] = []
+    used: set[tuple[str, int]] = set()
+    for hit in reranked.hits:
+        key = (hit.film_slug or "", hit.scene_id)
+        original = originals.get(key)
+        if original is None:
+            continue
+        row = dict(original)
+        if hit.rerank_score is not None:
+            row["rerank_score"] = hit.rerank_score
+        ordered.append(row)
+        used.add(key)
+
+    if not ordered:
+        return results
+    # If the configured top_k_in is lower than the requested top-k, preserve
+    # unscored tail results after the reranked head instead of making cards
+    # disappear merely because reranking is enabled.
+    ordered.extend(row for row in results if _result_key(row) not in used)
+    return ordered
 
 
 def dispatch_audio_search(
