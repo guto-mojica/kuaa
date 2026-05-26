@@ -38,9 +38,7 @@ class _Stub:
 # ── Fixture helpers ──────────────────────────────────────────────────────────
 
 
-def _seed_clip(
-    film_dir: Path, *, dim: int = 4, n: int = 4, shape: str = "legacy"
-) -> None:
+def _seed_clip(film_dir: Path, *, dim: int = 4, n: int = 4, shape: str = "legacy") -> None:
     """Write a synthetic CLIP keyframe index under ``<film_dir>/embeddings/``.
 
     Rows are basis-like vectors so cosines vs the ``_Stub(dim)`` unit-query
@@ -65,9 +63,7 @@ def _seed_clip(
     emb /= np.linalg.norm(emb, axis=1, keepdims=True)
     np.save(emb_dir / "keyframe_embeddings.npy", emb)
     if shape == "legacy":
-        mapping: object = [
-            {"scene_id": i, "filepath": f"frames/s{i:04d}.jpg"} for i in range(n)
-        ]
+        mapping: object = [{"scene_id": i, "filepath": f"frames/s{i:04d}.jpg"} for i in range(n)]
     elif shape == "parallel":
         mapping = {
             "model": "stub-siglip2",

@@ -849,9 +849,7 @@ def _regroup(
         flat_scenes = _sort_scenes(flat_scenes, sort)
         if not flat_scenes:
             return []
-        first_film = flat_scenes[0].get("film") or (
-            per_film[0][0] if per_film else None
-        )
+        first_film = flat_scenes[0].get("film") or (per_film[0][0] if per_film else None)
         return [
             {
                 "film": first_film,

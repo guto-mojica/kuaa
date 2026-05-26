@@ -195,6 +195,7 @@ class MoondreamGGUFDescriber:
                 tag_idx = self.build_tag_index(all_results)
                 with open(tags_path, "w", encoding="utf-8") as _tf:
                     import json as _json
+
                     _json.dump(tag_idx, _tf, indent=2, ensure_ascii=False)
                 logger.info("Checkpoint: %d/%d", count, len(to_process))
 

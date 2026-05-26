@@ -202,9 +202,7 @@ def test_conflict_set_ignores_single_annotator_pairs(tmp_path: Path):
 def test_other_grades_returns_only_current_query(two_grader_run):
     """Filters to the current query AND the named other annotator."""
 
-    out = _other_grades_for_current(
-        two_grader_run, current_query_id="q1", other_grader="jr"
-    )
+    out = _other_grades_for_current(two_grader_run, current_query_id="q1", other_grader="jr")
     assert out == {
         "s1": Grade.HIGHLY_RELEVANT,
         "s2": Grade.WEAKLY,
@@ -215,14 +213,12 @@ def test_other_grades_returns_only_current_query(two_grader_run):
 def test_other_grades_empty_without_other_grader(two_grader_run):
     """No second annotator named → empty dict (single-grader runs)."""
 
-    assert _other_grades_for_current(
-        two_grader_run, current_query_id="q1", other_grader=None
-    ) == {}
+    assert _other_grades_for_current(two_grader_run, current_query_id="q1", other_grader=None) == {}
 
 
 def test_other_grades_unknown_grader(two_grader_run):
     """A grader name that doesn't appear on the run yields {} silently."""
 
-    assert _other_grades_for_current(
-        two_grader_run, current_query_id="q1", other_grader="ghost"
-    ) == {}
+    assert (
+        _other_grades_for_current(two_grader_run, current_query_id="q1", other_grader="ghost") == {}
+    )

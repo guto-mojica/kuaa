@@ -31,19 +31,23 @@ from __future__ import annotations
 import logging
 
 from api.deps import get_config
-from cinemateca.library import FilmContext
+from cinemateca.annotations.descriptions import save_description  # noqa: F401
 from cinemateca.annotations.io import (  # noqa: F401
     load_annotations,
     normalize_tags,
     save_annotations,
 )
-from cinemateca.annotations.descriptions import save_description  # noqa: F401
 from cinemateca.annotations.scenes import (  # noqa: F401
     build_scene_list,
-    resolve_selected_film as _resolve_selected_film,
     scene_context,
+)
+from cinemateca.annotations.scenes import (
+    resolve_selected_film as _resolve_selected_film,
+)
+from cinemateca.annotations.scenes import (
     scene_list_with_fallback as _scene_list_with_fallback,
 )
+from cinemateca.library import FilmContext
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +104,9 @@ def build_annotate_context(
     )
     cfg = get_config()
     demo_threads = bool(getattr(getattr(cfg, "collaboration", None), "demo_threads_enabled", False))
-    panel = scene_context(ctx, scenes, scene_id, desc_by_scene, annotations, demo_threads_enabled=demo_threads)
+    panel = scene_context(
+        ctx, scenes, scene_id, desc_by_scene, annotations, demo_threads_enabled=demo_threads
+    )
 
     return {
         "filter": filter_mode,
@@ -126,4 +132,6 @@ def build_scene_panel(ctx: FilmContext, scene_id: int | None, filter_mode: str) 
     )
     cfg = get_config()
     demo_threads = bool(getattr(getattr(cfg, "collaboration", None), "demo_threads_enabled", False))
-    return scene_context(ctx, scenes, scene_id, desc_by_scene, annotations, demo_threads_enabled=demo_threads)
+    return scene_context(
+        ctx, scenes, scene_id, desc_by_scene, annotations, demo_threads_enabled=demo_threads
+    )

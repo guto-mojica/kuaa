@@ -419,9 +419,10 @@ def test_aggregate_hybrid_no_cross_film_top_score_ties(degeneracy_fixture: objec
     )
     assert len(hits) >= 2, "fixture must produce at least 2 hybrid hits"
     top_keys = {(h["film_slug"], h["scene_id"]) for h in hits[:2]}
-    assert top_keys == {("a", 1), ("b", 0)}, (
-        f"top-2 must still be the two combined-signal scenes, got {top_keys}"
-    )
+    assert top_keys == {
+        ("a", 1),
+        ("b", 0),
+    }, f"top-2 must still be the two combined-signal scenes, got {top_keys}"
     top, second = hits[0]["score"], hits[1]["score"]
     assert top > second, (
         f"hybrid cross-film ordering must be strict: top={top} second={second} — "

@@ -78,6 +78,7 @@ _PATH_NAMES = (
 
 # ── Core isolated-config fixture ──────────────────────────────────────────────
 
+
 @pytest.fixture()
 def tmp_config(tmp_path, monkeypatch):
     """A ``Config`` with every data path rebased into ``tmp_path``.
@@ -188,6 +189,7 @@ def tmp_config(tmp_path, monkeypatch):
 
 # ── TestClient fixtures ───────────────────────────────────────────────────────
 
+
 def _make_client(cfg) -> TestClient:
     from api.server import app
 
@@ -231,6 +233,7 @@ def raw_client(tmp_config):
 
 
 # ── Fixture-metadata builder ──────────────────────────────────────────────────
+
 
 @pytest.fixture()
 def seed_metadata(tmp_config):
@@ -389,23 +392,15 @@ def seed_metadata(tmp_config):
         per_film_meta = library_dir / "default" / "metadata"
         per_film_meta.mkdir(parents=True, exist_ok=True)
         if scenes_v is not None:
-            (per_film_meta / "keyframes_metadata.json").write_text(
-                json.dumps(scenes_v)
-            )
+            (per_film_meta / "keyframes_metadata.json").write_text(json.dumps(scenes_v))
         if llm_v is not None:
             (per_film_meta / "scene_tags.json").write_text(json.dumps(llm_v))
         if manual_v is not None:
-            (per_film_meta / "manual_annotations.json").write_text(
-                json.dumps(manual_v)
-            )
+            (per_film_meta / "manual_annotations.json").write_text(json.dumps(manual_v))
         if desc_v is not None:
-            (per_film_meta / "scene_descriptions.json").write_text(
-                json.dumps(desc_v)
-            )
+            (per_film_meta / "scene_descriptions.json").write_text(json.dumps(desc_v))
         if visual_v is not None:
-            (per_film_meta / "visual_analysis.json").write_text(
-                json.dumps(visual_v)
-            )
+            (per_film_meta / "visual_analysis.json").write_text(json.dumps(visual_v))
 
         scene_ids = (
             [s["scene_id"] for s in scenes_v if "scene_id" in s]
@@ -426,6 +421,7 @@ def seed_metadata(tmp_config):
 
 # ── Job registry helper ───────────────────────────────────────────────────────
 
+
 @pytest.fixture()
 def inject_job():
     """Insert one running ``JobState`` into the registry and return it.
@@ -442,10 +438,7 @@ def inject_job():
         job = jobs.JobState(
             id="testjob1",
             video_path=video_path,
-            steps=[
-                jobs.StepInfo(name=name, label=label)
-                for name, label in jobs.STEP_DEFS
-            ],
+            steps=[jobs.StepInfo(name=name, label=label) for name, label in jobs.STEP_DEFS],
         )
         job.steps[0].state = "active"
         jobs._registry.add(job)

@@ -5,6 +5,7 @@ VisualAnalyzer facade. Composes injected Face / Object / Environment
 backends (provided by cinemateca.models.registry). The detector classes
 themselves live under cinemateca.models.{face,objects,environment}.
 """
+
 from __future__ import annotations
 
 import json

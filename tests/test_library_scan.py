@@ -1,4 +1,5 @@
 """Unit tests for cinemateca.library.scan."""
+
 from __future__ import annotations
 
 import json
@@ -29,9 +30,7 @@ def test_scan_library_empty_registry_returns_empty(tmp_path):
 
 
 def test_scan_library_unprocessed_film_has_zero_scenes(tmp_path):
-    register_film(
-        tmp_path, slug="alpha", title="Alpha", year=2026, raw_filename="alpha.mp4"
-    )
+    register_film(tmp_path, slug="alpha", title="Alpha", year=2026, raw_filename="alpha.mp4")
     films = scan_library(tmp_path)
     assert len(films) == 1
     assert films[0].slug == "alpha"
@@ -40,9 +39,7 @@ def test_scan_library_unprocessed_film_has_zero_scenes(tmp_path):
 
 
 def test_scan_library_processed_film_counts_scenes(tmp_path):
-    register_film(
-        tmp_path, slug="alpha", title="Alpha", year=2026, raw_filename="alpha.mp4"
-    )
+    register_film(tmp_path, slug="alpha", title="Alpha", year=2026, raw_filename="alpha.mp4")
     metadata_dir = tmp_path / "alpha" / "metadata"
     metadata_dir.mkdir(parents=True)
     (metadata_dir / "keyframes_metadata.json").write_text(

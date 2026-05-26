@@ -1,4 +1,5 @@
 """open_clip image/text embedder backend (moved from embeddings.py)."""
+
 from __future__ import annotations
 
 import json
@@ -38,9 +39,7 @@ class OpenClipEmbedder:
         try:
             import open_clip
         except ImportError:
-            raise RuntimeError(
-                "open_clip não instalado. Execute: pip install open-clip-torch"
-            )
+            raise RuntimeError("open_clip não instalado. Execute: pip install open-clip-torch")
 
         logger.info("Carregando CLIP %s (%s)...", self.model_name, self.pretrained)
         t0 = time.time()
@@ -65,7 +64,7 @@ class OpenClipEmbedder:
         t0 = time.time()
 
         for i in range(0, len(image_paths), self.batch_size):
-            batch_paths = image_paths[i: i + self.batch_size]
+            batch_paths = image_paths[i : i + self.batch_size]
             tensors = []
 
             for path in batch_paths:
@@ -93,7 +92,10 @@ class OpenClipEmbedder:
         embeddings = np.vstack(all_embeddings).astype("float32")
         logger.info(
             "✓ %d embeddings gerados em %.1fs (erros: %d) | shape=%s",
-            len(image_paths), time.time() - t0, error_count, embeddings.shape,
+            len(image_paths),
+            time.time() - t0,
+            error_count,
+            embeddings.shape,
         )
         return embeddings
 
@@ -169,15 +171,18 @@ class OpenClipEmbedder:
         with open(mapping_path, encoding="utf-8") as f:
             mapping = json.load(f)
 
-        kf_df = pd.DataFrame({
-            "filepath": mapping["keyframe_paths"],
-            "scene_id": mapping["scene_ids"],
-        })
+        kf_df = pd.DataFrame(
+            {
+                "filepath": mapping["keyframe_paths"],
+                "scene_id": mapping["scene_ids"],
+            }
+        )
         if "keyframe_ids" in mapping:
             kf_df["keyframe_id"] = mapping["keyframe_ids"]
 
         logger.info(
             "✓ Embeddings carregados: shape=%s | %d keyframes mapeados",
-            emb.shape, len(kf_df),
+            emb.shape,
+            len(kf_df),
         )
         return emb, mapping, kf_df

@@ -57,7 +57,6 @@ def test_selected_config_path_falls_back_to_local_yaml(tmp_path, monkeypatch):
     assert deps.selected_config_path() == Path("config/local.yaml")
 
 
-
 def _demo_manifest(min_keyframes: int = 2) -> dict:
     return {
         "expected": {
@@ -98,10 +97,12 @@ def _write_demo_runtime(
     ]
     (metadata / "keyframes_metadata.json").write_text(json.dumps(scenes), encoding="utf-8")
     (metadata / "scene_descriptions.json").write_text(
-        json.dumps([
-            {"scene_id": 1, "description": "Train station exterior."},
-            {"scene_id": 2, "description": "Bandits enter the rail car."},
-        ]),
+        json.dumps(
+            [
+                {"scene_id": 1, "description": "Train station exterior."},
+                {"scene_id": 2, "description": "Bandits enter the rail car."},
+            ]
+        ),
         encoding="utf-8",
     )
     (metadata / "scene_tags.json").write_text(
@@ -109,23 +110,27 @@ def _write_demo_runtime(
         encoding="utf-8",
     )
     (metadata / "visual_analysis.json").write_text(
-        json.dumps([
-            {"scene_id": 1, "environment": {"location": "exterior"}},
-            {"scene_id": 2, "environment": {"location": "interior"}},
-        ]),
+        json.dumps(
+            [
+                {"scene_id": 1, "environment": {"location": "exterior"}},
+                {"scene_id": 2, "environment": {"location": "interior"}},
+            ]
+        ),
         encoding="utf-8",
     )
 
     np.save(embeddings / "keyframe_embeddings.npy", np.ones((embedding_rows, 3), dtype="float32"))
     (embeddings / "index_mapping.json").write_text(
-        json.dumps({
-            "model": "CLIP ViT-B-32 (openai)",
-            "dimension": 3,
-            "total_vectors": total_vectors,
-            "normalized": True,
-            "keyframe_paths": [str(k1), str(k2)],
-            "scene_ids": [1, 2],
-        }),
+        json.dumps(
+            {
+                "model": "CLIP ViT-B-32 (openai)",
+                "dimension": 3,
+                "total_vectors": total_vectors,
+                "normalized": True,
+                "keyframe_paths": [str(k1), str(k2)],
+                "scene_ids": [1, 2],
+            }
+        ),
         encoding="utf-8",
     )
     return {"metadata": metadata, "frames": frames, "embeddings": embeddings}

@@ -1,4 +1,5 @@
 """Tests for scripts/migrate_flat_to_library.py."""
+
 from __future__ import annotations
 
 import json

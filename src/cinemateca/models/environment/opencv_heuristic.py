@@ -1,4 +1,5 @@
 """OpenCV-heuristic environment classifier (moved, unchanged)."""
+
 from __future__ import annotations
 
 import logging

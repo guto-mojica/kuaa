@@ -8,6 +8,7 @@ which is auto-discoverable via ``cinemateca --help``. This file just
 delegates so existing muscle memory and docs that still say
 ``uv run app.py`` keep working until they're updated.
 """
+
 from cinemateca.__main__ import serve
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ Concrete backends (openclip, mtcnn, yolov8, gguf, …) implement these
 interfaces. The pipeline imports only from here / the registry — never
 from a concrete backend.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -90,8 +91,7 @@ class EnvironmentClassifier(Protocol):
         """Returns {"time_of_day","brightness_score","location","edge_density"}."""
         ...
 
-    def classify_batch(self, image_paths: list[Path]) -> list[dict]:
-        ...
+    def classify_batch(self, image_paths: list[Path]) -> list[dict]: ...
 
 
 @runtime_checkable

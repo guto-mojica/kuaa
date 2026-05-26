@@ -76,6 +76,7 @@ def _stub_steps(pipeline: CatalogPipeline) -> None:
     def _ok(name):
         def _stub(*_a, **_kw):
             return StepResult(name=name, success=True, duration_s=0.0)
+
         return _stub
 
     pipeline._step_frame_extraction = _ok("frame_extraction")
@@ -143,11 +144,13 @@ def test_pipeline_does_not_register_on_partial_failure(tmp_path):
     def _ok(name):
         def _stub(*_a, **_kw):
             return StepResult(name=name, success=True, duration_s=0.0)
+
         return _stub
 
     def _fail(name):
         def _stub(*_a, **_kw):
             return StepResult(name=name, success=False, duration_s=0.0)
+
         return _stub
 
     p._step_frame_extraction = _ok("frame_extraction")
@@ -159,9 +162,7 @@ def test_pipeline_does_not_register_on_partial_failure(tmp_path):
     p.run(tmp_path / "video.mp4")
 
     registry = load_registry(cfg.paths.library_dir)
-    assert "partial" not in registry, (
-        "Pipeline must NOT register a film whose run failed"
-    )
+    assert "partial" not in registry, "Pipeline must NOT register a film whose run failed"
 
 
 # ── Per-film path routing ─────────────────────────────────────────────────────
@@ -191,15 +192,15 @@ def test_pipeline_per_film_does_not_write_to_flat_paths(tmp_path):
     p.run("video.mp4")
 
     # Legacy flat dirs must NOT have been created by this run.
-    assert not (tmp_path / "legacy_frames").exists(), (
-        "Pipeline should not write to flat legacy frames_dir when slug is set"
-    )
-    assert not (tmp_path / "legacy_meta").exists(), (
-        "Pipeline should not write to flat legacy metadata_dir when slug is set"
-    )
-    assert not (tmp_path / "legacy_embeddings").exists(), (
-        "Pipeline should not write to flat legacy embeddings_dir when slug is set"
-    )
+    assert not (
+        tmp_path / "legacy_frames"
+    ).exists(), "Pipeline should not write to flat legacy frames_dir when slug is set"
+    assert not (
+        tmp_path / "legacy_meta"
+    ).exists(), "Pipeline should not write to flat legacy metadata_dir when slug is set"
+    assert not (
+        tmp_path / "legacy_embeddings"
+    ).exists(), "Pipeline should not write to flat legacy embeddings_dir when slug is set"
 
 
 def test_pipeline_registers_film_in_films_json(tmp_path):
@@ -275,6 +276,7 @@ def test_cli_slug_default_is_slugified_stem(tmp_path, monkeypatch):
 
     # Patch load_config where __main__ imports it from at call time.
     import cinemateca.config as cfg_mod
+
     monkeypatch.setattr(cfg_mod, "load_config", lambda *a, **kw: cfg)
 
     # Capture the slug that CatalogPipeline is constructed with.
@@ -298,15 +300,21 @@ def test_cli_slug_default_is_slugified_stem(tmp_path, monkeypatch):
 
     # Typer CLI: ``video`` is a positional argument; old argparse form
     # ``--video <path>`` was retired in the unified-CLI refactor.
-    monkeypatch.setattr(sys, "argv", [
-        "cinemateca", "process", str(test_video),
-    ])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "cinemateca",
+            "process",
+            str(test_video),
+        ],
+    )
     with pytest.raises(SystemExit):
         main_mod.main()
 
-    assert captured.get("slug") == "my_film_2001", (
-        f"Expected slug 'my_film_2001', got {captured.get('slug')!r}"
-    )
+    assert (
+        captured.get("slug") == "my_film_2001"
+    ), f"Expected slug 'my_film_2001', got {captured.get('slug')!r}"
 
 
 def test_cli_explicit_slug_is_forwarded(tmp_path, monkeypatch):
@@ -318,6 +326,7 @@ def test_cli_explicit_slug_is_forwarded(tmp_path, monkeypatch):
     cfg = _fake_cfg(tmp_path)
 
     import cinemateca.config as cfg_mod
+
     monkeypatch.setattr(cfg_mod, "load_config", lambda *a, **kw: cfg)
 
     captured: dict = {}
@@ -338,9 +347,17 @@ def test_cli_explicit_slug_is_forwarded(tmp_path, monkeypatch):
     test_video = tmp_path / "film.mp4"
     test_video.touch()
 
-    monkeypatch.setattr(sys, "argv", [
-        "cinemateca", "process", str(test_video), "--slug", "custom_slug",
-    ])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "cinemateca",
+            "process",
+            str(test_video),
+            "--slug",
+            "custom_slug",
+        ],
+    )
     with pytest.raises(SystemExit):
         main_mod.main()
 

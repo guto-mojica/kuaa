@@ -1,4 +1,5 @@
 """Stub tab routes for tabs that don't yet have a dedicated route module."""
+
 from fastapi import APIRouter
 
 router = APIRouter()

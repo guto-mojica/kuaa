@@ -1,4 +1,5 @@
 """Film registry — films.json read/write + Film dataclass."""
+
 from __future__ import annotations
 
 import json

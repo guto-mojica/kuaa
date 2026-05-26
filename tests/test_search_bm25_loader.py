@@ -7,8 +7,8 @@ import json
 import time
 from pathlib import Path
 
-from cinemateca.library import FilmContext
 from api.services.search import _get_bm25_index_for_ctx
+from cinemateca.library import FilmContext
 
 
 def _make_ctx(tmp_path: Path) -> FilmContext:

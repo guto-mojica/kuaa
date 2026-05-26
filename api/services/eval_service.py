@@ -240,5 +240,6 @@ def compute_query_metrics(cfg, *, query_id: str | None = None) -> dict[str, Any]
         "histogram": histogram(grades_list),
     }
 
+
 # All ``_underscored`` helpers are re-exported from cinemateca.eval.* at the top.
 # The ``as _underscored`` aliases preserve names that test fixtures monkeypatch.

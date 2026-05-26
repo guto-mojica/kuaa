@@ -152,7 +152,9 @@ def _tokens_for_value(value: Any) -> list[str]:
     return tokenize(str(value))
 
 
-def _phrase_match_score(value: Any, query_tokens: list[str], *, exact: float, contains: float) -> float:
+def _phrase_match_score(
+    value: Any, query_tokens: list[str], *, exact: float, contains: float
+) -> float:
     tokens = _tokens_for_value(value)
     if not tokens or not query_tokens:
         return 0.0
@@ -205,8 +207,12 @@ def _metadata_scores_for_query(
         sid = entry.get("scene_id")
         if sid is None:
             continue
-        desc_score = _phrase_match_score(entry.get("description"), query_tokens, exact=12.0, contains=12.0)
-        action_score = _phrase_match_score(entry.get("people_action"), query_tokens, exact=2.0, contains=2.0)
+        desc_score = _phrase_match_score(
+            entry.get("description"), query_tokens, exact=12.0, contains=12.0
+        )
+        action_score = _phrase_match_score(
+            entry.get("people_action"), query_tokens, exact=2.0, contains=2.0
+        )
         add(sid, desc_score)
         add(sid, action_score)
         has_description_evidence = desc_score > 0.0
@@ -249,7 +255,12 @@ def _metadata_scores_for_query(
             continue
         for detected in obj.get("objects") or []:
             if isinstance(detected, dict):
-                add(sid, _phrase_match_score(detected.get("class"), query_tokens, exact=10.0, contains=7.0))
+                add(
+                    sid,
+                    _phrase_match_score(
+                        detected.get("class"), query_tokens, exact=10.0, contains=7.0
+                    ),
+                )
         class_counts = obj.get("class_counts")
         if isinstance(class_counts, dict):
             for cls, count in class_counts.items():

@@ -44,8 +44,10 @@ class VideoInspector:
     def _probe(self) -> dict:
         cmd = [
             "ffprobe",
-            "-v", "quiet",
-            "-print_format", "json",
+            "-v",
+            "quiet",
+            "-print_format",
+            "json",
             "-show_format",
             "-show_streams",
             str(self.video_path),
@@ -60,9 +62,7 @@ class VideoInspector:
             )
 
         data = json.loads(result.stdout)
-        video_stream = next(
-            (s for s in data["streams"] if s["codec_type"] == "video"), None
-        )
+        video_stream = next((s for s in data["streams"] if s["codec_type"] == "video"), None)
         if not video_stream:
             raise ValueError(f"Nenhum stream de vídeo em: {self.video_path}")
 
@@ -80,7 +80,7 @@ class VideoInspector:
             "total_frames": int(duration * fps),
             "codec": video_stream["codec_name"],
             "bit_rate_mbps": int(data["format"].get("bit_rate", 0)) / 1_000_000,
-            "file_size_gb": float(data["format"]["size"]) / (1024 ** 3),
+            "file_size_gb": float(data["format"]["size"]) / (1024**3),
         }
         logger.info(
             "Vídeo inspecionado: %s — %.1f min, %dx%d, %.2f fps",
@@ -167,17 +167,22 @@ class FrameExtractor:
 
         cmd = [
             "ffmpeg",
-            "-i", str(video_path),
+            "-i",
+            str(video_path),
         ]
         if self.sample_duration:
             cmd += ["-t", str(self.sample_duration)]
         cmd += [
-            "-vf", vf,
-            "-q:v", str(self.quality),
-            "-f", "image2",
+            "-vf",
+            vf,
+            "-q:v",
+            str(self.quality),
+            "-f",
+            "image2",
             str(output_dir / "frame_%04d.jpg"),
-            "-y",       # sobrescrever sem perguntar
-            "-loglevel", "error",
+            "-y",  # sobrescrever sem perguntar
+            "-loglevel",
+            "error",
         ]
 
         logger.info(
@@ -244,7 +249,19 @@ class FrameQualityAnalyzer:
         con = np.array([m["contrast"] for m in metrics])
         return {
             "num_frames": len(metrics),
-            "blur": {"mean": float(blur.mean()), "min": float(blur.min()), "max": float(blur.max())},
-            "brightness": {"mean": float(bri.mean()), "min": float(bri.min()), "max": float(bri.max())},
-            "contrast": {"mean": float(con.mean()), "min": float(con.min()), "max": float(con.max())},
+            "blur": {
+                "mean": float(blur.mean()),
+                "min": float(blur.min()),
+                "max": float(blur.max()),
+            },
+            "brightness": {
+                "mean": float(bri.mean()),
+                "min": float(bri.min()),
+                "max": float(bri.max()),
+            },
+            "contrast": {
+                "mean": float(con.mean()),
+                "min": float(con.min()),
+                "max": float(con.max()),
+            },
         }

@@ -25,6 +25,7 @@ _DEFAULT_CONFIG = Path(__file__).parent.parent.parent / "config" / "default.yaml
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
+
 def _deep_merge(base: dict, override: dict) -> dict:
     """Mescla recursivamente override em base. override tem precedência."""
     result = dict(base)
@@ -50,6 +51,7 @@ def _resolve_paths(paths_dict: dict, project_root: Path) -> dict:
 
 # ─── Namespace simples para acesso com ponto ──────────────────────────────────
 
+
 class _Namespace:
     """Permite cfg.section.key em vez de cfg['section']['key']."""
 
@@ -74,6 +76,7 @@ class _Namespace:
 
 
 # ─── API pública ──────────────────────────────────────────────────────────────
+
 
 def load_config(
     user_config: str | Path | None = None,

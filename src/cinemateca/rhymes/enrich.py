@@ -4,6 +4,7 @@ tags, timecode, signals like shared_tags / same_film flags).
 
 Uses the per-scene metadata loaders from cinemateca.rhymes.metadata.
 """
+
 from __future__ import annotations
 
 from typing import Any

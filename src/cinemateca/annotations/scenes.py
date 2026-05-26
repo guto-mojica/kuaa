@@ -9,6 +9,7 @@ _scene_list_with_fallback) lose the underscore here — they become public
 helpers of the package because the service file is no longer the sole
 caller; M3+ rerank work may want them too.
 """
+
 from __future__ import annotations
 
 import logging
@@ -34,7 +35,6 @@ _BROKEN_LLM = "One or two sentences about subject"
 # Rendering is gated on ``cfg.collaboration.demo_threads_enabled`` (template
 # side), so flipping the flag off restores the pre-demo empty state with no
 # code changes.
-
 
 
 def _demo_thread(timecode: str) -> list[dict]:

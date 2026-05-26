@@ -202,9 +202,9 @@ def test_siglip_load_model_serialises_concurrent_calls(monkeypatch):
         t.join()
 
     assert errors == [], f"concurrent _load_model raised: {errors!r}"
-    assert call_count["model"] == 1, (
-        f"AutoModel.from_pretrained called {call_count['model']}× — race not serialised"
-    )
-    assert call_count["proc"] == 1, (
-        f"AutoProcessor.from_pretrained called {call_count['proc']}× — race not serialised"
-    )
+    assert (
+        call_count["model"] == 1
+    ), f"AutoModel.from_pretrained called {call_count['model']}× — race not serialised"
+    assert (
+        call_count["proc"] == 1
+    ), f"AutoProcessor.from_pretrained called {call_count['proc']}× — race not serialised"

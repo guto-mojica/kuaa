@@ -1,4 +1,5 @@
 """YOLOv8 object-detection backend (moved from visual_analyzer.py, unchanged)."""
+
 from __future__ import annotations
 
 import logging
@@ -30,9 +31,7 @@ class YOLOv8ObjectDetector:
         try:
             from ultralytics import YOLO
         except ImportError:
-            raise RuntimeError(
-                "ultralytics não instalado. Execute: pip install ultralytics"
-            )
+            raise RuntimeError("ultralytics não instalado. Execute: pip install ultralytics")
         self._model = YOLO(self.model_name)
         logger.info("YOLOv8 carregado: %s", self.model_name)
 

@@ -75,9 +75,7 @@ def save(metadata_dir: str | Path, annotations: dict[str, list[str]]) -> Path:
     # target's parent dir (not the system tmpdir) because os.replace must
     # stay within one filesystem to be atomic. On any failure the temp
     # file is removed so no stray ``.tmp`` is left behind.
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{FILENAME}.", suffix=".tmp", dir=path.parent
-    )
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{FILENAME}.", suffix=".tmp", dir=path.parent)
     tmp_path = Path(tmp_name)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
@@ -175,7 +173,7 @@ def normalize_tags(raw: str) -> list[str]:
 # ── Service-layer convenience wrappers (take a FilmContext) ──────────────────
 
 
-def load_annotations(ctx: "FilmContext") -> dict:
+def load_annotations(ctx: FilmContext) -> dict:
     """Load the manual-annotations dict for ``ctx``.
 
     Thin pass-through to :func:`load`, keyed by the context's
@@ -184,7 +182,7 @@ def load_annotations(ctx: "FilmContext") -> dict:
     return load(ctx.metadata_dir)
 
 
-def save_annotations(ctx: "FilmContext", data: dict) -> Path:
+def save_annotations(ctx: FilmContext, data: dict) -> Path:
     """Persist the manual-annotations dict for ``ctx`` atomically.
 
     Delegates to :func:`save`, which writes via a same-directory temp

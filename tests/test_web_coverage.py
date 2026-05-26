@@ -573,9 +573,9 @@ def test_corrupt_index_root_defect_still_in_ai_core_but_caught_by_service(
     """
     import pandas as pd
 
-    from cinemateca.library import FilmContext
     from api.services.search import IndexStatus, load_index
     from cinemateca.embeddings import SemanticSearch
+    from cinemateca.library import FilmContext
     from cinemateca.models.clip.openclip import OpenClipEmbedder
 
     cfg = _cfg_from_client()

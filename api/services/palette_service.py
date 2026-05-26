@@ -75,7 +75,9 @@ def _scene_matches(item: dict[str, Any], qn: str) -> bool:
     return qn in f"{item.get('label', '')} {item.get('sub', '')}".lower()
 
 
-def _scene_results(cfg: Any, films_data: list[Any], qn: str, limit: int = 8) -> list[dict[str, Any]]:
+def _scene_results(
+    cfg: Any, films_data: list[Any], qn: str, limit: int = 8
+) -> list[dict[str, Any]]:
     """Return cheap palette scene rows from existing per-film metadata."""
     rows: list[dict[str, Any]] = []
     for film in films_data:

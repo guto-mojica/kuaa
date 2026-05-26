@@ -1,4 +1,5 @@
 """Read cfg.rhymes tunables (top_k, lambda, min_similarity)."""
+
 from __future__ import annotations
 
 from typing import Any

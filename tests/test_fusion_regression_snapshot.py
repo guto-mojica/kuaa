@@ -37,9 +37,7 @@ def test_fusion_search_matches_jeca_tatu_snapshot() -> None:
     for key, want in expected.items():
         query, w_str = key.split("|w=")
         w = float(w_str)
-        hits, no_index = dispatch_fusion_search(
-            cfg, ctx, query, top_k=len(want), visual_weight=w
-        )
+        hits, no_index = dispatch_fusion_search(cfg, ctx, query, top_k=len(want), visual_weight=w)
         assert not no_index, f"Unexpected no_index for {query!r} w={w}"
         got_ids = [h["scene_id"] for h in hits]
         want_ids = [w_["scene_id"] for w_ in want]

@@ -3,6 +3,7 @@
 Pure functions: take Path / str / float, return Path / str / float / None.
 No FastAPI, no Jinja, no FilmContext dependency.
 """
+
 from __future__ import annotations
 
 import json

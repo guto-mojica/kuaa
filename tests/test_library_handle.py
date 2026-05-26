@@ -1,8 +1,6 @@
 """Unit tests for cinemateca.library.Library — the typed handle."""
-from __future__ import annotations
 
-import json
-from pathlib import Path
+from __future__ import annotations
 
 import pytest
 
@@ -62,9 +60,7 @@ def test_remove_unknown_raises(tmp_path):
 
 def test_state_empty_returns_zero(tmp_path):
     lib = Library(library_dir=tmp_path)
-    assert lib.state() == LibraryState(
-        raw_present=False, index_present=False, scene_count=0
-    )
+    assert lib.state() == LibraryState(raw_present=False, index_present=False, scene_count=0)
 
 
 def test_context_for_registered_film(tmp_path):
@@ -86,15 +82,10 @@ def test_context_unregistered_raises_keyerror(tmp_path):
 
 def test_filmcontext_from_paths_constructor(tmp_path):
     """FilmContext.from_paths builds a context without a cfg shim."""
-    from cinemateca.library import register_film
     from cinemateca.library.context import FilmContext
 
-    register_film(
-        tmp_path, slug="alpha", title="Alpha", year=2026, raw_filename="alpha.mp4"
-    )
-    ctx = FilmContext.from_paths(
-        library_dir=tmp_path, slug="alpha", data_dir=tmp_path
-    )
+    register_film(tmp_path, slug="alpha", title="Alpha", year=2026, raw_filename="alpha.mp4")
+    ctx = FilmContext.from_paths(library_dir=tmp_path, slug="alpha", data_dir=tmp_path)
     assert ctx.slug == "alpha"
     assert ctx.metadata_dir == tmp_path / "alpha" / "metadata"
     assert ctx.data_dir == tmp_path.resolve()
@@ -109,6 +100,4 @@ def test_filmcontext_from_paths_unregistered_raises_keyerror(tmp_path):
 def test_filmcontext_from_paths_invalid_slug_raises_valueerror(tmp_path):
     """from_paths raises ValueError for traversal slugs (not KeyError)."""
     with pytest.raises(ValueError, match="Invalid slug"):
-        FilmContext.from_paths(
-            library_dir=tmp_path, slug="../etc", data_dir=tmp_path
-        )
+        FilmContext.from_paths(library_dir=tmp_path, slug="../etc", data_dir=tmp_path)

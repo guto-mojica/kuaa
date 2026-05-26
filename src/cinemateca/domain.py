@@ -96,7 +96,11 @@ def _load_fields(raw_fields: Any) -> tuple[MetadataField, ...]:
         values = item.get("values") or ()
         if values and not isinstance(values, list):
             raise DomainError(f"metadata_fields[{idx}].values must be a list")
-        extras = {k: v for k, v in item.items() if k not in {"name", "label", "type", "required", "values"}}
+        extras = {
+            k: v
+            for k, v in item.items()
+            if k not in {"name", "label", "type", "required", "values"}
+        }
         fields.append(
             MetadataField(
                 name=name,
@@ -122,9 +126,7 @@ def _load_prompts(raw_prompts: Any) -> dict[str, PromptTemplate]:
         prompt = _require_name(item.get("prompt"), f"prompt_templates.{prompt_key}.prompt")
         raw_max_new_tokens = item.get("max_new_tokens")
         if raw_max_new_tokens is None:
-            raise DomainError(
-                f"prompt_templates.{prompt_key}.max_new_tokens is required"
-            )
+            raise DomainError(f"prompt_templates.{prompt_key}.max_new_tokens is required")
         try:
             max_new_tokens = int(raw_max_new_tokens)
         except (TypeError, ValueError) as exc:
@@ -132,9 +134,7 @@ def _load_prompts(raw_prompts: Any) -> dict[str, PromptTemplate]:
                 f"prompt_templates.{prompt_key}.max_new_tokens must be an integer"
             ) from exc
         if max_new_tokens <= 0:
-            raise DomainError(
-                f"prompt_templates.{prompt_key}.max_new_tokens must be positive"
-            )
+            raise DomainError(f"prompt_templates.{prompt_key}.max_new_tokens must be positive")
         prompts[prompt_key] = PromptTemplate(
             key=prompt_key,
             prompt=prompt,
@@ -207,7 +207,11 @@ def resolve_domain_pack_path(cfg: Any, project_root: str | Path | None = None) -
         path = Path(explicit).expanduser()
         return path if path.is_absolute() else root / path
 
-    pack = getattr(domain_cfg, "pack", DEFAULT_DOMAIN_PACK) if domain_cfg is not None else DEFAULT_DOMAIN_PACK
+    pack = (
+        getattr(domain_cfg, "pack", DEFAULT_DOMAIN_PACK)
+        if domain_cfg is not None
+        else DEFAULT_DOMAIN_PACK
+    )
     packs_dir = (
         getattr(domain_cfg, "packs_dir", DEFAULT_DOMAIN_PACKS_DIR)
         if domain_cfg is not None

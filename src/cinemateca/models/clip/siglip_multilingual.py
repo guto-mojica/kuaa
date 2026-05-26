@@ -117,9 +117,7 @@ class SiglipMultilingualEmbedder:
             # level differences and would desync queries from stored embeddings.
             self._processor = AutoProcessor.from_pretrained(self.model_id, use_fast=False)
             self._model = AutoModel.from_pretrained(self.model_id).to(self._device).eval()
-            logger.info(
-                "✓ SigLIP carregado em %.1fs | device=%s", time.time() - t0, self._device
-            )
+            logger.info("✓ SigLIP carregado em %.1fs | device=%s", time.time() - t0, self._device)
 
     # --------------------------------------------------------------- encoders
     def encode_text(self, text: str) -> np.ndarray:

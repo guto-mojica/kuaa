@@ -140,8 +140,9 @@ def serve(
     Replaces the legacy ``uv run app.py`` invocation. Opens
     ``http://<host>:<port>``.
     """
-    import uvicorn
     from pathlib import Path
+
+    import uvicorn
 
     project_root = str(Path(__file__).parent.parent.parent)
     uvicorn.run(
@@ -508,6 +509,7 @@ def config_show(
 
 # ─── cinemateca eval seed ────────────────────────────────────────────────────
 
+
 @eval_app.command("seed")
 def eval_seed(
     run: Annotated[
@@ -609,9 +611,7 @@ def eval_clap_sanity(
         status = "PASS" if p_at_5 >= floor else "FAIL"
         if status == "FAIL":
             any_fail = True
-        typer.echo(
-            f"{status}  {q['id']:25s}  P@5={p_at_5:.2f}  query={q['query']!r}"
-        )
+        typer.echo(f"{status}  {q['id']:25s}  P@5={p_at_5:.2f}  query={q['query']!r}")
     if any_fail:
         typer.echo(f"OVERALL: FAIL (floor={floor})")
         raise typer.Exit(code=1)

@@ -71,11 +71,7 @@ def _require_json_list(path: Path) -> list[dict[str, Any]]:
 
 
 def _dict_list_by_scene(items: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    return {
-        scene_id_key(item["scene_id"]): item
-        for item in items
-        if "scene_id" in item
-    }
+    return {scene_id_key(item["scene_id"]): item for item in items if "scene_id" in item}
 
 
 def _tags_by_scene(tag_index: dict[str, Any]) -> dict[str, set[str]]:
@@ -161,9 +157,7 @@ def build_catalog_export(
     if not isinstance(scene_tags, dict):
         raise ExportError(f"Catalog artifact must be a JSON object: {paths['scene_tags']}")
 
-    desc_by_scene = _dict_list_by_scene(
-        [item for item in descriptions if isinstance(item, dict)]
-    )
+    desc_by_scene = _dict_list_by_scene([item for item in descriptions if isinstance(item, dict)])
     visual_by_scene = _dict_list_by_scene(
         [item for item in visual_analysis if isinstance(item, dict)]
     )
@@ -181,14 +175,8 @@ def build_catalog_export(
         )
         scenes.append(export_record(full, pack))
 
-    seen_artifacts = {
-        name: _stringify_path(path)
-        for name, path in paths.items()
-        if path.exists()
-    }
-    missing_artifacts = [
-        name for name, path in paths.items() if not path.exists()
-    ]
+    seen_artifacts = {name: _stringify_path(path) for name, path in paths.items() if path.exists()}
+    missing_artifacts = [name for name, path in paths.items() if not path.exists()]
     now = generated_at or datetime.now(timezone.utc)
 
     return CatalogExport(

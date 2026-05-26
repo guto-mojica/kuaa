@@ -44,6 +44,7 @@ import pytest
 
 # ── Unit tests: the canonical-key helpers ─────────────────────────────────────
 
+
 class TestSceneIdKey:
     def test_int(self):
         from cinemateca.scene_ids import scene_id_key
@@ -84,6 +85,7 @@ class TestSceneIdKey:
 
 
 # ── Shared fixture: isolated client with seeded metadata ──────────────────────
+
 
 @pytest.fixture()
 def seeded_client(client):
@@ -160,6 +162,7 @@ def seeded_client(client):
 
 # ── Scenes tab: tag-filter correctness ────────────────────────────────────────
 
+
 class TestScenesTagFilter:
     @staticmethod
     def _scene_ids(html: str) -> set[str]:
@@ -194,6 +197,7 @@ class TestScenesTagFilter:
 
 # ── Search: SemanticSearch.combined tag-filter masking ────────────────────────
 
+
 class _StubEmbedder:
     """Replaces CLIPEmbedder for the combined() tag-filter path.
 
@@ -212,10 +216,12 @@ def _make_searcher(scene_ids):
 
     n = len(scene_ids)
     embeddings = np.eye(4, dtype="float32")[:n] if n <= 4 else np.ones((n, 4), "float32")
-    kf_df = pd.DataFrame({
-        "filepath": [f"frames/s{sid}.jpg" for sid in scene_ids],
-        "scene_id": scene_ids,
-    })
+    kf_df = pd.DataFrame(
+        {
+            "filepath": [f"frames/s{sid}.jpg" for sid in scene_ids],
+            "scene_id": scene_ids,
+        }
+    )
     return SemanticSearch(embeddings, kf_df, _StubEmbedder())
 
 

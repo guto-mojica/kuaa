@@ -15,6 +15,7 @@ Copies (does NOT delete) the flat artefacts. Manual cleanup of the legacy
 ``data/{raw,frames,metadata,embeddings}/`` dirs is the operator's choice
 after they verify the new layout works.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -61,8 +62,7 @@ def migrate_flat_to_library(
         )
     if len(raw_videos) > 1:
         logger.warning(
-            "Multiple videos in %s; picking %s (alphabetical first). "
-            "Other candidates: %s",
+            "Multiple videos in %s; picking %s (alphabetical first). " "Other candidates: %s",
             flat_raw,
             raw_videos[0].name,
             [p.name for p in raw_videos[1:]],

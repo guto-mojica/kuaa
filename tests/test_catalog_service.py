@@ -38,6 +38,7 @@ from cinemateca.library import FilmContext
 
 # ── FilmContext ───────────────────────────────────────────────────────────────
 
+
 class TestFilmContext:
     def test_from_config_resolves_all_paths(self, tmp_config):
         ctx = FilmContext.from_config(tmp_config)
@@ -63,6 +64,7 @@ class TestFilmContext:
 
 
 # ── Shared primitives ─────────────────────────────────────────────────────────
+
 
 class TestLoadJson:
     def test_missing_returns_none(self, tmp_path):
@@ -105,6 +107,7 @@ class TestKeyframeUrl:
 
 # ── Metadata loading ──────────────────────────────────────────────────────────
 
+
 class TestLoadMetadata:
     def test_empty_dir_yields_empty_structures(self, tmp_config):
         ctx = FilmContext.from_config(tmp_config)
@@ -126,9 +129,7 @@ class TestLoadMetadata:
         assert tags["exterior"] == {"351", "352"}
         assert tags["dia"] == {"351"}
         assert tags["manual-only"] == {"352"}
-        assert all(
-            isinstance(i, str) for ids in tags.values() for i in ids
-        )
+        assert all(isinstance(i, str) for ids in tags.values() for i in ids)
 
     def test_load_tag_index_raw_is_unnormalized(self, tmp_config, seed_metadata):
         """The search primitive returns the RAW merged index (mixed int
@@ -150,6 +151,7 @@ class TestLoadMetadata:
 
 # ── Card construction ─────────────────────────────────────────────────────────
 
+
 class TestBuildCards:
     def _load(self, tmp_config, seed_metadata):
         seed_metadata()
@@ -170,9 +172,7 @@ class TestBuildCards:
 
     def test_manual_str_tag_filter(self, tmp_config, seed_metadata):
         ctx, (kf, desc, vis, tags) = self._load(tmp_config, seed_metadata)
-        cards = build_cards(
-            kf, desc, vis, tags, ctx.data_dir, ["manual-only"], ""
-        )
+        cards = build_cards(kf, desc, vis, tags, ctx.data_dir, ["manual-only"], "")
         assert [c["scene_id"] for c in cards] == [352]
 
     def test_keyword_filter_on_description_blob(self, tmp_config, seed_metadata):
@@ -236,6 +236,7 @@ class TestBuildCards:
 
 # ── Tab context builders ──────────────────────────────────────────────────────
 
+
 class TestSceneContextBuilders:
     def test_scenes_context_empty(self, tmp_config):
         ctx = FilmContext.from_config(tmp_config)
@@ -249,9 +250,7 @@ class TestSceneContextBuilders:
         assert out["no_data"] is False
         assert len(out["cards"]) == 2
         # available_tags = sorted union of LLM + manual tag keys.
-        assert out["available_tags"] == sorted(
-            ["exterior", "dia", "manual-only", "noite"]
-        )
+        assert out["available_tags"] == sorted(["exterior", "dia", "manual-only", "noite"])
 
     def test_scenes_grid_filtered(self, tmp_config, seed_metadata):
         seed_metadata()
@@ -262,6 +261,7 @@ class TestSceneContextBuilders:
 
 
 # ── SMPTE timecode utilities ──────────────────────────────────────────────────
+
 
 class TestToSmpte:
     def test_zero(self):
@@ -323,18 +323,29 @@ class TestBuildCardsSmpte:
         """When ``start_time_s`` is present the timecode is SMPTE HH:MM:SS:FF."""
         seed_metadata(
             scenes=[
-                {"scene_id": 351, "filepath": "frames/s351.jpg",
-                 "start_time_s": 83.0, "start_frame": 1992},
-                {"scene_id": 352, "filepath": "frames/s352.jpg",
-                 "start_time_s": 105.73, "start_frame": 2535},
+                {
+                    "scene_id": 351,
+                    "filepath": "frames/s351.jpg",
+                    "start_time_s": 83.0,
+                    "start_frame": 1992,
+                },
+                {
+                    "scene_id": 352,
+                    "filepath": "frames/s352.jpg",
+                    "start_time_s": 105.73,
+                    "start_frame": 2535,
+                },
             ],
-            descriptions=None, llm_tags=None, manual=None, visual=None,
+            descriptions=None,
+            llm_tags=None,
+            manual=None,
+            visual=None,
         )
         ctx = FilmContext.from_config(tmp_config)
         kf, desc, vis, tags = load_metadata(ctx.metadata_dir)
         cards = build_cards(kf, desc, vis, tags, ctx.data_dir, [], "")
         tcs = [c["timecode"] for c in cards]
-        assert tcs[0] == "00:01:23:00"      # 83 s * 24 fps
+        assert tcs[0] == "00:01:23:00"  # 83 s * 24 fps
         # timecode has HH:MM:SS:FF shape
         for tc in tcs:
             parts = tc.split(":")
@@ -344,9 +355,11 @@ class TestBuildCardsSmpte:
         """When ``start_time_s`` is absent the raw ``timecode_start`` string
         is preserved (backward-compat for test fixtures and older metadata)."""
         seed_metadata(
-            scenes=[{"scene_id": 351, "filepath": "frames/s351.jpg",
-                     "timecode_start": "00:01:23"}],
-            descriptions=None, llm_tags=None, manual=None, visual=None,
+            scenes=[{"scene_id": 351, "filepath": "frames/s351.jpg", "timecode_start": "00:01:23"}],
+            descriptions=None,
+            llm_tags=None,
+            manual=None,
+            visual=None,
         )
         ctx = FilmContext.from_config(tmp_config)
         kf, desc, vis, tags = load_metadata(ctx.metadata_dir)

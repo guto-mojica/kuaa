@@ -375,15 +375,13 @@ def test_buscar_renders_modes_and_knobs(client):
     # if any flag flips back to false.
     for mode in ("text", "image", "audio", "multimodal"):
         chip = re.search(rf'<button[^>]*data-mode="{mode}"[^>]*>', html)
-        assert chip and " disabled" not in chip.group(0), (
-            f"chip {mode!r} unexpectedly disabled"
-        )
+        assert chip and " disabled" not in chip.group(0), f"chip {mode!r} unexpectedly disabled"
     # Retrieval knob row — only backed controls are visible. Hybrid + k +
     # Rerank are interactive Alpine popovers. Hybrid Search plan Task E2
     # moved the sem/bm25 readout from a server-rendered float to a
     # client-computed ``x-text`` driven by the buscarRetrieval store,
     # so the bare ``sem 0.70`` substring no longer ships from the server.
-    assert 'knob-popover' in html
+    assert "knob-popover" in html
     assert 'data-state="readonly"' not in html
     assert "Rerank" in html
     assert "MMR" not in html
@@ -1200,7 +1198,7 @@ def test_scenes_toolrow_carries_group_and_sort_hidden_inputs(client, seed_metada
     # query params.
     assert 'hx-trigger="refresh"' in html
     assert 'hx-target="#scenes-grid"' in html
-    assert 'refreshScenes()' in html
+    assert "refreshScenes()" in html
 
 
 def test_api_scenes_sort_duration_reorders_cards(client, seed_metadata):
@@ -1225,9 +1223,7 @@ def test_api_scenes_sort_duration_reorders_cards(client, seed_metadata):
     assert idx_352 < idx_351, "sort=duration should put the longer scene first"
 
 
-def test_api_scenes_sort_pins_falls_back_to_timecode_when_tied(
-    client, seed_metadata
-):
+def test_api_scenes_sort_pins_falls_back_to_timecode_when_tied(client, seed_metadata):
     """Tied pin_count (both 0) falls back to start_s, preserving timecode order."""
     seed_metadata()
     r = client.get("/api/scenes?sort=pins")
@@ -1568,9 +1564,7 @@ def test_proc_active_step_renders_resource_metrics(client, inject_job, monkeypat
     assert "42%" in html
 
 
-def test_pipeline_start_response_refreshes_full_processing_tab(
-    client, seed_metadata, monkeypatch
-):
+def test_pipeline_start_response_refreshes_full_processing_tab(client, seed_metadata, monkeypatch):
     """Starting a job must return the full tab so live regions mount."""
     import api.jobs as jobs
     import api.routes.processing as processing
@@ -1583,10 +1577,7 @@ def test_pipeline_start_response_refreshes_full_processing_tab(
             id="started1",
             video_path=video_path,
             status=jobs.STATUS_CREATED,
-            steps=[
-                jobs.StepInfo(name=name, label=label)
-                for name, label in jobs.STEP_DEFS
-            ],
+            steps=[jobs.StepInfo(name=name, label=label) for name, label in jobs.STEP_DEFS],
         )
         job.steps[0].state = "active"
         jobs._registry.add(job)

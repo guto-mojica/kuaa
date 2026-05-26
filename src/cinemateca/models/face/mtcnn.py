@@ -1,4 +1,5 @@
 """MTCNN face-detection backend (moved from visual_analyzer.py, unchanged)."""
+
 from __future__ import annotations
 
 import logging
@@ -59,12 +60,14 @@ class MTCNNFaceDetector:
 
         faces = []
         for box, prob, lm in zip(boxes, probs, landmarks):
-            faces.append({
-                "bbox": box.tolist(),
-                "confidence": float(prob),
-                "landmarks": lm.tolist() if lm is not None else None,
-                "area": float((box[2] - box[0]) * (box[3] - box[1])),
-            })
+            faces.append(
+                {
+                    "bbox": box.tolist(),
+                    "confidence": float(prob),
+                    "landmarks": lm.tolist() if lm is not None else None,
+                    "area": float((box[2] - box[0]) * (box[3] - box[1])),
+                }
+            )
 
         return {"num_faces": len(faces), "faces": faces}
 
