@@ -11,6 +11,7 @@ Public API:
         load_tag_index, load_metadata,
     )
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

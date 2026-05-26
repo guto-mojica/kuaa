@@ -15,6 +15,7 @@ back to one result per scene using max(similarity).
 
 These tests pin the 1:N row shape and the field-sharing contract.
 """
+
 from __future__ import annotations
 
 import json
@@ -31,15 +32,20 @@ def _fake_timecode(seconds: float, fps: float = 24.0):
     computed by the caller via ``(end - start).get_seconds()`` so we
     expose ``__sub__`` to return another fake.
     """
+
     class _T:
         def __init__(self, s: float):
             self._s = s
+
         def get_seconds(self) -> float:
             return self._s
+
         def get_frames(self) -> int:
             return int(self._s * fps)
+
         def __sub__(self, other):
             return _T(self._s - other._s)
+
     return _T(seconds)
 
 
@@ -67,6 +73,7 @@ def fake_keyframe_paths(tmp_path):
 
 # ── 1:N row emission ──────────────────────────────────────────────────────────
 
+
 class TestExportMetadataOneToMany:
     """``export_metadata`` emits N rows per scene (N = keyframes_per_scene),
     each row sharing scene-level fields but with a unique keyframe."""
@@ -82,9 +89,7 @@ class TestExportMetadataOneToMany:
         det.export_metadata(fake_scene_list, fake_keyframe_paths, out)
 
         data = json.loads(out.read_text())
-        assert len(data) == 6, (
-            f"expected 6 rows (2 scenes × 3 keyframes), got {len(data)}"
-        )
+        assert len(data) == 6, f"expected 6 rows (2 scenes × 3 keyframes), got {len(data)}"
 
     def test_rows_for_same_scene_share_scene_id_and_times(
         self, fake_scene_list, fake_keyframe_paths, tmp_path
@@ -119,23 +124,17 @@ class TestExportMetadataOneToMany:
 
         # keyframe_id must be globally unique
         kf_ids = [r["keyframe_id"] for r in data]
-        assert len(kf_ids) == len(set(kf_ids)), (
-            f"keyframe_ids must be unique: {kf_ids}"
-        )
+        assert len(kf_ids) == len(set(kf_ids)), f"keyframe_ids must be unique: {kf_ids}"
 
         # ...and follow the documented naming convention
         for r in data:
-            assert r["keyframe_id"].startswith(
-                f"scene_{r['scene_id']:04d}_kf_"
-            ), r["keyframe_id"]
+            assert r["keyframe_id"].startswith(f"scene_{r['scene_id']:04d}_kf_"), r["keyframe_id"]
 
         # Each row's filepath must be one of the six on-disk JPGs.
         filepaths = {r["filepath"] for r in data}
         assert filepaths == {str(p) for p in fake_keyframe_paths}
 
-    def test_kf_per_scene_one_is_backward_compatible(
-        self, fake_scene_list, tmp_path
-    ):
+    def test_kf_per_scene_one_is_backward_compatible(self, fake_scene_list, tmp_path):
         """With keyframes_per_scene=1, the output is 1 row per scene —
         same as the legacy behavior (only keyframe_id naming changed)."""
         from cinemateca.scene_detector import SceneDetector

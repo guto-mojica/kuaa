@@ -116,17 +116,15 @@ def make_ctx(request: Request, **kwargs) -> dict:
         "has_right_pane": True,
         "breadcrumb": [],
         "page_title": None,
-        # TopBar (Task 7) defaults — Task 8's chrome_service will replace
-        # these with the real per-request values (active job count derived
-        # from the jobs registry, viewers from the collaboration epic, etc.).
-        # For now the topbar renders with a 0-count tab badge, no viewers
-        # stack, and an anonymous "M" avatar when these aren't supplied.
+        # Chrome defaults — active_job_count still drives the Processing badge.
+        # Collaboration identity/notification keys are retained for future
+        # surfaces but are not rendered by the launch topbar.
         "active_job_count": 0,
         "viewers": [],
         "notification_count": 0,
         "current_user": None,
-        # Mojica redesign (Task 10): the Buscar tab reads display-only
-        # retrieval knobs straight from ``cfg.search.*``. Exposing the
+        # Mojica redesign (Task 10+): the Buscar tab reads retrieval UI
+        # gates/defaults straight from ``cfg.search.*``. Exposing the
         # full config here keeps the routes simple and avoids a separate
         # dependency for templates.
         "cfg": get_config(),

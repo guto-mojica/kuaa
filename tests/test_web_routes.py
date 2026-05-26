@@ -38,6 +38,8 @@ machinery now shared with the other web test modules.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 # ── Group 1: empty-data smoke tests (must PASS) ───────────────────────────────
@@ -271,8 +273,8 @@ def test_topbar_active_tab(client, path, active):
 
 # ── Group 1d: IconRail + LeftPane (Task 8) ────────────────────────────────────
 #
-# The Mojica IconRail (56px column) renders five tab anchors plus Home and
-# Settings. The active tab carries the .ic.on class. The LeftPane (248px
+# The Mojica IconRail (56px column) renders five tab anchors plus Home.
+# The active tab carries the .ic.on class. The LeftPane (248px
 # container) renders a filter input + scroll body + status footer. Its filter
 # input HTMX-targets /api/library/tree which returns _left_pane_body.html.
 
@@ -337,8 +339,8 @@ def test_icon_rail_active_for_each_tab(client, path, active):
 #
 # The Mojica Buscar template rewrites the legacy text/image toggle + raw
 # scene-grid into a single ``.b-cp`` section with:
-#   * ``.search-wrap`` containing the qbar + 4 modality chips + retrieval
-#     knobs (Hybrid sem/bm25, Rerank, MMR, k),
+#   * ``.search-wrap`` containing the qbar + 4 modality chips + wired retrieval
+#     knobs (Hybrid sem/bm25, k, and Fusion weight when active),
 #   * ``.caption`` row (result/film/latency stats + view-toggle segments),
 #   * ``#search-results`` grid (the Task-11 .b-card cards land in this swap
 #     target),
@@ -366,21 +368,23 @@ def test_buscar_renders_modes_and_knobs(client):
     # ``data-mode`` attribute is stable across locales.
     for mode in ("text", "image", "audio", "multimodal"):
         assert f'data-mode="{mode}"' in html
-    # Disabled chips for the M2/M3 modalities (audio + multimodal off
-    # by default in config). ``disabled`` lands on the <button>.
-    assert "disabled aria-disabled" in html
-    # Retrieval knob row — Hybrid + k are interactive Alpine popovers
-    # (``.knob.knob-popover``); Rerank + MMR remain read-only chips
-    # (``.knob[data-state="readonly"]``). Hybrid Search plan Task E2
+    # All four modality chips are live by default now: M2 lit Audio
+    # (``audio_enabled``) and M3 #1 lit Fusion (``multimodal_enabled``).
+    # The disabled affordance still exists in the template — it's gated
+    # on the per-modality ``cfg.search.*_enabled`` flags and re-engages
+    # if any flag flips back to false.
+    for mode in ("text", "image", "audio", "multimodal"):
+        chip = re.search(rf'<button[^>]*data-mode="{mode}"[^>]*>', html)
+        assert chip and " disabled" not in chip.group(0), f"chip {mode!r} unexpectedly disabled"
+    # Retrieval knob row — only backed controls are visible. Hybrid + k +
+    # Rerank are interactive Alpine popovers. Hybrid Search plan Task E2
     # moved the sem/bm25 readout from a server-rendered float to a
     # client-computed ``x-text`` driven by the buscarRetrieval store,
-    # so the bare ``sem 0.70`` substring no longer ships from the
-    # server. MMR's λ still renders server-side from cfg.search.
-    assert 'class="knob"' in html
-    assert 'knob-popover' in html
-    assert 'data-state="readonly"' in html
-    # MMR chip keeps its server-rendered λ readout from cfg.search.
-    assert "λ {:.2f}".format(0.50) in html  # mmr_lambda default
+    # so the bare ``sem 0.70`` substring no longer ships from the server.
+    assert "knob-popover" in html
+    assert 'data-state="readonly"' not in html
+    assert "Rerank" in html
+    assert "MMR" not in html
     # Caption row + view-toggle segments.
     assert 'class="caption"' in html
     assert 'data-view="grid"' in html
@@ -452,6 +456,20 @@ def test_library_tree_filter_endpoint(client):
     assert "Collections" in html or "Coleções" in html
     # The .ch-coll "Entire library" / "Acervo inteiro" row anchors the section.
     assert 'class="ch-coll' in html
+
+
+def test_left_pane_collection_counts_follow_scene_buckets(seed_metadata):
+    """Collection counts use the same tipo buckets as the Scenes filters."""
+    seeded = seed_metadata()
+    from api.services.chrome_service import build_chrome_context
+
+    ctx = build_chrome_context(seeded["cfg"])
+    counts = {c["category"]: c["count"] for c in ctx["collections"]}
+    assert counts[None] == 2
+    assert counts["exterior"] == 2
+    assert counts["cartela"] == 0
+    assert counts["dialogo"] == 0
+    assert counts["interior"] == 0
 
 
 # ── Group 1f: Buscar inspector (Task 12) ──────────────────────────────────────
@@ -588,6 +606,10 @@ def test_search_toolrow_renders_hybrid_popover(client) -> None:
     assert 'value="hybrid"' in body
     # Slider for sem_w (range input).
     assert 'type="range"' in body
+    # Changing backed retrieval controls refreshes the active query after
+    # Alpine has copied the new values into the hidden HTMX mirrors.
+    assert "refreshSearch()" in body
+    assert 'x-ref="searchInput"' in body
     # Hidden mirrors INSIDE #search-text-form for HTMX include.
     assert 'name="retriever"' in body
     assert 'name="sem_w"' in body
@@ -595,17 +617,16 @@ def test_search_toolrow_renders_hybrid_popover(client) -> None:
     assert 'name="top_k"' in body
 
 
-def test_search_toolrow_renders_readonly_rerank_and_mmr_badges(client) -> None:
-    """Rerank chip reflects config state; MMR stays read-only with M3 badge.
-    Both keep ``data-state="readonly"`` for screen-reader + test pinning."""
+def test_search_toolrow_wires_rerank_and_hides_search_mmr(client) -> None:
+    """Buscar exposes backed text rerank but keeps Search-tab MMR hidden."""
     resp = client.get("/tab/search")
     body = resp.text
-    # Read-only chips with explicit data-state for screen-reader + test pinning.
-    assert 'data-state="readonly"' in body
-    # MMR badge still present (M3 feature not yet shipped).
-    assert ">M3<" in body
-    # Rerank chip present (M2 badge removed — backend shipped).
+    assert 'name="reranker_enabled"' in body
+    assert "$store.buscarRetrieval.rerank_enabled" in body
     assert "Rerank" in body
+    assert '@change="refreshSearch()"' in body
+    assert "MMR" not in body
+    assert 'data-state="readonly"' not in body
 
 
 # ── Group 1f-bis: Cenas inspector (Task 16) ───────────────────────────────────
@@ -1172,8 +1193,12 @@ def test_scenes_toolrow_carries_group_and_sort_hidden_inputs(client, seed_metada
     assert 'id="scenes-sort-popover"' in html
     assert 'name="group_choice"' in html
     assert 'name="sort_choice"' in html
-    # Both popovers wire HTMX so a radio change refreshes the grid.
-    assert html.count('hx-target="#scenes-grid"') >= 2
+    # The toolrow owns the refresh request. Radio changes trigger it only
+    # after Alpine updates the hidden mirrors, avoiding stale group/sort
+    # query params.
+    assert 'hx-trigger="refresh"' in html
+    assert 'hx-target="#scenes-grid"' in html
+    assert "refreshScenes()" in html
 
 
 def test_api_scenes_sort_duration_reorders_cards(client, seed_metadata):
@@ -1198,9 +1223,7 @@ def test_api_scenes_sort_duration_reorders_cards(client, seed_metadata):
     assert idx_352 < idx_351, "sort=duration should put the longer scene first"
 
 
-def test_api_scenes_sort_pins_falls_back_to_timecode_when_tied(
-    client, seed_metadata
-):
+def test_api_scenes_sort_pins_falls_back_to_timecode_when_tied(client, seed_metadata):
     """Tied pin_count (both 0) falls back to start_s, preserving timecode order."""
     seed_metadata()
     r = client.get("/api/scenes?sort=pins")
@@ -1255,6 +1278,22 @@ def test_api_scenes_group_tipo_emits_tipo_headings(client, seed_metadata):
     next_close = html.find("</div>", group_start)
     heading_html = html[group_start:next_close]
     assert "Default Film" not in heading_html
+
+
+def test_api_scenes_bucket_filters_by_tipo(client, seed_metadata):
+    """Left-pane collection shortcuts use ``?bucket=`` to filter scene tipos."""
+    seed_metadata()
+
+    r = client.get("/api/scenes?bucket=exterior")
+    assert r.status_code == 200, r.text[:300]
+    html = r.text
+    assert 'class="scenecard"' in html
+    assert "var(--c-cat-exterior)" in html
+
+    r = client.get("/api/scenes?bucket=interior")
+    assert r.status_code == 200, r.text[:300]
+    assert "No scenes match the filters." in r.text
+    assert 'class="scenecard"' not in r.text
 
 
 def test_api_scenes_unknown_group_falls_back_to_film(client, seed_metadata):
@@ -1468,6 +1507,8 @@ def test_proc_renders_p_cp_with_top(client):
     assert 'class="p-top"' in html
     assert 'id="active-jobs"' in html
     assert 'class="p-log"' in html
+    assert 'hx-target="closest .tab-panel"' in html
+    assert 'hx-swap="outerHTML"' in html
 
 
 def test_proc_no_active_jobs_renders_empty_state(client):
@@ -1503,6 +1544,59 @@ def test_proc_stats_section_present(client):
     html = r.text
     assert 'class="p-stats"' in html
     assert 'class="p-queue"' in html
+
+
+def test_proc_active_step_renders_resource_metrics(client, inject_job, monkeypatch):
+    """The Processing right pane renders backed resource metrics when active."""
+    import api.services.processing_service as processing_service
+
+    monkeypatch.setattr(
+        processing_service,
+        "build_resource_metrics",
+        lambda: [{"label": "CPU", "value": 0.42}],
+    )
+    inject_job()
+    r = client.get("/processing")
+    assert r.status_code == 200, r.text[:500]
+    html = r.text
+    assert "RESOURCES" in html
+    assert "CPU" in html
+    assert "42%" in html
+
+
+def test_pipeline_start_response_refreshes_full_processing_tab(client, seed_metadata, monkeypatch):
+    """Starting a job must return the full tab so live regions mount."""
+    import api.jobs as jobs
+    import api.routes.processing as processing
+
+    seeded = seed_metadata()
+    raw = seeded["cfg"].paths.library_dir / "default" / "raw" / "default.mp4"
+
+    def fake_start_job(video_path: str, enabled_steps: set[str], cfg) -> str:
+        job = jobs.JobState(
+            id="started1",
+            video_path=video_path,
+            status=jobs.STATUS_CREATED,
+            steps=[jobs.StepInfo(name=name, label=label) for name, label in jobs.STEP_DEFS],
+        )
+        job.steps[0].state = "active"
+        jobs._registry.add(job)
+        return job.id
+
+    monkeypatch.setattr(processing, "start_job", fake_start_job)
+
+    resp = client.post(
+        "/api/pipeline/start",
+        data={"video_path": str(raw), "steps": ["scene_detection"]},
+    )
+
+    assert resp.status_code == 200, resp.text[:500]
+    html = resp.text
+    assert 'class="p-cp"' in html
+    assert 'id="processing-job"' in html
+    assert 'id="proc-log"' in html
+    assert 'sse-connect="/api/pipeline/stream/started1"' in html
+    assert 'hx-swap-oob="innerHTML"' in html
 
 
 # ── Task 25 ───────────────────────────────────────────────────────────
@@ -1754,3 +1848,4 @@ def test_mojica_js_registers_buscar_retrieval_store(client) -> None:
     # Default values that the UI popovers will display.
     assert "'hybrid'" in body  # default retriever mode
     assert "0.70" in body  # default sem_w
+    assert "rerank_enabled" in body

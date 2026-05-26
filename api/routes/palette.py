@@ -13,7 +13,7 @@ Shape of the response::
       "navigate": [ {key, label, url, icon, kbd}, ... ],
       "actions":  [ {key, label, url, icon},      ... ],
       "films":    [ {key, label, sub, url, icon, slug}, ... ],
-      "scenes_recent": []
+      "scenes_recent": [ {key, label, sub, url, icon, slug, scene_id}, ... ]
     }
 
 All four groups are always present (even when empty) so the client's
@@ -34,10 +34,10 @@ router = APIRouter()
 def palette_search(q: str = "") -> dict:
     """Return grouped palette results matching ``q``.
 
-    Empty ``q`` returns the full static catalogues + every registered film
-    (so the open-and-immediately-look pattern works without typing). A
-    non-empty ``q`` filters each group by case-insensitive substring on
-    the row label.
+    Empty ``q`` returns the full static catalogues, every registered film,
+    and a capped scene list (so the open-and-immediately-look pattern works
+    without typing). A non-empty ``q`` filters each group by case-insensitive
+    substring.
 
     Note: ``get_config`` is called directly (no FastAPI ``Depends``) so
     the conftest's dynamic per-module rebinding of ``get_config`` to the

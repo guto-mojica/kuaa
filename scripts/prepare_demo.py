@@ -138,8 +138,7 @@ def _validate_keyframe_paths(
             continue
         if not any(_is_inside(p, runtime_root) for p in existing):
             result.errors.append(
-                "Keyframe filepath must resolve inside the demo runtime root: "
-                f"{raw}"
+                "Keyframe filepath must resolve inside the demo runtime root: " f"{raw}"
             )
 
 
@@ -190,9 +189,7 @@ def _validate_embeddings(root: Path, result: CheckResult) -> None:
         )
 
 
-def _validate_checksums(
-    runtime_root: Path, manifest: dict[str, Any], result: CheckResult
-) -> None:
+def _validate_checksums(runtime_root: Path, manifest: dict[str, Any], result: CheckResult) -> None:
     checksums = manifest.get("checksums") or {}
     if not isinstance(checksums, dict):
         result.errors.append("manifest checksums must be an object")
@@ -313,8 +310,7 @@ def _download_file(url: str, dest: Path, expected_sha256: str | None = None) -> 
         if actual.lower() != expected_sha256.lower():
             tmp.unlink(missing_ok=True)
             raise DemoError(
-                f"Checksum mismatch for {dest.name}: expected {expected_sha256}, "
-                f"got {actual}"
+                f"Checksum mismatch for {dest.name}: expected {expected_sha256}, " f"got {actual}"
             )
     tmp.replace(dest)
 
@@ -369,7 +365,7 @@ def _safe_extract(
             continue
         rel = name
         if strip_prefix:
-            rel = rel[len(strip_prefix):]
+            rel = rel[len(strip_prefix) :]
         dest = (target / rel).resolve()
         if target != dest and target not in dest.parents:
             raise DemoError(f"Refusing unsafe zip path: {name}")
@@ -396,7 +392,7 @@ def extract_bundle(zip_path: Path, runtime_root: Path) -> None:
         first_parts = {Path(n).parts[0] for n in names if Path(n).parts}
         if len(first_parts) == 1:
             prefix = next(iter(first_parts)) + "/"
-            stripped = [n[len(prefix):] for n in names if n.startswith(prefix)]
+            stripped = [n[len(prefix) :] for n in names if n.startswith(prefix)]
             if _zip_has_layout(stripped):
                 _safe_extract(archive, runtime_root, names, strip_prefix=prefix)
                 return
@@ -441,13 +437,14 @@ def prepare_downloads(
     video_path = raw_dir / video_name
     expected_video_sha = source.get("source_video_sha256")
     if video_path.exists() and (
-        not expected_video_sha
-        or sha256_file(video_path).lower() == expected_video_sha.lower()
+        not expected_video_sha or sha256_file(video_path).lower() == expected_video_sha.lower()
     ):
         print(f"Using existing source video: {video_path}")
         return
 
-    video_url = source_video_url or source.get("source_video_url") or discover_source_video_url(manifest)
+    video_url = (
+        source_video_url or source.get("source_video_url") or discover_source_video_url(manifest)
+    )
     if not video_url:
         item_url = source.get("loc_item_url", "the source item page")
         raise DemoError(
@@ -529,4 +526,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

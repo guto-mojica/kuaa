@@ -114,12 +114,8 @@ def model_snapshot(cfg: Config) -> dict[str, Any]:
         "visual_analysis": {
             "face_detector": _get_path(cfg, "models", "face_detector"),
             "object_detector": _get_path(cfg, "models", "object_detector"),
-            "object_model": _get_path(
-                cfg, "visual_analysis", "object_detection", "model"
-            ),
-            "environment_classifier": _get_path(
-                cfg, "models", "environment_classifier"
-            ),
+            "object_model": _get_path(cfg, "visual_analysis", "object_detection", "model"),
+            "environment_classifier": _get_path(cfg, "models", "environment_classifier"),
         },
     }
 
@@ -140,21 +136,33 @@ def domain_snapshot(cfg: Config) -> dict[str, Any]:
     }
 
 
-def output_artifacts(cfg: Config) -> dict[str, dict[str, Any]]:
-    """Return expected output artifact paths and existence state."""
+def output_artifacts(
+    cfg: Any,
+    *,
+    metadata_dir: str | Path | None = None,
+    embeddings_dir: str | Path | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Return expected output artifact paths and existence state.
 
-    metadata_dir = Path(_get_path(cfg, "paths", "metadata_dir", default="."))
-    embeddings_dir = Path(_get_path(cfg, "paths", "embeddings_dir", default="."))
-    llm_desc = _get_path(
-        cfg, "llm", "descriptions_filename", default="scene_descriptions.json"
+    When *metadata_dir* or *embeddings_dir* are provided they override the
+    corresponding ``cfg.paths.*`` values — used by per-film pipelines that
+    route artefacts to a film-specific subdirectory.
+    """
+
+    metadata_dir = (
+        Path(metadata_dir)
+        if metadata_dir is not None
+        else Path(_get_path(cfg, "paths", "metadata_dir", default="."))
     )
+    embeddings_dir = (
+        Path(embeddings_dir)
+        if embeddings_dir is not None
+        else Path(_get_path(cfg, "paths", "embeddings_dir", default="."))
+    )
+    llm_desc = _get_path(cfg, "llm", "descriptions_filename", default="scene_descriptions.json")
     llm_tags = _get_path(cfg, "llm", "tags_filename", default="scene_tags.json")
-    emb_file = _get_path(
-        cfg, "embeddings", "filename", default="keyframe_embeddings.npy"
-    )
-    mapping_file = _get_path(
-        cfg, "embeddings", "mapping_filename", default="index_mapping.json"
-    )
+    emb_file = _get_path(cfg, "embeddings", "filename", default="keyframe_embeddings.npy")
+    mapping_file = _get_path(cfg, "embeddings", "mapping_filename", default="index_mapping.json")
 
     paths = {
         "video_properties": metadata_dir / "video_properties.json",
@@ -167,10 +175,7 @@ def output_artifacts(cfg: Config) -> dict[str, dict[str, Any]]:
         "embeddings_mapping": embeddings_dir / mapping_file,
         "run_manifest": metadata_dir / MANIFEST_FILENAME,
     }
-    return {
-        name: {"path": str(path), "exists": path.exists()}
-        for name, path in paths.items()
-    }
+    return {name: {"path": str(path), "exists": path.exists()} for name, path in paths.items()}
 
 
 def steps_snapshot(result: Any | None) -> list[dict[str, Any]]:
@@ -220,6 +225,7 @@ def build_run_manifest(
     started_at_epoch: float | None = None,
     finished_at_epoch: float | None = None,
     error: str | None = None,
+    metadata_dir: str | Path | None = None,
 ) -> dict[str, Any]:
     """Build the run manifest payload without writing it."""
 
@@ -246,7 +252,7 @@ def build_run_manifest(
         "domain": domain_snapshot(cfg),
         "models": model_snapshot(cfg),
         "steps": steps_snapshot(result),
-        "artifacts": output_artifacts(cfg),
+        "artifacts": output_artifacts(cfg, metadata_dir=metadata_dir),
     }
 
 
@@ -255,9 +261,7 @@ def write_manifest(path: str | Path, payload: dict[str, Any]) -> Path:
 
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{target.name}.", suffix=".tmp", dir=target.parent
-    )
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{target.name}.", suffix=".tmp", dir=target.parent)
     tmp_path = Path(tmp_name)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
@@ -274,31 +278,24 @@ def write_run_manifest(
     video_path: str | Path,
     result: Any | None = None,
     *,
-    metadata_dir: Path | None = None,
+    metadata_dir: str | Path | None = None,
     status: str | None = None,
     started_at_epoch: float | None = None,
     finished_at_epoch: float | None = None,
     error: str | None = None,
 ) -> Path:
-    """Build and write ``run_manifest.json`` beside metadata artifacts.
+    """Build and write `run_manifest.json` beside metadata artifacts.
 
-    Args:
-        cfg: Configuration namespace (``load_config()`` result).
-        video_path: Path to the source video file.
-        result: ``PipelineResult`` if available; ``None`` for in-progress writes.
-        metadata_dir: Override the directory where the manifest is written.
-            When ``None`` (default), falls back to ``cfg.paths.metadata_dir``
-            — the legacy flat layout.  Pass ``pipeline._metadata_dir()`` for
-            per-film layouts so the manifest lands next to the film's own
-            keyframes and not in the global metadata directory.
-        status: Explicit run status string (``"done"`` / ``"error"`` / …).
-        started_at_epoch: Unix timestamp of run start.
-        finished_at_epoch: Unix timestamp of run finish.
-        error: Error message for failed runs.
+    When *metadata_dir* is provided it overrides ``cfg.paths.metadata_dir``
+    — used by per-film pipelines that route artefacts to a film-specific
+    subdirectory.
     """
 
-    target_dir = metadata_dir if metadata_dir is not None else Path(cfg.paths.metadata_dir)
-    manifest_path = target_dir / MANIFEST_FILENAME
+    manifest_path = (
+        Path(metadata_dir) / MANIFEST_FILENAME
+        if metadata_dir is not None
+        else Path(cfg.paths.metadata_dir) / MANIFEST_FILENAME
+    )
     payload = build_run_manifest(
         cfg,
         video_path,
@@ -307,6 +304,7 @@ def write_run_manifest(
         started_at_epoch=started_at_epoch,
         finished_at_epoch=finished_at_epoch,
         error=error,
+        metadata_dir=metadata_dir,
     )
     payload["artifacts"]["run_manifest"]["exists"] = True
     return write_manifest(manifest_path, payload)

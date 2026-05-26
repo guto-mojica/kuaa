@@ -16,8 +16,7 @@
   display: flex; align-items: center; gap: 8px;
   font-size: 13.5px; color: var(--c-text-2);
 }
-.ch-top .crumb .seg { padding: 2px 4px; cursor: pointer; border-radius: 3px; }
-.ch-top .crumb .seg:hover { background: var(--c-hover); color: var(--c-text); }
+.ch-top .crumb .seg { padding: 2px 4px; border-radius: 3px; }
 .ch-top .crumb .seg.cur {
   color: var(--c-text); font-weight: 500;
 }
@@ -25,10 +24,9 @@
 .ch-top .crumb .ver {
   font-family: var(--font-mono); font-size: 11px; color: var(--c-text-2);
   background: var(--c-raised); padding: 2px 7px 2px 8px; border-radius: 4px;
-  display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 5px;
   border: 1px solid var(--c-border);
 }
-.ch-top .crumb .ver:hover { border-color: var(--c-border-2); }
 
 /* TABS — centered chip group, Frame.io style */
 .ch-top .tabs {

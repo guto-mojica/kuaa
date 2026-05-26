@@ -5,6 +5,7 @@ support ``enrich_rhyme`` (in ``api/services/rhymes_service.py``) which
 decorates raw :class:`~cinemateca.rhymes.Rhyme` dataclass instances with
 the human-readable bits the template needs.
 """
+
 from __future__ import annotations
 
 import logging

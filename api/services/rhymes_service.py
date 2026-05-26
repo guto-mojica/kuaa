@@ -15,11 +15,9 @@ Anchor selection
 ----------------
 The ``?anchor=`` query param has the form ``"<slug>/<scene_id>"`` (e.g.
 ``"jeca/1"``). It is the source of truth for which scene the page is
-"reading" from. When the param is absent or malformed the service falls
-back to the first registered film that has at least one processed scene
-on disk, with ``scene_id=1`` — Task 22's template renders an
-empty-state branch when ``anchor_scene`` ends up ``None`` (e.g. the
-library is empty or no film has been processed).
+"reading" from. When the param is absent, malformed, or unresolvable, the
+service returns ``anchor_scene=None`` and the template renders the empty-state
+branch. There is no implicit default anchor in the current branch.
 
 The service deliberately does NOT raise on unresolvable anchors. The UX
 contract is "show the empty state, never crash"; the route stays
@@ -27,12 +25,10 @@ contract is "show the empty state, never crash"; the route stays
 
 Future M3 swap
 --------------
-M3 replaces the cosine kNN with CLIP × CLAP fusion + MMR diversity +
-cross-encoder rerank. The context shape exposed here (``anchor_film``,
-``anchor_scene``, ``echoes``, ``k``, ``mmr_lambda``, ``threshold``) is
-intended to stay stable through that swap — the M3 backend just fills
-the ``echoes`` list with reranked + diversified hits and starts honoring
-``mmr_lambda`` and ``threshold`` (today both are display-only knobs).
+The context shape exposed here (``anchor_film``, ``anchor_scene``, ``echoes``,
+``k``, ``mmr_lambda``, ``threshold``) is intended to stay stable as the Rimas
+backend evolves. The current branch runs cross-film visual kNN with optional
+MMR diversity. Future work may add fusion or cross-encoder rerank signals.
 """
 
 from __future__ import annotations
@@ -75,6 +71,8 @@ def build_rimas_context(
     *,
     anchor: str | None,
     echo: str | None = None,
+    lambda_diversity: float | None = None,
+    k_candidates: int | None = None,
 ) -> dict:
     """Build the Rimas Visuais template context.
 
@@ -101,9 +99,9 @@ def build_rimas_context(
         by ``rimas_echoes.html`` to add the ``.sel`` highlight class).
       * ``shared_tags`` — list[str], intersection of anchor + selected
         echo tag sets (empty when either side absent or no overlap).
-      * ``k`` / ``mmr_lambda`` / ``threshold`` — the Rimas knobs surfaced
-        in the template (display-only for M1; M3 honors mmr_lambda and
-        threshold).
+      * ``k`` / ``mmr_lambda`` / ``k_candidates`` / ``threshold`` — the Rimas
+        knobs surfaced in the template. ``mmr_lambda`` and ``k_candidates`` are
+        live request/config inputs; ``threshold`` is still display-only.
 
     Never raises on an unresolvable anchor / echo — the empty state is
     the contract for both the route and the HTMX fragments.
@@ -123,6 +121,16 @@ def build_rimas_context(
 
     top_n, mmr_lambda, threshold = _rimas_cfg(cfg)
 
+    # Resolve MMR kwargs: explicit > cfg.retrieval.rhymes.{diversity,k_candidates}
+    # > hard defaults. Task 3.3 lands the cfg block; until then the getattr-chain
+    # falls through to the hard defaults (0.5 / 30) which match the plan's spec
+    # defaults.
+    rhymes_cfg = getattr(getattr(cfg, "retrieval", None), "rhymes", None)
+    if lambda_diversity is None:
+        lambda_diversity = float(getattr(rhymes_cfg, "diversity", 0.5))
+    if k_candidates is None:
+        k_candidates = int(getattr(rhymes_cfg, "k_candidates", 30))
+
     rhymes: list[Rhyme] = []
     if anchor_data is not None and slug is not None and scene_id is not None:
         rhymes = find_rhymes(
@@ -130,6 +138,8 @@ def build_rimas_context(
             anchor_slug=slug,
             anchor_scene_id=scene_id,
             top_n=top_n,
+            lambda_diversity=lambda_diversity,
+            k_candidates=k_candidates,
         )
 
     enriched = [_enrich_rhyme(cfg, r, films_by_id) for r in rhymes]
@@ -168,12 +178,14 @@ def build_rimas_context(
                 pass
 
     logger.info(
-        "rimas: anchor=%s/%s films=%d echoes=%d (k=%d) selected_echo=%s",
+        "rimas: anchor=%s/%s films=%d echoes=%d (k=%d, lambda=%.2f, k_candidates=%d) selected_echo=%s",
         slug,
         scene_id,
         len(films),
         len(enriched),
         top_n,
+        lambda_diversity,
+        k_candidates,
         f"{echo_slug}/{echo_scene_id}" if selected_echo else None,
     )
 
@@ -185,7 +197,8 @@ def build_rimas_context(
         "selected_echo_id": selected_echo_id,
         "shared_tags": shared,
         "k": top_n,
-        "mmr_lambda": mmr_lambda,
+        "mmr_lambda": lambda_diversity,
+        "k_candidates": k_candidates,
         "threshold": threshold,
         "library_has_scenes": any(getattr(f, "is_processed", False) for f in films),
     }

@@ -6,6 +6,7 @@ extracted unchanged from the former llm_describer.py. Shared by every
 SceneDescriber backend so parsing/tagging behaviour is identical
 regardless of the VLM engine.
 """
+
 from __future__ import annotations
 
 import re
@@ -14,32 +15,57 @@ import pandas as pd
 
 PROMPTS: dict[str, tuple[str, int]] = {
     #                prompt                                          max_new_tokens
-    "description":     ("Describe this film scene in one or two sentences. "
-                        "Focus on the main subject, action, and setting.",      80),
-    "location":        ("Is this scene indoors or outdoors? "
-                        "Answer with one word: indoor or outdoor.",             10),
-    "setting":         ("Describe the setting in 2-4 words. "
-                        "Examples: urban street, rural field, farm, village.",  20),
-    "time_of_day":     ("What time of day is this scene? "
-                        "Answer with one word: day, night, or unknown.",        10),
-    "people_and_action": ("How many people are visible and what are they doing? "
-                          "Answer briefly, e.g.: 2 people talking.",            30),
-    "objects":         ("List the most notable objects in this scene, "
-                        "comma-separated. Maximum 6 items.",                    40),
+    "description": (
+        "Describe this film scene in one or two sentences. "
+        "Focus on the main subject, action, and setting.",
+        80,
+    ),
+    "location": (
+        "Is this scene indoors or outdoors? " "Answer with one word: indoor or outdoor.",
+        10,
+    ),
+    "setting": (
+        "Describe the setting in 2-4 words. " "Examples: urban street, rural field, farm, village.",
+        20,
+    ),
+    "time_of_day": (
+        "What time of day is this scene? " "Answer with one word: day, night, or unknown.",
+        10,
+    ),
+    "people_and_action": (
+        "How many people are visible and what are they doing? "
+        "Answer briefly, e.g.: 2 people talking.",
+        30,
+    ),
+    "objects": (
+        "List the most notable objects in this scene, " "comma-separated. Maximum 6 items.",
+        40,
+    ),
 }
 
 
 LOCATION_MAP = {
-    "indoor": "interior", "indoors": "interior", "inside": "interior",
-    "interior": "interior", "internal": "interior",
-    "outdoor": "exterior", "outdoors": "exterior", "outside": "exterior",
-    "exterior": "exterior", "external": "exterior",
+    "indoor": "interior",
+    "indoors": "interior",
+    "inside": "interior",
+    "interior": "interior",
+    "internal": "interior",
+    "outdoor": "exterior",
+    "outdoors": "exterior",
+    "outside": "exterior",
+    "exterior": "exterior",
+    "external": "exterior",
 }
 
 TIME_MAP = {
-    "day": "dia", "daytime": "dia", "daylight": "dia",
-    "night": "noite", "nighttime": "noite", "dark": "noite",
-    "unknown": "desconhecido", "unclear": "desconhecido",
+    "day": "dia",
+    "daytime": "dia",
+    "daylight": "dia",
+    "night": "noite",
+    "nighttime": "noite",
+    "dark": "noite",
+    "unknown": "desconhecido",
+    "unclear": "desconhecido",
 }
 
 
@@ -56,9 +82,20 @@ def _parse_num_people(text: str) -> int:
         return 0
 
     word_to_num = {
-        "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
-        "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
-        "a person": 1, "a man": 1, "a woman": 1, "one person": 1,
+        "one": 1,
+        "two": 2,
+        "three": 3,
+        "four": 4,
+        "five": 5,
+        "six": 6,
+        "seven": 7,
+        "eight": 8,
+        "nine": 9,
+        "ten": 10,
+        "a person": 1,
+        "a man": 1,
+        "a woman": 1,
+        "one person": 1,
     }
     for word, num in word_to_num.items():
         if word in text:

@@ -83,6 +83,9 @@ class Hit:
     timecode: str = ""
     description: str = ""
     tags: list[str] = field(default_factory=list)
+    # Set by :func:`cinemateca.search.rerank.rerank` when the cross-encoder
+    # reorders results; ``None`` until reranked (additive, back-compat).
+    rerank_score: float | None = None
 
 
 @dataclass(frozen=True)

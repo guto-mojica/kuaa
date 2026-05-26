@@ -94,7 +94,7 @@ class FilmContext:
         library_dir: Path,
         slug: str,
         data_dir: Path,
-    ) -> "FilmContext":
+    ) -> FilmContext:
         """Build a per-film context from explicit paths (no cfg object needed).
 
         ``library_dir`` is the films-registry root; ``data_dir`` is the ``/media``
@@ -124,7 +124,7 @@ class FilmContext:
         )
 
     @classmethod
-    def for_film(cls, cfg: Any, slug: str) -> "FilmContext":
+    def for_film(cls, cfg: Any, slug: str) -> FilmContext:
         """Build a per-film context from a loaded ``Config`` and a slug.
 
         The film must exist as a directory under ``cfg.paths.library_dir/``
@@ -149,6 +149,7 @@ class FilmContext:
         if not slug or slug != Path(slug).name:
             raise ValueError(f"Invalid slug: {slug!r}")
         from cinemateca.library.registry import load_registry
+
         library_dir = Path(cfg.paths.library_dir)
         film_dir = library_dir / slug
         # Registry is the single gate — unregistered slugs are rejected even

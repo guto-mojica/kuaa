@@ -98,7 +98,4 @@ def normalize_tag_index(
     """
     if not index:
         return {}
-    return {
-        str(tag): {scene_id_key(v) for v in ids}
-        for tag, ids in index.items()
-    }
+    return {str(tag): {scene_id_key(v) for v in ids} for tag, ids in index.items()}

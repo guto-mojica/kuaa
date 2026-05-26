@@ -14,6 +14,7 @@ was strict) and preserved here on purpose:
 
 When P3+ unifies the two paths, pick one behavior across the module.
 """
+
 from __future__ import annotations
 
 import json
@@ -44,9 +45,7 @@ def load_tag_index(metadata_dir: Path) -> dict:
             with open(tags_path, encoding="utf-8") as f:
                 llm_tags = json.load(f)
         except json.JSONDecodeError:
-            logger.warning(
-                "load_tag_index: malformed %s; using empty tag index", tags_path
-            )
+            logger.warning("load_tag_index: malformed %s; using empty tag index", tags_path)
             llm_tags = {}
     annotations = load_annotations(metadata_dir)
     return merge_tag_index(llm_tags, annotations)
@@ -68,12 +67,8 @@ def load_metadata(metadata_dir: Path) -> tuple[list, dict, dict, dict]:
     visual_data = load_json(metadata_dir / "visual_analysis.json") or []
     annotations = load_annotations(metadata_dir)
 
-    desc_by_scene = {
-        scene_id_key(d["scene_id"]): d for d in descriptions if "scene_id" in d
-    }
-    vis_by_scene = {
-        scene_id_key(v["scene_id"]): v for v in visual_data if "scene_id" in v
-    }
+    desc_by_scene = {scene_id_key(d["scene_id"]): d for d in descriptions if "scene_id" in d}
+    vis_by_scene = {scene_id_key(v["scene_id"]): v for v in visual_data if "scene_id" in v}
     tag_index = normalize_tag_index(merge_tag_index(llm_tags, annotations))
 
     return kf_meta, desc_by_scene, vis_by_scene, tag_index

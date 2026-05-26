@@ -23,13 +23,14 @@ try:
     from scenedetect import SceneManager, open_video
     from scenedetect.detectors import AdaptiveDetector, ContentDetector
     from scenedetect.scene_manager import save_images
+
     _SCENEDETECT_AVAILABLE = True
 except ImportError:
     _SCENEDETECT_AVAILABLE = False
     logger.warning("PySceneDetect não instalado. Instale com: pip install scenedetect[opencv]")
 
 
-SceneList = list[tuple]   # list of (FrameTimecode, FrameTimecode)
+SceneList = list[tuple]  # list of (FrameTimecode, FrameTimecode)
 
 
 class SceneDetector:
@@ -82,8 +83,7 @@ class SceneDetector:
         """
         if not _SCENEDETECT_AVAILABLE:
             raise RuntimeError(
-                "PySceneDetect não instalado. "
-                "Execute: pip install scenedetect[opencv]"
+                "PySceneDetect não instalado. " "Execute: pip install scenedetect[opencv]"
             )
 
         video_path = Path(video_path)
@@ -178,10 +178,7 @@ class SceneDetector:
         if not scene_list:
             return {}
 
-        durations = np.array([
-            (end - start).get_seconds()
-            for start, end in scene_list
-        ])
+        durations = np.array([(end - start).get_seconds() for start, end in scene_list])
 
         return {
             "num_scenes": len(scene_list),
@@ -232,16 +229,18 @@ class SceneDetector:
             scene_id = idx + 1
             scene_block = keyframe_paths[idx * kf_per_scene : (idx + 1) * kf_per_scene]
             for kf_pos, kf_path in enumerate(scene_block, start=1):
-                scenes_data.append({
-                    "scene_id": scene_id,
-                    "keyframe_id": f"scene_{scene_id:04d}_kf_{kf_pos:02d}",
-                    "filepath": str(kf_path),
-                    "start_time_s": start.get_seconds(),
-                    "end_time_s": end.get_seconds(),
-                    "duration_s": (end - start).get_seconds(),
-                    "start_frame": start.get_frames(),
-                    "end_frame": end.get_frames(),
-                })
+                scenes_data.append(
+                    {
+                        "scene_id": scene_id,
+                        "keyframe_id": f"scene_{scene_id:04d}_kf_{kf_pos:02d}",
+                        "filepath": str(kf_path),
+                        "start_time_s": start.get_seconds(),
+                        "end_time_s": end.get_seconds(),
+                        "duration_s": (end - start).get_seconds(),
+                        "start_frame": start.get_frames(),
+                        "end_frame": end.get_frames(),
+                    }
+                )
 
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)

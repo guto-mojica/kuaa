@@ -245,12 +245,12 @@ def test_hybrid_backfills_filepath_for_bm25_only_hits(tmp_path: Path) -> None:
     assert 1 in df["scene_id"].tolist(), "BM25-only scene 1 must appear in fused output"
     row = df[df["scene_id"] == 1].iloc[0]
     assert "filepath" in df.columns, "fused DataFrame must carry filepath column"
-    assert not pd.isna(row["filepath"]), (
-        f"BM25-only hit must have a non-NaN filepath after backfill — got {row['filepath']!r}"
-    )
-    assert str(row["filepath"]).endswith("s1.jpg"), (
-        f"backfill must resolve to the right keyframe; got {row['filepath']!r}"
-    )
+    assert not pd.isna(
+        row["filepath"]
+    ), f"BM25-only hit must have a non-NaN filepath after backfill — got {row['filepath']!r}"
+    assert str(row["filepath"]).endswith(
+        "s1.jpg"
+    ), f"backfill must resolve to the right keyframe; got {row['filepath']!r}"
 
 
 def test_bm25_with_tags_on_empty_tag_index_returns_empty(tmp_path: Path) -> None:
@@ -359,9 +359,9 @@ def test_search_hybrid_respects_rrf_k_override(tmp_path: Path) -> None:
     # rrf_k=1 yields ~5× larger top-1 score than rrf_k=60.
     top_default = float(df_default["similarity"].iloc[0])
     top_small = float(df_small["similarity"].iloc[0])
-    assert top_small > top_default * 5, (
-        f"rrf_k must change fused score magnitude: small={top_small} default={top_default}"
-    )
+    assert (
+        top_small > top_default * 5
+    ), f"rrf_k must change fused score magnitude: small={top_small} default={top_default}"
 
 
 def _make_multi_keyframe_index(tmp_path: Path):
@@ -381,9 +381,9 @@ def _make_multi_keyframe_index(tmp_path: Path):
     from api.services.search import IndexStatus, SearchIndex
 
     vectors = [
-        [1.0, 0.0],   # scene 0 row 0
-        [0.5, 0.5],   # scene 0 row 1
-        [0.1, 0.9],   # scene 1 row 0
+        [1.0, 0.0],  # scene 0 row 0
+        [0.5, 0.5],  # scene 0 row 1
+        [0.1, 0.9],  # scene 1 row 0
         [0.3, 0.95],  # scene 1 row 1
     ]
     arr = np.array(vectors, dtype="float32")
@@ -452,7 +452,6 @@ def test_hybrid_picks_best_cosine_keyframe_for_bm25_only_scene(tmp_path: Path) -
 
 def test_bm25_mode_picks_best_cosine_keyframe(tmp_path: Path) -> None:
     """Same invariant as the hybrid test, exercised through ``retriever_mode='bm25'``."""
-    import pandas as pd
 
     bm25 = BM25Index.build(
         descriptions=[
@@ -479,9 +478,9 @@ def test_bm25_mode_picks_best_cosine_keyframe(tmp_path: Path) -> None:
     assert 1 in df["scene_id"].tolist()
     row = df[df["scene_id"] == 1].iloc[0]
     fp = str(row["filepath"])
-    assert fp.endswith("s1k1.jpg"), (
-        f"bm25-mode multi-keyframe scene must surface best-cosine row; got {fp}"
-    )
+    assert fp.endswith(
+        "s1k1.jpg"
+    ), f"bm25-mode multi-keyframe scene must surface best-cosine row; got {fp}"
 
 
 def test_bm25_mode_respects_tag_filter(tmp_path: Path) -> None:

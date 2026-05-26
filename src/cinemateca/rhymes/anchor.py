@@ -1,4 +1,5 @@
 """Anchor URL parameter parsing — '<slug>:<scene_id>' tuple form."""
+
 from __future__ import annotations
 
 from typing import Any

@@ -5,6 +5,7 @@ Busca semântica sobre embeddings CLIP. Pure-numpy dot product
 (equivalente a cosseno para vetores normalizados). The CLIP embedder
 itself lives in cinemateca.models.clip.openclip.
 """
+
 from __future__ import annotations
 
 import logging
@@ -32,12 +33,14 @@ class SemanticSearch:
         rows = []
         for rank, idx in enumerate(top_indices):
             row = self.keyframes_df.iloc[idx]
-            rows.append({
-                "rank": rank + 1,
-                "scene_id": row["scene_id"],
-                "filepath": row["filepath"],
-                "similarity": float(similarities[idx]),
-            })
+            rows.append(
+                {
+                    "rank": rank + 1,
+                    "scene_id": row["scene_id"],
+                    "filepath": row["filepath"],
+                    "similarity": float(similarities[idx]),
+                }
+            )
         return pd.DataFrame(rows)
 
     def by_image(
@@ -54,8 +57,7 @@ class SemanticSearch:
         if exclude_self:
             query_str = str(image_path)
             sorted_indices = [
-                i for i in sorted_indices
-                if str(self.keyframes_df.iloc[i]["filepath"]) != query_str
+                i for i in sorted_indices if str(self.keyframes_df.iloc[i]["filepath"]) != query_str
             ]
 
         top_indices = sorted_indices[:top_k]
@@ -63,12 +65,14 @@ class SemanticSearch:
         rows = []
         for rank, idx in enumerate(top_indices):
             row = self.keyframes_df.iloc[idx]
-            rows.append({
-                "rank": rank + 1,
-                "scene_id": row["scene_id"],
-                "filepath": row["filepath"],
-                "similarity": float(similarities[idx]),
-            })
+            rows.append(
+                {
+                    "rank": rank + 1,
+                    "scene_id": row["scene_id"],
+                    "filepath": row["filepath"],
+                    "similarity": float(similarities[idx]),
+                }
+            )
         return pd.DataFrame(rows)
 
     def combined(
@@ -92,10 +96,9 @@ class SemanticSearch:
         """
         if filter_tags and tag_index:
             # SOLE / REQUIRED normalization for the search path — do not
-            # delete believing the caller already normalized. Every real
-            # caller passes the RAW hybrid index straight in:
-            # api/routes/search.py (~L123) hands over merge_tag_index(...)
-            # untouched, and app_streamlit.py (~L255) does the same. That
+            # delete believing the caller already normalized. The real
+            # caller (api/routes/search.py, around line 123) passes the RAW
+            # hybrid index straight in: merge_tag_index(...) untouched. That
             # hybrid mixes int (LLM) and str (manual) scene ids. If this
             # normalize_tag_index call is removed the membership test below
             # silently mismatches and tag-filtered search returns nothing.
@@ -119,9 +122,7 @@ class SemanticSearch:
             mask = scene_id_keys.isin(valid_ids)
             kf_subset = self.keyframes_df[mask].reset_index(drop=True)
             emb_subset = self.embeddings[self.keyframes_df[mask].index]
-            logger.info(
-                "Busca combinada: filtro %s → %d cenas", filter_tags, len(kf_subset)
-            )
+            logger.info("Busca combinada: filtro %s → %d cenas", filter_tags, len(kf_subset))
         else:
             kf_subset = self.keyframes_df.reset_index(drop=True)
             emb_subset = self.embeddings
@@ -140,10 +141,12 @@ class SemanticSearch:
         rows = []
         for rank, idx in enumerate(top_indices):
             row = kf_subset.iloc[idx]
-            rows.append({
-                "rank": rank + 1,
-                "scene_id": row["scene_id"],
-                "filepath": row["filepath"],
-                "similarity": float(similarities[idx]),
-            })
+            rows.append(
+                {
+                    "rank": rank + 1,
+                    "scene_id": row["scene_id"],
+                    "filepath": row["filepath"],
+                    "similarity": float(similarities[idx]),
+                }
+            )
         return pd.DataFrame(rows)

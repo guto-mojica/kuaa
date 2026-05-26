@@ -72,13 +72,13 @@
 
       <div class="acts">
         {#- Launch form: ``video_path`` select + ``steps`` checkboxes —
-            same POST shape as v0.2.x so ``/api/pipeline/start`` is
-            unchanged. The button is wrapped in the same form so a
-            click submits the selected film + steps. -#}
+            same POST shape as v0.2.x. The response swaps the whole tab panel
+            so the active card, SSE log, queue, and right resource pane mount
+            together after a job is accepted. -#}
         <form class="pipeline-launch-bar"
               hx-post="/api/pipeline/start"
-              hx-target="#processing-job"
-              hx-swap="innerHTML"
+              hx-target="closest .tab-panel"
+              hx-swap="outerHTML"
               hx-indicator="#start-spinner"
               style="display:flex; align-items:center; gap:10px;">
 
@@ -116,10 +116,9 @@
     </div>
   </header>
 
-  {#- Active-job card(s). #processing-job is the legacy HTMX target the
-      launch form posts into; #active-jobs is the new wrapper element
-      the prototype expects. They are co-located so both contracts
-      continue to resolve. -#}
+  {#- Active-job card(s). #processing-job remains the stable wrapper for
+      tests and targeted job-card refreshes; #active-jobs is the new wrapper
+      element the prototype expects. -#}
   <div id="active-jobs" style="padding: 0 24px;">
     <div id="processing-job">
       {% if jobs %}
@@ -167,8 +166,11 @@
           <span>{{ _("Log · SSE") }}</span>
         </div>
         <div class="r">
-          <button type="button" class="fx-icbtn sm" title="{{ _('Filter') }}">{{ icon('filter', 14) }}</button>
-          <button type="button" class="fx-icbtn sm" title="{{ _('Download') }}">{{ icon('download', 14) }}</button>
+          <button type="button"
+                  class="fx-icbtn sm"
+                  title="{{ _('Download log') }}"
+                  aria-label="{{ _('Download log') }}"
+                  data-download-log>{{ icon('download', 14) }}</button>
           <label class="fx-mono" style="font-size:11px; color: var(--c-muted); display:inline-flex; align-items:center; gap:4px;">
             <input type="checkbox" data-autoscroll checked>
             {{ _("auto-scroll") }}

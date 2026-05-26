@@ -49,9 +49,13 @@ Implemented now:
 
 - Single-machine video processing pipeline.
 - FastAPI + HTMX web interface.
-- Text search, image search, scene browsing, and manual annotation.
+- Multi-film library registry with per-film artifact layout.
+- Text, image, audio, and CLIP x CLAP fusion search.
+- Hybrid CLIP/BM25 retrieval and cross-film visual rhymes.
+- Scene browsing, manual annotation, and processing job monitoring.
+- Admin-gated evaluation grading UI plus JSONL grade persistence.
+- Command palette, keyboard help, toasts, and offline local UI assets.
 - Configurable local model backends using typed Protocols.
-- Offline-oriented static assets and local artifact storage.
 - Reproducible public-demo scaffold using Library of Congress footage.
 - Retrieval evaluation runner with JSON/Markdown reports.
 - Domain-pack configuration for archive and media-broadcast metadata.
@@ -69,8 +73,8 @@ Planned next:
 - Capture populated screenshots and release walkthrough videos.
 - Fill release notes with final artifact URL, checksums, metrics, and manifest
   excerpt.
-- Multi-film storage and Docker packaging after the single-film release path is
-  stable.
+- Complete per-modality eval slate scoring.
+- Docker packaging after the demo release path is stable.
 
 ### Project docs
 
@@ -90,6 +94,7 @@ portfolio roadmap:
 | [Evaluation](docs/EVALUATION.md) | Query schema, retrieval metrics, and annotation-correction stats |
 | [Domain packs](docs/DOMAIN_PACKS.md) | Domain schema, archive and media-broadcast packs, prompt/export mapping |
 | [API reference](docs/API.md) | Local FastAPI/HTMX routes plus JSON/CSV export endpoints |
+| [UI wiring audit](docs/UI_WIRING_AUDIT.md) | Current UI routes, wired flows, and remaining UI constraints |
 | [Operations](docs/OPERATIONS.md) | Run manifests, exports, failure behavior, release gates, and constraints |
 | [Case study](docs/CASE_STUDY.md) | Recruiter-readable project narrative and evidence map |
 | [Launch plan](docs/LAUNCH_PLAN.md) | Public post sequence, asset map, and launch checklist |
@@ -108,7 +113,6 @@ cd cinemateca-imgsearch
 uv venv
 uv sync --extra full --group dev
 uv run app.py                 # FastAPI + HTMX, opens at http://localhost:8501
-# Legacy Streamlit UI (during migration): uv run streamlit run app_streamlit.py
 ```
 
 ### Public demo quickstart
@@ -233,8 +237,6 @@ uv sync --extra full --group dev
 
 # 4. Iniciar a interface (FastAPI + HTMX)
 uv run app.py
-# Interface Streamlit legada (durante a migração):
-#   uv run streamlit run app_streamlit.py
 ```
 
 Para instruções detalhadas, incluindo instalação do FFmpeg e configuração para

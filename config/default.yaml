@@ -76,6 +76,11 @@ embeddings:
   model: "ViT-B-32"         # modelo CLIP open_clip
   pretrained: "openai"
   batch_size: 16
+  # SigLIP-multilingual override — only consulted when
+  # ``models.image_embedder: siglip_multilingual``. Default keeps the
+  # OpenClip backend bit-identical, so leaving this set is a no-op
+  # under the default backend.
+  model_id: "google/siglip2-large-patch16-256"
   # Arquivo de saída (relativo a embeddings_dir)
   filename: "keyframe_embeddings.npy"
   mapping_filename: "index_mapping.json"
@@ -108,16 +113,15 @@ audio_embeddings:
   mapping_filename: "audio_mapping.json"
 
 # ── Search UI / retrieval knobs (Mojica redesign) ────────────────────────────
-# Read-only display knobs surfaced in the Buscar tab's `.knob` row + the chips
-# that toggle modality. Most are placeholders for Month-2 retrieval-depth work
-# (hybrid + reranker + multimodal); the flags default OFF so the chrome ships
-# disabled-by-default and lights up tab-by-tab as each backend lands.
+# Controls surfaced in the Buscar tab's `.knob` row and modality chips.
+# Hybrid, audio, image, fusion, and text rerank are live in the current branch.
+# Search-tab MMR display was removed; MMR lives in Rimas.
 search:
   # Default ``k`` (top-K) surfaced in the "k" knob.
   top_k_default: 9
-  # Hybrid weights — semantic (CLIP) vs lexical (BM25). The Mojica knob shows
-  # them as sem/bm25 floats; until M2 ships the actual hybrid pipeline these
-  # are display-only.
+  # Hybrid weights — semantic (CLIP/SigLIP) vs lexical (BM25). The Mojica knob
+  # shows them as sem/bm25 floats and /api/search consumes them when
+  # retriever=hybrid.
   hybrid_sem_w: 0.70
   hybrid_bm25_w: 0.30
   hybrid_enabled: true        # M2 default (Plan 4 of 8) — was: false
@@ -126,29 +130,60 @@ search:
     b: 0.75                    # length normalisation
     stopwords_lang: null       # null = no stopword removal
     rrf_k: 60                  # RRF rank-shift constant (Cormack et al.)
-  rerank_enabled: false       # M2: cross-encoder reranker (enable in local.yaml after validating on real data)
-  reranker:
-    model: "cross-encoder/ms-marco-MiniLM-L-12-v2"  # English, ~70 MB, CPU-friendly; use mmarco-mMiniLMv2-L12-H384-v1 for multilingual
-    top_k: 50    # candidates fed to the cross-encoder from first-stage retrieval
-  mmr_lambda: 0.5             # Maximal Marginal Relevance λ
+  rerank_enabled: false       # Default UI state for the Buscar Rerank toggle.
+  mmr_lambda: 0.5             # Legacy Search config; Rimas uses retrieval.rhymes.
   # Modality gates (each toggles its chip on/off in the Buscar tab).
   image_enabled: true         # existing image-similarity search
-  audio_enabled: false        # M2: CLAP audio-only search
-  multimodal_enabled: false   # M3: cross-modal CLIP×CLAP fusion
+  audio_enabled: true         # M3: CLAP audio-only retrieval lit up
+  multimodal_enabled: true    # M3 #1: fusion live (CLIP × CLAP linear late-fusion)
   # M2: the right inspector's Signals panel (.b-sigs) is gated on this until
   # the per-modality score breakdown actually exists.
   signals_enabled: false
 
+# ── Retrieval (Month-2/3 reranker + fusion/rhymes knobs) ─────────────────────
+# Separate from ``search:`` because ``search:`` owns UI-surfaced display knobs
+# (chips, modality gates, k defaults) while ``retrieval:`` owns the deeper
+# scoring-pipeline knobs that the cfg-aware service wrappers read at dispatch
+# time. Read by ``api.services.search`` and Rimas services. ``apply_reranker``
+# consults ``retrieval.reranker.*``; ``?reranker_enabled=`` can override the
+# default for one text-search request.
+retrieval:
+  reranker:
+    enabled: false          # Default-off for snapshot safety; the Buscar UI
+                            # toggle sends ?reranker_enabled= per request.
+    top_k_in: 20            # max hits the cross-encoder sees (cost cap).
+    model: "default"        # 'default' → BAAI/bge-reranker-v2-m3
+                            # 'noop'    → passthrough escape hatch (tests / UI off)
+                            # any other string → HF model id
+  fusion:
+    visual_weight: 0.5      # M3 #1 default — score = w*clip + (1-w)*clap.
+                            # M4 ablation will compare 0.3 / 0.5 / 0.7.
+                            # Read by ``api.routes.search._api_search_fusion``
+                            # when ?w= is omitted; clamped to [0, 1] downstream.
+    k_each: 50              # per-modality top-k pulled before merge (bounded
+                            # union size when libraries grow past ~Jeca scale).
+  rhymes:
+    diversity: 0.5         # MMR λ — 0 = pure diversity, 1 = pure relevance.
+                           # Default 0.5 matches the M3 plan; lighter values
+                           # (0.3) emphasise novelty for the curator-pair eval
+                           # set, heavier (0.7) for tighter relevance.
+    k_candidates: 30       # Pre-MMR kNN pool size. Default 30 covers Jeca
+                           # Tatu's ~412 scenes at top_n=10 (3× pool).
+                           # Read by api.services.rhymes_service when
+                           # ?lambda= / ?k_candidates= are omitted.
+    k_final: 10            # Post-MMR result length. Today unused (top_n is
+                           # passed straight through); reserved for a future
+                           # M3.5 refinement where the slider rules ≠ the
+                           # service-default ``k``.
+
 # ── Rimas Visuais (cross-film visual rhymes) ─────────────────────────────────
-# Read-only knobs for the Rimas tab's kNN over CLIP keyframes. Defaults match
-# the prototype expectation in docs/superpowers/plans/2026-05-20-mojica-frame-redesign.md
-# (Task 21). M3 swaps the kNN backend for CLIP × CLAP fusion + MMR diversity +
-# cross-encoder rerank; the public shape (top_n + mmr_lambda + threshold) is
-# intended to stay stable through that swap.
+# Knobs for the Rimas tab's cross-film kNN/MMR over visual keyframe embeddings.
+# The Rimas route honors `retrieval.rhymes.*` for live MMR controls; this block
+# carries legacy display/default values used by the tab.
 rimas:
   top_n: 8                # how many neighbours the route returns
-  mmr_lambda: 0.5         # Maximal Marginal Relevance λ (M3 — display-only today)
-  threshold: 0.75         # cosine floor for the M3 reranker (display-only today)
+  mmr_lambda: 0.5         # legacy display default; live MMR reads retrieval.rhymes.diversity
+  threshold: 0.75         # display threshold for the Rimas controls
 
 # ── Collaboration (comment thread / composer / pin persistence) ──────────────
 # The Mojica inspector renders a comment composer + activity thread; both lean
@@ -184,7 +219,10 @@ llm:
 
 # ── Model backends (pluggable — see docs/PROTOCOL_OPTION.md) ──────────────────
 models:
-  image_embedder: clip_openclip            # clip_openclip | clip_mclip (multilingual, same 512-dim image space)
+  image_embedder: siglip_multilingual      # clip_openclip | siglip_multilingual
+  # ``siglip_multilingual`` lands as an opt-in alternative in M3 pre-flight
+  # Task 4.1. Default stays clip_openclip until Task 4.2 smoke validation
+  # on Jeca Tatu and Task 4.3 library-wide re-embed are user-gated through.
   face_detector: mtcnn_pytorch             # mtcnn_pytorch
   object_detector: yolov8                  # yolov8
   # Default: keyless, offline Moondream 2 via HF transformers. GPU comes from
@@ -215,14 +253,13 @@ pipeline:
   stop_on_error: false      # false = continua mesmo com erros não-fatais
 
 # ── Processamento tab (UI) ────────────────────────────────────────────────────
-# Knobs the Processing tab template reads. Off-by-default flags here
-# never affect the pipeline runner — they only gate optional UI panels.
+# Knobs the Processing tab template reads. These never affect the pipeline
+# runner — they only gate optional UI panels.
 proc:
-  # When true, the .p-rp right pane renders a GPU/VRAM/CPU/RAM
-  # resource card under the active-step substeps. No measurement source
-  # is wired today; flipping this on without populating ``gpu_metrics``
-  # in the route context is a no-op (the template gates on both).
-  gpu_metrics_enabled: false
+  # When true, the .p-rp right pane renders a CPU/RAM/optional VRAM
+  # resource card under the active-step substeps. Metrics are local and
+  # best-effort: psutil feeds CPU/RAM; already-loaded torch feeds CUDA VRAM.
+  gpu_metrics_enabled: true
 
 # ── Eval set builder (admin-only grading UI) ──────────────────────────────────
 # Where grade JSONLs and curated query files live, and which run id the /eval

@@ -53,8 +53,9 @@ def serve(
     Replaces the legacy ``uv run app.py`` invocation. Opens
     ``http://<host>:<port>``.
     """
-    import uvicorn
     from pathlib import Path
+
+    import uvicorn
 
     project_root = str(Path(__file__).parent.parent.parent)
     uvicorn.run(

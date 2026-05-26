@@ -23,19 +23,15 @@ service treats as the anchor; the service handles parsing + falling
 back to a default anchor + the empty-state branch (no params crash, no
 500s on unresolvable anchors).
 
-The Phase-1 placeholder route in ``api/server.py`` (``page_rimas``)
-remains: the full-page ``GET /rimas`` flows through ``render_page`` and
-into ``_TAB_CONTEXT_BUILDERS['rimas']``. Task 22 swaps that placeholder
-builder for :func:`api.services.rhymes_service.build_rimas_context`
-once the page template lands; for Task 21 the tab-fragment endpoints
-defined here are enough to exercise the service end-to-end.
+The full-page ``GET /rimas`` path in ``api/server.py`` now flows through
+``render_page`` and uses the same service builder as these fragment routes.
 """
 
 from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse
 
 from api.deps import get_config, make_ctx
@@ -51,6 +47,8 @@ async def tab_rimas(
     request: Request,
     anchor: str | None = None,
     echo: str | None = None,
+    lambda_: float | None = Query(default=None, alias="lambda"),
+    k_candidates: int | None = None,
 ) -> HTMLResponse:
     """Render the Rimas Visuais tab partial.
 
@@ -58,9 +56,21 @@ async def tab_rimas(
     "use the default anchor" — the first processed film, scene 1. When
     no film qualifies the partial renders an empty state. ``?echo=``
     deep-shares a specific rhyme card and pre-populates the inspector.
+
+    ``?lambda=`` overrides ``cfg.retrieval.rhymes.diversity`` (the MMR
+    relevance↔diversity trade-off; clamped to ``[0, 1]`` service-side);
+    ``?k_candidates=`` overrides the pre-MMR pool size (default 30).
+    Both default to ``None`` so the service falls back to config / hard
+    defaults.
     """
     cfg = get_config()
-    ctx = build_rimas_context(cfg, anchor=anchor, echo=echo)
+    ctx = build_rimas_context(
+        cfg,
+        anchor=anchor,
+        echo=echo,
+        lambda_diversity=lambda_,
+        k_candidates=k_candidates,
+    )
     return templates.TemplateResponse(
         request,
         "partials/rimas.html",
@@ -73,6 +83,8 @@ async def api_rimas_echoes(
     request: Request,
     anchor: str | None = None,
     echo: str | None = None,
+    lambda_: float | None = Query(default=None, alias="lambda"),
+    k_candidates: int | None = None,
 ) -> HTMLResponse:
     """Return the echo-grid fragment for HTMX anchor swaps.
 
@@ -86,9 +98,19 @@ async def api_rimas_echoes(
     partial intentionally reads only ``echoes`` + the knob trio +
     ``selected_echo_id`` for the ``.sel`` highlight class; the rest is
     no-op).
+
+    ``?lambda=`` and ``?k_candidates=`` mirror :func:`tab_rimas`: the
+    diversity slider and the pre-MMR pool size, both threaded straight
+    into the service.
     """
     cfg = get_config()
-    ctx = build_rimas_context(cfg, anchor=anchor, echo=echo)
+    ctx = build_rimas_context(
+        cfg,
+        anchor=anchor,
+        echo=echo,
+        lambda_diversity=lambda_,
+        k_candidates=k_candidates,
+    )
     return templates.TemplateResponse(
         request,
         "partials/rimas_echoes.html",
@@ -101,6 +123,8 @@ async def api_rimas_inspector(
     request: Request,
     anchor: str | None = None,
     echo: str | None = None,
+    lambda_: float | None = Query(default=None, alias="lambda"),
+    k_candidates: int | None = None,
 ) -> HTMLResponse:
     """Return the right-pane inspector fragment.
 
@@ -113,9 +137,19 @@ async def api_rimas_inspector(
     Same 200-only contract as the other rimas endpoints: any
     unresolvable input collapses to an empty-but-rendered inspector,
     never a 500.
+
+    ``?lambda=`` and ``?k_candidates=`` mirror :func:`tab_rimas` so the
+    inspector stays in sync when the user scrubs the diversity slider
+    or the pool size on the echo grid.
     """
     cfg = get_config()
-    ctx = build_rimas_context(cfg, anchor=anchor, echo=echo)
+    ctx = build_rimas_context(
+        cfg,
+        anchor=anchor,
+        echo=echo,
+        lambda_diversity=lambda_,
+        k_candidates=k_candidates,
+    )
     return templates.TemplateResponse(
         request,
         "partials/rimas_inspector.html",

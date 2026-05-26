@@ -23,11 +23,10 @@ def test_palette_search_no_query_returns_all_groups(client):
         assert key in data, f"missing group {key} in response"
     # The static catalogues match palette_service.NAVIGATE / ACTIONS.
     assert len(data["navigate"]) == 6
-    assert len(data["actions"]) == 5
+    assert len(data["actions"]) == 3
     # Films may be empty in the hermetic test client (no registered films).
     assert isinstance(data["films"], list)
-    # scenes_recent is always empty in M1 (placeholder for a later phase).
-    assert data["scenes_recent"] == []
+    assert isinstance(data["scenes_recent"], list)
 
 
 def test_palette_search_filters_by_label(client):
@@ -90,6 +89,18 @@ def test_palette_search_returns_registered_films(client, seed_metadata):
     assert default_film["label"] == "Default Film"
     assert default_film["url"] == "/scenes?film=default"
     assert default_film["icon"] == "film"
+
+
+def test_palette_search_returns_registered_scenes(client, seed_metadata):
+    """Processed scenes appear in the palette scene group and deep-link back."""
+    seed_metadata()
+    r = client.get("/api/palette/search", params={"q": "walking"})
+    assert r.status_code == 200
+    scenes = r.json()["scenes_recent"]
+    assert any(s["scene_id"] == 351 for s in scenes)
+    scene = next(s for s in scenes if s["scene_id"] == 351)
+    assert scene["url"] == "/scenes?film=default&scene=351"
+    assert scene["badge"] == "scene"
 
 
 def test_palette_search_film_label_filter(client, seed_metadata):

@@ -46,6 +46,15 @@
 {% else %}
 
 <section class="c-cp"
+         x-data="{
+           refreshScenes() {
+             this.$nextTick(() => {
+               if (window.htmx) {
+                 window.htmx.trigger('#scenes-toolrow', 'refresh');
+               }
+             });
+           }
+         }"
          :class="{
            'view-density-comfortable': $store.cenasAppearance.density === 'comfortable',
            'view-density-compact':     $store.cenasAppearance.density === 'compact',
@@ -60,9 +69,10 @@
 
        The toolrow is the HTMX include scope: every refresh that hits
        ``/api/scenes`` (keyword change on ``.find``, tag toggle in the
-       Filtros popover) sends ``hx-include="#scenes-toolrow"`` so both
-       the keyword AND the active tag selection ride along. Keeping the
-       inputs co-located is what makes ``q + film + tags[]`` survive
+       Filtros popover, or a manual ``refresh`` triggered after Group/Sort
+       Alpine state changes) sends ``hx-include="#scenes-toolrow"`` so both
+       the keyword AND the active selection ride along. Keeping the inputs
+       co-located is what makes ``q + film + tags[] + group + sort`` survive
        partial swaps without a global form.
 
        Appearance + Fields are pure client-side prefs driven by Alpine
@@ -72,7 +82,13 @@
        classes into density + per-field visibility overrides. State is
        persisted to ``localStorage`` so a refresh keeps the user's
        chosen card density and hidden fields. #}
-  <div id="scenes-toolrow" class="toolrow">
+  <div id="scenes-toolrow"
+       class="toolrow"
+       hx-get="/api/scenes"
+       hx-trigger="refresh"
+       hx-target="#scenes-grid"
+       hx-swap="innerHTML"
+       hx-include="#scenes-toolrow">
 
     {# ── Appearance: card-density radio popover. Two options today
          (Comfortable / Compact). Adding more later means adding a
@@ -252,10 +268,9 @@
          ``<input type="hidden" name="group" :value="$store.cenasGroup.by">``
          mirrors the choice into the hx-include scope so the grid
          refresh request carries ?group=… alongside any active
-         tags/keyword. Changing the radio fires Alpine reactivity
-         (which updates the hidden input via :value) and dispatches
-         a manual ``htmx:trigger 'refresh'`` to the popover's
-         hx-trigger so the grid re-renders. #}
+         tags/keyword. Changing the radio waits for Alpine to update
+         the hidden mirror, then triggers the toolrow's HTMX ``refresh``
+         event so the grid re-renders with the new value. #}
     <div class="filter-wrap"
          x-data="{ open: false }"
          @click.outside="open = false"
@@ -281,16 +296,11 @@
            x-show="open"
            x-cloak
            x-transition.opacity.duration.120ms
-           id="scenes-group-popover"
-           hx-get="/api/scenes"
-           hx-trigger="change from:input, refresh"
-           hx-target="#scenes-grid"
-           hx-swap="innerHTML"
-           hx-include="#scenes-toolrow">
+           id="scenes-group-popover">
         <header class="scenes-filter-popover__head">
           <span class="scenes-filter-popover__title">{{ _('Group scenes by') }}</span>
         </header>
-        <div class="scenes-prefs-rows">
+        <div class="scenes-prefs-rows" @change="refreshScenes()">
           <label class="scenes-prefs-row">
             <input type="radio" name="group_choice" value="film"
                    x-model="$store.cenasGroup.by">
@@ -342,16 +352,11 @@
            x-show="open"
            x-cloak
            x-transition.opacity.duration.120ms
-           id="scenes-sort-popover"
-           hx-get="/api/scenes"
-           hx-trigger="change from:input, refresh"
-           hx-target="#scenes-grid"
-           hx-swap="innerHTML"
-           hx-include="#scenes-toolrow">
+           id="scenes-sort-popover">
         <header class="scenes-filter-popover__head">
           <span class="scenes-filter-popover__title">{{ _('Sort scenes by') }}</span>
         </header>
-        <div class="scenes-prefs-rows">
+        <div class="scenes-prefs-rows" @change="refreshScenes()">
           <label class="scenes-prefs-row">
             <input type="radio" name="sort_choice" value="timecode"
                    x-model="$store.cenasSort.by">
@@ -380,6 +385,9 @@
        as a duplicate form value — only the hidden mirrors do. #}
     <input type="hidden" name="group" :value="$store.cenasGroup.by">
     <input type="hidden" name="sort" :value="$store.cenasSort.by">
+    {% if active_bucket %}
+    <input type="hidden" name="bucket" value="{{ active_bucket }}">
+    {% endif %}
 
     <span class="grow" aria-hidden="true"></span>
     {# ``.find`` keyword input — HTMX-swaps the grid on every change. The

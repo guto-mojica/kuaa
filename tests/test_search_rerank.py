@@ -1,171 +1,152 @@
-"""Tests for the M2 cross-encoder reranker (cinemateca.search.rerank).
+"""Cross-encoder reranker tests.
 
-All tests monkeypatch the CrossEncoder so no model is downloaded.
+Fills in the M2 stub at :func:`cinemateca.search.rerank.rerank`.
+Tests use the documented ``model='noop'`` escape hatch + an injected
+stub model (via ``_load_reranker`` monkeypatch) to avoid HF downloads.
 """
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+import sys
 
-import numpy as np
-import pytest
-
-from cinemateca.search.rerank import rerank, rerank_dataframe, _load_descriptions
+# NOTE: ``cinemateca.search.__init__`` re-exports ``rerank`` (the function),
+# which shadows the submodule attribute at ``cinemateca.search.rerank``.
+# Fetch the module via ``sys.modules`` so ``monkeypatch.setattr`` targets
+# the real module object's ``_load_reranker`` symbol.
+import cinemateca.search  # noqa: F401  -- ensures the package is imported
+from cinemateca.search.rerank import rerank
 from cinemateca.search.types import Hit, Query, SearchResult
 
-
-# ── helpers ────────────────────────────────────────────────────────────────────
-
-def _result(*scene_ids: int, scores: list[float] | None = None) -> SearchResult:
-    if scores is None:
-        scores = [1.0 - i * 0.1 for i in range(len(scene_ids))]
-    hits = [Hit(scene_id=sid, score=s, keyframe_path=f"/p/{sid}.jpg") for sid, s in zip(scene_ids, scores)]
-    return SearchResult(hits=hits, mode="clip", weights=None, query=Query.text("test query"))
+rerank_mod = sys.modules["cinemateca.search.rerank"]
 
 
-def _fake_film(tmp_path: Path, descriptions: list[dict] | None = None) -> SimpleNamespace:
-    meta_dir = tmp_path / "metadata"
-    meta_dir.mkdir(parents=True, exist_ok=True)
-    if descriptions is not None:
-        (meta_dir / "scene_descriptions.json").write_text(json.dumps(descriptions))
-    return SimpleNamespace(metadata_dir=meta_dir)
+def _make_result(hits: list[Hit], query_text: str = "anything") -> SearchResult:
+    """Build a SearchResult with the M3 typed shape used by ``cinemateca.search``."""
+    return SearchResult(
+        hits=hits,
+        mode="clip",
+        weights=None,
+        query=Query.text(query_text),
+    )
 
 
-def _fake_ce(scores: list[float]):
-    """Return a mock CrossEncoder whose predict() returns ``scores``."""
-    ce = MagicMock()
-    ce.predict.return_value = np.array(scores, dtype=np.float32)
-    return ce
-
-
-# ── rerank() ──────────────────────────────────────────────────────────────────
-
-def test_rerank_noop_passthrough():
-    r = _result(1, 2, 3)
-    out = rerank(r, film=SimpleNamespace(metadata_dir=Path("/nonexistent")), model="noop")
-    assert out.hits == r.hits
-
-
-def test_rerank_image_query_bypassed(tmp_path):
-    """Image queries have no query text — cross-encoder must not run."""
-    hits = [Hit(scene_id=1, score=0.9, keyframe_path="/p/1.jpg")]
-    r = SearchResult(hits=hits, mode="clip", weights=None, query=Query.image(Path("/img.jpg")))
-    film = _fake_film(tmp_path)
-    with patch("cinemateca.search.rerank._get_cross_encoder") as mock_ce:
-        out = rerank(r, film=film)
-    mock_ce.assert_not_called()
-    assert out.hits == hits
-
-
-def test_rerank_empty_hits_bypassed(tmp_path):
-    r = SearchResult(hits=[], mode="clip", weights=None, query=Query.text("rain"))
-    film = _fake_film(tmp_path)
-    with patch("cinemateca.search.rerank._get_cross_encoder") as mock_ce:
-        out = rerank(r, film=film)
-    mock_ce.assert_not_called()
-    assert out.hits == []
-
-
-def test_rerank_reorders_hits(tmp_path):
-    """Cross-encoder reverses the initial ordering → result is flipped."""
-    descriptions = [
-        {"scene_id": 1, "description": "a horse"},
-        {"scene_id": 2, "description": "a man on a horse"},
-        {"scene_id": 3, "description": "empty field"},
+def test_rerank_noop_passes_result_through_unchanged() -> None:
+    """``model='noop'`` is the documented passthrough — wider suite depends on it."""
+    hits = [
+        Hit(scene_id=1, score=0.9, keyframe_path="/p/1.jpg", description="d1"),
+        Hit(scene_id=2, score=0.5, keyframe_path="/p/2.jpg", description="d2"),
     ]
-    film = _fake_film(tmp_path, descriptions)
-    r = _result(1, 2, 3)  # initial scores descending
-
-    # Cross-encoder says scene 3 is best, then 2, then 1
-    with patch("cinemateca.search.rerank._get_cross_encoder", return_value=_fake_ce([0.1, 0.5, 0.9])):
-        out = rerank(r, film=film, top_k=3)
-
-    assert [h.scene_id for h in out.hits] == [3, 2, 1]
-
-
-def test_rerank_trims_to_top_k(tmp_path):
-    descriptions = [{"scene_id": i, "description": f"scene {i}"} for i in range(1, 6)]
-    film = _fake_film(tmp_path, descriptions)
-    r = _result(1, 2, 3, 4, 5)
-
-    with patch("cinemateca.search.rerank._get_cross_encoder", return_value=_fake_ce([0.5, 0.4, 0.9, 0.3, 0.8])):
-        out = rerank(r, film=film, top_k=3)
-
-    assert len(out.hits) == 3
-    assert [h.scene_id for h in out.hits] == [3, 5, 1]
-
-
-def test_rerank_preserves_metadata(tmp_path):
-    """Mode, weights, query, no_index are carried through unchanged."""
-    film = _fake_film(tmp_path, [{"scene_id": 1, "description": "x"}])
-    r = _result(1)
-    with patch("cinemateca.search.rerank._get_cross_encoder", return_value=_fake_ce([0.7])):
-        out = rerank(r, film=film)
+    r = _make_result(hits, query_text="anything")
+    out = rerank(r, model="noop")
+    assert out.hits == hits
     assert out.mode == "clip"
-    assert out.query == r.query
-    assert out.no_index is False
 
 
-def test_rerank_cross_encoder_failure_returns_original(tmp_path):
-    """If the cross-encoder raises, return the original result unchanged."""
-    film = _fake_film(tmp_path, [{"scene_id": 1, "description": "x"}])
-    r = _result(1, 2)
-    bad_ce = MagicMock()
-    bad_ce.predict.side_effect = RuntimeError("model error")
-    with patch("cinemateca.search.rerank._get_cross_encoder", return_value=bad_ce):
-        out = rerank(r, film=film)
-    assert out.hits == r.hits
+def test_rerank_empty_hits_short_circuits_without_loading_model(monkeypatch) -> None:
+    """Empty result must not trigger model load — guards against unnecessary HF download."""
+    called = {"loaded": False}
+
+    def _boom(_model_id: str):
+        called["loaded"] = True
+        raise AssertionError("loader must not be called for an empty hit list")
+
+    monkeypatch.setattr(rerank_mod, "_load_reranker", _boom)
+    r = _make_result([], query_text="x")
+    out = rerank(r, model="default")
+    assert out.hits == []
+    assert called["loaded"] is False
 
 
-# ── rerank_dataframe() ────────────────────────────────────────────────────────
+def test_rerank_reorders_with_injected_stub_model(monkeypatch) -> None:
+    """Verify the rerank logic without loading the real bge cross-encoder."""
 
-def test_rerank_dataframe_noop(tmp_path):
-    import pandas as pd
+    class _Stub:
+        def compute_score(self, pairs: list[list[str]]) -> list[float]:
+            # Score 10 if doc contains "match", else 0.
+            return [10.0 if "match" in d else 0.0 for _q, d in pairs]
 
-    df = pd.DataFrame({"scene_id": [1, 2], "similarity": [0.9, 0.5], "filepath": ["a", "b"]})
-    out = rerank_dataframe(df, query="rain", metadata_dir=tmp_path, model="noop")
-    assert list(out["scene_id"]) == [1, 2]
+    monkeypatch.setattr(rerank_mod, "_load_reranker", lambda _model_id: _Stub())
+    hits = [
+        Hit(scene_id=1, score=0.9, keyframe_path="/p/1.jpg", description="no signal"),
+        Hit(scene_id=2, score=0.5, keyframe_path="/p/2.jpg", description="this is a match"),
+        Hit(scene_id=3, score=0.7, keyframe_path="/p/3.jpg", description="nothing"),
+    ]
+    r = _make_result(hits, query_text="cats")
+    out = rerank(r, model="default")
 
-
-def test_rerank_dataframe_reorders(tmp_path):
-    import pandas as pd
-
-    (tmp_path / "scene_descriptions.json").write_text(
-        json.dumps([{"scene_id": 1, "description": "horse"}, {"scene_id": 2, "description": "rain"}])
-    )
-    df = pd.DataFrame({"scene_id": [1, 2], "similarity": [0.9, 0.5], "filepath": ["a", "b"]})
-    with patch("cinemateca.search.rerank._get_cross_encoder", return_value=_fake_ce([0.2, 0.8])):
-        out = rerank_dataframe(df, query="rain scene", metadata_dir=tmp_path, top_k=2)
-    assert list(out["scene_id"]) == [2, 1]
-
-
-def test_rerank_dataframe_empty_returns_unchanged(tmp_path):
-    import pandas as pd
-
-    df = pd.DataFrame(columns=["scene_id", "similarity"])
-    with patch("cinemateca.search.rerank._get_cross_encoder") as mock_ce:
-        out = rerank_dataframe(df, query="rain", metadata_dir=tmp_path)
-    mock_ce.assert_not_called()
-    assert out.empty
+    assert out.hits[0].scene_id == 2  # promoted by the stub
+    assert out.hits[0].rerank_score == 10.0
+    assert out.hits[1].rerank_score == 0.0
+    assert out.hits[2].rerank_score == 0.0
+    # original metadata preserved
+    assert out.hits[0].keyframe_path == "/p/2.jpg"
+    assert out.hits[0].score == 0.5
+    # query / mode preserved on the result
+    assert out.query.text == "cats"
+    assert out.mode == "clip"
 
 
-# ── _load_descriptions() ──────────────────────────────────────────────────────
+def test_rerank_top_k_in_truncates_before_scoring(monkeypatch) -> None:
+    """Hits beyond ``top_k_in`` are dropped before the cross-encoder is called."""
 
-def test_load_descriptions_happy_path(tmp_path):
-    (tmp_path / "scene_descriptions.json").write_text(
-        json.dumps([{"scene_id": 1, "description": "a horse"}, {"scene_id": 2, "description": ""}])
-    )
-    d = _load_descriptions(tmp_path)
-    assert d == {1: "a horse", 2: ""}
+    class _Stub:
+        def __init__(self) -> None:
+            self.calls: list[int] = []
+
+        def compute_score(self, pairs: list[list[str]]) -> list[float]:
+            self.calls.append(len(pairs))
+            return [1.0] * len(pairs)
+
+    stub = _Stub()
+    monkeypatch.setattr(rerank_mod, "_load_reranker", lambda _model_id: stub)
+    hits = [
+        Hit(scene_id=i, score=1.0 / (i + 1), keyframe_path=f"/p/{i}.jpg", description="x")
+        for i in range(30)
+    ]
+    r = _make_result(hits, query_text="q")
+    out = rerank(r, model="default", top_k_in=10)
+
+    assert stub.calls == [10]
+    assert len(out.hits) == 10
+    # Every returned hit carries a rerank_score (set to 1.0 by the stub)
+    assert all(h.rerank_score == 1.0 for h in out.hits)
 
 
-def test_load_descriptions_missing_file(tmp_path):
-    assert _load_descriptions(tmp_path) == {}
+def test_rerank_custom_model_id_passed_to_loader(monkeypatch) -> None:
+    """A non-'default' / non-'noop' value is forwarded as an HF model id."""
+    seen: dict[str, str] = {}
+
+    class _Stub:
+        def compute_score(self, pairs):
+            return [0.0] * len(pairs)
+
+    def _capture(model_id: str):
+        seen["model_id"] = model_id
+        return _Stub()
+
+    monkeypatch.setattr(rerank_mod, "_load_reranker", _capture)
+    hits = [Hit(scene_id=1, score=0.9, keyframe_path="/p/1.jpg", description="d")]
+    r = _make_result(hits, query_text="q")
+    rerank(r, model="my-org/my-reranker")
+
+    assert seen["model_id"] == "my-org/my-reranker"
 
 
-def test_load_descriptions_malformed_json(tmp_path):
-    (tmp_path / "scene_descriptions.json").write_text("{not json}")
-    assert _load_descriptions(tmp_path) == {}
+def test_rerank_default_resolves_to_bge_v2_m3(monkeypatch) -> None:
+    """``model='default'`` resolves to the M3 default cross-encoder id."""
+    seen: dict[str, str] = {}
+
+    class _Stub:
+        def compute_score(self, pairs):
+            return [0.0] * len(pairs)
+
+    def _capture(model_id: str):
+        seen["model_id"] = model_id
+        return _Stub()
+
+    monkeypatch.setattr(rerank_mod, "_load_reranker", _capture)
+    hits = [Hit(scene_id=1, score=0.9, keyframe_path="/p/1.jpg", description="d")]
+    r = _make_result(hits, query_text="q")
+    rerank(r, model="default")
+
+    assert seen["model_id"] == "BAAI/bge-reranker-v2-m3"

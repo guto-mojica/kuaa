@@ -105,10 +105,7 @@ def _write_zip(zip_path: Path, files: list[Path], runtime_root: Path) -> None:
 
 
 def _artifact_checksums(files: list[Path], runtime_root: Path) -> dict[str, str]:
-    return {
-        _relative(path, runtime_root): prepare_demo.sha256_file(path)
-        for path in files
-    }
+    return {_relative(path, runtime_root): prepare_demo.sha256_file(path) for path in files}
 
 
 def _manifest_preview(

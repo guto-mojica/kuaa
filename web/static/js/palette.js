@@ -99,7 +99,7 @@
     ['navigate', 'Navigate'],
     ['actions', 'Actions'],
     ['films', 'Films'],
-    ['scenes_recent', 'Recent scenes'],
+    ['scenes_recent', 'Scenes'],
   ];
 
   function render(data) {

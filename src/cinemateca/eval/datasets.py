@@ -64,13 +64,9 @@ def _as_relevance(value: Any, relevant: tuple[str, ...], *, query_id: str) -> di
         try:
             grade = float(raw_grade)
         except (TypeError, ValueError) as exc:
-            raise DatasetError(
-                f"{query_id}.relevance[{raw_scene_id!r}] must be numeric"
-            ) from exc
+            raise DatasetError(f"{query_id}.relevance[{raw_scene_id!r}] must be numeric") from exc
         if grade <= 0:
-            raise DatasetError(
-                f"{query_id}.relevance[{raw_scene_id!r}] must be positive"
-            )
+            raise DatasetError(f"{query_id}.relevance[{raw_scene_id!r}] must be positive")
         grades[sid] = grade
 
     for sid in relevant:

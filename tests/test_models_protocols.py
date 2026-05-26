@@ -1,4 +1,5 @@
 """Protocol + registry conformance (no model load, no GPU, hermetic)."""
+
 from __future__ import annotations
 
 import types
@@ -17,8 +18,12 @@ def test_base_protocols_exist_and_are_runtime_checkable():
     )
 
     for proto in (
-        ImageEmbedder, FaceDetector, ObjectDetector,
-        SceneDescriber, EnvironmentClassifier, AudioEmbedder,
+        ImageEmbedder,
+        FaceDetector,
+        ObjectDetector,
+        SceneDescriber,
+        EnvironmentClassifier,
+        AudioEmbedder,
     ):
         assert getattr(proto, "_is_runtime_protocol", False), proto
 
@@ -73,6 +78,7 @@ def test_protocols_isinstance_structural():
     class _BadFace:
         def detect(self, image_path):
             return {}
+
         # missing detect_batch
 
     assert isinstance(_GoodFace(), FaceDetector) is True
@@ -93,6 +99,7 @@ def test_protocols_isinstance_structural():
     class _BadObject:
         def detect_batch(self, image_paths):
             return []
+
         # missing detect
 
     assert isinstance(_GoodObject(), ObjectDetector) is True
@@ -113,6 +120,7 @@ def test_protocols_isinstance_structural():
     class _BadDescriber:
         def describe(self, image_path):
             return {}
+
         # missing describe_batch
 
     assert isinstance(_GoodDescriber(), SceneDescriber) is True
@@ -125,8 +133,12 @@ def test_protocols_isinstance_structural():
     # ------------------------------------------------------------------ #
     class _GoodClassifier:
         def classify(self, image_path):
-            return {"time_of_day": "day", "brightness_score": 0.5,
-                    "location": "indoor", "edge_density": 0.1}
+            return {
+                "time_of_day": "day",
+                "brightness_score": 0.5,
+                "location": "indoor",
+                "edge_density": 0.1,
+            }
 
         def classify_batch(self, image_paths):
             return [self.classify(p) for p in image_paths]
@@ -134,6 +146,7 @@ def test_protocols_isinstance_structural():
     class _BadClassifier:
         def classify_batch(self, image_paths):
             return []
+
         # missing classify
 
     assert isinstance(_GoodClassifier(), EnvironmentClassifier) is True
@@ -158,6 +171,7 @@ def test_protocols_isinstance_structural():
     class _BadAudio:
         def encode_audio(self, wav_paths):
             return np.zeros((len(wav_paths), 4), dtype="float32")
+
         # missing encode_text + encode_audio_single
 
     assert isinstance(_GoodAudio(), AudioEmbedder) is True
@@ -258,16 +272,16 @@ def _full_cfg(**model_overrides):
             sample_rate=48000,
         ),
         visual_analysis=sn(
-            face_detection=sn(enabled=True, min_face_size=20,
-                              thresholds=[0.6, 0.7, 0.7]),
-            object_detection=sn(enabled=True, model="yolov8n.pt",
-                                confidence=0.30),
-            environment=sn(enabled=True, brightness_threshold=100,
-                           edge_density_threshold=0.05),
+            face_detection=sn(enabled=True, min_face_size=20, thresholds=[0.6, 0.7, 0.7]),
+            object_detection=sn(enabled=True, model="yolov8n.pt", confidence=0.30),
+            environment=sn(enabled=True, brightness_threshold=100, edge_density_threshold=0.05),
         ),
-        llm=sn(checkpoint_interval=25, process_limit=None,
-               descriptions_filename="scene_descriptions.json",
-               tags_filename="scene_tags.json"),
+        llm=sn(
+            checkpoint_interval=25,
+            process_limit=None,
+            descriptions_filename="scene_descriptions.json",
+            tags_filename="scene_tags.json",
+        ),
     )
 
 
@@ -287,9 +301,7 @@ def test_registry_returns_correct_types():
     assert isinstance(registry.get_face_detector(cfg), FaceDetector)
     assert isinstance(registry.get_object_detector(cfg), ObjectDetector)
     assert isinstance(registry.get_scene_describer(cfg), SceneDescriber)
-    assert isinstance(
-        registry.get_environment_classifier(cfg), EnvironmentClassifier
-    )
+    assert isinstance(registry.get_environment_classifier(cfg), EnvironmentClassifier)
     assert isinstance(registry.get_audio_embedder(cfg), AudioEmbedder)
 
 

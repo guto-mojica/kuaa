@@ -25,6 +25,7 @@ _DEFAULT_CONFIG = Path(__file__).parent.parent.parent / "config" / "default.yaml
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
+
 def _deep_merge(base: dict, override: dict) -> dict:
     """Mescla recursivamente override em base. override tem precedência."""
     result = dict(base)
@@ -49,6 +50,7 @@ def _resolve_paths(paths_dict: dict, project_root: Path) -> dict:
 
 
 # ─── Namespace simples para acesso com ponto ──────────────────────────────────
+
 
 class _Namespace:
     """Permite cfg.section.key em vez de cfg['section']['key']."""
@@ -75,13 +77,9 @@ class _Namespace:
 
 # ─── API pública ──────────────────────────────────────────────────────────────
 
-def _ensure_dirs(cfg: _Namespace) -> None:
-    """Create every configured ``paths.*`` directory on disk.
 
-    Separated from :func:`load_config` so callers that only need to read
-    the config (e.g. tests, introspection commands) can pass
-    ``ensure_dirs=False`` and avoid touching the filesystem.
-    """
+def _ensure_dirs(cfg: _Namespace) -> None:
+    """Create every configured ``paths.*`` directory on disk."""
     for path_obj in vars(cfg.paths).values():
         if isinstance(path_obj, Path):
             path_obj.mkdir(parents=True, exist_ok=True)

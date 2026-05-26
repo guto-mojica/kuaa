@@ -1,4 +1,5 @@
 """cinemateca.annotations — manual annotation persistence + tag merge."""
+
 from __future__ import annotations
 
 from cinemateca.annotations.descriptions import save_description

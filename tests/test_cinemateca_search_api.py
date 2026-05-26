@@ -43,8 +43,7 @@ def fake_film(tmp_path, monkeypatch):
     embedder echoes a constant unit vector so cosine matches all stored
     rows perfectly — ``find()`` returns the one scene.
     """
-    from cinemateca.library import FilmContext
-    from cinemateca.library import register_film
+    from cinemateca.library import FilmContext, register_film
 
     register_film(tmp_path, slug="alpha", title="Alpha", year=2026, raw_filename="alpha.mp4")
     cfg = SimpleNamespace(paths=SimpleNamespace(library_dir=str(tmp_path), data_dir=str(tmp_path)))
@@ -110,8 +109,7 @@ def test_find_text_query_runs(fake_film):
 
 def test_find_returns_no_index_for_missing(tmp_path):
     """Unwritten embeddings → no_index=True, hits=[]; not an exception."""
-    from cinemateca.library import FilmContext
-    from cinemateca.library import register_film
+    from cinemateca.library import FilmContext, register_film
 
     register_film(tmp_path, slug="alpha", title="Alpha", year=2026, raw_filename="alpha.mp4")
     cfg = SimpleNamespace(paths=SimpleNamespace(library_dir=str(tmp_path)))

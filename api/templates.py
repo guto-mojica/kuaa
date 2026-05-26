@@ -1,4 +1,5 @@
 """Shared Jinja2 templates instance. Import this instead of creating a new one."""
+
 from pathlib import Path
 
 from babel.support import Translations

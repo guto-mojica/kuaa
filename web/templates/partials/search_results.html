@@ -29,9 +29,9 @@
        single .search-notice across all columns.
      * ``r.id`` is NOT in our result shape — we use ``r.scene_id`` and
        compare it to ``selected_scene_id`` for the ``.sel`` class.
-     * Right-pane inspector endpoint lands in Task 12. The ``hx-get``
-       attribute is wired here so a click yields a 404 until that task,
-       which is the documented intermediate state in the plan.
+     * Clicking or pressing Enter/Space on a card opens the right-pane
+       inspector. Per-card overflow actions are omitted until there is a
+       backed action menu.
 #}
 {% from "partials/_icons.html" import icon %}
 
@@ -67,7 +67,7 @@
              hx-target="#right-pane"
              hx-swap="innerHTML"
              hx-trigger="click, keyup[key=='Enter' || key==' ']">
-      <div class="kf"{% if r.img_url %} style="background-image: url('{{ r.img_url }}');"{% endif %}>
+      <div class="kf" role="img" aria-label="{{ _('Keyframe') }}"{% if r.img_url %} style="background-image: url('{{ r.img_url }}');"{% endif %}>
         <span class="tl">
           <span class="dot"></span>
           {{ _("indexed") }}
@@ -98,9 +98,6 @@
             {% if tag_list|length > 3 %}
               <span class="fx-pill outline">+{{ tag_list|length - 3 }}</span>
             {% endif %}
-          </div>
-          <div class="acts">
-            <button type="button" class="fx-icbtn sm" title="{{ _('More') }}">{{ icon('more', 14) }}</button>
           </div>
         </div>
       </div>

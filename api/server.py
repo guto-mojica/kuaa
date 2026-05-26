@@ -29,12 +29,12 @@ from api.routes import (
 from api.routes import (
     eval as eval_routes,
 )
-from api.services.annotations import build_annotate_context
+from api.services.annotations import build_annotate_context, normalize_annotate_tab
 from api.services.chrome_service import build_chrome_context
-from cinemateca.library import FilmContext, scan_library, keyframe_url, load_json
 from api.services.rhymes_service import build_rimas_context
 from api.services.scenes_service import build_cenas_context, build_timeline_context
 from api.templates import templates
+from cinemateca.library import FilmContext
 
 logger = logging.getLogger(__name__)
 
@@ -249,18 +249,35 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     elif active_tab == "scenes":
         # ``?film=<slug>`` narrows the .c-cp grid to a single film's
         # group; ``slug=None`` keeps the library-wide aggregate view.
-        # ``?bucket=<tipo>`` filters to scenes of that tipo (exterior /
-        # cartela / dialogo / interior) — the Coleções links use it.
-        tab_ctx = build_cenas_context(cfg, slug=current_slug, bucket=bucket_param)
+        # Without this branch the full-page route rendered the aggregate
+        # grid even when the URL bar / sidebar advertised a selected
+        # film, so picking a film and the LeftPane marking the row
+        # active had no effect on the visible thumbnails. The HTMX
+        # fragment routes (``/tab/scenes``, ``/api/scenes``) always
+        # threaded the slug through; this branch restores parity.
+        # ``?scene=<id>`` deep-link parsing stays a fragment-only
+        # concern (the right-pane inspector lives on a separate swap),
+        # so ``selected_scene_id`` is left at the builder's default.
+        tab_ctx = build_cenas_context(
+            cfg,
+            slug=current_slug,
+            bucket=request.query_params.get("bucket"),
+        )
     elif active_tab == "annotate":
         fctx = (
             FilmContext.for_film(cfg, current_slug)
             if current_slug
             else FilmContext.from_config(cfg)
         )
+        filter_param = request.query_params.get("filter") or "no_llm"
+        scene_param = request.query_params.get("id")
+        try:
+            scene_id = int(scene_param) if scene_param is not None else None
+        except ValueError:
+            scene_id = None
         tab_ctx = {
-            **build_annotate_context(fctx),
-            "annotate_tab": "comments",
+            **build_annotate_context(fctx, filter_param, scene_id),
+            "annotate_tab": normalize_annotate_tab(request.query_params.get("tab") or "comments"),
         }
     else:
         tab_ctx = _TAB_CONTEXT_BUILDERS[active_tab]()
@@ -316,10 +333,5 @@ async def page_processing(request: Request) -> HTMLResponse:
 
 @app.get("/rimas", response_class=HTMLResponse)
 async def page_rimas(request: Request) -> HTMLResponse:
-    """Rimas Visuais (cross-film visual rhymes) — Phase-5 placeholder.
-
-    The real builder + page template land in Phase 5; for Phase 1 this route
-    exists so the chrome shell, IconRail link, and ``data-active-tab='rimas'``
-    body attribute can be exercised end-to-end.
-    """
+    """Rimas Visuais (cross-film visual rhymes) full-page route."""
     return render_page(request, "rimas")

@@ -233,6 +233,58 @@ def test_aggregate_hybrid_returns_results_from_multiple_films(
         assert {"film_slug", "film_title", "scene_id", "score", "keyframe_path"} <= h.keys()
 
 
+def test_hybrid_short_object_query_promotes_exact_metadata_matches(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Exact object metadata must beat weak visual-only SigLIP ranks.
+
+    Regression shape for the launch ``dog`` query: many visual-near scenes
+    can outrank the actual dog scenes on the embedding side. Hybrid should
+    still put exact tag/description/object matches first.
+    """
+    library_dir = tmp_path / "library"
+    library_dir.mkdir()
+    register_film(library_dir, slug="a", title="A", year=2000, raw_filename="a.mp4")
+
+    vectors: list[list[float]] = []
+    descriptions: list[str] = []
+    for i in range(60):
+        if i in (58, 59):
+            vectors.append([0.0, 1.0])
+            descriptions.append("a man sits with a dog in the yard")
+        else:
+            vectors.append([1.0, 0.0])
+            descriptions.append(f"unrelated field scene {i}")
+
+    _make_film_with_embeddings(
+        library_dir,
+        "a",
+        vectors,
+        descriptions=descriptions,
+        tag_index={"dog": [58, 59]},
+    )
+
+    class StubEmbedder:
+        def encode_text(self, q: str) -> np.ndarray:
+            return np.array([1.0, 0.0], dtype=np.float32)
+
+    monkeypatch.setattr(_AGGREGATE_MODULE, "_get_embedder", lambda cfg: StubEmbedder())
+
+    hits = aggregate_search(
+        _cfg(library_dir),
+        query="dog",
+        modality="text",
+        top_k=3,
+        tags=[],
+        min_similarity=0.0,
+        retriever_mode="hybrid",
+        sem_w=0.7,
+        bm25_w=0.3,
+    )
+
+    assert [h["scene_id"] for h in hits[:2]] == [58, 59]
+
+
 def test_aggregate_bm25_mode_returns_bm25_hits(two_film_library_cfg: object) -> None:
     """``retriever_mode="bm25"`` surfaces scenes by description-token match.
 
@@ -367,9 +419,10 @@ def test_aggregate_hybrid_no_cross_film_top_score_ties(degeneracy_fixture: objec
     )
     assert len(hits) >= 2, "fixture must produce at least 2 hybrid hits"
     top_keys = {(h["film_slug"], h["scene_id"]) for h in hits[:2]}
-    assert top_keys == {("a", 1), ("b", 0)}, (
-        f"top-2 must still be the two combined-signal scenes, got {top_keys}"
-    )
+    assert top_keys == {
+        ("a", 1),
+        ("b", 0),
+    }, f"top-2 must still be the two combined-signal scenes, got {top_keys}"
     top, second = hits[0]["score"], hits[1]["score"]
     assert top > second, (
         f"hybrid cross-film ordering must be strict: top={top} second={second} — "

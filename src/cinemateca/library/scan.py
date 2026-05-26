@@ -1,4 +1,5 @@
 """Filesystem scan over the library: derive Film + LibraryState from disk."""
+
 from __future__ import annotations
 
 import json
@@ -67,9 +68,7 @@ def scan_library(library_dir: Path) -> list[Film]:
                     # N rows per scene (N keyframes for embedding density).
                     scene_count = len({e.get("scene_id") for e in kf_meta})
             except (json.JSONDecodeError, OSError) as exc:
-                logger.warning(
-                    "Unreadable keyframes_metadata.json for %s: %s", slug, exc
-                )
+                logger.warning("Unreadable keyframes_metadata.json for %s: %s", slug, exc)
         films.append(
             Film(
                 slug=slug,

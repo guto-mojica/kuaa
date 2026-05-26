@@ -16,9 +16,9 @@ Cinemateca-imgsearch is an offline audiovisual cataloguing system for film archi
 It takes video files and produces searchable metadata (scenes, faces, objects,
 natural-language descriptions, semantic embeddings).
 
-The main branch is currently **migrating from v0.2.1 (Streamlit) to v0.3.0
-(FastAPI + HTMX + Jinja2)**. The Streamlit app remains functional as
-`app_streamlit.py` until feature parity is reached.
+The interface is **FastAPI + HTMX + Jinja2** (v0.3.0+). The legacy Streamlit
+app was removed once parity was confirmed; the FastAPI surface is the only
+supported UI.
 
 ---
 
@@ -87,6 +87,13 @@ Terms to avoid because they carry domain ambiguity:
 
 ```
 src/cinemateca/      AI core. HTTP-agnostic logic. Cleanly importable.
+  search/              4-verb / 7-type retrieval API (find / aggregate / reindex_bm25 / rerank).
+  library/             Registry + scan + FilmContext + per-film metadata loaders.
+  annotations/         Manual tags + descriptions + annotate-tab scene builders.
+  rhymes/              Cross-film visual-rhyme algorithm + enrichment.
+  eval/                Eval-set datasets + grades + IAA / κ metrics.
+  retrieval/           BM25Index + RRF fusion primitives.
+  models/              Protocol-typed model backends + registry.
 api/                 Thin HTTP layer. Each route calls src/cinemateca/ and returns JSON or HTML.
 web/templates/       Jinja2. base.html + partials/ for HTMX fragments.
 web/static/          CSS, vendored htmx.min.js, icons.
@@ -95,12 +102,18 @@ config/              default.yaml (versioned) + local.yaml (gitignored).
 tests/               pytest, no heavy-model dependencies in test_smoke.
 docs/                DESIGN_SYSTEM.md (visual source of truth), PROTOCOL_OPTION.md (pluggable model-backend design).
 app.py               FastAPI entrypoint (uvicorn api.server:app).
-app_streamlit.py     Legacy entrypoint. Removed at end of migration.
 ```
 
 **Rule:** AI logic lives in `src/cinemateca/`. If you're about to write model inference,
 video parsing, or embedding computation inside `api/` or `web/`, stop and move it to
 `src/cinemateca/`.
+
+**Deep-modules invariant (P1/P2/P3 refactor):** the `cinemateca.*` packages
+must not import from `api/*`. This is enforced by `import-linter` (see
+`.importlinter`); the matching LOC budget per service module is enforced
+by `scripts/check_loc_budget.py`. Both run in CI
+(`.github/workflows/refactor-guards.yml`). Public surface of each package
+lives in its `__init__.py`; everything else is implementation detail.
 
 ---
 
@@ -134,7 +147,7 @@ from or push to GitHub. The discipline below avoids stale-code conflicts.
 - Push when the user confirms (`git push origin main` or to a working branch).
 - If working on a feature branch, mention it in the commit summary so the user
   knows what to merge later.
-- Update the migration tracker at the bottom of this file when relevant.
+- Update the launch tracker at the bottom of this file when relevant.
 
 **What Claude Code will not do without explicit user request:**
 
@@ -163,10 +176,7 @@ uv run cinemateca <cmd> --help                 # flags for any subcommand
 # Run the FastAPI interface (v0.3.0+)
 uv run cinemateca serve                        # http://127.0.0.1:8501 (--reload by default)
 uv run cinemateca serve --port 9000 --no-reload
-# Legacy `uv run app.py` still works (delegates to `cinemateca serve`).
-
-# Run the legacy Streamlit interface (during migration)
-uv run streamlit run app_streamlit.py
+# `uv run app.py` still works (delegates to `cinemateca serve`).
 
 # Tests
 uv run pytest tests/ -q
@@ -240,8 +250,8 @@ CPU-only build, so it is safe to leave enabled either way.
 
 **Files expected to change frequently:**
 
-- `web/templates/**` during migration.
-- `api/routes/**` during migration.
+- `web/templates/**` for UI / partial work.
+- `api/routes/**` for endpoint work.
 - `CHANGELOG.md` with each significant feature.
 
 ---
@@ -292,37 +302,16 @@ a new pattern. Don't duplicate here — reference.
 
 ---
 
-## v0.2.1 → v0.3.0 migration tracker
+## v0.2.1 → v0.3.0 migration
 
-Last updated: in the commit message that touched CLAUDE.md.
-
-- [x] Folder structure (`api/`, `web/`, `docs/`) created
-- [x] `library.py` in `src/cinemateca/` to manage film collection
-- [x] FastAPI app skeleton running on `localhost:8501`
-- [x] Base layout (sidebar + main) in `web/templates/base.html`
-- [x] Search tab functional via HTMX
-- [x] Scenes tab functional via HTMX
-- [x] Annotate tab functional via HTMX
-- [x] Processing tab with SSE
-- [x] About modal
-- [x] i18n PT/EN extracted and translated
-- [x] Streamlit parity confirmed → tagged `v0.2.1-streamlit-final`
-- [x] uv adopted for env/deps (config-only, lockfile deferred — see docs/superpowers/specs/2026-05-16-uv-migration-scaffold-design.md)
-- [x] FastAPI regression recovery (Phases 0–8): regressions fixed (full-page parity, Processing render, scene-id tag filtering, SSE close), service layer, pipeline gating/cancellation, single-film v0.3 (multi-film deferred), i18n/a11y/offline, tests 18→208 — see docs/RELEASE_VERIFICATION.md
-- [x] Pluggable model backends (PROTOCOL_OPTION Steps 1–2): 5 Protocols +
-  registry, all roles moved, hard cutover (no shims), describer replaced
-  with keyless offline Moondream-2 GGUF (transformers removed) — see
-  docs/superpowers/specs/2026-05-17-pluggable-model-backends-design.md
-- [x] Describer default reverted to HF transformers Moondream2 @2025-01-09
-  (deployment ease: keyless, GPU via prebuilt PyTorch wheels on Win/Mac/Linux,
-  no source build). GGUF kept opt-in. transformers pinned >=4.44,<5 (tf5
-  hard-fails for every moondream2 revision, verified). uv.lock now committed.
-  See docs/superpowers/plans/2026-05-18-transformers-describer-default.md
-- [x] Multi-film library: per-film dirs, native file picker, film registration
-  and removal, `scan_library` multi-film aware, Processing dropdown synced to
-  active-film cookie, slug read from `film.json`
-
-Keep this list updated as steps complete.
+**Complete.** The Streamlit UI was retired once FastAPI + HTMX reached
+parity; `app_streamlit.py` and the `streamlit` / `gui` dependency entries
+are gone. Tag `v0.2.1-streamlit-final` is the last Streamlit-era commit
+for anyone who needs to recover historical UI behaviour. Major milestones
+along the way (folder restructure, pluggable model backends, transformers
+Moondream2 default, multi-film library) are captured commit-by-commit in
+`CHANGELOG.md` and `docs/RELEASE_VERIFICATION.md`. Forward work continues
+under the v0.3.0 → v1.0.0 launch tracker below.
 
 ---
 
@@ -407,7 +396,11 @@ defer features; timeline extension is one option among several. Grilled
 - [ ] Pre-launch LinkedIn "I'm building this" post
 
 ### Month 2 — Retrieval depth + audio (HARD FREEZE on new features)
-- [ ] CLAP audio embeddings complete; audio-only search in UI
+- [x] CLAP audio embeddings complete; audio-only search in UI — `/api/search?modality=audio`
+  dispatches to `cinemateca.search.audio.search_audio()` over the CLAP joint
+  text+audio space; Buscar surface ships an Áudio/Soundtrack chip wired
+  through Alpine; PT/EN i18n landed. Jeca Tatu regression snapshot pinned
+  at `tests/fixtures/audio_search_regression.json` (M3 pre-flight Phase 1+2).
 - [ ] Whisper transcripts indexed (faster-whisper, `Transcriber` Protocol)
 - [x] Hybrid search (CLIP ⊕ BM25, Reciprocal Rank Fusion) — shipped 2026-05-23
   on `worktree-hybrid-search-spec`. New package `src/cinemateca/retrieval/`
@@ -422,25 +415,66 @@ defer features; timeline extension is one option among several. Grilled
   `docs/superpowers/specs/2026-05-23-hybrid-search-design.md` +
   `docs/superpowers/plans/2026-05-23-hybrid-search.md`. F1 (eval ablation
   on Jeca Tatu) ainda pendente — corrida manual requer dados reais.
-  Cross-encoder reranker + M-CLIP multilingual model shipped 2026-05-25 (see items below).
-- [x] Cross-encoder reranker — `cinemateca.search.rerank`; `ms-marco-MiniLM-L-12-v2`
-  (English default) / `mmarco-mMiniLMv2-L12-H384-v1` (multilingual, local.yaml).
-  Top-50 candidates → top-k rerank; lazy-load + module-level cache; graceful fallback.
-  Validated on Jeca Tatu: [old→new] rank logs confirm reshuffling. 2026-05-25.
-- [x] Multilingual visual model — M-CLIP (`clip-ViT-B-32-multilingual-v1` via
-  sentence-transformers). `MClipEmbedder` subclasses `OpenClipEmbedder`, overrides
-  only `encode_text()`. Existing `keyframe_embeddings.npy` valid (same 512-dim space).
-  `load_index` routes to registry; embedder name in cache key. Validated 2026-05-25.
-- [ ] CLAP archival-audio sanity check (pre-commit gate on Jeca Tatu)
+  **Próximo:** M2 #4 cross-encoder reranker.
+- [x] Cross-encoder reranker (text default; VLM-as-judge opt-in) — lands in
+  `cinemateca.search.rerank` (BAAI/bge-reranker-v2-m3 default, `model="noop"`
+  escape hatch); `apply_reranker(result, *, cfg)` service wrapper ready
+  (UI affordance live; live wiring in production dispatchers tracked as
+  follow-up Task 3.2b — default off).
+- [x] Multilingual visual model (SigLIP-multilingual; M-CLIP fallback) —
+  `cinemateca.models.clip.siglip_multilingual.SiglipMultilingualEmbedder`
+  registered behind `models.image_embedder`; library uniformly re-embedded
+  with `google/siglip2-large-patch16-256` (1024 dim); CLIP backups preserved
+  as `.clip_openclip.npy` per-film for rollback (SigLIP2-large-256 substituted
+  for the plan's invented siglip-large-multilingual id; library uniformly
+  migrated). Registry-dispatch fix in `cinemateca.search.{cache,aggregate}`
+  so query-time text encoder honours the config flag.
+- [x] CLAP archival-audio sanity check (pre-commit gate on Jeca Tatu) —
+  `cinemateca eval clap-sanity` CLI; 5-query fixture, auto-picked baseline.
 
 ### Month 3 — Fusion + visual rhymes + eval annotation
-- [ ] Cross-modal CLIP × CLAP fusion search
-- [x] Visual rhymes (cross-film kNN + MMR diversity) — stub MVP shipped with
-  Mojica redesign: cosine kNN cross-film over existing CLIP keyframe embeddings,
-  `Rimas Visuais` tab fully wired (anchor + echoes UI). MMR / diversity
-  controls and curated single-anchor refinements deferred to M3.
-- [ ] 50–100 curator-annotated eval pairs
-- [ ] Landing-page README draft; blog post outline
+- [x] M3 pre-flight (close M2 leftovers) — Phases 0–5 shipped on
+  `m3-preflight`: audio search end-to-end (CLAP joint space + UI chip +
+  i18n + regression snapshot), reranker stub filled in (bge-reranker-v2-m3,
+  service wrapper, UI affordance — production dispatcher wiring tracked
+  as follow-up Task 3.2b), SigLIP2-multilingual rolled out library-wide,
+  CLAP archival sanity gate (`cinemateca eval clap-sanity`). See
+  `docs/superpowers/plans/2026-05-24-m3-preflight-m2-cleanup.md`.
+- [x] Cross-modal CLIP × CLAP fusion search — `?modality=fusion&w=0.5`,
+      linear late-fusion (`score = w·clip + (1-w)·clap`), UI slider with
+      `visual ↔ audio` weight popover, regression-pinned on Jeca Tatu
+      (skipif-guarded). Implementation: `dispatch_fusion_search` mirrors
+      the audio dispatcher; CLIP `index_mapping.json` normalised for the
+      SigLIP2 parallel-array shape that broke the first real-data run.
+- [x] Visual rhymes (cross-film kNN + MMR diversity) — MMR live in M3:
+  `?lambda=` + `?k_candidates=` query params on `/tab/rimas`,
+  `/api/rimas/echoes`, `/api/rimas/inspector`; UI Diversidade popover
+  with range slider fires live HTMX updates on the echo grid. Default
+  λ=0.5 / k_candidates=30 via `cfg.retrieval.rhymes`. Acceptance check
+  on real 2-film library (10 tests) confirms cross_film_only +
+  MMR-runs-cleanly + unique-scene diversification. Curated single-anchor
+  refinements still deferred to M4 stretch.
+- [x] M3 eval data infrastructure (M3 #3) — 50 curated bilingual queries in
+      `data/eval/m3_full_queries.yaml` covering the spec §7.1 distribution
+      (15 text · 10 image · 10 audio · 10 fusion · 5 rhyme); text-only
+      subset `m3_text_queries.yaml` runs end-to-end through
+      `scripts/run_eval.py` against Jeca Tatu CLIP index (R@5=0.189,
+      MRR=0.254 on pre-curator hypotheses); `cinemateca eval seed` writes
+      candidate slates; protocol in `docs/EVAL_PROTOCOL.md`;
+      `scripts/freeze_eval_run.sh` snapshots grades as SHA256 tarballs;
+      `.gitignore` covers per-run output (`*-run-*/`, `*-run-*.queries.json`,
+      `*-run-*.jsonl`, `*.frozen-*.tar.gz`). **Curator annotation sessions
+      (~50 grades × 9 candidates) are the remaining human-gated work** —
+      surface in M4 standups until complete. Non-text query types
+      (image / audio / fusion / rhyme) need a per-modality slate generator
+      before `run_eval.py` can score them; tracked as M3 follow-up.
+- [ ] 50–100 curator-annotated eval pairs — grading sessions on the M3 slate
+- [x] Landing-page README draft; blog post outline; demo-video scope —
+      drafts at `docs/launch/README_DRAFT.md`,
+      `docs/launch/BLOG_OUTLINE.md`, `docs/launch/DEMO_VIDEO_SCOPE.md`.
+      Drafts cite real shipped backends; metric numbers (P@K, MRR,
+      nDCG) stay TBD until the M4 ablation table lands. M4 finalises
+      copy + records the 90s video.
 
 ### Month 4 — Eval + writeup + launch
 - [ ] Ablation table + per-modality breakdown

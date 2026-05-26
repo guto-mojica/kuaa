@@ -46,9 +46,7 @@ def _fake_cfg(tmp_path):
         frames_dir=tmp_path / "frames",
         metadata_dir=tmp_path / "meta",
     )
-    (paths.frames_dir / "scenes" / "keyframes_content").mkdir(
-        parents=True, exist_ok=True
-    )
+    (paths.frames_dir / "scenes" / "keyframes_content").mkdir(parents=True, exist_ok=True)
     paths.metadata_dir.mkdir(parents=True, exist_ok=True)
     return types.SimpleNamespace(paths=paths)
 
@@ -76,9 +74,7 @@ def _pipeline_with_stubbed_steps(tmp_path, *, outcomes: dict[str, str]):
             if name == "scene_detection":
                 kfd = cfg.paths.frames_dir / "scenes" / "keyframes_content"
                 out = {"keyframes_dir": kfd}
-            return StepResult(
-                name=name, success=True, duration_s=1.0, output=out
-            )
+            return StepResult(name=name, success=True, duration_s=1.0, output=out)
 
         return _step
 
@@ -156,9 +152,7 @@ def test_progress_callback_reports_start_and_finish(tmp_path):
     p.run_steps(
         "v.mp4",
         steps=list(STEP_ORDER),
-        progress_cb=lambda n, ph, run: events.append(
-            (n, ph, run.state if run else None)
-        ),
+        progress_cb=lambda n, ph, run: events.append((n, ph, run.state if run else None)),
     )
     # Each step: one start (run None) then one finish (run with state).
     fe = [e for e in events if e[0] == "frame_extraction"]
@@ -175,14 +169,10 @@ def test_scene_detection_failure_blocks_downstream_no_stale_output(tmp_path):
     """The historical defect: scene_detection fails but embeddings/llm
     still ran on a STALE keyframes_metadata.json. Gating must block them
     so NO downstream step executes (calls list proves it)."""
-    p, cfg, calls = _pipeline_with_stubbed_steps(
-        tmp_path, outcomes={"scene_detection": "fail"}
-    )
+    p, cfg, calls = _pipeline_with_stubbed_steps(tmp_path, outcomes={"scene_detection": "fail"})
     # Simulate a stale metadata file from a PRIOR run still on disk —
     # the old code would let embeddings/llm run on this.
-    (cfg.paths.metadata_dir / "keyframes_metadata.json").write_text(
-        '[{"stale": true}]'
-    )
+    (cfg.paths.metadata_dir / "keyframes_metadata.json").write_text('[{"stale": true}]')
 
     res = p.run_steps("v.mp4", steps=list(STEP_ORDER))
 
@@ -203,12 +193,8 @@ def test_scene_detection_failure_blocks_downstream_no_stale_output(tmp_path):
 
 
 def test_blocked_reason_is_explicit(tmp_path):
-    p, _, _ = _pipeline_with_stubbed_steps(
-        tmp_path, outcomes={"scene_detection": "fail"}
-    )
-    res = p.run_steps(
-        "v.mp4", steps=["scene_detection", "embeddings"]
-    )
+    p, _, _ = _pipeline_with_stubbed_steps(tmp_path, outcomes={"scene_detection": "fail"})
+    res = p.run_steps("v.mp4", steps=["scene_detection", "embeddings"])
     emb = next(r for r in res.runs if r.name == "embeddings")
     assert emb.state == "blocked"
     assert "scene_detection" in (emb.error or "")
@@ -262,9 +248,7 @@ def test_run_steps_raises_on_cancel_between_steps(tmp_path):
         return state["n"] > 2  # cancel after a couple of step boundaries
 
     with pytest.raises(StepCancelled):
-        p.run_steps(
-            "v.mp4", steps=list(STEP_ORDER), cancel_check=cancel_check
-        )
+        p.run_steps("v.mp4", steps=list(STEP_ORDER), cancel_check=cancel_check)
     # Stopped early — not every step ran.
     assert len(calls) < len(STEP_ORDER)
 
@@ -334,9 +318,7 @@ def _patch_pipeline(jobs_mod, monkeypatch, behavior="ok"):
     # _run_pipeline now creates a FilmContext before CatalogPipeline; tests
     # that pass object() as cfg don't have real paths, so stub for_film out.
     _noop = types.SimpleNamespace(mkdir=lambda **_: None)
-    _stub_ctx = types.SimpleNamespace(
-        metadata_dir=_noop, frames_dir=_noop, embeddings_dir=_noop
-    )
+    _stub_ctx = types.SimpleNamespace(metadata_dir=_noop, frames_dir=_noop, embeddings_dir=_noop)
     monkeypatch.setattr(FilmContext, "for_film", lambda cfg, slug: _stub_ctx)
 
 
@@ -360,9 +342,7 @@ def test_job_lifecycle_created_running_done(jobs_mod, monkeypatch):
 
 def test_job_lifecycle_error_on_failed_step(jobs_mod, monkeypatch):
     _patch_pipeline(jobs_mod, monkeypatch, "fail")
-    jid = jobs_mod.start_job(
-        "v.mp4", {"scene_detection", "embeddings"}, object()
-    )
+    jid = jobs_mod.start_job("v.mp4", {"scene_detection", "embeddings"}, object())
     job = jobs_mod.get_job(jid)
     _wait_terminal(job)
     assert job.status == jobs_mod.STATUS_ERROR
@@ -371,9 +351,7 @@ def test_job_lifecycle_error_on_failed_step(jobs_mod, monkeypatch):
 
 def test_blocked_step_makes_job_error_no_silent_success(jobs_mod, monkeypatch):
     _patch_pipeline(jobs_mod, monkeypatch, "block")
-    jid = jobs_mod.start_job(
-        "v.mp4", {"scene_detection", "embeddings"}, object()
-    )
+    jid = jobs_mod.start_job("v.mp4", {"scene_detection", "embeddings"}, object())
     job = jobs_mod.get_job(jid)
     _wait_terminal(job)
     assert job.status == jobs_mod.STATUS_ERROR
@@ -506,9 +484,7 @@ def test_registry_add_inserts_under_lock(jobs_mod):
     reg = jobs_mod._registry
     reg.reset()
     job = jobs_mod.JobState(id="addme", video_path="v.mp4")
-    job.steps = [
-        jobs_mod.StepInfo(name=n, label=lbl) for n, lbl in jobs_mod.STEP_DEFS
-    ]
+    job.steps = [jobs_mod.StepInfo(name=n, label=lbl) for n, lbl in jobs_mod.STEP_DEFS]
     reg.add(job)
 
     assert jobs_mod.get_job("addme") is job

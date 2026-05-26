@@ -31,13 +31,14 @@ The user-facing tab and the action of submitting a query. PT label: *Buscar*.
 _Avoid_: pesquisar, find.
 
 **Input type**:
-The kind of payload the user submits — today `text` or `image`; `audio` and
-`multimodal` chips exist in the template but are gated by feature flags off
-by default. Independent of the retriever. PT label: *Tipo de entrada*.
+The retrieval space the user submits into — `text`, `image`, `audio`, or
+`fusion` in the current branch. Text uses the text retriever (`clip`, `bm25`,
+or `hybrid`), image uses the image endpoint, audio uses CLAP, and fusion blends
+visual and audio scores. PT label: *Tipo de entrada*.
 _Avoid_: Search modality, Modalidade de busca (deprecated 2026-05-24).
-Note: when the audio/multimodal chips light up, this term may need
-revisiting — those add a true modality dimension that "input type"
-under-describes.
+Note: "Input type" is still the UI label even though `audio` and `fusion`
+are true retrieval modalities; keep code comments explicit about the route
+parameter name `modality`.
 
 ## Flagged ambiguities
 
@@ -48,11 +49,17 @@ keep the distinction sharp; UI strings keep *busca* because it's how end
 users read it.
 
 **Retriever applies to text queries only.** The `clip`/`hybrid`/`bm25`
-toggle has no effect when the user submits an image — image search has its
-own endpoint (`/api/search/image`) and always uses image-CLIP. This is not
-obvious from the UI; the popover stays visible regardless of the active
-input type. Either the popover should disable when input type isn't text,
-or the asymmetry should be surfaced in the chip — pending decision.
+toggle has no effect when the user submits an image, audio, or fusion query.
+Image search has its own endpoint (`/api/search/image`), audio dispatches to
+CLAP, and fusion combines visual/audio scores. This is not obvious from the UI;
+the popover stays visible regardless of the active input type. Either the
+popover should disable when input type is not text, or the asymmetry should be
+surfaced in the chip — pending decision.
+
+**Rerank is live for text results only.** `/api/search` accepts and logs
+`reranker_enabled`, then applies the cross-encoder after card enrichment so
+scene descriptions are available. Image, audio, and fusion requests ignore the
+text reranker.
 
 ## Example dialogue
 

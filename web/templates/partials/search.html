@@ -1,7 +1,7 @@
 {# ── Mojica Buscar tab — center pane (.b-cp) ───────────────────────────────
    Task 10 (Phase 2) of the Mojica redesign. The earlier text/image toggle +
    raw scene-grid markup is gone; this template now lays out the new search
-   chrome: qbar + modality chips + read-only retrieval knobs + caption row +
+   chrome: qbar + modality chips + wired retrieval knobs + caption row +
    .b-cp .grid (results) + bottom-timeline + right-inspector includes.
 
    Compatibility contracts the rewrite still honours:
@@ -17,13 +17,9 @@
        hx-target wiring keeps working; the inner partial is rewritten in
        Task 11 onto ``.b-card`` cards.
 
-   HTMX trigger simplification (vs the plan's snippet): we keep
-   ``hx-trigger="submit"`` only. The plan suggests
-   ``submit, change from:.chip`` so chip clicks re-fire the query, but the
-   chip click handler today only swaps which sub-panel is visible — there
-   is no per-modality API endpoint to GET. Adding the chip trigger here
-   would issue a duplicate text-search every time the user picks the image
-   chip. We'll wire it in M2 alongside the audio / multimodal endpoints.
+   Modality chips update the hidden ``modality`` mirror and submit the text
+   form for live text/audio/fusion searches. Image search stays on the separate
+   multipart endpoint, so the image chip only shows the upload panel.
 
    The right-inspector and bottom-timeline includes are ``ignore missing``
    guards so Tasks 12 + 13 can land their partials independently without
@@ -41,7 +37,17 @@
    flip preserves the original behaviour and uses x-refs so we don't
    reach across the DOM with getElementById. #}
 <section class="b-cp"
-         x-data="{ mode: '{{ active_mode }}' }">
+         x-data="{
+           mode: '{{ active_mode }}',
+           refreshSearch() {
+             this.$nextTick(() => {
+               const input = this.$refs.searchInput;
+               if (input && input.value.trim().length >= 2 && window.htmx) {
+                 window.htmx.trigger('#search-text-form', 'submit');
+               }
+             });
+           }
+         }">
 
   {# ── Search row: qbar + chips + knobs ─────────────────────────────── #}
   <div class="search-wrap">
@@ -79,12 +85,26 @@
       <input type="hidden" name="sem_w"     :value="$store.buscarRetrieval.sem_w">
       <input type="hidden" name="bm25_w"    :value="(1 - Number($store.buscarRetrieval.sem_w)).toFixed(2)">
       <input type="hidden" name="top_k"     :value="$store.buscarRetrieval.top_k">
+      {# Modality mirror — the chip click writes ``$store.buscarRetrieval.modality``
+         and this hidden input carries it into every HTMX search submission so the
+         FastAPI route sees the picked modality (text | audio | fusion).
+         Image still POSTs to its own endpoint. #}
+      <input type="hidden" name="modality" :value="$store.buscarRetrieval.modality">
+      {# Fusion w mirror — read by the /api/search route when modality=fusion.
+         Always emitted (cost: one extra query-string field); the route clamps to
+         [0,1] and ignores it when modality != fusion. #}
+      <input type="hidden" name="w" :value="$store.buscarRetrieval.fusion_w">
+      {# Text reranker mirror — included on every HTMX search. The route ignores
+         it for non-text modalities and applies it only after card enrichment so
+         the cross-encoder can score scene descriptions. #}
+      <input type="hidden" name="reranker_enabled" :value="$store.buscarRetrieval.rerank_enabled ? 'true' : 'false'">
 
       <label class="qinput" for="search-input">
         <span class="ico">{{ icon('search', 18) }}</span>
         <input id="search-input"
                type="search"
                name="q"
+               x-ref="searchInput"
                autocomplete="off"
                value="{{ query or '' }}"
                placeholder="{{ _('Search the library — describe a scene, paste an image…') }}"
@@ -100,19 +120,18 @@
       </button>
     </form>
 
-    {# Modality chips. Image is the only modality wired today; Audio +
-       Multimodal land in M2/M3 and stay disabled until their backends
-       exist. Disabled chips render with aria-disabled + .disabled so a
-       screen-reader announces them as unavailable instead of clickable. #}
-    <div class="modes" role="tablist" aria-label="{{ _('Input type') }}">
+    {# Modality chips. Text, image, audio, and fusion are live when their
+       matching config flags are enabled. Disabled chips render with
+       aria-disabled + .disabled so a screen-reader announces them as
+       unavailable instead of clickable. #}
+    <div class="modes" role="tablist" aria-label="{{ _('Input type') }}" @change="refreshSearch()">
       {# Modality chips:
          * ``:class="{ on: mode === '…' }"`` reactively flips the highlight
            — Alpine merges this with the static ``chip`` (and optional
            ``disabled``) class so the disabled affordance is preserved.
          * ``:aria-selected`` mirrors the boolean for assistive tech.
          * ``@click`` only fires on enabled chips — the ``disabled`` attr
-           prevents the click event entirely, so audio/multimodal stay
-           inert until their backends light up in M2/M3.
+           prevents the click event entirely, so a gated modality stays inert.
          * Clearing #search-results on a flip reproduces the old inline
            script's behaviour; ``$refs.searchResults`` resolves inside
            this same x-data scope. #}
@@ -122,7 +141,7 @@
               data-mode="text"
               role="tab"
               :aria-selected="mode === 'text' ? 'true' : 'false'"
-              @click="mode = 'text'; $refs.searchResults && ($refs.searchResults.innerHTML = '')">
+              @click="mode = 'text'; $store.buscarRetrieval.modality = 'text'; $refs.searchResults && ($refs.searchResults.innerHTML = ''); refreshSearch()">
         <span class="ico">{{ icon('search', 14) }}</span>
         {{ _("Text") }}
       </button>
@@ -144,9 +163,9 @@
               role="tab"
               :aria-selected="mode === 'audio' ? 'true' : 'false'"
               {% if not cfg.search.audio_enabled %}disabled aria-disabled="true"{% endif %}
-              @click="mode = 'audio'; $refs.searchResults && ($refs.searchResults.innerHTML = '')">
+              @click="mode = 'audio'; $store.buscarRetrieval.modality = 'audio'; $refs.searchResults && ($refs.searchResults.innerHTML = ''); refreshSearch()">
         <span class="ico">{{ icon('audio', 14) }}</span>
-        {{ _("Soundtrack") }}
+        {{ _("Audio") }}
       </button>
       <button type="button"
               class="chip{% if not cfg.search.multimodal_enabled %} disabled{% endif %}"
@@ -155,18 +174,16 @@
               role="tab"
               :aria-selected="mode === 'multimodal' ? 'true' : 'false'"
               {% if not cfg.search.multimodal_enabled %}disabled aria-disabled="true"{% endif %}
-              @click="mode = 'multimodal'; $refs.searchResults && ($refs.searchResults.innerHTML = '')">
+              @click="mode = 'multimodal'; $store.buscarRetrieval.modality = 'fusion'; $refs.searchResults && ($refs.searchResults.innerHTML = ''); refreshSearch()">
         <span class="ico">{{ icon('rhymes', 14) }}</span>
-        {{ _("Multimodal") }}
+        {{ _("Fusion") }}
       </button>
 
       <span class="div-v" aria-hidden="true"></span>
 
       {# ── Retrieval knobs ───────────────────────────────────────────────
-         Hybrid + k are interactive popovers.
-         Rerank reflects cfg.search.rerank_enabled (shipped M2).
-         MMR remains a read-only badge (M3).
-         Encoder chip appears only when M-CLIP is the active embedder. #}
+         Only controls backed by the current search dispatchers are shown here.
+         MMR stays in Rimas; text reranking is live on Buscar text results. #}
 
       {# Hybrid popover. #}
       <div class="knob knob-popover" x-data="{ open: false }">
@@ -225,31 +242,6 @@
         </div>
       </div>
 
-      {# Encoder chip — visible only when M-CLIP multilingual encoder is active. #}
-      {% if cfg.models.image_embedder == 'clip_mclip' %}
-      <div class="knob" data-state="readonly" aria-disabled="true"
-           title="{{ _('Multilingual visual encoder (M-CLIP)') }}">
-        <span class="k">{{ _("Encoder") }}</span>
-        <span class="v acc">M-CLIP</span>
-      </div>
-      {% endif %}
-
-      {# Rerank chip — reflects cfg.search.rerank_enabled; shipped in M2. #}
-      <div class="knob" data-state="readonly" aria-disabled="true"
-           title="{% if cfg.search.rerank_enabled %}{{ cfg.search.reranker.model }}{% else %}{{ _('Cross-encoder reranker — disabled') }}{% endif %}">
-        <span class="k">{{ _("Rerank") }}</span>
-        <span class="v{% if cfg.search.rerank_enabled %} acc{% endif %}">
-          {% if cfg.search.rerank_enabled %}{{ _("on") }}{% else %}{{ _("off") }}{% endif %}
-        </span>
-      </div>
-
-      {# Read-only MMR chip — M3 lights this up later. #}
-      <div class="knob" data-state="readonly" aria-disabled="true" title="{{ _('Maximal Marginal Relevance λ — ships in M3') }}">
-        <span class="k">MMR</span>
-        <span class="v">λ {{ '%.2f'|format(cfg.search.mmr_lambda) }}</span>
-        <span class="readonly-badge">M3</span>
-      </div>
-
       {# k popover — backend already supports ?top_k=N. #}
       <div class="knob knob-popover" x-data="{ open: false }">
         <button type="button"
@@ -274,6 +266,77 @@
               {{ n }}
             </label>
             {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      {# Rerank popover — text-query cross-encoder applied after enrichment. #}
+      <div class="knob knob-popover"
+           x-data="{ open: false }"
+           x-show="mode === 'text'"
+           x-cloak>
+        <button type="button"
+                class="knob-toggle"
+                @click="open = !open"
+                :aria-expanded="open ? 'true' : 'false'"
+                aria-haspopup="dialog">
+          <span class="k">{{ _("Rerank") }}</span>
+          <span class="v"
+                :class="{ acc: $store.buscarRetrieval.rerank_enabled }"
+                x-text="$store.buscarRetrieval.rerank_enabled ? 'on' : 'off'"></span>
+        </button>
+        <div class="popover"
+             x-show="open"
+             x-cloak
+             @click.outside="open = false"
+             role="dialog"
+             aria-label="{{ _('Rerank') }}">
+          <h3>{{ _("Rerank") }}</h3>
+          <label class="radio">
+            <input type="checkbox" x-model="$store.buscarRetrieval.rerank_enabled">
+            {{ _("Cross-encoder rerank") }}
+          </label>
+        </div>
+      </div>
+
+      {# Fusion w popover — only visible when the Fusion chip is active
+         (the chip click sets the store; this knob disappears otherwise). Slider [0, 1] in 0.05
+         steps. Readout: "visual X · audio 1-X" so the user reads the symmetry
+         directly. The hidden #w mirror above is always emitted because Alpine
+         x-show only toggles CSS, not the input's value binding. #}
+      <div class="knob knob-popover"
+           x-data="{ open: false }"
+           x-show="mode === 'multimodal'"
+           x-cloak>
+        <button type="button"
+                class="knob-toggle"
+                @click="open = !open"
+                :aria-expanded="open ? 'true' : 'false'"
+                aria-haspopup="dialog">
+          <span class="k">{{ _("Fusion") }}</span>
+          <span class="v acc"
+                x-text="'visual ' + Number($store.buscarRetrieval.fusion_w).toFixed(2) +
+                        ' · audio ' + (1 - Number($store.buscarRetrieval.fusion_w)).toFixed(2)"></span>
+        </button>
+        <div class="popover"
+             x-show="open"
+             x-cloak
+             @click.outside="open = false"
+             role="dialog"
+             aria-label="{{ _('Visual ↔ Audio weight') }}">
+          <h3>{{ _("Visual ↔ Audio weight") }}</h3>
+          <div class="slider-row">
+            <label for="fusion-w-slider">
+              {{ _("Visual weight") }} ↔ {{ _("Audio weight") }}
+            </label>
+            <input type="range"
+                   id="fusion-w-slider"
+                   min="0" max="1" step="0.05"
+                   x-model.number="$store.buscarRetrieval.fusion_w">
+            <span class="slider-readout">
+              {{ _("visual") }} <span x-text="Number($store.buscarRetrieval.fusion_w).toFixed(2)"></span>
+              · {{ _("audio") }} <span x-text="(1 - Number($store.buscarRetrieval.fusion_w)).toFixed(2)"></span>
+            </span>
           </div>
         </div>
       </div>

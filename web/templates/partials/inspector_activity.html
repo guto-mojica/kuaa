@@ -3,10 +3,9 @@
    ``.b-com.ai`` row in a ``.b-thread`` container, plus an empty-state
    line when no description has been generated yet.
 
-   Curator / viewer comment rows arrive with the collaboration backend
-   (gated by ``cfg.collaboration.threads_enabled``). Until then the
-   thread carries the AI row only — read-only, no reply / edit actions
-   that would require persistence.
+   Curator / viewer comment rows and thread actions arrive with the
+   collaboration backend. Until then the thread carries the AI row only
+   — read-only, no reply / edit actions that would require persistence.
 #}
 <div class="b-thread">
 
@@ -25,13 +24,6 @@
           {% if selected_scene.timecode %}<span class="fx-tc">{{ selected_scene.timecode }}</span>{% endif %}
           {{ selected_scene.description }}
         </div>
-        {% if cfg.collaboration.threads_enabled %}
-          <div class="replyrow">
-            <a href="#">{{ _("Reply") }}</a>
-            <a href="#">{{ _("Edit") }}</a>
-            <a href="#">{{ _("Re-generate") }}</a>
-          </div>
-        {% endif %}
       </div>
     </div>
   {% else %}

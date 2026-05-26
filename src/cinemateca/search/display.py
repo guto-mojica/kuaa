@@ -9,11 +9,11 @@ from __future__ import annotations
 
 import re
 
-_MAX_LEN = 20
+_MAX_LEN = 40
 _MAX_HYPHENS = 2
 _REPEATED_TOKEN_RE = re.compile(r"\b(\w+)(?:[-\s]\1\b){2,}", re.IGNORECASE)
 _TRAILING_NUMBER_RE = re.compile(r"-\d+$")
-_DIGIT_LED_RE = re.compile(r"^\d+-")
+_DIGIT_LED_RE = re.compile(r"^\d+")
 _ARTICLE_LED_RE = re.compile(r"^(a|the)-", re.IGNORECASE)
 
 

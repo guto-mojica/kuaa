@@ -161,7 +161,7 @@ body {
 .filter-input:focus {
     outline: none;
     border-color: var(--c-accent);
-    box-shadow: 0 0 0 2px rgba(200, 150, 62, 0.25);
+    box-shadow: 0 0 0 2px rgba(139, 123, 216, 0.25);
 }
 
 .library-tree {
@@ -372,7 +372,7 @@ button.tree-node {
 .film-selector__select:focus {
     outline: none;
     border-color: var(--c-accent);
-    box-shadow: 0 0 0 2px rgba(200, 150, 62, 0.25);
+    box-shadow: 0 0 0 2px rgba(139, 123, 216, 0.25);
 }
 
 /* Honest GLOBAL artifact-state summary (v0.3 single-film). */
@@ -489,7 +489,7 @@ button.tree-node {
 }
 .search-container:focus-within {
     border-color: var(--c-accent);
-    box-shadow: 0 0 0 2px rgba(200, 150, 62, 0.25);
+    box-shadow: 0 0 0 2px rgba(139, 123, 216, 0.25);
 }
 
 .search-input {
@@ -835,7 +835,7 @@ button.tree-node {
 .annotate-desc-textarea:focus {
     outline: none;
     border-color: var(--c-accent);
-    box-shadow: 0 0 0 2px rgba(200, 150, 62, 0.25);
+    box-shadow: 0 0 0 2px rgba(139, 123, 216, 0.25);
 }
 .annotate-divider {
     height: 1px;
@@ -857,7 +857,7 @@ button.tree-node {
 .annotate-tags-input:focus {
     outline: none;
     border-color: var(--c-accent);
-    box-shadow: 0 0 0 2px rgba(200, 150, 62, 0.25);
+    box-shadow: 0 0 0 2px rgba(139, 123, 216, 0.25);
 }
 .annotate-tags-input::placeholder {
     font-family: var(--font-sans);

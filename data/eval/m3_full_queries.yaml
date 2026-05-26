@@ -1,0 +1,437 @@
+dataset: m3_full
+version: 1
+label_status: seed_curator_grading_pending
+source:
+  name: "M3 multimodal eval slate"
+  identifier: "m3-run-1"
+  year: 2026
+  notes: >
+    50 curated queries covering text / image / audio / fusion / rhyme
+    modalities per spec §7.1. Bilingual PT/EN. All queries are
+    public-safe (no PII, no leaked scene-id-only references). Films in
+    scope:
+      - jeca_tatu — Mazzaropi, "Jeca Tatu" (1959), B&W, 412 scenes
+      - edwin_porter-the_great_train_robbery_1903 — Porter (1903), 7 scenes
+    image_path entries are verified to exist on disk under
+    data/library/<slug>/frames/scenes/keyframes_content/.
+    relevance / relevant_scene_ids fields on text queries are
+    pre-annotation HYPOTHESES from the maintainer's scan of scene
+    descriptions; curator grades supersede them. They exist so
+    scripts/run_eval.py (which requires the field today) can load and
+    score the text subset.
+  schema: >
+    Per-entry fields:
+      id           : stable string (text-NN, image-NN, audio-NN,
+                     fusion-NN, rhyme-NN)
+      query_type   : one of text | image | audio | fusion | rhyme
+      text         : the query string (text/audio/fusion/image-label;
+                     omitted for rhyme)
+      image_path   : repo-relative keyframe path (image queries only)
+      anchor       : "<slug>/<scene_id>" (rhyme queries only)
+      w            : float in [0, 1] visual↔audio fusion weight
+                     (fusion queries only)
+      lang         : pt | en
+      notes        : curator-facing context
+
+queries:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # TEXT queries (15) — 8 PT + 7 EN. Probe varied retrieval surfaces:
+  # location, action, mood, character type, object, lighting, framing.
+  # All carry relevance/relevant_scene_ids so scripts/run_eval.py can load
+  # them (loader-required). Grades from curators supersede the hypotheses.
+  # ─────────────────────────────────────────────────────────────────────────────
+  - id: text-01
+    query_type: text
+    text: "trabalhador rural arando o campo"
+    lang: pt
+    relevant_scene_ids: [34, 50, 110]
+    relevance:
+      "34": 2
+      "50": 3
+      "110": 2
+    notes: "Rural labour / arrival-at-hut composition; Jeca's recurring framing."
+
+  - id: text-02
+    query_type: text
+    text: "rural worker in field with hat"
+    lang: en
+    relevant_scene_ids: [45, 47, 110]
+    relevance:
+      "45": 3
+      "47": 2
+      "110": 2
+    notes: "EN gloss of text-01 — checks PT/EN cross-language retrieval parity."
+
+  - id: text-03
+    query_type: text
+    text: "festa popular com música e dança"
+    lang: pt
+    relevant_scene_ids: [275]
+    relevance:
+      "275": 3
+    notes: "Group celebration scenes; audio context is musical but query is visual."
+
+  - id: text-04
+    query_type: text
+    text: "duas pessoas conversando ao ar livre"
+    lang: pt
+    relevant_scene_ids: [45, 47, 50]
+    relevance:
+      "45": 3
+      "47": 2
+      "50": 3
+    notes: "Two-figure outdoor dialogue framing — common Jeca composition."
+
+  - id: text-05
+    query_type: text
+    text: "interior baixa luz com figura solitária"
+    lang: pt
+    relevant_scene_ids: [12, 36, 166]
+    relevance:
+      "12": 2
+      "36": 3
+      "166": 3
+    notes: "Dark interior, single character — moody framing."
+
+  - id: text-06
+    query_type: text
+    text: "man on horseback in landscape"
+    lang: en
+    relevant_scene_ids: [30, 57]
+    relevance:
+      "30": 3
+      "57": 2
+    notes: "Equestrian framing — should also recall Porter scene 5 cross-film."
+
+  - id: text-07
+    query_type: text
+    text: "family portrait standing in front of wall"
+    lang: en
+    relevant_scene_ids: [188, 200]
+    relevance:
+      "188": 3
+      "200": 2
+    notes: "Static portrait framing; brick/wood backdrop."
+
+  - id: text-08
+    query_type: text
+    text: "mulher carregando criança em cenário rural"
+    lang: pt
+    relevant_scene_ids: [250]
+    relevance:
+      "250": 3
+    notes: "Maternal framing in landscape — single high-confidence target."
+
+  - id: text-09
+    query_type: text
+    text: "homem com chapéu fumando dentro de casa"
+    lang: pt
+    relevant_scene_ids: [36, 223]
+    relevance:
+      "36": 3
+      "223": 2
+    notes: "Probes whether smoking/posture vocabulary lands across films (cf. Porter scene 7)."
+
+  - id: text-10
+    query_type: text
+    text: "bar interior with bottles"
+    lang: en
+    relevant_scene_ids: [203]
+    relevance:
+      "203": 3
+    notes: "Single-target genre-vocabulary search (saloon/bar)."
+
+  - id: text-11
+    query_type: text
+    text: "group of men working with wooden structure"
+    lang: en
+    relevant_scene_ids: [334]
+    relevance:
+      "334": 3
+    notes: "Action-with-objects framing."
+
+  - id: text-12
+    query_type: text
+    text: "cena noturna com sombras intensas"
+    lang: pt
+    relevant_scene_ids: [215]
+    relevance:
+      "215": 3
+    notes: "Low-key lighting / silhouette test."
+
+  - id: text-13
+    query_type: text
+    text: "homem caminhando em estrada de terra"
+    lang: pt
+    relevant_scene_ids: [31, 110]
+    relevance:
+      "31": 2
+      "110": 3
+    notes: "Walking-shot framing; rural dirt path."
+
+  - id: text-14
+    query_type: text
+    text: "title card with white lettering on black"
+    lang: en
+    relevant_scene_ids: [1]
+    relevance:
+      "1": 3
+    notes: "Opening / credit-card framing — should match Porter scene 1 too."
+
+  - id: text-15
+    query_type: text
+    text: "man inspecting cards at table"
+    lang: en
+    relevant_scene_ids: [89]
+    relevance:
+      "89": 3
+    notes: "Indoor character close-up; cards as visible object."
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # IMAGE queries (10) — alternate films, balance keyframe positions across
+  # the timeline so the slate doesn't over-fit to one film's opening reel.
+  # All image_path entries verified present on disk.
+  # ─────────────────────────────────────────────────────────────────────────────
+  - id: image-01
+    query_type: image
+    text: "(image query) Jeca scene 12 — face in shadow"
+    image_path: "data/library/jeca_tatu/frames/scenes/keyframes_content/Mazzaropi-Jeca_Tatu_Paixão_Flix-Scene-012-02.jpg"
+    lang: en
+    notes: "Anchor frame for a face-with-textured-wall composition."
+
+  - id: image-02
+    query_type: image
+    text: "(image query) Jeca scene 34 — hut in arid landscape"
+    image_path: "data/library/jeca_tatu/frames/scenes/keyframes_content/Mazzaropi-Jeca_Tatu_Paixão_Flix-Scene-034-02.jpg"
+    lang: en
+    notes: "Thatched-roof rural composition — should rhyme to other arrival shots."
+
+  - id: image-03
+    query_type: image
+    text: "(image query) Jeca scene 57 — figures and horse in field"
+    image_path: "data/library/jeca_tatu/frames/scenes/keyframes_content/Mazzaropi-Jeca_Tatu_Paixão_Flix-Scene-057-02.jpg"
+    lang: en
+    notes: "Three-figure horizontal landscape with prop animal."
+
+  - id: image-04
+    query_type: image
+    text: "(image query) Jeca scene 200 — child portrait in front of brick wall"
+    image_path: "data/library/jeca_tatu/frames/scenes/keyframes_content/Mazzaropi-Jeca_Tatu_Paixão_Flix-Scene-200-02.jpg"
+    lang: en
+    notes: "Static frontal portrait — common framing across Mazzaropi's family scenes."
+
+  - id: image-05
+    query_type: image
+    text: "(image query) Jeca scene 250 — woman with child in landscape"
+    image_path: "data/library/jeca_tatu/frames/scenes/keyframes_content/Mazzaropi-Jeca_Tatu_Paixão_Flix-Scene-250-02.jpg"
+    lang: en
+    notes: "Maternal framing in field — tests recall of similar group portraits."
+
+  - id: image-06
+    query_type: image
+    text: "(image query) Porter scene 1 — title card with stylised lettering"
+    image_path: "data/library/edwin_porter-the_great_train_robbery_1903/frames/scenes/keyframes_content/Edwin_Porter-The_Great_Train_Robbery_(1903)-Scene-001-02.jpg"
+    lang: en
+    notes: "Cross-film image query — should find Jeca title card too if encoder generalises."
+
+  - id: image-07
+    query_type: image
+    text: "(image query) Porter scene 4 — three men on railway track"
+    image_path: "data/library/edwin_porter-the_great_train_robbery_1903/frames/scenes/keyframes_content/Edwin_Porter-The_Great_Train_Robbery_(1903)-Scene-004-02.jpg"
+    lang: en
+    notes: "Three-figure horizontal composition with train background."
+
+  - id: image-08
+    query_type: image
+    text: "(image query) Porter scene 5 — horseback riders in wooded area"
+    image_path: "data/library/edwin_porter-the_great_train_robbery_1903/frames/scenes/keyframes_content/Edwin_Porter-The_Great_Train_Robbery_(1903)-Scene-005-02.jpg"
+    lang: en
+    notes: "Should pair with Jeca equestrian frames if cross-film signal exists."
+
+  - id: image-09
+    query_type: image
+    text: "(image query) Jeca scene 89 — man at table holding cards"
+    image_path: "data/library/jeca_tatu/frames/scenes/keyframes_content/Mazzaropi-Jeca_Tatu_Paixão_Flix-Scene-089-02.jpg"
+    lang: en
+    notes: "Indoor character close-up; tabletop framing."
+
+  - id: image-10
+    query_type: image
+    text: "(image query) Porter scene 7 — man smoking pipe in dim room"
+    image_path: "data/library/edwin_porter-the_great_train_robbery_1903/frames/scenes/keyframes_content/Edwin_Porter-The_Great_Train_Robbery_(1903)-Scene-007-02.jpg"
+    lang: en
+    notes: "Low-key interior portrait; cross-film recall test for Jeca scene 36."
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # AUDIO queries (10) — 5 PT + 5 EN. CLAP text→audio. Mix music / speech /
+  # ambience. Honest note: Porter (1903) is silent; queries on Porter scenes
+  # are expected to grade near-IRRELEVANT regardless of phrasing.
+  # ─────────────────────────────────────────────────────────────────────────────
+  - id: audio-01
+    query_type: audio
+    text: "música orquestral com cordas"
+    lang: pt
+    notes: "Orchestral string-section probe — should land on Jeca's musical interludes."
+
+  - id: audio-02
+    query_type: audio
+    text: "orchestral music with strings"
+    lang: en
+    notes: "EN gloss of audio-01 — checks CLAP text-side language parity."
+
+  - id: audio-03
+    query_type: audio
+    text: "diálogo entre duas pessoas em ambiente calmo"
+    lang: pt
+    notes: "Calm two-person dialogue — probes speech vs music separation."
+
+  - id: audio-04
+    query_type: audio
+    text: "festive crowd noise with music"
+    lang: en
+    notes: "Festa context; should land on Jeca scene 275 cluster."
+
+  - id: audio-05
+    query_type: audio
+    text: "voz cantando acompanhada de violão"
+    lang: pt
+    notes: "Singing + acoustic guitar — folk-music probe."
+
+  - id: audio-06
+    query_type: audio
+    text: "footsteps on wooden floor"
+    lang: en
+    notes: "Ambient probe — tests whether CLAP picks up foley over dialogue."
+
+  - id: audio-07
+    query_type: audio
+    text: "barulho de animais em ambiente rural"
+    lang: pt
+    notes: "Farm ambience — cows / chickens / wind."
+
+  - id: audio-08
+    query_type: audio
+    text: "applause and cheering"
+    lang: en
+    notes: "Crowd-response probe."
+
+  - id: audio-09
+    query_type: audio
+    text: "silêncio com vento ao fundo"
+    lang: pt
+    notes: "Near-silent ambience — tests low-energy retrieval."
+
+  - id: audio-10
+    query_type: audio
+    text: "sad melancholic instrumental music"
+    lang: en
+    notes: "Mood-driven music probe; will compete with fusion-01."
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # FUSION queries (10) — sentences combining visual + audio cues at varied
+  # w weights (3 × 0.3 audio-leaning, 4 × 0.5 balanced, 3 × 0.7 visual-leaning).
+  # ─────────────────────────────────────────────────────────────────────────────
+  - id: fusion-01
+    query_type: fusion
+    text: "silent landscape with melancholic music"
+    w: 0.5
+    lang: en
+    notes: "Spec's canonical fusion example. Balanced weight."
+
+  - id: fusion-02
+    query_type: fusion
+    text: "paisagem rural ensolarada com música de violão"
+    w: 0.5
+    lang: pt
+    notes: "Rural landscape + folk guitar — balanced fusion."
+
+  - id: fusion-03
+    query_type: fusion
+    text: "cena de festa noturna com música alegre"
+    w: 0.3
+    lang: pt
+    notes: "Audio-leaning — festive music should dominate ranking."
+
+  - id: fusion-04
+    query_type: fusion
+    text: "outdoor dialogue with quiet ambience"
+    w: 0.7
+    lang: en
+    notes: "Visual-leaning — composition matters more than audio bed."
+
+  - id: fusion-05
+    query_type: fusion
+    text: "interior escuro com diálogo sussurrado"
+    w: 0.3
+    lang: pt
+    notes: "Audio-leaning — whispered dialogue is the discriminator."
+
+  - id: fusion-06
+    query_type: fusion
+    text: "rural worker with rhythmic background music"
+    w: 0.5
+    lang: en
+    notes: "Balanced — visual (Jeca-style framing) + rhythmic audio."
+
+  - id: fusion-07
+    query_type: fusion
+    text: "crowd scene with cheering and applause"
+    w: 0.3
+    lang: en
+    notes: "Audio-leaning — crowd noise is the strong signal."
+
+  - id: fusion-08
+    query_type: fusion
+    text: "calm river or stream scene"
+    w: 0.5
+    lang: en
+    notes: "Balanced — water visual + water-flow audio."
+
+  - id: fusion-09
+    query_type: fusion
+    text: "rosto em close-up com música tensa"
+    w: 0.7
+    lang: pt
+    notes: "Visual-leaning — close-up framing dominates, music supports."
+
+  - id: fusion-10
+    query_type: fusion
+    text: "open field with wind ambience"
+    w: 0.7
+    lang: en
+    notes: "Visual-leaning — open composition dominates; low-energy wind audio supports."
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # RHYME queries (5) — anchors mirror tests/acceptance/test_rhymes_mmr_jeca_tatu.py
+  # (scenes 12, 34, 57, 89, 120 on jeca_tatu). See docs/rhymes_acceptance_2026-05-25.md
+  # for the rationale + the cross-film-only / Porter-pool limitation.
+  # ─────────────────────────────────────────────────────────────────────────────
+  - id: rhyme-01
+    query_type: rhyme
+    anchor: "jeca_tatu/12"
+    lang: en
+    notes: "Anchor 1 — early outdoor; rural setting. Cross-film pool is Porter only."
+
+  - id: rhyme-02
+    query_type: rhyme
+    anchor: "jeca_tatu/34"
+    lang: en
+    notes: "Anchor 2 — studio interior, dialogue framing."
+
+  - id: rhyme-03
+    query_type: rhyme
+    anchor: "jeca_tatu/57"
+    lang: en
+    notes: "Anchor 3 — landscape with multi-figure composition."
+
+  - id: rhyme-04
+    query_type: rhyme
+    anchor: "jeca_tatu/89"
+    lang: en
+    notes: "Anchor 4 — indoor close-up, character-dominant framing."
+
+  - id: rhyme-05
+    query_type: rhyme
+    anchor: "jeca_tatu/120"
+    lang: en
+    notes: "Anchor 5 — high-contrast / backlit composition with group."

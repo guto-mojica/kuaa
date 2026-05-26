@@ -30,8 +30,8 @@ from api.services.annotations import (
     save_annotations,
     save_description,
 )
-from cinemateca.library import FilmContext
 from api.templates import templates
+from cinemateca.library import FilmContext
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

@@ -13,8 +13,8 @@
        attribution row. ``None`` falls back to the slug.
      * ``inspector_tab``    "activity" | "annotations" | "properties"
        (default "activity"; unknown values normalised by the service).
-     * ``rhymes``           list — empty until Phase 5 wires the stub
-       service; the ``.b-rimas`` block stays hidden when empty.
+     * ``rhymes``           list — optional cross-film rhyme preview. Empty
+       lists keep the ``.b-rimas`` block hidden.
 
    Self-contained guard: when no scene is selected the partial renders
    nothing. This lets ``partials/search.html`` include it in the
@@ -68,13 +68,6 @@
             hx-target="#right-pane"
             hx-swap="innerHTML">
       {{ _("Properties") }}
-    </button>
-    <span class="gap" aria-hidden="true"></span>
-    <button type="button" class="ic" title="{{ _('More') }}" aria-label="{{ _('More actions') }}">
-      {{ icon('more', 14) }}
-    </button>
-    <button type="button" class="ic" title="{{ _('Expand') }}" aria-label="{{ _('Expand inspector') }}">
-      {{ icon('expand', 14) }}
     </button>
   </div>
 
@@ -150,19 +143,19 @@
       </div>
     {% endif %}
 
-    {# ── Visual rhymes (.b-rimas) — cross-film mini-grid; hidden until Phase 5 ── #}
+    {# ── Visual rhymes (.b-rimas) — cross-film mini-grid. #}
     {% if rhymes %}
       <div class="b-rimas">
         <div class="h">
           <span>{{ _("Visual rhymes · cross-film") }}</span>
-          <a href="/rimas?anchor={{ selected_scene.scene_id }}{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}">
+          <a href="/rimas?anchor={{ selected_scene.film_slug }}/{{ selected_scene.scene_id }}">
             {{ _("See all") }} {{ icon('arrow-r', 12) }}
           </a>
         </div>
         <div class="gr3">
           {% for x in rhymes[:3] %}
             <a class="ry"
-               href="/rimas?anchor={{ x.scene_id }}{% if x.film_slug %}&film={{ x.film_slug }}{% endif %}">
+               href="/rimas?anchor={{ x.film_slug }}/{{ x.scene_id }}">
               <div class="kf"{% if x.keyframe_url %} style="background-image: url('{{ x.keyframe_url }}');"{% endif %}></div>
               <div class="lab">
                 <span class="dot" style="background: var(--c-accent);"></span>

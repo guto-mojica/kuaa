@@ -68,6 +68,12 @@ full = [
     "pyvips[binary]>=2.2.1",
     # Audio I/O for CLAP — pure-Python wheel, bundles libsndfile (no system dep)
     "soundfile>=0.12",
+    # Cross-encoder reranker (M3 Task 3.1/3.2). FlagEmbedding wraps BGE
+    # rerankers including bge-reranker-v2-m3, the default model. Optional at
+    # runtime — ``cinemateca.search.rerank`` lazy-imports it and raises a
+    # single actionable RuntimeError when missing, so noop / disabled paths
+    # never touch this dep.
+    "FlagEmbedding>=1.2.0,<2",
     "rich>=13.0",
     # v0.3.0 web stack
     "fastapi>=0.110",
@@ -76,8 +82,6 @@ full = [
     "python-multipart>=0.0.7",
     "aiofiles>=23.0",
     "babel>=2.14",
-    # legacy Streamlit (removed after parity confirmed)
-    "streamlit>=1.28",
 ]
 # v0.3.0 web interface: pip install -e ".[web]"
 web = [
@@ -87,11 +91,6 @@ web = [
     "python-multipart>=0.0.7",
     "aiofiles>=23.0",
     "babel>=2.14",
-]
-# Somente GUI (legacy Streamlit): pip install -e ".[gui]"
-gui = [
-    "streamlit>=1.28",
-    "rich>=13.0",
 ]
 # Somente busca: pip install -e ".[search]"
 search = [

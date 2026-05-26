@@ -1,4 +1,5 @@
 """Per-film FilmContext path resolution."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -33,7 +34,9 @@ def test_for_film_resolves_per_film_paths(tmp_path: Path) -> None:
     data_dir = tmp_path / "data"
     library_dir = data_dir / "library"
     library_dir.mkdir(parents=True)
-    register_film(library_dir, slug="jeca_tatu", title="Jeca Tatu", year=1959, raw_filename="jeca_tatu.mp4")
+    register_film(
+        library_dir, slug="jeca_tatu", title="Jeca Tatu", year=1959, raw_filename="jeca_tatu.mp4"
+    )
 
     ctx = FilmContext.for_film(_cfg(library_dir, data_dir=data_dir), "jeca_tatu")
 

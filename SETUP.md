@@ -63,12 +63,14 @@ cd cinemateca-ai
 A estrutura que você deve ver:
 ```
 cinemateca-ai/
-├── app.py                  ← interface Streamlit
+├── app.py                  ← entrypoint FastAPI (uvicorn api.server:app)
 ├── pyproject.toml          ← definição do pacote
+├── api/                    ← rotas HTTP (FastAPI)
+├── web/                    ← templates Jinja2 + HTMX + i18n
 ├── config/
 │   └── default.yaml        ← parâmetros padrão
 ├── src/
-│   └── cinemateca/         ← módulos Python
+│   └── cinemateca/         ← núcleo AI (search, library, annotations, rhymes, eval, ...)
 └── tests/
     └── test_smoke.py
 ```
@@ -125,7 +127,7 @@ O que `-e ".[full]"` significa:
 - `-e` = "editable install" — o código em `src/` é usado diretamente,
   sem precisar reinstalar a cada alteração
 - `[full]` = instalar todas as dependências opcionais (torch, CLIP,
-  Streamlit, YOLOv8, etc.)
+  YOLOv8, FastAPI, etc.)
 
 Este comando vai baixar aproximadamente **2–4 GB** de pacotes na
 primeira vez. As execuções seguintes são instantâneas.
@@ -140,7 +142,7 @@ primeira vez. As execuções seguintes são instantâneas.
 busca semântica sem o módulo LLM):
 ```bash
 uv sync --extra search    # só CLIP e busca
-uv sync --extra gui       # só Streamlit
+uv sync --extra web       # só a interface FastAPI + HTMX
 ```
 
 **Verificar instalação:**
@@ -388,11 +390,6 @@ Reduza o batch size no `config/local.yaml`:
 embeddings:
   batch_size: 4    # padrão é 16 — reduza se a memória for limitada
 ```
-
-**Streamlit travado em "Please wait..."**
-Normalmente indica que um modelo está sendo baixado ou processamento
-está em andamento. Verifique o terminal onde o Streamlit foi iniciado —
-o log real de progresso aparece lá.
 
 **Interface não abre no navegador**
 ```bash

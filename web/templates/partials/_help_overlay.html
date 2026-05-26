@@ -40,12 +40,8 @@
     one closes the other, so a tap of ``?`` while the palette is open
     swaps the two surfaces cleanly.
 
-    Shortcut taxonomy mirrors the prototype's `polish.jsx` HelpOverlay
-    component (Navigation · Universal · Annotate review · Eval grading
-    · Cenas + Buscar). The Eval row is wired even though Task 30 ships
-    the eval surface itself — the legend documents what those shortcuts
-    will be once the page lands, so users discover the system through
-    the help overlay rather than after stumbling onto /eval blind.
+    The legend lists only shortcuts wired in the current branch. Keep this
+    strict: if a key is visible here, it should have a backing handler.
 -#}
 {% from "partials/_icons.html" import icon %}
 <div class="kh-back" id="help"
@@ -72,9 +68,6 @@
           (_('Annotate'),        [('3', None)]),
           (_('Visual rhymes'),   [('4', None)]),
           (_('Processing'),      [('5', None)]),
-          (_('Next · previous item'), [('j', '·'), ('k', None)]),
-          (_('Select'),          [('⏎', None)]),
-          (_('Back · close'),    [('esc', None)]),
         ] %}
         {% for label, keys in nav_rows %}
           <div class="kh-row">
@@ -95,35 +88,8 @@
         {% set universal_rows = [
           (_('Command palette'), [('⌘', '+'), ('K', None)]),
           (_('This help'),       [('?', None)]),
-          (_('Global search'),   [('⌘', '+'), ('F', None)]),
-          (_('Back'),            [('⌘', '+'), ('[', None)]),
-          (_('Reload index'),    [('⌘', '+'), ('R', None)]),
-          (_('Export'),          [('⌘', '+'), ('E', None)]),
         ] %}
         {% for label, keys in universal_rows %}
-          <div class="kh-row">
-            <span class="desc">{{ label }}</span>
-            <span class="keys">
-              {% for k, sep in keys %}
-                <span class="k">{{ k }}</span>
-                {% if sep %}<span class="sep">{{ sep }}</span>{% endif %}
-              {% endfor %}
-            </span>
-          </div>
-        {% endfor %}
-      </div>
-
-      {# ── Annotate · Review ─────────────────────────────────────── #}
-      <div class="kh-group">
-        <h3>{{ _('Annotate · Review') }}</h3>
-        {% set review_rows = [
-          (_('Play · pause'),         [('space', None)]),
-          (_('Back · forward 5s'),    [('←', '·'), ('→', None)]),
-          (_('Pin comment to frame'), [('P', None)]),
-          (_('Resolve comment'),      [('⇧', '+'), ('R', None)]),
-          (_('Previous · next scene'), [('⇧', '+'), ('J', None)]),
-        ] %}
-        {% for label, keys in review_rows %}
           <div class="kh-row">
             <span class="desc">{{ label }}</span>
             <span class="keys">
@@ -147,30 +113,6 @@
           (_('Skip query'),            [('⇧', '+'), ('S', None)]),
         ] %}
         {% for label, keys in eval_rows %}
-          <div class="kh-row">
-            <span class="desc">{{ label }}</span>
-            <span class="keys">
-              {% for k, sep in keys %}
-                <span class="k">{{ k }}</span>
-                {% if sep %}<span class="sep">{{ sep }}</span>{% endif %}
-              {% endfor %}
-            </span>
-          </div>
-        {% endfor %}
-      </div>
-
-      {# ── Scenes + Search (spans both columns to balance the grid) ─ #}
-      <div class="kh-group" style="grid-column: 1 / 3;">
-        <h3>{{ _('Scenes + Search') }}</h3>
-        {% set xtab_rows = [
-          (_('Swap anchor · Visual rhymes'),                 [('⌥', '+'), ('R', None)]),
-          (_('Copy timecode'),                               [('⌘', '+'), ('C', None)]),
-          (_('Add tag'),                                     [('A', None)]),
-          (_('Toggle view mode (grid · list · compact)'),    [('G', None)]),
-          (_('Select all · clear'),                          [('⌘', '+'), ('A', None)]),
-          (_('Filter'),                                      [('⌘', '+'), ('⇧', '+'), ('F', None)]),
-        ] %}
-        {% for label, keys in xtab_rows %}
           <div class="kh-row">
             <span class="desc">{{ label }}</span>
             <span class="keys">

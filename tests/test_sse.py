@@ -63,10 +63,7 @@ def sse_client(monkeypatch):
     job = jobs.JobState(
         id="ssejob",
         video_path="data/raw/jeca_tatu.mp4",
-        steps=[
-            jobs.StepInfo(name=name, label=label)
-            for name, label in jobs.STEP_DEFS
-        ],
+        steps=[jobs.StepInfo(name=name, label=label) for name, label in jobs.STEP_DEFS],
     )
     jobs._registry.add(job)
 
@@ -107,13 +104,11 @@ def _frames(raw: str) -> list[dict[str, str]]:
         if line.startswith(":"):
             continue
         if line.startswith("event:"):
-            cur_event = line[len("event:"):].strip()
+            cur_event = line[len("event:") :].strip()
         elif line.startswith("data:"):
-            cur_data.append(line[len("data:"):].lstrip())
+            cur_data.append(line[len("data:") :].lstrip())
     if cur_event is not None or cur_data:
-        frames.append(
-            {"event": cur_event or "message", "data": "\n".join(cur_data)}
-        )
+        frames.append({"event": cur_event or "message", "data": "\n".join(cur_data)})
     return frames
 
 
@@ -152,8 +147,7 @@ def test_stream_emits_typed_update_then_single_done(sse_client):
     assert events.count("done") == 1, f"expected exactly one done: {events}"
     assert "error" not in events, f"unexpected error frame: {events}"
     assert "message" not in events, (
-        f"generic untyped 'message' frame emitted — server must type "
-        f"every frame: {events}"
+        f"generic untyped 'message' frame emitted — server must type " f"every frame: {events}"
     )
     # The terminal frame is the LAST frame (generator stops after it).
     assert events[-1] == "done", f"done must be the final frame: {events}"
@@ -328,7 +322,7 @@ def test_stream_emits_typed_log_event_from_broadcaster(sse_client):
     assert len(log_frames) == 1, [f["event"] for f in frames]
     data = log_frames[0]["data"]
     assert "GPU memory low" in data
-    assert 'lv w' in data or 'class="lv w"' in data or 'lv\nw' in data, data
+    assert "lv w" in data or 'class="lv w"' in data or "lv\nw" in data, data
     assert "00:00:03" in data
 
 
@@ -409,6 +403,6 @@ def test_vendored_sse_ext_splits_sse_close_on_comma():
     # The close handler must register a listener per split name (mirrors
     # the existing sse-swap loop): a per-name addEventListener inside the
     # split loop.
-    close_region = js[js.index("var closeAttribute"):]
+    close_region = js[js.index("var closeAttribute") :]
     assert "closeEventNames" in close_region
     assert "source.addEventListener(closeEventName," in close_region

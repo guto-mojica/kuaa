@@ -1,4 +1,5 @@
 """Multi-film aggregate context / search tests."""
+
 from __future__ import annotations
 
 import json
@@ -35,9 +36,7 @@ def _make_film(library_dir: Path, slug: str, scene_ids: list[int]) -> None:
         for sid in scene_ids
     ]
     (md / "keyframes_metadata.json").write_text(json.dumps(kf_meta))
-    (md / "scene_tags.json").write_text(
-        json.dumps({"outdoor": scene_ids})
-    )
+    (md / "scene_tags.json").write_text(json.dumps({"outdoor": scene_ids}))
 
 
 def _cfg(library_dir: Path) -> object:
@@ -89,9 +88,8 @@ def test_aggregate_tolerates_unprocessed_film(tmp_path: Path) -> None:
 
 # ── aggregate_search tests ────────────────────────────────────────────────────
 
-def _make_film_with_embeddings(
-    library_dir: Path, slug: str, vectors: list[list[float]]
-) -> None:
+
+def _make_film_with_embeddings(library_dir: Path, slug: str, vectors: list[list[float]]) -> None:
     """Create a film with a tiny CLIP index of ``len(vectors)`` scenes."""
     md = library_dir / slug / "metadata"
     md.mkdir(parents=True)
@@ -107,10 +105,7 @@ def _make_film_with_embeddings(
     np.save(emb_dir / "keyframe_embeddings.npy", arr)
 
     # Dict format expected by OpenClipEmbedder.load
-    kf_paths = [
-        f"data/library/{slug}/frames/keyframes/{i}.jpg"
-        for i in range(len(vectors))
-    ]
+    kf_paths = [f"data/library/{slug}/frames/keyframes/{i}.jpg" for i in range(len(vectors))]
     mapping = {
         "total_vectors": len(vectors),
         "keyframe_paths": kf_paths,
@@ -146,15 +141,11 @@ def test_aggregate_search_empty_library_does_not_load_embedder(
     # No register_film call → scan_library returns [].
 
     def _should_not_load(cfg: object) -> object:
-        raise AssertionError(
-            "_get_embedder was called on an empty library — CLIP eager-load bug"
-        )
+        raise AssertionError("_get_embedder was called on an empty library — CLIP eager-load bug")
 
     monkeypatch.setattr(_AGGREGATE_MODULE, "_get_embedder", _should_not_load)
 
-    result = aggregate_search(
-        _cfg(library_dir), query="anything", modality="text", top_k=10
-    )
+    result = aggregate_search(_cfg(library_dir), query="anything", modality="text", top_k=10)
     assert result == []
 
 
@@ -179,9 +170,7 @@ def test_aggregate_text_search_returns_results_from_both_films(
 
     monkeypatch.setattr(_AGGREGATE_MODULE, "_get_embedder", lambda cfg: StubEmbedder())
 
-    results = aggregate_search(
-        _cfg(library_dir), query="anything", modality="text", top_k=2
-    )
+    results = aggregate_search(_cfg(library_dir), query="anything", modality="text", top_k=2)
 
     assert len(results) == 2
     # Both top-2 results are the "[1.0, 0.0]" matches (score 1.0): one from
@@ -194,9 +183,7 @@ def test_aggregate_text_search_returns_results_from_both_films(
 
 def _write_tag_index(library_dir: Path, slug: str, tag_to_scene_ids: dict[str, list[int]]) -> None:
     """Overwrite a film's ``scene_tags.json`` with the supplied tag index."""
-    (library_dir / slug / "metadata" / "scene_tags.json").write_text(
-        json.dumps(tag_to_scene_ids)
-    )
+    (library_dir / slug / "metadata" / "scene_tags.json").write_text(json.dumps(tag_to_scene_ids))
 
 
 def test_aggregate_search_filters_by_tags_per_film(
@@ -224,7 +211,10 @@ def test_aggregate_search_filters_by_tags_per_film(
     monkeypatch.setattr(_AGGREGATE_MODULE, "_get_embedder", lambda cfg: StubEmbedder())
 
     results = aggregate_search(
-        _cfg(library_dir), query="anything", modality="text", top_k=8,
+        _cfg(library_dir),
+        query="anything",
+        modality="text",
+        top_k=8,
         tags=["floor"],
     )
 
@@ -255,7 +245,10 @@ def test_aggregate_search_skips_films_missing_selected_tag(
     monkeypatch.setattr(_AGGREGATE_MODULE, "_get_embedder", lambda cfg: StubEmbedder())
 
     results = aggregate_search(
-        _cfg(library_dir), query="anything", modality="text", top_k=8,
+        _cfg(library_dir),
+        query="anything",
+        modality="text",
+        top_k=8,
         tags=["floor"],
     )
 
@@ -282,7 +275,11 @@ def test_aggregate_search_no_tags_unchanged(
         _cfg(library_dir), query="anything", modality="text", top_k=8
     )
     results_empty = aggregate_search(
-        _cfg(library_dir), query="anything", modality="text", top_k=8, tags=[],
+        _cfg(library_dir),
+        query="anything",
+        modality="text",
+        top_k=8,
+        tags=[],
     )
     assert len(results_default) == 1
     assert len(results_empty) == 1
@@ -305,16 +302,24 @@ def test_build_search_context_aggregate_unions_and_filters(
     (library_dir / "b" / "metadata").mkdir(parents=True)
     (library_dir / "a" / "raw").mkdir()
     (library_dir / "b" / "raw").mkdir()
-    _write_tag_index(library_dir, "a", {
-        "dia": [0, 1],
-        "exterior": [0],
-        "fence-gate-gate-gate-gate-gate-gate": [1],  # garbage → drop
-    })
-    _write_tag_index(library_dir, "b", {
-        "noite": [0],
-        "exterior": [0],  # also in A → unioned, not duplicated
-        "a-rural-field-with-a-fence.": [0],  # full-caption garbage → drop
-    })
+    _write_tag_index(
+        library_dir,
+        "a",
+        {
+            "dia": [0, 1],
+            "exterior": [0],
+            "fence-gate-gate-gate-gate-gate-gate": [1],  # garbage → drop
+        },
+    )
+    _write_tag_index(
+        library_dir,
+        "b",
+        {
+            "noite": [0],
+            "exterior": [0],  # also in A → unioned, not duplicated
+            "a-rural-field-with-a-fence.": [0],  # full-caption garbage → drop
+        },
+    )
 
     out = build_search_context_aggregate(_cfg(library_dir))
 
@@ -344,9 +349,7 @@ def test_aggregate_search_includes_timecode_per_hit(
 
     monkeypatch.setattr(_AGGREGATE_MODULE, "_get_embedder", lambda cfg: StubEmbedder())
 
-    results = aggregate_search(
-        _cfg(library_dir), query="anything", modality="text", top_k=2
-    )
+    results = aggregate_search(_cfg(library_dir), query="anything", modality="text", top_k=2)
 
     by_scene = {r["scene_id"]: r for r in results}
     # Scene 0 (start_time_s=0) → empty timecode by the "> 0" guard the
@@ -380,13 +383,19 @@ def test_aggregate_search_drops_below_min_similarity(
 
     # No threshold → both hits returned.
     no_floor = aggregate_search(
-        _cfg(library_dir), query="x", modality="text", top_k=8,
+        _cfg(library_dir),
+        query="x",
+        modality="text",
+        top_k=8,
     )
     assert len(no_floor) == 2
 
     # 0.8 floor → only the score=1.0 hit survives.
     above = aggregate_search(
-        _cfg(library_dir), query="x", modality="text", top_k=8,
+        _cfg(library_dir),
+        query="x",
+        modality="text",
+        top_k=8,
         min_similarity=0.8,
     )
     assert len(above) == 1
@@ -395,7 +404,10 @@ def test_aggregate_search_drops_below_min_similarity(
 
     # Floor above every score → empty.
     none = aggregate_search(
-        _cfg(library_dir), query="x", modality="text", top_k=8,
+        _cfg(library_dir),
+        query="x",
+        modality="text",
+        top_k=8,
         min_similarity=1.5,
     )
     assert none == []

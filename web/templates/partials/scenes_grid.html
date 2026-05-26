@@ -86,7 +86,7 @@
                hx-swap="innerHTML"
                hx-trigger="click">
         <button type="button" class="check" title="{{ _('Select') }}" aria-label="{{ _('Select') }}">{{ icon('check', 12) }}</button>
-        <div class="kf"{% if s.keyframe_url %} style="background-image: url('{{ s.keyframe_url }}');"{% endif %}>
+        <div class="kf" role="img" aria-label="{{ _('Keyframe') }}"{% if s.keyframe_url %} style="background-image: url('{{ s.keyframe_url }}');"{% endif %}>
           {% if s.pin_count %}<span class="bl"><span class="pin"></span>{{ s.pin_count }}</span>{% endif %}
           {% if s.timecode %}<span class="br">{{ s.timecode[:8] }}</span>{% endif %}
           {% if s.version %}<span class="ver">{{ s.version }}</span>{% endif %}
@@ -97,9 +97,6 @@
             <span class="dot-f" style="background: var(--c-accent);" aria-hidden="true"></span>
             <span>{% if film %}{{ film.director_last or film.title }}{% endif %}</span>
             {% if film and film.year %}<span>· {{ film.year }}</span>{% endif %}
-            <span class="acts">
-              <button type="button" class="fx-icbtn sm" title="{{ _('More') }}" aria-label="{{ _('More') }}">{{ icon('more', 14) }}</button>
-            </span>
           </div>
           <div class="tipo">
             <span class="lab">{{ _('TYPE') }}</span>

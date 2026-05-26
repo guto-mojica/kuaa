@@ -16,6 +16,7 @@ Tests use ``typer.testing.CliRunner`` to invoke the actual Typer app
 (``cinemateca.__main__.app``) so help-text generation, option parsing,
 exit codes, and subcommand wiring are all exercised end-to-end.
 """
+
 from __future__ import annotations
 
 import sys
@@ -40,8 +41,11 @@ def _seed_film(library_dir: Path, slug: str, raw_filename: str) -> Path:
     from cinemateca.library import register_film
 
     register_film(
-        library_dir, slug=slug, title=slug.replace("_", " ").title(),
-        year=None, raw_filename=raw_filename,
+        library_dir,
+        slug=slug,
+        title=slug.replace("_", " ").title(),
+        year=None,
+        raw_filename=raw_filename,
     )
     film_dir = library_dir / slug
     (film_dir / "embeddings").mkdir(parents=True, exist_ok=True)
@@ -61,12 +65,18 @@ def _stub_cfg(tmp_path: Path) -> SimpleNamespace:
     library_dir.mkdir(parents=True, exist_ok=True)
     return SimpleNamespace(
         paths=SimpleNamespace(
-            library_dir=str(library_dir), raw_dir=str(raw_dir),
+            library_dir=str(library_dir),
+            raw_dir=str(raw_dir),
         ),
-        pipeline=SimpleNamespace(steps=SimpleNamespace(
-            frame_extraction=False, scene_detection=False,
-            visual_analysis=False, embeddings=False, llm_description=False,
-        )),
+        pipeline=SimpleNamespace(
+            steps=SimpleNamespace(
+                frame_extraction=False,
+                scene_detection=False,
+                visual_analysis=False,
+                embeddings=False,
+                llm_description=False,
+            )
+        ),
         hardware=SimpleNamespace(device="cpu"),
     )
 
@@ -91,15 +101,14 @@ def reembed_env(tmp_path, monkeypatch):
             invocations.append({"slug": self.slug, "video": str(video_path)})
             return SimpleNamespace(success=True, total_duration_s=0.5)
 
-    monkeypatch.setattr("cinemateca.config.load_config",
-                        lambda _path=None: cfg)
+    monkeypatch.setattr("cinemateca.config.load_config", lambda _path=None: cfg)
     monkeypatch.setattr("cinemateca.config.setup_logging", lambda _c: None)
     monkeypatch.setattr("cinemateca.pipeline.CatalogPipeline", FakePipeline)
-    return SimpleNamespace(cfg=cfg, library_dir=library_dir,
-                            invocations=invocations)
+    return SimpleNamespace(cfg=cfg, library_dir=library_dir, invocations=invocations)
 
 
 # ── Top-level discoverability ────────────────────────────────────────────────
+
 
 class TestRootHelp:
     """Calling ``cinemateca`` with no args (or --help) must print the
@@ -133,6 +142,7 @@ class TestRootHelp:
 
 # ── reembed: slug-from-registry invariant (Phase-1 regression lock) ──────────
 
+
 class TestReembedUsesRegisteredSlug:
     def test_calls_pipeline_once_per_registered_film(self, runner, reembed_env):
         from cinemateca.__main__ import app
@@ -143,7 +153,10 @@ class TestReembedUsesRegisteredSlug:
         assert slugs_called == ["film_a", "film_b"]
 
     def test_slug_matches_registry_even_when_filename_drifts(
-        self, tmp_path, monkeypatch, runner,
+        self,
+        tmp_path,
+        monkeypatch,
+        runner,
     ):
         """A registered slug ('canonical') with a filename whose
         slugified stem differs ('drifty-name') must still invoke
@@ -156,12 +169,12 @@ class TestReembedUsesRegisteredSlug:
         class FakePipeline:
             def __init__(self, c, slug):
                 self.slug = slug
+
             def run(self, _v):
                 invocations.append({"slug": self.slug})
                 return SimpleNamespace(success=True, total_duration_s=0.0)
 
-        monkeypatch.setattr("cinemateca.config.load_config",
-                            lambda _path=None: cfg)
+        monkeypatch.setattr("cinemateca.config.load_config", lambda _path=None: cfg)
         monkeypatch.setattr("cinemateca.config.setup_logging", lambda _c: None)
         monkeypatch.setattr("cinemateca.pipeline.CatalogPipeline", FakePipeline)
 
@@ -174,22 +187,19 @@ class TestReembedUsesRegisteredSlug:
 
 # ── reembed: filters and edge cases ──────────────────────────────────────────
 
+
 class TestReembedFilters:
     def test_only_filters_to_specified_slug(self, runner, reembed_env):
         from cinemateca.__main__ import app
 
-        result = runner.invoke(
-            app, ["library", "reembed", "--only", "film_a"]
-        )
+        result = runner.invoke(app, ["library", "reembed", "--only", "film_a"])
         assert result.exit_code == 0
         assert [inv["slug"] for inv in reembed_env.invocations] == ["film_a"]
 
     def test_only_unknown_slug_returns_error(self, runner, reembed_env):
         from cinemateca.__main__ import app
 
-        result = runner.invoke(
-            app, ["library", "reembed", "--only", "does_not_exist"]
-        )
+        result = runner.invoke(app, ["library", "reembed", "--only", "does_not_exist"])
         assert result.exit_code != 0
         assert reembed_env.invocations == []
         assert "does_not_exist" in result.stderr
@@ -197,8 +207,7 @@ class TestReembedFilters:
     def test_empty_registry_returns_error(self, tmp_path, monkeypatch, runner):
         cfg = _stub_cfg(tmp_path)
         (Path(cfg.paths.library_dir) / "films.json").write_text("{}")
-        monkeypatch.setattr("cinemateca.config.load_config",
-                            lambda _path=None: cfg)
+        monkeypatch.setattr("cinemateca.config.load_config", lambda _path=None: cfg)
         monkeypatch.setattr("cinemateca.config.setup_logging", lambda _c: None)
 
         from cinemateca.__main__ import app
@@ -209,6 +218,7 @@ class TestReembedFilters:
 
 
 # ── reembed: stale-file cleanup ──────────────────────────────────────────────
+
 
 class TestReembedStaleCleanup:
     """Default: clears stale .npy + index_mapping.json so the
@@ -228,11 +238,11 @@ class TestReembedStaleCleanup:
         class FakePipeline:
             def __init__(self, c, slug):
                 pass
+
             def run(self, _v):
                 return SimpleNamespace(success=True, total_duration_s=0.0)
 
-        monkeypatch.setattr("cinemateca.config.load_config",
-                            lambda _path=None: cfg)
+        monkeypatch.setattr("cinemateca.config.load_config", lambda _path=None: cfg)
         monkeypatch.setattr("cinemateca.config.setup_logging", lambda _c: None)
         monkeypatch.setattr("cinemateca.pipeline.CatalogPipeline", FakePipeline)
 
@@ -251,7 +261,10 @@ class TestReembedStaleCleanup:
         assert not mp.exists()
 
     def test_keep_existing_preserves_stale_files(
-        self, tmp_path, monkeypatch, runner,
+        self,
+        tmp_path,
+        monkeypatch,
+        runner,
     ):
         npy, mp = self._run(tmp_path, monkeypatch, runner, keep_existing=True)
         assert npy.exists()
@@ -260,13 +273,13 @@ class TestReembedStaleCleanup:
 
 # ── library list ─────────────────────────────────────────────────────────────
 
+
 class TestLibraryList:
     def test_lists_registered_films(self, tmp_path, monkeypatch, runner):
         cfg = _stub_cfg(tmp_path)
         _seed_film(Path(cfg.paths.library_dir), "film_a", "film_a.mp4")
         _seed_film(Path(cfg.paths.library_dir), "film_b", "film_b.mp4")
-        monkeypatch.setattr("cinemateca.config.load_config",
-                            lambda _path=None: cfg)
+        monkeypatch.setattr("cinemateca.config.load_config", lambda _path=None: cfg)
         monkeypatch.setattr("cinemateca.config.setup_logging", lambda _c: None)
 
         from cinemateca.__main__ import app
@@ -280,8 +293,7 @@ class TestLibraryList:
     def test_empty_library_does_not_crash(self, tmp_path, monkeypatch, runner):
         cfg = _stub_cfg(tmp_path)
         (Path(cfg.paths.library_dir) / "films.json").write_text("{}")
-        monkeypatch.setattr("cinemateca.config.load_config",
-                            lambda _path=None: cfg)
+        monkeypatch.setattr("cinemateca.config.load_config", lambda _path=None: cfg)
         monkeypatch.setattr("cinemateca.config.setup_logging", lambda _c: None)
 
         from cinemateca.__main__ import app
@@ -293,13 +305,13 @@ class TestLibraryList:
 
 # ── library delete (destructive — requires --yes or interactive confirm) ────
 
+
 class TestLibraryDelete:
     def test_delete_with_yes_removes_film(self, tmp_path, monkeypatch, runner):
         cfg = _stub_cfg(tmp_path)
         library_dir = Path(cfg.paths.library_dir)
         _seed_film(library_dir, "film_a", "film_a.mp4")
-        monkeypatch.setattr("cinemateca.config.load_config",
-                            lambda _path=None: cfg)
+        monkeypatch.setattr("cinemateca.config.load_config", lambda _path=None: cfg)
         monkeypatch.setattr("cinemateca.config.setup_logging", lambda _c: None)
 
         from cinemateca.__main__ import app
@@ -313,12 +325,14 @@ class TestLibraryDelete:
         assert not (library_dir / "film_a").exists()
 
     def test_delete_unknown_slug_returns_error(
-        self, tmp_path, monkeypatch, runner,
+        self,
+        tmp_path,
+        monkeypatch,
+        runner,
     ):
         cfg = _stub_cfg(tmp_path)
         (Path(cfg.paths.library_dir) / "films.json").write_text("{}")
-        monkeypatch.setattr("cinemateca.config.load_config",
-                            lambda _path=None: cfg)
+        monkeypatch.setattr("cinemateca.config.load_config", lambda _path=None: cfg)
         monkeypatch.setattr("cinemateca.config.setup_logging", lambda _c: None)
 
         from cinemateca.__main__ import app
@@ -328,15 +342,17 @@ class TestLibraryDelete:
         assert "ghost" in result.stderr
 
     def test_delete_aborts_without_confirmation(
-        self, tmp_path, monkeypatch, runner,
+        self,
+        tmp_path,
+        monkeypatch,
+        runner,
     ):
         """Without ``--yes``, a 'n' answer to the interactive prompt must
         leave the registry intact."""
         cfg = _stub_cfg(tmp_path)
         library_dir = Path(cfg.paths.library_dir)
         _seed_film(library_dir, "film_a", "film_a.mp4")
-        monkeypatch.setattr("cinemateca.config.load_config",
-                            lambda _path=None: cfg)
+        monkeypatch.setattr("cinemateca.config.load_config", lambda _path=None: cfg)
         monkeypatch.setattr("cinemateca.config.setup_logging", lambda _c: None)
 
         from cinemateca.__main__ import app
@@ -349,6 +365,7 @@ class TestLibraryDelete:
 
 
 # ── config show ──────────────────────────────────────────────────────────────
+
 
 class TestConfigShow:
     def test_emits_yaml(self, runner):
@@ -367,6 +384,7 @@ class TestConfigShow:
 
 # ── serve (smoke — just verify we delegate to uvicorn) ───────────────────────
 
+
 class TestServe:
     def test_serve_delegates_to_uvicorn_run(self, monkeypatch, runner):
         captured: dict = {}
@@ -380,9 +398,7 @@ class TestServe:
 
         from cinemateca.__main__ import app
 
-        result = runner.invoke(
-            app, ["serve", "--port", "9999", "--no-reload"]
-        )
+        result = runner.invoke(app, ["serve", "--port", "9999", "--no-reload"])
         assert result.exit_code == 0, result.stdout + result.stderr
         assert captured["target"] == "api.server:app"
         assert captured["host"] == "127.0.0.1"

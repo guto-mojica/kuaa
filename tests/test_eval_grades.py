@@ -151,9 +151,7 @@ def test_load_run_per_annotator_keeps_each_grader(tmp_path: Path):
 
     run = EvalRun(run_id="r1", root=tmp_path)
     save_grade(run, query_id="q1", scene_id="s1", grader="rg", grade=Grade.RELEVANT)
-    save_grade(
-        run, query_id="q1", scene_id="s1", grader="jr", grade=Grade.HIGHLY_RELEVANT
-    )
+    save_grade(run, query_id="q1", scene_id="s1", grader="jr", grade=Grade.HIGHLY_RELEVANT)
 
     per_annot = load_run_per_annotator(run)
     assert ("q1", "s1") in per_annot

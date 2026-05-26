@@ -10,10 +10,10 @@
    ``search_inspector.html``.
 
    Structurally distinct from the Buscar ``.b-rp``: no htabs, no activity
-   thread, no signals/composer/rhymes — just a selection-count head with
-   action icons, a preview tile with its tipo pill, the scene's h2 title
-   + film attribution, a ``.props`` grid, a description block, and a
-   3-button ``.actions`` footer linking to Buscar / Anotar / Rimas.
+   thread, no signals/composer/rhymes — just a selection-count head, a preview
+   tile with its tipo pill, the scene's h2 title + film attribution, a
+   ``.props`` grid, a description block, and a 3-button ``.actions`` footer
+   linking to Buscar / Anotar / Rimas.
 
    Context contract (built by
    :func:`api.services.scenes_service.build_inspector_context` —
@@ -36,25 +36,11 @@
 {% from "partials/_icons.html" import icon %}
 <section class="c-rp">
 
-  {# ── Selection-count head + action icons ─────────────────────────────── #}
+  {# ── Selection-count head. Tool actions live in the footer links below. #}
   <div class="head">
     <div class="l">
       <span class="badge">1</span>
       <span>{{ _("Item selected") }}</span>
-    </div>
-    <div class="r">
-      <button type="button" class="fx-icbtn sm" title="{{ _('Annotate') }}" aria-label="{{ _('Annotate') }}">
-        {{ icon('tag', 14) }}
-      </button>
-      <button type="button" class="fx-icbtn sm" title="{{ _('Share') }}" aria-label="{{ _('Share') }}">
-        {{ icon('share', 14) }}
-      </button>
-      <button type="button" class="fx-icbtn sm" title="{{ _('Download') }}" aria-label="{{ _('Download') }}">
-        {{ icon('download', 14) }}
-      </button>
-      <button type="button" class="fx-icbtn sm" title="{{ _('More') }}" aria-label="{{ _('More actions') }}">
-        {{ icon('more', 14) }}
-      </button>
     </div>
   </div>
 

@@ -17,6 +17,7 @@ import pytest
 @pytest.fixture()
 def reset_registry():
     import api.jobs as jobs
+
     jobs._registry.reset()
     yield
     jobs._registry.reset()
@@ -41,18 +42,10 @@ def test_initial_log_lines_seeded_from_active_job_buffer(reset_registry, monkeyp
 
     # build_processing_context calls into config + scan_library; stub
     # the library scan so this test stays hermetic.
-    monkeypatch.setattr(
-        "cinemateca.library.scan_library", lambda library_dir: []
-    )
-    monkeypatch.setattr(
-        "api.services.processing_service.aggregate_stats", lambda lib: {}
-    )
-    monkeypatch.setattr(
-        "api.services.processing_service.build_job_queue", lambda _: []
-    )
-    monkeypatch.setattr(
-        "api.services.processing_service.build_active_step", lambda jobs_: None
-    )
+    monkeypatch.setattr("cinemateca.library.scan_library", lambda library_dir: [])
+    monkeypatch.setattr("api.services.processing_service.aggregate_stats", lambda lib: {})
+    monkeypatch.setattr("api.services.processing_service.build_job_queue", lambda _: [])
+    monkeypatch.setattr("api.services.processing_service.build_active_step", lambda jobs_: None)
 
     ctx = build_processing_context()
 
@@ -68,27 +61,17 @@ def test_initial_log_lines_empty_when_no_active_job(reset_registry, monkeypatch)
     """
     from api.routes.processing import build_processing_context
 
-    monkeypatch.setattr(
-        "cinemateca.library.scan_library", lambda library_dir: []
-    )
-    monkeypatch.setattr(
-        "api.services.processing_service.aggregate_stats", lambda lib: {}
-    )
-    monkeypatch.setattr(
-        "api.services.processing_service.build_job_queue", lambda _: []
-    )
-    monkeypatch.setattr(
-        "api.services.processing_service.build_active_step", lambda jobs_: None
-    )
+    monkeypatch.setattr("cinemateca.library.scan_library", lambda library_dir: [])
+    monkeypatch.setattr("api.services.processing_service.aggregate_stats", lambda lib: {})
+    monkeypatch.setattr("api.services.processing_service.build_job_queue", lambda _: [])
+    monkeypatch.setattr("api.services.processing_service.build_active_step", lambda jobs_: None)
 
     ctx = build_processing_context()
 
     assert ctx["initial_log_lines"] == []
 
 
-def test_tab_processing_renders_buffered_log_rows_and_sse_wiring(
-    client, reset_registry
-):
+def test_tab_processing_renders_buffered_log_rows_and_sse_wiring(client, reset_registry):
     """End-to-end: GET /tab/processing for an active job with buffered
     log MUST render the rows AND wire #proc-log for SSE log events.
 

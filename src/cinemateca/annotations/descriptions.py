@@ -3,6 +3,7 @@
 Separate from io.py because descriptions are a different artifact than
 manual annotations (tags), even though both live in the metadata_dir.
 """
+
 from __future__ import annotations
 
 import json
@@ -21,7 +22,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def save_description(ctx: "FilmContext", scene_id: int, new_text: str) -> None:
+def save_description(ctx: FilmContext, scene_id: int, new_text: str) -> None:
     """Update (or create) the description for ``scene_id`` in ``scene_descriptions.json``.
 
     Finds the entry whose ``scene_id`` field matches ``scene_id`` and

@@ -37,12 +37,13 @@ POST /api/library/add                 — register a new film
 GET  /api/library/remove-confirm/{slug} — inline remove confirmation
 POST /api/library/remove/{slug}       — deregister (+ optional data wipe)
 """
+
 from __future__ import annotations
 
 import shutil
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 
 from api.deps import film_slug_query, get_config, make_ctx
@@ -139,9 +140,7 @@ async def api_library_select(slug: str) -> Response:
 
 @router.get("/api/library/add-form", response_class=HTMLResponse)
 async def api_library_add_form(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse(
-        request, "partials/add_film_form.html", {"request": request}
-    )
+    return templates.TemplateResponse(request, "partials/add_film_form.html", {"request": request})
 
 
 @router.post("/api/library/add", response_class=HTMLResponse)
@@ -166,9 +165,7 @@ async def api_library_add(
 
     if not video.exists():
         ctx = {"request": request, "error": f"File not found: {video_path}"}
-        return templates.TemplateResponse(
-            request, "partials/add_film_form.html", ctx
-        )
+        return templates.TemplateResponse(request, "partials/add_film_form.html", ctx)
 
     slug = slugify(video.stem)
     film_title = title.strip() or video.stem.replace("_", " ").title()
@@ -183,9 +180,7 @@ async def api_library_add(
         )
     except ValueError as exc:
         ctx = {"request": request, "error": str(exc)}
-        return templates.TemplateResponse(
-            request, "partials/add_film_form.html", ctx
-        )
+        return templates.TemplateResponse(request, "partials/add_film_form.html", ctx)
 
     # Symlink the source file into the per-film raw/ dir so the pipeline
     # can find it regardless of where the original lives on disk.
@@ -193,7 +188,14 @@ async def api_library_add(
     raw_dir.mkdir(parents=True, exist_ok=True)
     link = raw_dir / video.name
     if not link.exists() and not link.is_symlink():
-        link.symlink_to(video.resolve())
+        raw_dir = Path(cfg.paths.raw_dir).resolve()
+        resolved_video = video.resolve()
+        if resolved_video.parent != raw_dir:
+            raise HTTPException(
+                status_code=400,
+                detail="Video must reside in the configured raw directory",
+            )
+        link.symlink_to(resolved_video)
 
     if source == "processing":
         return Response(
@@ -235,7 +237,7 @@ async def api_library_remove(
 
     registry = load_registry(library_dir)
     if slug in registry:
-        delete_film(library_dir, slug)
+        delete_film(library_dir, slug=slug)
 
     if wipe:
         film_dir = library_dir / slug

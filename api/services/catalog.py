@@ -30,9 +30,8 @@ logger = logging.getLogger(__name__)
 
 # ── Scene-card construction ───────────────────────────────────────────────────
 
-def _select_tags_by_frequency(
-    scene_tags: list[str], tag_index: dict, n: int = 16
-) -> list[str]:
+
+def _select_tags_by_frequency(scene_tags: list[str], tag_index: dict, n: int = 16) -> list[str]:
     """Return up to n tags sampled across the global-frequency spectrum.
 
     Sorts ascending by corpus frequency (rare → common). If the scene has
@@ -74,9 +73,7 @@ def build_cards(
         valid_ids = set(tag_index.get(selected_tags[0], set()))
         for tag in selected_tags[1:]:
             valid_ids &= set(tag_index.get(tag, set()))
-        scenes = [
-            s for s in scenes if scene_id_key(s.get("scene_id", "")) in valid_ids
-        ]
+        scenes = [s for s in scenes if scene_id_key(s.get("scene_id", "")) in valid_ids]
 
     # Keyword filter — search description text blob
     if keyword:
@@ -122,9 +119,7 @@ def build_cards(
         # Visual analysis summary
         vis = vis_by_scene.get(sid, {})
         env = vis.get("environment", {})
-        env_parts = [
-            p for p in [env.get("location", ""), env.get("time_of_day", "")] if p
-        ]
+        env_parts = [p for p in [env.get("location", ""), env.get("time_of_day", "")] if p]
         num_people = vis.get("num_faces")
 
         # Description one-liner
@@ -158,6 +153,7 @@ def build_cards(
 
 # ── Tab context builders ──────────────────────────────────────────────────────
 
+
 def build_scenes_context(ctx: FilmContext) -> dict:
     """Build the scenes-tab template context (no tag/keyword filter).
 
@@ -166,13 +162,9 @@ def build_scenes_context(ctx: FilmContext) -> dict:
     empty-state hint when no keyframes exist. Keys: ``cards``,
     ``available_tags``, ``no_data``.
     """
-    kf_meta, desc_by_scene, vis_by_scene, tag_index = load_metadata(
-        ctx.metadata_dir
-    )
+    kf_meta, desc_by_scene, vis_by_scene, tag_index = load_metadata(ctx.metadata_dir)
     available_tags = sorted(tag_index.keys())
-    cards = build_cards(
-        kf_meta, desc_by_scene, vis_by_scene, tag_index, ctx.data_dir, [], ""
-    )
+    cards = build_cards(kf_meta, desc_by_scene, vis_by_scene, tag_index, ctx.data_dir, [], "")
     return {
         "cards": cards,
         "available_tags": available_tags,
@@ -186,9 +178,7 @@ def build_scenes_grid(ctx: FilmContext, tags: list[str], keyword: str) -> dict:
     Same single key (``cards``) the ``scenes_grid.html`` partial
     consumes; behaviour identical to the prior inline route body.
     """
-    kf_meta, desc_by_scene, vis_by_scene, tag_index = load_metadata(
-        ctx.metadata_dir
-    )
+    kf_meta, desc_by_scene, vis_by_scene, tag_index = load_metadata(ctx.metadata_dir)
     cards = build_cards(
         kf_meta, desc_by_scene, vis_by_scene, tag_index, ctx.data_dir, tags, keyword
     )
@@ -209,12 +199,15 @@ def build_scenes_grid_aggregate(cfg: Any, tags: list[str], keyword: str) -> dict
     all_cards: list[dict] = []
     for film in scan_library(library_dir):
         ctx = FilmContext.for_film(cfg, film.slug)
-        kf_meta, desc_by_scene, vis_by_scene, tag_index = load_metadata(
-            ctx.metadata_dir
-        )
+        kf_meta, desc_by_scene, vis_by_scene, tag_index = load_metadata(ctx.metadata_dir)
         cards = build_cards(
-            kf_meta, desc_by_scene, vis_by_scene, tag_index, ctx.data_dir,
-            tags, keyword,
+            kf_meta,
+            desc_by_scene,
+            vis_by_scene,
+            tag_index,
+            ctx.data_dir,
+            tags,
+            keyword,
         )
         for c in cards:
             c["film_slug"] = film.slug
@@ -244,12 +237,8 @@ def build_scenes_context_aggregate(cfg: Any) -> dict:
     all_tags: set[str] = set()
     for film in scan_library(library_dir):
         ctx = FilmContext.for_film(cfg, film.slug)
-        kf_meta, desc_by_scene, vis_by_scene, tag_index = load_metadata(
-            ctx.metadata_dir
-        )
-        cards = build_cards(
-            kf_meta, desc_by_scene, vis_by_scene, tag_index, ctx.data_dir, [], ""
-        )
+        kf_meta, desc_by_scene, vis_by_scene, tag_index = load_metadata(ctx.metadata_dir)
+        cards = build_cards(kf_meta, desc_by_scene, vis_by_scene, tag_index, ctx.data_dir, [], "")
         for c in cards:
             c["film_slug"] = film.slug
             c["film_title"] = film.title
