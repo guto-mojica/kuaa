@@ -34,6 +34,13 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ### Adicionado
 
+- **Drafts de lançamento M3 (M3 #5)** sob `docs/launch/`: README
+  inglês-first, outline de blog post em 7 seções (~2.300 palavras),
+  scope + recipe ffmpeg para o vídeo demo de 90s. Drafts citam os
+  backends realmente lançados (SigLIP2-large-256, CLAP
+  larger_clap_general, bge-reranker-v2-m3, Moondream2 via HF
+  transformers); placeholders de métricas (P@K, MRR, nDCG) ficam TBD
+  até a tabela de ablação M4.
 - **Infraestrutura de avaliação M3 pronta (M3 #3).** 50 queries curadas
   bilíngues (PT/EN) em `data/eval/m3_full_queries.yaml` cobrindo a
   distribuição spec §7.1 — 15 texto · 10 imagem · 10 áudio · 10 fusion · 5

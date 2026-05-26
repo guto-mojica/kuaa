@@ -469,7 +469,12 @@ defer features; timeline extension is one option among several. Grilled
       (image / audio / fusion / rhyme) need a per-modality slate generator
       before `run_eval.py` can score them; tracked as M3 follow-up.
 - [ ] 50–100 curator-annotated eval pairs — grading sessions on the M3 slate
-- [ ] Landing-page README draft; blog post outline
+- [x] Landing-page README draft; blog post outline; demo-video scope —
+      drafts at `docs/launch/README_DRAFT.md`,
+      `docs/launch/BLOG_OUTLINE.md`, `docs/launch/DEMO_VIDEO_SCOPE.md`.
+      Drafts cite real shipped backends; metric numbers (P@K, MRR,
+      nDCG) stay TBD until the M4 ablation table lands. M4 finalises
+      copy + records the 90s video.
 
 ### Month 4 — Eval + writeup + launch
 - [ ] Ablation table + per-modality breakdown
