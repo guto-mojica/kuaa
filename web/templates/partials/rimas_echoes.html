@@ -31,7 +31,7 @@
          data-scene-id="{{ e.scene_id }}"
          role="button"
          tabindex="0">
-        <div class="kf"{% if e.keyframe_url %} style="background-image: url('{{ e.keyframe_url }}');"{% endif %}>
+        <div class="kf" role="img" aria-label="{{ _('Keyframe') }}"{% if e.keyframe_url %} style="background-image: url('{{ e.keyframe_url }}');"{% endif %}>
           <span class="rank">#{{ '%02d'|format(loop.index) }}</span>
           <span class="sim">{{ '%.2f'|format(e.score) }}</span>
           <span class="filmbadge">

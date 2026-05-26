@@ -84,7 +84,15 @@
           {% if c.timecode %}<span class="fx-tc">{{ c.timecode }}</span>{% endif %}
           <span class="when">{{ c.when }}</span>
         </div>
-        <div class="body">{{ c.body|safe }}</div>
+        <div class="body">
+{#
+XSS HARDENING GATE: c.body|safe is currently safe because _demo_thread()
+returns static Python literals. Before user-supplied comments land:
+1. Install nh3 (or bleach) for server-side HTML sanitization
+2. Add a Jinja filter that calls nh3.clean(..., tags=ALLOWED_TAGS)
+3. Replace |safe with the sanitizer filter on the line below
+#}
+{{ c.body|safe }}</div>
         {% if c.attachments %}
           <div class="attach">
             {% for a in c.attachments %}

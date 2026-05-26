@@ -86,7 +86,7 @@
                hx-swap="innerHTML"
                hx-trigger="click">
         <button type="button" class="check" title="{{ _('Select') }}" aria-label="{{ _('Select') }}">{{ icon('check', 12) }}</button>
-        <div class="kf"{% if s.keyframe_url %} style="background-image: url('{{ s.keyframe_url }}');"{% endif %}>
+        <div class="kf" role="img" aria-label="{{ _('Keyframe') }}"{% if s.keyframe_url %} style="background-image: url('{{ s.keyframe_url }}');"{% endif %}>
           {% if s.pin_count %}<span class="bl"><span class="pin"></span>{{ s.pin_count }}</span>{% endif %}
           {% if s.timecode %}<span class="br">{{ s.timecode[:8] }}</span>{% endif %}
           {% if s.version %}<span class="ver">{{ s.version }}</span>{% endif %}

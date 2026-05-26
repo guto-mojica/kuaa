@@ -67,7 +67,7 @@
              hx-target="#right-pane"
              hx-swap="innerHTML"
              hx-trigger="click, keyup[key=='Enter' || key==' ']">
-      <div class="kf"{% if r.img_url %} style="background-image: url('{{ r.img_url }}');"{% endif %}>
+      <div class="kf" role="img" aria-label="{{ _('Keyframe') }}"{% if r.img_url %} style="background-image: url('{{ r.img_url }}');"{% endif %}>
         <span class="tl">
           <span class="dot"></span>
           {{ _("indexed") }}
