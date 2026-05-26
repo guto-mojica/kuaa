@@ -243,12 +243,20 @@ async def api_search_image(
     )
     if not index.ok:
         return _no_index_response(request)
-    data = await file.read()
+    # Read only up to the limit + 1 so we can size-check before buffering
+    # the full payload into memory.  Files under the cap are read in full
+    # in a single call; oversize files are rejected without a second read.
+    data = await file.read(search_service.MAX_UPLOAD_BYTES + 1)
+    if len(data) > search_service.MAX_UPLOAD_BYTES:
+        msg = f"file too large ({len(data)} bytes > " f"{search_service.MAX_UPLOAD_BYTES} limit)"
+        logger.info("Image-search upload rejected: %s", msg)
+        return _render_results(request, slug=slug, cfg=cfg, results=[], upload_error=msg)
     try:
         suffix = search_service.validate_upload(file.filename, file.content_type, data)
     except search_service.UploadRejected as exc:
         logger.info("Image-search upload rejected: %s", exc)
         return _render_results(request, slug=slug, cfg=cfg, results=[], upload_error=str(exc))
+    tmp_path: Path | None = None
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         tmp.write(data)
         tmp_path = Path(tmp.name)
@@ -258,6 +266,7 @@ async def api_search_image(
             None, search_service.search_image, index, tmp_path, top_k
         )
     finally:
-        tmp_path.unlink(missing_ok=True)
+        if tmp_path is not None:
+            tmp_path.unlink(missing_ok=True)
     results = _enriched_per_film(cfg, ctx, results_df, slug)
     return _render_results(request, slug=slug, cfg=cfg, results=results)
