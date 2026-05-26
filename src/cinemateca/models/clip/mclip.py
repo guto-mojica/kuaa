@@ -54,10 +54,11 @@ class MClipEmbedder(OpenClipEmbedder):
             )
         logger.info("Loading M-CLIP text encoder %r…", _ST_MODEL_NAME)
         t0 = time.time()
-        # Pass device so sentence-transformers uses MPS/CUDA if available.
-        # SentenceTransformer(device=None) auto-detects, which is fine too.
-        self._st_model = SentenceTransformer(_ST_MODEL_NAME, device=self._device)
-        logger.info("✓ M-CLIP loaded in %.1fs | device=%s", time.time() - t0, self._device)
+        # Force CPU: sentence-transformers auto-detects MPS on Apple Silicon,
+        # but MPS is not thread-safe. The search path runs in a thread executor,
+        # and a single text encode is fast enough on CPU.
+        self._st_model = SentenceTransformer(_ST_MODEL_NAME, device="cpu")
+        logger.info("✓ M-CLIP loaded in %.1fs | device=cpu", time.time() - t0)
 
     def encode_text(self, text: str) -> np.ndarray:
         """Return (512,) float32 L2-normalised vector via multilingual encoder."""

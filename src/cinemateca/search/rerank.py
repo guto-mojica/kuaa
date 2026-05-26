@@ -41,7 +41,9 @@ def _get_cross_encoder(model_name: str) -> Any:
         from sentence_transformers import CrossEncoder  # lazy import — model not loaded at startup
 
         logger.info("rerank: loading cross-encoder %r (first call only)", model_name)
-        _CE_CACHE[model_name] = CrossEncoder(model_name)
+        # Force CPU: MPS auto-detection in sentence-transformers is not thread-safe
+        # when called from run_in_executor. Reranking ~50 pairs is fast enough on CPU.
+        _CE_CACHE[model_name] = CrossEncoder(model_name, device="cpu")
     return _CE_CACHE[model_name]
 
 
