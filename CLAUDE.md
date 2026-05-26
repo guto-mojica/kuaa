@@ -454,7 +454,21 @@ defer features; timeline extension is one option among several. Grilled
   on real 2-film library (10 tests) confirms cross_film_only +
   MMR-runs-cleanly + unique-scene diversification. Curated single-anchor
   refinements still deferred to M4 stretch.
-- [ ] 50–100 curator-annotated eval pairs
+- [x] M3 eval data infrastructure (M3 #3) — 50 curated bilingual queries in
+      `data/eval/m3_full_queries.yaml` covering the spec §7.1 distribution
+      (15 text · 10 image · 10 audio · 10 fusion · 5 rhyme); text-only
+      subset `m3_text_queries.yaml` runs end-to-end through
+      `scripts/run_eval.py` against Jeca Tatu CLIP index (R@5=0.189,
+      MRR=0.254 on pre-curator hypotheses); `cinemateca eval seed` writes
+      candidate slates; protocol in `docs/EVAL_PROTOCOL.md`;
+      `scripts/freeze_eval_run.sh` snapshots grades as SHA256 tarballs;
+      `.gitignore` covers per-run output (`*-run-*/`, `*-run-*.queries.json`,
+      `*-run-*.jsonl`, `*.frozen-*.tar.gz`). **Curator annotation sessions
+      (~50 grades × 9 candidates) are the remaining human-gated work** —
+      surface in M4 standups until complete. Non-text query types
+      (image / audio / fusion / rhyme) need a per-modality slate generator
+      before `run_eval.py` can score them; tracked as M3 follow-up.
+- [ ] 50–100 curator-annotated eval pairs — grading sessions on the M3 slate
 - [ ] Landing-page README draft; blog post outline
 
 ### Month 4 — Eval + writeup + launch
