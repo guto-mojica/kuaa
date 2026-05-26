@@ -91,7 +91,11 @@ class SiglipMultilingualEmbedder:
             self._device,
         )
         t0 = time.time()
-        self._processor = AutoProcessor.from_pretrained(self.model_id)
+        # Pin use_fast=False so query-time image processing matches the slow
+        # processor used during library indexing. transformers >=4.52 will
+        # default to the fast Rust processor, which produces minor pixel-level
+        # differences and would desync queries from stored embeddings.
+        self._processor = AutoProcessor.from_pretrained(self.model_id, use_fast=False)
         self._model = AutoModel.from_pretrained(self.model_id).to(self._device).eval()
         logger.info("✓ SigLIP carregado em %.1fs | device=%s", time.time() - t0, self._device)
 
@@ -102,7 +106,18 @@ class SiglipMultilingualEmbedder:
 
         self._load_model()
         with torch.no_grad():
-            inputs = self._processor(text=[text], return_tensors="pt", padding=True)
+            # SigLIP / SigLIP2 text encoders are trained with a fixed 64-token
+            # sequence length; padding="longest" (padding=True) on a short
+            # single query produces a 2–3 token input that the model has never
+            # seen, yielding noise-level text features (top cosine ~0.05).
+            # See https://huggingface.co/docs/transformers/model_doc/siglip2
+            inputs = self._processor(
+                text=[text],
+                return_tensors="pt",
+                padding="max_length",
+                max_length=64,
+                truncation=True,
+            )
             inputs = {k: v.to(self._device) for k, v in inputs.items()}
             feats = self._model.get_text_features(**inputs)
         v = feats.detach().cpu().numpy().astype("float32").squeeze(0)

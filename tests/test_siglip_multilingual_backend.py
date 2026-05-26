@@ -78,3 +78,58 @@ def test_siglip_backend_text_encoding_l2_normalised(monkeypatch):
     assert v.shape == (768,)
     assert v.dtype == np.float32
     np.testing.assert_allclose(np.linalg.norm(v), 1.0, atol=1e-5)
+
+
+def test_siglip_encode_text_uses_fixed_length_padding(monkeypatch):
+    """Regression: encode_text must pad to SigLIP's fixed 64-token length.
+
+    SigLIP / SigLIP2 text encoders are trained with sequences padded to
+    64 tokens; padding="longest" (padding=True) on a short query produces
+    a 2–3 token input that the model never saw, yielding noise-level text
+    features (top cosine ~0.05 instead of ~0.12). Lock the kwargs in.
+    """
+    pytest.importorskip("transformers")
+    pytest.importorskip("torch")
+    import torch
+
+    from cinemateca.models.clip import siglip_multilingual as mod
+
+    captured: dict = {}
+
+    class _StubModel:
+        config = type("Cfg", (), {"projection_dim": 768})
+
+        def to(self, *_a, **_k):
+            return self
+
+        def eval(self):
+            return self
+
+        def get_text_features(self, **_inputs):
+            return torch.ones((1, 768))
+
+    class _StubProc:
+        def __call__(self, *args, **kwargs):
+            captured.update(kwargs)
+            return {"input_ids": torch.tensor([[1] * 64])}
+
+    monkeypatch.setattr(
+        mod,
+        "AutoModel",
+        type("M", (), {"from_pretrained": staticmethod(lambda *_a, **_k: _StubModel())}),
+    )
+    monkeypatch.setattr(
+        mod,
+        "AutoProcessor",
+        type("P", (), {"from_pretrained": staticmethod(lambda *_a, **_k: _StubProc())}),
+    )
+
+    embedder = mod.SiglipMultilingualEmbedder(cfg=None, device="cpu")
+    embedder.encode_text("dog")
+
+    assert captured.get("padding") == "max_length", (
+        f"expected padding='max_length' (SigLIP2 fixed 64-token contract), "
+        f"got {captured.get('padding')!r}"
+    )
+    assert captured.get("max_length") == 64
+    assert captured.get("truncation") is True
