@@ -97,6 +97,15 @@
 /* ── Reset ─────────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Neutralise browser button defaults — every <button> in the app is styled
+   by a component rule (.fx-btn, .htab, .chip, etc.). Without this, buttons
+   inherit the OS button-face background (white/light gray on most systems)
+   and the 2px outset border. */
+button {
+  background: transparent; border: none; font-family: inherit;
+  font-size: inherit; color: inherit; cursor: pointer;
+}
+
 html, body { margin: 0; padding: 0; height: 100%; }
 body {
     display: flex; flex-direction: column;
