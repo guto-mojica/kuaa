@@ -704,7 +704,7 @@ def dispatch_text_search(
             sem_w=sw,
             bm25_w=bw,
             rrf_k=rrf_k,
-        ),
-        False,
-    )
+        )
+
+    return result_df, False
 

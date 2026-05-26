@@ -34,7 +34,7 @@ from api.services.chrome_service import build_chrome_context
 from api.services.rhymes_service import build_rimas_context
 from api.services.scenes_service import build_cenas_context, build_timeline_context
 from api.templates import templates
-from cinemateca.library import FilmContext
+from cinemateca.library import FilmContext, scan_library, keyframe_url, load_json
 
 logger = logging.getLogger(__name__)
 

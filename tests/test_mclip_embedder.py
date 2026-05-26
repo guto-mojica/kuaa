@@ -88,7 +88,7 @@ def test_load_mclip_uses_correct_model_name():
     with patch("sentence_transformers.SentenceTransformer") as mock_cls:
         mock_cls.return_value = _fake_st()
         emb._load_mclip()
-    mock_cls.assert_called_once_with(_ST_MODEL_NAME, device=None)
+    mock_cls.assert_called_once_with(_ST_MODEL_NAME, device="cpu")
 
 
 # ── image methods delegated to OpenClipEmbedder ───────────────────────────────
