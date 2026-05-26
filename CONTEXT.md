@@ -56,10 +56,9 @@ the popover stays visible regardless of the active input type. Either the
 popover should disable when input type is not text, or the asymmetry should be
 surfaced in the chip — pending decision.
 
-**Rerank is not live in production dispatchers.** The UI sends
-`reranker_enabled` and the route accepts/logs it, but the active search
-dispatchers still do not apply `apply_reranker`. Treat Rerank as an exposed
-follow-up until the dispatcher migration is complete.
+**Rerank is not live in production dispatchers.** `/api/search` still accepts
+and logs `reranker_enabled` for compatibility, but the visible Buscar UI hides
+the control until active search dispatchers apply `apply_reranker`.
 
 ## Example dialogue
 

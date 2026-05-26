@@ -73,8 +73,6 @@ Planned next:
 - Capture populated screenshots and release walkthrough videos.
 - Fill release notes with final artifact URL, checksums, metrics, and manifest
   excerpt.
-- Decide whether prototype chrome controls such as Share, Import, Settings, and
-  collection creation should be hidden, disabled, or wired before launch.
 - Complete live reranker dispatcher wiring and per-modality eval slate scoring.
 - Docker packaging after the demo release path is stable.
 
@@ -96,7 +94,7 @@ portfolio roadmap:
 | [Evaluation](docs/EVALUATION.md) | Query schema, retrieval metrics, and annotation-correction stats |
 | [Domain packs](docs/DOMAIN_PACKS.md) | Domain schema, archive and media-broadcast packs, prompt/export mapping |
 | [API reference](docs/API.md) | Local FastAPI/HTMX routes plus JSON/CSV export endpoints |
-| [UI wiring audit](docs/UI_WIRING_AUDIT.md) | Current UI routes, wired flows, and visible unwired controls |
+| [UI wiring audit](docs/UI_WIRING_AUDIT.md) | Current UI routes, wired flows, and remaining UI constraints |
 | [Operations](docs/OPERATIONS.md) | Run manifests, exports, failure behavior, release gates, and constraints |
 | [Case study](docs/CASE_STUDY.md) | Recruiter-readable project narrative and evidence map |
 | [Launch plan](docs/LAUNCH_PLAN.md) | Public post sequence, asset map, and launch checklist |
