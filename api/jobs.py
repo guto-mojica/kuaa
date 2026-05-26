@@ -32,6 +32,7 @@ At most :data:`MAX_RETAINED_TERMINAL_JOBS` terminal jobs are kept; the
 oldest are evicted (a single-user tool only needs recent history). The
 active job is never evicted.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -50,10 +51,10 @@ logger = logging.getLogger(__name__)
 
 STEP_DEFS: list[tuple[str, str]] = [
     ("frame_extraction", "Frames"),
-    ("scene_detection",  "Cenas"),
-    ("visual_analysis",  "Visual"),
-    ("embeddings",       "Embeddings"),
-    ("llm_description",  "Descrições"),
+    ("scene_detection", "Cenas"),
+    ("visual_analysis", "Visual"),
+    ("embeddings", "Embeddings"),
+    ("llm_description", "Descrições"),
 ]
 
 # Lifecycle states a job can be in. ``created`` is transient (set before
@@ -369,9 +370,7 @@ class JobRegistry:
 
     def active(self) -> list[JobState]:
         with self._lock:
-            return [
-                j for j in self._jobs.values() if j.status in _ACTIVE
-            ]
+            return [j for j in self._jobs.values() if j.status in _ACTIVE]
 
     def _active_locked(self) -> JobState | None:
         for j in self._jobs.values():
@@ -391,7 +390,7 @@ class JobRegistry:
             key=lambda j: j.created_at,
         )
         excess = len(terminal) - self._max_terminal
-        for j in terminal[:max(0, excess)]:
+        for j in terminal[: max(0, excess)]:
             self._jobs.pop(j.id, None)
             logger.debug("Evicted retained job %s", j.id)
 
@@ -411,10 +410,7 @@ class JobRegistry:
                 id=job_id,
                 video_path=video_path,
                 status=STATUS_CREATED,
-                steps=[
-                    StepInfo(name=name, label=label)
-                    for name, label in STEP_DEFS
-                ],
+                steps=[StepInfo(name=name, label=label) for name, label in STEP_DEFS],
             )
             self._jobs[job_id] = job
             self._evict_locked()
@@ -485,6 +481,11 @@ class JobRegistry:
 _registry = JobRegistry()
 
 
+def get_all_jobs() -> list:
+    """Return a snapshot of all jobs (active + terminal) from the registry."""
+    return _registry.all()
+
+
 def get_job(job_id: str) -> JobState | None:
     return _registry.get(job_id)
 
@@ -512,6 +513,7 @@ def start_job(video_path: str, enabled_steps: set[str], cfg) -> str:
 
 # ── Pipeline runner (runs in a daemon thread) ─────────────────────────────────
 
+
 def _slug_for_video(video_path: str, cfg) -> str:
     """Return the registry slug that owns *video_path*.
 
@@ -531,8 +533,8 @@ def _slug_for_video(video_path: str, cfg) -> str:
             for slug, entry in load_registry(library_dir).items():
                 if entry.get("raw_filename", "") == filename:
                     return slug
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Could not read registry for slug lookup: %s", exc)
     # Fallback: derive from stem (may not match registry slug)
     stem = PurePosixPath(video_path.replace("\\", "/")).stem
     return stem.lower().replace(" ", "_")
@@ -558,7 +560,10 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
     slug = _slug_for_video(job.video_path, cfg)
     logger.info(
         "[job=%s] runner entered — video=%s slug=%s steps=%s",
-        job.id, job.video_path, slug, sorted(enabled_steps),
+        job.id,
+        job.video_path,
+        slug,
+        sorted(enabled_steps),
     )
     ctx = FilmContext.for_film(cfg, slug)
     ctx.metadata_dir.mkdir(parents=True, exist_ok=True)
@@ -582,7 +587,9 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
         ]
         return StepResults(video_path=job.video_path, runs=runs)
 
-    def _write_manifest(result=None, *, status: str | None = None, error: str | None = None) -> None:
+    def _write_manifest(
+        result=None, *, status: str | None = None, error: str | None = None
+    ) -> None:
         try:
             write_run_manifest(
                 cfg,
@@ -604,11 +611,7 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
         job.publish("update")
 
     def _recompute_progress() -> None:
-        done = sum(
-            1
-            for s in job.steps
-            if s.state in ("done", "skipped", "error", "blocked")
-        )
+        done = sum(1 for s in job.steps if s.state in ("done", "skipped", "error", "blocked"))
         job.progress = done / len(job.steps) if job.steps else 1.0
 
     def progress_cb(name: str, phase: str, run) -> None:
@@ -632,7 +635,10 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
         _recompute_progress()
         logger.info(
             "[job=%s] step %s — finish (state=%s, %.1fs)",
-            job.id, name, run.state, run.duration_s,
+            job.id,
+            name,
+            run.state,
+            run.duration_s,
         )
         job.publish("update")
 
@@ -677,9 +683,7 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
             _prune_registry()
             return
 
-        had_error = any(
-            r.state in ("error", "blocked") for r in results.runs
-        )
+        had_error = any(r.state in ("error", "blocked") for r in results.runs)
         job.status = STATUS_ERROR if had_error else STATUS_DONE
         job.progress = 1.0
         job.total_duration_s = time.time() - t_start

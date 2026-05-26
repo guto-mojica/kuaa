@@ -123,7 +123,7 @@ def build_processing_context() -> dict:
 
     # ``job_queue`` reads the registry's *full* recent history (terminal
     # + active), not just the currently running set.
-    from api.jobs import _registry  # noqa: PLC0415 - service-layer access
+    from api.jobs import get_all_jobs  # noqa: PLC0415 - service-layer access
 
     active_step = build_active_step(jobs)
     metrics_enabled = bool(getattr(getattr(cfg, "proc", None), "gpu_metrics_enabled", False))
@@ -135,7 +135,7 @@ def build_processing_context() -> dict:
         "jobs": jobs,
         "initial_log_lines": initial_log_lines,
         "stats": aggregate_stats(library_dir),
-        "job_queue": build_job_queue(_registry.all()),
+        "job_queue": build_job_queue(get_all_jobs()),
         "active_step": active_step,
         "gpu_metrics": gpu_metrics,
         "cfg": cfg,
@@ -171,14 +171,16 @@ async def api_pipeline_start(
         steps = [name for name, _ in STEP_DEFS]
     logger.info(
         "/api/pipeline/start — video_path=%s steps=%s",
-        video_path, sorted(steps),
+        video_path,
+        sorted(steps),
     )
 
     cfg = get_config()
     vp = Path(video_path)
     if not vp.exists():
         logger.warning(
-            "/api/pipeline/start rejected — file not found: %s", vp,
+            "/api/pipeline/start rejected — file not found: %s",
+            vp,
         )
         return HTMLResponse(f'<p class="text-error">File not found: {vp}</p>', status_code=400)
 
@@ -230,7 +232,9 @@ async def api_pipeline_start(
     oob = f'<div id="lp-scroll" hx-swap-oob="innerHTML">{lp_html}</div>'
 
     response = HTMLResponse(tab_html + oob)
-    response.set_cookie("active_film", new_slug, max_age=86400 * 365, httponly=False, samesite="lax")
+    response.set_cookie(
+        "active_film", new_slug, max_age=86400 * 365, httponly=False, samesite="lax"
+    )
     return response
 
 
@@ -250,7 +254,8 @@ async def api_pipeline_cancel(request: Request, job_id: str) -> HTMLResponse:
     if not ok:
         logger.info(
             "/api/pipeline/cancel — already terminal job_id=%s status=%s",
-            job_id, job.status,
+            job_id,
+            job.status,
         )
         return HTMLResponse(
             '<p class="text-muted">Job already finished.</p>',
@@ -334,7 +339,10 @@ async def api_pipeline_stream(request: Request, job_id: str) -> StreamingRespons
         sub_count = job.broadcaster.subscriber_count()
         logger.info(
             "[job=%s] SSE consumer connected (subscribers=%d, log_buffered=%d, status=%s)",
-            job.id, sub_count, len(job.log), job.status,
+            job.id,
+            sub_count,
+            len(job.log),
+            job.status,
         )
 
         try:
@@ -383,7 +391,8 @@ async def api_pipeline_stream(request: Request, job_id: str) -> StreamingRespons
             job.unsubscribe(sub)
             logger.info(
                 "[job=%s] SSE consumer disconnected (subscribers=%d)",
-                job.id, job.broadcaster.subscriber_count(),
+                job.id,
+                job.broadcaster.subscriber_count(),
             )
 
     return StreamingResponse(
