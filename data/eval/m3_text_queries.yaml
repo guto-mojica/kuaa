@@ -1,0 +1,155 @@
+dataset: m3_text_subset
+version: 1
+label_status: seed_curator_grading_pending
+source:
+  name: M3 text subset (15 queries) — derived from m3_full_queries.yaml
+  identifier: m3-run-1
+  year: 2026
+  notes: Loader-compatible text-only slice. relevance values are maintainer hypotheses
+    pending curator grading.
+queries:
+- id: text-01
+  text: trabalhador rural arando o campo
+  relevant_scene_ids:
+  - 34
+  - 50
+  - 110
+  relevance:
+    '34': 2
+    '50': 3
+    '110': 2
+  notes: Rural labour / arrival-at-hut composition; Jeca's recurring framing.
+  intent: text query (pt)
+- id: text-02
+  text: rural worker in field with hat
+  relevant_scene_ids:
+  - 45
+  - 47
+  - 110
+  relevance:
+    '45': 3
+    '47': 2
+    '110': 2
+  notes: EN gloss of text-01 — checks PT/EN cross-language retrieval parity.
+  intent: text query (en)
+- id: text-03
+  text: festa popular com música e dança
+  relevant_scene_ids:
+  - 275
+  relevance:
+    '275': 3
+  notes: Group celebration scenes; audio context is musical but query is visual.
+  intent: text query (pt)
+- id: text-04
+  text: duas pessoas conversando ao ar livre
+  relevant_scene_ids:
+  - 45
+  - 47
+  - 50
+  relevance:
+    '45': 3
+    '47': 2
+    '50': 3
+  notes: Two-figure outdoor dialogue framing — common Jeca composition.
+  intent: text query (pt)
+- id: text-05
+  text: interior baixa luz com figura solitária
+  relevant_scene_ids:
+  - 12
+  - 36
+  - 166
+  relevance:
+    '12': 2
+    '36': 3
+    '166': 3
+  notes: Dark interior, single character — moody framing.
+  intent: text query (pt)
+- id: text-06
+  text: man on horseback in landscape
+  relevant_scene_ids:
+  - 30
+  - 57
+  relevance:
+    '30': 3
+    '57': 2
+  notes: Equestrian framing — should also recall Porter scene 5 cross-film.
+  intent: text query (en)
+- id: text-07
+  text: family portrait standing in front of wall
+  relevant_scene_ids:
+  - 188
+  - 200
+  relevance:
+    '188': 3
+    '200': 2
+  notes: Static portrait framing; brick/wood backdrop.
+  intent: text query (en)
+- id: text-08
+  text: mulher carregando criança em cenário rural
+  relevant_scene_ids:
+  - 250
+  relevance:
+    '250': 3
+  notes: Maternal framing in landscape — single high-confidence target.
+  intent: text query (pt)
+- id: text-09
+  text: homem com chapéu fumando dentro de casa
+  relevant_scene_ids:
+  - 36
+  - 223
+  relevance:
+    '36': 3
+    '223': 2
+  notes: Probes whether smoking/posture vocabulary lands across films (cf. Porter
+    scene 7).
+  intent: text query (pt)
+- id: text-10
+  text: bar interior with bottles
+  relevant_scene_ids:
+  - 203
+  relevance:
+    '203': 3
+  notes: Single-target genre-vocabulary search (saloon/bar).
+  intent: text query (en)
+- id: text-11
+  text: group of men working with wooden structure
+  relevant_scene_ids:
+  - 334
+  relevance:
+    '334': 3
+  notes: Action-with-objects framing.
+  intent: text query (en)
+- id: text-12
+  text: cena noturna com sombras intensas
+  relevant_scene_ids:
+  - 215
+  relevance:
+    '215': 3
+  notes: Low-key lighting / silhouette test.
+  intent: text query (pt)
+- id: text-13
+  text: homem caminhando em estrada de terra
+  relevant_scene_ids:
+  - 31
+  - 110
+  relevance:
+    '31': 2
+    '110': 3
+  notes: Walking-shot framing; rural dirt path.
+  intent: text query (pt)
+- id: text-14
+  text: title card with white lettering on black
+  relevant_scene_ids:
+  - 1
+  relevance:
+    '1': 3
+  notes: Opening / credit-card framing — should match Porter scene 1 too.
+  intent: text query (en)
+- id: text-15
+  text: man inspecting cards at table
+  relevant_scene_ids:
+  - 89
+  relevance:
+    '89': 3
+  notes: Indoor character close-up; cards as visible object.
+  intent: text query (en)
