@@ -261,12 +261,10 @@ class CatalogPipeline:
         try:
             from cinemateca.run_manifest import write_run_manifest
 
-            write_run_manifest(
-                self.cfg,
-                video_path,
-                result,
-                started_at_epoch=started_at_epoch,
-            )
+            kwargs = dict(started_at_epoch=started_at_epoch)
+            if self._film_paths is not None:
+                kwargs["metadata_dir"] = self._film_paths.metadata_dir
+            write_run_manifest(self.cfg, video_path, result, **kwargs)
         except Exception as exc:  # noqa: BLE001 - manifest must not mask pipeline result
             logger.warning("Could not write run manifest: %s", exc)
 
