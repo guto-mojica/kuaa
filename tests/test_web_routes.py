@@ -596,16 +596,16 @@ def test_search_toolrow_renders_hybrid_popover(client) -> None:
 
 
 def test_search_toolrow_renders_readonly_rerank_and_mmr_badges(client) -> None:
-    """Rerank + MMR stay as obvious read-only chips with M2/M3 micro-badges
-    until their backends land — the test pins both the ``data-state`` and
-    the badge text so a future refactor cannot remove the cue."""
+    """Rerank chip reflects config state; MMR stays read-only with M3 badge.
+    Both keep ``data-state="readonly"`` for screen-reader + test pinning."""
     resp = client.get("/tab/search")
     body = resp.text
     # Read-only chips with explicit data-state for screen-reader + test pinning.
     assert 'data-state="readonly"' in body
-    # M2/M3 micro-badges visible.
-    assert ">M2<" in body
+    # MMR badge still present (M3 feature not yet shipped).
     assert ">M3<" in body
+    # Rerank chip present (M2 badge removed — backend shipped).
+    assert "Rerank" in body
 
 
 # ── Group 1f-bis: Cenas inspector (Task 16) ───────────────────────────────────

@@ -163,9 +163,10 @@
       <span class="div-v" aria-hidden="true"></span>
 
       {# ── Retrieval knobs ───────────────────────────────────────────────
-         Hybrid + k are interactive popovers (M2 sub-project #3).
-         Rerank + MMR remain read-only badges with M2/M3 micro-chips —
-         their backends ship in M2 #4 and M3 respectively. #}
+         Hybrid + k are interactive popovers.
+         Rerank reflects cfg.search.rerank_enabled (shipped M2).
+         MMR remains a read-only badge (M3).
+         Encoder chip appears only when M-CLIP is the active embedder. #}
 
       {# Hybrid popover. #}
       <div class="knob knob-popover" x-data="{ open: false }">
@@ -224,11 +225,22 @@
         </div>
       </div>
 
-      {# Read-only Rerank chip — M2 #4 lights this up later. #}
-      <div class="knob" data-state="readonly" aria-disabled="true" title="{{ _('Cross-encoder reranker — ships in M2 #4') }}">
+      {# Encoder chip — visible only when M-CLIP multilingual encoder is active. #}
+      {% if cfg.models.image_embedder == 'clip_mclip' %}
+      <div class="knob" data-state="readonly" aria-disabled="true"
+           title="{{ _('Multilingual visual encoder (M-CLIP)') }}">
+        <span class="k">{{ _("Encoder") }}</span>
+        <span class="v acc">M-CLIP</span>
+      </div>
+      {% endif %}
+
+      {# Rerank chip — reflects cfg.search.rerank_enabled; shipped in M2. #}
+      <div class="knob" data-state="readonly" aria-disabled="true"
+           title="{% if cfg.search.rerank_enabled %}{{ cfg.search.reranker.model }}{% else %}{{ _('Cross-encoder reranker — disabled') }}{% endif %}">
         <span class="k">{{ _("Rerank") }}</span>
-        <span class="v">{{ _("off") }}</span>
-        <span class="readonly-badge">M2</span>
+        <span class="v{% if cfg.search.rerank_enabled %} acc{% endif %}">
+          {% if cfg.search.rerank_enabled %}{{ _("on") }}{% else %}{{ _("off") }}{% endif %}
+        </span>
       </div>
 
       {# Read-only MMR chip — M3 lights this up later. #}
