@@ -59,9 +59,12 @@ _CACHE: dict[Path, tuple[tuple[int, int, int, int], AudioIndex]] = {}
 _CACHE_LOCK = threading.Lock()
 
 
-def _stat_key(emb_path: Path, map_path: Path) -> tuple[int, int, int, int]:
-    es = emb_path.stat()
-    ms = map_path.stat()
+def _stat_key(emb_path: Path, map_path: Path) -> tuple[int, int, int, int] | None:
+    try:
+        es = emb_path.stat()
+        ms = map_path.stat()
+    except FileNotFoundError:
+        return None
     return (es.st_mtime_ns, es.st_size, ms.st_mtime_ns, ms.st_size)
 
 
@@ -77,6 +80,8 @@ def load_audio_index(audio_dir: Path) -> AudioIndex | None:
     if not emb_path.exists() or not map_path.exists():
         return None
     key = _stat_key(emb_path, map_path)
+    if key is None:
+        return None
     with _CACHE_LOCK:
         cached = _CACHE.get(audio_dir)
         if cached is not None and cached[0] == key:
