@@ -34,6 +34,25 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ### Adicionado
 
+- **Infraestrutura de avaliação M3 pronta (M3 #3).** 50 queries curadas
+  bilíngues (PT/EN) em `data/eval/m3_full_queries.yaml` cobrindo a
+  distribuição spec §7.1 — 15 texto · 10 imagem · 10 áudio · 10 fusion · 5
+  rimas. Subset texto-only `data/eval/m3_text_queries.yaml` (15 entradas)
+  roda end-to-end via `scripts/run_eval.py` contra o índice CLIP do Jeca
+  Tatu (R@5=0.189, MRR=0.254 sobre hipóteses pré-curadoria). Candidate
+  slates do `/eval` gerados por `cinemateca eval seed --run m3-run-1`
+  em `data/eval/m3-run-1.queries.json` (gitignored). Protocolo completo
+  em `docs/EVAL_PROTOCOL.md` (~440 linhas: rubrica 0/1/2/3/S, keybindings
+  do `/eval`, edge cases bilíngues, fluxo curador, política de freeze).
+  Script `scripts/freeze_eval_run.sh` snapshota a JSONL de grades em
+  tarball SHA256 (sanity-checks: usage error, JSONL ausente, JSONL vazio).
+  Regras de `.gitignore` cobrem `data/eval/*-run-*/`,
+  `*-run-*.queries.json`, `*-run-*.jsonl`, `*.frozen-*.tar.gz` — só seeds
+  YAML + README ficam em git. **Sessões de anotação curatorial (Phase 3)
+  pendentes** — bloqueia a ablação M4 até curadores graderem o slate. O
+  harness `run_eval.py` ainda é text-only (predates multi-film); rodar as
+  outras 35 queries não-texto pede um gerador de slate por modalidade
+  (M3 follow-up).
 - **Rimas Visuais agora diversificam via MMR rerank (M3 #2).** Novo
   popover "Diversidade" na aba Rimas com slider λ no intervalo [0, 1]
   (passo 0.05); query params `?lambda=` + `?k_candidates=` em
