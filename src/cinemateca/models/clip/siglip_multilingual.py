@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -43,6 +44,16 @@ logger = logging.getLogger(__name__)
 # the cost of pulling in ``transformers`` for unrelated tests.
 AutoModel: Any = None
 AutoProcessor: Any = None
+
+# Serialise the first concurrent ``from transformers import AutoModel`` so
+# that two worker threads can't race transformers' ``_LazyModule`` during
+# its initial population. uvicorn dispatches search requests through
+# ``run_in_executor`` and HTMX commonly fires two near-simultaneous GETs
+# for the same query (submit + keyup triggers); without this lock one
+# thread sees ``transformers`` partially initialised and raises
+# ``ImportError: cannot import name 'AutoModel'`` — fatal for the first
+# request but harmless on retry.
+_IMPORT_LOCK = threading.Lock()
 
 _DEFAULT_MODEL_ID = "google/siglip2-large-patch16-256"
 
@@ -69,35 +80,46 @@ class SiglipMultilingualEmbedder:
         if self._model is not None:
             return
         global AutoModel, AutoProcessor
-        if AutoModel is None or AutoProcessor is None:
-            try:
-                from transformers import AutoModel as _AM
-                from transformers import AutoProcessor as _AP
-            except ImportError as exc:  # pragma: no cover - dep guard
-                raise RuntimeError(
-                    "SigLIP backend requires 'transformers'. " "Install via: uv sync --extra full"
-                ) from exc
-            AutoModel = AutoModel or _AM
-            AutoProcessor = AutoProcessor or _AP
+        # The whole load path is serialised because (a) concurrent
+        # ``from transformers import AutoModel`` races transformers'
+        # ``_LazyModule`` and (b) two threads racing the GPU model init
+        # would double-allocate weights. Fast path above keeps the steady-
+        # state cost a single ``is not None`` check.
+        with _IMPORT_LOCK:
+            if self._model is not None:
+                return
+            if AutoModel is None or AutoProcessor is None:
+                try:
+                    from transformers import AutoModel as _AM
+                    from transformers import AutoProcessor as _AP
+                except ImportError as exc:  # pragma: no cover - dep guard
+                    raise RuntimeError(
+                        "SigLIP backend requires 'transformers'. "
+                        "Install via: uv sync --extra full"
+                    ) from exc
+                AutoModel = _AM
+                AutoProcessor = _AP
 
-        if self._device is None:
-            from cinemateca.device import get_device
+            if self._device is None:
+                from cinemateca.device import get_device
 
-            self._device = str(get_device("auto"))
+                self._device = str(get_device("auto"))
 
-        logger.info(
-            "Carregando SigLIP-multilingual %s (device=%s)…",
-            self.model_id,
-            self._device,
-        )
-        t0 = time.time()
-        # Pin use_fast=False so query-time image processing matches the slow
-        # processor used during library indexing. transformers >=4.52 will
-        # default to the fast Rust processor, which produces minor pixel-level
-        # differences and would desync queries from stored embeddings.
-        self._processor = AutoProcessor.from_pretrained(self.model_id, use_fast=False)
-        self._model = AutoModel.from_pretrained(self.model_id).to(self._device).eval()
-        logger.info("✓ SigLIP carregado em %.1fs | device=%s", time.time() - t0, self._device)
+            logger.info(
+                "Carregando SigLIP-multilingual %s (device=%s)…",
+                self.model_id,
+                self._device,
+            )
+            t0 = time.time()
+            # Pin use_fast=False so query-time image processing matches the slow
+            # processor used during library indexing. transformers >=4.52 will
+            # default to the fast Rust processor, which produces minor pixel-
+            # level differences and would desync queries from stored embeddings.
+            self._processor = AutoProcessor.from_pretrained(self.model_id, use_fast=False)
+            self._model = AutoModel.from_pretrained(self.model_id).to(self._device).eval()
+            logger.info(
+                "✓ SigLIP carregado em %.1fs | device=%s", time.time() - t0, self._device
+            )
 
     # --------------------------------------------------------------- encoders
     def encode_text(self, text: str) -> np.ndarray:

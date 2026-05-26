@@ -133,3 +133,78 @@ def test_siglip_encode_text_uses_fixed_length_padding(monkeypatch):
     )
     assert captured.get("max_length") == 64
     assert captured.get("truncation") is True
+
+
+def test_siglip_load_model_serialises_concurrent_calls(monkeypatch):
+    """Regression: two worker threads calling _load_model() concurrently must
+    not race transformers' ``_LazyModule`` nor double-allocate the GPU model.
+
+    HTMX in this app fires near-simultaneous GETs from ``submit`` + ``keyup``
+    triggers; uvicorn dispatches each through ``run_in_executor``. Without
+    serialisation, one thread sees a partially initialised transformers
+    package and raises ``ImportError: cannot import name 'AutoModel'``.
+    """
+    pytest.importorskip("transformers")
+    pytest.importorskip("torch")
+    import threading
+    import time as _time
+
+    from cinemateca.models.clip import siglip_multilingual as mod
+
+    call_count = {"model": 0, "proc": 0}
+
+    class _StubModel:
+        config = type("Cfg", (), {"projection_dim": 8})
+
+        def to(self, *_a, **_k):
+            return self
+
+        def eval(self):
+            return self
+
+    class _StubProc:
+        pass
+
+    def _slow_model(*_a, **_k):
+        _time.sleep(0.05)  # widen the race window so an unlocked impl loses
+        call_count["model"] += 1
+        return _StubModel()
+
+    def _slow_proc(*_a, **_k):
+        _time.sleep(0.05)
+        call_count["proc"] += 1
+        return _StubProc()
+
+    monkeypatch.setattr(
+        mod,
+        "AutoModel",
+        type("M", (), {"from_pretrained": staticmethod(_slow_model)}),
+    )
+    monkeypatch.setattr(
+        mod,
+        "AutoProcessor",
+        type("P", (), {"from_pretrained": staticmethod(_slow_proc)}),
+    )
+
+    embedder = mod.SiglipMultilingualEmbedder(cfg=None, device="cpu")
+    errors: list[BaseException] = []
+
+    def _worker() -> None:
+        try:
+            embedder._load_model()
+        except BaseException as e:  # noqa: BLE001
+            errors.append(e)
+
+    threads = [threading.Thread(target=_worker) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert errors == [], f"concurrent _load_model raised: {errors!r}"
+    assert call_count["model"] == 1, (
+        f"AutoModel.from_pretrained called {call_count['model']}× — race not serialised"
+    )
+    assert call_count["proc"] == 1, (
+        f"AutoProcessor.from_pretrained called {call_count['proc']}× — race not serialised"
+    )
