@@ -422,9 +422,15 @@ defer features; timeline extension is one option among several. Grilled
   `docs/superpowers/specs/2026-05-23-hybrid-search-design.md` +
   `docs/superpowers/plans/2026-05-23-hybrid-search.md`. F1 (eval ablation
   on Jeca Tatu) ainda pendente — corrida manual requer dados reais.
-  **Próximo:** M2 #4 cross-encoder reranker.
-- [ ] Cross-encoder reranker (text default; VLM-as-judge opt-in) — lands in `cinemateca.search.rerank`
-- [ ] Multilingual visual model (SigLIP-multilingual; M-CLIP fallback)
+  Cross-encoder reranker + M-CLIP multilingual model shipped 2026-05-25 (see items below).
+- [x] Cross-encoder reranker — `cinemateca.search.rerank`; `ms-marco-MiniLM-L-12-v2`
+  (English default) / `mmarco-mMiniLMv2-L12-H384-v1` (multilingual, local.yaml).
+  Top-50 candidates → top-k rerank; lazy-load + module-level cache; graceful fallback.
+  Validated on Jeca Tatu: [old→new] rank logs confirm reshuffling. 2026-05-25.
+- [x] Multilingual visual model — M-CLIP (`clip-ViT-B-32-multilingual-v1` via
+  sentence-transformers). `MClipEmbedder` subclasses `OpenClipEmbedder`, overrides
+  only `encode_text()`. Existing `keyframe_embeddings.npy` valid (same 512-dim space).
+  `load_index` routes to registry; embedder name in cache key. Validated 2026-05-25.
 - [ ] CLAP archival-audio sanity check (pre-commit gate on Jeca Tatu)
 
 ### Month 3 — Fusion + visual rhymes + eval annotation
