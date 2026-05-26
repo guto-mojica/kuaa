@@ -236,6 +236,7 @@
   border-bottom: 1px solid var(--c-border); gap: 2px;
 }
 .a-rp .htab {
+  background: transparent; border: none; font-family: inherit;
   padding: 13px 12px; font-size: 12.5px; color: var(--c-muted);
   cursor: pointer; position: relative; font-weight: 500;
   display: flex; align-items: center; gap: 6px;
@@ -251,7 +252,7 @@
   background: var(--c-raised); border-radius: 8px; color: var(--c-text-2);
 }
 .a-rp .htabs .gap { flex: 1; }
-.a-rp .htabs .ic { padding: 6px; border-radius: 4px; color: var(--c-muted); cursor: pointer; display:flex; align-items:center; }
+.a-rp .htabs .ic { background: transparent; border: none; padding: 6px; border-radius: 4px; color: var(--c-muted); cursor: pointer; display:flex; align-items:center; }
 .a-rp .htabs .ic:hover { background: var(--c-hover); color: var(--c-text); }
 
 .a-rp .subhead {
@@ -350,7 +351,7 @@
 .a-rp .composer .meta .toolset .t {
   width: 26px; height: 26px; border-radius: 4px;
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
+  cursor: pointer; background: transparent; border: none;
 }
 .a-rp .composer .meta .toolset .t:hover { background: var(--c-hover); color: var(--c-text); }
 .a-rp .composer .meta .toolset .t.on { background: var(--c-yellow-bg); color: var(--c-yellow); }
@@ -413,6 +414,96 @@
   background: var(--c-accent-bg); border-color: var(--c-accent-dim);
   color: var(--c-accent);
 }
+
+/* ─── Properties grid (.a-thread content) ─────────────────────────────
+   Same visual contract as .c-rp .props (cenas.css) and .b-rp .props
+   (buscar.css). */
+.a-thread .props {
+  display: grid; grid-template-columns: 90px 1fr;
+  gap: 7px 12px; font-size: 12px;
+}
+.a-thread .props .k { color: var(--c-muted); }
+.a-thread .props .v { color: var(--c-text); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.a-thread .props .v.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* ─── Legacy class compatibility — these class names are preserved for
+   existing tests (annotate-feedback, annotate-tags-input, etc.) but
+   their visual contract now uses Mojica tokens so they read as part of
+   the same design system as the rest of the .a-rp surface. ─────────── */
+
+.a-thread .annotate-feedback {
+  padding: 7px 12px; border-radius: 6px;
+  font-size: 12.5px; margin-bottom: 10px;
+  background: var(--c-green-bg); color: var(--c-green);
+  animation: a-feedback-fade 3s forwards;
+}
+@keyframes a-feedback-fade {
+  0%   { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.a-thread .annotate-section-label {
+  font-size: 11px; font-weight: 500; color: var(--c-muted);
+  letter-spacing: 0.04em; margin-bottom: 6px;
+}
+
+.a-thread .annotate-tags-input {
+  width: 100%; background: var(--c-bg); border: 1px solid var(--c-border);
+  border-radius: 6px; padding: 7px 11px;
+  font-family: var(--font-mono); font-size: 13px; color: var(--c-text);
+  letter-spacing: 0.01em; margin-bottom: 4px;
+  transition: border-color .12s, background .12s, box-shadow .12s;
+}
+.a-thread .annotate-tags-input:focus {
+  outline: none; border-color: var(--c-accent); background: var(--c-raised);
+  box-shadow: 0 0 0 3px var(--c-accent-bg-low);
+}
+.a-thread .annotate-tags-input::placeholder {
+  font-family: var(--font-sans); color: var(--c-muted);
+}
+
+.a-thread .annotate-hint {
+  font-size: 11px; color: var(--c-muted); margin: 4px 0 10px; line-height: 1.4;
+}
+
+.a-thread .annotate-actions {
+  display: flex; align-items: center; gap: 8px;
+}
+
+.a-thread .annotate-divider {
+  height: 1px; background: var(--c-border); margin: 14px 0;
+}
+
+.a-thread .annotate-edit-warning {
+  padding: 8px 12px; border-radius: 6px;
+  background: var(--c-orange-bg); border: 1px solid var(--c-orange);
+  font-size: 12px; color: var(--c-orange); margin: 0 0 12px;
+}
+
+.a-thread .annotate-desc-textarea {
+  width: 100%; background: var(--c-bg); border: 1px solid var(--c-border);
+  border-radius: 6px; padding: 8px 11px;
+  font-family: var(--font-sans); font-size: 13px; color: var(--c-text);
+  line-height: 1.55; resize: vertical; margin-bottom: 0;
+  transition: border-color .12s, background .12s, box-shadow .12s;
+}
+.a-thread .annotate-desc-textarea:focus {
+  outline: none; border-color: var(--c-accent); background: var(--c-raised);
+  box-shadow: 0 0 0 3px var(--c-accent-bg-low);
+}
+
+.a-thread .annotate-edit-trigger {
+  font-size: 11px; color: var(--c-muted); padding: 2px 6px; border-radius: 4px;
+  text-decoration: none; cursor: pointer;
+}
+.a-thread .annotate-edit-trigger:hover { color: var(--c-accent); background: var(--c-accent-bg); }
+
+.a-thread .annotate-no-llm {
+  font-size: 12.5px; color: var(--c-muted); font-style: italic; margin: 0;
+}
+.a-thread .annotate-no-llm a { color: var(--c-accent); text-decoration: none; }
+.a-thread .annotate-no-llm a:hover { text-decoration: underline; }
 
 /* ─── Responsive ─────────────────────────────────────────────────────────
    The Annotate canvas leads with a centred 4/3 keyframe. At narrow widths

@@ -8,22 +8,18 @@
    After save the route re-renders the full ``annotate_scene.html``
    partial, so we target ``#right-pane`` and ask for the inspector
    refresh via ``hx-on::after-request`` so the inspector reflects the
-   newly saved tag list. Until the multi-target wiring lands we keep it
-   simple: refresh the inspector with a follow-up GET.
+   newly saved tag list.
 #}
-<div class="insp-anno">
+<div class="anno">
 
-  {# Saved feedback (fades via the existing .annotate-feedback CSS rule
-     in main.css). The form's hx-on::after-request triggers an inspector
-     refresh, so this state only appears for the brief render before
-     the swap completes. #}
+  {# Saved feedback — fades via CSS animation. #}
   {% if saved %}
-    <div class="annotate-feedback annotate-feedback--success">
-      ✓ {{ _("Tags saved") }}
-    </div>
+    <div class="anno-feedback">{{ _("Tags saved") }}</div>
   {% endif %}
 
-  <p class="annotate-section-label">{{ _("Manual tags") }}</p>
+  <div class="sect">
+    <span class="lab">{{ _("Manual tags") }}</span>
+  </div>
 
   <form hx-post="/api/annotate/save{% if selected_scene.film_slug %}?film={{ selected_scene.film_slug }}{% endif %}"
         hx-target="#right-pane"
@@ -31,22 +27,26 @@
         hx-on::after-request="if (event.detail.successful) htmx.ajax('GET', '/api/scenes/{{ selected_scene.scene_id }}/inspector?tab=annotations{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}', {target: '#right-pane', swap: 'innerHTML'})">
     <input type="hidden" name="scene_id" value="{{ selected_scene.scene_id }}">
     <input type="hidden" name="filter" value="all">
-    <input class="annotate-tags-input"
-           name="tags"
-           type="text"
-           value="{{ (selected_scene.tags or []) | join(', ') }}"
-           placeholder="{{ _('rural, exterior, horse, single-person') }}"
-           autocomplete="off">
-    <p class="annotate-hint text-muted">
+    <div class="anno-input-wrap">
+      <input class="anno-input"
+             name="tags"
+             type="text"
+             value="{{ (selected_scene.tags or []) | join(', ') }}"
+             placeholder="{{ _('rural, exterior, horse, single-person') }}"
+             autocomplete="off">
+    </div>
+    <p class="hint">
       {{ _("Use hyphens for compound tags: two-people, night-scene") }}
     </p>
-    <div class="annotate-actions">
-      <button type="submit" class="btn-primary">{{ _("Save") }}</button>
+    <div class="row">
+      <button type="submit" class="fx-btn primary">{{ _("Save") }}</button>
     </div>
   </form>
 
   {% if selected_scene.tags %}
-    <p class="annotate-section-label" style="margin-top: 12px;">{{ _("Current tags") }}</p>
+    <div class="sect" style="margin-top: 14px;">
+      <span class="lab">{{ _("Current tags") }}</span>
+    </div>
     <div class="tags">
       {% for t in selected_scene.tags %}
         <span class="fx-pill">{{ t }}</span>

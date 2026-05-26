@@ -37,9 +37,9 @@
 {% endif %}
 
 {% if existing_tags %}
-<div class="scene-card__tags" style="margin-bottom: 12px;">
+<div class="tags" style="margin-bottom: 12px;">
     {% for tag in existing_tags %}
-    <span class="tag fx-pill">{{ tag }}</span>
+    <span class="fx-pill">{{ tag }}</span>
     {% endfor %}
 </div>
 {% endif %}
@@ -62,9 +62,9 @@
         {{ _("Use hyphens for compound tags: two-people, night-scene") }}
     </p>
     <div class="annotate-actions">
-        <button type="submit" class="btn-primary">{{ _("Save") }}</button>
+        <button type="submit" class="fx-btn primary">{{ _("Save") }}</button>
         <button type="button"
-                class="btn-secondary"
+                class="fx-btn secondary"
                 hx-post="/api/annotate/clear{% if selected_scene and selected_scene.film_slug %}?film={{ selected_scene.film_slug }}{% endif %}"
                 hx-vals='{"scene_id": {{ scene_id }}, "filter": "{{ filter }}", "tab": "annotations"}'
                 hx-target="#annotate-scene"
@@ -77,9 +77,9 @@
 {% if llm and llm.tags %}
 <div class="annotate-divider"></div>
 <p class="annotate-section-label">{{ _("LLM tags") }}</p>
-<div class="scene-card__tags">
+<div class="tags">
     {% for tag in llm.tags %}
-    <span class="tag fx-pill">{{ tag }}</span>
+    <span class="fx-pill">{{ tag }}</span>
     {% endfor %}
 </div>
 {% endif %}

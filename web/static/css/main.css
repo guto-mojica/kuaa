@@ -601,36 +601,10 @@ button.tree-node {
     font-size: 0.6875rem;
 }
 
-/* ── Buttons ───────────────────────────────────────────────────────────────── */
-.btn-primary {
-    background: var(--c-accent);
-    color: #1C1A18;
-    border: none;
-    border-radius: 6px;
-    padding: 8px 16px;
-    font-family: var(--font-sans);
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-}
-.btn-secondary {
-    background: transparent;
-    border: 1px solid var(--c-bg-border);
-    color: var(--c-text-secondary);
-    border-radius: 6px;
-    padding: 8px 16px;
-    font-family: var(--font-sans);
-    font-size: 0.875rem;
-    cursor: pointer;
-}
-.btn-ghost {
-    background: transparent;
-    border: none;
-    color: var(--c-text-secondary);
-    padding: 4px 8px;
-    font-family: var(--font-sans);
-    cursor: pointer;
-}
+/* ── Buttons ─────────────────────────────────────────────────────────────────
+   Superseded by .fx-btn.* in fx.css. Kept as an empty section for commit
+   hygiene — the legacy .btn-primary / .btn-secondary / .btn-ghost rules
+   were removed here (all templates now use fx-btn variants). */
 
 /* ── Progress bar ──────────────────────────────────────────────────────────── */
 .progress-track {

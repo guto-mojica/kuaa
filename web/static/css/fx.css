@@ -116,7 +116,7 @@
   display: inline-flex; align-items: center; gap: 7px;
   padding: 6px 13px; border-radius: 6px;
   font-family: var(--font-sans); font-size: 12.5px; font-weight: 500;
-  cursor: pointer; border: 1px solid transparent;
+  cursor: pointer; background: transparent; border: 1px solid transparent;
   transition: background .12s, color .12s, border-color .12s;
 }
 .fx-btn .kbd {
@@ -162,3 +162,6 @@
 /* generic utilities */
 .fx-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .fx-truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* tag container — flex-wrap row of .fx-pill children */
+.tags { display: flex; flex-wrap: wrap; gap: 4px; }

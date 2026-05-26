@@ -185,6 +185,7 @@
   gap: 2px;
 }
 .b-rp .htab {
+  background: transparent; border: none; font-family: inherit;
   padding: 13px 12px; font-size: 12.5px; color: var(--c-muted);
   cursor: pointer; position: relative; font-weight: 500;
   display: flex; align-items: center; gap: 6px;
@@ -200,7 +201,7 @@
   background: var(--c-raised); border-radius: 8px; color: var(--c-text-2);
 }
 .b-rp .htabs .gap { flex: 1; }
-.b-rp .htabs .ic { color: var(--c-muted); cursor: pointer; padding: 6px; border-radius: 4px; }
+.b-rp .htabs .ic { background: transparent; border: none; color: var(--c-muted); cursor: pointer; padding: 6px; border-radius: 4px; }
 .b-rp .htabs .ic:hover { background: var(--c-hover); color: var(--c-text); }
 
 .b-rp .inner { padding: 14px 16px 18px; overflow-y: auto; flex: 1; }
@@ -245,6 +246,65 @@
 }
 .b-rp .meta-top .at .dot { width: 7px; height: 7px; border-radius: 50%; }
 .b-rp .meta-top .at b { color: var(--c-text-2); font-weight: 500; }
+
+/* properties grid — same visual contract as .c-rp .props in cenas.css */
+.b-rp .props {
+  display: grid; grid-template-columns: 90px 1fr;
+  gap: 7px 12px; margin-top: 18px;
+  padding-top: 14px; border-top: 1px solid var(--c-border);
+  font-size: 12px;
+}
+.b-rp .props .k { color: var(--c-muted); }
+.b-rp .props .v { color: var(--c-text); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.b-rp .props .v.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+	/* annotations tab */
+	.b-rp .anno { display: flex; flex-direction: column; }
+	.b-rp .anno .sect {
+	  display: flex; align-items: baseline; justify-content: space-between;
+	  margin-bottom: 7px;
+	}
+	.b-rp .anno .sect .lab {
+	  font-size: 11px; color: var(--c-muted); font-weight: 500;
+	  letter-spacing: 0.04em;
+	}
+	.b-rp .anno .anno-input-wrap {
+	  background: var(--c-bg); border: 1px solid var(--c-border);
+	  border-radius: 6px; padding: 7px 11px;
+	  transition: border-color .12s, background .12s, box-shadow .12s;
+	}
+	.b-rp .anno .anno-input-wrap:focus-within {
+	  border-color: var(--c-accent); background: var(--c-raised);
+	  box-shadow: 0 0 0 3px var(--c-accent-bg-low);
+	}
+	.b-rp .anno .anno-input {
+	  width: 100%; background: transparent; border: none; outline: none;
+	  font-family: var(--font-mono); font-size: 13px; color: var(--c-text);
+	  letter-spacing: 0.01em;
+	}
+	.b-rp .anno .anno-input::placeholder {
+	  font-family: var(--font-sans); color: var(--c-muted);
+	}
+	.b-rp .anno .hint {
+	  font-size: 11px; color: var(--c-muted); margin: 5px 0 10px; line-height: 1.4;
+	}
+	.b-rp .anno .row {
+	  display: flex; align-items: center; gap: 8px;
+	}
+	.b-rp .anno .tags {
+	  display: flex; flex-wrap: wrap; gap: 4px;
+	}
+	.b-rp .anno .anno-feedback {
+	  padding: 7px 12px; border-radius: 6px;
+	  font-size: 12.5px; margin-bottom: 10px;
+	  background: var(--c-green-bg); color: var(--c-green);
+	  animation: b-anno-fade 3s forwards;
+	}
+	@keyframes b-anno-fade {
+	  0%   { opacity: 1; }
+	  70%  { opacity: 1; }
+	  100% { opacity: 0; }
+	}
 
 /* thread */
 .b-thread { margin-top: 18px; display: flex; flex-direction: column; gap: 14px; }
@@ -366,7 +426,7 @@
 .b-comp .actrow .tools { display: flex; gap: 1px; color: var(--c-muted); }
 .b-comp .actrow .tools .tool {
   width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
-  border-radius: 4px; cursor: pointer;
+  border-radius: 4px; cursor: pointer; background: transparent; border: none;
 }
 .b-comp .actrow .tools .tool:hover { background: var(--c-hover); color: var(--c-text); }
 .b-comp .actrow .left {

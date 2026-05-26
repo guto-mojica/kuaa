@@ -56,7 +56,7 @@
       {{ button(_('Save'), 'primary', attrs={'hx-post': '/api/save'}) }}
 -#}
 {% macro button(label, kind='secondary', icon_name=None, attrs={}) -%}
-{%- set cls = 'btn-' ~ kind -%}
+{%- set cls = 'fx-btn ' ~ kind -%}
 {%- if attrs.get('class') %}{% set cls = cls ~ ' ' ~ attrs.class %}{% endif -%}
 {%- set extra = attrs.copy() if attrs else {} -%}
 {%- if 'class' in extra %}{% set _ = extra.pop('class') %}{% endif -%}

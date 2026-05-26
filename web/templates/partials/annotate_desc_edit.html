@@ -14,9 +14,9 @@
               name="description"
               rows="4">{{ current_description }}</textarea>
     <div class="annotate-actions" style="margin-top: 8px">
-        <button type="submit" class="btn-primary">{{ _("Overwrite & Save") }}</button>
+        <button type="submit" class="fx-btn primary">{{ _("Overwrite & Save") }}</button>
         <button type="button"
-                class="btn-secondary"
+                class="fx-btn secondary"
                 hx-get="/api/annotate/scene?id={{ scene_id }}&filter={{ filter }}&tab=comments"
                 hx-target="#annotate-scene"
                 hx-swap="innerHTML">{{ _("Cancel") }}</button>

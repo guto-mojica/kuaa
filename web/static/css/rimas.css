@@ -74,6 +74,7 @@
 .r-cp .controls .modes .m {
   padding: 4px 9px; border-radius: 4px;
   font-size: 11.5px; color: var(--c-muted); cursor: pointer; font-weight: 500;
+  background: transparent; border: none; font-family: inherit;
 }
 .r-cp .controls .modes .m.on { background: var(--c-hover); color: var(--c-text); }
 
