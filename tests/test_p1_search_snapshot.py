@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -22,6 +23,15 @@ from api.server import app
 
 SNAPSHOTS_DIR = Path(__file__).parent / "fixtures" / "refactor_snapshots"
 UPDATE = bool(os.environ.get("UPDATE_P1_SNAPSHOT"))
+
+if os.environ.get("UPDATE_P1_SNAPSHOT"):
+    warnings.warn(
+        "UPDATE_P1_SNAPSHOT is set — snapshot baselines will be overwritten "
+        "without diff verification. Only use when deliberately capturing a "
+        "new baseline.",
+        UserWarning,
+        stacklevel=2,
+    )
 
 
 def _slim(html: str) -> str:

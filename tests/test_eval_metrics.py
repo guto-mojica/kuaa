@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from cinemateca.eval.datasets import DatasetError, load_dataset
@@ -12,6 +14,10 @@ from cinemateca.eval.metrics import (
 )
 
 
+@pytest.mark.skipif(
+    not Path("data/eval/archive_demo_queries.yaml").exists(),
+    reason="Archive demo queries file not available",
+)
 def test_archive_demo_query_file_loads():
     dataset = load_dataset("data/eval/archive_demo_queries.yaml")
 
