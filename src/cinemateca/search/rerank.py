@@ -7,7 +7,9 @@ encoder sees both query and document simultaneously, enabling finer relevance
 judgements at the cost of per-query inference — which is why it only runs on
 the pre-filtered top-K candidates rather than the full index.
 
-Default model: cross-encoder/ms-marco-MiniLM-L-12-v2 (~70 MB).
+Default model: cross-encoder/mmarco-mMiniLMv2-L12-H384-v1 (~120 MB).
+  * 26-language multilingual variant of MiniLM-L12, trained on mMARCO.
+    Covers Portuguese (PT-BR / PT-PT) natively.
   * Initialised once per process and cached in ``_CE_CACHE``.
   * ``model="noop"`` is a passthrough — preserves the P1 test-escape hatch.
 
@@ -28,7 +30,7 @@ from cinemateca.search.types import SearchResult
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_MODEL = "cross-encoder/ms-marco-MiniLM-L-12-v2"
+_DEFAULT_MODEL = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
 
 # Module-level model cache: model_name → CrossEncoder instance.
 _CE_CACHE: dict[str, Any] = {}
@@ -95,14 +97,39 @@ def rerank(
     ]
 
     try:
+        import time
+
+        t0 = time.perf_counter()
         scores: list[float] = _get_cross_encoder(model_name).predict(pairs).tolist()
+        elapsed_ms = (time.perf_counter() - t0) * 1000
     except Exception:
         logger.exception("rerank: cross-encoder failed; returning original order")
         return result
 
-    reranked = [hit for hit, _ in sorted(zip(result.hits, scores), key=lambda x: x[1], reverse=True)]
+    scored_hits = sorted(zip(result.hits, scores), key=lambda x: x[1], reverse=True)
+
+    logger.info(
+        "rerank: query=%r candidates=%d → top_%d  model=%s  %.0f ms",
+        query_text,
+        len(result.hits),
+        top_k,
+        model_name,
+        elapsed_ms,
+    )
+    for new_rank, (hit, score) in enumerate(scored_hits[:top_k], start=1):
+        old_rank = next(i + 1 for i, h in enumerate(result.hits) if h.scene_id == hit.scene_id)
+        desc_snip = (descriptions.get(hit.scene_id, "") or "")[:80].replace("\n", " ")
+        logger.info(
+            "  [%d→%d] scene_id=%-4d  ce=% .3f  %r",
+            old_rank,
+            new_rank,
+            hit.scene_id,
+            score,
+            desc_snip,
+        )
+
     return SearchResult(
-        hits=reranked[:top_k],
+        hits=[hit for hit, _ in scored_hits[:top_k]],
         mode=result.mode,
         weights=result.weights,
         query=result.query,
@@ -142,12 +169,41 @@ def rerank_dataframe(
     ]
 
     try:
+        import time
+
+        t0 = time.perf_counter()
         scores = _get_cross_encoder(model_name).predict(pairs)
+        elapsed_ms = (time.perf_counter() - t0) * 1000
     except Exception:
         logger.exception("rerank_dataframe: cross-encoder failed; returning original order")
         return df.head(top_k).reset_index(drop=True)
 
     df = df.copy()
     df["_rerank_score"] = scores
-    df = df.sort_values("_rerank_score", ascending=False).drop(columns=["_rerank_score"])
-    return df.head(top_k).reset_index(drop=True)
+
+    logger.info(
+        "rerank_dataframe: query=%r candidates=%d → top_%d  model=%s  %.0f ms",
+        query,
+        len(df),
+        top_k,
+        model_name,
+        elapsed_ms,
+    )
+    original_order = list(df["scene_id"].astype(int))
+    df_sorted = df.sort_values("_rerank_score", ascending=False)
+    for new_rank, (_, row) in enumerate(df_sorted.head(top_k).iterrows(), start=1):
+        sid = int(row["scene_id"])
+        old_rank = original_order.index(sid) + 1
+        ce_score = float(row["_rerank_score"])
+        desc_snip = (descriptions.get(sid, "") or "")[:80].replace("\n", " ")
+        logger.info(
+            "  [%d→%d] scene_id=%-4d  ce=% .3f  %r",
+            old_rank,
+            new_rank,
+            sid,
+            ce_score,
+            desc_snip,
+        )
+
+    df_sorted = df_sorted.drop(columns=["_rerank_score"])
+    return df_sorted.head(top_k).reset_index(drop=True)
