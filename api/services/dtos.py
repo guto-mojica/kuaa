@@ -5,10 +5,10 @@ model logic, no file I/O.  Service functions build these objects and
 return them; route handlers consume them.  This cleanly separates the
 shape of an API response from the internal structure of domain models.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 
 
 @dataclass(frozen=True)

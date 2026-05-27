@@ -74,9 +74,12 @@ app.add_typer(eval_cmd.app, name="eval")
 
 # Backward-compat aliases for the old _resolve_steps / _print_banner used in
 # any external script that imported from __main__ directly.
-from cinemateca.commands._shared import print_banner as _print_banner  # noqa: E402
-from cinemateca.commands._shared import resolve_steps as _resolve_steps  # noqa: E402
-from cinemateca.commands._shared import _STEP_ALIASES, _STEP_FULL_NAMES  # noqa: E402
+from cinemateca.commands._shared import (  # noqa: E402,F401,I001
+    _STEP_ALIASES,
+    _STEP_FULL_NAMES,
+    print_banner as _print_banner,
+    resolve_steps as _resolve_steps,
+)
 
 
 def main() -> None:

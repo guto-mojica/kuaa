@@ -16,7 +16,9 @@ app = typer.Typer(add_completion=False, rich_markup_mode="rich")
 def info(
     video: Annotated[
         Path,
-        typer.Argument(exists=True, dir_okay=False, readable=True, help="Caminho do arquivo de vídeo."),
+        typer.Argument(
+            exists=True, dir_okay=False, readable=True, help="Caminho do arquivo de vídeo."
+        ),
     ],
 ) -> None:
     """Print technical properties of a video file (resolution, fps, duration)."""
@@ -45,7 +47,9 @@ def info(
 def process(
     video: Annotated[
         Path,
-        typer.Argument(exists=True, dir_okay=False, readable=True, help="Caminho do arquivo de vídeo."),
+        typer.Argument(
+            exists=True, dir_okay=False, readable=True, help="Caminho do arquivo de vídeo."
+        ),
     ],
     slug: Annotated[
         str | None,

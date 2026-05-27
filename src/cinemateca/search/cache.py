@@ -247,6 +247,7 @@ def load_index(
         if index.ok and embedder_name not in ("clip_openclip", None):
             try:
                 from cinemateca.models.registry import get_image_embedder
+
                 alt_embedder = get_image_embedder(cfg)
                 index = SearchIndex(
                     status=index.status,

@@ -119,6 +119,7 @@ dev = [
     "pytest-cov>=4.1",
     "black>=23.0",
     "ruff>=0.1",
+    "pre-commit>=4.0",
     "mypy>=1.5",
     # httpx is required by FastAPI's TestClient (starlette.testclient) — was
     # previously satisfied by system-Python leak; made explicit when uv.lock

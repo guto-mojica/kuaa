@@ -91,7 +91,9 @@ def _collection_counts(cfg: Any, films: list[Film]) -> Counter[str]:
     return counts
 
 
-def _default_collections(total_scenes: int, bucket_counts: Counter[str], current_bucket: str | None = None) -> list[dict[str, Any]]:
+def _default_collections(
+    total_scenes: int, bucket_counts: Counter[str], current_bucket: str | None = None
+) -> list[dict[str, Any]]:
     """Return the curated default-collection list rendered in the LeftPane.
 
     Five entries match the Mojica prototype's ``Coleções`` section:
@@ -153,7 +155,9 @@ def _default_collections(total_scenes: int, bucket_counts: Counter[str], current
     ]
 
 
-def build_chrome_context(cfg: Any, current_slug: str | None = None, current_bucket: str | None = None) -> ChromeContext:
+def build_chrome_context(
+    cfg: Any, current_slug: str | None = None, current_bucket: str | None = None
+) -> ChromeContext:
     """Return the chrome bag merged into every full-page template context.
 
     The result is a flat dict ready to be ``**`` -unpacked into
@@ -229,7 +233,9 @@ def build_chrome_context(cfg: Any, current_slug: str | None = None, current_buck
     # captures container duration into the registry.
     total_runtime_minutes = sum(getattr(f, "runtime_minutes", 0) or 0 for f in films)
 
-    collections = _default_collections(lstate.scene_count, _collection_counts(cfg, films), current_bucket=current_bucket)
+    collections = _default_collections(
+        lstate.scene_count, _collection_counts(cfg, films), current_bucket=current_bucket
+    )
 
     return {
         "films": films,

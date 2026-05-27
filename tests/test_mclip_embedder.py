@@ -9,10 +9,10 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from cinemateca.models.clip.mclip import MClipEmbedder, _ST_MODEL_NAME
-
+from cinemateca.models.clip.mclip import _ST_MODEL_NAME, MClipEmbedder
 
 # ── helpers ────────────────────────────────────────────────────────────────────
+
 
 def _fake_st(dim: int = 512) -> MagicMock:
     """Mock SentenceTransformer that encodes texts to fixed-shape arrays."""
@@ -29,6 +29,7 @@ def _embedder_with_st(fake_st=None, device=None) -> MClipEmbedder:
 
 
 # ── encode_text ────────────────────────────────────────────────────────────────
+
 
 def test_encode_text_shape_and_dtype():
     emb = _embedder_with_st()
@@ -93,6 +94,7 @@ def test_load_mclip_uses_correct_model_name():
 
 # ── image methods delegated to OpenClipEmbedder ───────────────────────────────
 
+
 def test_encode_images_delegates_to_parent():
     emb = _embedder_with_st()
     fake_result = np.ones((2, 512), dtype="float32")
@@ -118,6 +120,7 @@ def test_no_st_model_loaded_for_image_only_usage():
 
 
 # ── registry dispatch ──────────────────────────────────────────────────────────
+
 
 def _minimal_cfg(embedder_name: str) -> SimpleNamespace:
     return SimpleNamespace(

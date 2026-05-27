@@ -34,7 +34,7 @@ from api.services.chrome_service import build_chrome_context
 from api.services.rhymes_service import build_rimas_context
 from api.services.scenes_service import build_cenas_context, build_timeline_context
 from api.templates import templates
-from cinemateca.library import FilmContext, scan_library, keyframe_url, load_json
+from cinemateca.library import FilmContext, keyframe_url, load_json, scan_library
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +124,7 @@ def build_home_context(cfg: object) -> dict:
         thumbnail_url = None
         try:
             from cinemateca.library import FilmContext as _FC
+
             ctx = _FC.for_film(cfg, film.slug)
             kf_meta = load_json(ctx.metadata_dir / "keyframes_metadata.json") or []
             if isinstance(kf_meta, list) and kf_meta:
@@ -139,9 +140,9 @@ _TAB_CHROME = {
     # inside .tab-panel (via .b-rp, .c-rp, .r-rp, etc.). Setting True would add
     # an empty ch-right 380px grid column AND a duplicate id="right-pane" element,
     # breaking HTMX targeting and stealing layout space from ch-main.
-    "home":   {"active_tab": "home",   "compact_lp": False, "has_right_pane": False},
+    "home": {"active_tab": "home", "compact_lp": False, "has_right_pane": False},
     "search": {"active_tab": "buscar", "compact_lp": False, "has_right_pane": False},
-    "scenes": {"active_tab": "cenas",  "compact_lp": False, "has_right_pane": False},
+    "scenes": {"active_tab": "cenas", "compact_lp": False, "has_right_pane": False},
     "annotate": {"active_tab": "anotar", "compact_lp": True, "has_right_pane": False},
     # NOTE: the body's data-active-tab uses the short slug "proc" (not the
     # full PT "processamento") so the topbar tab chip's `data-tab="proc"`

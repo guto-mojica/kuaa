@@ -652,7 +652,6 @@ def dispatch_text_search(
     rerank_enabled = bool(getattr(cfg.search, "rerank_enabled", False))
     reranker_cfg = getattr(cfg.search, "reranker", None)
     candidate_k = int(getattr(reranker_cfg, "top_k", 50)) if reranker_cfg else 50
-    rerank_model = getattr(reranker_cfg, "model", "default") if reranker_cfg else "default"
 
     if ctx is None:
         try:
@@ -707,4 +706,3 @@ def dispatch_text_search(
         )
 
     return result_df, False
-

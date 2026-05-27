@@ -27,8 +27,8 @@ import os
 
 from fastapi import APIRouter, Form, HTTPException, Request, status
 
-from api.deps import get_config, make_ctx
 import api.services.eval_service as _eval_svc
+from api.deps import get_config, make_ctx
 from api.services.eval_service import (
     build_eval_context,
     compute_query_metrics,

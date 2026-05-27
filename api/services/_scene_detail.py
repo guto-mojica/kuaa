@@ -13,8 +13,8 @@ from api.services.catalog import (
     load_tag_index,
     to_smpte,
 )
-from cinemateca.library import FilmContext
 from api.services.film_service import list_films
+from cinemateca.library import FilmContext
 
 logger = logging.getLogger(__name__)
 

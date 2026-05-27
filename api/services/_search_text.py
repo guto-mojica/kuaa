@@ -3,6 +3,7 @@
 Contains: index loading/cache, tag filter, text-search orchestration,
 aggregate search, context builders, and shared result helpers.
 """
+
 from __future__ import annotations
 
 import logging
@@ -22,8 +23,8 @@ from api.services.catalog import (
     load_tag_index,
     to_smpte,
 )
-from cinemateca.library import FilmContext
 from api.services.film_service import list_films
+from cinemateca.library import FilmContext
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +130,9 @@ def _load_and_validate(emb_path: Path, map_path: Path) -> SearchIndex:
     if n_emb != n_map:
         logger.warning(
             "Corrupt search index: %d embedding rows vs %d keyframe-map rows (%s)",
-            n_emb, n_map, emb_path.parent,
+            n_emb,
+            n_map,
+            emb_path.parent,
         )
         return SearchIndex(
             IndexStatus.CORRUPT,
@@ -138,7 +141,9 @@ def _load_and_validate(emb_path: Path, map_path: Path) -> SearchIndex:
     if declared is not None and declared != n_map:
         logger.warning(
             "Corrupt search index: mapping declares total_vectors=%s but has %d keyframe rows (%s)",
-            declared, n_map, emb_path.parent,
+            declared,
+            n_map,
+            emb_path.parent,
         )
         return SearchIndex(
             IndexStatus.CORRUPT,
@@ -251,7 +256,11 @@ def aggregate_search(
 
     logger.info(
         "aggregate_search: query=%r films=%d top_k=%d tags=%s min_sim=%.3f",
-        query, len(films), top_k, selected_tags or None, min_similarity,
+        query,
+        len(films),
+        top_k,
+        selected_tags or None,
+        min_similarity,
     )
 
     all_hits: list[dict] = []
@@ -265,7 +274,8 @@ def aggregate_search(
         if idx.status is not IndexStatus.OK:
             logger.info(
                 "aggregate_search: skip film %s — index status %s",
-                film.slug, idx.status,
+                film.slug,
+                idx.status,
             )
             continue
         ctx = FilmContext.for_film(cfg, film.slug)
@@ -310,8 +320,10 @@ def aggregate_search(
             top3 = np.sort(scores)[-3:][::-1]
             logger.info(
                 "aggregate_search: film=%s n_vectors=%d top3=%s kept=%d",
-                film.slug, int(scores.size),
-                [round(float(s), 3) for s in top3], film_added,
+                film.slug,
+                int(scores.size),
+                [round(float(s), 3) for s in top3],
+                film_added,
             )
         per_film_kept += film_added
 
@@ -327,7 +339,10 @@ def aggregate_search(
     result = deduped[:top_k]
     logger.info(
         "aggregate_search: query=%r raw_kept=%d dedup_kept=%d returned=%d top_score=%.3f",
-        query, per_film_kept, len(deduped), len(result),
+        query,
+        per_film_kept,
+        len(deduped),
+        len(result),
         float(result[0]["score"]) if result else 0.0,
     )
     return result
@@ -386,8 +401,14 @@ def search_text(
     logger.info(
         "search_text: query=%r top_k=%d tags=%s min_sim=%.3f "
         "raw_hits=%d top_score=%.3f kept_after_floor=%d dedup_kept=%d",
-        query, top_k, tags or None, min_similarity,
-        n_raw, top_raw, n_after_floor, len(df),
+        query,
+        top_k,
+        tags or None,
+        min_similarity,
+        n_raw,
+        top_raw,
+        n_after_floor,
+        len(df),
     )
     return df
 

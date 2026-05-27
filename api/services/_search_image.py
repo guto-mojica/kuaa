@@ -2,6 +2,7 @@
 
 Contains: upload validation and image-similarity search orchestration.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

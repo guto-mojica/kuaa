@@ -52,7 +52,9 @@ def library_list(
 def library_reembed(
     only: Annotated[
         list[str] | None,
-        typer.Option("--only", help="Slug a processar (repetível). Padrão: todos os filmes registrados."),
+        typer.Option(
+            "--only", help="Slug a processar (repetível). Padrão: todos os filmes registrados."
+        ),
     ] = None,
     steps: Annotated[
         str,

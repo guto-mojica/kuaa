@@ -16,8 +16,8 @@ from api.services.catalog import (
     load_metadata,
     to_smpte,
 )
-from cinemateca.library import FilmContext
 from api.services.film_service import list_films
+from cinemateca.library import FilmContext
 
 logger = logging.getLogger(__name__)
 
