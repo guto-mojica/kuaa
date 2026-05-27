@@ -127,8 +127,7 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
   honra o mesmo modo de retriever. Bring-forward de Alpine.js (3.14.9) para
   popovers interativos (botões Híbrido + k); Rerank/MMR ficam como chips
   read-only com micro-badges M2/M3. ~24 commits, +30 testes na suite.
-  Spec/plano em `docs/superpowers/specs/2026-05-23-hybrid-search-design.md`
-  e `docs/superpowers/plans/2026-05-23-hybrid-search.md`.
+  Internal design notes link the spec and plan.
 - **Mojica · Frame.io redesign** — nova identidade visual (dark frio + acento
   roxo), chrome de 5 abas (adiciona **Rimas Visuais** para rimas visuais
   cross-film), abas Buscar/Cenas/Anotar/Proc redesenhadas, nova superfície
@@ -179,8 +178,7 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
   reais (single-film CLIP/BM25/hybrid, aggregate, image upload, tag
   filter, min-sim, retriever=clip pin). ~36 novos testes unitários nos
   módulos extraídos. Spec em
-  `docs/superpowers/specs/2026-05-24-deep-modules-refactor-design.md`;
-  plano em `docs/superpowers/plans/2026-05-24-deep-modules-refactor-p1-search.md`.
+  (internal design notes).
 - **Refactor P2 · pacote `cinemateca.library` extraído** — fold de
   `src/cinemateca/library.py` (217 LOC) + `api/services/film_context.py`
   (138 LOC, **deletado**) + a metade data-access de `api/services/catalog.py`
@@ -198,8 +196,7 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
   verificado pelos 8 snapshots P1 + 17 novos testes (7 em
   `test_library_scan.py` + 10 em `test_library_handle.py`); suite total
   **774 passando**. Spec em
-  `docs/superpowers/specs/2026-05-24-deep-modules-refactor-design.md`;
-  plano em `docs/superpowers/plans/2026-05-25-deep-modules-refactor-p2-library.md`.
+  (internal design notes).
 - **Refactor P3 · extração de services** — três subsistemas extraídos de
   `api/services/` para pacotes em `src/cinemateca/`:
 
@@ -226,8 +223,7 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
   movendo helpers para `cinemateca.search.aggregate` e parametrizando
   BM25 tunables como kwargs em `_dispatch.find()` (P3.D). Suite:
   **774 → 777 passando** (+3 testes). Spec:
-  `docs/superpowers/specs/2026-05-24-deep-modules-refactor-design.md`;
-  plano: `docs/superpowers/plans/2026-05-25-deep-modules-refactor-p3-services.md`.
+  (internal design notes).
 - **Camadas arquiteturais policiadas em CI** — `.importlinter` proíbe
   `src/cinemateca/*` de importar `api/*` (camada de núcleo HTTP-agnóstica);
   novo `scripts/check_loc_budget.py` enforça `api/services/*.py ≤ 250 LOC`
@@ -337,7 +333,7 @@ estabilização da interface e backends de modelo plugáveis.
 ### v1.0.0 — Lançamento público multimodal (planejado, 4 meses a partir de 2026-05-19)
 
 Plano completo em
-`docs/superpowers/specs/2026-05-19-multimodal-retrieval-and-launch-design.md`.
+(internal design notes).
 
 #### Adicionado (implementado — branch `feat/multi-film-library`)
 
@@ -347,7 +343,7 @@ Plano completo em
   script de migração `scripts/migrate_flat_to_library.py` (idempotente),
   pipeline com flag `--slug` que escreve sob `library/<slug>/` e registra
   o filme automaticamente. Plano detalhado em
-  `docs/superpowers/plans/2026-05-20-multi-film-library.md`. Suite de
+  (internal design notes). Suite de
   testes: 265 → 332 passando, 0 falhas. T12 (migração da Jeca Tatu real)
   pendente como ação manual.
 
@@ -456,7 +452,7 @@ Checklist de verificação manual pré-lançamento em
 
 Refatoração que torna cada papel de modelo do pipeline substituível por
 configuração. Ver `docs/PROTOCOL_OPTION.md` e
-`docs/superpowers/specs/2026-05-17-pluggable-model-backends-design.md`.
+(internal design notes).
 
 #### Adicionado / Melhorado
 

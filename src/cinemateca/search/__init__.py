@@ -1,4 +1,4 @@
-"""Public search API. See docs/superpowers/specs/2026-05-24-deep-modules-refactor-design.md.
+"""Public search API.
 
 The package exposes a 4-verb / 7-type surface — small, typed, and
 behaviour-preserving over P1's M2 hybrid-search baseline. The

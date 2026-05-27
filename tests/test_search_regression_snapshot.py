@@ -13,8 +13,7 @@ library (the maintainer's local Jeca Tatu install at minimum). On CI /
 fresh checkouts with no indexed films the test SKIPs cleanly via
 :func:`api.services.search.has_indexed_films`. The pinned snapshot
 captures behavior against the maintainer's local catalogue at the time
-of capture (commit-pinned); see Task A1 in
-``docs/superpowers/plans/2026-05-23-hybrid-search.md``.
+of capture (commit-pinned).
 """
 
 from __future__ import annotations

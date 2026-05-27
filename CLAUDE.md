@@ -318,7 +318,7 @@ under the v0.3.0 → v1.0.0 launch tracker below.
 ## v0.3.0 → v1.0.0 launch tracker
 
 4-month effort starting 2026-05-19. Full spec:
-`docs/superpowers/specs/2026-05-19-multimodal-retrieval-and-launch-design.md`.
+(internal design notes).
 Dual purpose: take the project to a credible public v1.0 launch, and produce
 a portfolio piece for the maintainer's applied-ML / retrieval career
 transition. Scope is *not* locked — if risks fire, engineering can drop or
@@ -328,7 +328,7 @@ defer features; timeline extension is one option among several. Grilled
 ### Month 1 — Foundation
 - [x] **Multi-film library** — `films.json` registry; per-film `data/library/<slug>/`
   layout; cross-film search/browse + sidebar selector. Implemented across
-  T1–T11 of `docs/superpowers/plans/2026-05-20-multi-film-library.md`
+  T1–T11 of (internal design notes)
   (33 commits on `feat/multi-film-library`; suite 265 → 332 passing).
   Acceptance migration of real Jeca Tatu data still pending (T12, manual).
 - [ ] Docker image, one-command run (CPU-default, GPU-optional)
@@ -342,7 +342,7 @@ defer features; timeline extension is one option among several. Grilled
   in 111 s on CUDA (RTX 5090), `audio/clap_embeddings.npy` shape
   (412, 512) float32 L2-normalised, mapping schema verified. Suite
   332 → 413 passing on `feat/clap-audio-kickoff`. See
-  `docs/superpowers/plans/2026-05-20-clap-audio-embeddings.md`.
+  (internal design notes).
 - [x] Eval annotation tool (FastAPI page behind admin flag; 5-sample validation)
   — lands as `/eval` at admin-flagged route; standalone 3-pane UI + JSONL grade
   persistence + P@K / nDCG / inversions / Cohen's κ metrics + keyboard router
@@ -357,8 +357,7 @@ defer features; timeline extension is one option among several. Grilled
   `src/cinemateca/search/`. Layer rules enforced by CI (`import-linter`
   contract `cinemateca → api forbidden` + `scripts/check_loc_budget.py`).
   Behavior preserved byte-for-byte via 8 hermetic snapshot tests. Spec:
-  `docs/superpowers/specs/2026-05-24-deep-modules-refactor-design.md`;
-  plan: `docs/superpowers/plans/2026-05-24-deep-modules-refactor-p1-search.md`.
+  (internal design notes).
 - [x] **Deep-modules refactor P2 — `cinemateca.library`** — extracted
   from `src/cinemateca/library.py` (217 LOC) + `api/services/film_context.py`
   (138 LOC, **deleted**) + the data-access half of `api/services/catalog.py`
@@ -376,8 +375,7 @@ defer features; timeline extension is one option among several. Grilled
   `load_tag_index`, `load_metadata`). Behavior preserved — verified by
   the 8 P1 snapshots + 17 new tests (7 in `test_library_scan.py` + 10
   in `test_library_handle.py`); full suite **774 passing**. Spec:
-  `docs/superpowers/specs/2026-05-24-deep-modules-refactor-design.md`;
-  plan: `docs/superpowers/plans/2026-05-25-deep-modules-refactor-p2-library.md`.
+  (internal design notes).
 - [x] **Deep-modules refactor P3 — services extraction** — three
   subsystems extracted (`cinemateca.annotations`, `cinemateca.rhymes`,
   `cinemateca.eval`). Three services slimmed: `annotations.py` 577 →
@@ -390,9 +388,7 @@ defer features; timeline extension is one option among several. Grilled
   `_dispatch -> api.deps`) resolved by moving helpers to
   `cinemateca.search.aggregate` and parametrising BM25 tunables as
   kwargs in `_dispatch.find()`. Suite: **774 → 777 passing**. Spec:
-  `docs/superpowers/specs/2026-05-24-deep-modules-refactor-design.md`;
-  plan:
-  `docs/superpowers/plans/2026-05-25-deep-modules-refactor-p3-services.md`.
+  (internal design notes).
 - [ ] Pre-launch LinkedIn "I'm building this" post
 
 ### Month 2 — Retrieval depth + audio (HARD FREEZE on new features)
@@ -412,8 +408,7 @@ defer features; timeline extension is one option among several. Grilled
   forward of `alpine.min.js` from the Mojica branch); Rerank/MMR are obvious
   read-only chips with M2/M3 micro-badges. Suite +30 tests (583 → ~625
   passing on this branch). Spec/plano em
-  `docs/superpowers/specs/2026-05-23-hybrid-search-design.md` +
-  `docs/superpowers/plans/2026-05-23-hybrid-search.md`. F1 (eval ablation
+  (internal design notes). F1 (eval ablation
   on Jeca Tatu) ainda pendente — corrida manual requer dados reais.
   **Próximo:** M2 #4 cross-encoder reranker.
 - [x] Cross-encoder reranker (text default; VLM-as-judge opt-in) — lands in
@@ -439,7 +434,7 @@ defer features; timeline extension is one option among several. Grilled
   service wrapper, UI affordance — production dispatcher wiring tracked
   as follow-up Task 3.2b), SigLIP2-multilingual rolled out library-wide,
   CLAP archival sanity gate (`cinemateca eval clap-sanity`). See
-  `docs/superpowers/plans/2026-05-24-m3-preflight-m2-cleanup.md`.
+  (internal design notes).
 - [x] Cross-modal CLIP × CLAP fusion search — `?modality=fusion&w=0.5`,
       linear late-fusion (`score = w·clip + (1-w)·clap`), UI slider with
       `visual ↔ audio` weight popover, regression-pinned on Jeca Tatu

@@ -23,7 +23,7 @@ Exception-contract asymmetry (intentional)
 ------------------------------------------
 ``for_film`` raises ``ValueError``; ``from_paths`` raises ``KeyError``.
 This asymmetry is preserved for backward compatibility.  A future cleanup
-may unify them — see ``docs/superpowers/plans/`` for the P3 plan note.
+may unify them.
 """
 
 from __future__ import annotations
