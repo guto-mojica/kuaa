@@ -429,6 +429,17 @@ uv run pytest tests/
 
 ---
 
+## Tooling and acknowledgements
+
+Built with heavy use of [Claude Code](https://claude.com/claude-code) as a
+pair-programmer. Architectural decisions, ML choices, evaluation design,
+and failure-mode analysis are my own — see
+[`docs/EVALUATION_RESULTS.md`](docs/EVALUATION_RESULTS.md),
+[`docs/FAILURE_ANALYSIS.md`](docs/FAILURE_ANALYSIS.md), and
+[`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) for measured outcomes.
+
+---
+
 ## Licença
 
 MIT — veja [LICENSE](LICENSE) para o texto completo.
