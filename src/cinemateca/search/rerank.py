@@ -48,6 +48,10 @@ def _load_reranker(model_id: str) -> _RerankerLike:
     Raises ``RuntimeError`` (not ``ImportError``) when the optional
     ``FlagEmbedding`` extra is missing so callers see a single, actionable
     failure mode regardless of which dep happens to be absent.
+
+    ``use_fp16`` follows CUDA availability — fp16 is materially faster on
+    GPU and supported by bge-reranker-v2-m3; on CPU/MPS the cost is the
+    same or worse (no half-precision matmul kernels) so we stay fp32.
     """
     try:
         from FlagEmbedding import FlagReranker  # type: ignore[import-not-found]
@@ -56,8 +60,15 @@ def _load_reranker(model_id: str) -> _RerankerLike:
             "Cross-encoder reranker requires the FlagEmbedding package. "
             "Install with: uv pip install FlagEmbedding"
         ) from exc
-    logger.info("Loading cross-encoder reranker: %s", model_id)
-    return FlagReranker(model_id, use_fp16=False)
+    use_fp16 = False
+    try:
+        import torch
+
+        use_fp16 = bool(torch.cuda.is_available())
+    except ImportError:
+        pass
+    logger.info("Loading cross-encoder reranker: %s (fp16=%s)", model_id, use_fp16)
+    return FlagReranker(model_id, use_fp16=use_fp16)
 
 
 def rerank(

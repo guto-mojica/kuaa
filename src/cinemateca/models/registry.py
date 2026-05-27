@@ -17,7 +17,7 @@ are the public contract; callers must not rely on concrete backend types.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from cinemateca.models.base import (
@@ -30,6 +30,10 @@ if TYPE_CHECKING:
     )
 
 
+_image_embedder_cache: dict[tuple[str, str | None], Any] = {}
+_audio_embedder_cache: dict[tuple[str, str | None], Any] = {}
+
+
 def _name(cfg, attr: str) -> str:
     models = getattr(cfg, "models", None)
     if models is None:
@@ -40,25 +44,46 @@ def _name(cfg, attr: str) -> str:
     return val
 
 
+def _device_key(device) -> str | None:
+    return None if device is None else str(device)
+
+
+def reset_caches() -> None:
+    """Drop cached embedder singletons.
+
+    The image/audio embedder factories memoise by (backend_name, device)
+    so per-query fusion/audio paths don't reconstruct weights every call.
+    Tests that monkey-patch the underlying backend classes should call
+    this in setup so the cache returns a fresh build.
+    """
+    _image_embedder_cache.clear()
+    _audio_embedder_cache.clear()
+
+
 def get_image_embedder(cfg, device=None) -> ImageEmbedder:
     name = _name(cfg, "image_embedder")
+    key = (name, _device_key(device))
+    cached = _image_embedder_cache.get(key)
+    if cached is not None:
+        return cached
     if name == "clip_openclip":
         from cinemateca.models.clip.openclip import OpenClipEmbedder
 
-        return OpenClipEmbedder(cfg, device)
-    if name == "clip_mclip":
+        instance: ImageEmbedder = OpenClipEmbedder(cfg, device)
+    elif name == "clip_mclip":
         from cinemateca.models.clip.mclip import MClipEmbedder
 
-        return MClipEmbedder(cfg, device)
-    if name == "siglip_multilingual":
-        # M3 pre-flight Task 4.1: opt-in multilingual SigLIP backend.
-        # Default stays clip_openclip; Task 4.2/4.3 own the flip + re-embed.
+        instance = MClipEmbedder(cfg, device)
+    elif name == "siglip_multilingual":
         from cinemateca.models.clip.siglip_multilingual import (
             SiglipMultilingualEmbedder,
         )
 
-        return SiglipMultilingualEmbedder(cfg, device)
-    raise ValueError(f"Unknown image_embedder: {name!r}")
+        instance = SiglipMultilingualEmbedder(cfg, device)
+    else:
+        raise ValueError(f"Unknown image_embedder: {name!r}")
+    _image_embedder_cache[key] = instance
+    return instance
 
 
 def get_face_detector(cfg, device=None) -> FaceDetector:
@@ -108,8 +133,15 @@ def get_environment_classifier(cfg, device=None) -> EnvironmentClassifier:
 
 def get_audio_embedder(cfg, device=None) -> AudioEmbedder:
     name = _name(cfg, "audio_embedder")
+    key = (name, _device_key(device))
+    cached = _audio_embedder_cache.get(key)
+    if cached is not None:
+        return cached
     if name == "clap_hf":
         from cinemateca.models.audio.clap_hf import ClapHFEmbedder
 
-        return ClapHFEmbedder(cfg, device)
-    raise ValueError(f"Unknown audio_embedder: {name!r}")
+        instance: AudioEmbedder = ClapHFEmbedder(cfg, device)
+    else:
+        raise ValueError(f"Unknown audio_embedder: {name!r}")
+    _audio_embedder_cache[key] = instance
+    return instance
