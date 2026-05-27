@@ -191,28 +191,11 @@ def _load_and_validate(emb_path: Path, map_path: Path) -> SearchIndex:
             detail=(f"mapping total_vectors={declared} != {n_map} keyframe rows"),
         )
 
-    # Construct the live text-encoder via the registry so the encoder
-    # backend matches the on-disk index dim (M3 pre-flight Task 4.2 flip:
-    # SigLIP-multilingual produces 1024-dim, OpenClip produces 512-dim).
-    # The lazy ``get_config()`` import is a layering wart — the search
-    # package shouldn't know about ``api.deps`` — but threading ``cfg``
-    # through ``load_index`` / ``_load_and_validate`` touches public
-    # signatures and every caller; tracked as the Task 4.4 follow-up.
-    # ``get_config`` is ``@lru_cache``d so this is a free dict lookup.
-    # TODO(task-4.4): thread cfg through load_index / _load_and_validate
-    # so this module no longer reaches into api.deps for config.
-    try:
-        from api.deps import get_config
-        from cinemateca.models.registry import get_image_embedder
-
-        embedder = get_image_embedder(get_config())
-    except Exception as exc:  # registry mis-config, missing backend deps
-        logger.warning(
-            "Registry image-embedder construction failed (%s); "
-            "falling back to OpenClipEmbedder for query-time encoding",
-            exc,
-        )
-        embedder = OpenClipEmbedder()
+    # Use OpenClipEmbedder as the initial default. load_index swaps in the
+    # registry-configured backend (e.g. SigLIP) immediately after this
+    # function returns when embedder_name != "clip_openclip", so this is
+    # always the correct starting point regardless of active backend.
+    embedder = OpenClipEmbedder()
     logger.info("Search index loaded: %d vectors", n_map)
     return SearchIndex(IndexStatus.OK, embeddings=embeddings, kf_df=kf_df, embedder=embedder)
 
