@@ -12,7 +12,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ page_title or _("Mojica · Cinemateca Digital") }}</title>
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/fonts.css') }}">
-    <link rel="stylesheet" href="{{ request.url_for('static', path='css/main.css') }}?v={{ css_version }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/main.css') }}">
     {# fx.css + chrome.css landed in d045b9c / ced01e6 and were dormant until
        Task 6 wired the shell. buscar.css landed in Task 9 (Phase 2 kickoff);
        it was dormant until Tasks 10–12 added .b-cp / .b-rp / .b-card markup.
@@ -22,16 +22,16 @@
        NOT linked yet — adding <link> tags for files that don't exist would
        yield 404s in the dev console and noisy headers in the offline-CDN
        test. They'll be added per task as each lands. #}
-    <link rel="stylesheet" href="{{ request.url_for('static', path='css/fx.css') }}?v={{ css_version }}">
-    <link rel="stylesheet" href="{{ request.url_for('static', path='css/chrome.css') }}?v={{ css_version }}">
-    <link rel="stylesheet" href="{{ request.url_for('static', path='css/buscar.css') }}?v={{ css_version }}">
-    <link rel="stylesheet" href="{{ request.url_for('static', path='css/cenas.css') }}?v={{ css_version }}">
-    <link rel="stylesheet" href="{{ request.url_for('static', path='css/anotar.css') }}?v={{ css_version }}">
-    <link rel="stylesheet" href="{{ request.url_for('static', path='css/rimas.css') }}?v={{ css_version }}">
-    <link rel="stylesheet" href="{{ request.url_for('static', path='css/proc.css') }}?v={{ css_version }}">
-    <link rel="stylesheet" href="{{ request.url_for('static', path='css/polish.css') }}?v={{ css_version }}">
-    <link rel="stylesheet" href="{{ request.url_for('static', path='css/about.css') }}?v={{ css_version }}">
-    <link rel="stylesheet" href="{{ request.url_for('static', path='css/home.css') }}?v={{ css_version }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/fx.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/chrome.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/buscar.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/cenas.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/anotar.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/rimas.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/proc.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/polish.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/about.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/home.css') }}">
     <script src="{{ request.url_for('static', path='js/htmx.min.js') }}" defer></script>
     <script src="{{ request.url_for('static', path='js/htmx-ext-sse.js') }}" defer></script>
     {# Script order matters — mojica.js MUST execute BEFORE alpine.min.js.
