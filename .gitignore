@@ -145,3 +145,9 @@ Thumbs.db
 # Design handoff bundle (reference material, not project source)
 claude_design/
 mojica_design_handoff.zip
+
+# ─── Private worktree-local reports ───────────────────────────────────────────
+# Working checklists / internal verification notes. Live next to the worktree
+# root for quick reference; intentionally not part of the public history.
+PORTFOLIO_FIXES.md
+FEATURE_PROOF.md
