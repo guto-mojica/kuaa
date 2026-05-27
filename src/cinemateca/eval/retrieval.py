@@ -198,6 +198,56 @@ def _build_bm25_index(cfg, metadata_dir: Path):
     )
 
 
+def _first_keyframe_filepaths_from_metadata(metadata_dir: Path) -> dict[int, str]:
+    """Return ``scene_id -> first keyframe filepath`` from metadata JSON.
+
+    BM25-only evaluation should not require a CLIP embedding matrix just to
+    populate ``top_results[].filepath``. This reads the same lightweight
+    keyframe metadata file the web layer uses when available.
+    """
+    path = metadata_dir / "keyframes_metadata.json"
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text())
+    except json.JSONDecodeError:
+        logger.warning("eval: malformed %s — top_results filepaths omitted", path)
+        return {}
+    if not isinstance(data, list):
+        return {}
+
+    out: dict[int, str] = {}
+    for row in data:
+        if not isinstance(row, dict):
+            continue
+        try:
+            sid = int(row.get("scene_id", -1))
+        except (TypeError, ValueError):
+            continue
+        if sid < 0 or sid in out:
+            continue
+        filepath = str(row.get("filepath") or row.get("keyframe_path") or "")
+        if filepath:
+            out[sid] = filepath
+    return out
+
+
+def _first_keyframe_filepaths_from_df(kf_df) -> dict[int, str]:
+    """Return ``scene_id -> first keyframe filepath`` from an index DataFrame."""
+    out: dict[int, str] = {}
+    if kf_df is None or len(kf_df) == 0:
+        return out
+    for row in kf_df.itertuples(index=False):
+        try:
+            sid = int(getattr(row, "scene_id", -1))
+        except (TypeError, ValueError):
+            continue
+        if sid < 0 or sid in out:
+            continue
+        out[sid] = str(getattr(row, "filepath", ""))
+    return out
+
+
 def _clip_rank(
     searcher,
     kf_df,
@@ -227,30 +277,20 @@ def _bm25_rank(
     query_text: str,
     *,
     raw_k: int,
+    first_filepath_by_sid: dict[int, str] | None = None,
 ) -> list[dict[str, Any]]:
     """BM25-only ranking. Surfaces best keyframe per scene from ``kf_df``."""
     hits = bm25.query(query_text, top_k=raw_k)
     if not hits:
         return []
-    # Build a quick first-keyframe lookup so BM25-only scenes carry a
-    # filepath in top_results (matches ``_pick_kf_rows_by_sid`` fallback —
-    # no per-query CLIP encode needed for "best frame" in eval).
-    first_row_by_sid: dict[int, dict[str, Any]] = {}
-    if kf_df is not None and len(kf_df) > 0:
-        for r in kf_df.itertuples(index=False):
-            sid = int(getattr(r, "scene_id", -1))
-            if sid in first_row_by_sid or sid < 0:
-                continue
-            first_row_by_sid[sid] = {
-                "filepath": str(getattr(r, "filepath", "")),
-            }
+    filepath_by_sid = first_filepath_by_sid or _first_keyframe_filepaths_from_df(kf_df)
     rows = []
     for sid, score in hits:
         rows.append(
             {
                 "scene_id": sid,
                 "similarity": float(score),
-                "filepath": first_row_by_sid.get(int(sid), {}).get("filepath", ""),
+                "filepath": filepath_by_sid.get(int(sid), ""),
             }
         )
     return _dedup_by_scene(rows)
@@ -325,24 +365,27 @@ def run_retrieval_eval(
     if retriever not in VALID_RETRIEVERS:
         raise EvalError(f"retriever must be one of {VALID_RETRIEVERS}, got {retriever!r}")
 
-    embeddings, mapping, kf_df, emb_path, map_path = _load_clip_index(cfg)
+    metadata_dir = Path(cfg.paths.metadata_dir)
+    embeddings = mapping = kf_df = emb_path = map_path = None
+    searcher = None
+    index_scene_ids: tuple[str, ...] = ()
 
-    from cinemateca.device import device_from_config
-    from cinemateca.embeddings import SemanticSearch
-    from cinemateca.models.base import ImageEmbedder
-    from cinemateca.models.registry import get_image_embedder
+    if retriever in ("clip", "hybrid"):
+        embeddings, mapping, kf_df, emb_path, map_path = _load_clip_index(cfg)
 
-    # The embedder is needed for CLIP and hybrid. We build it for BM25 too
-    # because the regression path may need text encoding for backfill if we
-    # extend later — cheap to construct here, and keeps the harness symmetric.
-    embedder: ImageEmbedder = get_image_embedder(cfg, device_from_config(cfg))
-    searcher = SemanticSearch(embeddings, kf_df, embedder)
-    index_scene_ids = tuple(scene_id_key(v) for v in kf_df["scene_id"].tolist())
+        from cinemateca.device import device_from_config
+        from cinemateca.embeddings import SemanticSearch
+        from cinemateca.models.base import ImageEmbedder
+        from cinemateca.models.registry import get_image_embedder
+
+        embedder: ImageEmbedder = get_image_embedder(cfg, device_from_config(cfg))
+        searcher = SemanticSearch(embeddings, kf_df, embedder)
+        index_scene_ids = tuple(scene_id_key(v) for v in kf_df["scene_id"].tolist())
 
     bm25 = None
     bm25_corpus_size = 0
+    first_filepath_by_sid: dict[int, str] | None = None
     if retriever in ("bm25", "hybrid"):
-        metadata_dir = Path(cfg.paths.metadata_dir)
         bm25 = _build_bm25_index(cfg, metadata_dir)
         bm25_corpus_size = len(bm25.scene_ids)
         if bm25.model is None:
@@ -350,6 +393,10 @@ def run_retrieval_eval(
                 f"BM25 corpus is empty under {metadata_dir} — scene_descriptions.json "
                 "and scene_tags.json yield no usable documents"
             )
+        if not index_scene_ids:
+            index_scene_ids = tuple(scene_id_key(v) for v in bm25.scene_ids)
+        if retriever == "bm25":
+            first_filepath_by_sid = _first_keyframe_filepaths_from_metadata(metadata_dir)
 
     if retriever == "hybrid":
         sem_w, bm25_w = resolve_weights(sem_w=sem_w, bm25_w=bm25_w, defaults=(0.5, 0.5))
@@ -362,10 +409,18 @@ def run_retrieval_eval(
     warnings: list[str] = []
     for query in dataset.queries:
         if retriever == "clip":
+            assert searcher is not None and kf_df is not None
             ranked_rows = _clip_rank(searcher, kf_df, query.text, raw_k=raw_k)
         elif retriever == "bm25":
-            ranked_rows = _bm25_rank(bm25, kf_df, query.text, raw_k=raw_k)
+            ranked_rows = _bm25_rank(
+                bm25,
+                kf_df,
+                query.text,
+                raw_k=raw_k,
+                first_filepath_by_sid=first_filepath_by_sid,
+            )
         else:
+            assert searcher is not None and kf_df is not None
             ranked_rows = _hybrid_rank(
                 searcher,
                 bm25,
@@ -394,11 +449,15 @@ def run_retrieval_eval(
     context = {
         "config_path": str(config_path) if config_path else "default",
         "queries_path": str(dataset.path) if dataset.path else "",
-        "embeddings_path": str(emb_path),
-        "mapping_path": str(map_path),
-        "model": mapping.get("model", f"{cfg.embeddings.model} ({cfg.embeddings.pretrained})"),
-        "dimension": mapping.get("dimension"),
-        "total_vectors": len(kf_df),
+        "embeddings_path": str(emb_path) if emb_path else "",
+        "mapping_path": str(map_path) if map_path else "",
+        "model": (
+            mapping.get("model", f"{cfg.embeddings.model} ({cfg.embeddings.pretrained})")
+            if mapping
+            else "BM25"
+        ),
+        "dimension": mapping.get("dimension") if mapping else None,
+        "total_vectors": len(kf_df) if kf_df is not None else 0,
         "top_k": top_k,
         "retriever": retriever,
     }
