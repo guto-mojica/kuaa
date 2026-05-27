@@ -1,0 +1,238 @@
+dataset: archive_demo
+version: 1
+language: pt_BR
+label_status: seed_requires_artifact_review
+source:
+  name: "The Great Train Robbery"
+  identifier: "loc:00694220"
+  year: 1903
+  notes: "Public LOC demo film. Brazilian-Portuguese translation of archive_demo_queries.yaml (same scene grades). Used to measure EN-vs-PT delta on the multilingual SigLIP backend."
+
+queries:
+  - id: q001
+    text: "telegrafista trabalhando em uma mesa"
+    intent: "Interior character search"
+    relevant_scene_ids: [1, 9]
+    relevance:
+      "1": 3
+      "9": 2
+    negative_scene_ids: [10, 13]
+    notes: "Matches office scenes with the railroad operator."
+
+  - id: q002
+    text: "bandidos entrando no escritório da ferrovia"
+    intent: "Action search"
+    relevant_scene_ids: [1]
+    relevance:
+      "1": 3
+    negative_scene_ids: [10]
+    notes: "Tests whether the index separates robbery setup from dance hall interiors."
+
+  - id: q003
+    text: "homens ameaçando um funcionário da ferrovia"
+    intent: "Ambiguous action search"
+    relevant_scene_ids: [1, 5]
+    relevance:
+      "1": 3
+      "5": 2
+    negative_scene_ids: [12]
+    notes: "Ambiguous because both office and locomotive scenes involve coercion."
+
+  - id: q004
+    text: "trem a vapor parado perto de árvores"
+    intent: "Vehicle and setting search"
+    relevant_scene_ids: [2, 3, 5]
+    relevance:
+      "2": 3
+      "3": 2
+      "5": 2
+    negative_scene_ids: [10, 13]
+    notes: "Expected to favor exterior locomotive shots."
+
+  - id: q005
+    text: "ladrões subindo em um trem"
+    intent: "Action search"
+    relevant_scene_ids: [2, 3]
+    relevance:
+      "2": 3
+      "3": 2
+    negative_scene_ids: [9, 10]
+    notes: "Early train-boarding scenes."
+
+  - id: q006
+    text: "mensageiro guardando um cofre dentro de um vagão"
+    intent: "Object search"
+    relevant_scene_ids: [4]
+    relevance:
+      "4": 3
+    negative_scene_ids: [1, 10]
+    notes: "Tests object vocabulary around safe, strongbox, and rail car."
+
+  - id: q007
+    text: "fumaça de explosão no vagão de bagagem"
+    intent: "Failure-oriented visual search"
+    relevant_scene_ids: [4]
+    relevance:
+      "4": 3
+    negative_scene_ids: [12, 13]
+    notes: "Smoke and explosion may be difficult for CLIP on old footage."
+
+  - id: q008
+    text: "maquinista afastado à força da locomotiva"
+    intent: "Character and vehicle search"
+    relevant_scene_ids: [5]
+    relevance:
+      "5": 3
+    negative_scene_ids: [1, 10]
+    notes: "Exterior train crew scene."
+
+  - id: q009
+    text: "passageiros em pé com as mãos para cima"
+    intent: "Group action search"
+    relevant_scene_ids: [6]
+    relevance:
+      "6": 3
+    negative_scene_ids: [10, 13]
+    notes: "Passenger robbery scene."
+
+  - id: q010
+    text: "passageiro fugindo dos assaltantes"
+    intent: "Action search"
+    relevant_scene_ids: [6]
+    relevance:
+      "6": 3
+    negative_scene_ids: [11, 12]
+    notes: "May be confused with later chase scenes."
+
+  - id: q011
+    text: "foragidos fugindo pela mata"
+    intent: "Outdoor action search"
+    relevant_scene_ids: [8, 11]
+    relevance:
+      "8": 3
+      "11": 2
+    negative_scene_ids: [4, 10]
+    notes: "Separates escape from posse pursuit."
+
+  - id: q012
+    text: "menina encontrando o telegrafista amarrado"
+    intent: "Specific story moment"
+    relevant_scene_ids: [9]
+    relevance:
+      "9": 3
+    negative_scene_ids: [1]
+    notes: "Tests whether generated metadata captured the rescue scene."
+
+  - id: q013
+    text: "multidão dançando em um salão"
+    intent: "Indoor group search"
+    relevant_scene_ids: [10]
+    relevance:
+      "10": 3
+    negative_scene_ids: [1, 6]
+    notes: "Distinct indoor social scene."
+
+  - id: q014
+    text: "homem forçado a dançar enquanto outros assistem"
+    intent: "Ambiguous action search"
+    relevant_scene_ids: [10]
+    relevance:
+      "10": 3
+    negative_scene_ids: [1, 6]
+    notes: "A story-specific query that may be missed by generic visual tags."
+
+  - id: q015
+    text: "patrulha a cavalo perseguindo os bandidos"
+    intent: "Horse and chase search"
+    relevant_scene_ids: [11]
+    relevance:
+      "11": 3
+    negative_scene_ids: [8]
+    notes: "Outdoor pursuit sequence."
+
+  - id: q016
+    text: "perseguição a cavalo pela floresta"
+    intent: "Vehicle/action search"
+    relevant_scene_ids: [11]
+    relevance:
+      "11": 3
+    negative_scene_ids: [4, 10]
+    notes: "Historically important chase imagery."
+
+  - id: q017
+    text: "tiroteio entre a patrulha e os bandidos"
+    intent: "Action search"
+    relevant_scene_ids: [12]
+    relevance:
+      "12": 3
+    negative_scene_ids: [13]
+    notes: "Tests whether the model distinguishes shootout scenes from the final close-up."
+
+  - id: q018
+    text: "bandido caindo depois de ser baleado"
+    intent: "Failure-oriented action search"
+    relevant_scene_ids: [12]
+    relevance:
+      "12": 3
+    negative_scene_ids: [6, 13]
+    notes: "Motion-heavy event represented by one keyframe."
+
+  - id: q019
+    text: "close de foragido disparando uma pistola para a câmera"
+    intent: "Iconic shot search"
+    relevant_scene_ids: [13]
+    relevance:
+      "13": 3
+    negative_scene_ids: [12]
+    notes: "Final close-up should be easy if the keyframe is present."
+
+  - id: q020
+    text: "homem apontando uma arma diretamente para frente"
+    intent: "Ambiguous object/action search"
+    relevant_scene_ids: [13]
+    relevance:
+      "13": 3
+    negative_scene_ids: [12]
+    notes: "Uses different wording for the iconic final shot."
+
+  - id: q021
+    text: "interior ferroviário sem passageiros"
+    intent: "Ambiguous setting search"
+    relevant_scene_ids: [1, 4, 9]
+    relevance:
+      "1": 3
+      "4": 2
+      "9": 2
+    negative_scene_ids: [6, 10]
+    notes: "Tests setting terms rather than character names."
+
+  - id: q022
+    text: "grupo grande do lado de fora ao lado de um trem parado"
+    intent: "Group and vehicle search"
+    relevant_scene_ids: [6]
+    relevance:
+      "6": 3
+    negative_scene_ids: [10, 11]
+    notes: "Passenger robbery scene with train context."
+
+  - id: q023
+    text: "interior de saloon ou salão de baile do velho oeste"
+    intent: "Domain-vocabulary search"
+    relevant_scene_ids: [10]
+    relevance:
+      "10": 3
+    negative_scene_ids: [1, 4]
+    notes: "Uses genre wording that may not appear in generated metadata."
+
+  - id: q024
+    text: "cena de assalto a trem em preto e branco"
+    intent: "Broad topical search"
+    relevant_scene_ids: [2, 3, 4, 5, 6]
+    relevance:
+      "2": 2
+      "3": 2
+      "4": 3
+      "5": 2
+      "6": 3
+    negative_scene_ids: [10, 13]
+    notes: "Broad query should retrieve multiple core robbery scenes."

@@ -29,9 +29,7 @@ existing test (``test_search_service.py::TestSceneDedup
 ``cinemateca.embeddings.SemanticSearch`` to stub out the JPEG-loading
 path; after this hoist the test patches
 ``cinemateca.search.clip.SemanticSearch`` instead — same effect,
-adjusted target. The hoist is the deliberate plan-directed change
-(`docs/superpowers/plans/2026-05-24-deep-modules-refactor-p1-search.md`
-Task 9 / Step 2).
+adjusted target. The hoist is the deliberate plan-directed change.
 """
 
 from __future__ import annotations

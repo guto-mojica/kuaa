@@ -157,8 +157,7 @@ addopts = "-v --tb=short"
 
 # ── uv ────────────────────────────────────────────────────────────────────────
 [tool.uv]
-# Committed lockfile (was deferred during config-only uv adoption — see
-# docs/superpowers/specs/2026-05-16-uv-migration-scaffold-design.md). Root
+# Committed lockfile (was deferred during config-only uv adoption). Root
 # cause of the original install rot was an unbounded transformers floor with
 # NO committed lock, so resolvers drifted to transformers 5.x per machine.
 # The fix is the bounded pin (transformers>=4.44,<5) PLUS this committed

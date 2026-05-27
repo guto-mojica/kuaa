@@ -3,9 +3,8 @@
 Skipif-guarded so it only runs on machines that have the real CLIP +
 CLAP indices materialised under ``data/library/jeca_tatu/``. CI without
 the artefacts skips the test, but any developer with the real library
-flips it on automatically. Regenerate the snapshot via the
-one-liner under Task 5.1 in ``docs/superpowers/plans/2026-05-24-m3-fusion-search.md``
-whenever the fusion verb, weights, or default ``k_each`` changes.
+flips it on automatically. Regenerate the snapshot whenever the fusion
+verb, weights, or default ``k_each`` changes.
 """
 
 from __future__ import annotations

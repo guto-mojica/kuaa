@@ -22,8 +22,7 @@ ENV/
 .env/
 
 # ─── uv ───────────────────────────────────────────────────────────────────────
-# Lockfile is now committed (see docs/superpowers/specs/2026-05-16-uv-migration-scaffold-design.md).
-# uv.lock is tracked — do not add it back to .gitignore.
+# Lockfile is now committed. uv.lock is tracked — do not add it back to .gitignore.
 
 # ─── Dados e acervo — NUNCA commitar vídeos ou frames ─────────────────────────
 # Os dados são locais em cada instituição e podem ter GBs ou TBs.
@@ -48,7 +47,7 @@ data/eval/reports/
 
 # Per-run eval output (candidate slates, grades JSONL, frozen tarballs) are
 # runtime artefacts — only the committed seed YAMLs + README belong in git.
-# See docs/EVAL_PROTOCOL.md and docs/superpowers/plans/2026-05-25-m3-refactor-notes.md §5.
+# See docs/EVAL_PROTOCOL.md §5.
 # Patterns cover both directory layout (data/eval/<run_id>/) and the legacy
 # single-file layout that `cinemateca eval seed` writes (data/eval/<run_id>.queries.json
 # + the matching <run_id>.jsonl grade log).
@@ -119,6 +118,13 @@ data/raw/_upload_*
 # Nothing under .claude/ is tracked (worktrees, local settings, transcripts).
 .claude/
 
+# ─── Private working docs ─────────────────────────────────────────────────────
+# Internal planning notes, design drafts, and per-run working checklists. Kept
+# locally for the author; not part of the public portfolio surface.
+.notes/
+PORTFOLIO_FIXES.md
+FEATURE_PROOF.md
+
 # ─── Sistema operacional ──────────────────────────────────────────────────────
 .DS_Store
 .AppleDouble
@@ -139,3 +145,9 @@ Thumbs.db
 # Design handoff bundle (reference material, not project source)
 claude_design/
 mojica_design_handoff.zip
+
+# ─── Private worktree-local reports ───────────────────────────────────────────
+# Working checklists / internal verification notes. Live next to the worktree
+# root for quick reference; intentionally not part of the public history.
+PORTFOLIO_FIXES.md
+FEATURE_PROOF.md
