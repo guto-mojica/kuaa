@@ -5,9 +5,10 @@ Supports three retriever modes (``--retriever {clip,bm25,hybrid}``) and a
 batch sweep (``--all-modes``) that runs all three back-to-back and writes a
 comparison table.
 
-Films live under the per-film library layout
-(``data/library/<slug>/{embeddings,metadata,frames}``); use ``--film-slug``
-to point the harness at a specific film without authoring a per-film YAML.
+By default the harness evaluates the artifact paths from the selected config.
+Use ``--film-slug`` to point it at a specific per-film library directory
+(``data/library/<slug>/{embeddings,metadata,frames}``) without authoring a
+per-film YAML.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ sys.path.insert(0, str(REPO_ROOT))
 DEFAULT_CONFIG = REPO_ROOT / "config" / "default.yaml"
 DEFAULT_QUERIES = REPO_ROOT / "data" / "eval" / "archive_demo_queries.yaml"
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "data" / "eval" / "reports"
-DEFAULT_FILM_SLUG = "edwin_porter-the_great_train_robbery_1903"
+DEFAULT_FILM_SLUG = ""
 
 
 def project_path(value: str | Path) -> Path:
@@ -64,7 +65,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help=(
             "Per-film library slug whose embeddings/metadata to evaluate. "
             "Overrides cfg.paths.{embeddings,metadata,frames}_dir at runtime. "
-            "Pass an empty string to evaluate the flat global layout."
+            "Default is an empty string, which evaluates the configured paths."
         ),
     )
     parser.add_argument(
