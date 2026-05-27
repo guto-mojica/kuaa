@@ -3,17 +3,17 @@
 
 Times the three retriever modes (clip / bm25 / hybrid) against one
 already-indexed film and reports p50 / p95 / p99 / mean / max per mode.
-For ``hybrid`` it additionally breaks the per-query latency into the four
-sub-stages that the dispatcher actually executes:
+For ``hybrid`` it additionally breaks the per-query latency into the same
+sequential calls made by the production dispatcher:
 
-  1. ``clip_encode``  — ``OpenClipEmbedder.encode_text(query)``
-  2. ``clip_search``  — ``embeddings @ vec`` + scene-id dedup + top-K
-  3. ``bm25_query``   — ``BM25Index.query(query, top_k=raw_k)``
-  4. ``rrf_fuse``     — ``fuse_rrf(clip_ranked, bm25_hits, ...)``
+  1. ``clip_best_row``     — ``_best_row_by_sid_from_embeddings(index, query)``
+  2. ``clip_search``       — ``search_text(index, query, ..., raw_k, min_sim)``
+  3. ``bm25_query``        — ``BM25Index.query(query, top_k=raw_k)``
+  4. ``rrf_materialize``   — ``fuse_rrf(...)`` + ``_fused_to_dataframe(...)``
 
-These are the same four operations the production ``search_hybrid``
-dispatcher calls (``api/services/search.py``); the breakdown is a
-strictly additive instrumentation, no behaviour change.
+The first two CLIP stages each encode the query, matching the current
+``search_hybrid`` implementation exactly. The breakdown is a strictly
+additive instrumentation, no behaviour change.
 
 Usage::
 
@@ -247,10 +247,11 @@ class BenchFixture:
     n_scenes: int
     n_vectors: int
     n_bm25_docs: int
-    embedder: object  # cinemateca.models.clip.openclip.OpenClipEmbedder
+    embedder: object  # cinemateca.models.base.ImageEmbedder
     index: object  # api.services.search.SearchIndex
     bm25: object  # cinemateca.retrieval.bm25.BM25Index
     device: str
+    min_similarity: float
     library_dir: Path = field(repr=False)
     metadata_dir: Path = field(repr=False)
 
@@ -292,9 +293,11 @@ def _build_fixture(cfg, *, slug: str) -> BenchFixture:
         the same device the production server would.
     """
     from api.services.film_context import FilmContext
+
     from api.services.search import IndexStatus, _get_bm25_index_for_ctx, _get_search_index
     from cinemateca.device import device_from_config
-    from cinemateca.models.clip.openclip import OpenClipEmbedder
+    from cinemateca.models.registry import get_image_embedder
+    from cinemateca.search.cache import SearchIndex
 
     device = device_from_config(cfg)
     device_str = str(device)
@@ -314,9 +317,22 @@ def _build_fixture(cfg, *, slug: str) -> BenchFixture:
             f"Are scene_descriptions.json + scene_tags.json present?"
         )
 
-    embedder = OpenClipEmbedder(cfg, device)
+    embedder = get_image_embedder(cfg, device)
     # Force the lazy-load so warm-up is the only timing-sensitive cost left.
-    embedder._load_model()
+    load_model = getattr(embedder, "_load_model", None)
+    if callable(load_model):
+        load_model()
+
+    # The cached index may contain a default-constructed embedder. Replace it
+    # locally so the production search functions below use the configured
+    # backend/device while preserving the loaded embeddings and keyframe map.
+    idx = SearchIndex(
+        status=idx.status,
+        embeddings=idx.embeddings,
+        kf_df=idx.kf_df,
+        embedder=embedder,
+        detail=idx.detail,
+    )
 
     n_vectors = int(getattr(idx.embeddings, "shape", [0])[0])
     # idx.kf_df is typed as object on the dataclass to keep the AI core
@@ -338,81 +354,10 @@ def _build_fixture(cfg, *, slug: str) -> BenchFixture:
         index=idx,
         bm25=bm25,
         device=device_str,
+        min_similarity=float(getattr(cfg.embeddings, "min_similarity", 0.0) or 0.0),
         library_dir=Path(cfg.paths.library_dir),
         metadata_dir=ctx.metadata_dir,
     )
-
-
-# ─── Stage primitives ─────────────────────────────────────────────────────────
-#
-# Each helper does exactly the work the production dispatcher does for
-# that stage, so the sub-stage breakdown sums to (approximately) the
-# whole-query latency on the hybrid path. They are intentionally
-# minimal — no logging, no error handling beyond what the production
-# path already handles — so we measure code, not instrumentation overhead.
-
-
-def _clip_encode(embedder, query: str):
-    """One CLIP text encode → unit-norm vector (no batching, mirrors prod)."""
-    import numpy as np
-
-    vec = embedder.encode_text(query)
-    norm = float(np.linalg.norm(vec))
-    return vec / (norm + 1e-12)
-
-
-def _clip_search_fast(index, vec, top_k: int) -> list[tuple[int, float]]:
-    """np.argsort + top-K + scene-id dedup — matches production
-    ``embeddings.SemanticSearch.by_text`` (the per-film CLIP path).
-
-    Returns ``[(scene_id, cosine), …]`` of length ≤ top_k after dedup.
-    This is what ``search_text`` runs in ``retriever=clip`` mode.
-    """
-    import numpy as np
-
-    scores: np.ndarray = (index.embeddings @ vec).flatten()  # type: ignore[operator]
-    # Widen by 4× to mirror search_text's keyframe-density widening —
-    # the post-dedup top-K still needs ``top_k`` distinct scenes.
-    raw = max(top_k * 4, 1)
-    top_idx = np.argsort(scores)[::-1][:raw]
-    sids_col = index.kf_df["scene_id"].to_numpy()
-    seen: set[int] = set()
-    out: list[tuple[int, float]] = []
-    for i in top_idx:
-        sid = int(sids_col[i])
-        if sid in seen:
-            continue
-        seen.add(sid)
-        out.append((sid, float(scores[i])))
-        if len(out) >= top_k:
-            break
-    return out
-
-
-def _clip_search_best_per_sid(index, vec, top_k: int) -> list[tuple[int, float]]:
-    """Full-iteration best-cosine-per-scene_id pass — matches
-    ``aggregate_search`` (lines 678-694) and
-    ``_best_row_by_sid_from_embeddings`` used by the hybrid dispatcher.
-
-    More expensive than ``_clip_search_fast`` because it touches every
-    row of ``kf_df`` (needed for the BM25-only backfill: a scene that
-    surfaces via BM25 alone must still find ITS best CLIP keyframe to
-    display). We use this for the ``clip_search`` sub-stage timing so
-    the breakdown reflects what the hybrid path actually pays.
-    """
-    import numpy as np
-
-    scores: np.ndarray = (index.embeddings @ vec).flatten()  # type: ignore[operator]
-    sids_col = index.kf_df["scene_id"].to_numpy()
-    best: dict[int, float] = {}
-    for i in range(scores.shape[0]):
-        sid = int(sids_col[i])
-        s = float(scores[i])
-        prev = best.get(sid)
-        if prev is None or s > prev:
-            best[sid] = s
-    ranked = sorted(best.items(), key=lambda p: p[1], reverse=True)[:top_k]
-    return ranked
 
 
 def _bm25_query(bm25, query: str, top_k: int) -> list[tuple[int, float]]:
@@ -420,26 +365,15 @@ def _bm25_query(bm25, query: str, top_k: int) -> list[tuple[int, float]]:
     return bm25.query(query, top_k=top_k)
 
 
-def _rrf_fuse(clip_ranked, bm25_hits, top_k: int) -> list[tuple[int, float]]:
-    from cinemateca.retrieval.hybrid import fuse_rrf
-
-    return fuse_rrf(clip_ranked, bm25_hits, sem_w=SEM_W, bm25_w=BM25_W, k_rrf=RRF_K)[:top_k]
-
-
 # ─── Per-query timed measurements ─────────────────────────────────────────────
 
 
 def _time_clip(fx: BenchFixture, query: str, *, raw_k: int, top_k: int) -> float:
-    """Total ms for a CLIP-only query (encode + matmul + argsort + dedup + top_k).
+    """Total ms for a CLIP-only query through production ``search_text``."""
+    from cinemateca.search.clip import search_text
 
-    Uses the fast argsort/topK path that production runs in
-    ``retriever=clip`` mode (``SemanticSearch.by_text`` +
-    ``search_text``'s scene-id dedup), NOT the full-iteration
-    best-per-sid pass the hybrid path needs.
-    """
     t0 = time.perf_counter()
-    vec = _clip_encode(fx.embedder, query)
-    _ = _clip_search_fast(fx.index, vec, top_k)
+    _ = search_text(fx.index, query, [], {}, top_k, fx.min_similarity)
     return (time.perf_counter() - t0) * 1000.0
 
 
@@ -453,34 +387,51 @@ def _time_bm25(fx: BenchFixture, query: str, *, raw_k: int, top_k: int) -> float
 def _time_hybrid(fx: BenchFixture, query: str, *, raw_k: int, top_k: int) -> dict:
     """Total + 4 sub-stage timings for one hybrid query.
 
-    Returns ``{"total": ms, "clip_encode": ms, "clip_search": ms,
-    "bm25_query": ms, "rrf_fuse": ms}``. The four sub-stage sums should
-    be ≤ total (small difference = ``time.perf_counter()`` jitter +
-    glue cost).
+    Returns ``{"total": ms, "clip_best_row": ms, "clip_search": ms,
+    "bm25_query": ms, "rrf_materialize": ms}``. The four sub-stage sums
+    should be ≤ total (small difference = ``time.perf_counter()`` jitter
+    + glue cost).
     """
+    from cinemateca.retrieval.hybrid import fuse_rrf
+    from cinemateca.search.clip import search_text
+    from cinemateca.search.hybrid import (
+        _best_row_by_sid_from_embeddings,
+        _fused_to_dataframe,
+    )
+
     t0 = time.perf_counter()
 
     t_a = time.perf_counter()
-    vec = _clip_encode(fx.embedder, query)
+    best_row_by_sid = _best_row_by_sid_from_embeddings(fx.index, query)
     t_b = time.perf_counter()
-    # Hybrid uses the full-iteration best-per-sid pass (matches
-    # production: search_text -> by_text returns its top-K then
-    # _best_row_by_sid_from_embeddings walks the full matrix for
-    # BM25-backfill display purposes).
-    clip_ranked = _clip_search_best_per_sid(fx.index, vec, raw_k)
+    clip_df = search_text(fx.index, query, [], {}, raw_k, fx.min_similarity)
+    clip_ranked: list[tuple[int, float]] = (
+        [(int(row.scene_id), float(row.similarity)) for row in clip_df.itertuples(index=False)]
+        if not clip_df.empty
+        else []
+    )
     t_c = time.perf_counter()
     bm25_hits = _bm25_query(fx.bm25, query, raw_k)
     t_d = time.perf_counter()
-    _ = _rrf_fuse(clip_ranked, bm25_hits, top_k)
+    fused = fuse_rrf(clip_ranked, bm25_hits, sem_w=SEM_W, bm25_w=BM25_W, k_rrf=RRF_K)[:top_k]
+    _ = _fused_to_dataframe(
+        fused,
+        clip_df,
+        fx.index,
+        [],
+        {},
+        top_k,
+        best_row_by_sid=best_row_by_sid,
+    )
     t_e = time.perf_counter()
 
     total = (t_e - t0) * 1000.0
     return {
         "total": total,
-        "clip_encode": (t_b - t_a) * 1000.0,
+        "clip_best_row": (t_b - t_a) * 1000.0,
         "clip_search": (t_c - t_b) * 1000.0,
         "bm25_query": (t_d - t_c) * 1000.0,
-        "rrf_fuse": (t_e - t_d) * 1000.0,
+        "rrf_materialize": (t_e - t_d) * 1000.0,
     }
 
 
@@ -515,8 +466,8 @@ def _warmup(fx: BenchFixture, *, raw_k: int, top_k: int) -> None:
 
 def run_bench(fx: BenchFixture, queries: list[str], *, top_k: int) -> dict:
     """Run the full timed loop and return a results dict ready for JSON dump."""
-    # Mirrors search_text's 4× widening so the dedup pass has room to
-    # surface ``top_k`` distinct scenes.
+    # Mirrors search_hybrid's 4× widening before it passes raw_k into
+    # search_text and BM25.
     raw_k = max(top_k * 4, 1)
 
     print(f"  warm-up: {WARMUP_QUERIES} throwaway queries…", flush=True)
@@ -527,10 +478,10 @@ def run_bench(fx: BenchFixture, queries: list[str], *, top_k: int) -> dict:
     bm25_ms: list[float] = []
     hybrid_total_ms: list[float] = []
     stage_ms: dict[str, list[float]] = {
-        "clip_encode": [],
+        "clip_best_row": [],
         "clip_search": [],
         "bm25_query": [],
-        "rrf_fuse": [],
+        "rrf_materialize": [],
     }
 
     t_loop = time.perf_counter()
@@ -562,10 +513,10 @@ def run_bench(fx: BenchFixture, queries: list[str], *, top_k: int) -> dict:
             "clip": clip_ms,
             "bm25": bm25_ms,
             "hybrid_total": hybrid_total_ms,
-            "hybrid_clip_encode": stage_ms["clip_encode"],
+            "hybrid_clip_best_row": stage_ms["clip_best_row"],
             "hybrid_clip_search": stage_ms["clip_search"],
             "hybrid_bm25_query": stage_ms["bm25_query"],
-            "hybrid_rrf_fuse": stage_ms["rrf_fuse"],
+            "hybrid_rrf_materialize": stage_ms["rrf_materialize"],
         },
     }
 
@@ -643,7 +594,7 @@ def write_markdown(payload: dict, out_path: Path) -> None:
     lines.append(
         f"Measured across {n_q} queries (warm-up: {WARMUP_QUERIES} discarded), "
         f"each retriever fetches `raw_k={raw_k}` candidates per stage and the "
-        f"dispatcher trims to `k={top_k}`."
+        f"dispatcher trims to `k={top_k}` (`min_similarity={fx['min_similarity']}`)."
     )
     lines.append("")
 
@@ -663,20 +614,20 @@ def write_markdown(payload: dict, out_path: Path) -> None:
     # Per-stage breakdown.
     lines.append("## Hybrid sub-stage breakdown (ms)")
     lines.append("")
-    lines.append("| Stage         | p50  | p95  | p99  | mean | max  |")
-    lines.append("|---------------|-----:|-----:|-----:|-----:|-----:|")
-    for stage in ("clip_encode", "clip_search", "bm25_query", "rrf_fuse"):
+    lines.append("| Stage           | p50  | p95  | p99  | mean | max  |")
+    lines.append("|-----------------|-----:|-----:|-----:|-----:|-----:|")
+    for stage in ("clip_best_row", "clip_search", "bm25_query", "rrf_materialize"):
         s = stages[stage]
         lines.append(
-            f"| {stage:<13} | {_fmt_ms(s['p50']):>4} | {_fmt_ms(s['p95']):>4} | "
+            f"| {stage:<15} | {_fmt_ms(s['p50']):>4} | {_fmt_ms(s['p95']):>4} | "
             f"{_fmt_ms(s['p99']):>4} | {_fmt_ms(s['mean']):>4} | {_fmt_ms(s['max']):>4} |"
         )
     lines.append("")
     lines.append(
-        "The four sub-stages run sequentially inside the dispatcher "
-        "(`api/services/search.py::search_hybrid`). Adding them ≈ recovers "
-        "the hybrid total above; the small gap is glue cost + "
-        "`time.perf_counter()` jitter."
+        "The four sub-stages mirror `cinemateca.search.hybrid.search_hybrid`: "
+        "best-keyframe backfill, CLIP `search_text`, BM25 query, then RRF "
+        "fusion plus DataFrame materialization. The first two stages each "
+        "perform a text encode, matching the current dispatcher."
     )
     lines.append("")
 
@@ -799,6 +750,7 @@ def main(argv: list[str] | None = None) -> int:
             "n_vectors": fx.n_vectors,
             "n_bm25_docs": fx.n_bm25_docs,
             "device": fx.device,
+            "min_similarity": fx.min_similarity,
         },
         "query_pool": prov,
         "config": {
