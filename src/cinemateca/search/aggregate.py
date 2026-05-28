@@ -388,19 +388,20 @@ def aggregate_search(
     if not films:
         return []
 
-    # Also skip embedder init when no film has an index on disk (e.g. library
-    # registered but not yet processed).  Without this guard, _get_embedder
-    # triggers a model-weight download even though every per-film loop
-    # iteration below would just `continue` on idx.status != OK.
-    emb_cfg = getattr(cfg, "embeddings", None)
-    _emb_fn = (
-        getattr(emb_cfg, "filename", _DEFAULT_EMBEDDINGS_FILENAME)
-        if emb_cfg is not None
-        else _DEFAULT_EMBEDDINGS_FILENAME
-    )
-    if not any(
-        (FilmContext.for_film(cfg, f.slug).embeddings_dir / _emb_fn).is_file() for f in films
-    ):
+    # Pre-scan: skip embedder init when no film has a valid index.
+    # Uses _get_search_index (which is monkeypatched in tests and cached
+    # in production) rather than a bare disk check so test fixtures that
+    # stub the index are respected.
+    valid_slugs: set[str] = set()
+    for _f in films:
+        try:
+            _idx = _get_search_index(cfg, _f.slug)
+        except ValueError:
+            continue
+        if _idx.status is IndexStatus.OK:
+            valid_slugs.add(_f.slug)
+
+    if not valid_slugs:
         return []
 
     embedder = _get_embedder(cfg)
