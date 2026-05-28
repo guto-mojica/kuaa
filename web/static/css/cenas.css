@@ -164,6 +164,25 @@
   font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500;
 }
 
+/* ─── Tipo colour modifiers (grid + inspector) ───────────────────────────
+   Mojica renders each tipo pill as a TINTED chip (subtle translucent
+   background + a saturated foreground in the same hue), not a solid fill.
+   The prototype maps tipo → {bg, color} via TIPO_INFO (cenas.jsx) /
+   FX (theme.jsx):
+     cartela   → yellowBg  / catCartela   exterior → greenBg  / catExterior
+     dialogo   → acBg      / catDialogo   interior → orangeBg / catInterior
+     transicao → rgba(120,126,138,.14) / catTransicao  (no token for the
+       neutral-grey tint — the literal mirrors the prototype's inline rgba,
+       in the same spirit as the keyframe-overlay literals above).
+   These modifier classes consume the shipped tokens so the grid ``.pill``
+   and the inspector ``.tipo-pill`` read identically to the reference and
+   stop shouting as the old solid ``var(--c-cat-*)`` fills did. */
+.tipo-pill--cartela   { background: var(--c-yellow-bg);          color: var(--c-cat-cartela); }
+.tipo-pill--dialogo   { background: var(--c-accent-bg);          color: var(--c-cat-dialogo); }
+.tipo-pill--exterior  { background: var(--c-green-bg);           color: var(--c-cat-exterior); }
+.tipo-pill--interior  { background: var(--c-orange-bg);          color: var(--c-cat-interior); }
+.tipo-pill--transicao { background: rgba(120, 126, 138, 0.14);   color: var(--c-cat-transicao); }
+
 /* Right pane — selection summary */
 .c-rp {
   width: 380px; flex-shrink: 0;
@@ -185,6 +204,10 @@
 }
 .c-rp .head .r { display: flex; align-items: center; gap: 2px; }
 .c-rp .inner { padding: 16px 18px 18px; overflow-y: auto; flex: 1; }
+/* Empty-state variant: drop the asymmetric padding and become a flex column
+   so the nested ``.fx-empty`` (flex:1) centers across the full inspector
+   height instead of clinging to the top. */
+.c-rp .inner--empty { display: flex; padding: 0; }
 .c-rp .preview {
   width: 100%; aspect-ratio: 16/10; border-radius: 6px;
   background: var(--c-bg) center/cover no-repeat;

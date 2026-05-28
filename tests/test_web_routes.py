@@ -1139,8 +1139,10 @@ def test_scenes_grid_groups_by_film(client, seed_metadata):
     assert 'class="group"' in html
     assert "Default Film" in html
     assert 'class="scenecard"' in html
-    # Tipo pill carries one of the canonical tipo CSS variables.
-    assert "var(--c-cat-" in html
+    # Tipo pill carries one of the canonical tipo modifier classes
+    # (tinted-chip styling lives in cenas.css `.tipo-pill--<tipo>`, matching
+    # the Mojica prototype; replaced the old inline `var(--c-cat-…)` style).
+    assert "tipo-pill--" in html
     # And the legacy v0.3 marker is gone from the swap target.
     assert 'class="scene-card"' not in html
 
@@ -1288,7 +1290,9 @@ def test_api_scenes_bucket_filters_by_tipo(client, seed_metadata):
     assert r.status_code == 200, r.text[:300]
     html = r.text
     assert 'class="scenecard"' in html
-    assert "var(--c-cat-exterior)" in html
+    # Exterior scene rendered with its tipo modifier class (tinted-chip
+    # styling in cenas.css; replaced the old inline `var(--c-cat-exterior)`).
+    assert "tipo-pill--exterior" in html
 
     r = client.get("/api/scenes?bucket=interior")
     assert r.status_code == 200, r.text[:300]

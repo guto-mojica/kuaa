@@ -459,8 +459,15 @@
         <span>{{ _('Scene') }}</span>
       </div>
     </div>
-    <div class="inner">
-      <p style="font-size: 12px; color: var(--c-muted); padding: 12px 0;">{{ _('Select a scene to see its details.') }}</p>
+    {# Empty state uses the shared ``.fx-empty`` primitive (centered 44px
+       glyph + ``.ttl`` + ``.sub``) so the 380px inspector column reads as
+       an intentional panel matching Buscar's rhythm, never a bare void. #}
+    <div class="inner inner--empty">
+      <div class="fx-empty">
+        <span class="glyph">{{ icon('image', 22) }}</span>
+        <p class="ttl">{{ _('No scene selected') }}</p>
+        <p class="sub">{{ _('Select a scene in the grid to inspect its keyframe, tags, and description.') }}</p>
+      </div>
     </div>
   </section>
 </aside>

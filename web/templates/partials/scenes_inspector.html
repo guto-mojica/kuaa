@@ -50,8 +50,7 @@
     <div class="preview"
          {% if selected_scene.keyframe_url %}style="background-image: url('{{ selected_scene.keyframe_url }}');"{% endif %}>
       {% if selected_scene.tipo %}
-        <span class="tipo-pill fx-pill"
-              style="background: var(--c-cat-{{ selected_scene.tipo }}); color: #0E1014; font-weight: 600;">
+        <span class="tipo-pill fx-pill tipo-pill--{{ selected_scene.tipo }}">
           {{ _(selected_scene.tipo|capitalize) }}
         </span>
       {% endif %}
@@ -93,8 +92,7 @@
       <span class="k">{{ _("Type") }}</span>
       <span class="v">
         {% if selected_scene.tipo %}
-          <span class="fx-pill"
-                style="background: var(--c-cat-{{ selected_scene.tipo }}); color: #0E1014; font-weight: 600;">
+          <span class="fx-pill tipo-pill--{{ selected_scene.tipo }}">
             {{ _(selected_scene.tipo|capitalize) }}
           </span>
         {% else %}—{% endif %}
