@@ -53,6 +53,12 @@
 #}
 {%- if selected_scene -%}
 {% from "partials/_icons.html" import icon %}
+{# Honest comment count: this single-user offline app renders only the real
+   moondream-2 description row in the Comments thread (no fabricated curator /
+   viewer authors — see Decision-1 in annotate_comments.html). ``comment_count``
+   from the service inflates by the demo-thread length, so we recompute the
+   count of what is actually rendered. #}
+{% set shown_comment_count = 1 if (selected_scene and selected_scene.description) else 0 %}
 <section class="a-rp">
 
   {# ── Horizontal tabs: Comments · Annotations · Properties ───────────── #}
@@ -65,7 +71,7 @@
             hx-target="#annotate-scene"
             hx-swap="innerHTML">
       {{ icon('comment', 14) }} {{ _("Comments") }}
-      {% if comment_count %}<span class="pip">{{ comment_count }}</span>{% endif %}
+      {% if shown_comment_count %}<span class="pip">{{ shown_comment_count }}</span>{% endif %}
     </button>
     <button type="button"
             class="htab{% if annotate_tab == 'annotations' %} on{% endif %}"
@@ -94,8 +100,8 @@
       <span>{{ _("Scene %(n)s") % {"n": "%03d"|format(selected_scene.scene_id or 0)} }}</span>
       {% if annotate_tab == 'annotations' and existing_tags %}
         <span class="pip">{{ existing_tags|length }} {{ _("tags") }}</span>
-      {% elif annotate_tab == 'comments' and comment_count %}
-        <span class="pip">{{ comment_count }}</span>
+      {% elif annotate_tab == 'comments' and shown_comment_count %}
+        <span class="pip">{{ shown_comment_count }}</span>
       {% endif %}
       {# Legacy prev/next position counter — kept inline so existing tests
          that assert ``annotate-nav__pos`` (and the ``1 / 2`` shape) keep

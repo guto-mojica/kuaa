@@ -62,54 +62,17 @@
    has a stable mount point when "Edit" / "Add description" is clicked. #}
 <div id="annotate-llm-edit"></div>
 
-{# ── Demo curator + viewer thread ────────────────────────────────────────
-   Renders the prototype's Frame.io-style comment stream (pinned curator
-   note with attachments + reactions, viewer reply) as read-only content
-   until the real collaboration backend lands. Gated on
-   ``cfg.collaboration.demo_threads_enabled``. The body uses ``|safe`` —
-   this is intentionally bound to ``_demo_thread()`` output in
-   ``api/services/annotations.py``, whose bodies are static literal Python
-   strings the developer authored. When the v1.1 collaboration backend
-   replaces ``selected_scene.comments`` with user-supplied content, the
-   ``|safe`` filter MUST be removed (or replaced with an HTML sanitizer)
-   — otherwise the curator field becomes an XSS vector. #}
-{% if cfg.collaboration.demo_threads_enabled and selected_scene and selected_scene.comments %}
-  {% for c in selected_scene.comments %}
-    <div class="a-com {{ c.role }}{% if c.badge == 'pinned' %} pinned{% endif %}">
-      <div class="av" aria-hidden="true">{{ c.initials }}</div>
-      <div class="bx">
-        <div class="who">
-          <span class="n">{{ c.author }}</span>
-          {% if c.badge == 'pinned' %}<span class="badge">{{ _('PINNED') }}</span>{% endif %}
-          {% if c.timecode %}<span class="fx-tc">{{ c.timecode }}</span>{% endif %}
-          <span class="when">{{ c.when }}</span>
-        </div>
-        <div class="body">
-{#
-XSS HARDENING GATE: c.body|safe is currently safe because _demo_thread()
-returns static Python literals. Before user-supplied comments land:
-1. Install nh3 (or bleach) for server-side HTML sanitization
-2. Add a Jinja filter that calls nh3.clean(..., tags=ALLOWED_TAGS)
-3. Replace |safe with the sanitizer filter on the line below
-#}
-{{ c.body|safe }}</div>
-        {% if c.attachments %}
-          <div class="attach">
-            {% for a in c.attachments %}
-              <span class="att" data-kind="{{ a.kind }}">{{ a.name }}</span>
-            {% endfor %}
-          </div>
-        {% endif %}
-        {% if c.reactions %}
-          <div class="rx">
-            {% for r in c.reactions %}
-              <span class="rxc"{% if r.count %} data-count="{{ r.count }}"{% endif %}>
-                {{ r.emoji }}{% if r.count %} {{ r.count }}{% endif %}
-              </span>
-            {% endfor %}
-          </div>
-        {% endif %}
-      </div>
-    </div>
-  {% endfor %}
-{% endif %}
+{# ── Manual annotation note (honest, single-user) ────────────────────────
+   This is an offline single-user archive. We deliberately DO NOT render
+   the prototype's fabricated multi-author comment thread (curator + viewer
+   avatars, "fixado"/reaction social chrome). Per the maintainer's
+   Decision-1 (2026-05-28), prototype social affordances with no real
+   backing are not faked here. The moondream-2 description row above is
+   the only honest "comment" — it is a real generated description.
+
+   The ``selected_scene.comments`` demo payload (and its
+   ``cfg.collaboration.demo_threads_enabled`` gate) is intentionally NOT
+   consumed: the comment-bubble / pinned-badge / tag-pill / mono-timecode
+   styling in ``anotar.css`` is preserved so a future real collaboration
+   backend can light up the same visual language without faking authors
+   at launch. #}

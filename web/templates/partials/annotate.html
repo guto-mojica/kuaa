@@ -115,30 +115,17 @@
          role="img"
          aria-label="{{ _('Scene %(n)s keyframe') % {'n': selected_scene.scene_id or 0} }}"
          {% if selected_scene.keyframe_url %}style="background-image: url('{{ selected_scene.keyframe_url }}');"{% endif %}>
+      {# A single neutral annotation pin marks the keyframe. The prototype's
+         floating curator/AI comment popover (.commentpop) is deliberately NOT
+         rendered: it attributes a quote to a fabricated curator, which this
+         single-user offline app must not fake (Decision-1, 2026-05-28). The
+         .commentpop styling in anotar.css is kept for a future real backend. #}
       {% for pin in selected_scene.pins or [] %}
         <span class="pin{% if pin.kind == 'ai' %} alt{% endif %}"
               style="top: {{ pin.top }}; left: {{ pin.left }};">
           {{ pin.label or loop.index }}
         </span>
       {% endfor %}
-      {% if selected_scene.comment_popup %}
-        {% set cp = selected_scene.comment_popup %}
-        <div class="commentpop"
-             style="top: {{ cp.top }}; left: {{ cp.left }};">
-          {% for c in cp.comments or [] %}
-            <div class="com{% if c.is_ai %} ai{% elif c.is_curator %} curator{% endif %}">
-              <span class="av">{{ c.initials }}</span>
-              <div class="bx" style="flex: 1;">
-                <div class="who">
-                  <span class="n">{{ c.author }}</span>
-                  <span class="when">{{ c.when }}</span>
-                </div>
-                <p class="body">{{ c.body }}</p>
-              </div>
-            </div>
-          {% endfor %}
-        </div>
-      {% endif %}
     </div>
   </div>
 
@@ -154,14 +141,15 @@
            aria-valuemin="0" aria-valuemax="100"
            aria-valuenow="{{ selected_scene.progress_pct or 0 }}">
         <div class="progress" style="width: {{ selected_scene.progress_pct or 0 }}%;"></div>
+        {# Neutral position markers only. The prototype's per-user avatar pips
+           (.av-pip, initials of fabricated viewers) are NOT rendered — they
+           imply multiple authors this single-user app does not have
+           (Decision-1). Markers below read as scene-position ticks. #}
         {% for m in selected_scene.markers or [] %}
           <span class="marker{% if m.kind == 'curator' %} curator{% endif %}"
                 style="left: {{ m.pct }}%;">
-            <span class="label">{{ m.label }}</span>
+            {% if m.label %}<span class="label">{{ m.label }}</span>{% endif %}
           </span>
-        {% endfor %}
-        {% for a in selected_scene.timeline_avatars or [] %}
-          <span class="av-pip {{ a.kind }}" style="left: {{ a.pct }}%;">{{ a.initials }}</span>
         {% endfor %}
       </div>
     </div>
@@ -219,7 +207,7 @@
      swap, preserving the id so subsequent swaps still resolve.  #}
 <div id="annotate-scene" class="a-rp-mount">
   {% if all_done %}
-  <p class="annotate-all-done text-muted">{{ _("All scenes have valid LLM descriptions. You can still add manual tags below.") }}</p>
+  <p class="annotate-all-done">{{ _("All scenes have valid LLM descriptions. You can still add manual tags below.") }}</p>
   {% endif %}
   {% include "partials/annotate_scene.html" %}
 </div>
