@@ -98,7 +98,16 @@
   outline: 2px solid var(--c-accent-dim); outline-offset: 1px;
 }
 
-/* GRID */
+/* GRID — matches the prototype's `.b-cp .grid` (theme/buscar.jsx).
+   The prototype's grade-view cards are dense LANDSCAPE strips: the card box
+   stays short (the `.kf` is `background: center/cover`, so a short box shows a
+   centred slice of the keyframe) with the metadata overlaid on the frame and
+   the text `.body` hidden under `overflow: hidden`. `min-height: 0` is what lets
+   the flex-grid track collapse to that dense height — it is REQUIRED, not a bug.
+   A prior pass misread that collapse as a defect and added `align-items: start`,
+   which force-stretched every card to its full content height (~384px),
+   inflating the cards and blowing out the vertical rhythm vs the reference.
+   Reverted: keep `min-height: 0`, drop `align-items` so cards stay dense. */
 .b-cp .grid {
   flex: 1; min-height: 0; overflow-y: auto;
   padding: 18px 24px 20px;
@@ -106,16 +115,6 @@
   grid-template-columns: repeat(auto-fill, minmax(282px, 1fr));
   gap: 16px;
   align-content: start;
-  /* Size each card to its own content instead of stretching it into the
-     grid row. Without this, a grid ``auto`` row containing a flex card whose
-     keyframe carries ``aspect-ratio: 4/3`` resolves into a circular sizing
-     pass that collapses the row height (~117px observed) — the stretched
-     card then clips its own .body (film name, description, tag pills) under
-     ``overflow: hidden``. ``align-items: start`` breaks the cycle so the
-     card grows to fit its content in every view mode (grid / list / compact).
-     The prototype masks the same Chromium quirk only because its keyframes
-     load real images; ours render image-less in the test library. */
-  align-items: start;
 }
 .b-card {
   background: var(--c-panel); border: 1px solid var(--c-border);
