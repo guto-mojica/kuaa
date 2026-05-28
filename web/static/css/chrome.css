@@ -57,41 +57,12 @@
   font-weight: 600; font-family: var(--font-mono); margin-left: 1px;
 }
 
-/* RIGHT cluster */
-.ch-top .r { display: flex; align-items: center; gap: 6px; }
-.ch-top .viewers {
-  display: flex; align-items: center; gap: 0;
-  padding: 3px 7px 3px 5px; border-radius: 16px;
-  background: var(--c-pink-bg);
-  cursor: pointer;
-  margin-right: 4px;
-}
-.ch-top .viewers .stack { display: flex; align-items: center; }
-.ch-top .viewers .av {
-  width: 20px; height: 20px; border-radius: 50%;
-  border: 1.5px solid var(--c-panel);
-  background: var(--c-raised); margin-left: -6px;
-  display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-mono); font-size: 9px; font-weight: 600;
-  color: var(--c-text);
-}
-.ch-top .viewers .av:first-child { margin-left: 0; }
-.ch-top .viewers .av.a1 { background: linear-gradient(135deg, #FF8E72, #C24A2E); color: #fff; }
-.ch-top .viewers .av.a2 { background: linear-gradient(135deg, #8B7BD8, #5C4FA8); color: #fff; }
-.ch-top .viewers .av.a3 { background: linear-gradient(135deg, #5CCB91, #2E8A5D); color: #fff; }
-.ch-top .viewers .c {
-  display: flex; align-items: center; gap: 4px;
-  font-size: 11.5px; font-weight: 600; color: var(--c-pink);
-  padding-left: 6px; font-family: var(--font-mono);
-}
-
-.ch-top .myav {
-  width: 30px; height: 30px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--c-accent), var(--c-pink));
-  display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
-  color: #FFFFFF; cursor: pointer; letter-spacing: 0;
-}
+/* Topbar right cluster (`.r`): the prototype's share button + viewer avatars
+   + notification bell were deliberately dropped for this offline single-user
+   app (see CLAUDE.md Decision 1 / `_topbar.html`). The matching `.ch-top .r`
+   / `.viewers` / `.myav` rules were removed in the Wave-0 pass — they styled
+   markup the template never emits, and keeping them invites a later agent to
+   re-add the faked controls. Do not reintroduce. */
 
 /* ─── BODY LAYOUT ───────────────────────────────────────────────────── */
 .ch-body {
@@ -99,6 +70,24 @@
   flex: 1; min-height: 0; overflow: hidden;
 }
 .ch-main { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+
+/* ─── RIGHT INSPECTOR SHELL ─────────────────────────────────────────────
+   The 380px right column. In the current app each tab renders its own
+   inspector (`.b-rp` / `.c-rp` / `.r-rp`) inside `.ch-main`, so this
+   `.ch-right` grid cell (gated on `has_right_pane` in base.html) is only
+   used when a route opts into the chrome-driven inspector. Styling it here
+   is defensive: any tab that mounts content in `.ch-right` inherits the
+   panel background + left divider and stretches to full height, so the
+   column NEVER reads as a bare void on `--c-bg`. The flex column + child
+   stretch mirrors `.b-rp`/`.c-rp` (which set the same panel bg + border)
+   so a tab can drop its `.*-rp` section straight in and have it fill. */
+.ch-right {
+  border-left: 1px solid var(--c-border);
+  background: var(--c-panel);
+  display: flex; flex-direction: column;
+  min-height: 0; overflow: hidden;
+}
+.ch-right > * { flex: 1; min-height: 0; }
 .ch-body.compact-lp {
   grid-template-columns: 56px 1fr;
 }
@@ -165,6 +154,9 @@
   align-items: center; gap: 7px;
   padding: 5px 12px; cursor: pointer; position: relative;
   font-size: 13px; color: var(--c-text-2);
+  /* Film rows are <a> elements (no-JS film navigation) — strip the default
+     anchor underline so they read like the prototype's plain <div> rows. */
+  text-decoration: none;
 }
 .ch-film:hover { background: var(--c-hover); }
 .ch-film.active { background: var(--c-accent-bg); }
@@ -219,6 +211,9 @@
   align-items: center; gap: 7px;
   padding: 5px 12px; cursor: pointer; position: relative;
   font-size: 13px; color: var(--c-text-2);
+  /* Collection rows are <a> elements — strip default anchor underline to
+     match the prototype's plain rows. */
+  text-decoration: none;
 }
 .ch-coll:hover { background: var(--c-hover); }
 .ch-coll.active { background: var(--c-accent-bg); color: var(--c-accent); }
@@ -330,7 +325,6 @@
   .ch-body.with-right { grid-template-columns: 56px 56px 1fr; }
   .ch-body.compact-lp.with-right { grid-template-columns: 56px 1fr; }
   .ch-right { display: none; }
-  .ch-top .viewers { display: none; }
 }
 
 @media (max-width: 720px) {

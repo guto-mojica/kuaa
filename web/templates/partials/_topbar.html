@@ -19,6 +19,11 @@
       {{ icon('mark', 22) }}
       <span class="n">Mojica</span>
     </a>
+    {# Only emit the divider + breadcrumb when the route actually supplies
+       segments. Routes that don't populate ``breadcrumb`` would otherwise
+       render a dangling 1px divider against empty space — a small dead gap
+       the prototype never shows (its breadcrumb is always populated). #}
+    {% if breadcrumb %}
     <span class="div"></span>
     <nav class="crumb" aria-label="{{ _('Breadcrumb') }}">
       {% for seg in breadcrumb %}
@@ -30,6 +35,7 @@
         {% endif %}
       {% endfor %}
     </nav>
+    {% endif %}
   </div>
 
   <nav class="tabs" aria-label="{{ _('Main tabs') }}">

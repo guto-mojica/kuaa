@@ -1,13 +1,15 @@
 /* ── Fonts ─────────────────────────────────────────────────────────────────────
-   Phase 0 redesign (Mojica/Frame.io): primary type is Geist (sans) +
-   JetBrains Mono (mono), self-hosted under web/static/fonts/geist|jetbrains
-   and declared in fonts.css. IBM Plex stays imported so legacy components
-   still relying on --font-serif (e.g. .tree-node__title) render until those
-   modules are rewritten in later phases. The app makes ZERO font network
-   requests — offline-first contract preserved.
+   Mojica/Frame.io type system: Geist (sans) + JetBrains Mono (mono) only,
+   self-hosted under web/static/fonts/geist|jetbrains and declared in fonts.css.
+   The Mojica prototype uses exactly these two families — no serif anywhere
+   (chrome.jsx / theme.jsx). The earlier IBM Plex Serif `--font-serif` token
+   and its `@import` were retired in the Wave-0 chrome-parity pass: the only
+   consumers were three dead/legacy rules (`.tree-node__title` + two
+   `.modal-title`), now re-pointed at `--font-sans`. Dropping the import
+   removes 17 woff2 face declarations the app no longer references. The app
+   makes ZERO font network requests — offline-first contract preserved.
    ─────────────────────────────────────────────────────────────────────────── */
 @import url('fonts.css');
-@import url('../fonts/ibmplex.css');
 
 /* ── Custom properties ─────────────────────────────────────────────────────── */
 :root {
@@ -79,10 +81,6 @@
     --c-processing:     var(--c-orange);
     --c-processing-bg:  var(--c-orange-bg);
     --c-pending:        var(--c-muted);
-    /* IBM Plex Serif kept as legacy alias for the v0.3 sidebar's
-       .tree-node__title rule (and any other legacy serif use). Retired
-       when those components migrate to the Mojica stack. */
-    --font-serif: 'IBM Plex Serif', Georgia, serif;
 }
 /* ── END Mojica token block ─ component CSS below is legacy v0.3, untouched
    in Task 2 and gets rewritten per-tab in Phases 1–10. ─────────────────── */
@@ -240,7 +238,7 @@ body {
     padding-left: 4px;
 }
 
-.tree-node__title { font-family: var(--font-serif); }
+.tree-node__title { font-family: var(--font-sans); }
 
 .tree-node__count {
     font-size: 0.825rem;
@@ -678,7 +676,7 @@ button.tree-node {
     margin-bottom: 24px;
 }
 .modal-title {
-    font-family: var(--font-serif);
+    font-family: var(--font-sans);
     font-size: 1.25rem;
 }
 
@@ -1264,7 +1262,7 @@ button.tree-node {
 .modal-logo { font-size: 2rem; color: var(--c-accent); }
 
 .modal-title {
-    font-family: var(--font-serif);
+    font-family: var(--font-sans);
     font-size: 1.5rem;
     font-weight: 400;
     color: var(--c-text-primary);

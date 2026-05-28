@@ -159,6 +159,38 @@
 /* ─── SECTION DIVIDER ───────────────────────────────────────────────── */
 .fx-hr { border-top: 1px solid var(--c-border); margin: 8px 0; }
 
+/* ─── EMPTY STATE (shared) ───────────────────────────────────────────────
+   Centered-glyph + muted-copy treatment for any pane that has nothing
+   selected/loaded yet — generalised from Buscar's `.b-rp-empty-inner`
+   (the prototype's inspector empty state). Apply `.fx-empty` to a
+   full-height flex container (it self-centers vertically + horizontally) so
+   the 380px inspector column never reads as a bare void; nest a glyph in
+   `.fx-empty .glyph`, a heading in `.fx-empty .ttl`, and body copy in
+   `.fx-empty .sub`. Tab inspectors (cenas/rimas/anotar) can adopt this so
+   every empty state shares one rhythm; Buscar's existing namespaced rule
+   is left untouched and reads identically. */
+.fx-empty {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 8px; text-align: center;
+  padding: 32px 24px; color: var(--c-muted);
+}
+.fx-empty .glyph {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--c-raised); color: var(--c-muted);
+  margin-bottom: 4px;
+}
+.fx-empty .ttl {
+  margin: 0; font-size: 13.5px; font-weight: 600; color: var(--c-text);
+  letter-spacing: -0.005em;
+}
+.fx-empty .sub {
+  margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--c-muted);
+  max-width: 240px;
+}
+
 /* generic utilities */
 .fx-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .fx-truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
