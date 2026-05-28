@@ -106,6 +106,16 @@
   grid-template-columns: repeat(auto-fill, minmax(282px, 1fr));
   gap: 16px;
   align-content: start;
+  /* Size each card to its own content instead of stretching it into the
+     grid row. Without this, a grid ``auto`` row containing a flex card whose
+     keyframe carries ``aspect-ratio: 4/3`` resolves into a circular sizing
+     pass that collapses the row height (~117px observed) — the stretched
+     card then clips its own .body (film name, description, tag pills) under
+     ``overflow: hidden``. ``align-items: start`` breaks the cycle so the
+     card grows to fit its content in every view mode (grid / list / compact).
+     The prototype masks the same Chromium quirk only because its keyframes
+     load real images; ours render image-less in the test library. */
+  align-items: start;
 }
 .b-card {
   background: var(--c-panel); border: 1px solid var(--c-border);
@@ -563,24 +573,43 @@
 }
 #search-results.view-list .b-card {
   flex-direction: row;
+  /* A row card's height is the taller of its thumbnail and its body. The
+     fixed-height keyframe below gives the flex row a definite cross-size so
+     the grid ``auto`` row can't collapse (the same aspect-ratio circularity
+     the column cards hit). ``stretch`` then lets the body fill that height. */
   align-items: stretch;
+  min-height: 116px;
 }
 #search-results.view-list .b-card .kf {
-  width: 200px;
+  width: 196px;
   flex-shrink: 0;
+  /* Definite height (not ``aspect-ratio: auto``, which has no intrinsic size
+     without a loaded image and lets the row collapse). 16:9-ish thumbnail
+     reads as a list row rather than a hero tile. */
   aspect-ratio: auto;
-  min-height: 120px;
+  height: auto;
+  align-self: stretch;
 }
 #search-results.view-list .b-card .body {
   flex: 1;
   padding: 12px 14px;
+  /* Body owns the row height; centre its stack so short descriptions don't
+     float against the top edge of a taller thumbnail. */
+  justify-content: center;
 }
 
 /* ─── Responsive breakpoints ─────────────────────────────────────────────
    Mojica desktop targets ≥1440px (3-col card grid + 248px left pane +
    380px right pane). Below that the canvas collapses progressively:
 
-     ≤1280px: right pane shrinks to 320px, card grid keeps auto-fill
+     ≤1280px: tighter padding + a lower card min-track so the grid keeps
+              at least two columns instead of collapsing to a single
+              full-width hero card. The 248px sidebar + 380px inspector eat
+              ~684px of chrome, so at this viewport the center pane is only
+              ~400–600px wide; minmax(282px) auto-fill would drop to one
+              column and blow each 4:3 keyframe up to ~280px tall. A 168px
+              floor fits two cards in ~368px of usable pane, matching the
+              prototype's intent that the result grid stays multi-up.
      ≤1024px: caption row wraps; toolbar mode chips compress
      ≤ 720px: card grid drops to a single column; right pane hides; the
               search input loses its trailing ⌘K hint to recover width
@@ -591,7 +620,14 @@
 @media (max-width: 1280px) {
   .b-cp .search-wrap { padding: 14px 18px 10px; }
   .b-cp .caption { padding: 10px 18px; }
-  .b-cp .grid { padding: 14px 18px 18px; gap: 12px; }
+  .b-cp .grid {
+    padding: 14px 18px 18px; gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  }
+  /* Compact (denser) variant floors lower still so it stays ≥2-up too. */
+  #search-results.view-compact {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
   .b-rp .inner { padding: 12px 14px 16px; }
   .b-tl { padding: 8px 18px 10px; }
 }

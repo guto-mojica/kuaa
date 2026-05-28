@@ -39,6 +39,29 @@
 <section class="b-cp"
          x-data="{
            mode: '{{ active_mode }}',
+           {# Caption stats are recomputed from the rendered cards after every
+              HTMX swap of #search-results so the count strip tracks live
+              results instead of the stale server-rendered placeholder. Both
+              numbers are real (counted from data-* on the .b-card nodes the
+              route returns) — no fabricated latency or fake totals. searched
+              flips true on the first non-empty render so the caption stops
+              showing the 'type a query' placeholder. #}
+           hits: 0,
+           filmsHit: 0,
+           searched: {% if query %}true{% else %}false{% endif %},
+           recountResults() {
+             const grid = this.$refs.searchResults;
+             if (!grid) return;
+             const cards = grid.querySelectorAll('.b-card');
+             this.hits = cards.length;
+             const slugs = new Set();
+             cards.forEach((c) => {
+               const s = c.getAttribute('data-film-slug');
+               if (s) slugs.add(s);
+             });
+             this.filmsHit = slugs.size;
+             if (cards.length) this.searched = true;
+           },
            refreshSearch() {
              this.$nextTick(() => {
                const input = this.$refs.searchInput;
@@ -47,7 +70,9 @@
                }
              });
            }
-         }">
+         }"
+         x-init="recountResults()"
+         @htmx:after-swap.window="if ($event.target && $event.target.id === 'search-results') recountResults()">
 
   {# ── Search row: qbar + chips + knobs ─────────────────────────────── #}
   <div class="search-wrap">
@@ -345,22 +370,38 @@
 
   {# ── Caption row: result count + film count + latency + view toggle ── #}
   <div class="caption">
+    {# Live caption stats. The Alpine ``searched`` / ``hits`` / ``filmsHit``
+       state is recomputed from the rendered .b-card nodes after every HTMX
+       swap (see .b-cp x-init / @htmx:after-swap above), so the strip mirrors
+       the prototype's "N cenas em M filmes" line against real results
+       instead of a stale server placeholder. The pre-search and no-result
+       placeholders stay server-rendered for the no-JS / first-paint case. #}
     <div class="left">
-      {% if query %}
+      {# Result count + film count — shown once a search has produced hits.
+         Plural strings only (``results`` / ``films`` already exist in the
+         PT/EN catalogs); the prototype likewise always renders plurals, so no
+         new translation keys are introduced. The film count sits in the muted
+         mono ``.meta`` span, separated by the prototype's ``·`` divider —
+         "9 resultados · 1 filmes" mirrors "9 cenas em 6 filmes" without a new
+         connector key. #}
+      <template x-if="searched && hits > 0">
         <span class="ttl">
-          {% if total %}
-            <b>{{ total }}</b> {{ _("results") }}
-          {% else %}
-            {{ _("No results.") }}
-          {% endif %}
+          <b x-text="hits"></b> {{ _("results") }}
         </span>
+      </template>
+      <template x-if="searched && hits > 0">
         <span class="meta">
-          {% if film_count %}<b>{{ film_count }}</b> {{ _("films") }}{% endif %}
-          {% if latency_ms is not none %}<span>· {{ latency_ms }} ms</span>{% endif %}
+          <span x-show="filmsHit > 0">· <b x-text="filmsHit"></b> {{ _("films") }}</span>
         </span>
-      {% else %}
+      </template>
+      {# No-result placeholder once a query ran but matched nothing. #}
+      <template x-if="searched && hits === 0">
+        <span class="ttl">{{ _("No results.") }}</span>
+      </template>
+      {# Pre-search placeholder (also the no-JS fallback). #}
+      <template x-if="!searched">
         <span class="ttl">{{ _("Type a query to search") }}</span>
-      {% endif %}
+      </template>
     </div>
     {# ── View toggle (Grade / Lista / Compacto). Pure client-side: the
          buttons flip ``$store.buscarView.mode``, which the results
