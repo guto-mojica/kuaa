@@ -221,16 +221,11 @@ def build_chrome_context(
                     active_slugs.add(f.slug)
                     break
             except (OSError, RuntimeError):
-                # ``resolve()`` can fail on non-existent paths under some
-                # filesystems; fall back to bare-name comparison.
                 if jp_name and f.raw_path.name == jp_name:
                     active_slugs.add(f.slug)
                     break
 
-    # ── Total runtime ─────────────────────────────────────────────────
-    # ``Film`` does not (yet) carry a runtime — surface 0 so the footer
-    # renders sensibly; the value becomes real when the Phase-5 ingest
-    # captures container duration into the registry.
+    # ``Film`` does not (yet) carry a runtime — surface 0 for the footer.
     total_runtime_minutes = sum(getattr(f, "runtime_minutes", 0) or 0 for f in films)
 
     collections = _default_collections(

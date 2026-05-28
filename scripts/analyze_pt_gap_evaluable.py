@@ -11,7 +11,6 @@ The published EVALUATION_RESULTS.md headline uses the same n=13 subset.
 from __future__ import annotations
 
 import json
-import statistics
 import sys
 from pathlib import Path
 
