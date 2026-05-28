@@ -100,7 +100,12 @@
 /* Neutralise browser button defaults — every <button> in the app is styled
    by a component rule (.fx-btn, .htab, .chip, etc.). Without this, buttons
    inherit the OS button-face background (white/light gray on most systems)
-   and the 2px outset border. */
+   and the 2px outset border.
+   Implicit contract: font-family / font-size / color all inherit from the
+   parent, so a <button> placed inside a monospace block (e.g. <code>,
+   .fx-mono) or a muted-color block (e.g. .text-muted) will inherit those
+   too. Every component rule that styles a button must set the properties
+   it depends on explicitly. */
 button {
   background: transparent; border: none; font-family: inherit;
   font-size: inherit; color: inherit; cursor: pointer;

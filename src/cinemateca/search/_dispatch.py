@@ -67,6 +67,7 @@ def find(
     bm25_stopwords_lang: str | None = None,
     bm25_k1: float = 1.5,
     bm25_b: float = 0.75,
+    cfg: Any = None,
 ) -> SearchResult:
     """Run a search against a single film.
 
@@ -80,6 +81,12 @@ def find(
     ``bm25_stopwords_lang``, ``bm25_k1``, and ``bm25_b`` tune the BM25
     index.  The defaults (``None / 1.5 / 0.75``) match the prior lazy-
     config fallback path, so existing callers need no changes.
+
+    ``cfg`` is forwarded to :func:`cinemateca.search.cache.load_index`
+    so the registry-configured text encoder (e.g. SigLIP-multilingual,
+    1024-dim) is swapped in for the OpenClip default after a non-default
+    ``models.image_embedder`` is resolved. Omitting ``cfg`` keeps the
+    OpenClip default — correct only when the on-disk index is OpenClip.
     """
     filters = filters or Filters()
     weights = weights or HybridWeights()
@@ -88,6 +95,7 @@ def find(
         film,
         embeddings_filename=_DEFAULT_EMBEDDINGS_FILENAME,
         mapping_filename=_DEFAULT_MAPPING_FILENAME,
+        cfg=cfg,
     )
     if not index.ok:
         return SearchResult(
