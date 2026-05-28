@@ -1,4 +1,4 @@
-"""CLI surface coverage for audio_extract / audio_embed."""
+"""CLI surface coverage for audio_extract / audio_transcribe / audio_embed."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ from cinemateca.__main__ import _resolve_steps, app
 
 
 def test_resolve_steps_accepts_audio_names():
-    out = _resolve_steps("audio_extract,audio_embed")
-    assert out == {"audio_extract", "audio_embed"}
+    out = _resolve_steps("audio_extract,audio_transcribe,audio_embed")
+    assert out == {"audio_extract", "audio_transcribe", "audio_embed"}
 
 
 def test_resolve_steps_accepts_mixed_with_legacy_aliases():
@@ -30,4 +30,5 @@ def test_library_reembed_help_lists_audio_steps():
     res = runner.invoke(app, ["library", "reembed", "--help"])
     assert res.exit_code == 0
     assert "audio_extract" in res.output
+    assert "audio_transcribe" in res.output
     assert "audio_embed" in res.output

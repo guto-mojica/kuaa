@@ -1,10 +1,11 @@
 """BM25 loader for a single film's metadata directory.
 
 Caches a :class:`cinemateca.retrieval.bm25.BM25Index` per film, keyed by
-the ``(mtime_ns, size)`` stamp of the three on-disk source files
+the ``(mtime_ns, size)`` stamp of the on-disk source files
 (``scene_descriptions.json``, ``scene_tags.json``,
-``manual_annotations.json``). Any write to any of the three invalidates
-the entry transparently.
+``manual_annotations.json``, and optionally
+``audio/scene_transcripts.json``). Any write to any indexed source
+invalidates the entry transparently.
 
 Public verbs:
 
@@ -74,20 +75,23 @@ def _cached_bm25_index(
     descriptions_stamp: tuple[int, int],
     scene_tags_stamp: tuple[int, int],
     manual_annotations_stamp: tuple[int, int],
+    transcripts_stamp: tuple[int, int],
+    include_transcripts: bool,
     stopwords_lang: str | None,
     k1: float,
     b: float,
 ) -> BM25Index:
     """Build a BM25 index for the given (already-stamped) metadata dir.
 
-    The three stamp tuples form the cache key: any write to any of the
-    three source files bumps either mtime or size, forcing a rebuild.
-    The path string is in the key too so two films don't collide.
+    The stamp tuples form the cache key: any write to any source file
+    bumps either mtime or size, forcing a rebuild. The path string is
+    in the key too so two films don't collide.
 
     Source files (all under ``metadata_dir``):
       * ``scene_descriptions.json`` — Moondream output (list of dicts).
       * ``scene_tags.json`` — LLM-tag output (INT scene_id keys).
       * ``manual_annotations.json`` — manual tags (STR scene_id keys).
+      * ``../audio/scene_transcripts.json`` — Whisper text (optional).
 
     Tag merge semantics come from :func:`cinemateca.search._tag_index.load_tag_index`
     (the shared loader — single source of truth for scene_id
@@ -107,9 +111,19 @@ def _cached_bm25_index(
     # shape the old api.services.catalog.load_tag_index produced.
     tag_index = load_tag_index(md) or {}
 
+    transcripts: list[dict] = []
+    transcripts_path = md.parent / "audio" / "scene_transcripts.json"
+    if include_transcripts and transcripts_path.exists():
+        try:
+            data = json.loads(transcripts_path.read_text(encoding="utf-8"))
+            transcripts = data if isinstance(data, list) else []
+        except json.JSONDecodeError:
+            logger.warning("BM25: malformed %s; using empty transcripts", transcripts_path)
+
     return BM25Index.build(
         descriptions=descriptions,
         tag_index=tag_index,
+        transcripts=transcripts,
         stopwords_lang=stopwords_lang,
         k1=k1,
         b=b,
@@ -122,19 +136,23 @@ def bm25_index_for_dir(
     stopwords_lang: str | None,
     k1: float,
     b: float,
+    include_transcripts: bool = True,
 ) -> BM25Index:
     """Load (cached) BM25 index for a metadata directory.
 
     The cache key includes the three file stamps so any write
-    invalidates. ``stopwords_lang`` / ``k1`` / ``b`` participate in the
-    cache key too, so a config change reloads correctly without a
-    manual flush.
+    invalidates. ``stopwords_lang`` / ``k1`` / ``b`` /
+    ``include_transcripts`` participate in the cache key too, so a
+    config change reloads correctly without a manual flush.
     """
+    transcripts_path = metadata_dir.parent / "audio" / "scene_transcripts.json"
     return _cached_bm25_index(
         str(metadata_dir),
         _file_stamp(metadata_dir / "scene_descriptions.json"),
         _file_stamp(metadata_dir / "scene_tags.json"),
         _file_stamp(metadata_dir / "manual_annotations.json"),
+        _file_stamp(transcripts_path) if include_transcripts else (0, 0),
+        include_transcripts,
         stopwords_lang,
         k1,
         b,
@@ -147,6 +165,7 @@ def bm25_index_for_ctx(
     stopwords_lang: str | None,
     k1: float,
     b: float,
+    include_transcripts: bool = True,
 ) -> BM25Index:
     """Load BM25 index for a film context (duck-typed).
 
@@ -160,6 +179,7 @@ def bm25_index_for_ctx(
         stopwords_lang=stopwords_lang,
         k1=k1,
         b=b,
+        include_transcripts=include_transcripts,
     )
 
 

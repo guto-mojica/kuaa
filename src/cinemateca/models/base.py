@@ -11,7 +11,7 @@ from a concrete backend.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Protocol, runtime_checkable
+from typing import Protocol, TypedDict, runtime_checkable
 
 import numpy as np
 import pandas as pd
@@ -109,4 +109,39 @@ class AudioEmbedder(Protocol):
 
     def encode_audio_single(self, wav_path: str | Path) -> np.ndarray:
         """Returns (D,) float32 vector for one WAV (audio-by-audio search)."""
+        ...
+
+
+class TranscriptionSegment(TypedDict):
+    """One time-aligned text segment from a transcription pass."""
+
+    start: float
+    end: float
+    text: str
+
+
+class TranscriptionResult(TypedDict):
+    """Full transcription output for a single audio file.
+
+    Backends MUST return this shape even for silent / no-speech input —
+    use ``{"text": "", "language": None, "language_probability": 0.0,
+    "segments": []}`` rather than raising.
+    """
+
+    text: str
+    language: str | None
+    language_probability: float
+    segments: list[TranscriptionSegment]
+
+
+@runtime_checkable
+class Transcriber(Protocol):
+    """Transcribes a single audio waveform into text + segments."""
+
+    def transcribe(self, wav_path: str | Path) -> TranscriptionResult:
+        """Returns a :data:`TranscriptionResult` dict.
+
+        Backends MUST NOT raise on a silent / no-speech WAV; return the
+        empty result shape instead.
+        """
         ...

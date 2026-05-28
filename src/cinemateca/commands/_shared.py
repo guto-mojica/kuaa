@@ -18,6 +18,7 @@ _STEP_FULL_NAMES: tuple[str, ...] = (
     "embeddings",
     "llm_description",
     "audio_extract",
+    "audio_transcribe",
     "audio_embed",
 )
 

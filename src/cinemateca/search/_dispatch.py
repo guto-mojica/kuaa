@@ -67,6 +67,7 @@ def find(
     bm25_stopwords_lang: str | None = None,
     bm25_k1: float = 1.5,
     bm25_b: float = 0.75,
+    bm25_include_transcripts: bool = True,
     cfg: Any = None,
 ) -> SearchResult:
     """Run a search against a single film.
@@ -120,6 +121,7 @@ def find(
         bm25_stopwords_lang=bm25_stopwords_lang,
         bm25_k1=bm25_k1,
         bm25_b=bm25_b,
+        bm25_include_transcripts=bm25_include_transcripts,
     )
 
     df = search_hybrid(
@@ -157,6 +159,7 @@ def _load_bm25_for_mode(
     bm25_stopwords_lang: str | None = None,
     bm25_k1: float = 1.5,
     bm25_b: float = 0.75,
+    bm25_include_transcripts: bool = True,
 ):
     """Build the BM25 index for the film, or ``None`` for clip mode.
 
@@ -173,6 +176,7 @@ def _load_bm25_for_mode(
         stopwords_lang=bm25_stopwords_lang,
         k1=bm25_k1,
         b=bm25_b,
+        include_transcripts=bm25_include_transcripts,
     )
 
 

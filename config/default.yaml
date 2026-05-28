@@ -112,6 +112,20 @@ audio_embeddings:
   filename: "clap_embeddings.npy"
   mapping_filename: "audio_mapping.json"
 
+# ── Transcriber ──────────────────────────────────────────────────────────
+transcriber:
+  # Systran/faster-whisper-medium: ~1.5 GB, multilingual, MIT-licensed.
+  # First call to audio_transcribe downloads the model into the HF cache.
+  model_id: "Systran/faster-whisper-medium"
+  # "auto" resolves to float16 on CUDA / int8 on CPU.
+  compute_type: "auto"
+  # null = auto-detect language per scene. Set to "pt"/"en" to hardcode.
+  language: null
+  beam_size: 5
+  # VAD filter trims long archival silence to avoid hallucinated filler.
+  vad_filter: true
+  vad_min_silence_duration_ms: 500
+
 # ── Search UI / retrieval knobs (Mojica redesign) ────────────────────────────
 # Controls surfaced in the Buscar tab's `.knob` row and modality chips.
 # Hybrid, audio, image, fusion, and text rerank are live in the current branch.
@@ -130,6 +144,7 @@ search:
     b: 0.75                    # length normalisation
     stopwords_lang: null       # null = no stopword removal
     rrf_k: 60                  # RRF rank-shift constant (Cormack et al.)
+    include_transcripts: true   # M4 ablation flag
   rerank_enabled: false       # Default UI state for the Buscar Rerank toggle.
   mmr_lambda: 0.5             # Legacy Search config; Rimas uses retrieval.rhymes.
   # Modality gates (each toggles its chip on/off in the Buscar tab).
@@ -234,6 +249,9 @@ models:
   # Default keyless, offline CLAP via HF transformers. Lazy load on first
   # use; ~1.7 GB weights cached under HF_HOME on first encode.
   audio_embedder: clap_hf                  # clap_hf
+  # faster-whisper (CTranslate2) transcriber. Lazy load on first transcribe;
+  # ~1.5 GB weights cached under HF_HOME on first call.
+  transcriber: faster_whisper_hf           # faster_whisper_hf
 
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 pipeline:
@@ -244,9 +262,10 @@ pipeline:
     visual_analysis: true
     embeddings: true
     llm_description: true
-    # New audio steps — opt-in via CLI ``--steps audio_extract,audio_embed``
+    # New audio steps — opt-in via CLI ``--steps audio_extract,audio_transcribe,audio_embed``
     # until M2 audio-search work lands; then this defaults flip to true.
     audio_extract: false
+    audio_transcribe: false
     audio_embed: false
   # Comportamento
   skip_existing: true       # pular etapas se outputs já existirem

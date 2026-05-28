@@ -2,7 +2,8 @@
 
 Wraps ``rank_bm25.BM25Okapi`` with:
   * a ``build`` classmethod that accepts already-loaded
-    ``descriptions`` + ``tag_index`` and constructs the BM25 model.
+    ``descriptions`` + optional ``transcripts`` + ``tag_index`` and
+    constructs the BM25 model.
   * a ``query`` method that returns ``[(scene_id, score), …]``
     instead of raw doc-index integers.
 
@@ -49,11 +50,17 @@ class BM25Index:
         *,
         descriptions: Sequence[dict],
         tag_index: dict[str, Sequence[int]],
+        transcripts: Sequence[dict] | None = None,
         stopwords_lang: str | None = None,
         k1: float = 1.5,
         b: float = 0.75,
     ) -> BM25Index:
-        docs = build_corpus(descriptions, tag_index, stopwords_lang=stopwords_lang)
+        docs = build_corpus(
+            descriptions,
+            tag_index,
+            transcripts=transcripts,
+            stopwords_lang=stopwords_lang,
+        )
         if not docs:
             return cls(scene_ids=[], model=None, stopwords_lang=stopwords_lang)
         scene_ids = [sid for sid, _ in docs]

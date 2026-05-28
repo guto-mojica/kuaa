@@ -58,6 +58,22 @@ def test_missing_tags_uses_description_only() -> None:
     assert by_sid[0] == ["menina", "chorando"]
 
 
+def test_transcripts_are_indexed_with_descriptions_and_tags() -> None:
+    docs = build_corpus(
+        _descriptions([(0, "menina chorando"), (1, "")]),
+        tag_index={"exterior": [0]},
+        transcripts=[
+            {"scene_id": 0, "text": "fala sobre chuva"},
+            {"scene_id": 1, "text": "radio telegrama"},
+        ],
+    )
+    by_sid = dict(docs)
+    assert "menina" in by_sid[0]
+    assert "fala" in by_sid[0]
+    assert "exterior" in by_sid[0]
+    assert by_sid[1] == ["radio", "telegrama"]
+
+
 def test_both_missing_emits_no_doc_for_that_scene() -> None:
     docs = build_corpus(_descriptions([]), tag_index={})
     assert docs == []

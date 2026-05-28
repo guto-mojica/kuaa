@@ -60,6 +60,26 @@ class FilmContext:
     frames_dir: Path
     embeddings_dir: Path
 
+    @property
+    def audio_dir(self) -> Path:
+        """Directory of per-film audio artefacts (CLAP + transcripts).
+
+        Sibling of ``metadata_dir`` under the film root
+        (``<film_dir>/audio``). Created on demand by the audio/transcribe
+        pipeline steps; this property only computes the path.
+        """
+        return self.metadata_dir.parent / "audio"
+
+    @property
+    def transcripts_path(self) -> Path:
+        """JSON file holding per-scene Whisper transcripts."""
+        return self.audio_dir / "scene_transcripts.json"
+
+    @property
+    def audio_segments_dir(self) -> Path:
+        """Directory of per-scene extracted WAV segments fed to Whisper/CLAP."""
+        return self.audio_dir / "segments"
+
     @classmethod
     def from_config(cls, cfg: Any) -> FilmContext:
         """Build the global/flat context from a loaded ``Config``.

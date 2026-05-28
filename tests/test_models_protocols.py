@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import types
 
 import numpy as np
@@ -15,6 +16,7 @@ def test_base_protocols_exist_and_are_runtime_checkable():
         ImageEmbedder,
         ObjectDetector,
         SceneDescriber,
+        Transcriber,
     )
 
     for proto in (
@@ -24,6 +26,7 @@ def test_base_protocols_exist_and_are_runtime_checkable():
         SceneDescriber,
         EnvironmentClassifier,
         AudioEmbedder,
+        Transcriber,
     ):
         assert getattr(proto, "_is_runtime_protocol", False), proto
 
@@ -259,6 +262,7 @@ def _full_cfg(**model_overrides):
         scene_describer="moondream_gguf",
         environment_classifier="opencv_heuristic",
         audio_embedder="clap_hf",
+        transcriber="faster_whisper_hf",
     )
     for k, v in model_overrides.items():
         setattr(models, k, v)
@@ -270,6 +274,14 @@ def _full_cfg(**model_overrides):
             batch_size=8,
             chunk_seconds=10.0,
             sample_rate=48000,
+        ),
+        transcriber=sn(
+            model_id="Systran/faster-whisper-medium",
+            compute_type="auto",
+            language=None,
+            beam_size=5,
+            vad_filter=True,
+            vad_min_silence_duration_ms=500,
         ),
         visual_analysis=sn(
             face_detection=sn(enabled=True, min_face_size=20, thresholds=[0.6, 0.7, 0.7]),
@@ -285,7 +297,9 @@ def _full_cfg(**model_overrides):
     )
 
 
-def test_registry_returns_correct_types():
+def test_registry_returns_correct_types(monkeypatch):
+    monkeypatch.setitem(sys.modules, "soundfile", types.SimpleNamespace())
+
     from cinemateca.models import registry
     from cinemateca.models.base import (
         AudioEmbedder,
@@ -294,6 +308,7 @@ def test_registry_returns_correct_types():
         ImageEmbedder,
         ObjectDetector,
         SceneDescriber,
+        Transcriber,
     )
 
     cfg = _full_cfg()
@@ -303,6 +318,7 @@ def test_registry_returns_correct_types():
     assert isinstance(registry.get_scene_describer(cfg), SceneDescriber)
     assert isinstance(registry.get_environment_classifier(cfg), EnvironmentClassifier)
     assert isinstance(registry.get_audio_embedder(cfg), AudioEmbedder)
+    assert isinstance(registry.get_transcriber(cfg), Transcriber)
 
 
 def test_registry_unknown_name_raises():
@@ -323,3 +339,13 @@ def test_registry_unknown_audio_embedder_raises():
     cfg = _full_cfg(audio_embedder="nope")
     with pytest.raises(ValueError):
         registry.get_audio_embedder(cfg)
+
+
+def test_registry_unknown_transcriber_raises():
+    import pytest
+
+    from cinemateca.models import registry
+
+    cfg = _full_cfg(transcriber="nope")
+    with pytest.raises(ValueError):
+        registry.get_transcriber(cfg)
