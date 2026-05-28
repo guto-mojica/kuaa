@@ -420,7 +420,9 @@
    (buscar.css). */
 .a-thread .props {
   display: grid; grid-template-columns: 90px 1fr;
-  gap: 7px 12px; font-size: 12px;
+  gap: 7px 12px; margin-top: 18px;
+  padding-top: 14px; border-top: 1px solid var(--c-border);
+  font-size: 12px;
 }
 .a-thread .props .k { color: var(--c-muted); }
 .a-thread .props .v { color: var(--c-text); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }

@@ -3,42 +3,43 @@
    ``annotate_tab == "properties"``. Same .props grid pattern as the
    Cenas and Buscar inspectors — kept duplicate here intentionally so the
    Anotar surface can evolve its property set without touching the other
-   inspectors.
+   inspectors. Markup is a semantic <dl>/<dt class="k">/<dd class="v">
+   so screen readers announce each row as a term/definition pair.
 #}
-<div class="props">
+<dl class="props">
 
   {% if selected_scene.timecode %}
-    <span class="k">{{ _("Timecode") }}</span>
-    <span class="v mono">{{ selected_scene.timecode }}</span>
+    <dt class="k">{{ _("Timecode") }}</dt>
+    <dd class="v mono">{{ selected_scene.timecode }}</dd>
   {% endif %}
 
   {% if selected_scene.duration_s and selected_scene.duration_s > 0 %}
-    <span class="k">{{ _("Duration") }}</span>
-    <span class="v mono">{{ "%.1f"|format(selected_scene.duration_s) }} s</span>
+    <dt class="k">{{ _("Duration") }}</dt>
+    <dd class="v mono">{{ "%.1f"|format(selected_scene.duration_s) }} s</dd>
   {% endif %}
 
-  <span class="k">{{ _("Scene ID") }}</span>
-  <span class="v mono">{{ selected_scene.scene_id }}</span>
+  <dt class="k">{{ _("Scene ID") }}</dt>
+  <dd class="v mono">{{ selected_scene.scene_id }}</dd>
 
   {% if total %}
-    <span class="k">{{ _("Position") }}</span>
-    <span class="v mono">{{ (current_idx + 1) }} / {{ total }}</span>
+    <dt class="k">{{ _("Position") }}</dt>
+    <dd class="v mono">{{ (current_idx + 1) }} / {{ total }}</dd>
   {% endif %}
 
   {% if selected_film %}
-    <span class="k">{{ _("Film") }}</span>
-    <span class="v">{{ selected_film.title }}</span>
+    <dt class="k">{{ _("Film") }}</dt>
+    <dd class="v">{{ selected_film.title }}</dd>
     {% if selected_film.year %}
-      <span class="k">{{ _("Year") }}</span>
-      <span class="v mono">{{ selected_film.year }}</span>
+      <dt class="k">{{ _("Year") }}</dt>
+      <dd class="v mono">{{ selected_film.year }}</dd>
     {% endif %}
   {% elif selected_scene.film_slug %}
-    <span class="k">{{ _("Film") }}</span>
-    <span class="v">{{ selected_scene.film_slug }}</span>
+    <dt class="k">{{ _("Film") }}</dt>
+    <dd class="v">{{ selected_scene.film_slug }}</dd>
   {% endif %}
 
-  <span class="k">{{ _("Tags") }}</span>
-  <span class="v">
+  <dt class="k">{{ _("Tags") }}</dt>
+  <dd class="v">
     {% if existing_tags %}
       {% for t in existing_tags %}
         <span class="fx-pill">{{ t }}</span>
@@ -46,23 +47,23 @@
     {% else %}
       <span class="text-muted">{{ _("No manual tags yet.") }}</span>
     {% endif %}
-  </span>
+  </dd>
 
   {% if llm and llm.tags %}
-    <span class="k">{{ _("LLM tags") }}</span>
-    <span class="v">
+    <dt class="k">{{ _("LLM tags") }}</dt>
+    <dd class="v">
       {% for t in llm.tags %}
         <span class="fx-pill">{{ t }}</span>
       {% endfor %}
-    </span>
+    </dd>
   {% endif %}
 
-  <span class="k">{{ _("Status") }}</span>
-  <span class="v">
+  <dt class="k">{{ _("Status") }}</dt>
+  <dd class="v">
     <span class="fx-pill green">
       <span class="dot"></span>
       {{ _("indexed") }}
     </span>
-  </span>
+  </dd>
 
-</div>
+</dl>

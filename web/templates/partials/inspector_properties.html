@@ -1,52 +1,54 @@
 {# ── Inspector · Properties tab ───────────────────────────────────────────
-   Grid of key-value pairs for the selected scene. Uses the same .props grid
-   pattern as the Cenas inspector (.c-rp .props in cenas.css), scoped under
-   .b-rp .inner .props so both layouts share the same visual contract.
+   Definition-list of scene + film metadata. Uses the .b-rp .props grid
+   (buscar.css) — `display: grid; grid-template-columns: 90px 1fr` pairs
+   each <dt class="k"> (col 1) with its <dd class="v"> (col 2) row by row.
+   Keeping the semantic <dl>/<dt>/<dd> markup so screen readers announce
+   each row as a term/definition pair.
 
    Every row is conditionally rendered — values that are absent or zero
    are skipped rather than shown blank, so the tab stays compact for
    sparsely-described scenes.
 #}
-<div class="props">
+<dl class="props">
 
   {% if selected_scene.timecode %}
-    <span class="k">{{ _("Timecode") }}</span>
-    <span class="v mono">{{ selected_scene.timecode }}</span>
+    <dt class="k">{{ _("Timecode") }}</dt>
+    <dd class="v mono">{{ selected_scene.timecode }}</dd>
   {% endif %}
 
   {% if selected_scene.scene_total %}
-    <span class="k">{{ _("Scene") }}</span>
-    <span class="v mono">{{ selected_scene.scene_index }} / {{ selected_scene.scene_total }}</span>
+    <dt class="k">{{ _("Scene") }}</dt>
+    <dd class="v mono">{{ selected_scene.scene_index }} / {{ selected_scene.scene_total }}</dd>
   {% endif %}
 
   {% if selected_scene.duration_s and selected_scene.duration_s > 0 %}
-    <span class="k">{{ _("Duration") }}</span>
-    <span class="v mono">{{ "%.1f"|format(selected_scene.duration_s) }} s</span>
+    <dt class="k">{{ _("Duration") }}</dt>
+    <dd class="v mono">{{ "%.1f"|format(selected_scene.duration_s) }} s</dd>
   {% endif %}
 
-  <span class="k">{{ _("Scene ID") }}</span>
-  <span class="v mono">{{ selected_scene.scene_id }}</span>
+  <dt class="k">{{ _("Scene ID") }}</dt>
+  <dd class="v mono">{{ selected_scene.scene_id }}</dd>
 
-  <span class="k">{{ _("Film") }}</span>
-  <span class="v">{% if selected_film %}{{ selected_film.title }}{% else %}{{ selected_scene.film_slug or "" }}{% endif %}</span>
+  <dt class="k">{{ _("Film") }}</dt>
+  <dd class="v">{% if selected_film %}{{ selected_film.title }}{% else %}{{ selected_scene.film_slug or "" }}{% endif %}</dd>
 
   {% if selected_film and selected_film.year %}
-    <span class="k">{{ _("Year") }}</span>
-    <span class="v mono">{{ selected_film.year }}</span>
+    <dt class="k">{{ _("Year") }}</dt>
+    <dd class="v mono">{{ selected_film.year }}</dd>
   {% endif %}
 
   {% if selected_film and selected_film.director %}
-    <span class="k">{{ _("Director") }}</span>
-    <span class="v">{{ selected_film.director }}</span>
+    <dt class="k">{{ _("Director") }}</dt>
+    <dd class="v">{{ selected_film.director }}</dd>
   {% endif %}
 
   {% if selected_scene.tags %}
-    <span class="k">{{ _("Tags") }}</span>
-    <span class="v">
+    <dt class="k">{{ _("Tags") }}</dt>
+    <dd class="v">
       {% for t in selected_scene.tags %}
         <span class="fx-pill">{{ t }}</span>
       {% endfor %}
-    </span>
+    </dd>
   {% endif %}
 
-</div>
+</dl>
