@@ -399,8 +399,7 @@ def aggregate_search(
         else _DEFAULT_EMBEDDINGS_FILENAME
     )
     if not any(
-        (FilmContext.for_film(cfg, f.slug).embeddings_dir / _emb_fn).is_file()
-        for f in films
+        (FilmContext.for_film(cfg, f.slug).embeddings_dir / _emb_fn).is_file() for f in films
     ):
         return []
 

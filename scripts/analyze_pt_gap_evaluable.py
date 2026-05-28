@@ -8,6 +8,7 @@ retriever scores 0 on them — they only dilute the aggregate.
 
 The published EVALUATION_RESULTS.md headline uses the same n=13 subset.
 """
+
 from __future__ import annotations
 
 import json
@@ -81,7 +82,9 @@ def main(argv):
             else:
                 print(f"| {ret} | {mk} | {en_v:.3f} | {pt_v:.3f} | {sign}{abs(d):.3f} |")
     print()
-    print(f"Queries counted: clip={en['clip']['n']}, bm25={en['bm25']['n']}, hybrid={en['hybrid']['n']}")
+    print(
+        f"Queries counted: clip={en['clip']['n']}, bm25={en['bm25']['n']}, hybrid={en['hybrid']['n']}"
+    )
     return 0
 
 
