@@ -39,7 +39,7 @@
           {% set film_count = echoes|map(attribute='film_slug')|unique|list|length %}
           <span class="ct"><b>{{ echoes|length }}</b> {{ _('rhymes in') }} <b>{{ film_count }}</b> {{ _('films') }}</span>
         {% else %}
-          <span class="ct">{{ _('Pick an anchor scene to discover cross-film visual echoes.') }}</span>
+          <span class="ct ct-empty">{{ _('No anchor selected') }}</span>
         {% endif %}
       </div>
       <div class="r">
@@ -170,18 +170,26 @@
         {% include "partials/rimas_echoes.html" %}
 
       {% else %}
-        {# Empty state: no anchor selected or no processed films. #}
+        {# Empty state: no anchor selected or no processed films.
+           Uses the shared .fx-empty primitive (centered glyph + .ttl + .sub)
+           so the main panel reads as an intentional empty state, not a void —
+           matching the prototype's empty-pane treatment and the rest of the
+           tab inspectors. #}
         {% if library_has_scenes %}
-          <div class="empty-state" style="padding: 40px 24px; display: flex; flex-direction: column; gap: 10px;">
-            <p style="font-size: 14px; font-weight: 600; color: var(--c-text);">{{ _('No anchor selected') }}</p>
-            <p style="font-size: 12.5px; color: var(--c-muted); line-height: 1.55;">
+          <div class="fx-empty r-empty">
+            <span class="glyph">{{ icon('rhymes', 22) }}</span>
+            <p class="ttl">{{ _('No anchor selected') }}</p>
+            <p class="sub">
               {{ _('Open a scene in the Scenes tab and click') }}
-              <span style="font-family: var(--font-mono); font-size: 11.5px; color: var(--c-text-2);">{{ _('Find visual rhymes') }}</span>
+              <span class="fx-mono">{{ _('Find visual rhymes') }}</span>
               {{ _('to explore cross-film visual echoes.') }}
             </p>
           </div>
         {% else %}
-          <p class="empty-state" style="padding: 40px 24px;">{{ _('No processed films yet — run the embeddings pipeline to enable Rimas Visuais.') }}</p>
+          <div class="fx-empty r-empty">
+            <span class="glyph">{{ icon('rhymes', 22) }}</span>
+            <p class="ttl">{{ _('No processed films yet — run the embeddings pipeline to enable Rimas Visuais.') }}</p>
+          </div>
         {% endif %}
         {# Keep the swap target present so anchor-switch HTMX calls always resolve. #}
         <div id="rimas-echoes" class="r-grid" style="display:none;"></div>

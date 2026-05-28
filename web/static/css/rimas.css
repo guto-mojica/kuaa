@@ -34,17 +34,23 @@
   display: flex; align-items: center; gap: 10px;
   font-size: 16px; font-weight: 600; color: var(--c-text);
   letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 .r-cp .topbar .l .h .ic {
   width: 26px; height: 26px; border-radius: 6px;
   background: var(--c-accent-bg); color: var(--c-accent);
   display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
 }
 .r-cp .topbar .l .ct {
   font-family: var(--font-mono); font-size: 11.5px; color: var(--c-muted);
   padding: 2px 8px; background: var(--c-raised); border-radius: 9px;
 }
 .r-cp .topbar .l .ct b { color: var(--c-accent); font-weight: 600; }
+/* Empty-state count pill: a muted status label (not a live count), so it does
+   not steal width from / wrap the "Rimas visuais" title the way the long
+   sentence used to. Mirrors the prototype's short .ct chip footprint. */
+.r-cp .topbar .l .ct.ct-empty { color: var(--c-faint); white-space: nowrap; }
 .r-cp .topbar .r { display: flex; align-items: center; gap: 8px; }
 
 .r-cp .controls {
@@ -81,6 +87,27 @@
 /* SCROLL */
 .r-cp .scroll {
   flex: 1; min-height: 0; overflow-y: auto;
+}
+
+/* EMPTY STATE — adopt the shared .fx-empty primitive (centered 44px glyph +
+   .ttl + .sub). The .fx-empty is `flex:1` and self-centers, so its parent must
+   be a flex column for the vertical centering to take. Scope the flex switch to
+   parents that actually hold an empty state (:has) so the populated anchor+grid
+   layout in .scroll is untouched. The .glyph svg inherits currentColor so it
+   reads as the muted accent-less glyph the prototype uses for empty panes. */
+.r-cp .scroll:has(> .fx-empty),
+.r-rp-inner:has(> .fx-empty) {
+  display: flex; flex-direction: column;
+}
+.r-cp .scroll > .fx-empty.r-empty {
+  /* the main-panel empty state pulls slightly up from dead-center so it sits
+     in the optical centre below the tall controls row, matching the prototype */
+  padding-bottom: 64px;
+}
+.r-cp .scroll > .fx-empty .glyph svg,
+.r-rp-inner > .fx-empty .glyph svg { width: 22px; height: 22px; }
+.r-cp .scroll > .fx-empty .sub .fx-mono {
+  font-size: 11.5px; color: var(--c-text-2);
 }
 
 /* ANCHOR SECTION */

@@ -137,6 +137,16 @@
       {% endif %}
     </div>
   {% else %}
-    <p class="empty-state">{{ _('No anchor selected.') }}</p>
+    {# No anchor: give the 380px right pane the shared centered-glyph empty
+       treatment so it never reads as a bare void (Wave 0 handoff item). #}
+    <div class="fx-empty">
+      <span class="glyph">{{ icon('rhymes', 22) }}</span>
+      <p class="ttl">{{ _('No anchor selected') }}</p>
+      <p class="sub">
+        {{ _('Open a scene in the Scenes tab and click') }}
+        <span class="fx-mono">{{ _('Find visual rhymes') }}</span>
+        {{ _('to explore cross-film visual echoes.') }}
+      </p>
+    </div>
   {% endif %}
 </div>
