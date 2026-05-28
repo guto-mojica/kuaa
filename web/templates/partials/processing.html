@@ -177,12 +177,17 @@
           </label>
         </div>
       </div>
+      {#- No whitespace between the opening tag and the loop output: an
+          empty ``initial_log_lines`` must leave ``.lines`` truly empty so
+          ``.p-log .lines:empty::before`` paints the localized placeholder.
+          Jinja ``-%}`` trimming keeps the element collapsed when there is
+          no buffered history. -#}
       <div class="lines"
            data-empty-text="{{ _('Waiting for events…') }}"
            {% if jobs %}sse-swap="log" hx-swap="beforeend"{% endif %}>
-        {% for line in initial_log_lines %}
+        {%- for line in initial_log_lines -%}
           {% include "partials/processing_log_line.html" %}
-        {% endfor %}
+        {%- endfor -%}
       </div>
     </div>
 
@@ -198,9 +203,20 @@
     a running job *and* the substep context has been populated by the
     route. When the right pane stays empty, base.html's .ch-rp wrapper
     still mounts but is visually neutral. -#}
-<aside class="p-rp" id="right-pane">
+<aside class="p-rp{% if not active_step %} p-rp--empty{% endif %}" id="right-pane">
   {% if active_step %}
     {% include "partials/processing_substeps.html" %}
+  {% else %}
+    {#- Honest empty state (Decision 1: do NOT fake a running step). When
+        no job is active, the substep / resource panel has nothing real to
+        show, so the column collapses to zero width (proc.css
+        ``.p-rp--empty``) and the centre pane reclaims the space. This
+        markup only paints if the column is force-shown by a wider chrome
+        rule. -#}
+    <div class="p-rp__empty">
+      <span class="p-rp__empty-glyph">{{ icon('proc', 22) }}</span>
+      <p class="p-rp__empty-text">{{ _("Step detail appears here while a film is processing.") }}</p>
+    </div>
   {% endif %}
 </aside>
 

@@ -36,11 +36,50 @@
   padding: 16px 24px; border-bottom: 1px solid var(--c-border);
 }
 .p-top .row1 {
-  display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px 18px; flex-wrap: wrap;
 }
 .p-top h1 {
   margin: 0; display: flex; align-items: center; gap: 12px;
   font-size: 18px; font-weight: 600; color: var(--c-text); letter-spacing: -0.012em;
+  flex-shrink: 0;
+}
+
+/* ── Launch controls layout (app-only; the prototype's running-job header
+      has no inline selector / step checkboxes). The legacy launch form
+      (``.pipeline-launch-bar`` + ``.pipeline-steps-check`` / ``.tag-pill``
+      defined in main.css) is preserved for the regression contract; these
+      scoped rules only refine how it FLOWS inside ``.p-top`` so it never
+      clips the film selector or wraps the Start button off-pane. The
+      Add-film affordance and the launch bar share the full row width
+      under the title, wrapping gracefully on narrow panes. ───────────── */
+.p-top .p-add-film { margin-bottom: 0; flex-shrink: 0; }
+
+/* Right cluster: add-film + launch form sit together and may wrap below
+   the title as a unit. ``min-width:0`` lets the inner select truncate
+   instead of forcing horizontal overflow. */
+.p-top .acts {
+  flex: 1 1 auto; min-width: 0;
+  justify-content: flex-end;
+}
+.p-top .pipeline-launch-bar {
+  width: 100%;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px 14px;
+  flex-wrap: wrap;
+}
+/* Cap + truncate the film selector so a long film title can't push the
+   Start button off the pane. */
+.p-top .pipeline-launch-bar .jump-select {
+  max-width: 260px; min-width: 0;
+  text-overflow: ellipsis;
+}
+/* Step pills: keep them on one wrapping strip, right-aligned, without the
+   ``flex:1`` stretch that previously stacked them into tall ovals. */
+.p-top .pipeline-launch-bar .pipeline-steps-check {
+  flex: 0 1 auto; min-width: 0;
+  justify-content: flex-end;
 }
 .p-top h1 .ic {
   width: 30px; height: 30px; border-radius: 7px;
@@ -325,6 +364,31 @@
   width: 380px; flex-shrink: 0;
   border-left: 1px solid var(--c-border); background: var(--c-panel);
   display: flex; flex-direction: column; overflow: hidden;
+}
+
+/* No active step → the substep/GPU panel has nothing real to show
+   (Decision 1: don't fake a running job). Collapse the column to zero so
+   the centre pane reclaims the full width instead of leaving a 380px void
+   — this is also what stops the live-log column from collapsing to a
+   sliver at narrow widths when no job is running. The honest placeholder
+   text below only surfaces if a wider chrome rule force-shows the pane. */
+.p-rp--empty {
+  width: 0; border-left: none; background: transparent;
+}
+.p-rp__empty {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 12px;
+  padding: 24px; text-align: center;
+}
+.p-rp__empty-glyph {
+  display: flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; border-radius: 10px;
+  background: var(--c-bg); border: 1px solid var(--c-border);
+  color: var(--c-faint);
+}
+.p-rp__empty-text {
+  margin: 0; max-width: 220px;
+  font-size: 12px; line-height: 1.5; color: var(--c-muted);
 }
 .p-rp .head {
   padding: 13px 16px; border-bottom: 1px solid var(--c-border);
