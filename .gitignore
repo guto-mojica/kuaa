@@ -108,6 +108,7 @@ dmypy.json
 
 # ─── Ruff ─────────────────────────────────────────────────────────────────────
 .ruff_cache/
+.import_linter_cache/
 
 # ─── Uploads temporários do Streamlit (legacy) ────────────────────────────────
 # Streamlit salva uploads em /tmp — não commitar se redirecionar para o projeto.
@@ -144,6 +145,7 @@ Thumbs.db
 
 # Design handoff bundle (reference material, not project source)
 claude_design/
+latest_claude_design_version/
 mojica_design_handoff.zip
 
 # ─── Private worktree-local reports ───────────────────────────────────────────
