@@ -20,3 +20,32 @@ def test_fuse_global_rrf_skips_zero_weight_lists() -> None:
     b = [(("b", 1), 1.0)]
     fused = fuse_global_rrf([(a, 1.0), (b, 0.0)], k_rrf=60)
     assert [k for k, _ in fused] == [("a", 1)]
+
+
+def test_metadata_scorer_scores_exact_tag_and_object_matches() -> None:
+    from cinemateca.search._aggregate.scorers import MetadataScorer
+
+    scorer = MetadataScorer()
+    scores = scorer.score(
+        query="dog",
+        descriptions=[{"scene_id": 1, "description": "a dog runs", "objects": ["dog"]}],
+        tag_index={"dog": [1]},
+        visual_rows=[
+            {
+                "scene_id": 1,
+                "object_detection": {
+                    "objects": [{"class": "dog"}],
+                    "class_counts": {"dog": 2},
+                },
+            }
+        ],
+    )
+    assert scores.get(1, 0.0) > 0.0
+
+
+def test_metadata_scorer_ignores_long_queries() -> None:
+    from cinemateca.search._aggregate.scorers import MetadataScorer
+
+    scorer = MetadataScorer()
+    # >4 tokens → lexical signal disabled (matches legacy guard).
+    assert scorer.score(query="a b c d e", descriptions=[], tag_index={}, visual_rows=[]) == {}

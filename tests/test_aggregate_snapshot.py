@@ -85,7 +85,5 @@ def library(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
 
 @pytest.mark.parametrize("mode", ["clip", "bm25", "hybrid"])
 def test_aggregate_search_snapshot(library: SimpleNamespace, mode: str) -> None:
-    hits = aggregate_search(
-        library, query="horse", modality="text", top_k=5, retriever_mode=mode
-    )
+    hits = aggregate_search(library, query="horse", modality="text", top_k=5, retriever_mode=mode)
     assert_snapshot(f"aggregate_{mode}", hits)
