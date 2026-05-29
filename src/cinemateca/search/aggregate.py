@@ -285,19 +285,7 @@ def _metadata_scores_for_query(
     return scores
 
 
-def _fuse_rrf_many(
-    weighted_lists: list[tuple[list[tuple[tuple[str, int], float]], float]],
-    *,
-    k_rrf: int,
-) -> list[tuple[tuple[str, int], float]]:
-    """Weighted RRF over more than two globally ranked lists."""
-    fused: dict[tuple[str, int], float] = {}
-    for ranked, weight in weighted_lists:
-        if weight <= 0.0:
-            continue
-        for rank, (key, _) in enumerate(ranked, start=1):
-            fused[key] = fused.get(key, 0.0) + weight / (k_rrf + rank)
-    return sorted(fused.items(), key=lambda pair: pair[1], reverse=True)
+from cinemateca.search._aggregate.fusion import fuse_global_rrf as _fuse_rrf_many
 
 
 def has_indexed_films(cfg: Settings) -> bool:
