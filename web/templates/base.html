@@ -55,6 +55,11 @@
        Phase 7 (Tasks 26–28) extends the same file with the toast bus,
        command palette, and keyboard-help overlay. Single IIFE, no
        external deps. #}
+    {# Server-resolved reranker default (GPU-on / CPU-off when
+       ``retrieval.reranker.enabled: auto``). Inline + non-deferred so it
+       runs before the deferred mojica.js seeds the buscarRetrieval store;
+       the store falls back to ``false`` if this is ever absent. #}
+    <script>window.RERANK_DEFAULT = {{ 'true' if reranker_default else 'false' }};</script>
     <script src="{{ request.url_for('static', path='js/mojica.js') }}" defer></script>
     {# Alpine.js — client-only state sprinkles: chip toggles, panel
        visibility, modal close, file-input filename, M2 Hybrid Search

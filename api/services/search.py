@@ -133,19 +133,66 @@ def _get_bm25_index_for_ctx(ctx: FilmContext) -> BM25Index:
 # cfg without the block (or without ``retrieval`` at all) doesn't raise.
 
 
+def _gpu_available(cfg: Any) -> bool:
+    """True when the configured device resolves to CUDA or MPS.
+
+    Used to make the reranker's ``enabled: auto`` default profile-aware:
+    on by default on a GPU box, off on the CPU / HuggingFace-Spaces demo
+    where the ~2.4 GB cross-encoder would make every query multi-second.
+    Any probe failure (partial cfg, torch unavailable) is treated as
+    CPU → reranker off, the safe/fast default.
+    """
+    try:
+        from cinemateca.device import device_from_config
+
+        return device_from_config(cfg).type in {"cuda", "mps"}
+    except Exception:  # noqa: BLE001 — defensive: any probe failure → off
+        logger.debug("reranker device probe failed; treating as CPU", exc_info=True)
+        return False
+
+
+def _resolve_enabled(raw: Any, cfg: Any) -> bool:
+    """Coerce a ``retrieval.reranker.enabled`` value to a bool.
+
+    Accepts a literal bool or the string ``"auto"`` (profile-aware:
+    GPU-on / CPU-off via :func:`_gpu_available`). Anything else falls
+    back to ``bool(raw)``.
+    """
+    if isinstance(raw, bool):
+        return raw
+    if isinstance(raw, str) and raw.strip().lower() == "auto":
+        return _gpu_available(cfg)
+    return bool(raw)
+
+
+def reranker_default_enabled(cfg: Any) -> bool:
+    """Resolve the reranker's *default* enabled state (no request override).
+
+    This is the value the Buscar UI seeds its Rerank toggle with on a
+    browser that has no saved preference: ``true`` on a GPU box,
+    ``false`` on the CPU / demo profile when ``retrieval.reranker.enabled``
+    is ``auto``. Pinning the config to ``true``/``false`` is honoured as-is.
+    The per-browser localStorage preference (and the per-request
+    ``?reranker_enabled=`` override) still win over this default.
+    """
+    enabled, _model, _top_k_in = _reranker_settings(cfg)
+    return enabled
+
+
 def _reranker_settings(cfg: Any, enabled_override: bool | None = None) -> tuple[bool, str, int]:
     """Read ``retrieval.reranker.{enabled,model,top_k_in}`` with defaults.
 
     Defaults: ``enabled=True``, ``model='default'``, ``top_k_in=20``. A cfg
     missing ``retrieval`` or ``retrieval.reranker`` falls back to all-defaults
     silently — callers should never see an ``AttributeError`` from a partial
-    config.
+    config. ``enabled`` may be a bool or the string ``"auto"`` (resolved
+    by :func:`_resolve_enabled` to GPU-on / CPU-off).
     """
     rr = getattr(getattr(cfg, "retrieval", None), "reranker", None)
     if rr is None:
         enabled, model, top_k_in = True, "default", 20
     else:
-        enabled = bool(getattr(rr, "enabled", True))
+        enabled = _resolve_enabled(getattr(rr, "enabled", True), cfg)
         model = str(getattr(rr, "model", "default"))
         top_k_in = int(getattr(rr, "top_k_in", 20))
     if enabled_override is not None:
@@ -646,17 +693,23 @@ def dispatch_text_search(
     fast path doesn't read disk when ``retriever == "clip"`` and ``tags``
     is empty (preserving the legacy behaviour).
 
-    When ``cfg.search.rerank_enabled`` is true the per-film first stage
-    retrieves ``reranker.top_k`` candidates (default 50), then
-    ``rerank_dataframe`` re-scores them with a cross-encoder and trims to
-    the original ``top_k``. Aggregate mode is not reranked (each per-film
-    result is already trimmed before aggregation).
+    When the reranker is on by default for this profile
+    (``retrieval.reranker.enabled`` → :func:`reranker_default_enabled`) the
+    per-film first stage *widens* retrieval to ``retrieval.reranker.top_k_in``
+    candidates (default 20) so the route-level cross-encoder
+    (``rerank_template_results``) has a deeper pool to reshuffle. This
+    function only widens the pool; it does not itself re-score. Aggregate
+    mode is not widened (each per-film result is trimmed before aggregation).
     """
     from api.services.catalog import load_tag_index
 
-    rerank_enabled = bool(getattr(cfg.search, "rerank_enabled", False))
-    reranker_cfg = getattr(cfg.search, "reranker", None)
-    candidate_k = int(getattr(reranker_cfg, "top_k", 50)) if reranker_cfg else 50
+    # Widen the first-stage pool whenever the reranker is on by default for
+    # this profile (GPU-on / CPU-off), so the route-level cross-encoder gets
+    # a deep enough candidate set — capped at the same ``top_k_in`` it will
+    # actually score, so we never retrieve rows the reranker would discard.
+    rerank_enabled = reranker_default_enabled(cfg)
+    reranker_cfg = getattr(getattr(cfg, "retrieval", None), "reranker", None)
+    candidate_k = int(getattr(reranker_cfg, "top_k_in", 20)) if reranker_cfg else 20
 
     if ctx is None:
         try:

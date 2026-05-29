@@ -136,6 +136,11 @@ async def api_search(
         mode=retriever,
         enabled=reranker_enabled,
     )
+    # The per-film stage may widen retrieval past ``top_k`` to feed the
+    # cross-encoder a deeper pool; the response contract is still ``top_k``,
+    # so trim here — covers reranker-off, request-override-off, and the
+    # reranker-failed passthrough paths uniformly.
+    results = results[:top_k]
     return _render_results(
         request, slug=slug, cfg=cfg, results=results, query=q, highlighted_tags=set(tags)
     )

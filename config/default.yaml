@@ -130,7 +130,9 @@ search:
     b: 0.75                    # length normalisation
     stopwords_lang: null       # null = no stopword removal
     rrf_k: 60                  # RRF rank-shift constant (Cormack et al.)
-  rerank_enabled: false       # Default UI state for the Buscar Rerank toggle.
+  # NB: the Rerank toggle is governed by ``retrieval.reranker.enabled``
+  # (profile-aware: auto/GPU-on/CPU-off). The Buscar UI seeds its toggle from
+  # the server-resolved default and first-stage widening follows the same flag.
   mmr_lambda: 0.5             # Legacy Search config; Rimas uses retrieval.rhymes.
   # Modality gates (each toggles its chip on/off in the Buscar tab).
   image_enabled: true         # existing image-similarity search
@@ -146,8 +148,11 @@ search:
 # default for one text-search request.
 retrieval:
   reranker:
-    enabled: false          # Default-off for snapshot safety; the Buscar UI
-                            # toggle sends ?reranker_enabled= per request.
+    enabled: auto           # auto = profile-aware: GPU-on / CPU-off so the
+                            # ~2.4 GB cross-encoder doesn't slow the CPU /
+                            # HuggingFace-Spaces demo. Accepts true/false to
+                            # pin it. The Buscar UI toggle still sends
+                            # ?reranker_enabled= to override per request.
     top_k_in: 20            # max hits the cross-encoder sees (cost cap).
     model: "default"        # 'default' → BAAI/bge-reranker-v2-m3
                             # 'noop'    → passthrough escape hatch (tests / UI off)
