@@ -130,6 +130,16 @@ def build_scene_panel(ctx: FilmContext, scene_id: int | None, filter_mode: str) 
     scenes, desc_by_scene, annotations, _filter, _all_done, _no_data = _scene_list_with_fallback(
         ctx, filter_mode
     )
+
+    # When a specific scene is requested but the active filter excludes it
+    # (e.g. the user just saved a description, so the scene drops out of the
+    # ``no_llm`` list), fall back to the full list so the requested scene
+    # still renders. Without this, ``scene_context`` silently defaults to
+    # ``scenes[0]`` — a *different* scene — and the panel appears to "lose"
+    # the description the user was looking at.
+    if scene_id is not None and not any(s["scene_id"] == scene_id for s in scenes):
+        scenes, desc_by_scene, annotations = build_scene_list(ctx, "all")
+
     cfg = get_config()
     demo_threads = bool(getattr(getattr(cfg, "collaboration", None), "demo_threads_enabled", False))
     return scene_context(

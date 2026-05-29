@@ -148,6 +148,23 @@ async def api_annotate_description_edit(
     )
 
 
+@router.get("/api/annotate/description/cancel", response_class=HTMLResponse)
+async def api_annotate_description_cancel() -> HTMLResponse:
+    """Abort the inline description editor — clear the editor container only.
+
+    Aborting an edit must NOT re-render the scene panel. The earlier Cancel
+    wiring re-fetched ``/api/annotate/scene`` (a full panel re-render), which
+    re-resolved the film/filter/scene context from scratch; whenever that
+    resolution landed on a different scene (filter excluded the edited scene,
+    or the active-film cookie disagreed with the omitted ``&film=``) the
+    visible description vanished until the user navigated away and back. The
+    editor lives in its own ``#annotate-llm-edit`` swap container *below* the
+    read-only description, so returning an empty fragment closes the editor
+    and leaves the already-correct description untouched.
+    """
+    return HTMLResponse("")
+
+
 @router.post("/api/annotate/description", response_class=HTMLResponse)
 async def api_annotate_description_save(
     request: Request,
