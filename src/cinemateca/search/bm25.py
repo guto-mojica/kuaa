@@ -46,6 +46,7 @@ from typing import Any
 
 from cinemateca.library.metadata import load_tag_index
 from cinemateca.retrieval.bm25 import BM25Index
+from cinemateca.search._cache_core import StatCache, stat_sig
 from cinemateca.search.cache import register_cache_clearer
 
 logger = logging.getLogger(__name__)
@@ -54,13 +55,8 @@ logger = logging.getLogger(__name__)
 def _file_stamp(path: Path) -> tuple[int, int]:
     """``(mtime_ns, size)`` of a file, or ``(0, 0)`` if absent.
 
-    Used as a cache key — bumps on any write, including ones that land
-    within the same wall-clock second (size differs) AND ones that
-    don't change size at all (mtime_ns differs by >=1 ns). Float
-    ``st_mtime`` cannot distinguish sub-second writes at modern
-    epochs because the IEEE-754 double resolution near 1.7e9 seconds
-    is ~2.4e-7 s — quick consecutive writes lose their stamp
-    distinction. Nanosecond ints sidestep the problem entirely.
+    Uses nanosecond integer resolution so consecutive same-second writes
+    with different content still produce distinct stamps.
     """
     try:
         st = path.stat()
@@ -69,6 +65,14 @@ def _file_stamp(path: Path) -> tuple[int, int]:
     return (st.st_mtime_ns, st.st_size)
 
 
+# ── Outer StatCache (slug-keyed so clear_film works) ──────────────────────────
+# Key: (slug, str(metadata_dir), stopwords_lang_or_empty, k1_str, b_str, incl_transcripts)
+# First component is the film slug so clear_film(slug) invalidates exactly one
+# film's BM25 slot without touching other films.
+_BM25_CACHE: StatCache[tuple[str, str, str, str, str, bool], BM25Index] = StatCache()
+
+
+# ── Inner lru_cache loader (kept for back-compat: cache_info().currsize) ──────
 @lru_cache(maxsize=32)
 def _cached_bm25_index(
     metadata_dir: str,
@@ -140,23 +144,44 @@ def bm25_index_for_dir(
 ) -> BM25Index:
     """Load (cached) BM25 index for a metadata directory.
 
-    The cache key includes the three file stamps so any write
-    invalidates. ``stopwords_lang`` / ``k1`` / ``b`` /
-    ``include_transcripts`` participate in the cache key too, so a
-    config change reloads correctly without a manual flush.
+    Routes through the outer ``_BM25_CACHE`` (StatCache, slug-keyed) then
+    falls through to the inner ``_cached_bm25_index`` (lru_cache). Any
+    write to any source file invalidates both layers automatically.
+    ``stopwords_lang`` / ``k1`` / ``b`` / ``include_transcripts``
+    participate in the key so a config change reloads correctly.
     """
     transcripts_path = metadata_dir.parent / "audio" / "scene_transcripts.json"
-    return _cached_bm25_index(
-        str(metadata_dir),
-        _file_stamp(metadata_dir / "scene_descriptions.json"),
-        _file_stamp(metadata_dir / "scene_tags.json"),
-        _file_stamp(metadata_dir / "manual_annotations.json"),
-        _file_stamp(transcripts_path) if include_transcripts else (0, 0),
-        include_transcripts,
-        stopwords_lang,
-        k1,
-        b,
+    d_stamp = _file_stamp(metadata_dir / "scene_descriptions.json")
+    t_stamp = _file_stamp(metadata_dir / "scene_tags.json")
+    m_stamp = _file_stamp(metadata_dir / "manual_annotations.json")
+    tr_stamp = _file_stamp(transcripts_path) if include_transcripts else (0, 0)
+
+    # 4-source combined signature for StatCache (flat int tuple).
+    sig: tuple[int, ...] = (
+        d_stamp[0], d_stamp[1],
+        t_stamp[0], t_stamp[1],
+        m_stamp[0], m_stamp[1],
+        tr_stamp[0], tr_stamp[1],
     )
+
+    # Slug = immediate parent dir name (data/library/<slug>/metadata/ → slug).
+    slug = metadata_dir.parent.name
+    cache_key = (slug, str(metadata_dir), stopwords_lang or "", str(k1), str(b), include_transcripts)
+
+    def _load() -> BM25Index:
+        return _cached_bm25_index(
+            str(metadata_dir),
+            d_stamp,
+            t_stamp,
+            m_stamp,
+            tr_stamp,
+            include_transcripts,
+            stopwords_lang,
+            k1,
+            b,
+        )
+
+    return _BM25_CACHE.get_or_load(key=cache_key, signature=sig, loader=_load)
 
 
 def bm25_index_for_ctx(
@@ -184,14 +209,15 @@ def bm25_index_for_ctx(
 
 
 def reindex_bm25(ctx: Any) -> None:
-    """Public verb: drop the BM25 cache slot for ``ctx``'s film.
+    """Public verb: drop the BM25 cache slot for ``ctx``'s film only.
 
-    ``ctx`` is duck-typed (must expose ``metadata_dir``). Today the
-    cache is module-wide (clearing one entry clears all because of
-    how :func:`functools.lru_cache` works); a per-slug refinement can
-    land in a follow-up without changing this signature.
+    ``ctx`` is duck-typed (must expose ``metadata_dir``). Uses
+    ``_BM25_CACHE.clear_film(slug)`` so only the named film's slot is
+    evicted — other films' cached indexes are preserved (fixes the
+    previous "clears every slot" wart from the lru_cache implementation).
     """
-    _cached_bm25_index.cache_clear()
+    slug = ctx.metadata_dir.parent.name
+    _BM25_CACHE.clear_film(slug)
 
 
 def clear_bm25_cache() -> None:
@@ -199,14 +225,15 @@ def clear_bm25_cache() -> None:
 
     Called via the ``cache.register_cache_clearer`` wire below so a
     single ``clear_index_cache()`` call flushes every search-cache
-    layer.
+    layer (both the outer StatCache and the inner lru_cache).
     """
+    _BM25_CACHE.clear()
     _cached_bm25_index.cache_clear()
 
 
 # Wire into the central cache clearer so ``clear_index_cache()``
 # flushes BM25 too. Module-import-time registration is intentional:
 # ``tests/conftest.py`` calls ``clear_index_cache()`` per test, and the
-# BM25 lru_cache MUST be flushed alongside the CLIP index cache for
+# BM25 cache MUST be flushed alongside the CLIP index cache for
 # isolation to hold.
 register_cache_clearer(clear_bm25_cache)

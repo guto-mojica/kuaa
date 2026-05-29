@@ -43,7 +43,6 @@ flushes every search-cache layer" — survives the package split.
 from __future__ import annotations
 
 import logging
-import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
@@ -51,6 +50,7 @@ from pathlib import Path
 from typing import Any
 
 from cinemateca.config import Settings
+from cinemateca.search._cache_core import StatCache, stat_sig
 
 logger = logging.getLogger(__name__)
 
@@ -98,16 +98,20 @@ class SearchIndex:
 
 # ── mtime/size-aware index cache ──────────────────────────────────────────────
 
-# key: (slug_or_none, embeddings_path_str, mapping_path_str, embedder_name)
-# value: (signature, SearchIndex) where signature is the combined stat tuple of
-# both files at load time. A changed signature => reload.
-# The slug + embedder_name components isolate each film×embedder cache slot.
-_index_cache: dict[tuple[str | None, str, str, str], tuple[tuple, SearchIndex]] = {}
-_cache_lock = threading.Lock()
+# Unified StatCache backing all CLIP index slots. The key is
+# (slug_or_none, embeddings_path_str, mapping_path_str, embedder_name)
+# with slug first so clear_film(slug) can invalidate exactly one film.
+_INDEX_CACHE: StatCache[tuple[str | None, str, str, str], SearchIndex] = StatCache()
 
-# Sibling cache flushers (e.g. BM25 lru_cache) plug in via
-# ``register_cache_clearer``. Iterated under no lock — the registry is
-# expected to be append-only at import time.
+# Expose the internal store as ``_index_cache`` for back-compat with tests
+# that directly inspect / mutate it (test_search_cache.py).
+# The store format is ``{key: (signature, value)}`` — exactly what those
+# tests insert and what clear_index_cache() must empty.
+_index_cache = _INDEX_CACHE._store
+
+# Sibling cache flushers (e.g. BM25) plug in via ``register_cache_clearer``.
+# Iterated under no lock — the registry is expected to be append-only at
+# import time.
 _extra_cache_clearers: list[Callable[[], None]] = []
 
 
@@ -122,17 +126,8 @@ def register_cache_clearer(fn: Callable[[], None]) -> None:
     _extra_cache_clearers.append(fn)
 
 
-def _stat_sig(path: Path) -> tuple[int, int] | None:
-    """Return ``(st_mtime_ns, st_size)`` for *path*, or ``None`` if absent.
-
-    ``None`` participates in the cache signature so an index file
-    appearing or disappearing also invalidates the cached entry.
-    """
-    try:
-        st = path.stat()
-    except (FileNotFoundError, NotADirectoryError):
-        return None
-    return (st.st_mtime_ns, st.st_size)
+# Thin alias for any code that imported _stat_sig from this module directly.
+_stat_sig = stat_sig
 
 
 def _load_and_validate(emb_path: Path, map_path: Path) -> SearchIndex:
@@ -235,12 +230,9 @@ def load_index(
         else "clip_openclip"
     )
     key = (ctx.slug, str(emb_path), str(map_path), embedder_name)
-    sig = (_stat_sig(emb_path), _stat_sig(map_path))
+    sig = (stat_sig(emb_path), stat_sig(map_path))
 
-    with _cache_lock:
-        cached = _index_cache.get(key)
-        if cached is not None and cached[0] == sig:
-            return cached[1]
+    def _load() -> SearchIndex:
         index = _load_and_validate(emb_path, map_path)
         # Swap embedder when a non-default backend is requested. The default
         # path (clip_openclip) keeps the OpenClipEmbedder() already built by
@@ -260,8 +252,9 @@ def load_index(
                 )
             except Exception as exc:
                 logger.warning("load_index: embedder swap failed (%s), using default", exc)
-        _index_cache[key] = (sig, index)
         return index
+
+    return _INDEX_CACHE.get_or_load(key=key, signature=sig, loader=_load)
 
 
 def clear_index_cache() -> None:
@@ -277,7 +270,6 @@ def clear_index_cache() -> None:
     here keeps the one-call-drops-everything contract intact across the
     package split.
     """
-    with _cache_lock:
-        _index_cache.clear()
+    _INDEX_CACHE.clear()
     for fn in _extra_cache_clearers:
         fn()

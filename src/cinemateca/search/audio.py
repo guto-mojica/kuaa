@@ -9,12 +9,13 @@ from __future__ import annotations
 
 import json
 import logging
-import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
 
 import numpy as np
+
+from cinemateca.search._cache_core import StatCache, stat_sig
 
 if TYPE_CHECKING:
     from cinemateca.models.base import AudioEmbedder
@@ -53,19 +54,18 @@ class AudioIndex:
     mapping: list[AudioMappingRow]
 
 
-# Module-level cache, mtime+size-keyed (matches api/services/search.py's
-# CLIP index loader). Single-worker dev server: a simple lock is enough.
-_CACHE: dict[Path, tuple[tuple[int, int, int, int], AudioIndex]] = {}
-_CACHE_LOCK = threading.Lock()
+# Unified StatCache for CLAP index slots. Key is (slug, audio_dir_str) where
+# slug = audio_dir.parent.name so clear_film(slug) invalidates exactly one film.
+_AUDIO_CACHE: StatCache[tuple[str, str], AudioIndex] = StatCache()
 
 
 def _stat_key(emb_path: Path, map_path: Path) -> tuple[int, int, int, int] | None:
-    try:
-        es = emb_path.stat()
-        ms = map_path.stat()
-    except FileNotFoundError:
+    """4-int stat signature for both CLAP files, or None if either is absent."""
+    sig_emb = stat_sig(emb_path)
+    sig_map = stat_sig(map_path)
+    if sig_emb is None or sig_map is None:
         return None
-    return (es.st_mtime_ns, es.st_size, ms.st_mtime_ns, ms.st_size)
+    return (sig_emb[0], sig_emb[1], sig_map[0], sig_map[1])
 
 
 def load_audio_index(audio_dir: Path) -> AudioIndex | None:
@@ -79,13 +79,15 @@ def load_audio_index(audio_dir: Path) -> AudioIndex | None:
     map_path = audio_dir / _CLAP_MAP_NAME
     if not emb_path.exists() or not map_path.exists():
         return None
-    key = _stat_key(emb_path, map_path)
-    if key is None:
+    raw_sig = _stat_key(emb_path, map_path)
+    if raw_sig is None:
         return None
-    with _CACHE_LOCK:
-        cached = _CACHE.get(audio_dir)
-        if cached is not None and cached[0] == key:
-            return cached[1]
+    # StatCache signature must be a tuple[int, ...] — the 4-int tuple works directly.
+    sig: tuple[int, ...] = raw_sig
+    # Key: slug first (parent dir name), then full path for uniqueness.
+    cache_key: tuple[str, str] = (audio_dir.parent.name, str(audio_dir))
+
+    def _load() -> AudioIndex:
         embeddings = np.load(emb_path).astype("float32", copy=False)
         mapping_raw = json.loads(map_path.read_text())
         # Normalise to list[dict]. The real ClapHFEmbedder.save() writes a
@@ -136,10 +138,10 @@ def load_audio_index(audio_dir: Path) -> AudioIndex | None:
         # defensively in case the file was hand-edited or truncated.
         norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
         norms = np.where(norms == 0.0, 1.0, norms)
-        embeddings = (embeddings / norms).astype("float32")
-        idx = AudioIndex(embeddings=embeddings, mapping=mapping)
-        _CACHE[audio_dir] = (key, idx)
-        return idx
+        normed = (embeddings / norms).astype("float32")
+        return AudioIndex(embeddings=normed, mapping=mapping)
+
+    return _AUDIO_CACHE.get_or_load(key=cache_key, signature=sig, loader=_load)
 
 
 def search_audio(
