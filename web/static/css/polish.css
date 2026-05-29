@@ -70,7 +70,7 @@
   from { opacity: 0; transform: translateY(2px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.ch-body > *:not(.ch-rail):not(.ch-lp) {
+.ch-body > *:not(.ch-lp) {
   animation: p-fade-in 220ms cubic-bezier(.2,.7,.3,1);
   animation-fill-mode: both;
 }

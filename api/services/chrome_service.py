@@ -1,8 +1,8 @@
-"""Chrome context builder — Mojica TopBar + IconRail + LeftPane.
+"""Chrome context builder — Mojica TopBar + LeftPane.
 
 Phase-1 / Task 8 introduces a single source of truth for the Mojica
 chrome context: the variables consumed by ``_topbar.html``,
-``_icon_rail.html``, ``_left_pane.html`` and ``_left_pane_body.html``.
+``_left_pane.html`` and ``_left_pane_body.html``.
 
 Before Task 8 every full-page route built its own sparse chrome bag in
 ``api/server.py::render_page``. The launch topbar now keeps only brand,
