@@ -1,6 +1,6 @@
-"""Pipeline integration: audio_extract + audio_transcribe + audio_embed steps.
+"""Pipeline integration: audio_extract + audio_embed steps.
 
-Hermetic: ffmpeg + Whisper + CLAP fully mocked. No model load, no real WAV decode.
+Hermetic: ffmpeg + CLAP fully mocked. No model load, no real WAV decode.
 """
 
 from __future__ import annotations
@@ -71,7 +71,6 @@ def _build_cfg(tmp_path: Path):
             scene_describer="moondream_gguf",
             environment_classifier="opencv_heuristic",
             audio_embedder="clap_hf",
-            transcriber="faster_whisper_hf",
         ),
         embeddings=sn(
             model="ViT-B-32",
@@ -85,14 +84,6 @@ def _build_cfg(tmp_path: Path):
             batch_size=8,
             chunk_seconds=10.0,
             sample_rate=48000,
-        ),
-        transcriber=sn(
-            model_id="Systran/faster-whisper-medium",
-            compute_type="auto",
-            language=None,
-            beam_size=5,
-            vad_filter=True,
-            vad_min_silence_duration_ms=500,
         ),
         llm=sn(
             checkpoint_interval=25,
@@ -116,7 +107,6 @@ def _build_cfg(tmp_path: Path):
                 embeddings=False,
                 llm_description=False,
                 audio_extract=True,
-                audio_transcribe=True,
                 audio_embed=True,
             ),
             skip_existing=True,
@@ -185,23 +175,6 @@ def _patch_clap(monkeypatch, dim=512):
     )
 
 
-def _patch_transcriber(monkeypatch):
-    """Patch registry.get_transcriber with a deterministic fake."""
-    from cinemateca.models import registry
-
-    class _FakeTranscriber:
-        def transcribe(self, wav_path):
-            sid = int(Path(wav_path).stem.split("_")[1])
-            return {
-                "text": f"fala da cena {sid}",
-                "language": "pt",
-                "language_probability": 0.99,
-                "segments": [{"start": 0.0, "end": 1.0, "text": f"fala {sid}"}],
-            }
-
-    monkeypatch.setattr(registry, "get_transcriber", lambda cfg, device=None: _FakeTranscriber())
-
-
 def test_audio_extract_step_writes_one_wav_per_scene(monkeypatch, tmp_path):
     from cinemateca.pipeline import CatalogPipeline
 
@@ -215,30 +188,6 @@ def test_audio_extract_step_writes_one_wav_per_scene(monkeypatch, tmp_path):
     assert result.ok
     wavs = sorted((film_dir / "audio" / "segments").glob("*.wav"))
     assert [p.name for p in wavs] == ["scene_0001.wav", "scene_0002.wav"]
-
-
-def test_audio_transcribe_step_writes_scene_transcripts(monkeypatch, tmp_path):
-    from cinemateca.pipeline import CatalogPipeline
-
-    cfg = _build_cfg(tmp_path)
-    slug, film_dir, video = _seed_film(tmp_path)
-    _patch_ffmpeg(monkeypatch)
-    _patch_transcriber(monkeypatch)
-
-    pipe = CatalogPipeline(cfg, slug=slug)
-    pipe._device = "cpu"
-    result = pipe.run_steps(video, ["audio_extract", "audio_transcribe"])
-    assert result.ok, [(r.name, r.state, r.error) for r in result.runs]
-
-    transcripts = film_dir / "audio" / "scene_transcripts.json"
-    assert transcripts.exists()
-    rows = json.loads(transcripts.read_text())
-    assert [row["scene_id"] for row in rows] == [1, 2]
-    assert rows[0]["wav_path"] == "audio/segments/scene_0001.wav"
-    assert rows[0]["text"] == "fala da cena 1"
-    assert rows[0]["language"] == "pt"
-    assert rows[0]["language_probability"] == 0.99
-    assert rows[0]["segments"] == [{"start": 0.0, "end": 1.0, "text": "fala 1"}]
 
 
 def test_audio_embed_step_writes_npy_and_mapping(monkeypatch, tmp_path):
@@ -285,21 +234,6 @@ def test_audio_embed_blocked_when_audio_extract_missing(monkeypatch, tmp_path):
     assert states["audio_embed"] == "blocked"
 
 
-def test_audio_transcribe_blocked_when_audio_extract_missing(monkeypatch, tmp_path):
-    """If WAVs aren't on disk and audio_extract isn't in this invocation,
-    audio_transcribe must be blocked (not crash)."""
-    from cinemateca.pipeline import CatalogPipeline
-
-    cfg = _build_cfg(tmp_path)
-    slug, film_dir, video = _seed_film(tmp_path)
-    _patch_transcriber(monkeypatch)
-
-    pipe = CatalogPipeline(cfg, slug=slug)
-    result = pipe.run_steps(video, ["audio_transcribe"])
-    states = {r.name: r.state for r in result.runs}
-    assert states["audio_transcribe"] == "blocked"
-
-
 def test_audio_extract_blocked_when_metadata_missing(monkeypatch, tmp_path):
     """audio_extract depends on keyframes_metadata.json — block if absent."""
     from cinemateca.pipeline import CatalogPipeline
@@ -327,16 +261,14 @@ def test_audio_extract_skip_existing_is_honoured(monkeypatch, tmp_path):
     slug, film_dir, video = _seed_film(tmp_path)
     _patch_ffmpeg(monkeypatch)
     _patch_clap(monkeypatch)
-    _patch_transcriber(monkeypatch)
 
     pipe = CatalogPipeline(cfg, slug=slug)
     pipe._device = "cpu"
-    pipe.run_steps(video, ["audio_extract", "audio_transcribe", "audio_embed"])
+    pipe.run_steps(video, ["audio_extract", "audio_embed"])
     # Second run with all artefacts present.
-    result = pipe.run_steps(video, ["audio_extract", "audio_transcribe", "audio_embed"])
+    result = pipe.run_steps(video, ["audio_extract", "audio_embed"])
     states = {r.name: r.state for r in result.runs}
     assert states["audio_extract"] == "skipped"
-    assert states["audio_transcribe"] == "skipped"
     assert states["audio_embed"] == "skipped"
 
 
@@ -350,11 +282,9 @@ def test_step_order_includes_new_steps_at_end():
         "embeddings",
         "llm_description",
         "audio_extract",
-        "audio_transcribe",
         "audio_embed",
     )
     assert STEP_DEPS["audio_extract"] == ("scene_detection",)
-    assert STEP_DEPS["audio_transcribe"] == ("audio_extract",)
     assert STEP_DEPS["audio_embed"] == ("audio_extract",)
 
 
@@ -402,14 +332,11 @@ def test_default_config_has_audio_section_and_defaults():
 
     cfg = load_config()
     assert cfg.models.audio_embedder == "clap_hf"
-    assert cfg.models.transcriber == "faster_whisper_hf"
     assert cfg.audio_embeddings.model_id == "laion/larger_clap_general"
     assert cfg.audio_embeddings.batch_size == 8
     assert cfg.audio_embeddings.chunk_seconds == 10.0
     assert cfg.audio_embeddings.sample_rate == 48000
-    assert cfg.transcriber.model_id == "Systran/faster-whisper-medium"
     # New pipeline flags exist, all off by default (opt-in for M1
     # scaffold; M2 retrieval work flips them on).
     assert cfg.pipeline.steps.audio_extract is False
-    assert cfg.pipeline.steps.audio_transcribe is False
     assert cfg.pipeline.steps.audio_embed is False

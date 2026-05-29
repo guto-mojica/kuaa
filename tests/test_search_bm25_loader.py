@@ -193,38 +193,6 @@ def test_bm25_index_for_dir_builds_corpus(tmp_path: Path) -> None:
     clear_bm25_cache()
 
 
-def test_bm25_index_for_dir_can_include_or_exclude_transcripts(tmp_path: Path) -> None:
-    """``include_transcripts`` controls whether Whisper text joins the corpus."""
-    from cinemateca.search.bm25 import bm25_index_for_dir, clear_bm25_cache
-
-    clear_bm25_cache()
-    _write_three_doc_metadata(tmp_path)
-    audio_dir = tmp_path.parent / "audio"
-    audio_dir.mkdir()
-    (audio_dir / "scene_transcripts.json").write_text(
-        json.dumps([{"scene_id": 2, "text": "telegrama urgente pelo radio"}])
-    )
-
-    idx_with = bm25_index_for_dir(
-        metadata_dir=tmp_path,
-        stopwords_lang=None,
-        k1=1.5,
-        b=0.75,
-        include_transcripts=True,
-    )
-    assert idx_with.query("telegrama", top_k=5)[0][0] == 2
-
-    idx_without = bm25_index_for_dir(
-        metadata_dir=tmp_path,
-        stopwords_lang=None,
-        k1=1.5,
-        b=0.75,
-        include_transcripts=False,
-    )
-    assert idx_without.query("telegrama", top_k=5) == []
-    clear_bm25_cache()
-
-
 def test_bm25_index_for_dir_empty_corpus_returns_no_hits(tmp_path: Path) -> None:
     """An empty descriptions + empty tags corpus yields a no-match index."""
     from cinemateca.search.bm25 import bm25_index_for_dir, clear_bm25_cache

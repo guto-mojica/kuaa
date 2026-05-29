@@ -27,7 +27,6 @@ if TYPE_CHECKING:
         ImageEmbedder,
         ObjectDetector,
         SceneDescriber,
-        Transcriber,
     )
 
 
@@ -146,15 +145,3 @@ def get_audio_embedder(cfg, device=None) -> AudioEmbedder:
         raise ValueError(f"Unknown audio_embedder: {name!r}")
     _audio_embedder_cache[key] = instance
     return instance
-
-
-def get_transcriber(cfg, device=None) -> Transcriber:
-    """Return the configured transcriber backend."""
-    name = _name(cfg, "transcriber")
-    if name == "faster_whisper_hf":
-        from cinemateca.models.transcriber.faster_whisper_hf import (
-            FasterWhisperTranscriber,
-        )
-
-        return FasterWhisperTranscriber(cfg, device)
-    raise ValueError(f"Unknown transcriber: {name!r}")

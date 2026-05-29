@@ -84,7 +84,6 @@ def _pipeline_with_stubbed_steps(tmp_path, *, outcomes: dict[str, str]):
     p._step_embeddings = make("embeddings")
     p._step_llm_description = make("llm_description")
     p._step_audio_extract = make("audio_extract")
-    p._step_audio_transcribe = make("audio_transcribe")
     p._step_audio_embed = make("audio_embed")
     return p, cfg, calls
 
@@ -97,15 +96,13 @@ def test_dependency_graph_matches_verified_prereqs():
     scene_detection (verified against pipeline.run() + _step_*).
 
     Audio steps slot in as a branch off scene_detection (audio_extract
-    reads metadata; audio_transcribe and audio_embed read audio_extract's
-    WAVs)."""
+    reads metadata; audio_embed reads audio_extract's WAVs)."""
     assert STEP_DEPS["frame_extraction"] == ()
     assert STEP_DEPS["scene_detection"] == ()
     assert STEP_DEPS["visual_analysis"] == ("scene_detection",)
     assert STEP_DEPS["embeddings"] == ("scene_detection",)
     assert STEP_DEPS["llm_description"] == ("scene_detection",)
     assert STEP_DEPS["audio_extract"] == ("scene_detection",)
-    assert STEP_DEPS["audio_transcribe"] == ("audio_extract",)
     assert STEP_DEPS["audio_embed"] == ("audio_extract",)
     assert STEP_ORDER == (
         "frame_extraction",
@@ -114,7 +111,6 @@ def test_dependency_graph_matches_verified_prereqs():
         "embeddings",
         "llm_description",
         "audio_extract",
-        "audio_transcribe",
         "audio_embed",
     )
 
@@ -142,7 +138,7 @@ def test_full_run_all_steps_execute_in_order(tmp_path):
 
     assert calls == list(STEP_ORDER)
     assert res.ok
-    assert [r.state for r in res.runs] == ["done"] * 8
+    assert [r.state for r in res.runs] == ["done"] * 7
 
 
 def test_progress_callback_reports_start_and_finish(tmp_path):
@@ -185,14 +181,12 @@ def test_scene_detection_failure_blocks_downstream_no_stale_output(tmp_path):
     assert states["embeddings"] == "blocked"
     assert states["llm_description"] == "blocked"
     assert states["audio_extract"] == "blocked"
-    assert states["audio_transcribe"] == "blocked"
     assert states["audio_embed"] == "blocked"
     # Proof no stale mixed output: the step impls were never invoked.
     assert "embeddings" not in calls
     assert "llm_description" not in calls
     assert "visual_analysis" not in calls
     assert "audio_extract" not in calls
-    assert "audio_transcribe" not in calls
     assert "audio_embed" not in calls
     assert not res.ok
 

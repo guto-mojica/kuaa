@@ -68,11 +68,6 @@ full = [
     "pyvips[binary]>=2.2.1",
     # Audio I/O for CLAP — pure-Python wheel, bundles libsndfile (no system dep)
     "soundfile>=0.12",
-    # Whisper transcription (CTranslate2-accelerated). The model loader is
-    # lazy + monkeypatched in tests, so the suite passes without this wheel;
-    # production audio_transcribe needs it. ~1.5 GB faster-whisper-medium
-    # weights cache under HF_HOME on first call.
-    "faster-whisper>=1.0",
     # Cross-encoder reranker (M3 Task 3.1/3.2). FlagEmbedding wraps BGE
     # rerankers including bge-reranker-v2-m3, the default model. Optional at
     # runtime — ``cinemateca.search.rerank`` lazy-imports it and raises a

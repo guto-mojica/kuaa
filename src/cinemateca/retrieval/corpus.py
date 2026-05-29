@@ -1,10 +1,10 @@
-"""Build a per-film BM25 corpus from descriptions + transcripts + tag index.
+"""Build a per-film BM25 corpus from descriptions + tag index.
 
 Output shape: ``list[(scene_id, tokens)]``. Order is insertion-order of
-the union of scene_ids found in descriptions ∪ transcripts ∪ tag_index, sorted
+the union of scene_ids found in descriptions ∪ tag_index, sorted
 ascending by scene_id so reproducible across runs.
 
-Scenes that have no description, transcript, or tag do not appear in
+Scenes that have no description or tag do not appear in
 the corpus. The BM25 index handles missing docs by simply not ranking
 them — for those scenes only CLIP can rank, and the hybrid fusion
 treats them as rank = "absent" → contributes 0 to the BM25 term.
@@ -24,7 +24,6 @@ def build_corpus(
     descriptions: Sequence[dict],
     tag_index: dict[str, Sequence[int]],
     *,
-    transcripts: Sequence[dict] | None = None,
     stopwords_lang: str | None = None,
 ) -> list[tuple[int, list[str]]]:
     """Build ``[(scene_id, tokens), …]`` for a single film.
@@ -34,13 +33,11 @@ def build_corpus(
             dicts as read from ``scene_descriptions.json``.
         tag_index: Merged ``{tag: [scene_id, …]}`` mapping from
             ``load_tag_index(metadata_dir)``.
-        transcripts: Optional list of ``{"scene_id": int, "text": str}``
-            dicts as read from ``scene_transcripts.json``.
         stopwords_lang: Forwarded to ``tokenize``.
 
     Returns:
         Sorted-by-scene_id list of ``(scene_id, tokens)``. Scenes with
-        no description text, transcript text, or tag are omitted.
+        no description text or tag are omitted.
     """
     desc_by_sid: dict[int, str] = {}
     for entry in descriptions:
@@ -53,17 +50,6 @@ def build_corpus(
             continue
         desc_by_sid[sid_int] = str(entry.get("description") or "")
 
-    transcript_by_sid: dict[int, str] = {}
-    for entry in transcripts or ():
-        sid = entry.get("scene_id")
-        if sid is None:
-            continue
-        try:
-            sid_int = int(sid)
-        except (TypeError, ValueError):
-            continue
-        transcript_by_sid[sid_int] = str(entry.get("text") or "")
-
     tags_by_sid: dict[int, list[str]] = {}
     for tag, sids in tag_index.items():
         if not isinstance(sids, (list, tuple, set)):
@@ -75,17 +61,16 @@ def build_corpus(
                 continue
             tags_by_sid.setdefault(sid_int, []).append(str(tag))
 
-    all_sids = sorted(set(desc_by_sid) | set(transcript_by_sid) | set(tags_by_sid))
+    all_sids = sorted(set(desc_by_sid) | set(tags_by_sid))
     docs: list[tuple[int, list[str]]] = []
     pruned_by_stopwords = 0
     for sid in all_sids:
         desc = desc_by_sid.get(sid, "")
-        transcript = transcript_by_sid.get(sid, "")
         tags = tags_by_sid.get(sid, [])
         # Text surfaces are concatenated with flat token weighting.
-        # Future tuning levers are per-surface boosts (tag_boost,
-        # transcript_boost) once a larger corpus gives stable metrics.
-        text = " ".join(part for part in (desc, transcript, " ".join(tags)) if part).strip()
+        # Future tuning lever is a per-surface boost (tag_boost)
+        # once a larger corpus gives stable metrics.
+        text = " ".join(part for part in (desc, " ".join(tags)) if part).strip()
         tokens = tokenize(text, stopwords_lang=stopwords_lang)
         if not tokens:
             # Distinguish two empty-token shapes:
