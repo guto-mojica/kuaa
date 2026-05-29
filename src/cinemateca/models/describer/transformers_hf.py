@@ -120,10 +120,8 @@ class MoondreamTransformersDescriber:
             revision=self.revision,
             trust_remote_code=True,
             torch_dtype=dtype,
-            low_cpu_mem_usage=False,
+            device_map=self._device if self._device is not None else "cpu",
         )
-        if self._device is not None:
-            self._model = self._model.to(self._device)
         self._model.eval()
         logger.info("✓ Moondream 2 carregado em %.1fs", time.time() - t0)
 
