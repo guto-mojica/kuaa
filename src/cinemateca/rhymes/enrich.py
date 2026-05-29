@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from cinemateca.library import FilmContext, keyframe_url, load_json
+from cinemateca.reproducibility import make_generator
 from cinemateca.rhymes.algorithm import Rhyme
 from cinemateca.rhymes.metadata import (
     resolve_timecode,
@@ -107,19 +108,25 @@ def select_echo(
 def signals_for_pair(
     anchor_data: dict | None,
     selected_echo: dict | None,
+    cfg: Any = None,
 ) -> list[dict]:
     """Synthetic 5-row similarity breakdown for the Rimas inspector card.
 
     Components other than visual/fused are deterministically derived from
-    the (anchor, echo) scene-id pair so the bars stay stable across
-    reloads. Replace when the M3 multi-encoder reranker lands.
+    the (anchor, echo) scene-id pair via a seeded numpy Generator so the
+    bars stay stable across reloads. Replace when the M3 multi-encoder
+    reranker lands.
     """
     if anchor_data is None or selected_echo is None:
         return []
 
     score = float(selected_echo.get("score") or 0.0)
-    seed_key = f"{anchor_data.get('scene_id', 0)}|{selected_echo.get('scene_id', 0)}"
-    seed = sum(ord(c) for c in seed_key) % 100
+    global_seed = getattr(cfg, "seed", 42) if cfg is not None else 42
+    rng = make_generator(
+        global_seed,
+        anchor_data.get("scene_id", 0),
+        selected_echo.get("scene_id", 0),
+    )
 
     def _bounded(delta_pct: int) -> float:
         # Clamp to [0.40, 0.99] so bars stay visible without saturating.
@@ -128,9 +135,9 @@ def signals_for_pair(
 
     return [
         {"key": "visual", "label": "Visual · CLIP", "value": score},
-        {"key": "composition", "label": "Composition", "value": _bounded((seed % 7) - 1)},
-        {"key": "semantic", "label": "Semantic", "value": _bounded(-((seed + 4) % 9) + 1)},
-        {"key": "color_luma", "label": "Colour · Luma", "value": _bounded(-((seed + 2) % 11) + 2)},
+        {"key": "composition", "label": "Composition", "value": _bounded(int(rng.integers(-3, 6)))},
+        {"key": "semantic", "label": "Semantic", "value": _bounded(int(rng.integers(-8, 2)))},
+        {"key": "color_luma", "label": "Colour · Luma", "value": _bounded(int(rng.integers(-9, 5)))},
         {"key": "fused", "label": "Fused", "value": score},
     ]
 

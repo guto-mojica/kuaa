@@ -29,6 +29,13 @@ paths:
   outputs_dir: "outputs"
   logs_dir: "logs"
 
+# ── Reproducibility seed ──────────────────────────────────────────────────────
+# Fixed integer seed passed to seed_everything() at pipeline and eval start.
+# Change this to re-run with a different random stream; the default 42 is
+# purely conventional — seeding has near-zero artefact impact on this codebase
+# (no stochastic training; the only PRNG is the display-only rhymes signal bars).
+seed: 42
+
 # ── Hardware ──────────────────────────────────────────────────────────────────
 hardware:
   # "auto" detecta MPS → CUDA → CPU automaticamente

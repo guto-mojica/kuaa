@@ -318,6 +318,8 @@ class Settings(_Section):
     eval: EvalCfg
     logging: LoggingCfg
 
+    seed: int = 42
+
     # ``to_dict`` is inherited from ``_Section`` — it returns a plain dict
     # with ``Path`` objects preserved, byte-for-byte equivalent to the old
     # ``_Namespace.to_dict()`` that ``run_manifest.config_snapshot`` reads.

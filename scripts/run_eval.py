@@ -250,6 +250,8 @@ def _single_mode(args: argparse.Namespace) -> int:
     try:
         dataset = load_dataset(queries_path)
         cfg = load_config(config_path, project_root=REPO_ROOT)
+        from cinemateca.reproducibility import seed_everything
+        seed_everything(cfg.seed)
         _override_film_paths(cfg, args.film_slug)
         run = run_retrieval_eval(
             cfg,
@@ -296,6 +298,8 @@ def _all_modes(args: argparse.Namespace) -> int:
     try:
         dataset = load_dataset(queries_path)
         cfg = load_config(config_path, project_root=REPO_ROOT)
+        from cinemateca.reproducibility import seed_everything
+        seed_everything(cfg.seed)
         _override_film_paths(cfg, args.film_slug)
     except (DatasetError, EvalError, FileNotFoundError) as exc:
         print(f"Evaluation setup failed: {exc}", file=sys.stderr)

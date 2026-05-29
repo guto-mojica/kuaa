@@ -34,6 +34,21 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ### Adicionado
 
+- **Reproducibilidade determinística (F3 / Phase 0).** Novo módulo
+  `cinemateca.reproducibility` com `seed_everything(seed)` (fixa `random`,
+  `numpy` global e `torch` CPU+CUDA) e `make_generator(seed, *salt)` (retorna
+  um `numpy.random.Generator` salteado via CRC32, independente do PRNG
+  global). Campo `seed: int = 42` adicionado à raiz de `Settings`
+  (`config/schema.py`) e a `config/default.yaml`. O seed é aplicado no
+  arranque do pipeline (`commands/process.py`) e no harness de avaliação
+  (`scripts/run_eval.py`); é gravado no `run_manifest.json` sob `run.seed`.
+  O PRNG ad-hoc `sum(ord(c))%100` em `rhymes/enrich.py:signals_for_pair`
+  foi substituído por `make_generator` — as barras sintéticas do inspector
+  Rimas continuam determinísticas por par (anchor, echo) mas agora respeitam
+  o seed global. **Regeneração de artefactos diferida ao mantenedor** (blast
+  radius quase-zero: sem `random`/`np.random` no core; MMR determinístico;
+  o único PRNG era display-only e não alimenta nenhum artefacto committed).
+
 - **Drafts de lançamento M3 (M3 #5)** sob `docs/launch/`: README
   inglês-first, outline de blog post em 7 seções (~2.300 palavras),
   scope + recipe ffmpeg para o vídeo demo de 90s. Drafts citam os

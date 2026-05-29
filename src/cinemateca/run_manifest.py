@@ -243,6 +243,7 @@ def build_run_manifest(
             "finished_at": _iso_from_epoch(finished),
             "total_duration_s": total_duration_s,
             "error": error,
+            "seed": _get_path(cfg, "seed", default=None),
         },
         "input": input_identity(video_path),
         "config": {

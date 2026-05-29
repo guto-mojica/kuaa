@@ -163,7 +163,7 @@ def build_rimas_context(
     # _signals_for_pair so future readers don't confuse them with real
     # model outputs.
     if selected_echo is not None and not selected_echo.get("signals"):
-        selected_echo["signals"] = _signals_for_pair(anchor_data, selected_echo)
+        selected_echo["signals"] = _signals_for_pair(anchor_data, selected_echo, cfg)
         # Lazy-load the moondream description for the selected echo and
         # surface it as `reason` so the inspector's quote block renders.
         # Loading the description for every echo would bloat the grid
