@@ -66,7 +66,7 @@
 
 /* ─── BODY LAYOUT ───────────────────────────────────────────────────── */
 .ch-body {
-  display: grid; grid-template-columns: 56px 248px 1fr;
+  display: grid; grid-template-columns: 248px 1fr;
   flex: 1; min-height: 0; overflow: hidden;
 }
 .ch-main { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
@@ -89,41 +89,15 @@
 }
 .ch-right > * { flex: 1; min-height: 0; }
 .ch-body.compact-lp {
-  grid-template-columns: 56px 1fr;
+  grid-template-columns: 1fr;
 }
 .ch-body.with-right {
-  grid-template-columns: 56px 248px 1fr 380px;
+  grid-template-columns: 248px 1fr 380px;
 }
 .ch-body.compact-lp.with-right {
-  grid-template-columns: 56px 1fr 380px;
+  grid-template-columns: 1fr 380px;
 }
 
-/* ─── ICON RAIL ─────────────────────────────────────────────────────── */
-.ch-rail {
-  border-right: 1px solid var(--c-border); background: var(--c-bg);
-  display: flex; flex-direction: column; align-items: center;
-  padding: 12px 0;
-}
-.ch-rail .stack { display: flex; flex-direction: column; gap: 4px; }
-.ch-rail .spacer { flex: 1; }
-.ch-rail .ic {
-  width: 36px; height: 36px; border-radius: 7px;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--c-muted); cursor: pointer; position: relative;
-  background: transparent; border: none;
-  transition: background .12s, color .12s;
-}
-.ch-rail .ic:hover { background: var(--c-hover); color: var(--c-text); }
-.ch-rail .ic.on { background: var(--c-accent-bg); color: var(--c-accent); }
-.ch-rail .ic .nb {
-  position: absolute; top: 4px; right: 4px;
-  min-width: 14px; height: 14px; padding: 0 3px;
-  border-radius: 8px; background: var(--c-pink); color: #0E1014;
-  font-size: 9px; font-weight: 700; font-family: var(--font-mono);
-  display: flex; align-items: center; justify-content: center;
-  border: 2px solid var(--c-bg);
-  line-height: 1;
-}
 
 /* ─── FILM/COLLECTION TREE PANE ─────────────────────────────────────── */
 .ch-lp {
@@ -281,31 +255,31 @@
 
 /* ─── Responsive breakpoints ──────────────────────────────────────────────
    The Mojica design targets a 1440px canvas; below that the chrome grid
-   collapses progressively without losing the four-pane intent:
+   collapses progressively without losing the three-pane intent:
 
      ≤1280px — right pane shrinks 380→320, breadcrumb compresses.
      ≤1024px — left pane drops to icon-only width (~56px), centered tabs
                lose their icons (label-only) so they keep fitting.
      ≤ 960px — right pane folds out entirely; viewers stack hides.
      ≤ 720px — top bar wraps to two rows (brand+R on top, tabs below);
-               icon rail hides; the left pane disappears entirely (the
-               icon rail is the navigation surface on phones).
+               the left pane disappears entirely (the top tabs are the
+               navigation surface on phones).
 
    These rules are additive — base styles still apply at ≥1281px. */
 
 @media (max-width: 1280px) {
-  .ch-body.with-right { grid-template-columns: 56px 248px 1fr 320px; }
-  .ch-body.compact-lp.with-right { grid-template-columns: 56px 1fr 320px; }
+  .ch-body.with-right { grid-template-columns: 248px 1fr 320px; }
+  .ch-body.compact-lp.with-right { grid-template-columns: 1fr 320px; }
   .ch-top { gap: 12px; padding: 0 12px; }
   .ch-top .crumb { font-size: 12.5px; gap: 6px; }
   .ch-top .crumb .ver { font-size: 10.5px; padding: 1px 6px; }
 }
 
 @media (max-width: 1024px) {
-  .ch-body { grid-template-columns: 56px 56px 1fr; }
-  .ch-body.with-right { grid-template-columns: 56px 56px 1fr 300px; }
-  .ch-body.compact-lp { grid-template-columns: 56px 1fr; }
-  .ch-body.compact-lp.with-right { grid-template-columns: 56px 1fr 300px; }
+  .ch-body { grid-template-columns: 56px 1fr; }
+  .ch-body.with-right { grid-template-columns: 56px 1fr 300px; }
+  .ch-body.compact-lp { grid-template-columns: 1fr; }
+  .ch-body.compact-lp.with-right { grid-template-columns: 1fr 300px; }
   /* Hide the filter input + film/collection labels; keep the structure
      so /api/library/tree HX swaps still target the same DOM nodes. */
   .ch-lp .filter,
@@ -322,8 +296,8 @@
 }
 
 @media (max-width: 960px) {
-  .ch-body.with-right { grid-template-columns: 56px 56px 1fr; }
-  .ch-body.compact-lp.with-right { grid-template-columns: 56px 1fr; }
+  .ch-body.with-right { grid-template-columns: 56px 1fr; }
+  .ch-body.compact-lp.with-right { grid-template-columns: 1fr; }
   .ch-right { display: none; }
 }
 
@@ -343,11 +317,10 @@
   .ch-top .crumb { display: none; }
   .ch-top .brand .n { display: none; }
   .ch-body,
-  .ch-body.with-right { grid-template-columns: 56px 1fr; }
+  .ch-body.with-right { grid-template-columns: 1fr; }
   .ch-body.compact-lp,
-  .ch-body.compact-lp.with-right { grid-template-columns: 56px 1fr; }
-  /* Left pane folds away on phones; the icon rail becomes the navigation
+  .ch-body.compact-lp.with-right { grid-template-columns: 1fr; }
+  /* Left pane folds away on phones; the top tabs become the navigation
      surface. JS-driven slide-over for the LP is a future enhancement. */
   .ch-lp { display: none; }
-  .ch-rail { padding: 8px 0; }
 }

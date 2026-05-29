@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     {# Responsive viewport. The Mojica design targets ≥1440px as its full
-       canvas, but the chrome (rail 56 + lp 248 + main 1fr + right 380)
+       canvas, but the chrome (lp 248 + main 1fr + right 380)
        and per-tab @media rules now collapse progressively at narrower
        widths — left pane shrinks to icon-only ≤1280px, right pane folds
        ≤960px, and tab grids drop to a single column ≤720px. The earlier
@@ -85,18 +85,15 @@
 {% from "partials/_icons.html" import icon %}
 
 {# ── Mojica chrome shell ─────────────────────────────────────────────────────
-   The chrome is a 4-column grid (rail · lp · main · right). Each cell is a
+   The chrome is a 3-column grid (lp · main · right). Each cell is a
    partial:
-     * ``_topbar.html``     — brand + breadcrumb + tabs
-     * ``_icon_rail.html``  — 56px vertical column with tab icons
+     * ``_topbar.html``     — brand + breadcrumb + tabs (the sole nav surface)
      * ``_left_pane.html``  — 248px film tree / collections / locale + About
      * ``ch-main``          — slot for the active tab's partial (.tab-panel)
      * ``ch-right``         — 380px right inspector, gated on has_right_pane #}
 {% include "partials/_topbar.html" %}
 
 <div class="ch-body{% if compact_lp %} compact-lp{% endif %}{% if has_right_pane %} with-right{% endif %}">
-    {% include "partials/_icon_rail.html" %}
-
     {% if not compact_lp %}
         {% include "partials/_left_pane.html" %}
     {% endif %}
@@ -104,10 +101,11 @@
     <main class="ch-main" id="ch-main">
         {# Phase-2 cleanup: the legacy ``.shell > .sidebar + .main > .tab-bar``
            wrapper was deleted here. Its three roles were already carried by
-           the new chrome partials: the film tree moved to ``_left_pane.html``,
-           the top tabs to ``_topbar.html``, the icon column to
-           ``_icon_rail.html``. The locale switcher + About link previously
-           pinned to the legacy sidebar footer now live in ``.ch-lp .foot``.
+           the new chrome partials: the film tree moved to ``_left_pane.html``
+           and the top tabs to ``_topbar.html`` (the former ``_icon_rail.html``
+           icon column was removed — the top tabs are the sole nav surface).
+           The locale switcher + About link previously pinned to the legacy
+           sidebar footer now live in ``.ch-lp .foot``.
            Each tab partial supplies its own ``<div class="tab-panel">``
            wrapper (see search.html, scenes.html, annotate.html,
            processing.html, rimas.html) so this slot drops straight into the

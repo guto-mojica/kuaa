@@ -136,15 +136,15 @@ def test_tab_processing_empty_has_no_active_jobs(client):
 
 
 def test_base_shell_renders_chrome(client):
-    """Buscar full-page response carries TopBar/IconRail/LeftPane/right markers."""
+    """Buscar full-page response carries TopBar/LeftPane/right markers."""
     r = client.get("/search")
     assert r.status_code == 200
     html = r.text
     # TopBar present + brand name.
     assert 'class="ch-top"' in html
     assert "Mojica" in html
-    # IconRail wrapper.
-    assert 'class="ch-rail"' in html
+    # The icon rail was removed — the top tabs are the sole nav surface.
+    assert 'class="ch-rail"' not in html
     # LeftPane (not compact on Buscar).
     assert 'class="ch-lp"' in html
     # Buscar's right pane lives inside .tab-panel (not ch-right), so no
@@ -310,16 +310,13 @@ def test_left_pane_scaffold_present(client):
         ("/processing", "proc"),
     ],
 )
-def test_icon_rail_active_for_each_tab(client, path, active):
-    """The IconRail marks the corresponding .ic anchor as .on for each route."""
+def test_topbar_active_for_each_tab(client, path, active):
+    """The TopBar marks the corresponding tab anchor as .on for each route."""
     r = client.get(path)
     assert r.status_code == 200, r.text[:500]
     html = r.text
-    # The rail is present.
-    assert 'class="ch-rail"' in html
-    # An .ic.on anchor exists for the active tab. The href encodes the
-    # EN tab key; the active-class check is structural (class string
-    # contains both "ic" and "on" tokens).
+    # The icon rail was removed; the top tabs are the sole nav surface.
+    assert 'class="ch-rail"' not in html
     tab_routes = {
         "buscar": "/search",
         "cenas": "/scenes",
@@ -328,10 +325,8 @@ def test_icon_rail_active_for_each_tab(client, path, active):
         "proc": "/processing",
     }
     href = tab_routes[active]
-    # Find anchors targeting the active tab's href and confirm at least
-    # one is on the IconRail (class contains "ic on") rather than the
-    # TopBar (class "tab on").
-    assert 'class="ic on"' in html
+    # The active top tab carries the "tab on" class and targets its route.
+    assert 'class="tab on"' in html
     assert href in html
 
 

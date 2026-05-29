@@ -62,6 +62,19 @@
              this.filmsHit = slugs.size;
              if (cards.length) this.searched = true;
            },
+           clearResults() {
+             {# Empty the grid AND reset the caption stats together. The chip
+                row used to clear only the grid, leaving hits/filmsHit/searched
+                stale — so flipping to Image kept showing the previous query's
+                "N resultados · M filmes". Resetting here fixes that; the
+                auto-searching modes restore counts via recountResults() after
+                the next swap. #}
+             const grid = this.$refs.searchResults;
+             if (grid) grid.innerHTML = '';
+             this.hits = 0;
+             this.filmsHit = 0;
+             this.searched = false;
+           },
            refreshSearch() {
              this.$nextTick(() => {
                const input = this.$refs.searchInput;
@@ -166,7 +179,7 @@
               data-mode="text"
               role="tab"
               :aria-selected="mode === 'text' ? 'true' : 'false'"
-              @click="mode = 'text'; $store.buscarRetrieval.modality = 'text'; $refs.searchResults && ($refs.searchResults.innerHTML = ''); refreshSearch()">
+              @click="mode = 'text'; $store.buscarRetrieval.modality = 'text'; clearResults(); refreshSearch()">
         <span class="ico">{{ icon('search', 14) }}</span>
         {{ _("Text") }}
       </button>
@@ -177,7 +190,7 @@
               role="tab"
               :aria-selected="mode === 'image' ? 'true' : 'false'"
               {% if not cfg.search.image_enabled %}disabled aria-disabled="true"{% endif %}
-              @click="mode = 'image'; $refs.searchResults && ($refs.searchResults.innerHTML = '')">
+              @click="mode = 'image'; clearResults()">
         <span class="ico">{{ icon('image', 14) }}</span>
         {{ _("Image") }}
       </button>
@@ -188,7 +201,7 @@
               role="tab"
               :aria-selected="mode === 'audio' ? 'true' : 'false'"
               {% if not cfg.search.audio_enabled %}disabled aria-disabled="true"{% endif %}
-              @click="mode = 'audio'; $store.buscarRetrieval.modality = 'audio'; $refs.searchResults && ($refs.searchResults.innerHTML = ''); refreshSearch()">
+              @click="mode = 'audio'; $store.buscarRetrieval.modality = 'audio'; clearResults(); refreshSearch()">
         <span class="ico">{{ icon('audio', 14) }}</span>
         {{ _("Audio") }}
       </button>
@@ -199,7 +212,7 @@
               role="tab"
               :aria-selected="mode === 'multimodal' ? 'true' : 'false'"
               {% if not cfg.search.multimodal_enabled %}disabled aria-disabled="true"{% endif %}
-              @click="mode = 'multimodal'; $store.buscarRetrieval.modality = 'fusion'; $refs.searchResults && ($refs.searchResults.innerHTML = ''); refreshSearch()">
+              @click="mode = 'multimodal'; $store.buscarRetrieval.modality = 'fusion'; clearResults(); refreshSearch()">
         <span class="ico">{{ icon('rhymes', 14) }}</span>
         {{ _("Fusion") }}
       </button>
@@ -398,8 +411,10 @@
       <template x-if="searched && hits === 0">
         <span class="ttl">{{ _("No results.") }}</span>
       </template>
-      {# Pre-search placeholder (also the no-JS fallback). #}
-      <template x-if="!searched">
+      {# Pre-search placeholder (also the no-JS fallback). Suppressed in image
+         mode — the dropzone below carries its own instruction, so a redundant
+         "type a query" line would just clutter the empty pane. #}
+      <template x-if="!searched && mode !== 'image'">
         <span class="ttl">{{ _("Type a query to search") }}</span>
       </template>
     </div>
@@ -452,16 +467,68 @@
        class="search-image-panel"
        x-show="mode === 'image'"
        x-cloak
-       x-data="{ filename: '{{ _('Choose image…') }}' }">
+       x-data="{
+         filename: '',
+         preview: '',
+         dragging: false,
+         setFile(file) {
+           if (!file) return;
+           this.filename = file.name;
+           if (this.preview) URL.revokeObjectURL(this.preview);
+           this.preview = URL.createObjectURL(file);
+         },
+         onPick(e) { this.setFile(e.target.files && e.target.files[0]); },
+         onDrop(e) {
+           {# Mirror the dropped file into the real <input> so the existing
+              hx-trigger='change from:#image-input' wiring fires unchanged —
+              no second upload path, the multipart POST stays the source of
+              truth. #}
+           const dt = e.dataTransfer;
+           if (!dt || !dt.files || !dt.files.length) return;
+           const input = this.$refs.imageInput;
+           input.files = dt.files;
+           this.setFile(dt.files[0]);
+           input.dispatchEvent(new Event('change', { bubbles: true }));
+         }
+       }">
     <form hx-post="/api/search/image{% if current_slug %}?film={{ current_slug }}{% endif %}"
           hx-encoding="multipart/form-data"
           hx-trigger="change from:#image-input"
           hx-target="#search-results">
-      <label class="image-upload-label" for="image-input">
-        {{ icon("upload-simple") }}
-        <span id="image-upload-filename" x-text="filename">{{ _("Choose image…") }}</span>
-        <input id="image-input" type="file" name="file" accept="image/*"
-               @change="filename = $event.target.files[0]?.name || '{{ _('Choose image…') }}'">
+      {# Dropzone empty-state. ``is-compact`` (read from the parent .b-cp
+         scope's searched/hits) collapses it to a slim bar once results show
+         below. ``has-file`` / ``is-dragging`` drive the chosen + drag-over
+         visuals. The file input is visually hidden but kept focusable so the
+         :focus-within ring works for keyboard users. #}
+      <label class="image-dropzone"
+             for="image-input"
+             :class="{ 'is-dragging': dragging, 'has-file': filename, 'is-compact': searched && hits > 0 }"
+             @dragover.prevent="dragging = true"
+             @dragenter.prevent="dragging = true"
+             @dragleave.prevent="dragging = false"
+             @drop.prevent="dragging = false; onDrop($event)">
+        <template x-if="!filename">
+          <span class="dz-empty">
+            <span class="dz-icon" aria-hidden="true">{{ icon('image', 26) }}</span>
+            <span class="dz-title">{{ _("Drop an image here or click to choose") }}</span>
+            <span class="dz-hint">{{ _("Search by visual similarity · PNG, JPG, WebP") }}</span>
+          </span>
+        </template>
+        <template x-if="filename">
+          <span class="dz-chosen">
+            <img class="dz-thumb" :src="preview" alt="">
+            <span class="dz-file">
+              <span class="dz-name" x-text="filename"></span>
+              <span class="dz-swap">{{ _("Click or drop to replace") }}</span>
+            </span>
+          </span>
+        </template>
+        <input id="image-input"
+               type="file"
+               name="file"
+               accept="image/*"
+               x-ref="imageInput"
+               @change="onPick($event)">
       </label>
     </form>
   </div>

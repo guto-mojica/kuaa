@@ -116,6 +116,11 @@
   gap: 16px;
   align-content: start;
 }
+/* The image-search dropzone shares the results-grid content box so its edges
+   line up with the qbar / chips / caption above and the result cards below.
+   The panel itself carries no horizontal inset, so without this the full-width
+   dropzone bled 24px past the toolbar on each side. */
+.b-cp .search-image-panel { padding: 18px 24px 20px; }
 .b-card {
   background: var(--c-panel); border: 1px solid var(--c-border);
   border-radius: 8px; overflow: hidden;
@@ -623,6 +628,7 @@
     padding: 14px 18px 18px; gap: 12px;
     grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
   }
+  .b-cp .search-image-panel { padding: 14px 18px 18px; }
   /* Compact (denser) variant floors lower still so it stays ≥2-up too. */
   #search-results.view-compact {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -651,6 +657,7 @@
     grid-template-columns: 1fr;
     padding: 12px 14px 16px;
   }
+  .b-cp .search-image-panel { padding: 12px 14px 16px; }
   .b-card .kf { aspect-ratio: 16 / 9; }
   .b-tl { padding: 8px 14px 10px; }
   /* The search-tag-section caps lower on small screens so it never
