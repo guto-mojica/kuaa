@@ -78,7 +78,7 @@ class ClapHFEmbedder:
 
         logger.info("Carregando CLAP: %s (device=%s)", self._model_id, self._device)
         self._processor = ClapProcessor.from_pretrained(self._model_id)
-        self._model = ClapModel.from_pretrained(self._model_id).to(self._device).eval()
+        self._model = ClapModel.from_pretrained(self._model_id, low_cpu_mem_usage=False).to(self._device).eval()
 
     # ── Helpers ───────────────────────────────────────────────────────────
 

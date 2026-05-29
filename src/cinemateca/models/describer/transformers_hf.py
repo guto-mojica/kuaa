@@ -120,6 +120,7 @@ class MoondreamTransformersDescriber:
             revision=self.revision,
             trust_remote_code=True,
             torch_dtype=dtype,
+            low_cpu_mem_usage=False,
         )
         if self._device is not None:
             self._model = self._model.to(self._device)
