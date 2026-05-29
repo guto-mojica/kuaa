@@ -37,12 +37,13 @@ from cinemateca.library import (
     derive_fps,
     load_json,
     load_tag_index,
-    to_smpte,
 )
 from cinemateca.retrieval.hybrid import DEFAULT_RRF_K
 from cinemateca.scene_ids import normalize_tag_index, scene_id_key
+from cinemateca.search._aggregate.film_filter import FilmFilter
 from cinemateca.search._aggregate.fusion import fuse_global_rrf as _fuse_rrf_many
-from cinemateca.search._aggregate.scorers import MetadataScorer
+from cinemateca.search._aggregate.materialize import materialize_hits
+from cinemateca.search._aggregate.scorers import BM25Scorer, CLIPScorer, MetadataScorer
 from cinemateca.search.cache import IndexStatus, SearchIndex, load_index
 from cinemateca.search.types import (
     Filters,
@@ -220,20 +221,18 @@ def aggregate_search(
     if not films:
         return []
 
-    # Pre-scan: skip embedder init when no film has a valid index.
-    # Uses _get_search_index (which is monkeypatched in tests and cached
-    # in production) rather than a bare disk check so test fixtures that
-    # stub the index are respected.
-    valid_slugs: set[str] = set()
-    for _f in films:
-        try:
-            _idx = _get_search_index(cfg, _f.slug)
-        except ValueError:
-            continue
-        if _idx.status is IndexStatus.OK:
-            valid_slugs.add(_f.slug)
-
-    if not valid_slugs:
+    # Single index-load gate (load-once): FilmFilter loads each film's
+    # index exactly once and returns the OK candidates with the loaded
+    # SearchIndex attached. This collapses the pre-C1 double load (a
+    # pre-scan pass that built ``valid_slugs`` plus a main loop that
+    # re-loaded each index). The injected loader is _get_search_index —
+    # monkeypatched in tests, cached in production — so test fixtures
+    # that stub the index are still respected.
+    film_by_slug = {film.slug: film for film in films}
+    candidates = FilmFilter(load_index=_get_search_index).candidates(
+        cfg=cfg, slugs=[film.slug for film in films]
+    )
+    if not candidates:
         return []
 
     embedder = _get_embedder(cfg)
@@ -275,19 +274,11 @@ def aggregate_search(
     global_bm25: list[tuple[tuple[str, int], float]] = []
     global_metadata: list[tuple[tuple[str, int], float]] = []
 
-    for film in films:
-        try:
-            idx = _get_search_index(cfg, film.slug)
-        except ValueError as exc:
-            logger.warning("aggregate_search: skip film %s — %s", film.slug, exc)
-            continue
-        if idx.status is not IndexStatus.OK:
-            logger.info(
-                "aggregate_search: skip film %s — index status %s",
-                film.slug,
-                idx.status,
-            )
-            continue
+    clip_scorer = CLIPScorer()
+    bm25_scorer = BM25Scorer()
+    for cand in candidates:
+        film = film_by_slug[cand.slug]
+        idx = cand.index  # load-once: read off the candidate, never re-load
         ctx = FilmContext.for_film(cfg, film.slug)
         kf_meta_data = load_json(ctx.metadata_dir / "keyframes_metadata.json") or []
         kf_meta = kf_meta_data if isinstance(kf_meta_data, list) else []
@@ -327,31 +318,16 @@ def aggregate_search(
 
         embeddings: Any = idx.embeddings
         kf_df: Any = idx.kf_df
-        scores: np.ndarray = embeddings @ text_vec
 
-        # CLIP-side ranked list — `(scene_id, cosine_score)` descending.
-        # Best-keyframe-per-scene: a single scene may have multiple
-        # keyframes (Phase-1 density), so the same scene_id can appear N
-        # times in ``scores`` at different rows. Keep the row index with
-        # the HIGHEST cosine per scene_id so the surfaced
-        # ``keyframe_path`` points at the actual best-matching frame.
-        best_score_by_sid: dict[int, float] = {}
-        best_row_by_sid: dict[int, int] = {}
-        for i, score in enumerate(scores):
-            s = float(score)
-            if s < min_similarity:
-                continue
-            row = kf_df.iloc[i]
-            sid = int(row["scene_id"])
-            if allowed_scene_keys is not None and scene_id_key(sid) not in allowed_scene_keys:
-                continue
-            prev = best_score_by_sid.get(sid)
-            if prev is None or s > prev:
-                best_score_by_sid[sid] = s
-                best_row_by_sid[sid] = i
-        clip_ranked: list[tuple[int, float]] = sorted(
-            best_score_by_sid.items(), key=lambda p: p[1], reverse=True
-        )[:raw_k]
+        # CLIP-side ranked list (best keyframe per scene, descending).
+        clip_ranked, best_row_by_sid = clip_scorer.score(
+            embeddings=embeddings,
+            kf_df=kf_df,
+            text_vec=text_vec,
+            min_similarity=min_similarity,
+            allowed_scene_keys=allowed_scene_keys,
+            raw_k=raw_k,
+        )
 
         # BM25-side ranked list. ``"clip"`` mode skips BM25 loading
         # entirely (no need to pay the disk read for a corpus we'll
@@ -380,12 +356,12 @@ def aggregate_search(
                     film.slug,
                     retriever_mode,
                 )
-            else:
-                bm25_hits = bm25.query(query, top_k=raw_k)
-                if allowed_scene_keys is not None:
-                    bm25_hits = [
-                        (sid, s) for sid, s in bm25_hits if scene_id_key(sid) in allowed_scene_keys
-                    ]
+            bm25_hits = bm25_scorer.score(
+                bm25=bm25,
+                query=query,
+                raw_k=raw_k,
+                allowed_scene_keys=allowed_scene_keys,
+            )
 
         per_film[film.slug] = {
             "film": film,
@@ -402,6 +378,7 @@ def aggregate_search(
             if allowed_scene_keys is None or scene_id_key(sid) in allowed_scene_keys:
                 global_metadata.append(((film.slug, sid), s))
 
+        scores: np.ndarray = embeddings @ text_vec
         if scores.size:
             top3 = np.sort(scores)[-3:][::-1]
             logger.info(
@@ -452,37 +429,7 @@ def aggregate_search(
 
     # Phase 4: materialise hit dicts. Keys are already unique
     # ((film_slug, scene_id)) so no dedupe pass is needed.
-    all_hits: list[dict] = []
-    for (slug, sid), score in ranked[:top_k]:
-        state = per_film.get(slug)
-        if state is None:  # defensive — every key came from per_film
-            continue
-        kf_df = state["kf_df"]
-        best_i = state["best_row_by_sid"].get(sid)
-        if best_i is not None:
-            row = kf_df.iloc[best_i]
-        else:
-            # BM25-only scene whose cosine was below ``min_similarity``
-            # or is otherwise absent from the CLIP-side map. Fall back
-            # to the first kf_df row for that scene_id — deterministic
-            # because kf_df row order is stable across loads.
-            row_mask = kf_df["scene_id"] == sid
-            if not row_mask.any():
-                continue
-            row = kf_df[row_mask].iloc[0]
-        meta = state["meta_by_scene"].get(sid)
-        start_s = float(meta.get("start_time_s") or 0.0) if meta else 0.0
-        timecode = to_smpte(start_s, state["fps"]) if start_s > 0 else ""
-        all_hits.append(
-            {
-                "film_slug": slug,
-                "film_title": state["film"].title,
-                "scene_id": sid,
-                "score": float(score),
-                "keyframe_path": str(row["filepath"]),
-                "timecode": timecode,
-            }
-        )
+    all_hits = materialize_hits(ranked, per_film, top_k)
 
     logger.info(
         "aggregate_search: query=%r global_clip=%d global_bm25=%d global_metadata=%d "

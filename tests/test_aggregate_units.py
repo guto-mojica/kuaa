@@ -120,3 +120,68 @@ def test_bm25_scorer_queries_and_filters_by_allowed_keys() -> None:
         bm25=_StubBM25(), query="dog", raw_k=10, allowed_scene_keys={scene_id_key(1)}
     )
     assert filtered == [(1, 3.0)]
+
+
+def test_film_filter_loads_each_index_once(monkeypatch) -> None:
+    """C1 acceptance: the index is loaded ONCE per film, not twice."""
+    import cinemateca.search._aggregate.film_filter as ff_mod
+    from cinemateca.search.cache import IndexStatus, SearchIndex
+
+    calls: dict[str, int] = {}
+
+    def _counting_loader(cfg, slug):
+        calls[slug] = calls.get(slug, 0) + 1
+        return SearchIndex(IndexStatus.OK, embeddings=object(), kf_df=object())
+
+    flt = ff_mod.FilmFilter(load_index=_counting_loader)
+    candidates = flt.candidates(cfg=object(), slugs=["a", "b"])
+    assert {c.slug for c in candidates} == {"a", "b"}
+    assert calls == {"a": 1, "b": 1}  # exactly one load per film
+
+
+def test_film_filter_skips_non_ok_and_unregistered() -> None:
+    """A non-OK index and a ValueError-raising slug are both dropped."""
+    from cinemateca.search._aggregate.film_filter import FilmFilter
+    from cinemateca.search.cache import IndexStatus, SearchIndex
+
+    def _loader(cfg, slug):
+        if slug == "missing":
+            return SearchIndex(IndexStatus.MISSING)
+        if slug == "ghost":
+            raise ValueError(f"Film not registered: {slug!r}")
+        return SearchIndex(IndexStatus.OK, embeddings=object(), kf_df=object())
+
+    candidates = FilmFilter(load_index=_loader).candidates(
+        cfg=object(), slugs=["ok", "missing", "ghost"]
+    )
+    assert [c.slug for c in candidates] == ["ok"]
+
+
+def test_materialize_hits_clip_and_bm25_fallback_rows() -> None:
+    """Best-row when present; first-matching kf_df row as BM25-only fallback."""
+    import pandas as pd
+
+    from cinemateca.search._aggregate.materialize import materialize_hits
+
+    class _Film:
+        title = "A"
+
+    kf_df = pd.DataFrame({"scene_id": [1, 1, 2], "filepath": ["s1a", "s1b", "s2"]})
+    per_film = {
+        "a": {
+            "film": _Film(),
+            "kf_df": kf_df,
+            "best_row_by_sid": {1: 1},  # scene 1 surfaced via CLIP best row = 1
+            "fps": 24.0,
+            "meta_by_scene": {1: {"start_time_s": 2.0}, 2: {"start_time_s": 0.0}},
+        }
+    }
+    ranked = [(("a", 1), 0.9), (("a", 2), 0.4)]
+    hits = materialize_hits(ranked, per_film, top_k=5)
+    assert [h["scene_id"] for h in hits] == [1, 2]
+    # scene 1 uses best_row_by_sid[1] → row index 1 → "s1b".
+    assert hits[0]["keyframe_path"] == "s1b"
+    assert hits[0]["timecode"]  # start_time_s 2.0 > 0 → non-empty SMPTE
+    # scene 2 has no best row → first kf_df row for sid 2 → "s2"; start 0 → "".
+    assert hits[1]["keyframe_path"] == "s2"
+    assert hits[1]["timecode"] == ""
