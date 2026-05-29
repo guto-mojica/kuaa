@@ -25,6 +25,7 @@ def build_corpus(
     tag_index: dict[str, Sequence[int]],
     *,
     stopwords_lang: str | None = None,
+    tag_boost: int = 1,
 ) -> list[tuple[int, list[str]]]:
     """Build ``[(scene_id, tokens), …]`` for a single film.
 
@@ -34,11 +35,18 @@ def build_corpus(
         tag_index: Merged ``{tag: [scene_id, …]}`` mapping from
             ``load_tag_index(metadata_dir)``.
         stopwords_lang: Forwarded to ``tokenize``.
+        tag_boost: Per-surface weight on the *tags* surface. Tag tokens are
+            repeated ``tag_boost`` times in each doc so a tag match carries
+            more BM25 term-frequency than the same word in a description.
+            ``1`` (the default) is byte-identical to flat concatenation —
+            the curated-tag surface is cleaned by the Phase-1 suppression
+            layer, and this lever lifts what remains. Values < 1 clamp to 1.
 
     Returns:
         Sorted-by-scene_id list of ``(scene_id, tokens)``. Scenes with
         no description text or tag are omitted.
     """
+    boost = max(1, int(tag_boost))
     desc_by_sid: dict[int, str] = {}
     for entry in descriptions:
         sid = entry.get("scene_id")
@@ -67,11 +75,16 @@ def build_corpus(
     for sid in all_sids:
         desc = desc_by_sid.get(sid, "")
         tags = tags_by_sid.get(sid, [])
-        # Text surfaces are concatenated with flat token weighting.
-        # Future tuning lever is a per-surface boost (tag_boost)
-        # once a larger corpus gives stable metrics.
-        text = " ".join(part for part in (desc, " ".join(tags)) if part).strip()
-        tokens = tokenize(text, stopwords_lang=stopwords_lang)
+        # Tokenise the description and tag surfaces independently so the tag
+        # surface can be weighted (repeated ``boost`` times). With boost == 1
+        # the result is the same token multiset and order that flat
+        # concatenation produced (whitespace is a token boundary either way),
+        # so the default path is byte-identical to the pre-lever corpus.
+        desc_tokens = tokenize(desc, stopwords_lang=stopwords_lang) if desc else []
+        tags_text = " ".join(tags)
+        tag_tokens = tokenize(tags_text, stopwords_lang=stopwords_lang) if tags_text else []
+        tokens = desc_tokens + tag_tokens * boost
+        text = " ".join(part for part in (desc, tags_text) if part).strip()
         if not tokens:
             # Distinguish two empty-token shapes:
             #   * text itself was empty (no desc + no tags) — silently

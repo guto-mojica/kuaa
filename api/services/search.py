@@ -105,8 +105,9 @@ logger = logging.getLogger(__name__)
 
 def _get_bm25_index_for_ctx(ctx: FilmContext) -> BM25Index:
     """Load + cache the BM25 index for one film. Resolves ``cfg.search.bm25``
-    tunables (``stopwords_lang`` / ``k1`` / ``b``) via lazy ``get_config``
-    so this module stays loadable without the FastAPI app wired up.
+    tunables (``stopwords_lang`` / ``k1`` / ``b`` / ``tag_boost``) via lazy
+    ``get_config`` so this module stays loadable without the FastAPI app
+    wired up.
     """
     from api.deps import get_config
     from cinemateca.search.bm25 import bm25_index_for_ctx
@@ -116,11 +117,13 @@ def _get_bm25_index_for_ctx(ctx: FilmContext) -> BM25Index:
     stopwords_lang = getattr(bm25_cfg, "stopwords_lang", None) if bm25_cfg else None
     k1 = float(getattr(bm25_cfg, "k1", 1.5)) if bm25_cfg else 1.5
     b = float(getattr(bm25_cfg, "b", 0.75)) if bm25_cfg else 0.75
+    tag_boost = int(getattr(bm25_cfg, "tag_boost", 1)) if bm25_cfg else 1
     return bm25_index_for_ctx(
         ctx,
         stopwords_lang=stopwords_lang,
         k1=k1,
         b=b,
+        tag_boost=tag_boost,
     )
 
 

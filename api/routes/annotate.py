@@ -24,11 +24,14 @@ from api.deps import film_ctx, film_slug_query, get_config, make_ctx
 from api.services.annotations import (
     build_annotate_context,
     build_scene_panel,
+    delete_manual_tag,
     load_annotations,
     normalize_annotate_tab,
     normalize_tags,
+    rename_manual_tag,
     save_annotations,
     save_description,
+    toggle_ai_tag,
 )
 from api.templates import templates
 from cinemateca.library import FilmContext
@@ -104,6 +107,95 @@ async def api_annotate_save(
     ann[str(scene_id)] = new_tags
     save_annotations(fctx, ann)
     logger.info("Saved %d tag(s) for scene %s", len(new_tags), scene_id)
+
+    ctx = build_scene_panel(fctx, scene_id, filter)
+    return templates.TemplateResponse(
+        request,
+        "partials/annotate_scene.html",
+        make_ctx(
+            request,
+            current_slug=slug,
+            filter=filter,
+            annotate_tab=normalize_annotate_tab(tab),
+            saved=True,
+            **ctx,
+        ),
+    )
+
+
+@router.post("/api/annotate/tag/delete", response_class=HTMLResponse)
+async def api_annotate_tag_delete(
+    request: Request,
+    scene_id: int = Form(...),
+    tag: str = Form(...),
+    filter: str = Form(default="no_llm"),
+    tab: str = Form(default="annotations"),
+    slug: str | None = Depends(film_slug_query),
+) -> HTMLResponse:
+    fctx = _ctx(slug, request)
+    delete_manual_tag(fctx, scene_id, tag)
+
+    ctx = build_scene_panel(fctx, scene_id, filter)
+    return templates.TemplateResponse(
+        request,
+        "partials/annotate_scene.html",
+        make_ctx(
+            request,
+            current_slug=slug,
+            filter=filter,
+            annotate_tab=normalize_annotate_tab(tab),
+            saved=True,
+            **ctx,
+        ),
+    )
+
+
+@router.post("/api/annotate/tag/edit", response_class=HTMLResponse)
+async def api_annotate_tag_edit(
+    request: Request,
+    scene_id: int = Form(...),
+    old_tag: str = Form(...),
+    new_tag: str = Form(default=""),
+    filter: str = Form(default="no_llm"),
+    tab: str = Form(default="annotations"),
+    slug: str | None = Depends(film_slug_query),
+) -> HTMLResponse:
+    fctx = _ctx(slug, request)
+    rename_manual_tag(fctx, scene_id, old_tag, new_tag)
+
+    ctx = build_scene_panel(fctx, scene_id, filter)
+    return templates.TemplateResponse(
+        request,
+        "partials/annotate_scene.html",
+        make_ctx(
+            request,
+            current_slug=slug,
+            filter=filter,
+            annotate_tab=normalize_annotate_tab(tab),
+            saved=True,
+            **ctx,
+        ),
+    )
+
+
+@router.post("/api/annotate/ai-tag/toggle", response_class=HTMLResponse)
+async def api_annotate_ai_tag_toggle(
+    request: Request,
+    scene_id: int = Form(...),
+    tag: str = Form(...),
+    suppressed: bool = Form(default=True),
+    filter: str = Form(default="no_llm"),
+    tab: str = Form(default="annotations"),
+    slug: str | None = Depends(film_slug_query),
+) -> HTMLResponse:
+    """Suppress / restore a single AI-generated tag (non-destructive override).
+
+    Writes ``tag_overrides.json`` only; ``scene_tags.json`` is untouched. The
+    BM25 cache keys on the override file so the suppression takes effect on the
+    next search.
+    """
+    fctx = _ctx(slug, request)
+    toggle_ai_tag(fctx, scene_id, tag, suppressed=suppressed)
 
     ctx = build_scene_panel(fctx, scene_id, filter)
     return templates.TemplateResponse(

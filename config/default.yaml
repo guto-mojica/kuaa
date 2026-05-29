@@ -130,6 +130,11 @@ search:
     b: 0.75                    # length normalisation
     stopwords_lang: null       # null = no stopword removal
     rrf_k: 60                  # RRF rank-shift constant (Cormack et al.)
+    tag_boost: 1               # per-surface weight on the tags surface (tag
+                               # tokens repeated N× per BM25 doc). 1 = neutral,
+                               # byte-identical to flat weighting; >1 lifts
+                               # curator-cleaned tag matches. Raise only with
+                               # eval evidence.
   # NB: the Rerank toggle is governed by ``retrieval.reranker.enabled``
   # (profile-aware: auto/GPU-on/CPU-off). The Buscar UI seeds its toggle from
   # the server-resolved default and first-stage widening follows the same flag.

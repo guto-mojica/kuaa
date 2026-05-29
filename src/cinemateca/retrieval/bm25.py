@@ -52,11 +52,13 @@ class BM25Index:
         stopwords_lang: str | None = None,
         k1: float = 1.5,
         b: float = 0.75,
+        tag_boost: int = 1,
     ) -> BM25Index:
         docs = build_corpus(
             descriptions,
             tag_index,
             stopwords_lang=stopwords_lang,
+            tag_boost=tag_boost,
         )
         if not docs:
             return cls(scene_ids=[], model=None, stopwords_lang=stopwords_lang)

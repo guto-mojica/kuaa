@@ -130,6 +130,36 @@ _DEMO_AVATARS: tuple[dict, ...] = (
 )
 
 
+def ai_tags_for_scene(ctx: FilmContext, scene_id: object) -> list[dict]:
+    """Return the LLM-generated tags for a scene with their suppressed state.
+
+    Reads ``scene_tags.json`` (inverted ``{tag: [scene_ids]}``) and
+    ``tag_overrides.json`` (the non-destructive correction layer) and returns
+    ``[{"tag": str, "suppressed": bool}, ...]`` for the given scene, sorted by
+    tag. This is what the annotate panel renders so a curator can mark a wrong
+    AI tag without touching the generated artefact. Empty list when there are
+    no AI tags or the file is missing/malformed.
+    """
+    from cinemateca.annotations.overrides import load as load_overrides
+    from cinemateca.annotations.overrides import suppressed_for_scene
+    from cinemateca.scene_ids import scene_id_key
+
+    llm_tags = load_json(ctx.metadata_dir / "scene_tags.json") or {}
+    if not isinstance(llm_tags, dict):
+        return []
+    sid = scene_id_key(scene_id)
+    tags = [
+        tag
+        for tag, ids in llm_tags.items()
+        if isinstance(ids, list) and any(scene_id_key(i) == sid for i in ids)
+    ]
+    suppressed = set(suppressed_for_scene(load_overrides(ctx.metadata_dir), scene_id))
+    return [
+        {"tag": tag, "suppressed": tag.strip().lower().replace(" ", "-") in suppressed}
+        for tag in sorted(tags)
+    ]
+
+
 def build_scene_list(ctx: FilmContext, filter_mode: str) -> tuple[list, dict, dict]:
     """Return ``(scene_list, desc_by_scene, annotations)`` for the tab.
 
@@ -198,6 +228,7 @@ def scene_context(
             "annotated_count": 0,
             "comment_count": 0,
             "selected_scene": None,
+            "ai_tags": [],
         }
 
     # Default to first scene if scene_id not found.
@@ -217,6 +248,7 @@ def scene_context(
 
     existing_tags = annotations.get(str(scene_id), [])
     annotated_count = sum(1 for s in scenes if str(s["scene_id"]) in annotations)
+    ai_tags = ai_tags_for_scene(ctx, scene_id)
 
     img_url = keyframe_url(fp, ctx.data_dir)
 
@@ -269,6 +301,7 @@ def scene_context(
         "progress_pct": 0,
         "description": description_text,
         "tags": list(existing_tags),
+        "ai_tags": ai_tags,
         "pins": demo_pins,
         "comment_popup": demo_popup,
         "markers": demo_markers,
@@ -302,6 +335,7 @@ def scene_context(
         "comment_count": comment_count,
         "scene_list": scenes,
         "selected_scene": selected_scene,
+        "ai_tags": ai_tags,
     }
 
 

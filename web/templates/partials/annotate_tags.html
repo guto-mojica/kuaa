@@ -36,17 +36,46 @@
 </div>
 {% endif %}
 
+{% set film_qs = "?film=" ~ selected_scene.film_slug if (selected_scene and selected_scene.film_slug) else "" %}
+
 {% if existing_tags %}
-<div class="tags" style="margin-bottom: 12px;">
+{# Each manual tag is an editable chip: click the label to rename inline
+   (Alpine), or the ✕ to delete just that tag. Both post to the per-tag
+   routes and reflow the whole .a-rp panel via #annotate-scene. #}
+<div class="tags tag-chips" style="margin-bottom: 12px;">
     {% for tag in existing_tags %}
-    <span class="fx-pill">{{ tag }}</span>
+    <span class="tag-chip" x-data="{ editing: false }">
+        <span class="fx-pill tag-chip__view" x-show="!editing">
+            <button type="button" class="tag-chip__label"
+                    @click="editing = true"
+                    title="{{ _('Click to rename') }}">{{ tag }}</button>
+            <button type="button" class="tag-chip__x"
+                    hx-post="/api/annotate/tag/delete{{ film_qs }}"
+                    hx-vals='{"scene_id": {{ scene_id }}, "tag": "{{ tag }}", "filter": "{{ filter }}", "tab": "annotations"}'
+                    hx-target="#annotate-scene" hx-swap="innerHTML"
+                    aria-label="{{ _('Delete tag') }}">&times;</button>
+        </span>
+        <form class="tag-chip__edit" x-show="editing" x-cloak
+              hx-post="/api/annotate/tag/edit{{ film_qs }}"
+              hx-target="#annotate-scene" hx-swap="innerHTML">
+            <input type="hidden" name="scene_id" value="{{ scene_id }}">
+            <input type="hidden" name="old_tag" value="{{ tag }}">
+            <input type="hidden" name="filter" value="{{ filter }}">
+            <input type="hidden" name="tab" value="annotations">
+            <input class="tag-chip__input" name="new_tag" value="{{ tag }}"
+                   autocomplete="off"
+                   x-init="$nextTick(() => editing && $el.focus())"
+                   x-effect="if (editing) $nextTick(() => $el.focus())"
+                   @keydown.escape="editing = false">
+        </form>
+    </span>
     {% endfor %}
 </div>
 {% endif %}
 
 <p class="annotate-section-label">{{ _("Manual tags") }}</p>
 
-<form hx-post="/api/annotate/save{% if selected_scene and selected_scene.film_slug %}?film={{ selected_scene.film_slug }}{% endif %}"
+<form hx-post="/api/annotate/save{{ film_qs }}"
       hx-target="#annotate-scene"
       hx-swap="innerHTML">
     <input type="hidden" name="scene_id" value="{{ scene_id }}">
@@ -65,7 +94,7 @@
         <button type="submit" class="fx-btn primary">{{ _("Save") }}</button>
         <button type="button"
                 class="fx-btn secondary"
-                hx-post="/api/annotate/clear{% if selected_scene and selected_scene.film_slug %}?film={{ selected_scene.film_slug }}{% endif %}"
+                hx-post="/api/annotate/clear{{ film_qs }}"
                 hx-vals='{"scene_id": {{ scene_id }}, "filter": "{{ filter }}", "tab": "annotations"}'
                 hx-target="#annotate-scene"
                 hx-swap="innerHTML">
@@ -74,7 +103,29 @@
     </div>
 </form>
 
-{% if llm and llm.tags %}
+{% if ai_tags %}
+{# AI-generated tags (from scene_tags.json — the surface that feeds BM25).
+   Clicking a tag toggles a non-destructive suppression in
+   tag_overrides.json; scene_tags.json itself is never rewritten. A
+   suppressed tag is dimmed/struck and excluded from the search index. #}
+<div class="annotate-divider"></div>
+<p class="annotate-section-label">{{ _("AI tags") }}</p>
+<p class="annotate-hint text-muted">
+    {{ _("Click a wrong AI tag to exclude it from search. The model output is kept.") }}
+</p>
+<div class="tags">
+    {% for item in ai_tags %}
+    <button type="button"
+            class="fx-pill ai-tag{% if item.suppressed %} ai-tag--suppressed{% endif %}"
+            hx-post="/api/annotate/ai-tag/toggle{{ film_qs }}"
+            hx-vals='{"scene_id": {{ scene_id }}, "tag": "{{ item.tag }}", "suppressed": {{ "false" if item.suppressed else "true" }}, "filter": "{{ filter }}", "tab": "annotations"}'
+            hx-target="#annotate-scene" hx-swap="innerHTML"
+            title="{% if item.suppressed %}{{ _('Suppressed — click to restore') }}{% else %}{{ _('Click to mark wrong') }}{% endif %}">
+        {{ item.tag }}{% if item.suppressed %} &times;{% endif %}
+    </button>
+    {% endfor %}
+</div>
+{% elif llm and llm.tags %}
 <div class="annotate-divider"></div>
 <p class="annotate-section-label">{{ _("LLM tags") }}</p>
 <div class="tags">

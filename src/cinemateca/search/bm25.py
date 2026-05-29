@@ -3,8 +3,8 @@
 Caches a :class:`cinemateca.retrieval.bm25.BM25Index` per film, keyed by
 the ``(mtime_ns, size)`` stamp of the on-disk source files
 (``scene_descriptions.json``, ``scene_tags.json``,
-``manual_annotations.json``). Any write to any indexed source
-invalidates the entry transparently.
+``manual_annotations.json``, ``tag_overrides.json``). Any write to any
+indexed source invalidates the entry transparently.
 
 Public verbs:
 
@@ -74,9 +74,11 @@ def _cached_bm25_index(
     descriptions_stamp: tuple[int, int],
     scene_tags_stamp: tuple[int, int],
     manual_annotations_stamp: tuple[int, int],
+    tag_overrides_stamp: tuple[int, int],
     stopwords_lang: str | None,
     k1: float,
     b: float,
+    tag_boost: int,
 ) -> BM25Index:
     """Build a BM25 index for the given (already-stamped) metadata dir.
 
@@ -88,6 +90,9 @@ def _cached_bm25_index(
       * ``scene_descriptions.json`` — Moondream output (list of dicts).
       * ``scene_tags.json`` — LLM-tag output (INT scene_id keys).
       * ``manual_annotations.json`` — manual tags (STR scene_id keys).
+      * ``tag_overrides.json`` — curator AI-tag suppressions (STR keys);
+        ``load_tag_index`` filters suppressed pairs out of the merged
+        index, so a write here must rebuild the corpus too.
 
     Tag merge semantics come from :func:`cinemateca.search._tag_index.load_tag_index`
     (the shared loader — single source of truth for scene_id
@@ -113,6 +118,7 @@ def _cached_bm25_index(
         stopwords_lang=stopwords_lang,
         k1=k1,
         b=b,
+        tag_boost=tag_boost,
     )
 
 
@@ -122,22 +128,25 @@ def bm25_index_for_dir(
     stopwords_lang: str | None,
     k1: float,
     b: float,
+    tag_boost: int = 1,
 ) -> BM25Index:
     """Load (cached) BM25 index for a metadata directory.
 
-    The cache key includes the three file stamps so any write
-    invalidates. ``stopwords_lang`` / ``k1`` / ``b`` participate in the
-    cache key too, so a config change reloads correctly without a manual
-    flush.
+    The cache key includes the four file stamps so any write
+    invalidates. ``stopwords_lang`` / ``k1`` / ``b`` / ``tag_boost``
+    participate in the cache key too, so a config change reloads correctly
+    without a manual flush.
     """
     return _cached_bm25_index(
         str(metadata_dir),
         _file_stamp(metadata_dir / "scene_descriptions.json"),
         _file_stamp(metadata_dir / "scene_tags.json"),
         _file_stamp(metadata_dir / "manual_annotations.json"),
+        _file_stamp(metadata_dir / "tag_overrides.json"),
         stopwords_lang,
         k1,
         b,
+        tag_boost,
     )
 
 
@@ -147,19 +156,21 @@ def bm25_index_for_ctx(
     stopwords_lang: str | None,
     k1: float,
     b: float,
+    tag_boost: int = 1,
 ) -> BM25Index:
     """Load BM25 index for a film context (duck-typed).
 
-    ``ctx`` must expose ``metadata_dir``. The three BM25 tunables are
-    passed explicitly so this module stays free of any ``api.*``
-    import — the call-site shim in ``api/services/search.py`` resolves
-    them from ``cfg.search.bm25`` and forwards.
+    ``ctx`` must expose ``metadata_dir``. The BM25 tunables are passed
+    explicitly so this module stays free of any ``api.*`` import — the
+    call-site shim in ``api/services/search.py`` resolves them from
+    ``cfg.search.bm25`` and forwards.
     """
     return bm25_index_for_dir(
         metadata_dir=ctx.metadata_dir,
         stopwords_lang=stopwords_lang,
         k1=k1,
         b=b,
+        tag_boost=tag_boost,
     )
 
 

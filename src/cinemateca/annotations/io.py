@@ -127,6 +127,7 @@ def save(metadata_dir: str | Path, annotations: dict[str, list[str]]) -> Path:
 def merge_tag_index(
     llm_tag_index: dict[str, list[str]] | None,
     annotations: dict[str, list[str]],
+    overrides: dict[str, dict[str, list[str]]] | None = None,
 ) -> dict[str, list[str]]:
     """
     Mescla o índice de tags do LLM com as anotações manuais.
@@ -136,6 +137,12 @@ def merge_tag_index(
 
     As anotações manuais têm o formato:
         { "scene_id": ["tag1", "tag2"] }
+
+    ``overrides`` (opcional) é a camada de correção não-destrutiva
+    (``tag_overrides.json``, formato ``{ "scene_id": {"suppressed": [tag]} }``):
+    cada par ``(scene_id, tag)`` suprimido é removido do índice mesclado no
+    final. Quando ``overrides`` é ``None`` ou vazio o resultado é
+    byte-idêntico ao comportamento anterior.
 
     Returns:
         Índice mesclado no formato { "tag": [scene_ids] }.
@@ -158,7 +165,50 @@ def merge_tag_index(
             if scene_id not in merged[tag]:
                 merged[tag].append(scene_id)
 
+    if overrides:
+        merged = _apply_overrides(merged, overrides)
+
     return merged
+
+
+def _apply_overrides(
+    merged: dict[str, list[str]],
+    overrides: dict[str, dict[str, list[str]]],
+) -> dict[str, list[str]]:
+    """Drop suppressed ``(scene_id, tag)`` pairs from a merged tag index.
+
+    Matching is normalisation-aware on both axes: the merged dict carries
+    mixed int/str scene ids (LLM values are copied verbatim, manual ids are
+    strings), so ids are compared via :func:`cinemateca.scene_ids.scene_id_key`;
+    tags are compared in the canonical hyphenated-lowercase form. A tag whose
+    membership list empties out is dropped entirely so the index does not keep
+    a dangling empty key.
+    """
+    from cinemateca.scene_ids import scene_id_key
+
+    # Build {tag_norm: {suppressed_scene_id_key, ...}} once.
+    suppressed: dict[str, set[str]] = {}
+    for sid, entry in overrides.items():
+        sid_key = scene_id_key(sid)
+        for raw_tag in (entry or {}).get("suppressed", []):
+            tag_norm = raw_tag.strip().lower().replace(" ", "-")
+            if tag_norm:
+                suppressed.setdefault(tag_norm, set()).add(sid_key)
+
+    if not suppressed:
+        return merged
+
+    result: dict[str, list[str]] = {}
+    for tag, ids in merged.items():
+        tag_norm = tag.strip().lower().replace(" ", "-")
+        drop = suppressed.get(tag_norm)
+        if not drop:
+            result[tag] = ids
+            continue
+        kept = [i for i in ids if scene_id_key(i) not in drop]
+        if kept:
+            result[tag] = kept
+    return result
 
 
 # ── Tag normalization ────────────────────────────────────────────────────────
