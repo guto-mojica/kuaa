@@ -5,13 +5,14 @@ and logs it at DEBUG. Consumed by the search dispatchers (WS-1 C9, which
 attaches ``latency_ms`` to ``SearchResult``) and the benchmark harness
 (WS-4 E6 p50/p95/p99). Zero dependencies beyond stdlib.
 """
+
 from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Iterator
 
 logger = logging.getLogger(__name__)
 

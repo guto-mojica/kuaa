@@ -137,7 +137,11 @@ def signals_for_pair(
         {"key": "visual", "label": "Visual · CLIP", "value": score},
         {"key": "composition", "label": "Composition", "value": _bounded(int(rng.integers(-3, 6)))},
         {"key": "semantic", "label": "Semantic", "value": _bounded(int(rng.integers(-8, 2)))},
-        {"key": "color_luma", "label": "Colour · Luma", "value": _bounded(int(rng.integers(-9, 5)))},
+        {
+            "key": "color_luma",
+            "label": "Colour · Luma",
+            "value": _bounded(int(rng.integers(-9, 5))),
+        },
         {"key": "fused", "label": "Fused", "value": score},
     ]
 

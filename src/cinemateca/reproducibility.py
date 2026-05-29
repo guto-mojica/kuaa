@@ -11,6 +11,7 @@ imported lazily so this module stays importable in torch-free contexts
 without mutating global state (replaces the ad-hoc ``sum(ord(c))`` PRNG
 in ``rhymes/enrich.py``).
 """
+
 from __future__ import annotations
 
 import logging

@@ -1,13 +1,12 @@
 """Unit tests for the shared golden-snapshot helper (F4)."""
+
 from __future__ import annotations
 
 import json
-import os
-from pathlib import Path
 
 import pytest
 
-from tests._snapshot import SNAPSHOT_DIR, assert_snapshot, normalize
+from tests._snapshot import assert_snapshot, normalize
 
 
 def test_normalize_rounds_floats_and_sorts_keys():

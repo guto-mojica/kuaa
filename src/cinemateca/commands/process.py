@@ -80,6 +80,7 @@ def process(
     cfg = load_config(str(config) if config else None)
     setup_logging(cfg)
     from cinemateca.reproducibility import seed_everything
+
     seed_everything(getattr(cfg, "seed", 42))
 
     if steps:

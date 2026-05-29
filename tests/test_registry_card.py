@@ -6,6 +6,7 @@ manifest.  The 'reranker' role has no settings.models selector
 (configured under retrieval.*) so it always returns the single
 bge_reranker_v2_m3 card.
 """
+
 from __future__ import annotations
 
 import pytest

@@ -7,6 +7,7 @@ clip_openclip) and two describer backends (default
 moondream_transformers + alt moondream_gguf) plus one backend per other
 role.
 """
+
 from __future__ import annotations
 
 import pytest

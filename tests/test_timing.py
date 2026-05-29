@@ -1,4 +1,5 @@
 """Timing hook (F5)."""
+
 from __future__ import annotations
 
 import time

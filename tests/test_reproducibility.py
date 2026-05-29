@@ -1,4 +1,5 @@
 """Deterministic seeding utility (F3)."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -36,5 +37,7 @@ def test_make_generator_is_pure_and_repeatable():
     g2 = make_generator(42, "anchor", 351, 412)
     assert g1.random() == g2.random()
     # Different salt → different stream.
-    assert make_generator(42, "anchor", 351, 412).random() != \
-        make_generator(42, "anchor", 351, 999).random()
+    assert (
+        make_generator(42, "anchor", 351, 412).random()
+        != make_generator(42, "anchor", 351, 999).random()
+    )

@@ -1,4 +1,5 @@
 """Existing exceptions must inherit the F2 taxonomy (back-compat preserved)."""
+
 from __future__ import annotations
 
 from cinemateca.errors import (

@@ -5,6 +5,7 @@ on ``request.state.request_id`` for downstream handlers/SSE (WS-2 A8),
 times the request via :func:`cinemateca.timing.timed`, and emits exactly
 one structured access-log line on the ``api.access`` logger.
 """
+
 from __future__ import annotations
 
 import logging

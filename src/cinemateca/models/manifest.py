@@ -15,6 +15,7 @@ config-aware entry point; docs (WS-6 D4/D9) render
 ``MODEL_INVENTORY`` / ``LICENSES`` from these cards so there is no drift
 between code and documentation.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

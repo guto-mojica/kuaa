@@ -5,6 +5,7 @@ subtree the HTTP layer (WS-2 A4) maps to status codes via
 :func:`http_status_for`. Existing scattered exceptions migrate to inherit
 these (keeping their names as aliases) in a follow-up step of this task.
 """
+
 from __future__ import annotations
 
 

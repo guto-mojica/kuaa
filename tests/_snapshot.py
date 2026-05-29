@@ -8,6 +8,7 @@ drifted snapshot fails loudly with a unified diff.
 Float tolerance: values are rounded to ``FLOAT_NDIGITS`` decimal places
 before compare so CPU/GPU/backend score noise (~1e-7) does not flap.
 """
+
 from __future__ import annotations
 
 import difflib
