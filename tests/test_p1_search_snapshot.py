@@ -5,14 +5,13 @@ These tests fix the HTML structure /api/search produces under the
 P1 code moves. Every subsequent commit on this branch must keep them
 passing — that is the contract that the refactor is behavior-preserving.
 
-Regenerate with ``UPDATE_P1_SNAPSHOT=1 uv run pytest tests/test_p1_search_snapshot.py``.
+Regenerate with ``UPDATE_SNAPSHOTS=1 uv run pytest tests/test_p1_search_snapshot.py``.
 """
 
 from __future__ import annotations
 
 import json
-import os
-import warnings
+import re
 from pathlib import Path
 
 import numpy as np
@@ -20,35 +19,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.server import app
-
-SNAPSHOTS_DIR = Path(__file__).parent / "fixtures" / "refactor_snapshots"
-UPDATE = bool(os.environ.get("UPDATE_P1_SNAPSHOT"))
-
-if os.environ.get("UPDATE_P1_SNAPSHOT"):
-    warnings.warn(
-        "UPDATE_P1_SNAPSHOT is set — snapshot baselines will be overwritten "
-        "without diff verification. Only use when deliberately capturing a "
-        "new baseline.",
-        UserWarning,
-        stacklevel=2,
-    )
+from tests._snapshot import assert_snapshot
 
 
 def _slim(html: str) -> str:
     """Reduce HTML to a structural fingerprint stable across whitespace edits."""
-    import re
-
     return re.sub(r"\s+", " ", html).strip()
-
-
-def _load_or_init(path: Path) -> dict:
-    if not path.exists():
-        return {}
-    return json.loads(path.read_text())
-
-
-def _save(path: Path, data: dict) -> None:
-    path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
 
 
 @pytest.fixture
@@ -166,21 +142,6 @@ def _client() -> TestClient:
     return c
 
 
-def _assert_or_update(snapshot_path: Path, key: str, payload: dict) -> None:
-    data = _load_or_init(snapshot_path)
-    if UPDATE:
-        data[key] = payload
-        _save(snapshot_path, data)
-        return
-    assert key in data, (
-        f"No snapshot for {key!r} in {snapshot_path.name}. "
-        f"Run with UPDATE_P1_SNAPSHOT=1 to capture."
-    )
-    assert data[key] == payload, (
-        f"Snapshot drift for {key!r} in {snapshot_path.name}. " f"Investigate before regenerating."
-    )
-
-
 def test_text_search_clip_single_film(small_library):
     client = _client()
     r = client.get(
@@ -194,11 +155,7 @@ def test_text_search_clip_single_film(small_library):
     )
     assert r.status_code == 200
     payload = {"status": r.status_code, "html": _slim(r.text)}
-    _assert_or_update(
-        SNAPSHOTS_DIR / "p1_search_text.json",
-        "text_clip_single_film",
-        payload,
-    )
+    assert_snapshot("p1_search_text__text_clip_single_film", payload)
 
 
 def test_text_search_hybrid_single_film(small_library):
@@ -214,11 +171,7 @@ def test_text_search_hybrid_single_film(small_library):
     )
     assert r.status_code == 200
     payload = {"status": r.status_code, "html": _slim(r.text)}
-    _assert_or_update(
-        SNAPSHOTS_DIR / "p1_search_text.json",
-        "text_hybrid_single_film",
-        payload,
-    )
+    assert_snapshot("p1_search_text__text_hybrid_single_film", payload)
 
 
 def test_text_search_bm25_single_film(small_library):
@@ -234,11 +187,7 @@ def test_text_search_bm25_single_film(small_library):
     )
     assert r.status_code == 200
     payload = {"status": r.status_code, "html": _slim(r.text)}
-    _assert_or_update(
-        SNAPSHOTS_DIR / "p1_search_text.json",
-        "text_bm25_single_film",
-        payload,
-    )
+    assert_snapshot("p1_search_text__text_bm25_single_film", payload)
 
 
 def test_text_search_with_tag_filter(small_library):
@@ -255,11 +204,7 @@ def test_text_search_with_tag_filter(small_library):
     )
     assert r.status_code == 200
     payload = {"status": r.status_code, "html": _slim(r.text)}
-    _assert_or_update(
-        SNAPSHOTS_DIR / "p1_search_text.json",
-        "text_clip_with_tag",
-        payload,
-    )
+    assert_snapshot("p1_search_text__text_clip_with_tag", payload)
 
 
 def test_text_search_aggregate_across_films(small_library):
@@ -274,11 +219,7 @@ def test_text_search_aggregate_across_films(small_library):
     )  # no ?film= → aggregate path
     assert r.status_code == 200
     payload = {"status": r.status_code, "html": _slim(r.text)}
-    _assert_or_update(
-        SNAPSHOTS_DIR / "p1_search_text.json",
-        "text_clip_aggregate",
-        payload,
-    )
+    assert_snapshot("p1_search_text__text_clip_aggregate", payload)
 
 
 def test_image_search_single_film(small_library):
@@ -291,11 +232,7 @@ def test_image_search_single_film(small_library):
     )
     assert r.status_code == 200
     payload = {"status": r.status_code, "html": _slim(r.text)}
-    _assert_or_update(
-        SNAPSHOTS_DIR / "p1_search_image.json",
-        "image_single_film",
-        payload,
-    )
+    assert_snapshot("p1_search_image__image_single_film", payload)
 
 
 def test_no_index_response(tmp_config):
@@ -304,11 +241,7 @@ def test_no_index_response(tmp_config):
     r = client.get("/api/search", params={"q": "horse", "top_k": 5})
     assert r.status_code == 200
     payload = {"status": r.status_code, "html": _slim(r.text)}
-    _assert_or_update(
-        SNAPSHOTS_DIR / "p1_search_edge.json",
-        "no_index_empty_library",
-        payload,
-    )
+    assert_snapshot("p1_search_edge__no_index_empty_library", payload)
 
 
 def test_short_query_returns_empty(tmp_config):
@@ -317,8 +250,14 @@ def test_short_query_returns_empty(tmp_config):
     r = client.get("/api/search", params={"q": "a", "top_k": 5})
     assert r.status_code == 200
     payload = {"status": r.status_code, "html": _slim(r.text)}
-    _assert_or_update(
-        SNAPSHOTS_DIR / "p1_search_edge.json",
-        "short_query",
-        payload,
-    )
+    assert_snapshot("p1_search_edge__short_query", payload)
+
+
+def test_p1_snapshot_uses_shared_helper():
+    import tests.test_p1_search_snapshot as mod
+
+    # After migration the bespoke updater is gone and the shared helper is imported.
+    assert not hasattr(mod, "_assert_or_update"), "bespoke updater should be removed"
+    from tests._snapshot import assert_snapshot  # noqa: F401
+
+    assert getattr(mod, "assert_snapshot", None) is assert_snapshot

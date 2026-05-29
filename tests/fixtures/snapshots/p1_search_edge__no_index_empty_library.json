@@ -1,0 +1,4 @@
+{
+  "html": "<div class=\"empty-state\"> <p>No search index found. Run the pipeline with the Embeddings step first.</p> </div>",
+  "status": 200
+}

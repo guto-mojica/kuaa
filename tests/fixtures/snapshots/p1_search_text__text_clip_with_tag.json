@@ -1,0 +1,4 @@
+{
+  "html": "<article class=\"b-card\" tabindex=\"0\" role=\"button\" data-scene-id=\"1\" data-film-slug=\"alpha\" hx-get=\"/api/scenes/1/inspector?film=alpha\" hx-target=\"#right-pane\" hx-swap=\"innerHTML\" hx-trigger=\"click, keyup[key=='Enter' || key==' ']\"> <div class=\"kf\" role=\"img\" aria-label=\"Keyframe\"> <span class=\"tl\"> <span class=\"dot\"></span> indexed </span> <span class=\"bl\">00:00:01:00</span> <span class=\"tr\">2.000</span> </div> <div class=\"body\"> <div class=\"head\"> <div class=\"filmname\"> <span class=\"dot\" style=\"background: var(--c-accent);\"></span> <span class=\"nm fx-truncate\">Alpha</span> </div> <span class=\"yr\">2026</span> </div> <p class=\"desc\">a man on a horse</p> <div class=\"footrow\"> <div class=\"tags\"> <span class=\"fx-pill ac\">outdoor</span> </div> </div> </div> </article>",
+  "status": 200
+}
