@@ -31,6 +31,7 @@ when ``filters.tags`` is non-empty) which lives in core.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
 from cinemateca.config import Settings
@@ -45,6 +46,7 @@ from cinemateca.search.types import (
     SearchMode,
     SearchResult,
 )
+from cinemateca.timing import timed
 
 # Canonical filenames for the per-film CLIP index. Mirror the
 # ``config/default.yaml`` → ``embeddings.*`` values and act as defaults
@@ -106,11 +108,21 @@ def find(
             weights=weights if mode == "hybrid" else None,
             query=query,
             no_index=True,
+            retriever_mode=mode,
+            num_films_searched=1,
         )
 
     if query.image_path is not None:
-        df = search_image(index, query.image_path, top_k=top_k)
-        return _df_to_result(df, mode="clip", weights=None, query=query)
+        with timed("find.image") as t:
+            df = search_image(index, query.image_path, top_k=top_k)
+        result = _df_to_result(df, mode="clip", weights=None, query=query)
+        return replace(
+            result,
+            retriever_mode="clip",
+            fusion_used=False,
+            num_films_searched=1,
+            latency_ms=t.elapsed_ms,
+        )
 
     if query.text is None:
         raise ValueError("Query must have text or image_path set")
@@ -125,24 +137,32 @@ def find(
         bm25_include_transcripts=bm25_include_transcripts,
     )
 
-    df = search_hybrid(
-        index,
-        bm25=bm25,
-        query=query.text,
-        tags=list(filters.tags),
-        tag_index=tag_index,
-        top_k=top_k,
-        min_similarity=filters.min_similarity,
-        retriever_mode=mode,
-        sem_w=weights.sem_w,
-        bm25_w=weights.bm25_w,
-        rrf_k=weights.rrf_k,
-    )
-    return _df_to_result(
+    with timed("find.text") as t:
+        df = search_hybrid(
+            index,
+            bm25=bm25,
+            query=query.text,
+            tags=list(filters.tags),
+            tag_index=tag_index,
+            top_k=top_k,
+            min_similarity=filters.min_similarity,
+            retriever_mode=mode,
+            sem_w=weights.sem_w,
+            bm25_w=weights.bm25_w,
+            rrf_k=weights.rrf_k,
+        )
+    result = _df_to_result(
         df,
         mode=mode,
         weights=weights if mode == "hybrid" else None,
         query=query,
+    )
+    return replace(
+        result,
+        retriever_mode=mode,
+        fusion_used=(mode == "hybrid"),
+        num_films_searched=1,
+        latency_ms=t.elapsed_ms,
     )
 
 

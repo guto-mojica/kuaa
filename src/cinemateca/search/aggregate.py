@@ -479,18 +479,25 @@ def aggregate(
         )
     filters = filters or Filters()
     weights = weights or HybridWeights()
-    raw = aggregate_search(
-        cfg,
-        query=query.text,
-        modality="text",
-        top_k=top_k,
-        tags=list(filters.tags) or None,
-        min_similarity=filters.min_similarity,
-        retriever_mode=mode,
-        sem_w=weights.sem_w,
-        bm25_w=weights.bm25_w,
-        rrf_k=weights.rrf_k,
-    )
+
+    from cinemateca.library import scan_library
+    from cinemateca.timing import timed
+
+    num_films = len(list(scan_library(Path(cfg.paths.library_dir))))
+
+    with timed("aggregate") as t:
+        raw = aggregate_search(
+            cfg,
+            query=query.text,
+            modality="text",
+            top_k=top_k,
+            tags=list(filters.tags) or None,
+            min_similarity=filters.min_similarity,
+            retriever_mode=mode,
+            sem_w=weights.sem_w,
+            bm25_w=weights.bm25_w,
+            rrf_k=weights.rrf_k,
+        )
     hits = [
         Hit(
             scene_id=int(h["scene_id"]),
@@ -512,6 +519,10 @@ def aggregate(
         weights=weights if mode == "hybrid" else None,
         query=query,
         no_index=no_index,
+        fusion_used=(mode == "hybrid"),
+        retriever_mode=mode,
+        num_films_searched=num_films,
+        latency_ms=t.elapsed_ms,
     )
 
 

@@ -119,4 +119,4 @@ def rerank(
         replace(h, rerank_score=float(s)) for h, s in zip(top, scores, strict=True)
     ]
     rescored.sort(key=lambda h: h.rerank_score or 0.0, reverse=True)
-    return replace(result, hits=rescored)
+    return replace(result, hits=rescored, reranker_applied=True)

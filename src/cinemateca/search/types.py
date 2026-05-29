@@ -85,3 +85,14 @@ class SearchResult:
     weights: HybridWeights | None
     query: Query
     no_index: bool = False
+    # C9 per-query metadata (additive; feeds eval + UI affordances).
+    fusion_used: bool = False
+    reranker_applied: bool = False
+    retriever_mode: str = ""
+    num_films_searched: int = 0
+    latency_ms: float | None = None
+
+    def __post_init__(self) -> None:
+        # Default ``retriever_mode`` to ``mode`` when not explicitly supplied.
+        if not self.retriever_mode:
+            object.__setattr__(self, "retriever_mode", self.mode)
