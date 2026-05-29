@@ -25,9 +25,6 @@ The service deliberately keeps the surface narrow:
   * collaboration data (comment threads, pin coords) is absent until the
     backend lands — the template renders the moondream description as a
     read-only ``.b-com.ai`` row in the Activity tab regardless;
-  * signals data (``.b-sigs``) is also absent until M2 (the ``signals``
-    key stays ``None`` so the template's ``{% if cfg.search.signals_enabled
-    and selected_scene.signals %}`` guard hides the section);
   * rhymes data (cross-film kNN, ``.b-rimas``) is empty until Phase 5
     of the Mojica plan wires the stub service — the key is reserved
     here so callers don't break when it lands.
@@ -277,9 +274,6 @@ def build_inspector_context(
         # Pin overlay coords — reserved for the pin-persistence backend.
         # ``None`` hides the .pin span in the template.
         "pin": None,
-        # Per-modality signal breakdown — wired by M2 hybrid retrieval.
-        # ``None`` hides the .b-sigs block regardless of the config flag.
-        "signals": None,
         # "Described … ago" label — populated when the description carries
         # a generated_at timestamp. The default is empty so the template
         # renders nothing (a missing timestamp is the normal case today).

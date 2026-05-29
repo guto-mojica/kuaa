@@ -6,7 +6,7 @@
    Context contract (built by ``api/services/scenes_service.build_inspector_context``):
 
      * ``selected_scene``   dict — keyframe_url, timecode, description,
-       tags, scene_id, film_slug, pin (optional), signals (optional),
+       tags, scene_id, film_slug, pin (optional),
        activity_count / annotation_count / pin_count (defaults 0),
        scene_index / scene_total / duration_s for the Properties tab.
      * ``selected_film``    Film | None — title/year/director for the
@@ -22,7 +22,6 @@
 
    Config flags consumed (defaults wired in ``config/default.yaml``):
 
-     * ``cfg.search.signals_enabled`` — gates the ``.b-sigs`` block.
      * ``cfg.collaboration.composer_enabled`` — gates the ``.b-comp``
        textarea + tool buttons.
 #}
@@ -122,25 +121,6 @@
       {% include "partials/inspector_properties.html" %}
     {% else %}
       {% include "partials/inspector_activity.html" %}
-    {% endif %}
-
-    {# ── Signals breakdown (.b-sigs) — gated on cfg + presence of data ── #}
-    {% if cfg.search.signals_enabled and selected_scene.signals %}
-      <div class="b-sigs">
-        <div class="h">
-          <span>{{ _("Why this result") }}</span>
-          {% if selected_scene.signals.fused is defined and selected_scene.signals.fused is not none %}
-            <span class="v">{{ '%.3f'|format(selected_scene.signals.fused) }}</span>
-          {% endif %}
-        </div>
-        {% for row in selected_scene.signals.rows or [] %}
-          <div class="row{% if row.fused %} fused{% endif %}">
-            <span class="lab">{{ row.label }}</span>
-            <span class="track" style="--p: {{ '%.0f'|format((row.value or 0.0) * 100) }}%;"></span>
-            <span class="v">{{ '%.3f'|format(row.value or 0.0) }}</span>
-          </div>
-        {% endfor %}
-      </div>
     {% endif %}
 
     {# ── Visual rhymes (.b-rimas) — cross-film mini-grid. #}

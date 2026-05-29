@@ -177,7 +177,6 @@ def build_inspector_context(
         "activity_count": 0,
         "annotation_count": 0,
         "pin": None,
-        "signals": None,
         "described_when": "",
         "scene_index": scene_index,
         "scene_total": total_scenes,

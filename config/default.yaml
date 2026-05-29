@@ -136,9 +136,6 @@ search:
   image_enabled: true         # existing image-similarity search
   audio_enabled: true         # M3: CLAP audio-only retrieval lit up
   multimodal_enabled: true    # M3 #1: fusion live (CLIP × CLAP linear late-fusion)
-  # M2: the right inspector's Signals panel (.b-sigs) is gated on this until
-  # the per-modality score breakdown actually exists.
-  signals_enabled: false
 
 # ── Retrieval (Month-2/3 reranker + fusion/rhymes knobs) ─────────────────────
 # Separate from ``search:`` because ``search:`` owns UI-surfaced display knobs
