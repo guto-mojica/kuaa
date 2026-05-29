@@ -578,6 +578,7 @@ dependencies = [
 
 [package.optional-dependencies]
 full = [
+    { name = "accelerate" },
     { name = "aiofiles" },
     { name = "babel" },
     { name = "einops" },
@@ -627,6 +628,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "accelerate", marker = "extra == 'full'", specifier = ">=0.26" },
     { name = "aiofiles", marker = "extra == 'full'", specifier = ">=23.0" },
     { name = "aiofiles", marker = "extra == 'web'", specifier = ">=23.0" },
     { name = "babel", marker = "extra == 'full'", specifier = ">=2.14" },

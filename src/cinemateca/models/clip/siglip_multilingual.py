@@ -116,7 +116,7 @@ class SiglipMultilingualEmbedder:
             # default to the fast Rust processor, which produces minor pixel-
             # level differences and would desync queries from stored embeddings.
             self._processor = AutoProcessor.from_pretrained(self.model_id, use_fast=False)
-            self._model = AutoModel.from_pretrained(self.model_id, low_cpu_mem_usage=False).to(self._device).eval()
+            self._model = AutoModel.from_pretrained(self.model_id, device_map=self._device).eval()
             logger.info("✓ SigLIP carregado em %.1fs | device=%s", time.time() - t0, self._device)
 
     # --------------------------------------------------------------- encoders
