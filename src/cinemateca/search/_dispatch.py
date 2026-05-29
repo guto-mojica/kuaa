@@ -33,6 +33,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from cinemateca.config import Settings
 from cinemateca.search.cache import load_index
 from cinemateca.search.clip import search_image
 from cinemateca.search.hybrid import search_hybrid
@@ -68,7 +69,7 @@ def find(
     bm25_k1: float = 1.5,
     bm25_b: float = 0.75,
     bm25_include_transcripts: bool = True,
-    cfg: Any = None,
+    cfg: Settings | None = None,
 ) -> SearchResult:
     """Run a search against a single film.
 

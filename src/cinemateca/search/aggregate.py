@@ -32,6 +32,8 @@ from typing import Any
 
 import numpy as np
 
+from cinemateca.config import Settings
+
 from cinemateca.library import (
     FilmContext,
     derive_fps,
@@ -62,7 +64,7 @@ _DEFAULT_MAPPING_FILENAME = "index_mapping.json"
 _SCENE_ID_FROM_PATH_RE = re.compile(r"Scene-(\d+)", flags=re.IGNORECASE)
 
 
-def _get_embedder(cfg: Any) -> Any:
+def _get_embedder(cfg: Settings) -> Any:
     """Return a fresh image embedder via the registry. Module-scope so unit
     tests monkeypatch ``cinemateca.search.aggregate._get_embedder`` to avoid
     loading the real model.
@@ -78,7 +80,7 @@ def _get_embedder(cfg: Any) -> Any:
     return get_image_embedder(cfg)
 
 
-def _get_search_index(cfg: Any, slug: str) -> SearchIndex:
+def _get_search_index(cfg: Settings, slug: str) -> SearchIndex:
     """Return the (cached) :class:`SearchIndex` for ``slug``. Reads
     ``cfg.embeddings.*`` filenames when present, otherwise falls back
     to the module-level defaults for minimal test configs.
@@ -100,7 +102,7 @@ def _get_search_index(cfg: Any, slug: str) -> SearchIndex:
     )
 
 
-def _get_bm25_index_for_ctx_with_cfg(cfg: Any, ctx: FilmContext) -> Any:
+def _get_bm25_index_for_ctx_with_cfg(cfg: Settings, ctx: FilmContext) -> Any:
     """Load + cache the BM25 index for one film.
 
     Resolves ``cfg.search.bm25`` tunables (``stopwords_lang`` / ``k1`` /
@@ -298,7 +300,7 @@ def _fuse_rrf_many(
     return sorted(fused.items(), key=lambda pair: pair[1], reverse=True)
 
 
-def has_indexed_films(cfg: Any) -> bool:
+def has_indexed_films(cfg: Settings) -> bool:
     """``True`` iff at least one registered film has an OK :class:`SearchIndex`.
 
     Lets the route distinguish "no indexed films yet" (run the pipeline)
@@ -318,7 +320,7 @@ def has_indexed_films(cfg: Any) -> bool:
 
 
 def aggregate_search(
-    cfg: Any,
+    cfg: Settings,
     *,
     query: str,
     modality: str,
@@ -683,7 +685,7 @@ def aggregate_search(
 def aggregate(
     query: Query,
     *,
-    cfg: Any,
+    cfg: Settings,
     mode: SearchMode = "clip",
     top_k: int = 20,
     filters: Filters | None = None,
@@ -743,7 +745,7 @@ def aggregate(
     )
 
 
-def aggregate_hits_to_template_dicts(cfg: Any, hits: list[dict]) -> list[dict]:
+def aggregate_hits_to_template_dicts(cfg: Settings, hits: list[dict]) -> list[dict]:
     """Convert ``aggregate_search`` raw hits to ``.b-card``-shaped template dicts.
 
     Relocated from the aggregate path of ``api/routes/search.py`` (T15).

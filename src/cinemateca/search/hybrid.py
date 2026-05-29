@@ -31,6 +31,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+from cinemateca.config import Settings
+
 import numpy as np
 import pandas as pd
 
@@ -47,7 +49,7 @@ _VALID_RETRIEVERS = {"clip", "bm25", "hybrid"}
 
 
 def resolve_retriever_args(
-    cfg: Any,
+    cfg: Settings,
     retriever: str,
     sem_w: float | None,
     bm25_w: float | None,

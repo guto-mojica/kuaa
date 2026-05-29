@@ -50,6 +50,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from cinemateca.config import Settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -205,7 +207,7 @@ def load_index(
     *,
     mapping_filename: str,
     embeddings_filename: str,
-    cfg: Any = None,
+    cfg: Settings | None = None,
 ) -> SearchIndex:
     """Return the (cached) :class:`SearchIndex` for *ctx*'s embeddings dir.
 
