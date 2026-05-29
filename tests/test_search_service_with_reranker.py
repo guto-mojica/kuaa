@@ -35,7 +35,7 @@ def _make_result(n: int = 8):
         for i in range(n)
     ]
     return SearchResult(
-        hits=hits, mode="hybrid", weights=None, query=Query.text_query("q"), no_index=False
+        hits=hits, mode="hybrid", weights=None, query=Query.of_text("q"), no_index=False
     )
 
 

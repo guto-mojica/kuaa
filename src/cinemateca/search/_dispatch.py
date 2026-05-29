@@ -6,7 +6,7 @@ The dispatcher wraps the legacy per-mode functions
 :func:`cinemateca.search.hybrid.search_hybrid`) behind the typed public
 API locked in the P1 spec:
 
-  >>> result = search.find(search.Query.text("man on a horse"), film=ctx)
+  >>> result = search.find(search.Query.of_text("man on a horse"), film=ctx)
   >>> result.hits[0].scene_id
   1
 

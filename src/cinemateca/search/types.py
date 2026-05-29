@@ -32,29 +32,14 @@ class Query:
             raise ValueError("Query must specify exactly one of text / image_path / image_bytes")
 
     @classmethod
-    def text_query(cls, q: str) -> Query:
+    def of_text(cls, q: str) -> Query:
+        """Construct a text query. Mirrors :meth:`image` for symmetry."""
         return cls(text=q)
 
     @classmethod
     def image(cls, path: Path) -> Query:
+        """Construct an image-path query."""
         return cls(image_path=path)
-
-
-# Public factory exposed as ``Query.text(...)`` for symmetry with
-# ``Query.image(...)``. The class-level rebind shadows the dataclass field
-# *on the class object* but not on instances: ``q.text`` on a ``Query``
-# instance still returns the field's ``str | None`` value because instance
-# attribute lookup hits the instance ``__dict__`` (populated by the frozen
-# dataclass ``__init__``) before falling back to the class.
-#
-# The double ``type: ignore`` is load-bearing: mypy raises BOTH
-# ``method-assign`` (re-binding a method) AND ``assignment`` (the class
-# attribute's declared type is ``str | None`` from the dataclass field, not
-# a classmethod). Final code-review reviewer flagged this as a public-API
-# wart; we accept the static-analysis noise here to keep the symmetric
-# caller surface (``Query.text`` / ``Query.image``). Removing the alias is
-# tracked in the P2 follow-up backlog.
-Query.text = Query.text_query  # type: ignore[method-assign,assignment]
 
 
 @dataclass(frozen=True)

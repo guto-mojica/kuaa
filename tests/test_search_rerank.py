@@ -26,7 +26,7 @@ def _make_result(hits: list[Hit], query_text: str = "anything") -> SearchResult:
         hits=hits,
         mode="clip",
         weights=None,
-        query=Query.text(query_text),
+        query=Query.of_text(query_text),
     )
 
 

@@ -17,7 +17,7 @@ from cinemateca.search.types import (
 
 
 def test_query_text_factory():
-    q = Query.text("man on horse")
+    q = Query.of_text("man on horse")
     assert q.text == "man on horse"
     assert q.image_path is None
     assert q.image_bytes is None
@@ -62,7 +62,7 @@ def test_hit_default_film_fields():
 
 
 def test_search_result_empty_default():
-    q = Query.text("x")
+    q = Query.of_text("x")
     r = SearchResult(hits=[], mode="clip", weights=None, query=q)
     assert r.hits == []
     assert r.no_index is False

@@ -233,7 +233,7 @@ def rerank_template_results(
         hits=hits,
         mode=search_mode,
         weights=None,
-        query=Query.text_query(query),
+        query=Query.of_text(query),
         no_index=False,
     )
     try:

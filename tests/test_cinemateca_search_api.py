@@ -94,7 +94,7 @@ def fake_film(tmp_path, monkeypatch):
 
 
 def test_find_text_query_runs(fake_film):
-    q = search.Query.text("horse")
+    q = search.Query.of_text("horse")
     result = search.find(q, film=fake_film, mode="clip", top_k=3)
     assert isinstance(result, search.SearchResult)
     assert result.mode == "clip"
@@ -119,7 +119,7 @@ def test_find_returns_no_index_for_missing(tmp_path):
 
     cache_mod.clear_index_cache()
 
-    q = search.Query.text("x")
+    q = search.Query.of_text("x")
     result = search.find(q, film=ctx, top_k=3)
     assert result.no_index is True
     assert result.hits == []
