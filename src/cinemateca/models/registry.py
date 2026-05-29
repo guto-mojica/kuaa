@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from cinemateca.config import Settings
     from cinemateca.models.base import (
         AudioEmbedder,
         EnvironmentClassifier,
@@ -29,6 +30,7 @@ if TYPE_CHECKING:
         SceneDescriber,
         Transcriber,
     )
+    from cinemateca.models.manifest import ModelCard
 
 
 _image_embedder_cache: dict[tuple[str, str | None], Any] = {}
@@ -158,3 +160,52 @@ def get_transcriber(cfg, device=None) -> Transcriber:
 
         return FasterWhisperTranscriber(cfg, device)
     raise ValueError(f"Unknown transcriber: {name!r}")
+
+
+# ---------------------------------------------------------------------------
+# Config-aware manifest accessor (F6)
+# ---------------------------------------------------------------------------
+
+#: Model roles served by ``settings.models.*`` selectors.
+_MODELS_ROLES = frozenset(
+    {
+        "image_embedder",
+        "face_detector",
+        "object_detector",
+        "scene_describer",
+        "environment_classifier",
+        "audio_embedder",
+        "transcriber",
+    }
+)
+
+
+def model_card(settings: Settings, role: str) -> ModelCard:
+    """Return the :class:`~cinemateca.models.manifest.ModelCard` for *role*.
+
+    Resolves the *active* backend from *settings* so the returned card
+    always matches the configured backend — not a role-level default.
+
+    For the seven roles with a ``settings.models.*`` selector
+    (``image_embedder``, ``face_detector``, ``object_detector``,
+    ``scene_describer``, ``environment_classifier``, ``audio_embedder``,
+    ``transcriber``), the backend id is read from ``settings.models``
+    and used as the :data:`~cinemateca.models.manifest.CARDS` key.
+
+    ``"reranker"`` has no ``settings.models`` selector (it is configured
+    under ``settings.retrieval``); this function returns the single
+    ``bge_reranker_v2_m3`` card directly.
+
+    Raises ``KeyError`` for unknown roles.
+
+    Used by provenance-aware code (WS-1 C10) and the docs renderers
+    (WS-6 D4/D9) so model identity has a single source of truth.
+    """
+    from cinemateca.models.manifest import get_card
+
+    if role in _MODELS_ROLES:
+        backend: str = getattr(settings.models, role)
+        return get_card(backend)
+    if role == "reranker":
+        return get_card("bge_reranker_v2_m3")
+    raise KeyError(role)
