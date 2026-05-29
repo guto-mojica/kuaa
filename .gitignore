@@ -148,6 +148,12 @@ claude_design/
 latest_claude_design_version/
 mojica_design_handoff.zip
 
+# Heavy reference artifacts — untracked but kept locally (v0.8-rc cleanup).
+# Generated API analysis (3.3M) + retired Streamlit-era UI screenshots (3.7M):
+# bloat the repo, not part of the public portfolio surface.
+docs/engine-api-analysis.html
+docs/screenshots_old_interface/
+
 # ─── Private worktree-local reports ───────────────────────────────────────────
 # Working checklists / internal verification notes. Live next to the worktree
 # root for quick reference; intentionally not part of the public history.
