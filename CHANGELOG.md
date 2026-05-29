@@ -10,7 +10,21 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ## [Não lançado]
 
+## [0.8.0-rc1] - 2026-05-29
+
+Landmark de release-candidate: remoção de features seguradas/não finalizadas
+e correção de bugs pendentes, priorizando consistência e funcionalidade da
+aplicação sobre velocidade.
+
 ### Removido
+
+- **Transcrição de áudio (Whisper).** A etapa de pipeline `audio_transcribe`
+  e todo o backend `Transcriber` / faster-whisper foram removidos (nunca
+  lançados, sem artefatos em disco). A busca por áudio CLAP
+  (`audio_extract` + `audio_embed`) permanece intacta.
+- **Stub de signals por modalidade.** O bloco `.b-sigs` do inspetor (sempre
+  `None`, atrás da flag `search.signals_enabled`) e a flag de config foram
+  removidos — nunca renderizava.
 
 - **Fallback Streamlit (`app_streamlit.py`) excluído.** A interface
   FastAPI + HTMX é agora a única superfície suportada. Após o refactor
@@ -22,6 +36,12 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
   Para recuperar a UI legada veja a tag `v0.2.1-streamlit-final`.
 
 ### Corrigido
+
+- **Anotar — descrição não some mais após edição abortada.** Cancelar a
+  edição inline da descrição agora limpa apenas o contêiner do editor em vez
+  de re-renderizar todo o painel da cena; e `build_scene_panel` recai para a
+  lista completa de cenas quando o filtro ativo exclui a cena solicitada
+  (o que também corrige o salto para a cena errada após salvar).
 
 - **`POST /api/library/remove/{slug}` retornava 500.** A rota chamava
   `delete_film(library_dir, slug)` posicionalmente, mas a assinatura é
