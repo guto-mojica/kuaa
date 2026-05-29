@@ -4,6 +4,8 @@
 # Os valores aqui são os defaults conservadores (CPU, qualidade vs velocidade).
 # ─────────────────────────────────────────────────────────────────────────────
 
+config_version: 1
+
 project:
   name: "Cinemateca AI"
   version: "0.1.0-alpha"

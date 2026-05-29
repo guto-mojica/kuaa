@@ -1,26 +1,30 @@
-"""
-cinemateca.config
-~~~~~~~~~~~~~~~~~
-Carrega e valida a configuração do projeto a partir de arquivos YAML.
+"""Config loading + logging setup (F1).
 
-Uso típico:
-    from cinemateca.config import load_config
-    cfg = load_config("config/local.yaml")
-    print(cfg.paths.metadata_dir)
+Preserves the historical ``load_config`` signature and merge semantics
+(default.yaml ⊕ user override, relative→absolute path resolution,
+opt-out dir creation). The merged mapping is parsed into the typed
+:class:`Settings` model; a schema violation becomes a
+:class:`cinemateca.errors.ConfigError` whose message names the offending
+field path instead of surfacing a deep ``AttributeError`` at use time.
 """
 
 from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
 
 import yaml
+from pydantic import ValidationError
+
+from cinemateca.config.schema import CONFIG_VERSION, Settings
+from cinemateca.errors import ConfigError
 
 logger = logging.getLogger(__name__)
 
 # ─── Caminho do default embutido ──────────────────────────────────────────────
-_DEFAULT_CONFIG = Path(__file__).parent.parent.parent / "config" / "default.yaml"
+# NB: one extra ``.parent`` vs. the old module — config.py was at
+# src/cinemateca/config.py; loader.py is at src/cinemateca/config/loader.py.
+_DEFAULT_CONFIG = Path(__file__).parent.parent.parent.parent / "config" / "default.yaml"
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -49,40 +53,14 @@ def _resolve_paths(paths_dict: dict, project_root: Path) -> dict:
     return resolved
 
 
-# ─── Namespace simples para acesso com ponto ──────────────────────────────────
-
-
-class _Namespace:
-    """Permite cfg.section.key em vez de cfg['section']['key']."""
-
-    def __init__(self, data: dict):
-        for key, val in data.items():
-            if isinstance(val, dict):
-                setattr(self, key, _Namespace(val))
-            else:
-                setattr(self, key, val)
-
-    def __repr__(self) -> str:
-        return f"Namespace({vars(self)})"
-
-    def get(self, key: str, default: Any = None) -> Any:
-        return getattr(self, key, default)
-
-    def to_dict(self) -> dict:
-        result = {}
-        for key, val in vars(self).items():
-            result[key] = val.to_dict() if isinstance(val, _Namespace) else val
-        return result
+def _ensure_dirs(cfg: Settings) -> None:
+    """Create every configured ``paths.*`` directory on disk."""
+    for path_obj in cfg.paths.model_dump(mode="python").values():
+        if isinstance(path_obj, Path):
+            path_obj.mkdir(parents=True, exist_ok=True)
 
 
 # ─── API pública ──────────────────────────────────────────────────────────────
-
-
-def _ensure_dirs(cfg: _Namespace) -> None:
-    """Create every configured ``paths.*`` directory on disk."""
-    for path_obj in vars(cfg.paths).values():
-        if isinstance(path_obj, Path):
-            path_obj.mkdir(parents=True, exist_ok=True)
 
 
 def load_config(
@@ -90,7 +68,7 @@ def load_config(
     project_root: str | Path | None = None,
     *,
     ensure_dirs: bool = True,
-) -> _Namespace:
+) -> Settings:
     """
     Carrega a configuração, mesclando defaults com o arquivo do usuário.
 
@@ -105,10 +83,11 @@ def load_config(
                       filesystem side-effects on load.
 
     Returns:
-        _Namespace com toda a configuração acessível por atributos.
+        :class:`Settings` com toda a configuração acessível por atributos.
 
     Raises:
         FileNotFoundError: Se user_config for fornecido mas não existir.
+        ConfigError:       Se o YAML mesclado violar o schema tipado.
         yaml.YAMLError:    Se algum YAML estiver malformado.
     """
     root = Path(project_root) if project_root else Path.cwd()
@@ -132,16 +111,28 @@ def load_config(
     # 3. Resolver caminhos relativos → absolutos
     config["paths"] = _resolve_paths(config.get("paths", {}), root)
 
-    ns = _Namespace(config)
+    # 4. Versão do schema (default.yaml já a traz; manter back-compat).
+    config.setdefault("config_version", CONFIG_VERSION)
 
-    # 4. Criar diretórios necessários (opt-out for tests / introspection)
+    # 5. Validar contra o schema tipado; erro de schema → ConfigError com path.
+    try:
+        settings = Settings.model_validate(config)
+    except ValidationError as exc:
+        first = exc.errors()[0]
+        loc = ".".join(str(p) for p in first["loc"])
+        raise ConfigError(
+            f"Invalid configuration at '{loc}': {first['msg']}",
+            code="config.invalid",
+        ) from exc
+
+    # 6. Criar diretórios necessários (opt-out for tests / introspection)
     if ensure_dirs:
-        _ensure_dirs(ns)
+        _ensure_dirs(settings)
 
-    return ns
+    return settings
 
 
-def setup_logging(cfg: _Namespace) -> None:
+def setup_logging(cfg: Settings) -> None:
     """
     Configura o sistema de logging com base na configuração.
 
@@ -167,7 +158,4 @@ def setup_logging(cfg: _Namespace) -> None:
     logger.info("Logging inicializado — nível: %s", log_cfg.level)
 
 
-# Public type alias so callers can annotate: `cfg: Config` instead of `cfg: _Namespace`.
-Config = _Namespace
-
-__all__ = ["Config", "load_config", "setup_logging"]
+__all__: list[str] = ["load_config", "setup_logging"]
