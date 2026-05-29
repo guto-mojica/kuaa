@@ -6,13 +6,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
+from cinemateca.errors import UserInputError
 from cinemateca.retrieval.hybrid import DEFAULT_RRF_K
 
 SearchMode = Literal["clip", "bm25", "hybrid"]
 
 
-class UploadRejected(Exception):
+class UploadRejected(UserInputError):
     """Image upload failed server-side validation (size / content-type / suffix)."""
+
+    default_code = "input.upload_rejected"
 
 
 @dataclass(frozen=True)

@@ -9,11 +9,14 @@ from typing import Any
 
 import yaml
 
+from cinemateca.errors import UserInputError
 from cinemateca.scene_ids import scene_id_key
 
 
-class DatasetError(ValueError):
+class DatasetError(UserInputError):
     """Raised when an evaluation dataset is malformed."""
+
+    default_code = "eval.dataset_invalid"
 
 
 @dataclass(frozen=True)

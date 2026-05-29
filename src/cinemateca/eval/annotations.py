@@ -9,11 +9,14 @@ from pathlib import Path
 from typing import Any
 
 from cinemateca.annotations import FILENAME as MANUAL_ANNOTATIONS_FILENAME
+from cinemateca.errors import ArtefactError
 from cinemateca.scene_ids import scene_id_key
 
 
-class AnnotationStatsError(ValueError):
+class AnnotationStatsError(ArtefactError):
     """Raised when annotation metadata cannot be read."""
+
+    default_code = "eval.annotation_unreadable"
 
 
 @dataclass(frozen=True)

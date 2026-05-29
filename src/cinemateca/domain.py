@@ -9,12 +9,16 @@ from typing import Any
 
 import yaml
 
+from cinemateca.errors import UserInputError
+
 DEFAULT_DOMAIN_PACK = "archive"
 DEFAULT_DOMAIN_PACKS_DIR = "config/domains"
 
 
-class DomainError(ValueError):
+class DomainError(UserInputError):
     """Raised when a domain pack is missing or malformed."""
+
+    default_code = "domain.invalid"
 
 
 @dataclass(frozen=True)

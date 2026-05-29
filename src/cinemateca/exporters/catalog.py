@@ -17,13 +17,16 @@ from typing import Any
 
 from cinemateca.annotations import load as load_annotations
 from cinemateca.domain import DomainPack, export_record, load_domain_from_config
+from cinemateca.errors import ArtefactError
 from cinemateca.scene_ids import scene_id_key
 
 CATALOG_EXPORT_SCHEMA_VERSION = "1.0"
 
 
-class ExportError(RuntimeError):
+class ExportError(ArtefactError):
     """Raised when a catalog cannot be exported from available artifacts."""
+
+    default_code = "artefact.export_failed"
 
 
 @dataclass(frozen=True)

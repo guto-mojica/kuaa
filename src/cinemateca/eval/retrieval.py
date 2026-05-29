@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from cinemateca.errors import RetrievalError
 from cinemateca.eval.datasets import EvaluationDataset
 from cinemateca.eval.metrics import RetrievalResult, evaluate_query, summarize_results
 from cinemateca.retrieval.hybrid import DEFAULT_RRF_K, fuse_rrf, resolve_weights
@@ -33,8 +34,10 @@ logger = logging.getLogger(__name__)
 VALID_RETRIEVERS = ("clip", "bm25", "hybrid")
 
 
-class EvalError(RuntimeError):
+class EvalError(RetrievalError):
     """Raised for clear user-facing evaluation failures."""
+
+    default_code = "eval.failure"
 
 
 @dataclass(frozen=True)

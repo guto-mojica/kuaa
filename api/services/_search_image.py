@@ -8,6 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from api.services._search_text import SearchIndex
+from cinemateca.search.types import UploadRejected  # re-exported; single source
 
 # Server-side upload guards for image search. The cap is intentionally
 # generous for a still frame (a 4K JPEG is well under this) while still
@@ -17,12 +18,6 @@ MAX_UPLOAD_BYTES = 8 * 1024 * 1024  # 8 MiB
 ALLOWED_IMAGE_SUFFIXES = frozenset(
     {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif", ".tif", ".tiff"}
 )
-
-
-class UploadRejected(Exception):
-    """Raised by :func:`validate_upload` when an image upload fails the
-    server-side size / content-type guards. The route turns this into a
-    clear UI message rather than processing arbitrary input."""
 
 
 def validate_upload(filename: str | None, content_type: str | None, data: bytes) -> str:
