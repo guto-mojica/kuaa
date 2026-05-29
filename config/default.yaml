@@ -303,3 +303,4 @@ logging:
   level: "INFO"             # DEBUG | INFO | WARNING | ERROR
   to_file: true
   filename: "cinemateca.log"
+  json_logs: false          # when true, emit JSON-structured log lines

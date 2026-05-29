@@ -10,6 +10,7 @@ field path instead of surfacing a deep ``AttributeError`` at use time.
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 
@@ -132,29 +133,58 @@ def load_config(
     return settings
 
 
+class _JsonFormatter(logging.Formatter):
+    """Minimal JSON log formatter for structured-logging mode (F5).
+
+    Emits one JSON object per line.  The ``request_id`` field is
+    populated when a handler passes it via the ``extra`` dict (e.g.
+    :class:`api.middleware.RequestContextMiddleware`); otherwise ``null``.
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        return json.dumps(
+            {
+                "ts": self.formatTime(record, self.datefmt),
+                "level": record.levelname,
+                "name": record.name,
+                "msg": record.getMessage(),
+                "request_id": getattr(record, "request_id", None),
+            }
+        )
+
+
 def setup_logging(cfg: Settings) -> None:
     """
     Configura o sistema de logging com base na configuração.
 
     Deve ser chamado uma vez no início do pipeline ou da aplicação.
+    When ``cfg.logging.json_logs`` is ``True``, installs a JSON formatter on
+    every handler so log lines are machine-parseable structured objects.
     """
     log_cfg = cfg.logging
     level = getattr(logging, log_cfg.level.upper(), logging.INFO)
 
-    handlers: list[logging.Handler] = [logging.StreamHandler()]
+    stream_handler: logging.Handler = logging.StreamHandler()
+    handlers: list[logging.Handler] = [stream_handler]
 
     if log_cfg.to_file:
         log_file = cfg.paths.logs_dir / log_cfg.filename
         log_file.parent.mkdir(parents=True, exist_ok=True)
         handlers.append(logging.FileHandler(log_file, encoding="utf-8"))
 
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=handlers,
-        force=True,
-    )
+    if getattr(log_cfg, "json_logs", False):
+        fmt: logging.Formatter = _JsonFormatter()
+        for h in handlers:
+            h.setFormatter(fmt)
+        logging.basicConfig(level=level, handlers=handlers, force=True)
+    else:
+        logging.basicConfig(
+            level=level,
+            format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+            handlers=handlers,
+            force=True,
+        )
     logger.info("Logging inicializado — nível: %s", log_cfg.level)
 
 

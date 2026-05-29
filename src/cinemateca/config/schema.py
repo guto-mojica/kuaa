@@ -283,6 +283,7 @@ class LoggingCfg(_Section):
     level: str = "INFO"
     to_file: bool = True
     filename: str = "cinemateca.log"
+    json_logs: bool = False  # renamed from `json` to avoid Pydantic v2 shadow warning
 
 
 # ── root ─────────────────────────────────────────────────────────────────────

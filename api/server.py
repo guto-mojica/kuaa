@@ -15,6 +15,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from api.deps import get_config, make_ctx
+from api.middleware import RequestContextMiddleware
 from api.routes import (
     about,
     annotate,
@@ -61,6 +62,7 @@ async def lifespan(app: FastAPI):
 _BASE = Path(__file__).parent.parent
 
 app = FastAPI(title="Cinemateca AI", version="0.3.0", lifespan=lifespan)
+app.add_middleware(RequestContextMiddleware)
 app.mount("/static", StaticFiles(directory=str(_BASE / "web" / "static")), name="static")
 
 app.include_router(search.router)
