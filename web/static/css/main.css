@@ -1308,26 +1308,158 @@ button.tree-node {
 .modal-link { color: var(--c-accent-text); text-decoration: none; }
 .modal-link:hover { text-decoration: underline; }
 
-/* ── Image upload ──────────────────────────────────────────────────────────── */
-.image-upload-label {
-    display: inline-flex;
+/* ── Image-search dropzone (Buscar · Image modality) ─────────────────────────
+   Replaces the old stranded ``.image-upload-label`` pill. The affordance now
+   owns the empty results pane as a centred drop target — accent-ringed icon,
+   clear CTA, mono format hint, a real drag-over highlight, a focus ring, and a
+   thumbnail+filename state once a file is picked. Collapses to a slim bar
+   (.is-compact) once results are showing below it. */
+.image-dropzone {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-height: 264px;
+    margin-top: 16px;
+    padding: 40px 32px;
+    text-align: center;
+    background:
+        radial-gradient(130% 120% at 50% 0%, var(--c-accent-bg-low), transparent 68%),
+        var(--c-panel);
+    border: 1.5px dashed var(--c-border-2);
+    border-radius: 16px;
+    cursor: pointer;
+    color: var(--c-text-2);
+    transition: border-color 160ms ease, background-color 160ms ease,
+                box-shadow 160ms ease, transform 160ms ease;
+}
+.image-dropzone:hover {
+    border-color: var(--c-accent-dim);
+    color: var(--c-text);
+}
+.image-dropzone:focus-within {
+    border-color: var(--c-accent);
+    box-shadow: 0 0 0 3px var(--c-accent-bg);
+}
+.image-dropzone.is-dragging {
+    border-style: solid;
+    border-color: var(--c-accent);
+    color: var(--c-text);
+    transform: scale(1.004);
+    background:
+        radial-gradient(130% 120% at 50% 0%, var(--c-accent-bg), transparent 70%),
+        var(--c-panel);
+    box-shadow: 0 0 0 3px var(--c-accent-bg), 0 22px 48px -28px rgba(0, 0, 0, 0.65);
+}
+/* Visually hidden but kept in the tab order + hit-testable so the label click
+   opens the picker and :focus-within lights the ring. */
+.image-dropzone input[type="file"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    border: 0;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+/* idle state */
+.dz-empty {
+    display: flex;
+    flex-direction: column;
     align-items: center;
     gap: 8px;
-    padding: 10px 16px;
-    background: var(--c-bg-overlay);
-    border: 1px dashed var(--c-bg-border);
-    border-radius: 8px;
-    cursor: pointer;
-    color: var(--c-text-secondary);
-    font-size: 0.875rem;
-    transition: border-color 150ms, color 150ms;
-    margin-top: 12px;
+    max-width: 380px;
 }
-.image-upload-label:hover {
-    border-color: var(--c-accent-dim);
-    color: var(--c-text-primary);
+.dz-icon {
+    display: grid;
+    place-items: center;
+    width: 54px;
+    height: 54px;
+    margin-bottom: 4px;
+    border-radius: 50%;
+    background: var(--c-accent-bg);
+    color: var(--c-accent-2);
+    transition: background-color 160ms ease, color 160ms ease;
 }
-.image-upload-label input[type="file"] { display: none; }
+.image-dropzone.is-dragging .dz-icon {
+    background: var(--c-accent);
+    color: #fff;
+}
+.dz-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--c-text);
+    letter-spacing: -0.01em;
+}
+.dz-hint {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--c-muted);
+    letter-spacing: 0.02em;
+}
+
+/* file-chosen state */
+.dz-chosen {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    max-width: 460px;
+    text-align: left;
+}
+.dz-thumb {
+    flex: none;
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid var(--c-border-2);
+    background: var(--c-raised);
+}
+.dz-file {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+.dz-name {
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--c-text);
+}
+.dz-swap {
+    font-size: 0.75rem;
+    color: var(--c-accent-2);
+}
+
+/* slim bar once results are present below the dropzone */
+.image-dropzone.is-compact {
+    min-height: 0;
+    padding: 18px 24px;
+    gap: 16px;
+}
+.image-dropzone.is-compact .dz-empty {
+    flex-direction: row;
+    gap: 14px;
+    max-width: none;
+}
+.image-dropzone.is-compact .dz-icon {
+    width: 36px;
+    height: 36px;
+    margin-bottom: 0;
+}
+.image-dropzone.is-compact .dz-hint {
+    display: none;
+}
 
 .search-tag-section {
     border-top: 1px solid var(--c-bg-border);

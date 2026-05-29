@@ -1734,6 +1734,18 @@ msgstr ""
 msgid "Choose image…"
 msgstr "Choose image…"
 
+#: web/templates/partials/search.html
+msgid "Drop an image here or click to choose"
+msgstr "Drop an image here or click to choose"
+
+#: web/templates/partials/search.html
+msgid "Search by visual similarity · PNG, JPG, WebP"
+msgstr "Search by visual similarity · PNG, JPG, WebP"
+
+#: web/templates/partials/search.html
+msgid "Click or drop to replace"
+msgstr "Click or drop to replace"
+
 #: web/templates/partials/search_inspector.html:31
 #, fuzzy
 msgid "Result details"
