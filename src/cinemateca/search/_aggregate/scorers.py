@@ -10,7 +10,10 @@ from __future__ import annotations
 import re
 from typing import Any
 
+import numpy as np
+
 from cinemateca.retrieval.tokenize import tokenize
+from cinemateca.scene_ids import scene_id_key
 
 _SCENE_ID_FROM_PATH_RE = re.compile(r"Scene-(\d+)", flags=re.IGNORECASE)
 
@@ -183,11 +186,81 @@ class MetadataScorer:
 
 
 class CLIPScorer:
-    """Per-film CLIP cosine ranker (best keyframe per scene). Step D fills this in."""
+    """Per-film CLIP cosine ranker — best keyframe per scene, descending."""
+
+    def score(
+        self,
+        *,
+        embeddings: Any,
+        kf_df: Any,
+        text_vec: np.ndarray,
+        min_similarity: float,
+        allowed_scene_keys: set[str] | None,
+        raw_k: int,
+    ) -> tuple[list[tuple[int, float]], dict[int, int]]:
+        """Return ``(clip_ranked, best_row_by_sid)`` for one film.
+
+        ``clip_ranked`` is ``[(scene_id, cosine)]`` sorted descending and
+        truncated to ``raw_k``; ``best_row_by_sid`` maps each surfaced
+        scene_id to the kf_df row index with the highest cosine (so the
+        materialised keyframe points at the actual best-matching frame).
+        """
+        scores: np.ndarray = embeddings @ text_vec
+
+        # CLIP-side ranked list — `(scene_id, cosine_score)` descending.
+        # Best-keyframe-per-scene: a single scene may have multiple
+        # keyframes (Phase-1 density), so the same scene_id can appear N
+        # times in ``scores`` at different rows. Keep the row index with
+        # the HIGHEST cosine per scene_id so the surfaced
+        # ``keyframe_path`` points at the actual best-matching frame.
+        best_score_by_sid: dict[int, float] = {}
+        best_row_by_sid: dict[int, int] = {}
+        for i, score in enumerate(scores):
+            s = float(score)
+            if s < min_similarity:
+                continue
+            row = kf_df.iloc[i]
+            sid = int(row["scene_id"])
+            if allowed_scene_keys is not None and scene_id_key(sid) not in allowed_scene_keys:
+                continue
+            prev = best_score_by_sid.get(sid)
+            if prev is None or s > prev:
+                best_score_by_sid[sid] = s
+                best_row_by_sid[sid] = i
+        clip_ranked: list[tuple[int, float]] = sorted(
+            best_score_by_sid.items(), key=lambda p: p[1], reverse=True
+        )[:raw_k]
+        return clip_ranked, best_row_by_sid
 
 
 class BM25Scorer:
-    """Per-film BM25 ranker over the loaded corpus. Step D fills this in."""
+    """Per-film BM25 ranker over a pre-loaded corpus index."""
+
+    def score(
+        self,
+        *,
+        bm25: Any,
+        query: str,
+        raw_k: int,
+        allowed_scene_keys: set[str] | None,
+    ) -> list[tuple[int, float]]:
+        """Return ``[(scene_id, bm25_score)]`` for one film.
+
+        ``bm25`` is the pre-loaded :class:`BM25Index` (or ``None``). A
+        ``None`` index or one whose ``model`` is unbuilt contributes no
+        entries (empty list) — the legacy fallback-on-empty contract,
+        preserved verbatim. When ``allowed_scene_keys`` is set, hits are
+        filtered to that tag-intersected scene set.
+        """
+        bm25_hits: list[tuple[int, float]] = []
+        if bm25 is None or bm25.model is None:
+            return bm25_hits
+        bm25_hits = bm25.query(query, top_k=raw_k)
+        if allowed_scene_keys is not None:
+            bm25_hits = [
+                (sid, s) for sid, s in bm25_hits if scene_id_key(sid) in allowed_scene_keys
+            ]
+        return bm25_hits
 
 
 __all__ = [
