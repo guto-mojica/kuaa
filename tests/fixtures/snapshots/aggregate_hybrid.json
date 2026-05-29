@@ -1,0 +1,26 @@
+[
+  {
+    "film_slug": "a",
+    "film_title": "A",
+    "keyframe_path": "data/library/a/frames/keyframes/0.jpg",
+    "scene_id": 0,
+    "score": 0.014672,
+    "timecode": ""
+  },
+  {
+    "film_slug": "b",
+    "film_title": "B",
+    "keyframe_path": "data/library/b/frames/keyframes/0.jpg",
+    "scene_id": 0,
+    "score": 0.014435,
+    "timecode": ""
+  },
+  {
+    "film_slug": "a",
+    "film_title": "A",
+    "keyframe_path": "data/library/a/frames/keyframes/1.jpg",
+    "scene_id": 1,
+    "score": 0.003889,
+    "timecode": "00:00:01:00"
+  }
+]
