@@ -27,6 +27,7 @@ from api.routes import (
     rimas,
     scenes,
     search,
+    system,
 )
 from api.routes import (
     eval as eval_routes,
@@ -136,6 +137,7 @@ app.include_router(export.router, tags=["export"])
 app.include_router(rimas.router, tags=["rimas"])
 app.include_router(palette.router, tags=["system"])
 app.include_router(eval_routes.router, tags=["eval"])
+app.include_router(system.router)
 
 install_error_handlers(app)
 
