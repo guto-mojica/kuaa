@@ -88,22 +88,33 @@ def load_config(
 
     Raises:
         FileNotFoundError: Se user_config for fornecido mas não existir.
-        ConfigError:       Se o YAML mesclado violar o schema tipado.
-        yaml.YAMLError:    Se algum YAML estiver malformado.
+        ConfigError:       Se o YAML estiver malformado ou violar o schema tipado.
     """
     root = Path(project_root) if project_root else Path.cwd()
 
     # 1. Carregar defaults
-    with open(_DEFAULT_CONFIG, encoding="utf-8") as f:
-        config = yaml.safe_load(f)
+    try:
+        with open(_DEFAULT_CONFIG, encoding="utf-8") as f:
+            config = yaml.safe_load(f)
+    except yaml.YAMLError as exc:
+        raise ConfigError(
+            f"Malformed YAML in default config: {exc}",
+            code="config.invalid",
+        ) from exc
 
     # 2. Mesclar com config do usuário (se fornecida)
     if user_config is not None:
         user_path = Path(user_config)
         if not user_path.exists():
             raise FileNotFoundError(f"Config não encontrada: {user_path}")
-        with open(user_path, encoding="utf-8") as f:
-            user_data = yaml.safe_load(f) or {}
+        try:
+            with open(user_path, encoding="utf-8") as f:
+                user_data = yaml.safe_load(f) or {}
+        except yaml.YAMLError as exc:
+            raise ConfigError(
+                f"Malformed YAML in {user_path}: {exc}",
+                code="config.invalid",
+            ) from exc
         config = _deep_merge(config, user_data)
         logger.info("Config carregada: %s (sobre defaults)", user_path)
     else:
