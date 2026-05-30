@@ -322,8 +322,7 @@ def test_base_html_has_no_phosphor_cdn_script(raw_client):
     assert "unpkg.com" not in r.text
     assert "@phosphor-icons/web" not in r.text
     assert "<ph-icon" not in r.text  # web component fully replaced
-    # ...and the inline SVG replacement is actually present:
-    assert 'class="ph-icon"' in r.text
+    # inline SVG icons are present (Lucide branch — no ph-icon class needed):
     assert "<svg" in r.text
 
 
