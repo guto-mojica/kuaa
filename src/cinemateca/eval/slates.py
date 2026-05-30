@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, cast
 
@@ -109,9 +109,7 @@ def load_modal_queries(path: Path) -> list[ModalQuery]:
         raise EvalError(f"malformed eval YAML at {path}: {exc}") from exc
 
     if not isinstance(raw, dict) or not isinstance(raw.get("queries"), list):
-        raise EvalError(
-            f"eval YAML at {path} must be a dict with a top-level 'queries' list"
-        )
+        raise EvalError(f"eval YAML at {path} must be a dict with a top-level 'queries' list")
 
     out: list[ModalQuery] = []
     for i, entry in enumerate(raw["queries"]):
@@ -227,7 +225,7 @@ def _candidate_row(
     kf_entry = meta.kf_by_scene.get(scene_id) or {}
     start_s = float(kf_entry.get("start_time_s") or 0.0)
     timecode = to_smpte(start_s, meta.fps) if start_s > 0 else "00:00:00"
-    return {
+    row: CandidateRow = {
         "scene_id": int(scene_id),
         "film_slug": film_slug,
         "film_title": meta.title or film_slug,
@@ -242,6 +240,28 @@ def _candidate_row(
         # frame layout used in cinemateca.rhymes.algorithm).
         "keyframe_url": f"/media/library/{film_slug}/frames/scene_{int(scene_id):04d}.jpg",
     }
+    # The 9-key contract is a self-checking invariant: every consumer
+    # (the /eval rows template, E3b scoring) depends on exactly these keys.
+    assert set(row) == set(_ROW_KEYS), f"candidate row key drift: {sorted(row)}"
+    return row
+
+
+@dataclass(frozen=True)
+class _SlateFilmCtx:
+    """Minimal duck-typed ``film=`` arg for :func:`cinemateca.search.find`.
+
+    Carries exactly the attributes ``find`` (clip mode) reads — ``slug``,
+    ``embeddings_dir`` (index loader) and ``metadata_dir`` (tag-filter
+    path) — plus ``audio_dir`` for symmetry with the audio/fusion paths.
+    Built from derived paths in :func:`_ctx_for`, decoupled from the
+    registry-gated ``FilmContext`` so a slate works whether or not the
+    slug is registered.
+    """
+
+    slug: str
+    metadata_dir: Path
+    embeddings_dir: Path
+    audio_dir: Path
 
 
 @dataclass(frozen=True)
@@ -283,32 +303,29 @@ def _film_meta_loader(cfg: Any, library_dir: Path):
     def _load(slug: str) -> _FilmMeta:
         if slug in cache:
             return cache[slug]
+        # Start from the all-defaults row and override only the fields a
+        # successful lookup supplies; when BOTH the registry and metadata
+        # reads fail the result IS _empty_meta(slug) (keeps the docstring true).
+        meta = _empty_meta(slug)
         try:
             film = library.get_film(slug)
-            title = film.title
             year = int(film.year) if film.year is not None else 0
-        except (KeyError, Exception):  # noqa: BLE001 - degrade to slug/0
-            title, year = slug, 0
-        kf_by_scene: dict[int, dict] = {}
-        desc_by_scene: dict[Any, Any] = {}
-        tags_by_scene: dict[str, set[str]] = {}
-        fps = 24.0
+            meta = replace(meta, title=film.title, year=year)
+        except Exception:  # noqa: BLE001 - degrade to slug/0 (incl. unregistered)
+            pass
         try:
             metadata_dir = library_dir / slug / "metadata"
             kf_meta, desc_by_scene, _vis, tag_index = load_metadata(metadata_dir)
             kf_by_scene = {int(e["scene_id"]): e for e in kf_meta if "scene_id" in e}
-            fps = derive_fps(kf_meta)
-            tags_by_scene = _invert_tags(tag_index)
+            meta = replace(
+                meta,
+                fps=derive_fps(kf_meta),
+                kf_by_scene=kf_by_scene,
+                desc_by_scene=desc_by_scene,
+                tags_by_scene=_invert_tags(tag_index),
+            )
         except Exception:  # noqa: BLE001 - missing metadata is fine (hermetic)
             logger.debug("slate: no on-disk metadata for %s; using defaults", slug)
-        meta = _FilmMeta(
-            title=title,
-            year=year,
-            fps=fps,
-            kf_by_scene=kf_by_scene,
-            desc_by_scene=desc_by_scene,
-            tags_by_scene=tags_by_scene,
-        )
         cache[slug] = meta
         return meta
 
@@ -362,7 +379,10 @@ def _iter_films(library_dir: Path) -> list[str]:
     or a hermetic fixture — falls back to immediate subdirectories of
     ``library_dir`` (excluding the ``films.json`` sidecar), matching the
     orphan-tolerant discovery :func:`cinemateca.rhymes.find_rhymes`
-    already does over ``library_dir.iterdir()``.
+    already does over ``library_dir.iterdir()``. The disk-scan fallback
+    is *live* for every modality: :func:`_ctx_for` builds the ``find``
+    context from derived paths (not the registry), so an unregistered
+    on-disk film yields real rows rather than an empty slate.
     """
     try:
         registered = [f.slug for f in Library(library_dir).list_films()]
@@ -389,6 +409,11 @@ def _slate_find(*, q: Query, cfg, library_dir, k, load_meta) -> list[CandidateRo
         result = find(q, film=ctx, mode="clip", top_k=k, cfg=cfg)
         meta = load_meta(slug)
         for hit in result.hits:
+            # Only hit.scene_id + hit.score are load-bearing here. Description,
+            # tags, year and timecode are re-read from per-film metadata in
+            # _candidate_row because Hit carries none of those (Hit.description
+            # exists but tags/year/timecode do not — see search.types.Hit), so
+            # we go to metadata for all four to keep the 9-key row consistent.
             rows.append(
                 _candidate_row(scene_id=hit.scene_id, film_slug=slug, score=hit.score, meta=meta)
             )
@@ -515,18 +540,32 @@ def _slate_rhyme(*, query, cfg, library_dir, k, load_meta) -> list[CandidateRow]
     return rows[:k]
 
 
-def _ctx_for(library_dir: Path, slug: str) -> Any | None:
-    """Build a per-film context for CLIP/hybrid ``find``; ``None`` on failure.
+def _ctx_for(library_dir: Path, slug: str) -> _SlateFilmCtx | None:
+    """Build a per-film context for CLIP ``find`` from derived paths.
 
-    ``find`` only needs ``.slug`` / ``.metadata_dir`` / ``.embeddings_dir``,
-    so use the config-free ``Library.context`` (data_dir = library_dir.parent,
-    the conventional ``/media`` root). A KeyError/ValueError (unregistered or
-    traversal slug) degrades to ``None`` → film skipped.
+    ``find`` (clip mode) duck-types its ``film=`` arg on ``.slug`` /
+    ``.embeddings_dir`` (the index loader) plus ``.metadata_dir`` (the
+    tag-filter path) — see :func:`cinemateca.search.find`. We construct
+    those paths directly from ``library_dir/<slug>/...`` rather than going
+    through the registry-gated ``FilmContext.from_paths`` /
+    ``Library.context``, so this works for an on-disk-but-*unregistered*
+    film just as well as a registered one (the disk-scan fallback in
+    :func:`_iter_films` would otherwise yield slugs that produced zero
+    rows). Title/year for the row still come from the registry when present
+    (via :func:`_film_meta_loader`) and degrade to ``slug`` / ``0`` when not.
+
+    A traversal slug (``slug != Path(slug).name``) degrades to ``None`` →
+    film skipped (mirrors the guard in ``FilmContext.from_paths``).
     """
-    try:
-        return Library(library_dir).context(slug, data_dir=library_dir.parent)
-    except (KeyError, ValueError):
+    if not slug or slug != Path(slug).name:
         return None
+    film_dir = library_dir / slug
+    return _SlateFilmCtx(
+        slug=slug,
+        metadata_dir=film_dir / "metadata",
+        embeddings_dir=film_dir / "embeddings",
+        audio_dir=film_dir / "audio",
+    )
 
 
 def _normalise_clip_mapping(raw: Any) -> list[dict]:

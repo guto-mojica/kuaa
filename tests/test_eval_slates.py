@@ -19,6 +19,7 @@ Two concerns are covered:
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -323,3 +324,202 @@ def test_generate_slate_dispatches_rhyme_to_find_rhymes(tmp_path: Path, monkeypa
     assert captured["anchor_slug"] == "jeca_tatu"
     assert captured["anchor_scene_id"] == 12
     assert captured["cross_film_only"] is True
+
+
+# ── text / image find path (cross-film, registry-free) ──────────────────────
+
+
+def _search_result(hits: list[Any]) -> Any:
+    """Build a minimal CLIP-mode :class:`SearchResult` from a list of Hits."""
+    from cinemateca.search.types import Query, SearchResult
+
+    return SearchResult(hits=hits, mode="clip", weights=None, query=Query.of_text("q"))
+
+
+def _hit(scene_id: int, score: float, film_slug: str) -> Any:
+    from cinemateca.search.types import Hit
+
+    return Hit(
+        scene_id=scene_id,
+        score=score,
+        keyframe_path=f"/x/{film_slug}/frames/scene_{scene_id:04d}.jpg",
+        film_slug=film_slug,
+        description=f"desc for {film_slug}/{scene_id}",
+    )
+
+
+def test_generate_slate_dispatches_text_to_find(tmp_path: Path, monkeypatch):
+    """Text query → CLIP ``find`` per film, merged by descending score.
+
+    Exercises Fix #1: TWO on-disk film subdirs that are NOT registered in a
+    ``films.json`` still yield rows (the disk-scan fallback in ``_iter_films``
+    plus the path-derived ``_ctx_for`` must produce a real ``find`` context).
+    """
+    import cinemateca.eval.slates as slates
+
+    (tmp_path / "film_a" / "embeddings").mkdir(parents=True)
+    (tmp_path / "film_b" / "embeddings").mkdir(parents=True)
+
+    captured: list[dict[str, Any]] = []
+
+    def _fake_find(query, *, film, mode, top_k, cfg, **kw):
+        # Capture per-call so we can assert the path-derived ctx + cross-film walk.
+        captured.append({"slug": film.slug, "is_text": query.text is not None, "mode": mode})
+        # Interleave scores across the two films so the global sort is observable.
+        per_film = {
+            "film_a": [_hit(10, 0.9, "film_a"), _hit(11, 0.5, "film_a")],
+            "film_b": [_hit(20, 0.8, "film_b"), _hit(21, 0.4, "film_b")],
+        }
+        return _search_result(per_film[film.slug])
+
+    monkeypatch.setattr(slates, "find", _fake_find)
+
+    q = ModalQuery(
+        id="text-01",
+        query_type="text",
+        text="trabalhador rural arando o campo",
+        image_path=None,
+        anchor=None,
+        w=None,
+        lang="pt",
+        relevant_scene_ids=(),
+        relevance={},
+        notes=None,
+    )
+    rows = generate_slate(query=q, cfg=_cfg(), library_dir=tmp_path, k=9)
+
+    # find called once per (unregistered) film, always in clip mode with text.
+    assert {c["slug"] for c in captured} == {"film_a", "film_b"}
+    assert all(c["mode"] == "clip" and c["is_text"] for c in captured)
+    # Non-empty rows, all 9 keys, descending score, BOTH films present (merge).
+    assert len(rows) == 4
+    for r in rows:
+        assert set(r.keys()) == _ROWS_KEYS
+    scores = [r["score"] for r in rows]
+    assert scores == sorted(scores, reverse=True)
+    assert {r["film_slug"] for r in rows} == {"film_a", "film_b"}
+    # Top hit is film_a/10 (0.9); the films interleave below it.
+    assert (rows[0]["film_slug"], rows[0]["scene_id"]) == ("film_a", 10)
+    assert (rows[1]["film_slug"], rows[1]["scene_id"]) == ("film_b", 20)
+
+
+def test_generate_slate_dispatches_image_to_find(tmp_path: Path, monkeypatch):
+    """Image query → CLIP ``find(Query.image(...))`` per film, registry-free."""
+    import cinemateca.eval.slates as slates
+
+    (tmp_path / "film_a" / "embeddings").mkdir(parents=True)
+    img = tmp_path / "anchor.jpg"
+    img.write_bytes(b"\xff\xd8\xff\xe0fake-jpeg")  # file must exist for validation
+
+    captured: dict[str, Any] = {}
+
+    def _fake_find(query, *, film, mode, top_k, cfg, **kw):
+        captured["image_path"] = query.image_path
+        captured["text"] = query.text
+        captured["mode"] = mode
+        return _search_result([_hit(3, 0.7, film.slug), _hit(8, 0.2, film.slug)])
+
+    monkeypatch.setattr(slates, "find", _fake_find)
+
+    q = ModalQuery(
+        id="image-01",
+        query_type="image",
+        text=None,
+        image_path=img,
+        anchor=None,
+        w=None,
+        lang="en",
+        relevant_scene_ids=(),
+        relevance={},
+        notes=None,
+    )
+    rows = generate_slate(query=q, cfg=_cfg(), library_dir=tmp_path, k=9)
+
+    # find was called with an image Query (image_path set, text None) in clip mode.
+    assert captured["image_path"] == img.resolve()
+    assert captured["text"] is None
+    assert captured["mode"] == "clip"
+    assert len(rows) == 2
+    for r in rows:
+        assert set(r.keys()) == _ROWS_KEYS
+    assert rows[0]["score"] >= rows[1]["score"]
+
+
+# ── fusion index-loading + _normalise_clip_mapping ──────────────────────────
+
+
+def test_slate_fusion_loads_indexes_and_calls_search_fusion(tmp_path: Path, monkeypatch):
+    """Fusion query → on-disk CLIP index loaded + ``search_fusion`` called → 9-key rows.
+
+    The CLIP index files are written to disk so the real ``np.load`` +
+    ``_normalise_clip_mapping`` path runs; CLAP is absent (``load_audio_index``
+    → None), so the CLIP-only fusion branch is exercised. ``search_fusion`` is
+    faked to return the canonical 4-key hit dicts.
+    """
+    import cinemateca.eval.slates as slates
+
+    emb_dir = tmp_path / "jeca" / "embeddings"
+    emb_dir.mkdir(parents=True)
+    np.save(emb_dir / "keyframe_embeddings.npy", np.eye(3, dtype="float32"))
+    # Parallel-array mapping shape (the SigLIP2 writer) — must be normalised.
+    (emb_dir / "index_mapping.json").write_text(
+        json.dumps({"scene_ids": [5, 6, 7], "total_vectors": 3}), encoding="utf-8"
+    )
+
+    seen: dict[str, Any] = {}
+
+    def _fake_search_fusion(*, clip_emb, clap_emb, clip_mapping, clap_mapping, **kw):
+        # Assert the on-disk CLIP index reached the searcher in normalised form.
+        seen["clip_emb_shape"] = clip_emb.shape
+        seen["clip_mapping"] = clip_mapping
+        return [
+            {"scene_id": 5, "score": 0.88, "clip_score": 0.88, "clap_score": 0.0},
+            {"scene_id": 7, "score": 0.42, "clip_score": 0.42, "clap_score": 0.0},
+        ]
+
+    monkeypatch.setattr(slates, "load_audio_index", lambda audio_dir: None)
+    monkeypatch.setattr(slates, "get_image_embedder", lambda cfg, device=None: _StubEmbedder(4))
+    monkeypatch.setattr(slates, "get_audio_embedder", lambda cfg, device=None: _StubEmbedder(4))
+    monkeypatch.setattr(slates, "search_fusion", _fake_search_fusion)
+
+    q = ModalQuery(
+        id="fusion-01",
+        query_type="fusion",
+        text="silent landscape with melancholic music",
+        image_path=None,
+        anchor=None,
+        w=0.5,
+        lang="en",
+        relevant_scene_ids=(),
+        relevance={},
+        notes=None,
+    )
+    rows = generate_slate(query=q, cfg=_cfg(), library_dir=tmp_path, k=9)
+
+    assert len(rows) == 2
+    for r in rows:
+        assert set(r.keys()) == _ROWS_KEYS
+    assert rows[0]["score"] >= rows[1]["score"]
+    assert rows[0]["scene_id"] == 5
+    # The real np.load + _normalise_clip_mapping fed search_fusion correctly.
+    assert seen["clip_emb_shape"] == (3, 3)
+    assert seen["clip_mapping"] == [{"scene_id": 5}, {"scene_id": 6}, {"scene_id": 7}]
+
+
+def test_normalise_clip_mapping_handles_both_shapes():
+    """``_normalise_clip_mapping`` accepts BOTH the parallel-array and list shapes."""
+    from cinemateca.eval.slates import _normalise_clip_mapping
+
+    # Parallel-array shape (SigLIP2 writer): {"scene_ids": [...]}.
+    parallel = _normalise_clip_mapping({"scene_ids": [5, 6, 7], "total_vectors": 3})
+    assert parallel == [{"scene_id": 5}, {"scene_id": 6}, {"scene_id": 7}]
+
+    # List-of-dicts shape: [{"scene_id": ...}, ...] (extra keys ignored).
+    listish = _normalise_clip_mapping(
+        [{"scene_id": 9, "filepath": "a.jpg"}, {"scene_id": 4, "filepath": "b.jpg"}]
+    )
+    assert listish == [{"scene_id": 9}, {"scene_id": 4}]
+
+    # An unrecognised shape raises EvalError (defensive, E3b-critical).
+    with pytest.raises(EvalError):
+        _normalise_clip_mapping(42)
