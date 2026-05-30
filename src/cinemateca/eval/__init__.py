@@ -1,6 +1,7 @@
 """Evaluation utilities for demo and local collection quality checks."""
 
 from cinemateca.errors import EvalError
+from cinemateca.eval.ablation import AblationRowConfig, AblationTable, run_ablation
 from cinemateca.eval.annotations import AnnotationStats, compute_annotation_stats
 from cinemateca.eval.datasets import EvaluationDataset, QueryCase, load_dataset, load_queries
 from cinemateca.eval.grader_metrics import (
@@ -27,6 +28,8 @@ from cinemateca.eval.retrieval import (
 from cinemateca.eval.slates import ModalQuery, generate_slate, load_modal_queries
 
 __all__ = [
+    "AblationRowConfig",
+    "AblationTable",
     "AnnotationStats",
     "EvalError",
     "EvaluationDataset",
@@ -52,6 +55,7 @@ __all__ = [
     "other_grades_for_current",
     "proxy_labels",
     "query_conflict_set",
+    "run_ablation",
     "run_audio_eval",
     "run_fusion_eval",
     "run_image_eval",

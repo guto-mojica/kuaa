@@ -10,6 +10,22 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ## [Não lançado]
 
+### Adicionado
+
+- **Tabela de ablação proxy-first (WS-4 E2b).** Novo módulo
+  `cinemateca.eval.ablation` (`run_ablation`, `AblationTable`,
+  `AblationRowConfig`) + CLI `scripts/run_ablation.py`. Compara variantes de
+  retrieval (CLIP SigLIP2 · BM25 · híbrido · híbrido+rerank C5 · fusão
+  CLIP×CLAP · baseline multilíngue OpenCLIP/C8) sobre um conjunto comum de 15
+  queries de texto, todas rotuladas **HY** via `proxy.proxy_labels` — um único
+  tier de honestidade, números reais no corpus de demo (Jeca Tatu), sem
+  qualquer métrica fabricada. Linhas cujo backend não está conectado renderizam
+  `pending (...)`. A seção **M4** de `docs/EVALUATION_RESULTS.md` é
+  gerada/atualizada por marcadores delimitados, preservando a seção M2
+  (baseline OpenCLIP) intacta. Resultado-chave: o híbrido supera o CLIP puro
+  neste corpus maior, e o baseline OpenCLIP fica atrás do SigLIP2 na mistura de
+  queries PT/EN (evidência para o upgrade multilíngue).
+
 ## [0.8.0-rc1] - 2026-05-29
 
 Landmark de release-candidate: remoção de features seguradas/não finalizadas
