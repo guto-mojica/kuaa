@@ -8,7 +8,7 @@ config_version: 1
 
 project:
   name: "Cinemateca AI"
-  version: "0.1.0-alpha"
+  version: "0.6.0"   # keep in sync with pyproject.toml / cinemateca.__version__
 
 # ── Domain pack ───────────────────────────────────────────────────────────────
 # Domain packs define prompts, metadata fields, filters, taxonomy, and export
