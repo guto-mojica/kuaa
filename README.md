@@ -14,7 +14,7 @@ cinematecas nacionais e arquivos públicos de filme.
 <!-- If the GitHub owner/repo slug changes, update the CI badge URL above. -->
 [![Licença: MIT](https://img.shields.io/badge/Licença-MIT-amber.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://python.org)
-[![Versão](https://img.shields.io/badge/versão-0.6.0-blue.svg)](CHANGELOG.md)
+[![Versão](https://img.shields.io/badge/versão-0.8.0rc1-blue.svg)](CHANGELOG.md)
 
 ---
 

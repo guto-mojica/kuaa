@@ -148,7 +148,7 @@ uv sync --extra web       # só a interface FastAPI + HTMX
 **Verificar instalação:**
 ```bash
 uv run python -c "import cinemateca; print(cinemateca.__version__)"
-# Deve imprimir: 0.6.0
+# Deve imprimir: 0.8.0rc1
 ```
 
 ---
