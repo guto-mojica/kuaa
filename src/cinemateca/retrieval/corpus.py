@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 
-from cinemateca.retrieval.tokenize import RegexTokenizer, Tokenizer, tokenize
+from cinemateca.retrieval.tokenize import RegexTokenizer, Tokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,9 @@ def build_corpus(
     """
     # Resolve tokenizer: explicit injection wins; fall back to the legacy
     # RegexTokenizer path so existing callers are unaffected.
-    _tok: Tokenizer = tokenizer if tokenizer is not None else RegexTokenizer(stopwords_lang=stopwords_lang)
+    _tok: Tokenizer = (
+        tokenizer if tokenizer is not None else RegexTokenizer(stopwords_lang=stopwords_lang)
+    )
     desc_by_sid: dict[int, str] = {}
     for entry in descriptions:
         sid = entry.get("scene_id")

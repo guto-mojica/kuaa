@@ -29,13 +29,12 @@ dispatcher without dragging in FastAPI app config.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
-
-from cinemateca.config import Settings
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 
+from cinemateca.config import Settings
 from cinemateca.retrieval.hybrid import DEFAULT_RRF_K, fuse_rrf, resolve_weights
 from cinemateca.search.cache import SearchIndex
 from cinemateca.search.clip import search_text

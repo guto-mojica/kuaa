@@ -5,6 +5,7 @@ search.audio, search.bm25) onto one ``StatCache``. The cache key's
 first element is conventionally the film slug so ``clear_film(slug)``
 can invalidate exactly one film's slots across every layer.
 """
+
 from __future__ import annotations
 
 import threading
@@ -65,9 +66,6 @@ class StatCache(Generic[K, V]):
     def clear_film(self, slug: str) -> None:
         """Drop every slot whose key's first component equals *slug*."""
         with self._lock:
-            doomed = [
-                k for k in self._store
-                if (k[0] if isinstance(k, tuple) else k) == slug
-            ]
+            doomed = [k for k in self._store if (k[0] if isinstance(k, tuple) else k) == slug]
             for k in doomed:
                 del self._store[k]

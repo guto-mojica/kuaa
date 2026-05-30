@@ -47,7 +47,7 @@ from typing import Any
 from cinemateca.library.metadata import load_tag_index
 from cinemateca.retrieval.bm25 import BM25Index
 from cinemateca.retrieval.tokenize import get_tokenizer
-from cinemateca.search._cache_core import StatCache, stat_sig
+from cinemateca.search._cache_core import StatCache
 from cinemateca.search.cache import register_cache_clearer
 
 logger = logging.getLogger(__name__)
@@ -165,10 +165,14 @@ def bm25_index_for_dir(
 
     # 4-source combined signature for StatCache (flat int tuple).
     sig: tuple[int, ...] = (
-        d_stamp[0], d_stamp[1],
-        t_stamp[0], t_stamp[1],
-        m_stamp[0], m_stamp[1],
-        tr_stamp[0], tr_stamp[1],
+        d_stamp[0],
+        d_stamp[1],
+        t_stamp[0],
+        t_stamp[1],
+        m_stamp[0],
+        m_stamp[1],
+        tr_stamp[0],
+        tr_stamp[1],
     )
 
     # Slug = immediate parent dir name (data/library/<slug>/metadata/ → slug).

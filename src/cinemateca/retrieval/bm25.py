@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from rank_bm25 import BM25Okapi
 
 from cinemateca.retrieval.corpus import build_corpus
-from cinemateca.retrieval.tokenize import RegexTokenizer, Tokenizer, tokenize
+from cinemateca.retrieval.tokenize import RegexTokenizer, Tokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -84,8 +84,7 @@ class BM25Index:
             b: BM25 length-normalisation parameter.
         """
         _tok: Tokenizer = (
-            tokenizer if tokenizer is not None
-            else RegexTokenizer(stopwords_lang=stopwords_lang)
+            tokenizer if tokenizer is not None else RegexTokenizer(stopwords_lang=stopwords_lang)
         )
         docs = build_corpus(
             descriptions,
