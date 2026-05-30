@@ -43,10 +43,10 @@ fmt:
 type:
     uv run mypy src api
 
-# Security: SAST + dependency CVEs.
+# Security: SAST + dependency CVEs (tools fetched ephemerally via uvx — not project deps).
 sec:
-    uv run bandit -c pyproject.toml -r src api -ll
-    uv run pip-audit --strict --progress-spinner off
+    uvx bandit -c pyproject.toml -r src api -ll
+    uvx pip-audit --progress-spinner off
 
 # Architecture guards: LOC budget + layer contracts.
 guards:

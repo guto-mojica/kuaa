@@ -49,6 +49,22 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ### Adicionado
 
+- **WS-5 — Tooling / DX / CI / Qualidade (T1–T12).** Doze tarefas de endurecimento
+  do envelope de desenvolvimento sem adicionar código de produção: mypy zerou erros
+  e passou a bloquear o CI (`continue-on-error` removido do job `typecheck`); gate de
+  cobertura em `[tool.coverage]` com `fail_under = 75`; varredura de segurança
+  `bandit` (pre-commit + CI) + `pip-audit` via `uvx` (ferramentas efêmeras, sem
+  entrar em `uv.lock`); marcadores pytest (`smoke` / `acceptance` / `e2e`) + divisão
+  CI smoke-rápido vs. heavy; testes de validação de config (`test_config_schema.py`)
+  que exercem `Settings`, `load_config` e `ConfigError`; `justfile` de aliases `uv
+  run` (`just check` = lint + type + smoke + guards); `CONTRIBUTING.md` + templates
+  de PR e issue em `.github/`; `scripts/README.md` categorizando os scripts críticos
+  vs. exploratórios; `scripts/verify_fresh_run.sh` — verificador reprodutível
+  checkout-limpo → `uv sync` → `/health` (substituto do Docker); job de benchmark CI
+  de latência de recuperação; log estruturado JSON (`cinemateca.config.loader._JsonFormatter`,
+  opt-in via `json_logs: true`). Testes de regressão de configuração digitada e de
+  logging em `test_config_schema.py` / `test_structured_logging.py`.
+
 - **WS-1 — refactor profundo do núcleo de busca (C1–C11).**
   `aggregate_search` (god-function de 353 LOC) decomposto em pipeline
   componível `FilmFilter → Scorers → GlobalRRF → Materializer` (carga de
