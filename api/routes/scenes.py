@@ -1,7 +1,7 @@
 """Scenes tab routes — Cenas (Mojica redesign) browsing endpoints.
 
 Thin HTTP layer: request parsing + template rendering only. The Cenas
-context is built by :func:`api.services.scenes_service.build_cenas_context`
+context is built by :func:`api.services.scenes.build_cenas_context`
 which loads per-film metadata, runs the ``tipo_of`` classifier, and
 groups scenes by film for the new ``.c-cp`` markup.
 
