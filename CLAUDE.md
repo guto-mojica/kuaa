@@ -473,7 +473,8 @@ defer features; timeline extension is one option among several. Grilled
       before `run_eval.py` can score them; tracked as M3 follow-up.
 - [ ] 50–100 curator-annotated eval pairs — grading sessions on the M3 slate
 - [x] Landing-page README draft; blog post outline; demo-video scope —
-      drafts at `docs/launch/README_DRAFT.md`,
+      the README draft was folded into `README.md` (D6; archived at
+      `docs/archive/README_DRAFT.md`); see also
       `docs/launch/BLOG_OUTLINE.md`, `docs/DEMO_VIDEO_SCRIPT.md`.
       Drafts cite real shipped backends; metric numbers (P@K, MRR,
       nDCG) stay TBD until the M4 ablation table lands. M4 finalises

@@ -118,7 +118,7 @@ placeholder token** (`TODO`/`TBD`/`FIXME`/`REPLACE_ME`/`YOUR_*`/`{{…}}`/`[[…
 `docs/DEMO_DATA.md` is a required link substring in two of them, so it cannot be
 moved or deleted either. After editing any gated doc, run
 `uv run python scripts/check_launch_package.py` and confirm it passes. All other
-docs are ungated and may carry draft markers (e.g. `docs/launch/README_DRAFT.md`).
+docs are ungated and may carry draft markers (e.g. `docs/launch/BLOG_OUTLINE.md`).
 
 ---
 
