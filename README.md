@@ -440,10 +440,11 @@ uv run pytest tests/
 
 Built with heavy use of [Claude Code](https://claude.com/claude-code) as a
 pair-programmer. Architectural decisions, ML choices, evaluation design,
-and failure-mode analysis are my own — see
-[`docs/EVALUATION_RESULTS.md`](docs/EVALUATION_RESULTS.md),
-[`docs/FAILURE_ANALYSIS.md`](docs/FAILURE_ANALYSIS.md), and
-[`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) for measured outcomes.
+and failure-mode analysis are my own. A pre-SigLIP **CLIP-era retrieval
+baseline** is recorded in [`docs/EVALUATION_RESULTS.md`](docs/EVALUATION_RESULTS.md)
+(superseded — the live index migrated to SigLIP2-large; final launch metrics
+land with the WS-4 ablation), alongside harness notes in
+[`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
 
 ---
 
