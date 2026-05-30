@@ -25,6 +25,7 @@ from typing import Any
 from cinemateca.errors import EvalError
 from cinemateca.eval.datasets import EvaluationDataset
 from cinemateca.eval.metrics import RetrievalResult, evaluate_query, summarize_results
+from cinemateca.reproducibility import seed_everything
 from cinemateca.retrieval.hybrid import DEFAULT_RRF_K, fuse_rrf, resolve_weights
 from cinemateca.scene_ids import scene_id_key
 
@@ -346,6 +347,7 @@ def run_retrieval_eval(
     sem_w: float = 0.5,
     bm25_w: float = 0.5,
     k_rrf: int = DEFAULT_RRF_K,
+    seed: int = 0,
 ) -> RetrievalRun:
     """Evaluate text queries against one of three retrievers.
 
@@ -361,6 +363,8 @@ def run_retrieval_eval(
         raise EvalError("top_k must be at least 1")
     if retriever not in VALID_RETRIEVERS:
         raise EvalError(f"retriever must be one of {VALID_RETRIEVERS}, got {retriever!r}")
+
+    seed_everything(seed)
 
     metadata_dir = Path(cfg.paths.metadata_dir)
     embeddings = mapping = kf_df = emb_path = map_path = None
@@ -457,6 +461,7 @@ def run_retrieval_eval(
         "total_vectors": len(kf_df) if kf_df is not None else 0,
         "top_k": top_k,
         "retriever": retriever,
+        "seed": seed,
     }
     if retriever in ("bm25", "hybrid"):
         context["bm25_corpus_size"] = bm25_corpus_size

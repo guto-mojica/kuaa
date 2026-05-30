@@ -69,6 +69,7 @@ def render_markdown(
         f"Queries: `{run.context.get('queries_path', '')}`",
         f"Index: `{run.context.get('embeddings_path', '')}`",
         f"Model: `{run.context.get('model', '')}`",
+        f"Seed: `{run.context.get('seed', 0)}`",
         "",
         "## Summary",
         "",

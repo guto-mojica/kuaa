@@ -106,6 +106,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "Only honoured with --all-modes; emits a kRRF table in comparison.md."
         ),
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=0,
+        help=(
+            "Global PRNG seed passed to seed_everything() and recorded in context "
+            "for reproducibility. Default 0 (matches run_retrieval_eval default)."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -263,6 +272,7 @@ def _single_mode(args: argparse.Namespace) -> int:
             sem_w=args.sem_weight,
             bm25_w=args.bm25_weight,
             k_rrf=args.k_rrf,
+            seed=args.seed,
         )
         annotation_stats = load_annotation_stats(cfg.paths.metadata_dir).to_dict()
         json_path, md_path = write_reports(
@@ -319,6 +329,7 @@ def _all_modes(args: argparse.Namespace) -> int:
                 sem_w=args.sem_weight,
                 bm25_w=args.bm25_weight,
                 k_rrf=args.k_rrf,
+                seed=args.seed,
             )
         except EvalError as exc:
             print(f"[{mode}] Evaluation failed: {exc}", file=sys.stderr)
@@ -352,6 +363,7 @@ def _all_modes(args: argparse.Namespace) -> int:
                     sem_w=args.sem_weight,
                     bm25_w=args.bm25_weight,
                     k_rrf=k,
+                    seed=args.seed,
                 )
             except EvalError as exc:
                 print(f"[hybrid k_rrf={k}] failed: {exc}", file=sys.stderr)
@@ -375,6 +387,7 @@ def _all_modes(args: argparse.Namespace) -> int:
         "sem_weight": args.sem_weight,
         "bm25_weight": args.bm25_weight,
         "k_rrf": args.k_rrf,
+        "seed": args.seed,
         "modes": [
             {
                 "retriever": payload["context"].get("retriever"),
