@@ -21,11 +21,20 @@ Usage::
     uv run python scripts/bench_retrieval.py --n 200 --k 50 --film jeca_tatu
     uv run python scripts/bench_retrieval.py --out data/perf/run_2026-05-24.json
 
+    # Smoke mode (CI / fast local check — 8 queries, k=20):
+    uv run python scripts/bench_retrieval.py --smoke
+    uv run python scripts/bench_retrieval.py --smoke --film jeca_tatu
+
 Outputs both a JSON results file (defaults to ``data/perf/bench_results.json``)
 and a Markdown summary (``docs/PERFORMANCE.md``). The Markdown file
 captures hardware, headline number, and ready-to-paste README snippet —
 the JSON file is the raw record (per-mode + per-stage stats + every
 sample, for re-analysis).
+
+When no on-disk index is available (e.g. in CI without the demo bundle),
+the script prints a notice and exits 0 rather than crashing.  The
+``--smoke`` flag sets small defaults (``--n 8 --k 20``) so CI-level runs
+are fast when an index IS present.
 
 NB: warm-up of 5 throwaway queries primes the CLIP forward pass and the
 BM25 cache before the timed loop starts, so the first call's compile/
@@ -675,8 +684,23 @@ def write_markdown(payload: dict, out_path: Path) -> None:
 # ─── Entry point ──────────────────────────────────────────────────────────────
 
 
+SMOKE_N = 8   # --smoke default: small query count for CI / quick local runs
+SMOKE_K = 20  # --smoke default top_k
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p.add_argument(
+        "--smoke",
+        action="store_true",
+        default=False,
+        help=(
+            f"Smoke mode: override --n to {SMOKE_N} and --k to {SMOKE_K} for a fast CI-friendly "
+            "run.  Also guards gracefully when no on-disk index is present (prints a notice + "
+            "exits 0).  Intended for CI jobs and quick local sanity checks; not a substitute for "
+            "a full bench run."
+        ),
+    )
     p.add_argument("--n", type=int, default=100, help="Number of timed queries (default: 100).")
     p.add_argument("--k", type=int, default=50, help="top_k passed to retrievers (default: 50).")
     p.add_argument(
@@ -697,8 +721,51 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
+def _check_index_exists(cfg, *, film: str | None, smoke: bool) -> bool:
+    """Return True if at least one registered film has an on-disk CLIP index.
+
+    When ``film`` is specified, only that slug is checked.  Returns False
+    (prints a ``::notice::`` + a human message) rather than raising, so callers
+    can exit 0 gracefully — this is the CI no-op path.
+    """
+    try:
+        from cinemateca.library import scan_library
+
+        library_dir = Path(cfg.paths.library_dir)
+        films = list(scan_library(library_dir))
+    except Exception:
+        return False
+    if not films:
+        return False
+    if film is not None:
+        for f in films:
+            if f.slug == film:
+                idx_path = Path(cfg.paths.library_dir) / film / "embeddings" / "clip_embeddings.npy"
+                return idx_path.exists()
+        return False
+    # Any film with a CLIP index will do.
+    for f in films:
+        idx_path = (
+            Path(cfg.paths.library_dir)
+            / f.slug
+            / "embeddings"
+            / "clip_embeddings.npy"
+        )
+        if idx_path.exists():
+            return True
+    return False
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+
+    # --smoke: override n and k to small defaults for CI / quick runs.
+    if args.smoke:
+        if args.n == 100:   # only override if user didn't set --n explicitly
+            args.n = SMOKE_N
+        if args.k == 50:    # only override if user didn't set --k explicitly
+            args.k = SMOKE_K
+
     out_json = Path(args.out).expanduser()
     out_md = Path(args.markdown).expanduser()
     if not out_json.is_absolute():
@@ -709,7 +776,49 @@ def main(argv: list[str] | None = None) -> int:
     from cinemateca.config import load_config
 
     print("Loading config + picking film…", flush=True)
-    cfg = load_config()
+    try:
+        cfg = load_config()
+    except Exception as exc:
+        if args.smoke:
+            print(
+                f"::notice::bench_retrieval: config unavailable ({exc}); "
+                "benchmark skipped (no-op pass).",
+                flush=True,
+            )
+            return 0
+        raise
+
+    # Graceful no-index guard: if no CLIP index is on disk, skip instead of
+    # crashing.  This is the normal CI path (runners have no Jeca Tatu data).
+    if not _check_index_exists(cfg, film=args.film, smoke=args.smoke):
+        msg = (
+            f"No on-disk CLIP index found for film={args.film!r}"
+            if args.film
+            else "No on-disk CLIP index found for any registered film"
+        )
+        if args.smoke:
+            print(
+                f"::notice::bench_retrieval: {msg}; "
+                "benchmark skipped (no-op pass — index absent in this environment).",
+                flush=True,
+            )
+            print(
+                f"SKIP: {msg}. "
+                "Run `uv run cinemateca process <video>` to build an index, "
+                "then re-run this benchmark.",
+                flush=True,
+            )
+            return 0
+        # Non-smoke: still a clean exit with a clear message rather than a
+        # confusing traceback; _pick_film will produce a similar message but
+        # this guard fires earlier and is more explicit.
+        print(
+            f"SKIP: {msg}. "
+            "Run `uv run cinemateca process <video>` to build an index.",
+            flush=True,
+        )
+        return 0
+
     slug = _pick_film(cfg, requested=args.film)
 
     print(f"Building fixture for film={slug!r}…", flush=True)

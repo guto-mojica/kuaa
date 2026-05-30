@@ -213,3 +213,74 @@ jobs:
           name: dist
           path: dist/*
           if-no-files-found: error
+
+  benchmark:
+    name: Benchmark (retrieval latency, smoke)
+    # This job is intentionally non-blocking when no index is present.
+    # CI runners have no Jeca Tatu artefacts; the job emits a ::notice:: and
+    # exits 0 in that case.  It runs for real only on self-hosted runners (or
+    # future CI that restores a cached demo bundle via scripts/prepare_demo.py).
+    # When WS-4 E6 ships its smoke entry, swap the bench_retrieval.py step for
+    # the E6 smoke command and drop the prepare_demo.py download step.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Full extra needed: bench loads torch + CLIP embedder at runtime.
+      # On standard ubuntu-latest the index is absent so the bench will
+      # exit 0 (no-op) after the guard check — the install cost is still
+      # paid for correctness (imports must not error on the load path).
+      - name: Install (full extra + dev group)
+        run: uv sync --extra full --group dev
+
+      # Best-effort: try to fetch the demo index bundle (Jeca Tatu artefacts).
+      # scripts/prepare_demo.py is a future helper (WS-4 / E6 scope); if it
+      # does not exist yet the step silently sets have_index=0 and the bench
+      # skips cleanly.  This step never hard-fails; it records availability
+      # in a step output so the bench step can be conditioned on it.
+      - name: Prepare demo index (best-effort)
+        id: demo
+        run: |
+          if [ -f scripts/prepare_demo.py ]; then
+            if uv run python scripts/prepare_demo.py --download 2>/tmp/demo.log; then
+              echo "have_index=1" >> "$GITHUB_OUTPUT"
+            else
+              echo "have_index=0" >> "$GITHUB_OUTPUT"
+              echo "::notice::demo bundle unavailable; benchmark will run in no-op mode"
+            fi
+          else
+            echo "have_index=0" >> "$GITHUB_OUTPUT"
+            echo "::notice::prepare_demo.py not found (E6 not yet shipped); benchmark runs as a no-op pass"
+          fi
+
+      # Run the smoke bench.  When an index IS present (have_index=1) this
+      # produces a real timing report.  When the index is absent (have_index=0
+      # or the script's own guard fires), --smoke causes a graceful exit 0.
+      # The step is NOT conditioned on have_index so it always exercises the
+      # no-index guard path in CI — proving the guard works on every PR.
+      - name: Retrieval benchmark (smoke scale, n=8 k=20)
+        run: |
+          uv run python scripts/bench_retrieval.py --smoke \
+            --out /tmp/bench_smoke.json --markdown /tmp/bench_smoke.md
+          echo "bench step exit code: $?"
+
+      # Only upload the report artifact when a real bench ran (index present).
+      - name: Archive benchmark report
+        if: steps.demo.outputs.have_index == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-smoke
+          path: |
+            /tmp/bench_smoke.json
+            /tmp/bench_smoke.md
