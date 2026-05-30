@@ -466,7 +466,7 @@ defer features; timeline extension is one option among several. Grilled
 - [ ] 50–100 curator-annotated eval pairs — grading sessions on the M3 slate
 - [x] Landing-page README draft; blog post outline; demo-video scope —
       drafts at `docs/launch/README_DRAFT.md`,
-      `docs/launch/BLOG_OUTLINE.md`, `docs/launch/DEMO_VIDEO_SCOPE.md`.
+      `docs/launch/BLOG_OUTLINE.md`, `docs/DEMO_VIDEO_SCRIPT.md`.
       Drafts cite real shipped backends; metric numbers (P@K, MRR,
       nDCG) stay TBD until the M4 ablation table lands. M4 finalises
       copy + records the 90s video.

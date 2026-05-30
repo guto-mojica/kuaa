@@ -92,7 +92,7 @@ portfolio roadmap:
 | [Reproducible demo](docs/DEMO.md) | Public demo quickstart using precomputed artifacts |
 | [Demo data](docs/DEMO_DATA.md) | Provenance, rights notes, artifact policy, and regional context |
 | [Demo verification](docs/DEMO_VERIFICATION.md) | Release-bundle and browser verification checklist |
-| [Demo walkthrough](docs/DEMO_WALKTHROUGH.md) | Two-minute public demo script |
+| [Demo quickstart + walkthrough](docs/DEMO.md) | Reproducible demo setup, review flow, and two-minute walkthrough script |
 | [Evaluation](docs/EVALUATION.md) | Query schema, retrieval metrics, and annotation-correction stats |
 | [Domain packs](docs/DOMAIN_PACKS.md) | Domain schema, archive and media-broadcast packs, prompt/export mapping |
 | [API reference](docs/API.md) | Local FastAPI/HTMX routes plus JSON/CSV export endpoints |
