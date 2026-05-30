@@ -15,6 +15,26 @@ Phase 4 hardens this module:
   * dependency-aware gating surfaces ``blocked`` steps so an upstream
     failure can no longer silently combine stale mixed outputs.
 
+WS-2 A9 — explicit guarded state machine
+-----------------------------------------
+Job status is now :class:`JobStatus` (a ``str`` enum) with an explicit
+transition table :data:`_TRANSITIONS`. :meth:`JobState.transition_to`
+enforces legality, raising :exc:`cinemateca.errors.PipelineError` on
+an illegal flip.  The module-level ``STATUS_*`` names are kept as enum
+aliases so every existing import site (``api/routes/processing.py``,
+tests, the runner itself) continues to work without change.
+
+Event-bus scope (§16)
+---------------------
+:class:`EventBroadcaster` is intentionally the **sole** event surface.
+Multi-job concurrency and a richer publish/subscribe bus are **out of
+scope** for this single-user offline tool (spec §16).  Do NOT expand
+the broadcaster into a multi-job fan-out: that work belongs in a future
+version when per-film data isolation makes concurrent pipelines safe.
+Deleting the broadcaster would regress the SSE multi-tab replay tested
+in ``tests/test_jobs_broadcaster.py`` and
+``tests/test_processing_log_replay.py``.
+
 Concurrency policy
 ------------------
 **Single global active job.** This is an offline single-user tool; the
@@ -44,6 +64,7 @@ import uuid
 from collections import deque
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import PurePosixPath
 from typing import Any
 
@@ -57,15 +78,45 @@ STEP_DEFS: list[tuple[str, str]] = [
     ("llm_description", "Descrições"),
 ]
 
-# Lifecycle states a job can be in. ``created`` is transient (set before
-# the worker thread starts); the worker flips it to ``running``.
-STATUS_CREATED = "created"
-STATUS_RUNNING = "running"
-STATUS_DONE = "done"
-STATUS_ERROR = "error"
-STATUS_CANCELLED = "cancelled"
-_ACTIVE = (STATUS_CREATED, STATUS_RUNNING)
-_TERMINAL = (STATUS_DONE, STATUS_ERROR, STATUS_CANCELLED)
+
+class JobStatus(str, Enum):
+    """Explicit lifecycle states for a pipeline job.
+
+    ``str`` mixin means every member compares equal to its string value
+    so existing code that checks ``job.status == "running"`` or
+    ``job.status in ("done", "error", "cancelled")`` keeps working
+    without modification.
+    """
+
+    CREATED = "created"
+    RUNNING = "running"
+    DONE = "done"
+    ERROR = "error"
+    CANCELLED = "cancelled"
+
+
+# Module-level aliases — kept for every existing import site.
+# ``from api.jobs import STATUS_RUNNING`` still works, and the values
+# compare equal to the plain strings they replaced.
+STATUS_CREATED: JobStatus = JobStatus.CREATED
+STATUS_RUNNING: JobStatus = JobStatus.RUNNING
+STATUS_DONE: JobStatus = JobStatus.DONE
+STATUS_ERROR: JobStatus = JobStatus.ERROR
+STATUS_CANCELLED: JobStatus = JobStatus.CANCELLED
+
+# Legal transitions: maps a status to the set of statuses it may move into.
+# Terminal states (DONE / ERROR / CANCELLED) map to the empty frozenset —
+# they are frozen.  Enforced by :meth:`JobState.transition_to`.
+_TRANSITIONS: dict[JobStatus, frozenset[JobStatus]] = {
+    JobStatus.CREATED: frozenset({JobStatus.RUNNING, JobStatus.CANCELLED}),
+    JobStatus.RUNNING: frozenset({JobStatus.DONE, JobStatus.ERROR, JobStatus.CANCELLED}),
+    JobStatus.DONE: frozenset(),
+    JobStatus.ERROR: frozenset(),
+    JobStatus.CANCELLED: frozenset(),
+}
+
+_ACTIVE = (JobStatus.CREATED, JobStatus.RUNNING)
+_TERMINAL = (JobStatus.DONE, JobStatus.ERROR, JobStatus.CANCELLED)
 
 # Bounded retention: keep at most this many terminal jobs in the
 # registry; evict oldest first. The active job is never counted/evicted.
@@ -260,7 +311,7 @@ class StepInfo:
 class JobState:
     id: str
     video_path: str
-    status: str = STATUS_RUNNING  # created|running|done|error|cancelled
+    status: JobStatus = JobStatus.RUNNING  # created|running|done|error|cancelled
     steps: list[StepInfo] = field(default_factory=list)
     progress: float = 0.0
     # Multi-consumer event bus. Replaces the old single-consumer
@@ -322,6 +373,25 @@ class JobState:
     @property
     def cancel_requested(self) -> bool:
         return self._cancel.is_set()
+
+    def transition_to(self, new: JobStatus) -> None:
+        """Move to *new* status, raising :exc:`~cinemateca.errors.PipelineError`
+        if the transition is not in :data:`_TRANSITIONS`.
+
+        This is the authoritative write path for job lifecycle changes.
+        Direct ``job.status = ...`` assignments in test fixtures are still
+        valid (they bypass the guard intentionally — fixtures build
+        pre-configured job states directly).
+        """
+        from cinemateca.errors import PipelineError
+
+        allowed = _TRANSITIONS.get(self.status, frozenset())
+        if new not in allowed:
+            raise PipelineError(
+                f"illegal job transition {self.status.value}->{new.value}",
+                code="pipeline.illegal_transition",
+            )
+        self.status = new
 
 
 class ConcurrencyRejected(Exception):
@@ -565,7 +635,7 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
     from cinemateca.run_manifest import write_run_manifest
 
     t_start = time.time()
-    job.status = STATUS_RUNNING
+    job.transition_to(JobStatus.RUNNING)
 
     slug = _slug_for_video(job.video_path, cfg)
     logger.info(
@@ -667,7 +737,7 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
                 cancel_check=lambda: job.cancel_requested,
             )
         except StepCancelled:
-            job.status = STATUS_CANCELLED
+            job.transition_to(JobStatus.CANCELLED)
             _recompute_progress()
             job.total_duration_s = time.time() - t_start
             if not job.error_msg:
@@ -684,7 +754,7 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
         except Exception as exc:  # defensive: run_steps wraps step errors,
             # so this only fires on an orchestration-level fault.
             job.error_msg = str(exc)
-            job.status = STATUS_ERROR
+            job.transition_to(JobStatus.ERROR)
             _recompute_progress()
             job.total_duration_s = time.time() - t_start
             _write_manifest(status=STATUS_ERROR, error=job.error_msg)
@@ -694,7 +764,7 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
             return
 
         had_error = any(r.state in ("error", "blocked") for r in results.runs)
-        job.status = STATUS_ERROR if had_error else STATUS_DONE
+        job.transition_to(JobStatus.ERROR if had_error else JobStatus.DONE)
         job.progress = 1.0
         job.total_duration_s = time.time() - t_start
         _write_manifest(
