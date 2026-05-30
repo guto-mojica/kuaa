@@ -114,13 +114,11 @@ def _get_bm25_index_for_ctx_with_cfg(cfg: Settings, ctx: FilmContext) -> Any:
     stopwords_lang = getattr(bm25_cfg, "stopwords_lang", None) if bm25_cfg else None
     k1 = float(getattr(bm25_cfg, "k1", 1.5)) if bm25_cfg else 1.5
     b = float(getattr(bm25_cfg, "b", 0.75)) if bm25_cfg else 0.75
-    include_transcripts = bool(getattr(bm25_cfg, "include_transcripts", True)) if bm25_cfg else True
     return bm25_index_for_ctx(
         ctx,
         stopwords_lang=stopwords_lang,
         k1=k1,
         b=b,
-        include_transcripts=include_transcripts,
     )
 
 

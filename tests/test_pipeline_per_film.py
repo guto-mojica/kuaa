@@ -46,7 +46,6 @@ def _fake_cfg(tmp_path: Path):
             embeddings=True,
             llm_description=True,
             audio_extract=True,
-            audio_transcribe=True,
             audio_embed=True,
         ),
     )
@@ -86,7 +85,6 @@ def _stub_steps(pipeline: CatalogPipeline) -> None:
     pipeline._step_embeddings = _ok("embeddings")
     pipeline._step_llm_description = _ok("llm_description")
     pipeline._step_audio_extract = _ok("audio_extract")
-    pipeline._step_audio_transcribe = _ok("audio_transcribe")
     pipeline._step_audio_embed = _ok("audio_embed")
 
 

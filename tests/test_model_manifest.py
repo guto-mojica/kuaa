@@ -1,7 +1,7 @@
 """Model manifest (F6) — backend-keyed ModelCard registry.
 
 Spec §17 override: CARDS is keyed by backend id (not role), so the
-active card for a role is CARDS[settings.models.<role>].  Ten backends
+active card for a role is CARDS[settings.models.<role>].  Nine backends
 are registered: two image backends (default siglip_multilingual + alt
 clip_openclip) and two describer backends (default
 moondream_transformers + alt moondream_gguf) plus one backend per other
@@ -23,7 +23,6 @@ EXPECTED_BACKENDS = {
     "yolov8",
     "mtcnn_pytorch",
     "opencv_heuristic",
-    "faster_whisper_hf",
     "bge_reranker_v2_m3",
 }
 

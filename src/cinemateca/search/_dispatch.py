@@ -71,7 +71,6 @@ def find(
     bm25_stopwords_lang: str | None = None,
     bm25_k1: float = 1.5,
     bm25_b: float = 0.75,
-    bm25_include_transcripts: bool = True,
     # C5: typed reranker wiring — OFF by default pending WS-4 tuning evidence.
     # Flip default to True only after E2/E6 ablation confirms a metric delta.
     rerank: bool = False,
@@ -142,7 +141,6 @@ def find(
         bm25_stopwords_lang=bm25_stopwords_lang,
         bm25_k1=bm25_k1,
         bm25_b=bm25_b,
-        bm25_include_transcripts=bm25_include_transcripts,
     )
 
     with timed("find.text") as t:
@@ -191,7 +189,6 @@ def _load_bm25_for_mode(
     bm25_stopwords_lang: str | None = None,
     bm25_k1: float = 1.5,
     bm25_b: float = 0.75,
-    bm25_include_transcripts: bool = True,
 ):
     """Build the BM25 index for the film, or ``None`` for clip mode.
 
@@ -208,7 +205,6 @@ def _load_bm25_for_mode(
         stopwords_lang=bm25_stopwords_lang,
         k1=bm25_k1,
         b=bm25_b,
-        include_transcripts=bm25_include_transcripts,
     )
 
 

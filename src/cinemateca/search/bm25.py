@@ -3,8 +3,7 @@
 Caches a :class:`cinemateca.retrieval.bm25.BM25Index` per film, keyed by
 the ``(mtime_ns, size)`` stamp of the on-disk source files
 (``scene_descriptions.json``, ``scene_tags.json``,
-``manual_annotations.json``, and optionally
-``audio/scene_transcripts.json``). Any write to any indexed source
+``manual_annotations.json``). Any write to any indexed source
 invalidates the entry transparently.
 
 Public verbs:
@@ -68,10 +67,10 @@ def _file_stamp(path: Path) -> tuple[int, int]:
 
 # ── Outer StatCache (slug-keyed so clear_film works) ──────────────────────────
 # Key: (slug, str(metadata_dir), stopwords_lang_or_empty, k1_str, b_str,
-#       incl_transcripts, tokenizer_name)
+#       tokenizer_name)
 # First component is the film slug so clear_film(slug) invalidates exactly one
 # film's BM25 slot without touching other films.
-_BM25_CACHE: StatCache[tuple[str, str, str, str, str, bool, str], BM25Index] = StatCache()
+_BM25_CACHE: StatCache[tuple[str, str, str, str, str, str], BM25Index] = StatCache()
 
 
 # ── Inner lru_cache loader (kept for back-compat: cache_info().currsize) ──────
@@ -81,8 +80,6 @@ def _cached_bm25_index(
     descriptions_stamp: tuple[int, int],
     scene_tags_stamp: tuple[int, int],
     manual_annotations_stamp: tuple[int, int],
-    transcripts_stamp: tuple[int, int],
-    include_transcripts: bool,
     stopwords_lang: str | None,
     k1: float,
     b: float,
@@ -98,7 +95,6 @@ def _cached_bm25_index(
       * ``scene_descriptions.json`` — Moondream output (list of dicts).
       * ``scene_tags.json`` — LLM-tag output (INT scene_id keys).
       * ``manual_annotations.json`` — manual tags (STR scene_id keys).
-      * ``../audio/scene_transcripts.json`` — Whisper text (optional).
 
     Tag merge semantics come from :func:`cinemateca.search._tag_index.load_tag_index`
     (the shared loader — single source of truth for scene_id
@@ -118,20 +114,10 @@ def _cached_bm25_index(
     # shape the old api.services.catalog.load_tag_index produced.
     tag_index = load_tag_index(md) or {}
 
-    transcripts: list[dict] = []
-    transcripts_path = md.parent / "audio" / "scene_transcripts.json"
-    if include_transcripts and transcripts_path.exists():
-        try:
-            data = json.loads(transcripts_path.read_text(encoding="utf-8"))
-            transcripts = data if isinstance(data, list) else []
-        except json.JSONDecodeError:
-            logger.warning("BM25: malformed %s; using empty transcripts", transcripts_path)
-
     tokenizer = get_tokenizer(tokenizer_name)
     return BM25Index.build(
         descriptions=descriptions,
         tag_index=tag_index,
-        transcripts=transcripts,
         stopwords_lang=stopwords_lang,
         tokenizer=tokenizer,
         k1=k1,
@@ -145,7 +131,6 @@ def bm25_index_for_dir(
     stopwords_lang: str | None,
     k1: float,
     b: float,
-    include_transcripts: bool = True,
     tokenizer_name: str = "regex",
 ) -> BM25Index:
     """Load (cached) BM25 index for a metadata directory.
@@ -153,17 +138,14 @@ def bm25_index_for_dir(
     Routes through the outer ``_BM25_CACHE`` (StatCache, slug-keyed) then
     falls through to the inner ``_cached_bm25_index`` (lru_cache). Any
     write to any source file invalidates both layers automatically.
-    ``stopwords_lang`` / ``k1`` / ``b`` / ``include_transcripts`` /
-    ``tokenizer_name`` participate in the key so a config change reloads
-    correctly.
+    ``stopwords_lang`` / ``k1`` / ``b`` / ``tokenizer_name`` participate
+    in the key so a config change reloads correctly.
     """
-    transcripts_path = metadata_dir.parent / "audio" / "scene_transcripts.json"
     d_stamp = _file_stamp(metadata_dir / "scene_descriptions.json")
     t_stamp = _file_stamp(metadata_dir / "scene_tags.json")
     m_stamp = _file_stamp(metadata_dir / "manual_annotations.json")
-    tr_stamp = _file_stamp(transcripts_path) if include_transcripts else (0, 0)
 
-    # 4-source combined signature for StatCache (flat int tuple).
+    # 3-source combined signature for StatCache (flat int tuple).
     sig: tuple[int, ...] = (
         d_stamp[0],
         d_stamp[1],
@@ -171,8 +153,6 @@ def bm25_index_for_dir(
         t_stamp[1],
         m_stamp[0],
         m_stamp[1],
-        tr_stamp[0],
-        tr_stamp[1],
     )
 
     # Slug = immediate parent dir name (data/library/<slug>/metadata/ → slug).
@@ -183,7 +163,6 @@ def bm25_index_for_dir(
         stopwords_lang or "",
         str(k1),
         str(b),
-        include_transcripts,
         tokenizer_name,
     )
 
@@ -193,8 +172,6 @@ def bm25_index_for_dir(
             d_stamp,
             t_stamp,
             m_stamp,
-            tr_stamp,
-            include_transcripts,
             stopwords_lang,
             k1,
             b,
@@ -210,7 +187,6 @@ def bm25_index_for_ctx(
     stopwords_lang: str | None,
     k1: float,
     b: float,
-    include_transcripts: bool = True,
     tokenizer_name: str = "regex",
 ) -> BM25Index:
     """Load BM25 index for a film context (duck-typed).
@@ -225,7 +201,6 @@ def bm25_index_for_ctx(
         stopwords_lang=stopwords_lang,
         k1=k1,
         b=b,
-        include_transcripts=include_transcripts,
         tokenizer_name=tokenizer_name,
     )
 

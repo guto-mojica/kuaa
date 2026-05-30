@@ -2,8 +2,7 @@
 
 Wraps ``rank_bm25.BM25Okapi`` with:
   * a ``build`` classmethod that accepts already-loaded
-    ``descriptions`` + optional ``transcripts`` + ``tag_index`` and
-    constructs the BM25 model.
+    ``descriptions`` + ``tag_index`` and constructs the BM25 model.
   * a ``query`` method that returns ``[(scene_id, score), …]``
     instead of raw doc-index integers.
 
@@ -64,7 +63,6 @@ class BM25Index:
         *,
         descriptions: Sequence[dict],
         tag_index: Mapping[str, Sequence[int]],
-        transcripts: Sequence[dict] | None = None,
         stopwords_lang: str | None = None,
         tokenizer: Tokenizer | None = None,
         k1: float = 1.5,
@@ -75,7 +73,6 @@ class BM25Index:
         Args:
             descriptions: Scene-description dicts.
             tag_index: ``{tag: [scene_id, …]}`` mapping.
-            transcripts: Optional Whisper transcript dicts.
             stopwords_lang: Legacy knob — used only when ``tokenizer`` is
                 ``None`` (constructs a ``RegexTokenizer(stopwords_lang=…)``).
             tokenizer: Explicit :class:`Tokenizer` instance. When provided,
@@ -89,7 +86,6 @@ class BM25Index:
         docs = build_corpus(
             descriptions,
             tag_index,
-            transcripts=transcripts,
             stopwords_lang=stopwords_lang,
             tokenizer=_tok,
         )

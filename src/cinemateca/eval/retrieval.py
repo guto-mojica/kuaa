@@ -189,22 +189,12 @@ def _build_bm25_index(cfg, metadata_dir: Path):
     k1 = float(getattr(bm25_cfg, "k1", 1.5)) if bm25_cfg else 1.5
     b = float(getattr(bm25_cfg, "b", 0.75)) if bm25_cfg else 0.75
     stopwords_lang = getattr(bm25_cfg, "stopwords_lang", None) if bm25_cfg else None
-    include_transcripts = bool(getattr(bm25_cfg, "include_transcripts", True)) if bm25_cfg else True
 
     descriptions = _load_descriptions(metadata_dir)
     tag_index = _load_tag_index(metadata_dir)
-    transcripts: list[dict] = []
-    transcripts_path = metadata_dir.parent / "audio" / "scene_transcripts.json"
-    if include_transcripts and transcripts_path.exists():
-        try:
-            data = json.loads(transcripts_path.read_text(encoding="utf-8"))
-            transcripts = data if isinstance(data, list) else []
-        except json.JSONDecodeError:
-            logger.warning("eval: malformed %s — skipping transcripts", transcripts_path)
     return BM25Index.build(
         descriptions=descriptions,
         tag_index=tag_index,
-        transcripts=transcripts,
         stopwords_lang=stopwords_lang,
         k1=k1,
         b=b,

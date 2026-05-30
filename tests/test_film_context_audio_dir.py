@@ -1,4 +1,4 @@
-"""FilmContext audio-path properties (audio_dir / transcripts_path / segments)."""
+"""FilmContext audio-path properties (audio_dir / segments)."""
 
 from __future__ import annotations
 
@@ -29,12 +29,10 @@ def test_audio_dir_property_present():
     from cinemateca.library.context import FilmContext
 
     assert hasattr(FilmContext, "audio_dir")
-    assert hasattr(FilmContext, "transcripts_path")
     assert hasattr(FilmContext, "audio_segments_dir")
 
 
 def test_audio_dir_under_film_root(tmp_path):
     ctx = _make_ctx(tmp_path)
     assert ctx.audio_dir == ctx.metadata_dir.parent / "audio"
-    assert ctx.transcripts_path == ctx.audio_dir / "scene_transcripts.json"
     assert ctx.audio_segments_dir == ctx.audio_dir / "segments"

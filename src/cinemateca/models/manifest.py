@@ -130,14 +130,6 @@ CARDS: dict[str, ModelCard] = {
         license="project (local heuristic, no weights)",
         output_shape='{"time_of_day", "brightness_score", "location", "edge_density"}',
     ),
-    # ── transcriber ──────────────────────────────────────────────────────────
-    "faster_whisper_hf": ModelCard(
-        role="transcriber",
-        backend="faster_whisper_hf",
-        model_id="Systran/faster-whisper-medium",
-        license="MIT",
-        download_hint="HF hub on first transcribe (~1.5 GB; CTranslate2)",
-    ),
     # ── reranker ─────────────────────────────────────────────────────────────
     "bge_reranker_v2_m3": ModelCard(
         role="reranker",

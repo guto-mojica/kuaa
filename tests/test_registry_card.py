@@ -22,7 +22,6 @@ _ALL_ROLES = (
     "object_detector",
     "face_detector",
     "environment_classifier",
-    "transcriber",
     "reranker",
 )
 

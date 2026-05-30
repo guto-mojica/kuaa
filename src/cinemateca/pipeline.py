@@ -70,7 +70,6 @@ STEP_ORDER: tuple[str, ...] = (
     "embeddings",
     "llm_description",
     "audio_extract",
-    "audio_transcribe",
     "audio_embed",
 )
 
@@ -96,8 +95,7 @@ STEP_ORDER: tuple[str, ...] = (
 # ``scene_detection``: ``audio_extract`` reads scene boundaries from
 # ``keyframes_metadata.json`` and the source video; ``audio_embed``
 # reads the per-scene WAVs that ``audio_extract`` writes plus the
-# metadata. ``audio_transcribe`` reads the same per-scene WAVs as
-# ``audio_embed`` and writes ``scene_transcripts.json``.
+# metadata.
 #
 # Edges encode the *producing* step. The actual gate (see
 # :meth:`CatalogPipeline.run_steps`) is INPUT-based: a downstream step is
@@ -112,7 +110,6 @@ STEP_DEPS: dict[str, tuple[str, ...]] = {
     "embeddings": ("scene_detection",),
     "llm_description": ("scene_detection",),
     "audio_extract": ("scene_detection",),
-    "audio_transcribe": ("audio_extract",),
     "audio_embed": ("audio_extract",),
 }
 
@@ -568,83 +565,6 @@ class CatalogPipeline:
         except Exception as e:
             return StepResult(name=name, success=False, duration_s=time.time() - t0, error=str(e))
 
-    def _step_audio_transcribe(self, metadata_path: Path) -> StepResult:
-        from cinemateca.audio_extractor import unique_scenes
-        from cinemateca.models.registry import get_transcriber
-
-        name = "audio_transcribe"
-        out_dir = self._audio_dir()
-        out_path = out_dir / "scene_transcripts.json"
-
-        t0 = time.time()
-        try:
-            with open(metadata_path, encoding="utf-8") as f:
-                scenes_all = json.load(f)
-
-            scene_rows = unique_scenes(scenes_all)
-            segments_dir = out_dir / "segments"
-            wav_paths = [segments_dir / f"scene_{r['scene_id']:04d}.wav" for r in scene_rows]
-
-            expected_scene_ids = {int(r["scene_id"]) for r in scene_rows}
-            if self.cfg.pipeline.skip_existing and out_path.exists():
-                try:
-                    existing = json.loads(out_path.read_text(encoding="utf-8"))
-                except json.JSONDecodeError:
-                    existing = []
-                existing_scene_ids = {
-                    int(row["scene_id"])
-                    for row in existing
-                    if isinstance(row, dict) and row.get("scene_id") is not None
-                }
-                if expected_scene_ids <= existing_scene_ids:
-                    logger.info(
-                        "↷ Pulando audio_transcribe (%d transcrições existentes)", len(existing)
-                    )
-                    return StepResult(
-                        name=name,
-                        success=True,
-                        skipped=True,
-                        output={"transcripts_path": out_path},
-                    )
-
-            missing = [p for p in wav_paths if not p.exists()]
-            if missing:
-                raise FileNotFoundError(
-                    f"audio_transcribe: {len(missing)} expected WAV(s) missing "
-                    f"(first: {missing[0]})"
-                )
-
-            transcriber = get_transcriber(self.cfg, self.device)
-            film_dir = out_dir.parent
-            rows = []
-            for scene_row, wav_path in zip(scene_rows, wav_paths):
-                result = transcriber.transcribe(wav_path)
-                rows.append(
-                    {
-                        "scene_id": int(scene_row["scene_id"]),
-                        "wav_path": str(wav_path.relative_to(film_dir)),
-                        "start_time_s": float(scene_row["start_time_s"]),
-                        "end_time_s": float(scene_row["end_time_s"]),
-                        "text": result["text"],
-                        "language": result["language"],
-                        "language_probability": result["language_probability"],
-                        "segments": result["segments"],
-                    }
-                )
-
-            out_dir.mkdir(parents=True, exist_ok=True)
-            with open(out_path, "w", encoding="utf-8") as f:
-                json.dump(rows, f, indent=2, ensure_ascii=False)
-
-            return StepResult(
-                name=name,
-                success=True,
-                duration_s=time.time() - t0,
-                output={"transcripts_path": out_path},
-            )
-        except Exception as e:
-            return StepResult(name=name, success=False, duration_s=time.time() - t0, error=str(e))
-
     def _step_audio_embed(self, metadata_path: Path) -> StepResult:
         from cinemateca.audio_extractor import unique_scenes
         from cinemateca.models.registry import get_audio_embedder
@@ -812,18 +732,7 @@ class CatalogPipeline:
         else:
             result.steps.append(StepResult(name="audio_extract", success=True, skipped=True))
 
-        # ── Etapa 7: Áudio (transcrição Whisper) ──────────────────────────────
-        if steps_cfg.audio_transcribe and metadata_path.exists():
-            step = self._step_audio_transcribe(metadata_path)
-            result.steps.append(step)
-            if not step.success and self.cfg.pipeline.stop_on_error:
-                logger.error("Pipeline interrompido na etapa: %s", step.name)
-                result.total_duration_s = time.time() - pipeline_start
-                return result
-        else:
-            result.steps.append(StepResult(name="audio_transcribe", success=True, skipped=True))
-
-        # ── Etapa 8: Áudio (embeddings CLAP) ──────────────────────────────────
+        # ── Etapa 7: Áudio (embeddings CLAP) ──────────────────────────────────
         if steps_cfg.audio_embed and metadata_path.exists():
             step = self._step_audio_embed(metadata_path)
             result.steps.append(step)
@@ -898,7 +807,7 @@ class CatalogPipeline:
             return bool(sorted(keyframes_dir.glob("*.jpg")))
         if step in ("embeddings", "llm_description", "audio_extract"):
             return self._keyframes_metadata_path().exists()
-        if step in ("audio_transcribe", "audio_embed"):
+        if step == "audio_embed":
             # Needs both the metadata (for scene ids/times) and at least
             # one WAV produced by audio_extract.
             if not self._keyframes_metadata_path().exists():
@@ -1018,8 +927,6 @@ class CatalogPipeline:
                 sr = self._step_llm_description(metadata_path)
             elif name == "audio_extract":
                 sr = self._step_audio_extract(metadata_path, video_path)
-            elif name == "audio_transcribe":
-                sr = self._step_audio_transcribe(metadata_path)
             elif name == "audio_embed":
                 sr = self._step_audio_embed(metadata_path)
             else:  # pragma: no cover - guarded by requested filter

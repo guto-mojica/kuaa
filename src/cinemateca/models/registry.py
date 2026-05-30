@@ -28,7 +28,6 @@ if TYPE_CHECKING:
         ImageEmbedder,
         ObjectDetector,
         SceneDescriber,
-        Transcriber,
     )
     from cinemateca.models.manifest import ModelCard
 
@@ -174,18 +173,6 @@ def get_audio_embedder(cfg, device=None) -> AudioEmbedder:
     return instance
 
 
-def get_transcriber(cfg, device=None) -> Transcriber:
-    """Return the configured transcriber backend."""
-    name = _name(cfg, "transcriber")
-    if name == "faster_whisper_hf":
-        from cinemateca.models.transcriber.faster_whisper_hf import (
-            FasterWhisperTranscriber,
-        )
-
-        return FasterWhisperTranscriber(cfg, device)
-    raise ValueError(f"Unknown transcriber: {name!r}")
-
-
 # ---------------------------------------------------------------------------
 # Config-aware manifest accessor (F6)
 # ---------------------------------------------------------------------------
@@ -199,7 +186,6 @@ _MODELS_ROLES = frozenset(
         "scene_describer",
         "environment_classifier",
         "audio_embedder",
-        "transcriber",
     }
 )
 
@@ -210,11 +196,11 @@ def model_card(settings: Settings, role: str) -> ModelCard:
     Resolves the *active* backend from *settings* so the returned card
     always matches the configured backend — not a role-level default.
 
-    For the seven roles with a ``settings.models.*`` selector
+    For the six roles with a ``settings.models.*`` selector
     (``image_embedder``, ``face_detector``, ``object_detector``,
-    ``scene_describer``, ``environment_classifier``, ``audio_embedder``,
-    ``transcriber``), the backend id is read from ``settings.models``
-    and used as the :data:`~cinemateca.models.manifest.CARDS` key.
+    ``scene_describer``, ``environment_classifier``, ``audio_embedder``),
+    the backend id is read from ``settings.models`` and used as the
+    :data:`~cinemateca.models.manifest.CARDS` key.
 
     ``"reranker"`` has no ``settings.models`` selector (it is configured
     under ``settings.retrieval``); this function returns the single

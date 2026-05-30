@@ -62,22 +62,17 @@ class FilmContext:
 
     @property
     def audio_dir(self) -> Path:
-        """Directory of per-film audio artefacts (CLAP + transcripts).
+        """Directory of per-film audio artefacts (CLAP embeddings).
 
         Sibling of ``metadata_dir`` under the film root
-        (``<film_dir>/audio``). Created on demand by the audio/transcribe
-        pipeline steps; this property only computes the path.
+        (``<film_dir>/audio``). Created on demand by the audio pipeline
+        steps; this property only computes the path.
         """
         return self.metadata_dir.parent / "audio"
 
     @property
-    def transcripts_path(self) -> Path:
-        """JSON file holding per-scene Whisper transcripts."""
-        return self.audio_dir / "scene_transcripts.json"
-
-    @property
     def audio_segments_dir(self) -> Path:
-        """Directory of per-scene extracted WAV segments fed to Whisper/CLAP."""
+        """Directory of per-scene extracted WAV segments fed to CLAP."""
         return self.audio_dir / "segments"
 
     @classmethod

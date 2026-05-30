@@ -156,23 +156,12 @@ class AudioEmbeddingsCfg(_Section):
     mapping_filename: str = "audio_mapping.json"
 
 
-# ── transcriber ──────────────────────────────────────────────────────────────
-class TranscriberCfg(_Section):
-    model_id: str = "Systran/faster-whisper-medium"
-    compute_type: str = "auto"
-    language: str | None = None
-    beam_size: int = 5
-    vad_filter: bool = True
-    vad_min_silence_duration_ms: int = 500
-
-
 # ── search (+ nested bm25) ───────────────────────────────────────────────────
 class Bm25Cfg(_Section):
     k1: float = 1.5
     b: float = 0.75
     stopwords_lang: str | None = None
     rrf_k: int = 60
-    include_transcripts: bool = True
     tokenizer: str = "regex"  # "regex" (default, unchanged) | "multilingual" (PT-aware, opt-in)
 
 
@@ -247,7 +236,6 @@ class ModelsCfg(_Section):
     scene_describer: Literal["moondream_transformers", "moondream_gguf"]
     environment_classifier: Literal["opencv_heuristic"]
     audio_embedder: Literal["clap_hf"]
-    transcriber: Literal["faster_whisper_hf"]
 
 
 # ── pipeline (+ nested steps) ────────────────────────────────────────────────
@@ -258,7 +246,6 @@ class PipelineStepsCfg(_Section):
     embeddings: bool = True
     llm_description: bool = True
     audio_extract: bool = False
-    audio_transcribe: bool = False
     audio_embed: bool = False
 
 
@@ -308,7 +295,6 @@ class Settings(_Section):
     visual_analysis: VisualAnalysisCfg
     embeddings: EmbeddingsCfg
     audio_embeddings: AudioEmbeddingsCfg
-    transcriber: TranscriberCfg
     search: SearchCfg
     retrieval: RetrievalCfg
     rimas: RimasCfg

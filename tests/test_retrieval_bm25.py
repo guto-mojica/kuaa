@@ -31,19 +31,6 @@ def test_empty_corpus_does_not_crash() -> None:
     assert idx.query("anything", top_k=5) == []
 
 
-def test_transcript_text_is_queryable() -> None:
-    descriptions = [
-        {"scene_id": 1, "description": "homem caminhando"},
-        {"scene_id": 2, "description": "casa abandonada"},
-        {"scene_id": 3, "description": "carro vermelho"},
-    ]
-    transcripts = [{"scene_id": 2, "text": "telegrama urgente na radio"}]
-    idx = BM25Index.build(descriptions=descriptions, tag_index={}, transcripts=transcripts)
-    hits = idx.query("telegrama", top_k=3)
-    assert hits[0][0] == 2
-    assert hits[0][1] > 0.0
-
-
 def test_query_with_zero_or_negative_top_k_returns_empty() -> None:
     idx = BM25Index.build(
         descriptions=[{"scene_id": 0, "description": "x"}],
