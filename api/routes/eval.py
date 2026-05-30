@@ -10,6 +10,7 @@ from fastapi import APIRouter, Form, HTTPException, Request, status
 
 import api.services.eval_service as _eval_svc
 from api.deps import get_config, make_ctx
+from api.schemas import GradeAck, QueryMetrics
 from api.services.eval_service import (
     build_eval_context,
     compute_query_metrics,
@@ -34,13 +35,13 @@ def eval_page(request: Request):
     )
 
 
-@router.post("/api/eval/grade")
+@router.post("/api/eval/grade", response_model=GradeAck)
 def post_grade(
     request: Request,
     query_id: str = Form(...),
     scene_id: str = Form(...),
     grade: int = Form(...),
-):
+) -> GradeAck:
     """Append one grade to the active run JSONL."""
     require_admin(request)
     try:
@@ -64,12 +65,17 @@ def post_grade(
         grader=grader,
         grade=grade_enum,
     )
-    return {"ok": True, "query_id": query_id, "scene_id": scene_id, "grade": int(grade_enum)}
+    return GradeAck(ok=True, query_id=query_id, scene_id=scene_id, grade=int(grade_enum))
 
 
-@router.get("/api/eval/metrics")
-def get_metrics(request: Request, query_id: str | None = None):
-    """Return P@K, nDCG, inversions and histogram for one query."""
+@router.get("/api/eval/metrics", response_model=QueryMetrics)
+def get_metrics(request: Request, query_id: str | None = None) -> QueryMetrics:
+    """Return P@K, nDCG, inversions and histogram for one query.
+
+    When ``query_id`` is omitted, returns the list of graded query IDs
+    (``{"queries": [...]}``) rather than per-query metrics.
+    """
     require_admin(request)
     cfg = get_config()
-    return compute_query_metrics(cfg, query_id=query_id)
+    raw = compute_query_metrics(cfg, query_id=query_id)
+    return QueryMetrics(**raw)

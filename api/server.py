@@ -62,20 +62,79 @@ async def lifespan(app: FastAPI):
 
 _BASE = Path(__file__).parent.parent
 
-app = FastAPI(title="Cinemateca AI", version="0.3.0", lifespan=lifespan)
+_OPENAPI_TAGS = [
+    {
+        "name": "search",
+        "description": (
+            "Semantic search over the film archive. Supports text (CLIP), "
+            "image upload, audio (CLAP), and cross-modal fusion queries."
+        ),
+    },
+    {
+        "name": "library",
+        "description": "Film registration, selection, and library-tree management.",
+    },
+    {
+        "name": "scenes",
+        "description": "Scene browsing, filtering, and per-scene inspector fragments.",
+    },
+    {
+        "name": "annotate",
+        "description": "Manual tag curation and scene description editing.",
+    },
+    {
+        "name": "rimas",
+        "description": "Cross-film visual-rhyme discovery (Rimas Visuais).",
+    },
+    {
+        "name": "processing",
+        "description": "Pipeline job control — ingest and process video files.",
+    },
+    {
+        "name": "export",
+        "description": "Structured catalog exports (JSON / CSV).",
+    },
+    {
+        "name": "eval",
+        "description": (
+            "Eval-set grading and retrieval-quality metrics (admin-gated by "
+            "``EVAL_ADMIN_TOKEN``)."
+        ),
+    },
+    {
+        "name": "system",
+        "description": "Health, readiness, and operational endpoints.",
+    },
+]
+
+app = FastAPI(
+    title="Cinemateca AI",
+    version="0.3.0",
+    description=(
+        "Offline audiovisual cataloguing API for film archives. "
+        "Indexes scenes from video files and exposes semantic search "
+        "(text, image, audio, fusion) over CLIP and CLAP embeddings, "
+        "with hybrid BM25+vector retrieval and cross-encoder reranking. "
+        "All inference runs locally — no cloud APIs are used."
+    ),
+    openapi_tags=_OPENAPI_TAGS,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan,
+)
 app.add_middleware(RequestContextMiddleware)
 app.mount("/static", StaticFiles(directory=str(_BASE / "web" / "static")), name="static")
 
-app.include_router(search.router)
-app.include_router(scenes.router)
-app.include_router(annotate.router)
-app.include_router(processing.router)
-app.include_router(about.router)
-app.include_router(library.router)
-app.include_router(export.router)
-app.include_router(rimas.router)
-app.include_router(palette.router)
-app.include_router(eval_routes.router)
+app.include_router(search.router, tags=["search"])
+app.include_router(scenes.router, tags=["scenes"])
+app.include_router(annotate.router, tags=["annotate"])
+app.include_router(processing.router, tags=["processing"])
+app.include_router(about.router, tags=["system"])
+app.include_router(library.router, tags=["library"])
+app.include_router(export.router, tags=["export"])
+app.include_router(rimas.router, tags=["rimas"])
+app.include_router(palette.router, tags=["system"])
+app.include_router(eval_routes.router, tags=["eval"])
 
 
 # Each tab's full context is built by the SAME code path the matching

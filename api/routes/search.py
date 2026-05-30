@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, File, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse
 
 from api.deps import film_slug_query, get_config, make_ctx
+from api.schemas import SearchParams
 from api.services import search as search_service
 from api.services._search_render import (
     api_search_audio as _api_search_audio,
@@ -54,35 +55,32 @@ async def tab_search(
 @router.get("/api/search", response_class=HTMLResponse)
 async def api_search(
     request: Request,
-    q: str = "",
+    params: SearchParams = Depends(SearchParams),
     tags: list[str] = Query(default=[]),
-    top_k: int = 8,
-    retriever: str = "hybrid",
-    sem_w: float | None = None,
-    bm25_w: float | None = None,
-    modality: str = "text",
-    w: float | None = None,
-    reranker_enabled: bool | None = None,
     slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
     """Semantic search across one (``?film=<slug>``) or all films."""
-    q = q.strip()
+    q = params.q.strip()
     if len(q) < 2:
         return HTMLResponse("")
     cfg = get_config()
-    if modality == "audio":
-        return await _api_search_audio(request, q=q, top_k=top_k, slug=slug, cfg=cfg)
-    if modality == "fusion":
-        return await _api_search_fusion(request, q=q, top_k=top_k, w=w, slug=slug, cfg=cfg)
+    if params.modality == "audio":
+        return await _api_search_audio(request, q=q, top_k=params.top_k, slug=slug, cfg=cfg)
+    if params.modality == "fusion":
+        return await _api_search_fusion(
+            request, q=q, top_k=params.top_k, w=params.w, slug=slug, cfg=cfg
+        )
     min_sim = float(getattr(cfg.embeddings, "min_similarity", 0.0) or 0.0)
-    retriever, sw, bw, rrf_k = search_service.resolve_retriever_args(cfg, retriever, sem_w, bm25_w)
+    retriever, sw, bw, rrf_k = search_service.resolve_retriever_args(
+        cfg, params.retriever, params.sem_w, params.bm25_w
+    )
     logger.info(
-        f"api_search q={q!r} slug={slug or '(agg)'} retriever={retriever} top_k={top_k} "
+        f"api_search q={q!r} slug={slug or '(agg)'} retriever={retriever} top_k={params.top_k} "
         f"min_sim={min_sim:.3f} sw={sw:.3f} bw={bw:.3f} tags={list(tags) or None} "
-        f"reranker_enabled={reranker_enabled}"
+        f"reranker_enabled={params.reranker_enabled}"
     )
     ctx = FilmContext.for_film(cfg, slug) if slug is not None else None
-    args = (cfg, ctx, q, tags, top_k, min_sim, retriever, sw, bw, rrf_k)
+    args = (cfg, ctx, q, tags, params.top_k, min_sim, retriever, sw, bw, rrf_k)
     payload, no_index = await asyncio.get_running_loop().run_in_executor(
         None, lambda: search_service.dispatch_text_search(*args)
     )
@@ -98,10 +96,11 @@ async def api_search(
         cfg=cfg,
         query=q,
         mode=retriever,
-        enabled=reranker_enabled,
+        enabled=params.reranker_enabled,
     )
     return _render_results(
-        request, slug=slug, cfg=cfg, results=results, query=q, highlighted_tags=set(tags)
+        request, slug=slug, cfg=cfg, results=results, query=q,
+        highlighted_tags=set(tags),
     )
 
 
