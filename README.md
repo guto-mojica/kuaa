@@ -20,20 +20,78 @@ cinematecas nacionais e arquivos públicos de filme.
 
 ## Overview (English)
 
-**Cinemateca imgsearch** is an open-source tool for private visual collections.
-After installation and model downloads, processing and search run locally, with
-no video, keyframes, annotations, embeddings, or search queries sent to hosted AI
-APIs.
+**Offline multimodal retrieval for film archives.** Search hours of
+audiovisual material by what's on screen and what's *heard* — without sending
+a frame to the cloud. After installation and model downloads, processing and
+search run locally, with no video, keyframes, annotations, embeddings, or
+search queries sent to hosted AI APIs.
 
-It was built for **film archives and public cinematheques** that hold large
-collections of historical footage with minimal metadata. The pipeline processes
-a video and produces:
+### What it does
 
-- **Scene segmentation** — detects cuts and extracts a representative keyframe per scene
-- **Visual analysis** — detects faces, objects, and classifies environment (indoor/outdoor, day/night)
-- **Natural language descriptions** — a local vision model (Moondream 2) describes each scene in text
-- **Semantic search** — find scenes by free-text query ("two people talking outdoors") or by a reference image, without exact keywords
-- **Manual annotation** — a dedicated tab lets curators add or correct tags scene by scene, which are merged with the automated metadata for search
+The headline capability is a layered multimodal retrieval stack. Every model
+runs **locally** on a single workstation — no API keys, no cloud calls, no
+per-query cost.
+
+- **Text and image search** over SigLIP2 image embeddings
+  (`google/siglip2-large-patch16-256`, 1024-d, multilingual). The legacy
+  OpenCLIP ViT-B/32 backend is still selectable for backward compatibility,
+  but SigLIP2 is the default.
+- **Hybrid lexical retrieval** — BM25 over LLM descriptions + tags, fused with
+  the dense scores via Reciprocal Rank Fusion. This is the default retriever.
+- **Audio search** over CLAP joint text+audio embeddings
+  (`laion/larger_clap_general`) — query "footsteps on wood" and get the scenes
+  that *sound* like it. 10-second chunks, mean-pooled, L2-normalised; served
+  via `?modality=audio` on `/api/search`.
+- **Cross-modal fusion** — `quiet scene with melancholic music` combines CLIP
+  and CLAP scores with linear late-fusion under one `visual_weight` knob
+  (default 0.5). Lives at `?modality=fusion&w=0.5` on `/api/search`.
+- **Cross-film visual rhymes** — kNN over keyframe embeddings, diversified by
+  **MMR** (Carbonell & Goldstein 1998) with a λ=0.5 default and a `Diversidade`
+  slider in the UI.
+- **Cross-encoder reranker** — `BAAI/bge-reranker-v2-m3` is the typed, wired
+  default backend. It is **off by default** pending end-to-end plumbing into
+  the production search dispatchers (the WS-4 work); the launch UI hides the
+  toggle until that lands. It is not applied to results today.
+
+The full canonical stack:
+
+| Role | Backend |
+|---|---|
+| Image embedder | `google/siglip2-large-patch16-256` (default), OpenCLIP ViT-B/32 (legacy) |
+| Audio embedder | `laion/larger_clap_general` (10s chunks + mean-pool) |
+| Reranker | `BAAI/bge-reranker-v2-m3` (typed/wired; default-off pending WS-4) |
+| Scene describer | Moondream2 (HF transformers default; GGUF opt-in) |
+| Object detection | YOLOv8 |
+| Face detection | MTCNN |
+
+Retrieval metrics — Recall@K / MRR / nDCG@10 — land with the WS-4 ablation;
+see [`docs/EVAL_PROTOCOL.md`](docs/EVAL_PROTOCOL.md). A CLAP archival-audio
+sanity gate currently pins Recall@5 ≥ 0.6 over five canned queries on the Jeca
+Tatu library (`cinemateca eval clap-sanity`).
+
+### What it doesn't do
+
+- **Stream over the public internet.** You can deploy it behind a reverse
+  proxy, but the project is built for institutional intranets.
+- **Replace the catalogue of record.** Cinemateca imgsearch sits *next to* the
+  existing catalogue and feeds curators retrieval candidates; authoritative
+  metadata still lives in the institution's system.
+- **Learn fusion weights from data.** Fusion stays at one tunable knob
+  (`visual_weight`); learned weights are explicitly out of scope for v1.0.
+
+### Also includes (production signals)
+
+Beyond retrieval, the pipeline produces the catalogue substrate and the
+operational scaffolding a real archive needs:
+
+- **Scene segmentation** — detects cuts and extracts a representative keyframe per scene.
+- **Visual analysis** — detects faces, objects, and classifies environment (indoor/outdoor, day/night).
+- **Natural language descriptions** — a local vision model (Moondream 2) describes each scene in text.
+- **Manual annotation** — a dedicated tab lets curators add or correct tags scene by scene, merged with automated metadata for search.
+- **Domain packs** — archive-first, with `media_broadcast` as a worked example of swapping prompts and export shape for an adjacent private visual-search workflow.
+- **Domain-aware exports** — structured JSON/CSV catalog exports.
+- **Run manifests** — every pipeline run writes `run_manifest.json` with input, config, model, domain, step, and artifact provenance.
+- **Admin-gated evaluation UI** — query grading with JSONL grade persistence.
 
 ### Who this is for
 
@@ -41,29 +99,16 @@ a video and produces:
 - **Researchers** who need to find visual moments inside long-form footage.
 - **Applied AI reviewers** who want to inspect a realistic local multimodal system rather than a hosted API demo.
 
-Domain packs support adjacent private visual-search workflows, with
-`media_broadcast` as the first implemented example. The current product remains
-archive-first.
-
 ### Current status
 
-Implemented now:
+Implemented now (engineering maturity, beyond the capabilities above):
 
-- Single-machine video processing pipeline.
-- FastAPI + HTMX web interface.
-- Multi-film library registry with per-film artifact layout.
-- Text, image, audio, and CLIP x CLAP fusion search.
-- Hybrid CLIP/BM25 retrieval and cross-film visual rhymes.
-- Scene browsing, manual annotation, and processing job monitoring.
-- Admin-gated evaluation grading UI plus JSONL grade persistence.
-- Command palette, keyboard help, toasts, and offline local UI assets.
-- Configurable local model backends using typed Protocols.
+- Single-machine video processing pipeline behind a FastAPI + HTMX web interface.
+- Multi-film library registry with per-film artifact layout and scene-browsing UI.
+- Configurable local model backends behind typed Protocols.
 - Reproducible public-demo scaffold using Library of Congress footage.
 - Retrieval evaluation runner with JSON/Markdown reports.
-- Domain-pack configuration for archive and media-broadcast metadata.
-- Domain-aware JSON/CSV catalog exports.
-- Run manifests with input, config, model, domain, step, and artifact
-  provenance.
+- Command palette, keyboard help, toasts, and offline local UI assets.
 - Launch package docs: case study, communication plan, video scripts, release
   notes draft, resume bullets, and a launch verifier.
 - Regression tests for the web/service/pipeline surfaces.
@@ -76,7 +121,6 @@ Planned next:
 - Fill release notes with final artifact URL, checksums, metrics, and manifest
   excerpt.
 - Complete per-modality eval slate scoring.
-- Docker packaging after the demo release path is stable.
 
 ### Project docs
 
@@ -348,7 +392,9 @@ Detalhes completos do pipeline e contratos de artefato em [docs/ARCHITECTURE.md]
 
 | Modelo | Tarefa | Backend atual | Observação |
 |---|---|---|---|
-| [CLIP ViT-B/32](https://github.com/mlfoundations/open_clip) | Embeddings visuais e busca semântica | OpenCLIP | Pesos podem baixar no primeiro uso |
+| [SigLIP 2](https://huggingface.co/google/siglip2-large-patch16-256) | Embeddings visuais e de texto, busca semântica | transformers (`siglip_multilingual`, 1024-d) | Padrão; multilíngue |
+| [OpenCLIP ViT-B/32](https://github.com/mlfoundations/open_clip) | Embeddings visuais (legado) | OpenCLIP (`clip_openclip`, 512-d) | Alternativa/legado; backups `.clip_openclip.npy` por filme |
+| [CLAP](https://huggingface.co/laion/larger_clap_general) | Embeddings de áudio, busca por som e fusão cross-modal | transformers (`clap_hf`, `laion/larger_clap_general`) | Chunks de 10s + mean-pool, espaço conjunto texto+áudio |
 | [Moondream 2](https://huggingface.co/vikhyatk/moondream2) | Descrição de cenas em linguagem natural | transformers por padrão; GGUF opcional | Revisão fixada em config para reprodutibilidade |
 | [YOLOv8n](https://github.com/ultralytics/ultralytics) | Detecção de objetos | Ultralytics | Licença AGPL/Enterprise exige atenção |
 | [MTCNN](https://github.com/timesler/facenet-pytorch) | Detecção facial/contagem | facenet-pytorch | Detecção, não reconhecimento de identidade |
