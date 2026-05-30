@@ -17,7 +17,6 @@ from __future__ import annotations
 
 from typing import Any, TypedDict
 
-
 # ---------------------------------------------------------------------------
 # CenasContext
 # Builder: api.services.scenes._cards.build_cenas_context
@@ -80,13 +79,20 @@ class SearchContext(TypedDict):
 # ---------------------------------------------------------------------------
 
 
-class InspectorContext(TypedDict):
-    """Template context for the right-pane inspector (``partials/*_inspector.html``)."""
+class InspectorContext(TypedDict, total=False):
+    """Template context for the right-pane inspector (``partials/*_inspector.html``).
+
+    ``total=False`` because ``inspector_kind`` is added by the route after
+    calling the builder (it is resolved from the HTTP ``kind`` query param,
+    not from the data layer).  All other fields are always present when the
+    builder returns a non-None value.
+    """
 
     selected_scene: dict[str, Any]
     selected_film: Any  # cinemateca.library.Film or None when unregistered
     inspector_tab: str
     rhymes: list[dict[str, Any]]
+    inspector_kind: str
 
 
 # ---------------------------------------------------------------------------

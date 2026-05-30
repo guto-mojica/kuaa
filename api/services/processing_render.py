@@ -17,7 +17,6 @@ from api.jobs import STEP_DEFS, JobState, active_jobs
 from api.services.chrome_service import build_chrome_context
 from api.templates import templates
 
-
 # ── Rendering helpers ─────────────────────────────────────────────────────────
 
 

@@ -67,6 +67,11 @@ def search_text(
     the threshold drops anything below the cosine floor). 0.0 disables
     the filter (default for back-compat with unit tests).
     """
+    # Callers are expected to check index.ok before calling; these asserts
+    # narrow the Optional fields for mypy (index.ok guarantees non-None).
+    assert index.embeddings is not None
+    assert index.kf_df is not None
+    assert index.embedder is not None
     searcher = SemanticSearch(index.embeddings, index.kf_df, index.embedder)
     # The underlying searcher returns the global top-K by similarity; with
     # multiple keyframes per scene that top-K may concentrate inside one
@@ -114,6 +119,11 @@ def search_image(index: SearchIndex, image_path: Path | str, top_k: int) -> pd.D
     receives at most one card per scene, displaying the best-matching
     keyframe (rather than three near-duplicate rows from the same shot).
     """
+    # Callers are expected to check index.ok before calling; these asserts
+    # narrow the Optional fields for mypy (index.ok guarantees non-None).
+    assert index.embeddings is not None
+    assert index.kf_df is not None
+    assert index.embedder is not None
     searcher = SemanticSearch(index.embeddings, index.kf_df, index.embedder)
     df = searcher.by_image(image_path, top_k * 4)
     if not df.empty and "scene_id" in df.columns:

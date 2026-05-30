@@ -6,9 +6,10 @@ Re-exported on ``api.services.search`` so route import paths are unchanged.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from api.services.catalog import keyframe_url
+from cinemateca.models.base import AudioEmbedder
 
 
 def dispatch_audio_search(
@@ -43,7 +44,7 @@ def dispatch_audio_search(
     films = list(scan_library(library_dir))
     if not films:
         return [], True
-    embedder = None
+    embedder_agg: AudioEmbedder | None = None
     all_hits: list[dict] = []
     any_index = False
     for film in films:
@@ -52,9 +53,9 @@ def dispatch_audio_search(
         if idx is None:
             continue
         any_index = True
-        if embedder is None:
-            embedder = get_audio_embedder(cfg, device=None)
-        film_hits = search_audio(idx, embedder, q, top_k=top_k)
+        if embedder_agg is None:
+            embedder_agg = get_audio_embedder(cfg, device=None)
+        film_hits = search_audio(idx, embedder_agg, q, top_k=top_k)
         for h in film_hits:
             h["film_slug"] = film.slug
             h["film_title"] = film.title
@@ -70,6 +71,7 @@ class _NullEncoder:
 
     def encode_text(self, text: str) -> Any:  # pragma: no cover - trivial
         import numpy as np
+
         return np.zeros(1, dtype="float32")
 
 
@@ -101,7 +103,9 @@ def _fusion_per_film_by_paths(
 ) -> tuple[list[dict], bool, Any | None, Any | None]:
     """Run CLIP×CLAP fusion for one film by paths. Returns ``(hits, no_index, clip_emb, clap_emb)``."""
     import json as _json
+
     import numpy as np
+
     from cinemateca.models.registry import get_audio_embedder, get_image_embedder
     from cinemateca.search.audio import load_audio_index
     from cinemateca.search.fusion import FusionConfig, search_fusion
@@ -141,8 +145,8 @@ def _fusion_per_film_by_paths(
         clip_mapping=clip_mapping,
         clap_mapping=clap_mapping,
         query_text=q,
-        clip_embedder=clip_embedder if has_clip else _NullEncoder(),
-        clap_embedder=clap_embedder if has_clap else _NullEncoder(),
+        clip_embedder=cast(Any, clip_embedder if has_clip else _NullEncoder()),
+        clap_embedder=cast(Any, clap_embedder if has_clap else _NullEncoder()),
         cfg=FusionConfig(visual_weight=visual_weight, k_each=k_each, k_final=top_k),
     )
     for h in hits:
@@ -170,11 +174,16 @@ def dispatch_fusion_search(
 
     if ctx is not None:
         hits, no_index, _, _ = _fusion_per_film_by_paths(
-            cfg=cfg, slug=ctx.slug,
+            cfg=cfg,
+            slug=ctx.slug,
             embeddings_dir=ctx.embeddings_dir,
             audio_dir=Path(ctx.metadata_dir).parent / "audio",
-            q=q, top_k=top_k, visual_weight=visual_weight, k_each=k_each,
-            clip_embedder=None, clap_embedder=None,
+            q=q,
+            top_k=top_k,
+            visual_weight=visual_weight,
+            k_each=k_each,
+            clip_embedder=None,
+            clap_embedder=None,
         )
         return hits, no_index
 
@@ -188,11 +197,16 @@ def dispatch_fusion_search(
     any_film = False
     for film in films:
         film_hits, film_no_index, clip_embedder, clap_embedder = _fusion_per_film_by_paths(
-            cfg=cfg, slug=film.slug,
+            cfg=cfg,
+            slug=film.slug,
             embeddings_dir=library_dir / film.slug / "embeddings",
             audio_dir=library_dir / film.slug / "audio",
-            q=q, top_k=top_k, visual_weight=visual_weight, k_each=k_each,
-            clip_embedder=clip_embedder, clap_embedder=clap_embedder,
+            q=q,
+            top_k=top_k,
+            visual_weight=visual_weight,
+            k_each=k_each,
+            clip_embedder=clip_embedder,
+            clap_embedder=clap_embedder,
         )
         if film_no_index:
             continue
@@ -223,7 +237,8 @@ def audio_hits_to_template_dicts(
         except ValueError:
             kf_cache[slug] = ({}, 24.0)
             return kf_cache[slug]
-        kf_meta = load_json(ctx.metadata_dir / "keyframes_metadata.json") or []
+        raw_kf = load_json(ctx.metadata_dir / "keyframes_metadata.json")
+        kf_meta: list[Any] = raw_kf if isinstance(raw_kf, list) else []
         by_scene = {int(e["scene_id"]): e for e in kf_meta if "scene_id" in e}
         kf_cache[slug] = (by_scene, derive_fps(kf_meta))
         return kf_cache[slug]
@@ -236,11 +251,13 @@ def audio_hits_to_template_dicts(
         meta = by_scene.get(sid) or {}
         kf_path = meta.get("filepath", "") or meta.get("keyframe_path", "") or ""
         start_s = float(meta.get("start_time_s") or 0.0)
-        out.append({
-            "film_slug": slug,
-            "scene_id": sid,
-            "similarity": float(h["score"]),
-            "img_url": keyframe_url(kf_path, data_dir) if kf_path else None,
-            "timecode": to_smpte(start_s, fps) if start_s > 0 else "",
-        })
+        out.append(
+            {
+                "film_slug": slug,
+                "scene_id": sid,
+                "similarity": float(h["score"]),
+                "img_url": keyframe_url(kf_path, data_dir) if kf_path else None,
+                "timecode": to_smpte(start_s, fps) if start_s > 0 else "",
+            }
+        )
     return out

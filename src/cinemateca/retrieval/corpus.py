@@ -13,7 +13,7 @@ treats them as rank = "absent" → contributes 0 to the BM25 term.
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from cinemateca.retrieval.tokenize import RegexTokenizer, Tokenizer
 
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 def build_corpus(
     descriptions: Sequence[dict],
-    tag_index: dict[str, Sequence[int]],
+    tag_index: Mapping[str, Sequence[int]],
     *,
     transcripts: Sequence[dict] | None = None,
     stopwords_lang: str | None = None,

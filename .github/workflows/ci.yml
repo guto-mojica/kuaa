@@ -19,8 +19,7 @@
 # 3.11 (covered by .python-version locally) and 3.13 (transformers/torch lag).
 # OS: ubuntu-latest only. Portfolio repo; macOS/Windows runners cost 10x+.
 #
-# Mypy is report-only via `continue-on-error` because there are ~27 pre-existing
-# errors. A dedicated cleanup pass is out-of-scope for the CI bootstrap.
+# Mypy is now a blocking gate (T2 / WS-5): zero errors on src+api enforced.
 
 name: CI
 
@@ -118,10 +117,8 @@ jobs:
         run: uv run pytest tests/ -q -m "not e2e"
 
   typecheck:
-    name: Typecheck (mypy, report-only)
+    name: Typecheck (mypy, blocking)
     runs-on: ubuntu-latest
-    # Pre-existing ~27 mypy errors; don't gate merges on them.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 

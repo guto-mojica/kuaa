@@ -78,6 +78,7 @@ async def api_pipeline_cancel(request: Request, job_id: str) -> HTMLResponse:
     if not ok:
         return HTMLResponse('<p class="text-muted">Job already finished.</p>', status_code=409)
     from api.services.processing_service import enrich_jobs  # noqa: PLC0415
+
     enrich_jobs([job])
     return templates.TemplateResponse(
         request, "partials/processing_job.html", make_ctx(request, job=job)
@@ -91,6 +92,7 @@ async def api_pipeline_job_card(request: Request, job_id: str) -> HTMLResponse:
     if job is None:
         return HTMLResponse('<p class="text-error">Job not found.</p>', status_code=404)
     from api.services.processing_service import enrich_jobs  # noqa: PLC0415
+
     enrich_jobs([job])
     return templates.TemplateResponse(
         request, "partials/processing_job.html", make_ctx(request, job=job)
@@ -142,9 +144,13 @@ async def api_pipeline_stream(request: Request, job_id: str) -> StreamingRespons
             logger.info("[job=%s] SSE disconnected", job.id)
 
     import uuid as _uuid  # noqa: PLC0415
+
     return StreamingResponse(
         generator(),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no",
-                 "X-Request-ID": getattr(request.state, "request_id", None) or str(_uuid.uuid4())},
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "X-Request-ID": getattr(request.state, "request_id", None) or str(_uuid.uuid4()),
+        },
     )

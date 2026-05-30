@@ -55,18 +55,32 @@ def test_protocols_isinstance_structural():
         def encode_image_single(self, image_path):
             return np.zeros(4, dtype="float32")
 
+        def save(
+            self,
+            embeddings,
+            keyframes_df,
+            output_dir,
+            embeddings_filename="kf.npy",
+            mapping_filename="map.json",
+        ):
+            from pathlib import Path
+
+            return Path(output_dir) / embeddings_filename, Path(output_dir) / mapping_filename
+
     class _BadEmbedder:
         def encode_images(self, image_paths):
             return np.zeros((len(image_paths), 4), dtype="float32")
 
-        # missing encode_text and encode_image_single
+        # missing encode_text, encode_image_single, save
 
     assert isinstance(_GoodEmbedder(), ImageEmbedder) is True
     assert isinstance(_BadEmbedder(), ImageEmbedder) is False
 
     # expected method names are present on the protocol (3.11-compatible)
     _embedder_members = {m for m in vars(ImageEmbedder) if not m.startswith("_")}
-    assert {"encode_images", "encode_text", "encode_image_single"}.issubset(_embedder_members)
+    assert {"encode_images", "encode_text", "encode_image_single", "save"}.issubset(
+        _embedder_members
+    )
 
     # ------------------------------------------------------------------ #
     # FaceDetector
@@ -120,16 +134,23 @@ def test_protocols_isinstance_structural():
         def describe_batch(self, keyframes_df, existing_results=None, checkpoint_path=None):
             return [{"description": ""} for _ in range(len(keyframes_df))]
 
+        @staticmethod
+        def build_tag_index(results):
+            return {}
+
+        def save(self, results, tag_index, output_dir):
+            pass
+
     class _BadDescriber:
         def describe(self, image_path):
             return {}
 
-        # missing describe_batch
+        # missing describe_batch, build_tag_index, save
 
     assert isinstance(_GoodDescriber(), SceneDescriber) is True
     assert isinstance(_BadDescriber(), SceneDescriber) is False
     _desc_members = {m for m in vars(SceneDescriber) if not m.startswith("_")}
-    assert {"describe", "describe_batch"}.issubset(_desc_members)
+    assert {"describe", "describe_batch", "build_tag_index", "save"}.issubset(_desc_members)
 
     # ------------------------------------------------------------------ #
     # EnvironmentClassifier
@@ -171,17 +192,29 @@ def test_protocols_isinstance_structural():
         def encode_audio_single(self, wav_path):
             return np.zeros(4, dtype="float32")
 
+        def save(
+            self,
+            embeddings,
+            rows,
+            output_dir,
+            embeddings_filename="clap.npy",
+            mapping_filename="map.json",
+        ):
+            from pathlib import Path
+
+            return Path(output_dir) / embeddings_filename, Path(output_dir) / mapping_filename
+
     class _BadAudio:
         def encode_audio(self, wav_paths):
             return np.zeros((len(wav_paths), 4), dtype="float32")
 
-        # missing encode_text + encode_audio_single
+        # missing encode_text, encode_audio_single, save
 
     assert isinstance(_GoodAudio(), AudioEmbedder) is True
     assert isinstance(_BadAudio(), AudioEmbedder) is False
 
     _audio_members = {m for m in vars(AudioEmbedder) if not m.startswith("_")}
-    assert {"encode_audio", "encode_text", "encode_audio_single"}.issubset(_audio_members)
+    assert {"encode_audio", "encode_text", "encode_audio_single", "save"}.issubset(_audio_members)
 
 
 def test_detector_backends_conform():

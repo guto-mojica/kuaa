@@ -37,9 +37,8 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from cinemateca import library
-
 from api.services._about_data import credits_list, model_attributions, tech_stack
+from cinemateca import library
 
 __all__ = [
     "model_attributions",

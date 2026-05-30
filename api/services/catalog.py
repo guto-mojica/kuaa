@@ -185,9 +185,7 @@ def build_scenes_grid(ctx: FilmContext, tags: list[str], keyword: str) -> dict:
     return {"cards": cards}
 
 
-def _walk_library_cards(
-    cfg: Any, tags: list[str], keyword: str
-) -> tuple[list[dict], set[str]]:
+def _walk_library_cards(cfg: Any, tags: list[str], keyword: str) -> tuple[list[dict], set[str]]:
     """Shared inner loop for the two aggregate builders.
 
     Walks every registered film, loads per-film metadata, builds filtered

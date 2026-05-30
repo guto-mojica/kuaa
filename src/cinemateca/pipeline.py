@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from cinemateca.config import Config
+    from cinemateca.models.base import ImageEmbedder, SceneDescriber
 
 logger = logging.getLogger(__name__)
 
@@ -263,8 +264,8 @@ class CatalogPipeline:
             )
         self.slug = slug
         self._device = None
-        self._embedder = None
-        self._describer = None
+        self._embedder: ImageEmbedder | None = None
+        self._describer: SceneDescriber | None = None
 
         # Build per-film resolved path struct (None in legacy mode).
         self._film_paths: _FilmPaths | None = None
@@ -294,7 +295,7 @@ class CatalogPipeline:
         try:
             from cinemateca.run_manifest import write_run_manifest
 
-            kwargs = dict(started_at_epoch=started_at_epoch)
+            kwargs: dict[str, Any] = dict(started_at_epoch=started_at_epoch)
             if self._film_paths is not None:
                 kwargs["metadata_dir"] = self._film_paths.metadata_dir
             write_run_manifest(self.cfg, video_path, result, **kwargs)

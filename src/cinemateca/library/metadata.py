@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from typing import Any
 
 from cinemateca.library.paths import load_json
 from cinemateca.scene_ids import scene_id_key
@@ -51,7 +52,9 @@ def load_tag_index(metadata_dir: Path) -> dict:
     return merge_tag_index(llm_tags, annotations)
 
 
-def load_metadata(metadata_dir: Path) -> tuple[list, dict, dict, dict]:
+def load_metadata(
+    metadata_dir: Path,
+) -> tuple[list[Any], dict[Any, Any], dict[Any, Any], dict[Any, Any]]:
     """Return ``(kf_meta, desc_by_scene, vis_by_scene, tag_index)``.
 
     ``tag_index`` is NORMALIZED via ``normalize_tag_index``; ``desc_by_scene``
@@ -61,10 +64,14 @@ def load_metadata(metadata_dir: Path) -> tuple[list, dict, dict, dict]:
     from cinemateca.annotations import merge_tag_index
     from cinemateca.scene_ids import normalize_tag_index
 
-    kf_meta = load_json(metadata_dir / "keyframes_metadata.json") or []
-    descriptions = load_json(metadata_dir / "scene_descriptions.json") or []
-    llm_tags = load_json(metadata_dir / "scene_tags.json") or {}
-    visual_data = load_json(metadata_dir / "visual_analysis.json") or []
+    raw_kf = load_json(metadata_dir / "keyframes_metadata.json")
+    kf_meta: list[Any] = raw_kf if isinstance(raw_kf, list) else []
+    raw_desc = load_json(metadata_dir / "scene_descriptions.json")
+    descriptions: list[Any] = raw_desc if isinstance(raw_desc, list) else []
+    raw_tags = load_json(metadata_dir / "scene_tags.json")
+    llm_tags: dict[str, list[str]] | None = raw_tags if isinstance(raw_tags, dict) else None
+    raw_vis = load_json(metadata_dir / "visual_analysis.json")
+    visual_data: list[Any] = raw_vis if isinstance(raw_vis, list) else []
     annotations = load_annotations(metadata_dir)
 
     desc_by_scene = {scene_id_key(d["scene_id"]): d for d in descriptions if "scene_id" in d}

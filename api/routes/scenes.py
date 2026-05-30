@@ -46,11 +46,16 @@ async def tab_scenes(
     """Render the Cenas (Scenes) tab partial."""
     cfg = get_config()
     context = build_cenas_context(
-        cfg, selected_scene_id=_parse_scene_id(request),
-        slug=slug, group=group, sort=sort, bucket=bucket,
+        cfg,
+        selected_scene_id=_parse_scene_id(request),
+        slug=slug,
+        group=group,
+        sort=sort,
+        bucket=bucket,
     )
     return templates.TemplateResponse(
-        request, "partials/scenes.html",
+        request,
+        "partials/scenes.html",
         make_ctx(request, current_slug=slug, **context),
     )
 
@@ -69,16 +74,24 @@ async def api_scenes(
     """Return the filtered Cenas grid fragment for HTMX swaps."""
     cfg = get_config()
     ctx = build_cenas_context(
-        cfg, tags=tags, keyword=q, selected_scene_id=_parse_scene_id(request),
-        slug=slug, group=group, sort=sort, bucket=bucket,
-        limit=page.limit, offset=page.offset,
+        cfg,
+        tags=tags,
+        keyword=q,
+        selected_scene_id=_parse_scene_id(request),
+        slug=slug,
+        group=group,
+        sort=sort,
+        bucket=bucket,
+        limit=page.limit,
+        offset=page.offset,
     )
     grid_ctx = {
         "groups_by_film": ctx["groups_by_film"],
         "selected_scene_id": ctx["selected_scene_id"],
     }
     return templates.TemplateResponse(
-        request, "partials/scenes_grid.html",
+        request,
+        "partials/scenes_grid.html",
         make_ctx(request, current_slug=slug, **grid_ctx),
     )
 
@@ -99,6 +112,7 @@ async def api_scene_inspector(
     template_name, inspector_kind = resolve_inspector_template(kind)
     ctx["inspector_kind"] = inspector_kind
     return templates.TemplateResponse(
-        request, template_name,
+        request,
+        template_name,
         make_ctx(request, current_slug=slug, **ctx),
     )

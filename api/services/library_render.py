@@ -16,8 +16,9 @@ from api.templates import templates
 
 def library_ctx(request: Request, q: str = "", current_slug: str | None = None) -> dict:
     """Build the legacy sidebar context: global state + filtered registry film list."""
-    from cinemateca.library import library_state, scan_library
     from pathlib import Path
+
+    from cinemateca.library import library_state, scan_library
 
     cfg = get_config()
     library_dir = Path(cfg.paths.library_dir)

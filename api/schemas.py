@@ -9,11 +9,9 @@ All models use Pydantic v2 semantics (model_config, Field factories, etc.).
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field
-from pydantic.functional_validators import AfterValidator
-
 
 # ---------------------------------------------------------------------------
 # Eval — grade + metrics
@@ -46,9 +44,7 @@ class QueryMetrics(BaseModel):
     p_at_3: float | None = Field(default=None, description="Precision@3")
     p_at_5: float | None = Field(default=None, description="Precision@5")
     ndcg_at_5: float | None = Field(default=None, description="nDCG@5")
-    inversions: int | None = Field(
-        default=None, description="Number of grade-order inversions"
-    )
+    inversions: int | None = Field(default=None, description="Number of grade-order inversions")
     histogram: dict[int, int] | None = Field(
         default=None, description="Grade-value frequency histogram (keyed by grade int value)"
     )

@@ -74,6 +74,7 @@ def resolve_film_context(
         return film_ctx(request, cfg)
     return FilmContext.from_config(cfg)
 
+
 # Placeholder string Moondream emits when the prompt failed to produce a
 # real description; such "descriptions" do not count as a valid LLM
 # description for the no_llm filter. Verbatim from the pre-extraction

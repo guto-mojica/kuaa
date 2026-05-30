@@ -33,8 +33,14 @@ def _scene_resp(request, slug, filter, tab, ctx, **extra) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "partials/annotate_scene.html",
-        make_ctx(request, current_slug=slug, filter=filter,
-                 annotate_tab=normalize_annotate_tab(tab), **ctx, **extra),
+        make_ctx(
+            request,
+            current_slug=slug,
+            filter=filter,
+            annotate_tab=normalize_annotate_tab(tab),
+            **ctx,
+            **extra,
+        ),
     )
 
 
@@ -51,7 +57,9 @@ async def tab_annotate(
         request,
         "partials/annotate.html",
         make_ctx(
-            request, current_slug=slug, annotate_tab=normalize_annotate_tab(tab),
+            request,
+            current_slug=slug,
+            annotate_tab=normalize_annotate_tab(tab),
             **build_annotate_context(fctx, filter, id),
         ),
     )
@@ -85,8 +93,9 @@ async def api_annotate_save(
     ann[str(scene_id)] = new_tags
     save_annotations(fctx, ann)
     logger.info("Saved %d tag(s) for scene %s", len(new_tags), scene_id)
-    return _scene_resp(request, slug, filter, tab, build_scene_panel(fctx, scene_id, filter),
-                       saved=True)
+    return _scene_resp(
+        request, slug, filter, tab, build_scene_panel(fctx, scene_id, filter), saved=True
+    )
 
 
 @router.get("/api/annotate/description/edit", response_class=HTMLResponse)
@@ -117,8 +126,9 @@ async def api_annotate_description_save(
 ) -> HTMLResponse:
     save_description(fctx, scene_id, description.strip())
     logger.info("Description updated for scene %s", scene_id)
-    return _scene_resp(request, slug, filter, tab, build_scene_panel(fctx, scene_id, filter),
-                       desc_saved=True)
+    return _scene_resp(
+        request, slug, filter, tab, build_scene_panel(fctx, scene_id, filter), desc_saved=True
+    )
 
 
 @router.post("/api/annotate/clear", response_class=HTMLResponse)
@@ -134,5 +144,6 @@ async def api_annotate_clear(
     ann.pop(str(scene_id), None)
     save_annotations(fctx, ann)
     logger.info("Cleared tags for scene %s", scene_id)
-    return _scene_resp(request, slug, filter, tab, build_scene_panel(fctx, scene_id, filter),
-                       cleared=True)
+    return _scene_resp(
+        request, slug, filter, tab, build_scene_panel(fctx, scene_id, filter), cleared=True
+    )

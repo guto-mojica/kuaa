@@ -6,6 +6,7 @@ import logging
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 # Safety net for non-installed dev environments
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -38,7 +39,7 @@ from api.services.processing_render import build_processing_context
 from api.services.rhymes_service import build_rimas_context
 from api.services.scenes import build_cenas_context, build_timeline_context
 from api.templates import templates
-from cinemateca.library import FilmContext, keyframe_url, load_json, scan_library
+from cinemateca.library import keyframe_url, load_json, scan_library
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +178,7 @@ _TAB_CONTEXT_BUILDERS = {
 # Kept here (not in deps.py) because it concerns route-level page composition,
 # not per-request locale or film context. Phase 2+ tasks may move some of this
 # into the page templates themselves once they extend base.html directly.
-def build_home_context(cfg: object) -> dict:
+def build_home_context(cfg: Any) -> dict:
     """Return film-card list for the home library-overview page.
 
     Each card carries the Film object plus the URL of its first keyframe
@@ -267,6 +268,7 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     # `{**base_ctx, **tab_ctx}`: tab_ctx wins on key collisions. The
     # `processing` builder deliberately re-supplies `films`, overriding the
     # base value here; that override is intended, not a bug.
+    tab_ctx: Any = {}
     if active_tab == "home":
         tab_ctx = build_home_context(cfg)
     elif active_tab == "search":

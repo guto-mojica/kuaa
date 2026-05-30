@@ -36,7 +36,7 @@ def _pt_stopwords() -> frozenset[str]:
     raise ImportError eagerly — callers can guard with importorskip in
     tests or check the config flag in production.
     """
-    from nltk.corpus import stopwords  # type: ignore[import-not-found]
+    from nltk.corpus import stopwords
 
     return frozenset(stopwords.words("portuguese"))
 

@@ -228,20 +228,18 @@ def enrich_jobs(jobs: list[Any]) -> list[Any]:
 
         # Set on the JobState instance directly (it's a dataclass, so
         # Jinja sees these as regular attributes alongside steps/progress).
-        job.film_title = video_name  # type: ignore[attr-defined]
-        job.film_thumb = None  # type: ignore[attr-defined]
-        job.year = None  # type: ignore[attr-defined]
-        job.director = None  # type: ignore[attr-defined]
-        job.started_at_display = time.strftime(  # type: ignore[attr-defined]
+        job.film_title = video_name
+        job.film_thumb = None
+        job.year = None
+        job.director = None
+        job.started_at_display = time.strftime(
             "%H:%M:%S", time.localtime(getattr(job, "created_at", now))
         )
-        job.elapsed_display = _humanise_delta(  # type: ignore[attr-defined]
-            now - getattr(job, "created_at", now)
-        )
-        job.active_step_idx = active_idx  # type: ignore[attr-defined]
-        job.step_progress = ""  # type: ignore[attr-defined]
-        job.throughput = ""  # type: ignore[attr-defined]
-        job.eta_display = ""  # type: ignore[attr-defined]
+        job.elapsed_display = _humanise_delta(now - getattr(job, "created_at", now))
+        job.active_step_idx = active_idx
+        job.step_progress = ""
+        job.throughput = ""
+        job.eta_display = ""
 
         out.append(job)
     return out

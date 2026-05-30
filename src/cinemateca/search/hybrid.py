@@ -190,15 +190,15 @@ def _best_row_by_sid_from_embeddings(index: SearchIndex, query: str) -> dict[int
         or len(index.kf_df) == 0
     ):
         return {}
-    text_vec = index.embedder.encode_text(query)  # type: ignore[union-attr]
+    text_vec = index.embedder.encode_text(query)
     norm = float(np.linalg.norm(text_vec))
     text_vec = text_vec / (norm + 1e-12)
-    scores = index.embeddings @ text_vec  # type: ignore[operator]
+    scores = index.embeddings @ text_vec
     best_score_by_sid: dict[int, float] = {}
     best_row_by_sid: dict[int, int] = {}
     for i, score in enumerate(scores):
         s = float(score)
-        row = index.kf_df.iloc[i]  # type: ignore[union-attr]
+        row = index.kf_df.iloc[i]
         sid = int(row["scene_id"])
         prev = best_score_by_sid.get(sid)
         if prev is None or s > prev:

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse
@@ -28,7 +28,8 @@ logger = logging.getLogger(__name__)
 
 def kf_meta(ctx: FilmContext) -> tuple[dict, float]:
     """Return ``(scene_id→entry dict, fps)`` from keyframes_metadata.json."""
-    kf = load_json(ctx.metadata_dir / "keyframes_metadata.json") or []
+    raw = load_json(ctx.metadata_dir / "keyframes_metadata.json")
+    kf: list[Any] = raw if isinstance(raw, list) else []
     return {e["scene_id"]: e for e in kf if "scene_id" in e}, derive_fps(kf)
 
 

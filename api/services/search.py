@@ -25,6 +25,12 @@ from cinemateca.library import FilmContext
 # Cross-encoder rerank verb (Task 3.1). Aliased so tests can monkeypatch
 # ``api.services.search.search_rerank`` without bypassing the wrapper.
 from cinemateca.search import rerank as search_rerank  # noqa: F401
+from cinemateca.search._lookup import (
+    build_search_context as _build_search_context_core,
+)
+from cinemateca.search._lookup import (
+    build_search_context_aggregate as _build_search_context_aggregate_core,
+)
 
 # Result conversion + Mojica context + films-by-id lookup (T8). T15
 # adds ``enrich_hits_with_film_metadata`` re-export so the slim route
@@ -33,10 +39,6 @@ from cinemateca.search import rerank as search_rerank  # noqa: F401
 from cinemateca.search._lookup import (
     enrich_hits_with_film_metadata,  # noqa: F401
     films_by_id_lookup,  # noqa: F401
-)
-from cinemateca.search._lookup import (
-    build_search_context as _build_search_context_core,
-    build_search_context_aggregate as _build_search_context_aggregate_core,
 )
 from cinemateca.search._results import results_to_dicts  # noqa: F401
 

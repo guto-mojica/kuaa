@@ -54,7 +54,7 @@ def _load_reranker(model_id: str) -> _RerankerLike:
     same or worse (no half-precision matmul kernels) so we stay fp32.
     """
     try:
-        from FlagEmbedding import FlagReranker  # type: ignore[import-not-found]
+        from FlagEmbedding import FlagReranker
     except ImportError as exc:
         raise RuntimeError(
             "Cross-encoder reranker requires the FlagEmbedding package. "

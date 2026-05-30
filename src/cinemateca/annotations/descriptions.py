@@ -12,7 +12,7 @@ import os
 import stat
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from cinemateca.library import load_json
 
@@ -33,7 +33,8 @@ def save_description(ctx: FilmContext, scene_id: int, new_text: str) -> None:
     with the same permissions semantics as ``cinemateca.annotations.io.save``.
     """
     path = ctx.metadata_dir / "scene_descriptions.json"
-    records: list = load_json(path) or []
+    raw = load_json(path)
+    records: list[Any] = raw if isinstance(raw, list) else []
 
     found = False
     for rec in records:

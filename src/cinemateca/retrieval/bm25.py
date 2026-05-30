@@ -18,7 +18,7 @@ lives in ``api/services/search.py::_get_bm25_index_for_ctx`` (Task C2).
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from rank_bm25 import BM25Okapi
@@ -63,7 +63,7 @@ class BM25Index:
         cls,
         *,
         descriptions: Sequence[dict],
-        tag_index: dict[str, Sequence[int]],
+        tag_index: Mapping[str, Sequence[int]],
         transcripts: Sequence[dict] | None = None,
         stopwords_lang: str | None = None,
         tokenizer: Tokenizer | None = None,

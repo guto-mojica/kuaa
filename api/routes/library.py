@@ -80,13 +80,13 @@ async def api_library_add_form(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "partials/add_film_form.html", {"request": request})
 
 
-@router.post("/api/library/add", response_class=HTMLResponse)
+@router.post("/api/library/add", response_class=HTMLResponse, response_model=None)
 async def api_library_add(
     request: Request,
     video_path: str = Form(...),
     title: str = Form(default=""),
     source: str = Form(default=""),
-) -> HTMLResponse:
+) -> HTMLResponse | Response:
     from cinemateca.pipeline import slugify
 
     cfg = get_config()

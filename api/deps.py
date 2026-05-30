@@ -258,9 +258,7 @@ def flat_film_context():
     return FilmContext.from_config(get_config())
 
 
-def optional_film_context(
-    request: Request, slug: str | None = Depends(film_slug_query)
-):
+def optional_film_context(request: Request, slug: str | None = Depends(film_slug_query)):
     """Resolve the active FilmContext, or None for the aggregate view.
 
     ``slug`` already validated by ``film_slug_query`` (existing dir or
@@ -286,9 +284,7 @@ def required_film_context(slug: str | None = Depends(film_slug_query)):
     return FilmContext.for_film(cfg, slug)
 
 
-def annotate_film_context(
-    request: Request, slug: str | None = Depends(film_slug_query)
-):
+def annotate_film_context(request: Request, slug: str | None = Depends(film_slug_query)):
     """Resolve the FilmContext for annotate routes.
 
     Precedence: ``?film=<slug>`` → ``active_film`` cookie → flat aggregate.

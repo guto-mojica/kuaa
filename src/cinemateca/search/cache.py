@@ -49,7 +49,11 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+import pandas as pd
+
 from cinemateca.config import Settings
+from cinemateca.models.base import ImageEmbedder
 from cinemateca.search._cache_core import StatCache, stat_sig
 
 logger = logging.getLogger(__name__)
@@ -86,9 +90,9 @@ class SearchIndex:
     """
 
     status: IndexStatus
-    embeddings: object | None = None
-    kf_df: object | None = None
-    embedder: object | None = None
+    embeddings: np.ndarray | None = None
+    kf_df: pd.DataFrame | None = None
+    embedder: ImageEmbedder | None = None
     detail: str = ""
 
     @property

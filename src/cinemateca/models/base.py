@@ -11,7 +11,7 @@ from a concrete backend.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Protocol, TypedDict, runtime_checkable
+from typing import Any, Protocol, TypedDict, runtime_checkable
 
 import numpy as np
 import pandas as pd
@@ -31,6 +31,17 @@ class ImageEmbedder(Protocol):
 
     def encode_image_single(self, image_path: str | Path) -> np.ndarray:
         """Returns (D,) float32 vector for one image (image search)."""
+        ...
+
+    def save(
+        self,
+        embeddings: np.ndarray,
+        keyframes_df: pd.DataFrame,
+        output_dir: str | Path,
+        embeddings_filename: str = ...,
+        mapping_filename: str = ...,
+    ) -> tuple[Path, Path]:
+        """Persist embeddings + mapping; return (emb_path, map_path)."""
         ...
 
 
@@ -105,6 +116,20 @@ class SceneDescriber(Protocol):
         """Describe all rows; resume from ``existing_results`` if provided."""
         ...
 
+    @staticmethod
+    def build_tag_index(results: list[SceneDescriptionRecord]) -> dict[str, list[str]]:
+        """Build a tag → [scene_id] inverted index from description results."""
+        ...
+
+    def save(
+        self,
+        results: list[SceneDescriptionRecord],
+        tag_index: dict[str, Any],
+        output_dir: str | Path,
+    ) -> None:
+        """Persist description results and tag index as JSON files under output_dir."""
+        ...
+
 
 @runtime_checkable
 class EnvironmentClassifier(Protocol):
@@ -137,6 +162,17 @@ class AudioEmbedder(Protocol):
 
     def encode_audio_single(self, wav_path: str | Path) -> np.ndarray:
         """Returns (D,) float32 vector for one WAV (audio-by-audio search)."""
+        ...
+
+    def save(
+        self,
+        embeddings: np.ndarray,
+        rows: list[dict],
+        output_dir: str | Path,
+        embeddings_filename: str = ...,
+        mapping_filename: str = ...,
+    ) -> tuple[Path, Path]:
+        """Persist embeddings + mapping rows; return (emb_path, map_path)."""
         ...
 
 

@@ -15,7 +15,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from cinemateca.models.base import TranscriptionResult
+from cinemateca.models.base import TranscriptionResult, TranscriptionSegment
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +91,7 @@ class FasterWhisperTranscriber:
             vad_filter=self._vad_filter,
             vad_parameters={"min_silence_duration_ms": self._vad_min_silence_ms},
         )
-        segments: list[dict] = []
+        segments: list[TranscriptionSegment] = []
         for seg in segments_iter:
             segments.append(
                 {
