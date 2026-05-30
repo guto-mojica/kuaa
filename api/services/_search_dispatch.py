@@ -1,6 +1,8 @@
 """Audio + fusion dispatchers (split from api/services/search.py — Task A1).
 
 Re-exported on ``api.services.search`` so route import paths are unchanged.
+``audio_hits_to_template_dicts`` lives in ``_search_hits`` (G1 fix) and is
+re-exported here so any direct ``_search_dispatch`` import sites keep working.
 """
 
 from __future__ import annotations
@@ -8,7 +10,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, cast
 
-from api.services.catalog import keyframe_url
+# Re-export for backward compat — function moved to _search_hits (G1 LOC fix).
+from api.services._search_hits import (  # noqa: F401
+    audio_hits_to_template_dicts as audio_hits_to_template_dicts,
+)
 from cinemateca.models.base import AudioEmbedder
 
 
@@ -218,46 +223,3 @@ def dispatch_fusion_search(
         return [], True
     all_hits.sort(key=lambda r: r["score"], reverse=True)
     return all_hits[:top_k], False
-
-
-def audio_hits_to_template_dicts(
-    cfg: Any, hits: list[dict], *, per_film_slug: str | None = None
-) -> list[dict]:
-    """Convert CLAP hits to template-card dicts (score→similarity, resolves keyframe + timecode)."""
-    from cinemateca.library import FilmContext, derive_fps, load_json, to_smpte
-
-    data_dir = Path(cfg.paths.data_dir).resolve()
-    kf_cache: dict[str, tuple[dict, float]] = {}
-
-    def _kf_for(slug: str) -> tuple[dict, float]:
-        if slug in kf_cache:
-            return kf_cache[slug]
-        try:
-            ctx = FilmContext.for_film(cfg, slug)
-        except ValueError:
-            kf_cache[slug] = ({}, 24.0)
-            return kf_cache[slug]
-        raw_kf = load_json(ctx.metadata_dir / "keyframes_metadata.json")
-        kf_meta: list[Any] = raw_kf if isinstance(raw_kf, list) else []
-        by_scene = {int(e["scene_id"]): e for e in kf_meta if "scene_id" in e}
-        kf_cache[slug] = (by_scene, derive_fps(kf_meta))
-        return kf_cache[slug]
-
-    out: list[dict] = []
-    for h in hits:
-        slug = h.get("film_slug") or per_film_slug or ""
-        sid = int(h["scene_id"])
-        by_scene, fps = _kf_for(slug) if slug else ({}, 24.0)
-        meta = by_scene.get(sid) or {}
-        kf_path = meta.get("filepath", "") or meta.get("keyframe_path", "") or ""
-        start_s = float(meta.get("start_time_s") or 0.0)
-        out.append(
-            {
-                "film_slug": slug,
-                "scene_id": sid,
-                "similarity": float(h["score"]),
-                "img_url": keyframe_url(kf_path, data_dir) if kf_path else None,
-                "timecode": to_smpte(start_s, fps) if start_s > 0 else "",
-            }
-        )
-    return out

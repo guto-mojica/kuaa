@@ -14,46 +14,22 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse
 
-from api.contexts import SearchContext
-from api.deps import (  # noqa: E501
-    film_slug_query,
-    flat_film_context,
-    get_config,
-    make_ctx,
-    optional_film_context,
-    resolve_film_context,
-)
+from api.deps import film_slug_query, flat_film_context, get_config, make_ctx, optional_film_context
 from api.schemas import SearchParams
 from api.services import search as search_service
-from api.services._search_render import (
-    api_search_audio as _api_search_audio,
-)
-from api.services._search_render import (
-    api_search_fusion as _api_search_fusion,
-)
-from api.services._search_render import (
-    enriched_per_film as _enriched_per_film,
-)
-from api.services._search_render import (
-    no_index_response as _no_index_response,
-)
-from api.services._search_render import (
-    render_results as _render_results,
-)
+from api.services._search_render import api_search_audio as _api_search_audio
+from api.services._search_render import api_search_fusion as _api_search_fusion
+from api.services._search_render import build_search_context
+from api.services._search_render import enriched_per_film as _enriched_per_film
+from api.services._search_render import no_index_response as _no_index_response
+from api.services._search_render import render_results as _render_results
+from api.services._search_render import run_text_search as _run_text_search
 from api.templates import templates
 from cinemateca.errors import UserInputError
 from cinemateca.library import FilmContext
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-
-def build_search_context(slug: str | None = None) -> SearchContext:
-    """Re-exported for ``api/server.py``'s tab-context map."""
-    cfg = get_config()
-    if slug is not None:
-        return search_service.build_search_context(resolve_film_context(cfg, slug, None), cfg)
-    return search_service.build_search_context_aggregate(cfg)
 
 
 @router.get("/tab/search", response_class=HTMLResponse)
@@ -88,52 +64,23 @@ async def api_search(
         return await _api_search_fusion(
             request, q=q, top_k=params.top_k, w=params.w, slug=slug, cfg=cfg
         )
-    min_sim = float(getattr(cfg.embeddings, "min_similarity", 0.0) or 0.0)
     retriever, sw, bw, rrf_k = search_service.resolve_retriever_args(
         cfg, params.retriever, params.sem_w, params.bm25_w
     )
-    logger.info(
-        "api_search q=%r slug=%s retriever=%s top_k=%d min_sim=%.3f sw=%.3f bw=%.3f "
-        "tags=%s reranker_enabled=%s offset=%d",
-        q,
-        slug or "(agg)",
-        retriever,
-        params.top_k,
-        min_sim,
-        sw,
-        bw,
-        list(tags) or None,
-        params.reranker_enabled,
-        offset,
-    )
-    args = (cfg, ctx, q, tags, params.top_k, min_sim, retriever, sw, bw, rrf_k)
-    payload, no_index = await asyncio.get_running_loop().run_in_executor(
-        None, lambda: search_service.dispatch_text_search(*args)
-    )
-    if no_index and (slug is not None or not payload):
-        return _no_index_response(request)
-    if slug is None:
-        agg = search_service.aggregate_hits_to_template_dicts(cfg, payload) if payload else []
-        results = search_service.enrich_hits_with_film_metadata(cfg, agg) if agg else []
-    else:
-        if ctx is None:
-            return _no_index_response(request)
-        results = _enriched_per_film(cfg, ctx, payload, slug)
-    results = search_service.rerank_template_results(
-        results,
-        cfg=cfg,
-        query=q,
-        mode=retriever,
-        enabled=params.reranker_enabled,
-    )
-    results = results[offset : offset + params.top_k]  # A7: page by offset
-    return _render_results(
+    return await _run_text_search(
         request,
+        q=q,
         slug=slug,
+        ctx=ctx,
         cfg=cfg,
-        results=results,
-        query=q,
-        highlighted_tags=set(tags),
+        tags=list(tags),
+        top_k=params.top_k,
+        retriever=retriever,
+        sem_w=sw,
+        bm25_w=bw,
+        rrf_k=rrf_k,
+        reranker_enabled=params.reranker_enabled,
+        offset=offset,
     )
 
 

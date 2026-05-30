@@ -8,25 +8,21 @@ from __future__ import annotations
 import asyncio
 import logging
 import queue
+import uuid as _uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 
 from api.deps import film_slug_query, get_config, make_ctx
-from api.jobs import (
-    STEP_DEFS,
-    ConcurrencyRejected,
-    cancel_job,
-    get_job,
-    start_job,
-)
+from api.jobs import STEP_DEFS, ConcurrencyRejected, cancel_job, get_job, start_job
 from api.services.processing_render import (
     build_processing_context,
     build_start_response,
     render_log_row,
     render_stepper,
 )
+from api.services.processing_service import enrich_jobs
 from api.templates import templates
 
 _TERMINAL_EVENTS = ("done", "error", "cancelled")
@@ -77,8 +73,6 @@ async def api_pipeline_cancel(request: Request, job_id: str) -> HTMLResponse:
         return HTMLResponse('<p class="text-error">Job not found.</p>', status_code=404)
     if not ok:
         return HTMLResponse('<p class="text-muted">Job already finished.</p>', status_code=409)
-    from api.services.processing_service import enrich_jobs  # noqa: PLC0415
-
     enrich_jobs([job])
     return templates.TemplateResponse(
         request, "partials/processing_job.html", make_ctx(request, job=job)
@@ -91,8 +85,6 @@ async def api_pipeline_job_card(request: Request, job_id: str) -> HTMLResponse:
     job = get_job(job_id)
     if job is None:
         return HTMLResponse('<p class="text-error">Job not found.</p>', status_code=404)
-    from api.services.processing_service import enrich_jobs  # noqa: PLC0415
-
     enrich_jobs([job])
     return templates.TemplateResponse(
         request, "partials/processing_job.html", make_ctx(request, job=job)
@@ -142,8 +134,6 @@ async def api_pipeline_stream(request: Request, job_id: str) -> StreamingRespons
         finally:
             job.unsubscribe(sub)
             logger.info("[job=%s] SSE disconnected", job.id)
-
-    import uuid as _uuid  # noqa: PLC0415
 
     return StreamingResponse(
         generator(),
