@@ -620,12 +620,14 @@ SEARCH_UPLOAD_ERROR = "That image could not be used. Upload a single image file 
 def _write_wellformed_index(cfg):
     """A coherent 2-row index so ``load_index`` returns ``IndexStatus.OK``.
 
-    ``/api/search/image`` calls ``load_index`` BEFORE ``validate_upload``
-    (api/routes/search.py): a MISSING/CORRUPT index would short-circuit
-    to the no-index state and the upload-rejection branch under test
-    would never be reached. So a well-formed index must exist on disk.
     Shape mirrors ``test_search_service._write_index``: N embedding rows
     == N keyframe/scene-id mapping rows == declared total_vectors.
+
+    NOTE (WS-2 A4): after the status-code fix, ``/api/search/image`` now
+    validates the upload BEFORE loading the index. An index is no longer
+    required to reach the upload-rejection branch — a bad file is rejected
+    immediately with 400. This helper is kept for tests that exercise the
+    full image-search happy path.
     """
     emb_dir = Path(cfg.paths.embeddings_dir)
     np.save(emb_dir / cfg.embeddings.filename, np.eye(4, dtype="float32")[:2])
@@ -642,31 +644,24 @@ def _write_wellformed_index(cfg):
 
 def test_image_search_rejected_upload_degrades_gracefully(client, stub_search_embedder):
     """A POST to /api/search/image that ``validate_upload`` rejects must
-    return HTTP 200 + the upload-error notice, NOT 500.
+    return HTTP 400 (client error), NOT HTML 200.
 
-    Pins the full Phase-3c wiring end to end: multipart body ->
-    ``search_service.validate_upload`` -> ``UploadRejected`` ->
-    ``upload_error`` template context -> the
-    ``{% elif upload_error %}`` branch of search_results.html. The
-    rejection is deterministic: a ``text/plain`` body with a ``.txt``
-    suffix fails the content-type/suffix guard.
+    WS-2 A4 intentional status-code change: upload rejections now raise
+    ``UserInputError`` (→ 400) and go through the A4 error envelope, rather
+    than returning a 200 HTML page with an inline error notice.
 
-    Hermetic with no CLIP forward pass: ``validate_upload`` raises
-    BEFORE the ``run_in_executor`` offload (api/routes/search.py), so
-    ``search_image``/``encode_*`` is never called. ``load_index`` DOES
-    run first and constructs ``CLIPEmbedder()`` on the OK path, so a
-    well-formed index plus the ``stub_search_embedder`` fixture (real
-    ``.load``, CLIP-free constructed embedder) keeps it model-free."""
-    cfg = _cfg_from_client()
-    _write_wellformed_index(cfg)
-
+    The endpoint now validates the upload BEFORE loading the index, so no
+    well-formed index is required to reach this branch. The rejection is
+    deterministic: a ``text/plain`` body with a ``.txt`` suffix fails the
+    content-type/suffix guard in ``validate_upload``.
+    """
     r = client.post(
         "/api/search/image",
         files={"file": ("note.txt", b"not an image", "text/plain")},
     )
-    assert r.status_code == 200, r.text[:300]
-    assert SEARCH_UPLOAD_ERROR in r.text
-    # Not the no-index branch and not a results card — the upload-error
-    # branch specifically.
-    assert SEARCH_NO_INDEX not in r.text
-    assert "scene-card" not in r.text
+    assert r.status_code == 400, r.text[:300]
+    # The A4 envelope carries the machine code and human message.
+    body = r.json()
+    assert body["status"] == 400
+    assert body["code"] == "input.invalid"
+    assert "content-type" in body["error"].lower() or "unsupported" in body["error"].lower()

@@ -26,6 +26,7 @@ from api.deps import film_slug_query, get_config
 from api.services.library_admin import register_and_symlink, resolve_video_path
 from api.services.library_render import chrome_filter_ctx, library_ctx, tree_response
 from api.templates import templates
+from cinemateca.errors import IndexMissing
 
 router = APIRouter()
 
@@ -59,7 +60,18 @@ async def api_library_tree(
 
 @router.get("/api/library/select/{slug}")
 async def api_library_select(slug: str) -> Response:
-    """Navigate the browser to the film's scenes tab via HX-Redirect."""
+    """Navigate the browser to the film's scenes tab via HX-Redirect.
+
+    Validates the slug against the films.json registry before redirecting.
+    An unknown slug raises :class:`IndexMissing` (→ 404) rather than
+    silently redirecting to a non-existent film page.
+    """
+    from cinemateca.library import load_registry
+
+    cfg = get_config()
+    registry = load_registry(cfg.paths.library_dir)
+    if slug not in registry:
+        raise IndexMissing(f"unknown film: {slug!r}")
     return Response(status_code=200, headers={"HX-Redirect": f"/scenes?film={slug}"})
 
 

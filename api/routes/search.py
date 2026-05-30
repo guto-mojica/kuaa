@@ -1,8 +1,7 @@
-"""Search tab routes — text + image semantic search via CLIP. Thin HTTP
-layer: parse, executor-offload, render. All retrieval logic lives in
-:mod:`cinemateca.search` (P1); ``api/services/search.py`` re-exports
-what tests + routes pin against and owns ``dispatch_text_search``.
-Render helpers live in :mod:`api.services._search_render` (A2 Task 5).
+"""Search tab routes — text + image semantic search via CLIP.
+
+Thin HTTP layer: parse, executor-offload, render. Logic in
+:mod:`cinemateca.search`; render helpers in :mod:`api.services._search_render`.
 """
 
 from __future__ import annotations
@@ -17,6 +16,7 @@ from fastapi.responses import HTMLResponse
 
 from api.deps import film_slug_query, get_config, make_ctx
 from api.schemas import SearchParams
+from cinemateca.errors import UserInputError
 from api.services import search as search_service
 from api.services._search_render import (
     api_search_audio as _api_search_audio,
@@ -111,7 +111,19 @@ async def api_search_image(
     top_k: int = 8,
     slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
-    """Image-similarity search."""
+    """Image-similarity search. Upload validated first (→400 before index check)."""
+    # Validate before loading the index: a bad file is a 400 regardless of state.
+    data = await file.read(search_service.MAX_UPLOAD_BYTES + 1)
+    if len(data) > search_service.MAX_UPLOAD_BYTES:
+        msg = f"file too large ({len(data)} bytes > {search_service.MAX_UPLOAD_BYTES} limit)"
+        logger.info("Image-search upload rejected: %s", msg)
+        raise UserInputError(msg)
+    try:
+        suffix = search_service.validate_upload(file.filename, file.content_type, data)
+    except search_service.UploadRejected as exc:
+        logger.info("Image-search upload rejected: %s", exc)
+        raise UserInputError(str(exc)) from exc
+
     cfg = get_config()
     ctx = FilmContext.for_film(cfg, slug) if slug is not None else FilmContext.from_config(cfg)
     index = search_service.load_index(
@@ -122,16 +134,6 @@ async def api_search_image(
     )
     if not index.ok:
         return _no_index_response(request)
-    data = await file.read(search_service.MAX_UPLOAD_BYTES + 1)
-    if len(data) > search_service.MAX_UPLOAD_BYTES:
-        msg = f"file too large ({len(data)} bytes > {search_service.MAX_UPLOAD_BYTES} limit)"
-        logger.info("Image-search upload rejected: %s", msg)
-        return _render_results(request, slug=slug, cfg=cfg, results=[], upload_error=msg)
-    try:
-        suffix = search_service.validate_upload(file.filename, file.content_type, data)
-    except search_service.UploadRejected as exc:
-        logger.info("Image-search upload rejected: %s", exc)
-        return _render_results(request, slug=slug, cfg=cfg, results=[], upload_error=str(exc))
     tmp_path: Path | None = None
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         tmp.write(data)

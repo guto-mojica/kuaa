@@ -21,6 +21,21 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
   empacotava apenas Streamlit + rich) foi excluído do `pyproject.toml`.
   Para recuperar a UI legada veja a tag `v0.2.1-streamlit-final`.
 
+### Alterado
+
+- **`POST /api/search/image` com upload inválido retorna 400 (antes 200).**
+  Rejeições de upload (arquivo muito grande ou tipo não suportado) agora
+  levantam `UserInputError` e passam pelo handler A4, retornando o envelope
+  `{error, code, status}` com status 400. Antes retornavam uma página HTML
+  200 com uma nota de erro inline. O upload é validado ANTES de carregar o
+  índice, então o 400 é emitido mesmo sem índice no disco.
+
+- **`GET /api/library/select/{slug}` com slug desconhecido retorna 404 (antes 200).**
+  A rota agora valida o slug contra o registro `films.json`; um slug não
+  registrado levanta `IndexMissing` → 404 com envelope de erro. Um slug
+  válido continua retornando 200 + `HX-Redirect`. Comportamento documentado
+  no docstring da rota.
+
 ### Corrigido
 
 - **`POST /api/library/remove/{slug}` retornava 500.** A rota chamava

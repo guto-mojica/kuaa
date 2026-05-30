@@ -15,6 +15,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from api.deps import get_config, make_ctx
+from api.error_handlers import install_error_handlers
 from api.middleware import RequestContextMiddleware
 from api.routes import (
     about,
@@ -136,6 +137,7 @@ app.include_router(rimas.router, tags=["rimas"])
 app.include_router(palette.router, tags=["system"])
 app.include_router(eval_routes.router, tags=["eval"])
 
+install_error_handlers(app)
 
 # Each tab's full context is built by the SAME code path the matching
 # `/tab/<x>` route uses, so a direct full-page GET renders identical tab

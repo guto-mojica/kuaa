@@ -73,9 +73,22 @@ def film_slug_query(
     across all registered films". Returns the validated slug string only
     when present, non-empty, AND the directory exists.
 
-    This guard runs on every HTMX fragment route (``/tab/*``, ``/api/*``)
-    so stale or invalid slugs silently fall back to the aggregate view
-    instead of raising ``ValueError`` inside ``FilmContext.for_film``.
+    **Silent-aggregate fallback is intentional and must not be changed to
+    raise.** Every ``/tab/*`` and ``/api/*`` fragment route depends on this
+    dependency. When a user has a stale ``active_film`` cookie (e.g. the film
+    was deleted, or the slug was renamed) the cookie propagates into every
+    HTMX fragment request via ``?film=<slug>``. If this dependency raised
+    ``IndexMissing`` or any other exception on an unknown slug, every
+    fragment route would 5xx and the entire UI would break until the user
+    manually cleared the cookie. The aggregate view is a safe, graceful
+    fallback: the user still sees results, and can select a different film
+    from the sidebar. This contract is pinned by
+    ``test_tab_scenes_unknown_slug_falls_back_to_aggregate`` and explicitly
+    documented here so future refactors don't silently regress it.
+
+    Contrast with ``api_library_select`` (``/api/library/select/{slug}``),
+    which is an explicit navigation intent and raises ``IndexMissing`` (404)
+    on an unknown slug — that is the correct place to surface the error.
     """
     if not film:
         return None
