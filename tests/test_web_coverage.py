@@ -290,6 +290,49 @@ class TestAnnotationSaveClear:
         assert on_disk == {"352": ["manual-only", "noite"]}
 
 
+class TestTagCurationRoutes:
+    """Per-tag delete / rename and the non-destructive AI-tag suppression.
+
+    Seeded scene 352 has manual tags ``["manual-only", "noite"]``; scene 351
+    has AI tags ``exterior`` + ``dia`` (from ``scene_tags.json``). ``filter``
+    is forced to ``all`` so the edited scene stays in the rendered panel.
+    """
+
+    def test_tag_delete_removes_one_manual_tag(self, seed_metadata, client):
+        manual_path: Path = seed_metadata()["manual_path"]
+        r = client.post(
+            "/api/annotate/tag/delete",
+            data={"scene_id": 352, "tag": "noite", "filter": "all"},
+        )
+        assert r.status_code == 200, r.text[:300]
+        assert json.loads(manual_path.read_text())["352"] == ["manual-only"]
+
+    def test_tag_edit_renames_manual_tag(self, seed_metadata, client):
+        manual_path: Path = seed_metadata()["manual_path"]
+        r = client.post(
+            "/api/annotate/tag/edit",
+            data={"scene_id": 352, "old_tag": "noite", "new_tag": "Night Scene", "filter": "all"},
+        )
+        assert r.status_code == 200, r.text[:300]
+        assert json.loads(manual_path.read_text())["352"] == ["manual-only", "night-scene"]
+
+    def test_ai_tag_toggle_writes_override_only(self, seed_metadata, client):
+        meta_dir: Path = seed_metadata()["meta_dir"]
+        scene_tags_before = (meta_dir / "scene_tags.json").read_text()
+
+        r = client.post(
+            "/api/annotate/ai-tag/toggle",
+            data={"scene_id": 351, "tag": "dia", "suppressed": "true", "filter": "all"},
+        )
+        assert r.status_code == 200, r.text[:300]
+        # Override recorded; model output untouched.
+        overrides = json.loads((meta_dir / "tag_overrides.json").read_text())
+        assert overrides == {"351": {"suppressed": ["dia"]}}
+        assert (meta_dir / "scene_tags.json").read_text() == scene_tags_before
+        # The suppressed AI tag renders struck-through in the returned panel.
+        assert "ai-tag--suppressed" in r.text
+
+
 class TestAnnotateSceneEmptyFilterRegression:
     """Regression lock: ``/api/annotate/scene`` must not 500 when the
     default ``no_llm`` filter empties the scene list.

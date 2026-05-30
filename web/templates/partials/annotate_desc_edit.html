@@ -17,8 +17,8 @@
         <button type="submit" class="fx-btn primary">{{ _("Overwrite & Save") }}</button>
         <button type="button"
                 class="fx-btn secondary"
-                hx-get="/api/annotate/scene?id={{ scene_id }}&filter={{ filter }}&tab=comments"
-                hx-target="#annotate-scene"
+                hx-get="/api/annotate/description/cancel"
+                hx-target="#annotate-llm-edit"
                 hx-swap="innerHTML">{{ _("Cancel") }}</button>
     </div>
 </form>

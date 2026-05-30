@@ -3,8 +3,8 @@
 Caches a :class:`cinemateca.retrieval.bm25.BM25Index` per film, keyed by
 the ``(mtime_ns, size)`` stamp of the on-disk source files
 (``scene_descriptions.json``, ``scene_tags.json``,
-``manual_annotations.json``). Any write to any indexed source
-invalidates the entry transparently.
+``manual_annotations.json``, ``tag_overrides.json``). Any write to any
+indexed source invalidates the entry transparently.
 
 Public verbs:
 
@@ -67,10 +67,10 @@ def _file_stamp(path: Path) -> tuple[int, int]:
 
 # ── Outer StatCache (slug-keyed so clear_film works) ──────────────────────────
 # Key: (slug, str(metadata_dir), stopwords_lang_or_empty, k1_str, b_str,
-#       tokenizer_name)
+#       tokenizer_name, tag_boost_str)
 # First component is the film slug so clear_film(slug) invalidates exactly one
 # film's BM25 slot without touching other films.
-_BM25_CACHE: StatCache[tuple[str, str, str, str, str, str], BM25Index] = StatCache()
+_BM25_CACHE: StatCache[tuple[str, str, str, str, str, str, str], BM25Index] = StatCache()
 
 
 # ── Inner lru_cache loader (kept for back-compat: cache_info().currsize) ──────
@@ -80,10 +80,12 @@ def _cached_bm25_index(
     descriptions_stamp: tuple[int, int],
     scene_tags_stamp: tuple[int, int],
     manual_annotations_stamp: tuple[int, int],
+    tag_overrides_stamp: tuple[int, int],
     stopwords_lang: str | None,
     k1: float,
     b: float,
     tokenizer_name: str = "regex",
+    tag_boost: int = 1,
 ) -> BM25Index:
     """Build a BM25 index for the given (already-stamped) metadata dir.
 
@@ -95,6 +97,9 @@ def _cached_bm25_index(
       * ``scene_descriptions.json`` — Moondream output (list of dicts).
       * ``scene_tags.json`` — LLM-tag output (INT scene_id keys).
       * ``manual_annotations.json`` — manual tags (STR scene_id keys).
+      * ``tag_overrides.json`` — curator AI-tag suppressions (STR keys);
+        ``load_tag_index`` filters suppressed pairs out of the merged
+        index, so a write here must rebuild the corpus too.
 
     Tag merge semantics come from :func:`cinemateca.search._tag_index.load_tag_index`
     (the shared loader — single source of truth for scene_id
@@ -122,6 +127,7 @@ def _cached_bm25_index(
         tokenizer=tokenizer,
         k1=k1,
         b=b,
+        tag_boost=tag_boost,
     )
 
 
@@ -132,20 +138,22 @@ def bm25_index_for_dir(
     k1: float,
     b: float,
     tokenizer_name: str = "regex",
+    tag_boost: int = 1,
 ) -> BM25Index:
     """Load (cached) BM25 index for a metadata directory.
 
     Routes through the outer ``_BM25_CACHE`` (StatCache, slug-keyed) then
     falls through to the inner ``_cached_bm25_index`` (lru_cache). Any
     write to any source file invalidates both layers automatically.
-    ``stopwords_lang`` / ``k1`` / ``b`` / ``tokenizer_name`` participate
-    in the key so a config change reloads correctly.
+    ``stopwords_lang`` / ``k1`` / ``b`` / ``tokenizer_name`` / ``tag_boost``
+    participate in the key so a config change reloads correctly.
     """
     d_stamp = _file_stamp(metadata_dir / "scene_descriptions.json")
     t_stamp = _file_stamp(metadata_dir / "scene_tags.json")
     m_stamp = _file_stamp(metadata_dir / "manual_annotations.json")
+    o_stamp = _file_stamp(metadata_dir / "tag_overrides.json")
 
-    # 3-source combined signature for StatCache (flat int tuple).
+    # 4-source combined signature for StatCache (flat int tuple).
     sig: tuple[int, ...] = (
         d_stamp[0],
         d_stamp[1],
@@ -153,6 +161,8 @@ def bm25_index_for_dir(
         t_stamp[1],
         m_stamp[0],
         m_stamp[1],
+        o_stamp[0],
+        o_stamp[1],
     )
 
     # Slug = immediate parent dir name (data/library/<slug>/metadata/ → slug).
@@ -164,6 +174,7 @@ def bm25_index_for_dir(
         str(k1),
         str(b),
         tokenizer_name,
+        str(tag_boost),
     )
 
     def _load() -> BM25Index:
@@ -172,10 +183,12 @@ def bm25_index_for_dir(
             d_stamp,
             t_stamp,
             m_stamp,
+            o_stamp,
             stopwords_lang,
             k1,
             b,
             tokenizer_name,
+            tag_boost,
         )
 
     return _BM25_CACHE.get_or_load(key=cache_key, signature=sig, loader=_load)
@@ -188,6 +201,7 @@ def bm25_index_for_ctx(
     k1: float,
     b: float,
     tokenizer_name: str = "regex",
+    tag_boost: int = 1,
 ) -> BM25Index:
     """Load BM25 index for a film context (duck-typed).
 
@@ -202,6 +216,7 @@ def bm25_index_for_ctx(
         k1=k1,
         b=b,
         tokenizer_name=tokenizer_name,
+        tag_boost=tag_boost,
     )
 
 

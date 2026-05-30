@@ -96,6 +96,49 @@ def test_apply_reranker_with_no_retrieval_attr_uses_defaults(monkeypatch):
     assert captured == {"model": "default", "top_k_in": 20}
 
 
+def test_enabled_auto_resolves_to_gpu_probe(fake_cfg, monkeypatch):
+    """``enabled: 'auto'`` defers to the GPU probe: on for CUDA/MPS, off for CPU."""
+    from api.services import search as svc
+
+    fake_cfg.retrieval.reranker.enabled = "auto"
+
+    monkeypatch.setattr(svc, "_gpu_available", lambda cfg: True)
+    enabled, _model, _top = svc._reranker_settings(fake_cfg)
+    assert enabled is True
+
+    monkeypatch.setattr(svc, "_gpu_available", lambda cfg: False)
+    enabled, _model, _top = svc._reranker_settings(fake_cfg)
+    assert enabled is False
+
+
+def test_enabled_override_beats_auto(fake_cfg, monkeypatch):
+    """A request-level ``?reranker_enabled=`` override wins over ``auto``."""
+    from api.services import search as svc
+
+    fake_cfg.retrieval.reranker.enabled = "auto"
+    monkeypatch.setattr(svc, "_gpu_available", lambda cfg: True)  # auto would be ON
+    enabled, _model, _top = svc._reranker_settings(fake_cfg, enabled_override=False)
+    assert enabled is False
+
+
+def test_gpu_available_treats_probe_failure_as_cpu():
+    """A cfg the device probe can't read resolves to CPU → reranker off."""
+    from api.services import search as svc
+
+    assert svc._gpu_available(SimpleNamespace()) is False
+
+
+def test_reranker_default_enabled_mirrors_auto(fake_cfg, monkeypatch):
+    """``reranker_default_enabled`` (UI seed) follows the same profile logic."""
+    from api.services import search as svc
+
+    fake_cfg.retrieval.reranker.enabled = "auto"
+    monkeypatch.setattr(svc, "_gpu_available", lambda cfg: True)
+    assert svc.reranker_default_enabled(fake_cfg) is True
+    monkeypatch.setattr(svc, "_gpu_available", lambda cfg: False)
+    assert svc.reranker_default_enabled(fake_cfg) is False
+
+
 def test_rerank_template_results_orders_enriched_dicts(fake_cfg, monkeypatch):
     """Route-level dict adapter feeds descriptions into the reranker."""
     from api.services import search as svc

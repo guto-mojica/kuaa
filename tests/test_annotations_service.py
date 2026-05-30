@@ -269,6 +269,7 @@ class TestSceneContext:
             "annotated_count": 0,
             "comment_count": 0,
             "selected_scene": None,
+            "ai_tags": [],
         }
 
     def test_defaults_to_first_scene_when_id_none(self, tmp_config, seed_metadata):

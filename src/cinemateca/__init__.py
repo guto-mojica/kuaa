@@ -24,7 +24,7 @@ Uso rápido:
     print(result.summary())
 """
 
-__version__ = "0.6.0"
+__version__ = "0.8.0rc1"
 __author__ = "Cinemateca AI Team"
 
 from cinemateca.config import load_config, setup_logging

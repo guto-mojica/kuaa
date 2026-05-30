@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-30 11:25-0400\n"
+"POT-Creation-Date: 2026-05-29 11:51-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -292,17 +292,23 @@ msgid "Navigation"
 msgstr ""
 
 #: web/templates/partials/_help_overlay.html:66
+#: web/templates/partials/_icon_rail.html:30
+#: web/templates/partials/_icon_rail.html:31
 #: web/templates/partials/_topbar.html:43
-#: web/templates/partials/search.html:157
+#: web/templates/partials/search.html:144
 msgid "Search"
 msgstr ""
 
 #: web/templates/partials/_help_overlay.html:67
+#: web/templates/partials/_icon_rail.html:34
+#: web/templates/partials/_icon_rail.html:35
 #: web/templates/partials/_topbar.html:44
 msgid "Scenes"
 msgstr ""
 
 #: web/templates/partials/_help_overlay.html:68
+#: web/templates/partials/_icon_rail.html:38
+#: web/templates/partials/_icon_rail.html:39
 #: web/templates/partials/_topbar.html:45
 #: web/templates/partials/scenes_inspector.html:145
 msgid "Annotate"
@@ -314,6 +320,8 @@ msgid "Visual rhymes"
 msgstr ""
 
 #: web/templates/partials/_help_overlay.html:70
+#: web/templates/partials/_icon_rail.html:49
+#: web/templates/partials/_icon_rail.html:50
 #: web/templates/partials/_topbar.html:47
 #: web/templates/partials/processing.html:36
 #: web/templates/partials/processing_job.html:51
@@ -355,6 +363,22 @@ msgstr ""
 
 #: web/templates/partials/_help_overlay.html:113
 msgid "Skip query"
+msgstr ""
+
+#: web/templates/partials/_icon_rail.html:22
+msgid "Tab navigation"
+msgstr ""
+
+#: web/templates/partials/_icon_rail.html:26
+#: web/templates/partials/_icon_rail.html:27
+#: web/templates/partials/_topbar.html:18
+msgid "Home"
+msgstr ""
+
+#: web/templates/partials/_icon_rail.html:42
+#: web/templates/partials/_icon_rail.html:43
+#: web/templates/partials/_topbar.html:46
+msgid "Rhymes"
 msgstr ""
 
 #: web/templates/partials/_left_pane.html:27
@@ -444,20 +468,12 @@ msgstr ""
 msgid "LLM descriptions"
 msgstr ""
 
-#: web/templates/partials/_topbar.html:18
-msgid "Home"
-msgstr ""
-
 #: web/templates/partials/_topbar.html:28
 msgid "Breadcrumb"
 msgstr ""
 
 #: web/templates/partials/_topbar.html:41
 msgid "Main tabs"
-msgstr ""
-
-#: web/templates/partials/_topbar.html:46
-msgid "Rhymes"
 msgstr ""
 
 #: web/templates/partials/about_modal.html:70
@@ -484,8 +500,8 @@ msgstr ""
 
 #: web/templates/partials/about_modal.html:92
 msgid ""
-"Indexes scenes, descriptions, visual and audio embeddings to support "
-"curation, programming and research."
+"Indexes scenes, descriptions, visual embeddings and transcripts to "
+"support curation, programming and research."
 msgstr ""
 
 #: web/templates/partials/about_modal.html:93
@@ -562,7 +578,7 @@ msgstr ""
 #: web/templates/partials/annotate.html:98
 #: web/templates/partials/annotate_props.html:65
 #: web/templates/partials/scenes_inspector.html:114
-#: web/templates/partials/search_inspector.html:114
+#: web/templates/partials/search_inspector.html:113
 #: web/templates/partials/search_results.html:73
 msgid "indexed"
 msgstr ""
@@ -694,7 +710,7 @@ msgid "No manual tags yet."
 msgstr ""
 
 #: web/templates/partials/annotate_props.html:53
-#: web/templates/partials/annotate_tags.html:79
+#: web/templates/partials/annotate_tags.html:130
 msgid "LLM tags"
 msgstr ""
 
@@ -712,12 +728,12 @@ msgid "Comments"
 msgstr ""
 
 #: web/templates/partials/annotate_scene.html:83
-#: web/templates/partials/search_inspector.html:60
+#: web/templates/partials/search_inspector.html:59
 msgid "Annotations"
 msgstr ""
 
 #: web/templates/partials/annotate_scene.html:93
-#: web/templates/partials/search_inspector.html:70
+#: web/templates/partials/search_inspector.html:69
 msgid "Properties"
 msgstr ""
 
@@ -725,7 +741,7 @@ msgstr ""
 #: web/templates/partials/rimas.html:123
 #: web/templates/partials/rimas_echoes.html:48
 #: web/templates/partials/scenes_inspector.html:64
-#: web/templates/partials/search_inspector.html:101
+#: web/templates/partials/search_inspector.html:100
 #: web/templates/partials/search_timeline.html:67
 #: web/templates/partials/search_timeline.html:68
 #, python-format
@@ -745,42 +761,42 @@ msgid "Commenting at this timecode"
 msgstr ""
 
 #: web/templates/partials/annotate_scene.html:142
-#: web/templates/partials/search_inspector.html:184
+#: web/templates/partials/search_inspector.html:164
 msgid "Pin"
 msgstr ""
 
 #: web/templates/partials/annotate_scene.html:142
-#: web/templates/partials/search_inspector.html:184
+#: web/templates/partials/search_inspector.html:164
 msgid "Add pin"
 msgstr ""
 
 #: web/templates/partials/annotate_scene.html:145
-#: web/templates/partials/search_inspector.html:185
+#: web/templates/partials/search_inspector.html:165
 msgid "Tag"
 msgstr ""
 
 #: web/templates/partials/annotate_scene.html:145
-#: web/templates/partials/search_inspector.html:185
+#: web/templates/partials/search_inspector.html:165
 msgid "Add tag"
 msgstr ""
 
 #: web/templates/partials/annotate_scene.html:148
-#: web/templates/partials/search_inspector.html:186
+#: web/templates/partials/search_inspector.html:166
 msgid "Attach"
 msgstr ""
 
 #: web/templates/partials/annotate_scene.html:148
-#: web/templates/partials/search_inspector.html:186
+#: web/templates/partials/search_inspector.html:166
 msgid "Attach file"
 msgstr ""
 
 #: web/templates/partials/annotate_scene.html:151
-#: web/templates/partials/search_inspector.html:187
+#: web/templates/partials/search_inspector.html:167
 msgid "Emoji"
 msgstr ""
 
 #: web/templates/partials/annotate_scene.html:151
-#: web/templates/partials/search_inspector.html:187
+#: web/templates/partials/search_inspector.html:167
 msgid "Insert emoji"
 msgstr ""
 
@@ -804,29 +820,53 @@ msgstr ""
 msgid "Tags cleared"
 msgstr ""
 
-#: web/templates/partials/annotate_tags.html:47
+#: web/templates/partials/annotate_tags.html:51
+msgid "Click to rename"
+msgstr ""
+
+#: web/templates/partials/annotate_tags.html:56
+msgid "Delete tag"
+msgstr ""
+
+#: web/templates/partials/annotate_tags.html:76
 #: web/templates/partials/inspector_annotations.html:21
 msgid "Manual tags"
 msgstr ""
 
-#: web/templates/partials/annotate_tags.html:59
+#: web/templates/partials/annotate_tags.html:88
 #: web/templates/partials/inspector_annotations.html:35
 msgid "rural, exterior, horse, single-person"
 msgstr ""
 
-#: web/templates/partials/annotate_tags.html:62
+#: web/templates/partials/annotate_tags.html:91
 #: web/templates/partials/inspector_annotations.html:39
 msgid "Use hyphens for compound tags: two-people, night-scene"
 msgstr ""
 
-#: web/templates/partials/annotate_tags.html:65
+#: web/templates/partials/annotate_tags.html:94
 #: web/templates/partials/inspector_annotations.html:42
 msgid "Save"
 msgstr ""
 
-#: web/templates/partials/annotate_tags.html:72
+#: web/templates/partials/annotate_tags.html:101
 #: web/templates/partials/scenes.html:241
 msgid "Clear"
+msgstr ""
+
+#: web/templates/partials/annotate_tags.html:112
+msgid "AI tags"
+msgstr ""
+
+#: web/templates/partials/annotate_tags.html:114
+msgid "Click a wrong AI tag to exclude it from search. The model output is kept."
+msgstr ""
+
+#: web/templates/partials/annotate_tags.html:123
+msgid "Suppressed — click to restore"
+msgstr ""
+
+#: web/templates/partials/annotate_tags.html:123
+msgid "Click to mark wrong"
 msgstr ""
 
 #: web/templates/partials/film_selector.html:29
@@ -839,7 +879,7 @@ msgstr ""
 
 #: web/templates/partials/home.html:14 web/templates/partials/rimas.html:40
 #: web/templates/partials/rimas.html:157 web/templates/partials/scenes.html:429
-#: web/templates/partials/search.html:407
+#: web/templates/partials/search.html:394
 msgid "films"
 msgstr ""
 
@@ -1205,7 +1245,7 @@ msgid "Comfortable"
 msgstr ""
 
 #: web/templates/partials/scenes.html:131
-#: web/templates/partials/search.html:452
+#: web/templates/partials/search.html:437
 msgid "Compact"
 msgstr ""
 
@@ -1326,7 +1366,7 @@ msgid "Item selected"
 msgstr ""
 
 #: web/templates/partials/scenes_inspector.html:71
-#: web/templates/partials/search_inspector.html:108
+#: web/templates/partials/search_inspector.html:107
 msgid "dir."
 msgstr ""
 
@@ -1342,172 +1382,162 @@ msgstr ""
 msgid "Find similar"
 msgstr ""
 
-#: web/templates/partials/search.html:148
+#: web/templates/partials/search.html:135
 msgid "Search the library — describe a scene, paste an image…"
 msgstr ""
 
-#: web/templates/partials/search.html:165
+#: web/templates/partials/search.html:152
 msgid "Input type"
 msgstr ""
 
-#: web/templates/partials/search.html:184
+#: web/templates/partials/search.html:171
 msgid "Text"
 msgstr ""
 
-#: web/templates/partials/search.html:195
+#: web/templates/partials/search.html:182
 msgid "Image"
 msgstr ""
 
-#: web/templates/partials/search.html:206
+#: web/templates/partials/search.html:193
 msgid "Audio"
 msgstr ""
 
-#: web/templates/partials/search.html:217
-#: web/templates/partials/search.html:354
+#: web/templates/partials/search.html:204
+#: web/templates/partials/search.html:341
 msgid "Fusion"
 msgstr ""
 
-#: web/templates/partials/search.html:233
+#: web/templates/partials/search.html:220
 msgid "Híbrido"
 msgstr ""
 
-#: web/templates/partials/search.html:241
-#: web/templates/partials/search.html:261
+#: web/templates/partials/search.html:228
+#: web/templates/partials/search.html:248
 msgid "CLIP only"
 msgstr ""
 
-#: web/templates/partials/search.html:242
-#: web/templates/partials/search.html:265
+#: web/templates/partials/search.html:229
+#: web/templates/partials/search.html:252
 msgid "BM25 only"
 msgstr ""
 
-#: web/templates/partials/search.html:253
-#: web/templates/partials/search.html:254
+#: web/templates/partials/search.html:240
+#: web/templates/partials/search.html:241
 msgid "Retrieval mode"
 msgstr ""
 
-#: web/templates/partials/search.html:257
+#: web/templates/partials/search.html:244
 msgid "Hybrid"
 msgstr ""
 
-#: web/templates/partials/search.html:269
+#: web/templates/partials/search.html:256
 msgid "Semantic weight"
 msgstr ""
 
-#: web/templates/partials/search.html:269
+#: web/templates/partials/search.html:256
 msgid "Lexical weight"
 msgstr ""
 
-#: web/templates/partials/search.html:298
-#: web/templates/partials/search.html:299
+#: web/templates/partials/search.html:285
+#: web/templates/partials/search.html:286
 msgid "Results per query"
 msgstr ""
 
-#: web/templates/partials/search.html:321
-#: web/templates/partials/search.html:331
-#: web/templates/partials/search.html:332
+#: web/templates/partials/search.html:308
+#: web/templates/partials/search.html:318
+#: web/templates/partials/search.html:319
 msgid "Rerank"
 msgstr ""
 
-#: web/templates/partials/search.html:335
+#: web/templates/partials/search.html:322
 msgid "Cross-encoder rerank"
 msgstr ""
 
-#: web/templates/partials/search.html:364
-#: web/templates/partials/search.html:365
+#: web/templates/partials/search.html:351
+#: web/templates/partials/search.html:352
 msgid "Visual ↔ Audio weight"
 msgstr ""
 
-#: web/templates/partials/search.html:368
+#: web/templates/partials/search.html:355
 msgid "Visual weight"
 msgstr ""
 
-#: web/templates/partials/search.html:368
+#: web/templates/partials/search.html:355
 msgid "Audio weight"
 msgstr ""
 
-#: web/templates/partials/search.html:375
+#: web/templates/partials/search.html:362
 msgid "visual"
 msgstr ""
 
-#: web/templates/partials/search.html:376
+#: web/templates/partials/search.html:363
 msgid "audio"
 msgstr ""
 
-#: web/templates/partials/search.html:402
+#: web/templates/partials/search.html:389
 msgid "results"
 msgstr ""
 
-#: web/templates/partials/search.html:412
+#: web/templates/partials/search.html:399
 msgid "No results."
 msgstr ""
 
-#: web/templates/partials/search.html:418
+#: web/templates/partials/search.html:403
 msgid "Type a query to search"
 msgstr ""
 
-#: web/templates/partials/search.html:429
+#: web/templates/partials/search.html:414
 msgid "Result layout"
 msgstr ""
 
-#: web/templates/partials/search.html:436
+#: web/templates/partials/search.html:421
 msgid "Grid"
 msgstr ""
 
-#: web/templates/partials/search.html:444
+#: web/templates/partials/search.html:429
 msgid "List"
 msgstr ""
 
-#: web/templates/partials/search.html:513
-msgid "Drop an image here or click to choose"
+#: web/templates/partials/search.html:455
+#: web/templates/partials/search.html:462
+#: web/templates/partials/search.html:464
+msgid "Choose image…"
 msgstr ""
 
-#: web/templates/partials/search.html:514
-msgid "Search by visual similarity · PNG, JPG, WebP"
-msgstr ""
-
-#: web/templates/partials/search.html:522
-msgid "Click or drop to replace"
-msgstr ""
-
-#: web/templates/partials/search_inspector.html:31
+#: web/templates/partials/search_inspector.html:30
 msgid "Result details"
 msgstr ""
 
-#: web/templates/partials/search_inspector.html:34
+#: web/templates/partials/search_inspector.html:33
 msgid "Select a result"
 msgstr ""
 
-#: web/templates/partials/search_inspector.html:35
+#: web/templates/partials/search_inspector.html:34
 msgid "Click a card to see its keyframe, annotations, and visual rhymes here."
 msgstr ""
 
-#: web/templates/partials/search_inspector.html:50
+#: web/templates/partials/search_inspector.html:49
 msgid "Activity"
 msgstr ""
 
-#: web/templates/partials/search_inspector.html:88
+#: web/templates/partials/search_inspector.html:87
 #, python-format
 msgid "%(n)d annotations"
 msgstr ""
 
-#: web/templates/partials/search_inspector.html:131
-msgid "Why this result"
-msgstr ""
-
-#: web/templates/partials/search_inspector.html:150
+#: web/templates/partials/search_inspector.html:130
 msgid "Visual rhymes · cross-film"
 msgstr ""
 
-#: web/templates/partials/search_inspector.html:152
+#: web/templates/partials/search_inspector.html:132
 msgid "See all"
 msgstr ""
 
-#: web/templates/partials/search_inspector.html:177
+#: web/templates/partials/search_inspector.html:157
 msgid "Add a comment or annotation…"
 msgstr ""
 
-#: web/templates/partials/search_inspector.html:189
+#: web/templates/partials/search_inspector.html:169
 msgid "Comment"
 msgstr ""
 

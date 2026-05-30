@@ -24,24 +24,71 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _gpu_available(cfg: Any) -> bool:
+    """True when the configured device resolves to CUDA or MPS.
+
+    Used to make the reranker's ``enabled: auto`` default profile-aware:
+    on by default on a GPU box, off on the CPU / HuggingFace-Spaces demo
+    where the ~2.4 GB cross-encoder would make every query multi-second.
+    Any probe failure (partial cfg, torch unavailable) is treated as
+    CPU → reranker off, the safe/fast default.
+    """
+    try:
+        from cinemateca.device import device_from_config
+
+        return device_from_config(cfg).type in {"cuda", "mps"}
+    except Exception:  # noqa: BLE001 — defensive: any probe failure → off
+        logger.debug("reranker device probe failed; treating as CPU", exc_info=True)
+        return False
+
+
+def _resolve_enabled(raw: Any, cfg: Any) -> bool:
+    """Coerce a ``retrieval.reranker.enabled`` value to a bool.
+
+    Accepts a literal bool or the string ``"auto"`` (profile-aware:
+    GPU-on / CPU-off via :func:`_gpu_available`). Anything else falls
+    back to ``bool(raw)``.
+    """
+    if isinstance(raw, bool):
+        return raw
+    if isinstance(raw, str) and raw.strip().lower() == "auto":
+        return _gpu_available(cfg)
+    return bool(raw)
+
+
 def _reranker_settings(cfg: Any, enabled_override: bool | None = None) -> tuple[bool, str, int]:
     """Read ``retrieval.reranker.{enabled,model,top_k_in}`` with defaults.
 
     Defaults: ``enabled=True``, ``model='default'``, ``top_k_in=20``. A cfg
     missing ``retrieval`` or ``retrieval.reranker`` falls back to all-defaults
     silently — callers should never see an ``AttributeError`` from a partial
-    config.
+    config. ``enabled`` may be a bool or the string ``"auto"`` (resolved by
+    :func:`_resolve_enabled` to GPU-on / CPU-off).
     """
     rr = getattr(getattr(cfg, "retrieval", None), "reranker", None)
     if rr is None:
         enabled, model, top_k_in = True, "default", 20
     else:
-        enabled = bool(getattr(rr, "enabled", True))
+        enabled = _resolve_enabled(getattr(rr, "enabled", True), cfg)
         model = str(getattr(rr, "model", "default"))
         top_k_in = int(getattr(rr, "top_k_in", 20))
     if enabled_override is not None:
         enabled = bool(enabled_override)
     return (enabled, model, top_k_in)
+
+
+def reranker_default_enabled(cfg: Any) -> bool:
+    """Resolve the reranker's *default* enabled state (no request override).
+
+    This is the value the Buscar UI seeds its Rerank toggle with on a
+    browser that has no saved preference: ``true`` on a GPU box,
+    ``false`` on the CPU / demo profile when ``retrieval.reranker.enabled``
+    is ``auto``. Pinning the config to ``true``/``false`` is honoured as-is.
+    The per-browser localStorage preference (and the per-request
+    ``?reranker_enabled=`` override) still win over this default.
+    """
+    enabled, _model, _top_k_in = _reranker_settings(cfg)
+    return enabled
 
 
 def apply_reranker(

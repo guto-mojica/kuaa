@@ -543,7 +543,13 @@
       sem_w: 0.70,
       top_k: 9,
       modality: 'text',
-      rerank_enabled: false,
+      // Server-resolved profile default (GPU-on / CPU-off) injected as
+      // ``window.RERANK_DEFAULT`` by base.html. Falls back to ``false``
+      // when absent (older shell / direct partial render). A per-browser
+      // localStorage preference still overrides this in ``loadPrefs``.
+      rerank_enabled: (typeof window !== 'undefined' && typeof window.RERANK_DEFAULT === 'boolean')
+        ? window.RERANK_DEFAULT
+        : false,
       fusion_w: 0.5,
     },
     // ``rimasRetrieval`` mirrors ``retrieval.rhymes.{diversity, k_candidates}``

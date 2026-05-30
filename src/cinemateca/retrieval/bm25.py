@@ -67,6 +67,7 @@ class BM25Index:
         tokenizer: Tokenizer | None = None,
         k1: float = 1.5,
         b: float = 0.75,
+        tag_boost: int = 1,
     ) -> BM25Index:
         """Build a BM25 index.
 
@@ -88,6 +89,7 @@ class BM25Index:
             tag_index,
             stopwords_lang=stopwords_lang,
             tokenizer=_tok,
+            tag_boost=tag_boost,
         )
         if not docs:
             return cls(scene_ids=[], model=None, stopwords_lang=stopwords_lang, tokenizer=_tok)

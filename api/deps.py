@@ -141,9 +141,22 @@ def make_ctx(request: Request, **kwargs) -> dict:
         # full config here keeps the routes simple and avoids a separate
         # dependency for templates.
         "cfg": get_config(),
+        # Profile-aware reranker default (GPU-on / CPU-off when
+        # ``retrieval.reranker.enabled: auto``). The Buscar store seeds its
+        # Rerank toggle with this on a browser with no saved preference;
+        # localStorage + ``?reranker_enabled=`` still override. Lazy import
+        # avoids an api.deps ↔ api.services.search cycle.
+        "reranker_default": _reranker_default_enabled(),
     }
     base.update(kwargs)
     return base
+
+
+def _reranker_default_enabled() -> bool:
+    """Profile-resolved reranker default for the page shell (see base ctx)."""
+    from api.services.search import reranker_default_enabled
+
+    return reranker_default_enabled(get_config())
 
 
 def toast_trigger(

@@ -44,10 +44,13 @@ SNAPSHOT_PATH: Path = Path(__file__).parent / "fixtures" / "hybrid_search_regres
 # snapshot was captured against the pre-M2 pure-CLIP path, so we pin
 # ``retriever=clip`` explicitly here — the route short-circuits that to
 # the legacy ``search_text`` path, reproducing the snapshot exactly.
+# ``reranker_enabled=false`` pins these to the pre-rerank CLIP ordering. The
+# reranker default is now profile-aware (``auto`` → GPU-on), so without this
+# the snapshot would reorder on a GPU box and defeat the regression-pin intent.
 SNAPSHOT_QUERIES: list[dict] = [
-    {"q": "menina chorando", "top_k": 9, "retriever": "clip"},
-    {"q": "1959", "top_k": 9, "retriever": "clip"},
-    {"q": "homem na rua", "top_k": 9, "retriever": "clip"},
+    {"q": "menina chorando", "top_k": 9, "retriever": "clip", "reranker_enabled": "false"},
+    {"q": "1959", "top_k": 9, "retriever": "clip", "reranker_enabled": "false"},
+    {"q": "homem na rua", "top_k": 9, "retriever": "clip", "reranker_enabled": "false"},
 ]
 
 

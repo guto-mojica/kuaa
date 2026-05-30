@@ -560,3 +560,34 @@
   .a-pl { padding: 6px 12px; flex-wrap: wrap; gap: 6px; }
   .a-pl .transport { order: -1; }
 }
+
+/* ─── TAG CURATION (delete / inline-rename / AI-tag suppress) ─────────── */
+/* Editable manual-tag chips: a label button (click to rename) + an ✕ that
+   deletes just that tag. The chip reuses .fx-pill geometry. */
+.tag-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag-chip { display: inline-flex; }
+.tag-chip__view { gap: 4px; padding-right: 4px; }
+.tag-chip__label {
+  background: none; border: 0; padding: 0; cursor: text;
+  color: inherit; font: inherit;
+}
+.tag-chip__x {
+  background: none; border: 0; cursor: pointer; line-height: 1;
+  color: var(--c-text-3); font-size: 13px; padding: 0 2px;
+}
+.tag-chip__x:hover { color: var(--c-pink, #d66); }
+.tag-chip__input {
+  font-size: 11px; padding: 2px 8px; border-radius: 14px;
+  border: 1px solid var(--c-accent); background: var(--c-raised);
+  color: var(--c-text-1); width: 9em;
+}
+
+/* AI tags are clickable: suppressing one dims + strikes it and excludes it
+   from the BM25 index (non-destructive — scene_tags.json is untouched). */
+.ai-tag { cursor: pointer; border: 1px dashed transparent; }
+.ai-tag:hover { border-color: var(--c-border, #444); }
+.ai-tag--suppressed {
+  opacity: 0.5; text-decoration: line-through;
+  background: var(--c-pink-bg, rgba(214,102,102,0.12));
+  color: var(--c-pink, #d66);
+}

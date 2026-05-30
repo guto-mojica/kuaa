@@ -12,6 +12,13 @@ from cinemateca.annotations.io import (
     save,
     save_annotations,
 )
+from cinemateca.annotations.overrides import (
+    OVERRIDES_FILENAME,
+    load_overrides,
+    save_overrides,
+    set_suppressed,
+    suppressed_for_scene,
+)
 from cinemateca.annotations.scenes import (
     build_scene_list,
     resolve_selected_film,
@@ -21,15 +28,20 @@ from cinemateca.annotations.scenes import (
 
 __all__ = [
     "FILENAME",
+    "OVERRIDES_FILENAME",
     "build_scene_list",
     "load",
     "load_annotations",
+    "load_overrides",
     "merge_tag_index",
     "normalize_tags",
     "resolve_selected_film",
     "save",
     "save_annotations",
     "save_description",
+    "save_overrides",
     "scene_context",
     "scene_list_with_fallback",
+    "set_suppressed",
+    "suppressed_for_scene",
 ]

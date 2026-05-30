@@ -116,6 +116,7 @@ from api.services._search_dispatch import (  # noqa: F401
 )
 from api.services._search_rerank import (  # noqa: F401
     apply_reranker,
+    reranker_default_enabled,
     rerank_template_results,
 )
 
@@ -124,8 +125,9 @@ logger = logging.getLogger(__name__)
 
 def _get_bm25_index_for_ctx(ctx: FilmContext) -> BM25Index:
     """Load + cache the BM25 index for one film. Resolves ``cfg.search.bm25``
-    tunables (``stopwords_lang`` / ``k1`` / ``b``) via lazy ``get_config``
-    so this module stays loadable without the FastAPI app wired up.
+    tunables (``stopwords_lang`` / ``k1`` / ``b`` / ``tokenizer`` / ``tag_boost``)
+    via lazy ``get_config`` so this module stays loadable without the FastAPI
+    app wired up.
     """
     from api.deps import get_config
     from cinemateca.search.bm25 import bm25_index_for_ctx
@@ -136,12 +138,14 @@ def _get_bm25_index_for_ctx(ctx: FilmContext) -> BM25Index:
     k1 = float(getattr(bm25_cfg, "k1", 1.5)) if bm25_cfg else 1.5
     b = float(getattr(bm25_cfg, "b", 0.75)) if bm25_cfg else 0.75
     tokenizer_name = str(getattr(bm25_cfg, "tokenizer", "regex")) if bm25_cfg else "regex"
+    tag_boost = int(getattr(bm25_cfg, "tag_boost", 1)) if bm25_cfg else 1
     return bm25_index_for_ctx(
         ctx,
         stopwords_lang=stopwords_lang,
         k1=k1,
         b=b,
         tokenizer_name=tokenizer_name,
+        tag_boost=tag_boost,
     )
 
 
