@@ -48,11 +48,18 @@ def _resolve_enabled(raw: Any, cfg: Any) -> bool:
     Accepts a literal bool or the string ``"auto"`` (profile-aware:
     GPU-on / CPU-off via :func:`_gpu_available`). Anything else falls
     back to ``bool(raw)``.
+
+    The GPU probe is read via a lazy lookup of
+    ``api.services.search._gpu_available`` — the same facade-patch convention
+    :func:`apply_reranker` uses for ``search_rerank`` — so tests that
+    ``monkeypatch.setattr(api.services.search, "_gpu_available", ...)`` are honoured.
     """
     if isinstance(raw, bool):
         return raw
     if isinstance(raw, str) and raw.strip().lower() == "auto":
-        return _gpu_available(cfg)
+        import api.services.search as _svc  # lazy — patchable facade lookup
+
+        return _svc._gpu_available(cfg)
     return bool(raw)
 
 

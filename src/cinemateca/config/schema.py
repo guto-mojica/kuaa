@@ -163,6 +163,7 @@ class Bm25Cfg(_Section):
     stopwords_lang: str | None = None
     rrf_k: int = 60
     tokenizer: str = "regex"  # "regex" (default, unchanged) | "multilingual" (PT-aware, opt-in)
+    tag_boost: int = 1  # per-surface weight on tags surface (>1 lifts curator tags; 1 = neutral)
 
 
 class SearchCfg(_Section):
@@ -181,7 +182,7 @@ class SearchCfg(_Section):
 
 # ── retrieval (+ nested reranker/fusion/rhymes) ──────────────────────────────
 class RerankerCfg(_Section):
-    enabled: bool = False
+    enabled: bool | Literal["auto"] = "auto"  # "auto" = profile-aware (GPU-on / CPU-off)
     top_k_in: int = 20
     model: str = "default"
 

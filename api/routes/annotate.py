@@ -109,8 +109,8 @@ async def api_annotate_tag_delete(
     filter: str = Form(default="no_llm"),
     tab: str = Form(default="annotations"),
     slug: str | None = Depends(film_slug_query),
+    fctx: FilmContext = Depends(annotate_film_context),
 ) -> HTMLResponse:
-    fctx = _ctx(slug, request)
     delete_manual_tag(fctx, scene_id, tag)
 
     ctx = build_scene_panel(fctx, scene_id, filter)
@@ -137,8 +137,8 @@ async def api_annotate_tag_edit(
     filter: str = Form(default="no_llm"),
     tab: str = Form(default="annotations"),
     slug: str | None = Depends(film_slug_query),
+    fctx: FilmContext = Depends(annotate_film_context),
 ) -> HTMLResponse:
-    fctx = _ctx(slug, request)
     rename_manual_tag(fctx, scene_id, old_tag, new_tag)
 
     ctx = build_scene_panel(fctx, scene_id, filter)
@@ -165,6 +165,7 @@ async def api_annotate_ai_tag_toggle(
     filter: str = Form(default="no_llm"),
     tab: str = Form(default="annotations"),
     slug: str | None = Depends(film_slug_query),
+    fctx: FilmContext = Depends(annotate_film_context),
 ) -> HTMLResponse:
     """Suppress / restore a single AI-generated tag (non-destructive override).
 
@@ -172,7 +173,6 @@ async def api_annotate_ai_tag_toggle(
     BM25 cache keys on the override file so the suppression takes effect on the
     next search.
     """
-    fctx = _ctx(slug, request)
     toggle_ai_tag(fctx, scene_id, tag, suppressed=suppressed)
 
     ctx = build_scene_panel(fctx, scene_id, filter)

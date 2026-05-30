@@ -115,6 +115,8 @@ from api.services._search_dispatch import (  # noqa: F401
     dispatch_fusion_search,
 )
 from api.services._search_rerank import (  # noqa: F401
+    _gpu_available,
+    _reranker_settings,
     apply_reranker,
     reranker_default_enabled,
     rerank_template_results,
