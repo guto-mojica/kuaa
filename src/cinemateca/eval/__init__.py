@@ -15,6 +15,7 @@ from cinemateca.eval.grader_metrics import (
 from cinemateca.eval.grades import grades_by_query, grades_for_query
 from cinemateca.eval.metrics import QueryMetrics, RetrievalResult, summarize_results
 from cinemateca.eval.paths import eval_root, eval_run_id
+from cinemateca.eval.proxy import proxy_labels
 from cinemateca.eval.retrieval import (
     RetrievalRun,
     run_audio_eval,
@@ -49,6 +50,7 @@ __all__ = [
     "load_modal_queries",
     "load_queries",
     "other_grades_for_current",
+    "proxy_labels",
     "query_conflict_set",
     "run_audio_eval",
     "run_fusion_eval",
