@@ -325,14 +325,22 @@ transition. Scope is *not* locked — if risks fire, engineering can drop or
 defer features; timeline extension is one option among several. Grilled
 2026-05-24 (correction to an earlier "scope locked" framing).
 
+> **Forward plan:** the single source of truth for remaining work is the
+> presentation-refactor program spec
+> (`docs/superpowers/specs/2026-05-29-presentation-refactor-design.md`, §13 maps
+> these tracker checkboxes to workstream IDs WS-1…WS-6). Docker is **cut** (uv-only,
+> §16); HuggingFace Spaces is **re-scoped** to an optional buildpack-PaaS stretch;
+> Whisper transcription is **cut/deferred to v0.8-rc** (§16). See `docs/README.md`
+> for the documentation map.
+
 ### Month 1 — Foundation
 - [x] **Multi-film library** — `films.json` registry; per-film `data/library/<slug>/`
   layout; cross-film search/browse + sidebar selector. Implemented across
   T1–T11 of (internal design notes)
   (33 commits on `feat/multi-film-library`; suite 265 → 332 passing).
   Acceptance migration of real Jeca Tatu data still pending (T12, manual).
-- [ ] Docker image, one-command run (CPU-default, GPU-optional)
-- [ ] Hosted demo skeleton on HuggingFace Spaces (CPU tier)
+- [x] ~~Docker image, one-command run~~ → **cut (§16); replaced by `uv` reproducible-run hardening (WS-5 T8)**: `uv sync --extra full --group dev` + `uv run cinemateca serve`, verified by `scripts/verify_fresh_run.sh`.
+- [ ] Hosted demo — **re-scoped (§16)**: HF Spaces needs the Docker SDK (conflicts with no-Docker). Demo leads with the recorded 90s video + local `uv` run; a hosted instance is an optional stretch on a buildpack PaaS (Render/Railway, no in-repo Dockerfile). Not a committed v1.0 deliverable.
 - [x] CLAP integration kickoff — `AudioEmbedder` Protocol +
   `ClapHFEmbedder` (HF transformers, `laion/larger_clap_general`, 10s
   chunk + mean-pool, L2-normalised joint text+audio space) +
@@ -397,7 +405,7 @@ defer features; timeline extension is one option among several. Grilled
   text+audio space; Buscar surface ships an Áudio/Soundtrack chip wired
   through Alpine; PT/EN i18n landed. Jeca Tatu regression snapshot pinned
   at `tests/fixtures/audio_search_regression.json` (M3 pre-flight Phase 1+2).
-- [ ] Whisper transcripts indexed (faster-whisper, `Transcriber` Protocol)
+- [x] ~~Whisper transcripts indexed (faster-whisper, `Transcriber` Protocol)~~ → **cut from v1.0; deferred to v0.8-rc (§16).** Prototyped (`dc2c8f8`) then removed from `main` (2026-05-30) to keep the launch surface focused; CLAP audio search (`audio_extract`/`audio_embed`) covers the audio modality for launch. Re-add spec: `docs/plans/2026-05-28-whisper-transcript-indexing-followup.md`.
 - [x] Hybrid search (CLIP ⊕ BM25, Reciprocal Rank Fusion) — shipped 2026-05-23
   on `worktree-hybrid-search-spec`. New package `src/cinemateca/retrieval/`
   (tokenize + corpus + BM25Index + RRF) feeds `search_hybrid()` orchestrator;
@@ -480,6 +488,18 @@ defer features; timeline extension is one option among several. Grilled
 - [ ] LinkedIn launch post
 
 Keep this list updated as steps complete.
+
+### Tracker → workstream map (per spec §13)
+
+| Tracker item | Maps to |
+|---|---|
+| Docker image / one-command run | **cut**; `uv` fresh-run = WS-5 **T8** |
+| Hosted demo (HF Spaces) | **re-scoped** §16; optional buildpack stretch |
+| Whisper transcripts indexed | **cut** → deferred to v0.8-rc (§16); CLAP retained |
+| Cross-encoder reranker | WS-1 **C5** (typed; default-OFF pending WS-4 evidence) |
+| Ablation table / failure-mode analysis | WS-4 **E2 / E4 / E8** |
+| Curator-annotated eval pairs | WS-4 **E5** `[HUMAN]` (proxy fallback E2 so launch isn't hard-blocked) |
+| Blog / 90s video / `v1.0.0` tag / LinkedIn | WS-6 **D6 / D8**, gate **G5** |
 
 ---
 
