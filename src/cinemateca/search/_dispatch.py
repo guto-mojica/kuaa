@@ -38,6 +38,7 @@ from cinemateca.config import Settings
 from cinemateca.search.cache import load_index
 from cinemateca.search.clip import search_image
 from cinemateca.search.hybrid import search_hybrid
+from cinemateca.search.rerank import rerank as _rerank
 from cinemateca.search.types import (
     Filters,
     Hit,
@@ -71,6 +72,10 @@ def find(
     bm25_k1: float = 1.5,
     bm25_b: float = 0.75,
     bm25_include_transcripts: bool = True,
+    # C5: typed reranker wiring — OFF by default pending WS-4 tuning evidence.
+    # Flip default to True only after E2/E6 ablation confirms a metric delta.
+    rerank: bool = False,
+    rerank_model: str = "default",
     cfg: Settings | None = None,
 ) -> SearchResult:
     """Run a search against a single film.
@@ -116,13 +121,16 @@ def find(
         with timed("find.image") as t:
             df = search_image(index, query.image_path, top_k=top_k)
         result = _df_to_result(df, mode="clip", weights=None, query=query)
-        return replace(
+        result = replace(
             result,
             retriever_mode="clip",
             fusion_used=False,
             num_films_searched=1,
             latency_ms=t.elapsed_ms,
         )
+        if rerank:
+            result = _rerank(result, model=rerank_model)
+        return result
 
     if query.text is None:
         raise ValueError("Query must have text or image_path set")
@@ -157,13 +165,16 @@ def find(
         weights=weights if mode == "hybrid" else None,
         query=query,
     )
-    return replace(
+    result = replace(
         result,
         retriever_mode=mode,
         fusion_used=(mode == "hybrid"),
         num_films_searched=1,
         latency_ms=t.elapsed_ms,
     )
+    if rerank:
+        result = _rerank(result, model=rerank_model)
+    return result
 
 
 def _load_tag_index(film: Any) -> dict:
@@ -222,6 +233,7 @@ def _df_to_result(
                     scene_id=int(row["scene_id"]),
                     score=float(score_val),
                     keyframe_path=str(row.get("filepath", "")),
+                    description=str(row.get("description", "")),
                 )
             )
     return SearchResult(hits=hits, mode=mode, weights=weights, query=query)

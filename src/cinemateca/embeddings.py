@@ -39,6 +39,7 @@ class SemanticSearch:
                     "scene_id": row["scene_id"],
                     "filepath": row["filepath"],
                     "similarity": float(similarities[idx]),
+                    "description": str(row.get("description", "")),
                 }
             )
         return pd.DataFrame(rows)
@@ -71,6 +72,7 @@ class SemanticSearch:
                     "scene_id": row["scene_id"],
                     "filepath": row["filepath"],
                     "similarity": float(similarities[idx]),
+                    "description": str(row.get("description", "")),
                 }
             )
         return pd.DataFrame(rows)

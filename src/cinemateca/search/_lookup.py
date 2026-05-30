@@ -98,7 +98,11 @@ def enrich_hits_with_film_metadata(
                 sid = None
         if slug and sid is not None:
             descs, tags_by_scene = _load_film_meta(slug)
-            r.setdefault("description", descs.get(sid, ""))
+            # Prefer the library description over an empty/absent one coming
+            # from the search DataFrame (C5: _df_to_result now forwards the
+            # description column, which may be "" when kf_df has no descriptions).
+            if not r.get("description"):
+                r["description"] = descs.get(sid, "")
             r.setdefault("tags", tags_by_scene.get(sid, []))
         else:
             r.setdefault("description", "")
