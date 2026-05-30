@@ -48,7 +48,6 @@ import json
 import math
 import os
 import platform
-import statistics
 import subprocess
 import sys
 import time
@@ -118,39 +117,9 @@ def _torch_device_info() -> dict:
 
 
 # ─── Stats helpers ────────────────────────────────────────────────────────────
-
-
-def _percentile(samples: list[float], pct: float) -> float:
-    """Nearest-rank percentile (Wikipedia "ordinal" definition).
-
-    p50 of [1, 2, 3] = 2. p100 = max(samples). p0 = min(samples).
-    Empty input is undefined — caller guards against it.
-    """
-    if not samples:
-        return math.nan
-    s = sorted(samples)
-    if pct <= 0:
-        return s[0]
-    if pct >= 100:
-        return s[-1]
-    # Nearest-rank: position = ceil(pct/100 * N); 1-indexed.
-    pos = max(1, math.ceil(pct / 100.0 * len(s)))
-    return s[pos - 1]
-
-
-def _summary(samples_ms: list[float]) -> dict:
-    """Return the canonical stats dict for a vector of millisecond samples."""
-    if not samples_ms:
-        return {"n": 0, "p50": None, "p95": None, "p99": None, "mean": None, "max": None}
-    return {
-        "n": len(samples_ms),
-        "p50": _percentile(samples_ms, 50),
-        "p95": _percentile(samples_ms, 95),
-        "p99": _percentile(samples_ms, 99),
-        "mean": statistics.fmean(samples_ms),
-        "max": max(samples_ms),
-    }
-
+# Implementations live in cinemateca.eval.bench (E6).
+# _summary alias kept for any future direct callers in this script.
+from cinemateca.eval.bench import summarize as _summary  # noqa: E402,F401
 
 # ─── Query pool ───────────────────────────────────────────────────────────────
 
@@ -301,10 +270,9 @@ def _build_fixture(cfg, *, slug: str) -> BenchFixture:
       * embedder is built with ``device_from_config(cfg)`` so we time on
         the same device the production server would.
     """
-    from api.services.film_context import FilmContext
-
     from api.services.search import IndexStatus, _get_bm25_index_for_ctx, _get_search_index
     from cinemateca.device import device_from_config
+    from cinemateca.library import FilmContext
     from cinemateca.models.registry import get_image_embedder
     from cinemateca.search.cache import SearchIndex
 
@@ -369,165 +337,25 @@ def _build_fixture(cfg, *, slug: str) -> BenchFixture:
     )
 
 
-def _bm25_query(bm25, query: str, top_k: int) -> list[tuple[int, float]]:
-    """One BM25 query → ranked list (delegates straight to the index)."""
-    return bm25.query(query, top_k=top_k)
-
-
 # ─── Per-query timed measurements ─────────────────────────────────────────────
-
-
-def _time_clip(fx: BenchFixture, query: str, *, raw_k: int, top_k: int) -> float:
-    """Total ms for a CLIP-only query through production ``search_text``."""
-    from cinemateca.search.clip import search_text
-
-    t0 = time.perf_counter()
-    _ = search_text(fx.index, query, [], {}, top_k, fx.min_similarity)
-    return (time.perf_counter() - t0) * 1000.0
-
-
-def _time_bm25(fx: BenchFixture, query: str, *, raw_k: int, top_k: int) -> float:
-    """Total ms for a BM25-only query."""
-    t0 = time.perf_counter()
-    _ = _bm25_query(fx.bm25, query, raw_k)
-    return (time.perf_counter() - t0) * 1000.0
-
-
-def _time_hybrid(fx: BenchFixture, query: str, *, raw_k: int, top_k: int) -> dict:
-    """Total + 4 sub-stage timings for one hybrid query.
-
-    Returns ``{"total": ms, "clip_best_row": ms, "clip_search": ms,
-    "bm25_query": ms, "rrf_materialize": ms}``. The four sub-stage sums
-    should be ≤ total (small difference = ``time.perf_counter()`` jitter
-    + glue cost).
-    """
-    from cinemateca.retrieval.hybrid import fuse_rrf
-    from cinemateca.search.clip import search_text
-    from cinemateca.search.hybrid import (
-        _best_row_by_sid_from_embeddings,
-        _fused_to_dataframe,
-    )
-
-    t0 = time.perf_counter()
-
-    t_a = time.perf_counter()
-    best_row_by_sid = _best_row_by_sid_from_embeddings(fx.index, query)
-    t_b = time.perf_counter()
-    clip_df = search_text(fx.index, query, [], {}, raw_k, fx.min_similarity)
-    clip_ranked: list[tuple[int, float]] = (
-        [(int(row.scene_id), float(row.similarity)) for row in clip_df.itertuples(index=False)]
-        if not clip_df.empty
-        else []
-    )
-    t_c = time.perf_counter()
-    bm25_hits = _bm25_query(fx.bm25, query, raw_k)
-    t_d = time.perf_counter()
-    fused = fuse_rrf(clip_ranked, bm25_hits, sem_w=SEM_W, bm25_w=BM25_W, k_rrf=RRF_K)[:top_k]
-    _ = _fused_to_dataframe(
-        fused,
-        clip_df,
-        fx.index,
-        [],
-        {},
-        top_k,
-        best_row_by_sid=best_row_by_sid,
-    )
-    t_e = time.perf_counter()
-
-    total = (t_e - t0) * 1000.0
-    return {
-        "total": total,
-        "clip_best_row": (t_b - t_a) * 1000.0,
-        "clip_search": (t_c - t_b) * 1000.0,
-        "bm25_query": (t_d - t_c) * 1000.0,
-        "rrf_materialize": (t_e - t_d) * 1000.0,
-    }
-
+# Implementations live in cinemateca.eval.bench (E6).
 
 # ─── Warm-up ──────────────────────────────────────────────────────────────────
-
-
-def _warmup(fx: BenchFixture, *, raw_k: int, top_k: int) -> None:
-    """Run ``WARMUP_QUERIES`` throwaway queries through every code path.
-
-    This primes:
-      * the CLIP forward pass (CUDA kernels JIT-compile + cuDNN
-        autotunes on first call);
-      * the BM25 ``get_scores`` numpy buffers;
-      * the per-film ``_cached_bm25_index`` lru_cache (already warm
-        from the fixture build, but the call cost itself is also
-        warmed here);
-      * any module-level lazy imports inside ``fuse_rrf``.
-    """
-    warm_queries = [
-        "two men talking",
-        "a horse running through a field",
-        "interior office scene",
-        "close-up of a face",
-        "outdoor crowd shot",
-    ]
-    for q in warm_queries[:WARMUP_QUERIES]:
-        _time_hybrid(fx, q, raw_k=raw_k, top_k=top_k)
-
-
+# _warmup imported above from cinemateca.eval.bench.
 # ─── Main bench loop ──────────────────────────────────────────────────────────
+from cinemateca.eval.bench import (  # noqa: E402
+    bench_retrievers,  # noqa: E402
+)
 
 
 def run_bench(fx: BenchFixture, queries: list[str], *, top_k: int) -> dict:
-    """Run the full timed loop and return a results dict ready for JSON dump."""
-    # Mirrors search_hybrid's 4× widening before it passes raw_k into
-    # search_text and BM25.
-    raw_k = max(top_k * 4, 1)
+    """Run the full timed loop and return a results dict ready for JSON dump.
 
-    print(f"  warm-up: {WARMUP_QUERIES} throwaway queries…", flush=True)
-    _warmup(fx, raw_k=raw_k, top_k=top_k)
-
-    print(f"  timing {len(queries)} queries x 3 modes (k={top_k}, raw_k={raw_k})…", flush=True)
-    clip_ms: list[float] = []
-    bm25_ms: list[float] = []
-    hybrid_total_ms: list[float] = []
-    stage_ms: dict[str, list[float]] = {
-        "clip_best_row": [],
-        "clip_search": [],
-        "bm25_query": [],
-        "rrf_materialize": [],
-    }
-
-    t_loop = time.perf_counter()
-    for i, q in enumerate(queries):
-        clip_ms.append(_time_clip(fx, q, raw_k=raw_k, top_k=top_k))
-        bm25_ms.append(_time_bm25(fx, q, raw_k=raw_k, top_k=top_k))
-        h = _time_hybrid(fx, q, raw_k=raw_k, top_k=top_k)
-        hybrid_total_ms.append(h["total"])
-        for stage, val in h.items():
-            if stage == "total":
-                continue
-            stage_ms[stage].append(val)
-    loop_wall = time.perf_counter() - t_loop
-
-    return {
-        "n_queries": len(queries),
-        "top_k": top_k,
-        "raw_k": raw_k,
-        "loop_wall_s": loop_wall,
-        "modes": {
-            "clip": _summary(clip_ms),
-            "bm25": _summary(bm25_ms),
-            "hybrid": _summary(hybrid_total_ms),
-        },
-        "hybrid_stages": {stage: _summary(vals) for stage, vals in stage_ms.items()},
-        # Keep raw samples around — small (3 lists × N floats) and lets
-        # downstream analysis recompute different percentiles.
-        "raw_samples_ms": {
-            "clip": clip_ms,
-            "bm25": bm25_ms,
-            "hybrid_total": hybrid_total_ms,
-            "hybrid_clip_best_row": stage_ms["clip_best_row"],
-            "hybrid_clip_search": stage_ms["clip_search"],
-            "hybrid_bm25_query": stage_ms["bm25_query"],
-            "hybrid_rrf_materialize": stage_ms["rrf_materialize"],
-        },
-    }
+    Delegates to ``cinemateca.eval.bench.bench_retrievers`` (E6) and calls
+    ``.as_dict()`` on the result so writers receive the identical payload
+    structure the old inline implementation produced.
+    """
+    return bench_retrievers(fx, queries, top_k=top_k).as_dict()
 
 
 # ─── Output: JSON + Markdown ──────────────────────────────────────────────────
@@ -740,12 +568,12 @@ def _check_index_exists(cfg, *, film: str | None, smoke: bool) -> bool:
     if film is not None:
         for f in films:
             if f.slug == film:
-                idx_path = Path(cfg.paths.library_dir) / film / "embeddings" / "clip_embeddings.npy"
+                idx_path = Path(cfg.paths.library_dir) / film / "embeddings" / "keyframe_embeddings.npy"
                 return idx_path.exists()
         return False
     # Any film with a CLIP index will do.
     for f in films:
-        idx_path = Path(cfg.paths.library_dir) / f.slug / "embeddings" / "clip_embeddings.npy"
+        idx_path = Path(cfg.paths.library_dir) / f.slug / "embeddings" / "keyframe_embeddings.npy"
         if idx_path.exists():
             return True
     return False
