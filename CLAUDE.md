@@ -481,8 +481,18 @@ defer features; timeline extension is one option among several. Grilled
       copy + records the 90s video.
 
 ### Month 4 — Eval + writeup + launch
-- [ ] Ablation table + per-modality breakdown
-- [ ] Failure-mode analysis (5–10 queries explained)
+- [x] Ablation table + per-modality breakdown — WS-4 E2 (proxy-first ablation,
+  KI/PR/HY labels; 6 retriever-variant rows on the SigLIP2 default —
+  CLIP/BM25/hybrid/hybrid+rerank/fusion/OpenCLIP) in `docs/EVALUATION_RESULTS.md`
+  §M4; per-modality scoring (E3) via `run_eval --modality {text,image,audio,fusion,rhyme,all}`.
+  Numbers are HY-proxy on the Jeca Tatu corpus; they upgrade to human-validated
+  on curator grades (`eval export` → `run_ablation --grades`). Evidence: hybrid
+  (R@5 0.467) > CLIP (0.444); SigLIP2 > OpenCLIP; rerank *hurts* on short
+  captions → confirms C5 default-OFF.
+- [x] Failure-mode analysis (5–10 queries explained) — WS-4 E4: 8 worst-query
+  cases with real Moondream captions + cross-retriever ranks in
+  `docs/FAILURE_ANALYSIS.md` §M4. Key finding: HY label-coverage (not retrieval)
+  is the dominant nDCG ceiling → curator grading is the real fix.
 - [ ] Technical blog post published (own domain + LinkedIn article)
 - [ ] 90-second demo video published
 - [ ] README + GitHub polish + `v1.0.0` release tag
