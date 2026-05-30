@@ -39,9 +39,7 @@ def test_export_error_is_artefact():
     assert issubclass(ExportError, ArtefactError)
 
 
-def test_upload_rejected_is_single_user_input_class():
-    from api.services._search_image import UploadRejected as ApiUploadRejected
+def test_upload_rejected_is_user_input_class():
     from cinemateca.search.types import UploadRejected as CoreUploadRejected
 
-    assert ApiUploadRejected is CoreUploadRejected  # de-duplicated
     assert issubclass(CoreUploadRejected, UserInputError)

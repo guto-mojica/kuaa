@@ -32,10 +32,8 @@ EXEMPTIONS: set[str] = {
     "api/routes/eval.py",
     # Grew past cap during getting_ready_to_launch(pg) merge (audio search,
     # fusion, rimas MMR, scene list additions). Deferred extraction.
-    "api/services/_scenes_list.py",
     "api/services/catalog.py",
     "api/services/search.py",
-    "api/services/_search_text.py",
     "api/routes/search.py",
     "api/routes/rimas.py",
 }

@@ -30,8 +30,7 @@ from pathlib import Path
 from typing import Any, TypedDict
 
 from api.jobs import active_jobs
-from api.services.film_service import list_films
-from cinemateca.library import Film, LibraryState
+from cinemateca.library import Film, LibraryState, scan_library
 
 
 class ChromeContext(TypedDict):
@@ -198,7 +197,7 @@ def build_chrome_context(
     from cinemateca.library import library_state
 
     library_dir = Path(cfg.paths.library_dir)
-    films = list_films(library_dir)
+    films = scan_library(library_dir)
     lstate = library_state(library_dir)
 
     # ── Active job slug derivation ────────────────────────────────────
