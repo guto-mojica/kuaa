@@ -1,4 +1,5 @@
 """C5 — find(rerank=True) returns a reranked, typed SearchResult end-to-end."""
+
 from __future__ import annotations
 
 import sys
@@ -25,8 +26,12 @@ def stub_index(monkeypatch):
 
     embeddings = np.array([[1.0, 0.0], [0.0, 1.0]], dtype=np.float32)
     kf_df = pd.DataFrame(
-        {"scene_id": [1, 2], "filepath": ["/p/1.jpg", "/p/2.jpg"],
-         "description": ["no signal", "this is a match"], "similarity": [0.9, 0.1]}
+        {
+            "scene_id": [1, 2],
+            "filepath": ["/p/1.jpg", "/p/2.jpg"],
+            "description": ["no signal", "this is a match"],
+            "similarity": [0.9, 0.1],
+        }
     )
 
     class _Emb:
@@ -48,9 +53,7 @@ def test_find_rerank_true_returns_typed_reranked_result(stub_index) -> None:
     from types import SimpleNamespace
 
     film = SimpleNamespace(slug="a", metadata_dir=None, embeddings_dir=None)
-    out = find(
-        Query.of_text("cats"), film=film, mode="clip", top_k=5, rerank=True
-    )
+    out = find(Query.of_text("cats"), film=film, mode="clip", top_k=5, rerank=True)
     assert isinstance(out, SearchResult)
     assert out.reranker_applied is True
     # the "match" description is promoted to rank 0 by the cross-encoder.

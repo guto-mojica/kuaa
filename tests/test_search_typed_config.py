@@ -20,6 +20,7 @@ Non-vacuity guarantee: reverting any one ``cfg: Settings`` back to
 ``cfg: Any`` causes ``get_type_hints`` to return ``typing.Any`` for that
 parameter, and the corresponding test fails.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -72,9 +73,7 @@ def test_find_cfg_is_settings_optional() -> None:
     """find's cfg parameter must be annotated Settings | None (not Any)."""
     ann = _ann(_dispatch_mod.find, "cfg")
     # get_type_hints resolves "Settings | None" as Optional[Settings]
-    assert ann == typing.Optional[Settings], (
-        f"expected Optional[Settings], got {ann!r}"
-    )
+    assert ann == (Settings | None), f"expected Optional[Settings], got {ann!r}"
 
 
 def test_no_bare_Any_in_aggregate_public_signatures() -> None:
@@ -88,7 +87,5 @@ def test_no_bare_Any_in_aggregate_public_signatures() -> None:
         fn = getattr(_agg_mod, name)
         hints = typing.get_type_hints(fn)  # type: ignore[arg-type]
         cfg_ann = hints.get("cfg")
-        assert cfg_ann is not typing.Any, (
-            f"{name}.cfg is still annotated as Any — must be Settings"
-        )
+        assert cfg_ann is not typing.Any, f"{name}.cfg is still annotated as Any — must be Settings"
         assert cfg_ann is not None, f"{name} has no 'cfg' annotation at all"

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-
 
 def test_openapi_lists_json_paths(client) -> None:
     spec = client.get("/openapi.json").json()
@@ -77,10 +75,7 @@ def test_search_params_typed_in_openapi(client) -> None:
     constraints (ge/le → minimum/maximum) are preserved in the inline schema.
     """
     spec = client.get("/openapi.json").json()
-    params = {
-        p["name"]: p
-        for p in spec["paths"]["/api/search"]["get"].get("parameters", [])
-    }
+    params = {p["name"]: p for p in spec["paths"]["/api/search"]["get"].get("parameters", [])}
     # All typed params must be present
     for name in ("q", "retriever", "modality", "top_k", "reranker_enabled"):
         assert name in params, f"param {name!r} missing from /api/search"

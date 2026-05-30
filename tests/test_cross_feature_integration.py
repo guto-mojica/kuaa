@@ -1,4 +1,5 @@
 """C11 — stacked find(hybrid) → rerank end-to-end against a hermetic index."""
+
 from __future__ import annotations
 
 import sys
@@ -70,7 +71,5 @@ def test_find_hybrid_then_rerank_stacked(hybrid_stub) -> None:
     assert isinstance(out, SearchResult)
     assert out.reranker_applied is True
     assert out.fusion_used is True
-    serializable = [
-        {"scene_id": h.scene_id, "rerank_score": h.rerank_score} for h in out.hits
-    ]
+    serializable = [{"scene_id": h.scene_id, "rerank_score": h.rerank_score} for h in out.hits]
     assert_snapshot("stacked_hybrid_rerank", serializable)

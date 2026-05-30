@@ -1,4 +1,5 @@
 """Guard against resurrecting the dead api/services migration scaffolding."""
+
 from __future__ import annotations
 
 import ast

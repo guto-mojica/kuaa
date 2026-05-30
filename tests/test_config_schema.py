@@ -15,14 +15,14 @@ model-selector roles.
 
 from __future__ import annotations
 
-import yaml
+# ─── Repo root for reading default.yaml in overlay tests ────────────────────
+from pathlib import Path
+
 import pytest
+import yaml
 
 from cinemateca.config import CONFIG_VERSION, Config, Settings, load_config
 from cinemateca.errors import ConfigError
-
-# ─── Repo root for reading default.yaml in overlay tests ────────────────────
-from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _DEFAULT_YAML = _REPO_ROOT / "config" / "default.yaml"
@@ -36,6 +36,7 @@ def _overlay(tmp_path: Path, patch: dict) -> Path:
 
 
 # ─── F1 coverage (do not duplicate) ─────────────────────────────────────────
+
 
 def test_load_default_returns_settings_with_dot_access(tmp_path):
     cfg = load_config(project_root=tmp_path, ensure_dirs=False)
@@ -86,6 +87,7 @@ def test_unknown_top_level_key_rejected(tmp_path):
 
 
 # ─── T1 additions ─────────────────────────────────────────────────────────────
+
 
 def test_default_yaml_loads_no_args():
     """load_config() with no arguments resolves against CWD; must return Settings."""

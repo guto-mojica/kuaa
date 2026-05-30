@@ -1,4 +1,5 @@
 """Behavior-preserving gate for the processing route thinning (A2/A9)."""
+
 from __future__ import annotations
 
 from tests._snapshot import assert_snapshot

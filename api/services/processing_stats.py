@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -19,8 +20,6 @@ logger = logging.getLogger(__name__)
 # Kept here alongside ``_fallback_substeps`` because ``build_active_step``
 # (which remains in processing_service) calls ``_fallback_substeps``, and
 # we re-export it from processing_service to keep the public surface intact.
-
-from types import MappingProxyType
 
 _SUBSTEP_RECIPES: MappingProxyType[str, tuple[dict[str, str], ...]] = MappingProxyType(
     {

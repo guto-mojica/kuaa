@@ -684,7 +684,7 @@ def write_markdown(payload: dict, out_path: Path) -> None:
 # ─── Entry point ──────────────────────────────────────────────────────────────
 
 
-SMOKE_N = 8   # --smoke default: small query count for CI / quick local runs
+SMOKE_N = 8  # --smoke default: small query count for CI / quick local runs
 SMOKE_K = 20  # --smoke default top_k
 
 
@@ -745,12 +745,7 @@ def _check_index_exists(cfg, *, film: str | None, smoke: bool) -> bool:
         return False
     # Any film with a CLIP index will do.
     for f in films:
-        idx_path = (
-            Path(cfg.paths.library_dir)
-            / f.slug
-            / "embeddings"
-            / "clip_embeddings.npy"
-        )
+        idx_path = Path(cfg.paths.library_dir) / f.slug / "embeddings" / "clip_embeddings.npy"
         if idx_path.exists():
             return True
     return False
@@ -761,9 +756,9 @@ def main(argv: list[str] | None = None) -> int:
 
     # --smoke: override n and k to small defaults for CI / quick runs.
     if args.smoke:
-        if args.n == 100:   # only override if user didn't set --n explicitly
+        if args.n == 100:  # only override if user didn't set --n explicitly
             args.n = SMOKE_N
-        if args.k == 50:    # only override if user didn't set --k explicitly
+        if args.k == 50:  # only override if user didn't set --k explicitly
             args.k = SMOKE_K
 
     out_json = Path(args.out).expanduser()
@@ -813,8 +808,7 @@ def main(argv: list[str] | None = None) -> int:
         # confusing traceback; _pick_film will produce a similar message but
         # this guard fires earlier and is more explicit.
         print(
-            f"SKIP: {msg}. "
-            "Run `uv run cinemateca process <video>` to build an index.",
+            f"SKIP: {msg}. " "Run `uv run cinemateca process <video>` to build an index.",
             flush=True,
         )
         return 0

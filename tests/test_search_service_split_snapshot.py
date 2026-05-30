@@ -1,4 +1,5 @@
 """Byte-identical snapshot gate for the search service decomposition (A1)."""
+
 from __future__ import annotations
 
 from tests._snapshot import assert_snapshot

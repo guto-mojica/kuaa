@@ -1,4 +1,5 @@
 """C9 — SearchResult carries per-query metadata."""
+
 from __future__ import annotations
 
 from cinemateca.search.types import Hit, Query, SearchResult

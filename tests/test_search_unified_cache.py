@@ -1,4 +1,5 @@
 """C4 — one StatCache; clear_film invalidates exactly one film; counters work."""
+
 from __future__ import annotations
 
 from pathlib import Path

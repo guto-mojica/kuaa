@@ -1,4 +1,5 @@
 """Byte-identical gate for the route-thinning relocations (A2)."""
+
 from __future__ import annotations
 
 import pytest

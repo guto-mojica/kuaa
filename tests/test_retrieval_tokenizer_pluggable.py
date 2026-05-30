@@ -1,8 +1,8 @@
 """C6 — pluggable tokenizer; PT-aware option folds diacritics/stopwords."""
+
 from __future__ import annotations
 
 from cinemateca.retrieval.tokenize import (
-    MultilingualTokenizer,
     RegexTokenizer,
     Tokenizer,
     get_tokenizer,

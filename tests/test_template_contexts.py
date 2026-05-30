@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helper
 # ---------------------------------------------------------------------------
@@ -76,7 +75,7 @@ def test_search_context_has_all_declared_keys(seed_metadata) -> None:
 
 def test_inspector_context_has_all_declared_keys(seed_metadata) -> None:
     """build_inspector_context returns every required InspectorContext key (when it resolves)."""
-    paths = seed_metadata()
+    seed_metadata()
 
     from api.contexts import InspectorContext
     from api.deps import get_config

@@ -1,4 +1,5 @@
 """A9: job lifecycle is an explicit, guarded state machine."""
+
 from __future__ import annotations
 
 import pytest

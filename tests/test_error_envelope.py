@@ -21,7 +21,6 @@ from cinemateca.errors import (
     UserInputError,
 )
 
-
 # ---------------------------------------------------------------------------
 # Mapping table — statuses come from http_status_for (F2 SoT).
 # RetrievalError → 500 (NOT 422 as the plan draft said; the SoT wins).
@@ -34,7 +33,7 @@ from cinemateca.errors import (
     [
         (UserInputError("bad"), 400),
         (IndexMissing("no index"), 404),
-        (RetrievalError("retr"), 500),   # SoT says 500, not 422
+        (RetrievalError("retr"), 500),  # SoT says 500, not 422
         (ConfigError("cfg"), 500),
     ],
 )
@@ -52,15 +51,15 @@ def test_error_maps_to_status_and_envelope(client, exc, expected) -> None:
     app.include_router(router)
     try:
         r = client.get(path, headers={"accept": "application/json"})
-        assert r.status_code == expected, f"{type(exc).__name__}: got {r.status_code}, want {expected}"
+        assert (
+            r.status_code == expected
+        ), f"{type(exc).__name__}: got {r.status_code}, want {expected}"
         body = r.json()
         assert set(body) >= {"error", "code", "status"}, f"missing envelope keys: {set(body)}"
         assert body["status"] == expected
         assert body["code"]  # F2 base carries a stable .code
     finally:
-        app.router.routes[:] = [
-            rt for rt in app.router.routes if getattr(rt, "path", "") != path
-        ]
+        app.router.routes[:] = [rt for rt in app.router.routes if getattr(rt, "path", "") != path]
 
 
 # ---------------------------------------------------------------------------
@@ -109,8 +108,9 @@ def test_film_slug_query_silent_aggregate_is_preserved(client) -> None:
 
 def test_htmx_request_gets_error_partial_not_json(client) -> None:
     """When HX-Request header is set, handler returns HTML partial, not JSON."""
-    from api.server import app
     from fastapi import APIRouter
+
+    from api.server import app
 
     router = APIRouter()
 
@@ -122,9 +122,9 @@ def test_htmx_request_gets_error_partial_not_json(client) -> None:
     try:
         r = client.get("/__test_raise_htmx", headers={"HX-Request": "true"})
         assert r.status_code == 400, f"got {r.status_code}"
-        assert "text/html" in r.headers["content-type"], (
-            f"expected text/html, got {r.headers['content-type']}"
-        )
+        assert (
+            "text/html" in r.headers["content-type"]
+        ), f"expected text/html, got {r.headers['content-type']}"
     finally:
         app.router.routes[:] = [
             rt for rt in app.router.routes if getattr(rt, "path", "") != "/__test_raise_htmx"

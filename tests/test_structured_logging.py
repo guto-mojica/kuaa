@@ -10,9 +10,9 @@ Verifies:
 
 No new dependencies — stdlib ``logging`` + the existing F5 formatter.
 """
+
 from __future__ import annotations
 
-import io
 import json
 import logging
 
@@ -34,9 +34,17 @@ def _make_cfg_json_logs(tmp_path):
     cfg.logging.json_logs = True
     cfg.logging.to_file = False
     # Rebase paths to tmp so any residual dir-creation calls are safe.
-    for attr in ("data_dir", "raw_dir", "frames_dir", "metadata_dir",
-                 "embeddings_dir", "library_dir", "models_dir",
-                 "outputs_dir", "logs_dir"):
+    for attr in (
+        "data_dir",
+        "raw_dir",
+        "frames_dir",
+        "metadata_dir",
+        "embeddings_dir",
+        "library_dir",
+        "models_dir",
+        "outputs_dir",
+        "logs_dir",
+    ):
         (tmp_path / attr).mkdir(parents=True, exist_ok=True)
         setattr(cfg.paths, attr, tmp_path / attr)
     return cfg
@@ -63,9 +71,9 @@ def test_json_logs_toggle_installs_formatter_and_emits_valid_json(tmp_path):
     # 1. At least one root handler must carry _JsonFormatter.
     root = logging.getLogger()
     json_handlers = [h for h in root.handlers if isinstance(h.formatter, _JsonFormatter)]
-    assert json_handlers, (
-        "setup_logging(json_logs=True) did not install _JsonFormatter on any handler"
-    )
+    assert (
+        json_handlers
+    ), "setup_logging(json_logs=True) did not install _JsonFormatter on any handler"
 
     # 2. Formatting a synthetic record through _JsonFormatter yields valid JSON
     #    with every required key.
@@ -91,9 +99,9 @@ def test_json_logs_toggle_installs_formatter_and_emits_valid_json(tmp_path):
     for key in ("ts", "level", "name", "msg", "request_id"):
         assert key in obj, f"JSON log missing key {key!r}: {obj}"
 
-    assert obj["request_id"] is None, (
-        f"request_id should be null when not set via extra; got {obj['request_id']!r}"
-    )
+    assert (
+        obj["request_id"] is None
+    ), f"request_id should be null when not set via extra; got {obj['request_id']!r}"
     assert obj["msg"] == "hello structured world"
     assert obj["level"] == "INFO"
 
@@ -110,9 +118,9 @@ def test_json_logs_toggle_installs_formatter_and_emits_valid_json(tmp_path):
     record_with_rid.request_id = "test-rid-1234"
     line_rid = formatter.format(record_with_rid)
     obj_rid = json.loads(line_rid)
-    assert obj_rid["request_id"] == "test-rid-1234", (
-        f"request_id not propagated; got {obj_rid['request_id']!r}"
-    )
+    assert (
+        obj_rid["request_id"] == "test-rid-1234"
+    ), f"request_id not propagated; got {obj_rid['request_id']!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -129,17 +137,14 @@ def test_access_log_record_carries_f5_fields(client, caplog):
     with caplog.at_level(logging.INFO, logger="api.access"):
         r = client.get("/health")
 
-    assert r.status_code == 200, (
-        f"/health returned {r.status_code}; F5 access-log test requires a 200 route"
-    )
+    assert (
+        r.status_code == 200
+    ), f"/health returned {r.status_code}; F5 access-log test requires a 200 route"
 
-    access_records = [
-        rec for rec in caplog.records
-        if rec.name == "api.access"
-    ]
-    assert access_records, (
-        "No api.access log record found; RequestContextMiddleware must be registered"
-    )
+    access_records = [rec for rec in caplog.records if rec.name == "api.access"]
+    assert (
+        access_records
+    ), "No api.access log record found; RequestContextMiddleware must be registered"
 
     rec = access_records[-1]
     for field in ("method", "path", "status", "duration_ms", "request_id"):
@@ -163,8 +168,8 @@ def test_access_log_record_carries_f5_fields(client, caplog):
 
 def test_json_logs_false_does_not_install_json_formatter(tmp_path):
     """Regression guard: default json_logs=False leaves plain text formatter."""
-    from cinemateca.config.loader import _JsonFormatter, setup_logging
     from cinemateca.config import load_config
+    from cinemateca.config.loader import _JsonFormatter, setup_logging
 
     cfg = load_config(project_root=tmp_path, ensure_dirs=False)
     cfg.logging.json_logs = False
@@ -173,9 +178,6 @@ def test_json_logs_false_does_not_install_json_formatter(tmp_path):
     setup_logging(cfg)
 
     json_handlers = [
-        h for h in logging.getLogger().handlers
-        if isinstance(h.formatter, _JsonFormatter)
+        h for h in logging.getLogger().handlers if isinstance(h.formatter, _JsonFormatter)
     ]
-    assert not json_handlers, (
-        "setup_logging(json_logs=False) should NOT install _JsonFormatter"
-    )
+    assert not json_handlers, "setup_logging(json_logs=False) should NOT install _JsonFormatter"
