@@ -26,6 +26,9 @@ Mojica frame redesign). The surface has five named blocks:
 The context shape returned by :func:`build_about_context` is documented
 inline below and consumed verbatim by
 ``web/templates/partials/about_modal.html``.
+
+Static content (project-wide, not per-request) is extracted into
+:mod:`api.services._about_data` to keep this module ≤ 250 LOC.
 """
 
 from __future__ import annotations
@@ -36,123 +39,16 @@ from typing import Any
 
 from cinemateca import library
 
-# ── Static content (project-wide, not per-request) ───────────────────────────
+from api.services._about_data import credits_list, model_attributions, tech_stack
 
-
-def model_attributions() -> list[dict[str, Any]]:
-    """Return the model-attribution cards rendered in the About modal.
-
-    Order follows the pipeline: visual embedding (CLIP), scene description
-    (Moondream), object detection (YOLO), face detection (MTCNN), then
-    audio embedding (CLAP). Each entry has:
-
-      * ``key``    — one- or two-char badge text (drives the coloured
-                     ``.ab-model .ico`` square at the start of the card).
-      * ``color``  — colour variant for the badge: ``""`` (accent purple,
-                     the default) / ``"yellow"`` / ``"green"`` / ``"orange"``
-                     / ``"pink"``. Maps to the corresponding
-                     ``.ab-model .ico.<color>`` rule in ``about.css``.
-      * ``name``   — HuggingFace / GitHub identifier, rendered in mono.
-      * ``version``— short version tag shown next to the name.
-      * ``role``   — short sentence describing what the model does.
-      * ``org``    — owning organisation, shown right-aligned.
-      * ``lic``    — license string shown in the right-most pill.
-      * ``repo_url``— GitHub repo. Optional — when empty/None the "repo"
-                     anchor is omitted by the template.
-    """
-    return [
-        {
-            "key": "C",
-            "color": "",
-            "name": "openai/clip-vit-large-patch14",
-            "version": "L/14",
-            "role": "Visual embedding",
-            "org": "OpenAI",
-            "lic": "MIT",
-            "repo_url": "https://github.com/openai/CLIP",
-        },
-        {
-            "key": "M",
-            "color": "yellow",
-            "name": "vikhyatk/moondream2",
-            "version": "v2",
-            "role": "Scene description",
-            "org": "Vikhyat",
-            "lic": "Apache-2",
-            "repo_url": "https://github.com/vikhyat/moondream",
-        },
-        {
-            "key": "Y",
-            "color": "green",
-            "name": "ultralytics/yolov8m",
-            "version": "v8m",
-            "role": "Object detection",
-            "org": "Ultralytics",
-            "lic": "AGPL-3",
-            "repo_url": "https://github.com/ultralytics/ultralytics",
-        },
-        {
-            "key": "F",
-            "color": "orange",
-            "name": "facenet/mtcnn",
-            "version": "",
-            "role": "Face detection",
-            "org": "facenet-pytorch",
-            "lic": "MIT",
-            "repo_url": "https://github.com/timesler/facenet-pytorch",
-        },
-        {
-            "key": "A",
-            "color": "pink",
-            "name": "laion/larger_clap_general",
-            "version": "general",
-            "role": "Audio embedding",
-            "org": "LAION",
-            "lic": "MIT",
-            "repo_url": "https://github.com/LAION-AI/CLAP",
-        },
-    ]
-
-
-def tech_stack() -> list[dict[str, Any]]:
-    """Return the tech-stack pills shown in the Stack section.
-
-    Each entry has a ``label`` (visible mono text) and an optional
-    ``kind`` colour variant: ``""`` (default neutral grey), ``"ac"``,
-    ``"green"``, ``"yellow"``, ``"pink"``, or ``"orange"`` — mapped to
-    ``.ab-stack-pill.<kind>`` in ``about.css``.
-    """
-    return [
-        {"label": "Python 3.10+", "kind": ""},
-        {"label": "FastAPI", "kind": "ac"},
-        {"label": "Jinja2", "kind": "ac"},
-        {"label": "HTMX 1.9", "kind": "ac"},
-        {"label": "PyTorch", "kind": "yellow"},
-        {"label": "NumPy", "kind": ""},
-        {"label": "FFmpeg", "kind": "pink"},
-        {"label": "PySceneDetect", "kind": "green"},
-        {"label": "Babel · PT-BR / EN", "kind": ""},
-    ]
-
-
-def credits_list() -> list[dict[str, Any]]:
-    """Return the institutional credits grid (label / value pairs).
-
-    ``dim=True`` softens the value to ``--c-text-2`` (used for tertiary
-    credits like model authors and acknowledgements).
-    """
-    return [
-        {"role": "Concept", "name": "Cinemateca Mojica · Curatorial team", "dim": False},
-        {"role": "Engineering", "name": "Rafael Perez", "dim": False},
-        {
-            "role": "AI integration",
-            "name": "moondream, openai, ultralytics, laion (model authors)",
-            "dim": True,
-        },
-        {"role": "Funding", "name": "—", "dim": True},
-        {"role": "Year", "name": "2026", "dim": False},
-    ]
-
+__all__ = [
+    "model_attributions",
+    "tech_stack",
+    "credits_list",
+    "about_stats",
+    "mosaic_keyframes",
+    "build_about_context",
+]
 
 # ── Dynamic content (per-request, depends on the library) ─────────────────────
 

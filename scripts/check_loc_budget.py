@@ -22,7 +22,6 @@ CAPS = {
 # the moment a future edit pushed them over.
 EXEMPTIONS: set[str] = {
     # P1 will remove these as services slim down.
-    "api/services/about_service.py",
     "api/services/processing_service.py",
     "api/routes/scenes.py",
     "api/routes/processing.py",
@@ -31,7 +30,6 @@ EXEMPTIONS: set[str] = {
     "api/routes/eval.py",
     # Grew past cap during getting_ready_to_launch(pg) merge (audio search,
     # fusion, rimas MMR, scene list additions). Deferred extraction.
-    "api/services/catalog.py",
     "api/routes/search.py",
     "api/routes/rimas.py",
 }

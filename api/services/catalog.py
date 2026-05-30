@@ -185,34 +185,42 @@ def build_scenes_grid(ctx: FilmContext, tags: list[str], keyword: str) -> dict:
     return {"cards": cards}
 
 
-def build_scenes_grid_aggregate(cfg: Any, tags: list[str], keyword: str) -> dict:
-    """Build the filtered scenes-grid context across ALL films.
+def _walk_library_cards(
+    cfg: Any, tags: list[str], keyword: str
+) -> tuple[list[dict], set[str]]:
+    """Shared inner loop for the two aggregate builders.
 
-    Filter-aware sibling of :func:`build_scenes_context_aggregate` for
-    the ``/api/scenes`` grid-refresh endpoint. Walks the library and
-    applies *tags* and *keyword* per film via :func:`build_cards`. Each
-    card is annotated with ``film_slug`` / ``film_title`` for template
-    grouping. Returns ``{"cards": all_cards}`` — matching the per-film
-    return shape so the same partial works in both modes.
+    Walks every registered film, loads per-film metadata, builds filtered
+    cards (tags + keyword applied), annotates each card with ``film_slug``
+    and ``film_title``, and returns ``(all_cards, all_tag_keys)``.
+    Tolerates unprocessed films: ``load_metadata`` returns empty containers
+    and the film contributes zero cards and zero tags.
     """
     library_dir = Path(cfg.paths.library_dir)
     all_cards: list[dict] = []
+    all_tags: set[str] = set()
     for film in scan_library(library_dir):
         ctx = FilmContext.for_film(cfg, film.slug)
         kf_meta, desc_by_scene, vis_by_scene, tag_index = load_metadata(ctx.metadata_dir)
         cards = build_cards(
-            kf_meta,
-            desc_by_scene,
-            vis_by_scene,
-            tag_index,
-            ctx.data_dir,
-            tags,
-            keyword,
+            kf_meta, desc_by_scene, vis_by_scene, tag_index, ctx.data_dir, tags, keyword
         )
         for c in cards:
             c["film_slug"] = film.slug
             c["film_title"] = film.title
         all_cards.extend(cards)
+        all_tags.update(tag_index.keys())
+    return all_cards, all_tags
+
+
+def build_scenes_grid_aggregate(cfg: Any, tags: list[str], keyword: str) -> dict:
+    """Build the filtered scenes-grid context across ALL films.
+
+    Filter-aware sibling of :func:`build_scenes_context_aggregate` for
+    the ``/api/scenes`` grid-refresh endpoint. Returns ``{"cards": all_cards}``
+    — matching the per-film return shape so the same partial works in both modes.
+    """
+    all_cards, _ = _walk_library_cards(cfg, tags, keyword)
     return {"cards": all_cards}
 
 
@@ -232,18 +240,7 @@ def build_scenes_context_aggregate(cfg: Any) -> dict:
     film). Loads all per-film metadata from disk on every call; large
     libraries (~100+ films) may want a request-scoped cache.
     """
-    library_dir = Path(cfg.paths.library_dir)
-    all_cards: list[dict] = []
-    all_tags: set[str] = set()
-    for film in scan_library(library_dir):
-        ctx = FilmContext.for_film(cfg, film.slug)
-        kf_meta, desc_by_scene, vis_by_scene, tag_index = load_metadata(ctx.metadata_dir)
-        cards = build_cards(kf_meta, desc_by_scene, vis_by_scene, tag_index, ctx.data_dir, [], "")
-        for c in cards:
-            c["film_slug"] = film.slug
-            c["film_title"] = film.title
-        all_cards.extend(cards)
-        all_tags.update(tag_index.keys())
+    all_cards, all_tags = _walk_library_cards(cfg, [], "")
     return {
         "cards": all_cards,
         "available_tags": sorted(all_tags),
