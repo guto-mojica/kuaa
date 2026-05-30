@@ -15,16 +15,10 @@ CAPS = {
     "api/routes": 150,
 }
 
-# Exemptions during the migration. Each entry names a file currently
-# over its cap; the entry stays until the cap-violating commit is
-# refactored away (a "P*" phase task). Files that already meet their
-# cap are NOT exempted — adding them would silently disable the guard
-# the moment a future edit pushed them over.
-EXEMPTIONS: set[str] = {
-    # P1 will remove these as services slim down.
-    "api/services/processing_service.py",
-    "api/routes/processing.py",
-}
+# All migration exemptions have been cleared (Tasks 1–6 complete, G1 met).
+# Files that already meet their cap are NOT exempted — adding them would
+# silently disable the guard the moment a future edit pushed them over.
+EXEMPTIONS: set[str] = set()  # G1 met — all migration exemptions cleared (Tasks 1–6)
 
 
 def main() -> int:

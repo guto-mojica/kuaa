@@ -1074,11 +1074,11 @@ class TestProcessingSplitFilterCrash:
         """The SSE path (_render_stepper) and the initial {% include %}
         must use the identical single-object contract. Render via the
         helper and assert it produces the same step/progress markup."""
-        from api.routes.processing import _render_stepper
+        from api.services.processing_render import render_stepper
 
         job = inject_job()
         job.progress = 0.4
-        html = _render_stepper(job)
+        html = render_stepper(job)
         assert "stepper" in html
         assert "progress-fill" in html
         assert "stepper__item--active" in html

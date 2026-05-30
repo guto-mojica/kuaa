@@ -32,6 +32,7 @@ from api.routes import (
 )
 from api.services.annotations import build_annotate_context, normalize_annotate_tab
 from api.services.chrome_service import build_chrome_context
+from api.services.processing_render import build_processing_context
 from api.services.rhymes_service import build_rimas_context
 from api.services.scenes import build_cenas_context, build_timeline_context
 from api.templates import templates
@@ -94,7 +95,7 @@ _TAB_CONTEXT_BUILDERS = {
     # parsing ``?film=<slug>``. See the matching ``elif`` branches below.
     # annotate is handled directly in render_page's if/elif chain so it can
     # receive current_slug (from ?film= query param or active_film cookie).
-    "processing": processing.build_processing_context,
+    "processing": build_processing_context,
     # Rimas Visuais (cross-film visual rhymes) — Task 21 wires the real
     # service builder. The full-page render reads ``?anchor=`` like the
     # tab-fragment endpoint so a deep-share URL (``/rimas?anchor=jeca/1``)
