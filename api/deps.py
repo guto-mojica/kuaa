@@ -6,7 +6,7 @@ from functools import cache, lru_cache
 from pathlib import Path
 from typing import Literal
 
-from fastapi import Query, Request, Response
+from fastapi import Depends, Query, Request, Response
 
 ToastKind = Literal["info", "success", "warn", "error"]
 
@@ -226,3 +226,74 @@ def film_ctx(request: Request, cfg=None):
         if film_dir.exists():
             return FilmContext.for_film(cfg, slug)
     return FilmContext.from_config(cfg)
+
+
+# ── A6: FilmContext FastAPI dependencies ──────────────────────────────────────
+
+
+def resolve_film_context(cfg, slug: str | None, request):
+    """Resolve a FilmContext outside FastAPI DI (e.g. ``render_page``).
+
+    Precedence: explicit ``slug`` → cookie on ``request`` → flat aggregate.
+    Pass ``request=None`` when the caller always supplies a slug (cookie
+    fallback skipped).
+    """
+    from cinemateca.library import FilmContext
+
+    if slug is not None:
+        return FilmContext.for_film(cfg, slug)
+    if request is not None:
+        return film_ctx(request, cfg)
+    return FilmContext.from_config(cfg)
+
+
+def flat_film_context():
+    """Return a FilmContext across all films (no per-film scope).
+
+    Intended as a plain helper (not a Depends) for callers that need the
+    aggregate context when ``optional_film_context`` returns ``None``.
+    """
+    from cinemateca.library import FilmContext
+
+    return FilmContext.from_config(get_config())
+
+
+def optional_film_context(
+    request: Request, slug: str | None = Depends(film_slug_query)
+):
+    """Resolve the active FilmContext, or None for the aggregate view.
+
+    ``slug`` already validated by ``film_slug_query`` (existing dir or
+    None). ``None`` → aggregate across the library; the caller branches
+    on it.
+    """
+    from cinemateca.library import FilmContext
+
+    cfg = get_config()
+    if slug is None:
+        return None
+    return FilmContext.for_film(cfg, slug)
+
+
+def required_film_context(slug: str | None = Depends(film_slug_query)):
+    """Like ``optional_film_context`` but 404s when no film resolves."""
+    from cinemateca.errors import IndexMissing
+    from cinemateca.library import FilmContext
+
+    cfg = get_config()
+    if slug is None:
+        raise IndexMissing("a film slug is required for this endpoint")
+    return FilmContext.for_film(cfg, slug)
+
+
+def annotate_film_context(
+    request: Request, slug: str | None = Depends(film_slug_query)
+):
+    """Resolve the FilmContext for annotate routes.
+
+    Precedence: ``?film=<slug>`` → ``active_film`` cookie → flat aggregate.
+    Mirrors :func:`api.services.annotations.resolve_film_context` so
+    ``render_page`` and annotate routes share the same logic via
+    :func:`resolve_film_context`.
+    """
+    return resolve_film_context(get_config(), slug, request)

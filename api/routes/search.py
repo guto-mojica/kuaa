@@ -14,7 +14,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse
 
-from api.deps import film_slug_query, get_config, make_ctx
+from api.deps import film_slug_query, flat_film_context, get_config, make_ctx, optional_film_context, resolve_film_context  # noqa: E501
 from api.schemas import SearchParams
 from cinemateca.errors import UserInputError
 from api.services import search as search_service
@@ -26,7 +26,6 @@ from api.services._search_render import (
     render_results as _render_results,
 )
 from api.templates import templates
-from cinemateca.library import FilmContext
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -36,7 +35,7 @@ def build_search_context(slug: str | None = None) -> dict:
     """Re-exported for ``api/server.py``'s tab-context map."""
     cfg = get_config()
     if slug is not None:
-        return search_service.build_search_context(FilmContext.for_film(cfg, slug), cfg)
+        return search_service.build_search_context(resolve_film_context(cfg, slug, None), cfg)
     return search_service.build_search_context_aggregate(cfg)
 
 
@@ -58,6 +57,7 @@ async def api_search(
     params: SearchParams = Depends(SearchParams),
     tags: list[str] = Query(default=[]),
     slug: str | None = Depends(film_slug_query),
+    ctx: FilmContext | None = Depends(optional_film_context),
 ) -> HTMLResponse:
     """Semantic search across one (``?film=<slug>``) or all films."""
     q = params.q.strip()
@@ -79,7 +79,6 @@ async def api_search(
         f"min_sim={min_sim:.3f} sw={sw:.3f} bw={bw:.3f} tags={list(tags) or None} "
         f"reranker_enabled={params.reranker_enabled}"
     )
-    ctx = FilmContext.for_film(cfg, slug) if slug is not None else None
     args = (cfg, ctx, q, tags, params.top_k, min_sim, retriever, sw, bw, rrf_k)
     payload, no_index = await asyncio.get_running_loop().run_in_executor(
         None, lambda: search_service.dispatch_text_search(*args)
@@ -110,6 +109,7 @@ async def api_search_image(
     file: UploadFile = File(...),
     top_k: int = 8,
     slug: str | None = Depends(film_slug_query),
+    ctx: FilmContext | None = Depends(optional_film_context),
 ) -> HTMLResponse:
     """Image-similarity search. Upload validated first (→400 before index check)."""
     # Validate before loading the index: a bad file is a 400 regardless of state.
@@ -125,7 +125,7 @@ async def api_search_image(
         raise UserInputError(str(exc)) from exc
 
     cfg = get_config()
-    ctx = FilmContext.for_film(cfg, slug) if slug is not None else FilmContext.from_config(cfg)
+    ctx = ctx if ctx is not None else flat_film_context()
     index = search_service.load_index(
         ctx,
         mapping_filename=cfg.embeddings.mapping_filename,

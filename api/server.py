@@ -331,11 +331,9 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
             bucket=request.query_params.get("bucket"),
         )
     elif active_tab == "annotate":
-        fctx = (
-            FilmContext.for_film(cfg, current_slug)
-            if current_slug
-            else FilmContext.from_config(cfg)
-        )
+        from api.deps import resolve_film_context as _resolve_fc
+
+        fctx = _resolve_fc(cfg, current_slug, request)
         filter_param = request.query_params.get("filter") or "no_llm"
         scene_param = request.query_params.get("id")
         try:

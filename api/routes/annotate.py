@@ -10,7 +10,7 @@ import logging
 from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse
 
-from api.deps import film_slug_query, make_ctx
+from api.deps import annotate_film_context, film_slug_query, make_ctx
 from api.services.annotations import (
     build_annotate_context,
     build_description_edit_context,
@@ -18,11 +18,11 @@ from api.services.annotations import (
     load_annotations,
     normalize_annotate_tab,
     normalize_tags,
-    resolve_film_context,
     save_annotations,
     save_description,
 )
 from api.templates import templates
+from cinemateca.library import FilmContext
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -45,13 +45,14 @@ async def tab_annotate(
     id: int | None = Query(default=None),
     tab: str = Query(default="comments"),
     slug: str | None = Depends(film_slug_query),
+    fctx: FilmContext = Depends(annotate_film_context),
 ) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "partials/annotate.html",
         make_ctx(
             request, current_slug=slug, annotate_tab=normalize_annotate_tab(tab),
-            **build_annotate_context(resolve_film_context(slug, request), filter, id),
+            **build_annotate_context(fctx, filter, id),
         ),
     )
 
@@ -63,8 +64,9 @@ async def api_annotate_scene(
     filter: str = Query(default="no_llm"),
     tab: str = Query(default="comments"),
     slug: str | None = Depends(film_slug_query),
+    fctx: FilmContext = Depends(annotate_film_context),
 ) -> HTMLResponse:
-    ctx = build_scene_panel(resolve_film_context(slug, request), id, filter)
+    ctx = build_scene_panel(fctx, id, filter)
     return _scene_resp(request, slug, filter, tab, ctx)
 
 
@@ -76,8 +78,8 @@ async def api_annotate_save(
     tags: str = Form(default=""),
     tab: str = Form(default="annotations"),
     slug: str | None = Depends(film_slug_query),
+    fctx: FilmContext = Depends(annotate_film_context),
 ) -> HTMLResponse:
-    fctx = resolve_film_context(slug, request)
     new_tags = normalize_tags(tags)
     ann = load_annotations(fctx)
     ann[str(scene_id)] = new_tags
@@ -93,8 +95,8 @@ async def api_annotate_description_edit(
     scene_id: int = Query(...),
     filter: str = Query(default="no_llm"),
     slug: str | None = Depends(film_slug_query),
+    fctx: FilmContext = Depends(annotate_film_context),
 ) -> HTMLResponse:
-    fctx = resolve_film_context(slug, request)
     edit_ctx = build_description_edit_context(fctx, scene_id, filter)
     return templates.TemplateResponse(
         request,
@@ -111,8 +113,8 @@ async def api_annotate_description_save(
     description: str = Form(default=""),
     tab: str = Form(default="comments"),
     slug: str | None = Depends(film_slug_query),
+    fctx: FilmContext = Depends(annotate_film_context),
 ) -> HTMLResponse:
-    fctx = resolve_film_context(slug, request)
     save_description(fctx, scene_id, description.strip())
     logger.info("Description updated for scene %s", scene_id)
     return _scene_resp(request, slug, filter, tab, build_scene_panel(fctx, scene_id, filter),
@@ -126,8 +128,8 @@ async def api_annotate_clear(
     filter: str = Form(default="no_llm"),
     tab: str = Form(default="annotations"),
     slug: str | None = Depends(film_slug_query),
+    fctx: FilmContext = Depends(annotate_film_context),
 ) -> HTMLResponse:
-    fctx = resolve_film_context(slug, request)
     ann = load_annotations(fctx)
     ann.pop(str(scene_id), None)
     save_annotations(fctx, ann)
