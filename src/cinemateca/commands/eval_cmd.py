@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+import json
+from datetime import date
 from pathlib import Path
 from typing import Annotated
 
 import typer
+
+# Imported at module scope so tests can monkeypatch these names on the
+# eval_cmd module (the `slate` command calls them via the module binding).
+from cinemateca.eval.slates import ModalQuery, generate_slate, load_modal_queries
 
 app = typer.Typer(
     name="eval",
@@ -14,6 +20,9 @@ app = typer.Typer(
     rich_markup_mode="rich",
     context_settings={"help_option_names": ["-h", "--help"]},
 )
+
+# Modalities the slate command can generate, plus the "all" fan-out token.
+_SLATE_MODALITIES = ("text", "image", "audio", "fusion", "rhyme")
 
 
 @app.command("seed")
@@ -37,6 +46,101 @@ def eval_seed(
     path = write_seed(root=root, run_id=run, count=queries)
     written = min(max(0, queries), len(SAMPLE_QUERIES))
     typer.echo(f"✓ Wrote {written} queries to {path}")
+
+
+# ─── cinemateca eval slate ───────────────────────────────────────────────────
+
+
+def _slate_query_record(query: ModalQuery, rows: list[dict], *, k: int) -> dict:
+    """Wrap a generated candidate slate in the /eval rows-template query contract.
+
+    The shape matches :func:`cinemateca.eval.seed._mock_result`'s container so
+    the ``/eval`` page renders generated slates exactly as it renders seeded
+    ones. ``id`` is kept as the original string (``"image-01"``) — rows.html's
+    header guards ``current_query.id is number`` and renders a string id
+    verbatim, so no int remapping is needed; ``query_type`` is carried as an
+    extra field for downstream tooling (ignored by the template).
+    """
+    return {
+        "id": query.id,
+        "query_type": query.query_type,
+        "text": query.text or (f"(rhyme) {query.anchor}" if query.anchor else ""),
+        "source": "slate",
+        "lang": query.lang or "pt",
+        "k": k,
+        "candidate_count": len(rows),
+        "latency_ms": None,
+        "created_when": date.today().isoformat(),
+        "results": rows,
+    }
+
+
+@app.command("slate")
+def eval_slate(
+    queries: Annotated[
+        Path,
+        typer.Option("--queries", help="m3_full-shaped query YAML to generate slates from."),
+    ],
+    run: Annotated[
+        str,
+        typer.Option("--run", help="Run ID (becomes <run>.queries.json in --root)."),
+    ],
+    root: Annotated[
+        Path,
+        typer.Option("--root", help="Eval data directory. Created if it doesn't exist."),
+    ],
+    modality: Annotated[
+        str,
+        typer.Option(
+            "--modality",
+            help="Modality to generate (text|image|audio|fusion|rhyme) or 'all'.",
+        ),
+    ] = "all",
+    k: Annotated[
+        int,
+        typer.Option("--k", help="Candidates per query.", min=1),
+    ] = 9,
+    config: Annotated[
+        Path | None,
+        typer.Option("--config", help="Config YAML (defaults to merged default+local)."),
+    ] = None,
+) -> None:
+    """Generate per-modality candidate slates for the /eval grading UI.
+
+    Loads ``--queries`` (the m3_full multimodal eval set), runs the REAL
+    retrieval backend for each query of the requested modality (or every
+    modality when ``--modality all``), and writes
+    ``<root>/<run>.queries.json`` in the rows-template contract the
+    ``cinemateca eval seed`` command produces. The ``/eval`` page then
+    renders the generated slates with no template changes.
+    """
+    from cinemateca.config import load_config
+
+    if modality != "all" and modality not in _SLATE_MODALITIES:
+        typer.echo(
+            f"FAIL: --modality must be one of {('all', *_SLATE_MODALITIES)}, got {modality!r}"
+        )
+        raise typer.Exit(code=1)
+
+    cfg = load_config(str(config) if config else None)
+    library_dir = Path(cfg.paths.library_dir)
+
+    all_queries = load_modal_queries(queries)
+    wanted = set(_SLATE_MODALITIES) if modality == "all" else {modality}
+    selected = [q for q in all_queries if q.query_type in wanted]
+
+    records: list[dict] = []
+    for q in selected:
+        rows = generate_slate(query=q, cfg=cfg, library_dir=library_dir, k=k)
+        records.append(_slate_query_record(q, rows, k=k))
+
+    root.mkdir(parents=True, exist_ok=True)
+    out_path = root / f"{run}.queries.json"
+    out_path.write_text(
+        json.dumps(records, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    typer.echo(f"✓ Wrote {len(records)} slate queries ({modality}) to {out_path}")
 
 
 # ─── cinemateca eval clap-sanity ─────────────────────────────────────────────

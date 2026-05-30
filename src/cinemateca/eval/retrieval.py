@@ -25,8 +25,10 @@ from typing import Any
 from cinemateca.errors import EvalError
 from cinemateca.eval.datasets import EvaluationDataset
 from cinemateca.eval.metrics import RetrievalResult, evaluate_query, summarize_results
+from cinemateca.eval.slates import ModalQuery, generate_slate
 from cinemateca.reproducibility import seed_everything
 from cinemateca.retrieval.hybrid import DEFAULT_RRF_K, fuse_rrf, resolve_weights
+from cinemateca.rhymes.algorithm import _SCENE_NUM_RE
 from cinemateca.scene_ids import scene_id_key
 
 logger = logging.getLogger(__name__)
@@ -476,4 +478,301 @@ def run_retrieval_eval(
         query_results=tuple(query_results),
         context=context,
         warnings=tuple(warnings),
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Per-modality scorers (E3b): image / audio / fusion / rhyme.
+#
+# Each calls cinemateca.eval.slates.generate_slate — the REAL retrieval backend
+# for that modality — and scores the returned candidate rows with the same
+# evaluate_query / summarize_results math the text path uses, so the result is a
+# RetrievalRun the existing report writer (report.build_payload) serialises
+# unchanged. The text path (run_retrieval_eval above) is deliberately untouched.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Modal scorers build a minimal EvaluationDataset whose `queries` is empty:
+# report.build_payload reads only dataset.{dataset,version,source,label_status},
+# not dataset.queries, so an empty tuple satisfies the writer for non-text modes
+# (the loader-built dataset with QueryCase rows is the text path's concern only).
+
+
+def _modal_dataset(modality: str, queries: list[ModalQuery], queries_path: Path | None):
+    """Construct the minimal EvaluationDataset report.build_payload needs.
+
+    build_payload touches ``dataset.{dataset,version,source,label_status}`` and
+    iterates ``run.query_results`` (NOT ``dataset.queries``), so the empty
+    ``queries=()`` tuple here is sufficient — the per-query report rows come
+    from the scored ``RetrievalResult`` list, not from the dataset object.
+    """
+    return EvaluationDataset(
+        dataset=f"m3_{modality}",
+        version=1,
+        queries=(),
+        source={"modality": modality, "query_count": len(queries)},
+        label_status="seed_curator_grading_pending",
+        path=queries_path,
+    )
+
+
+def _default_relevance(
+    query: ModalQuery, rows: list[dict[str, Any]]
+) -> tuple[tuple[str, ...], dict[str, float], str]:
+    """Minimal, honest relevance resolution for one modal query (E3b only).
+
+    Returns ``(relevant_scene_ids, relevance_map, method)``. ``method`` is one
+    of ``"hypothesis" | "known_item" | "pseudo"`` and is recorded in the run
+    context for honesty. The full KI/PR/HY proxy labeller is task **E2**
+    (``cinemateca.eval.proxy``); ``run_<modality>_eval`` accepts a
+    ``relevance_resolver`` with this exact 3-tuple signature so E2 swaps its
+    labeller in without touching the scorers.
+
+    Strategy per modality:
+
+      * **text / fusion WITH YAML hypotheses** — use the maintainer's
+        ``relevant_scene_ids`` + ``relevance`` from the query file.
+      * **image** — known-item: the anchor scene id parsed out of the
+        ``image_path`` basename via :data:`_SCENE_NUM_RE` (reused from
+        ``cinemateca.rhymes.algorithm``).
+      * **rhyme** — known-item: the anchor scene id from ``"<slug>/<scene_id>"``.
+        Note the rhyme slate is cross-film-only, so the anchor scene (in the
+        anchor film) is excluded from candidates — this KI is intentionally
+        a hard target that usually scores 0; it exists to make the GATE
+        produce metrics, and E2's proxy supersedes it.
+      * **audio / fusion WITHOUT YAML labels** — pseudo-relevance placeholder
+        (top-1 returned scene treated as relevant).
+    """
+    if query.relevant_scene_ids:
+        # text (always labelled) + any fusion query the maintainer labelled.
+        rel = tuple(scene_id_key(s) for s in query.relevant_scene_ids)
+        rmap = (
+            {scene_id_key(k): float(v) for k, v in query.relevance.items()}
+            if query.relevance
+            else {sid: 1.0 for sid in rel}
+        )
+        return rel, rmap, "hypothesis"
+
+    if query.query_type == "image" and query.image_path is not None:
+        match = _SCENE_NUM_RE.search(query.image_path.name)
+        if match:
+            sid = scene_id_key(int(match.group(1)))
+            return (sid,), {sid: 1.0}, "known_item"
+
+    if query.query_type == "rhyme" and query.anchor and query.anchor.count("/") == 1:
+        _slug, sid_s = query.anchor.split("/", 1)
+        sid = scene_id_key(int(sid_s))
+        return (sid,), {sid: 1.0}, "known_item"
+
+    # audio / fusion-without-labels (and any image whose basename didn't parse):
+    # PR placeholder — E2's proxy.proxy_labels (KI/PR/HY) supersedes this; here
+    # only to make run_eval produce metrics for all 5 modalities (GATE).
+    if rows:
+        sid = scene_id_key(rows[0]["scene_id"])
+        return (sid,), {sid: 1.0}, "pseudo"
+    return (), {}, "pseudo"
+
+
+def _modal_top_results(rows: list[dict[str, Any]], *, limit: int) -> tuple[dict[str, Any], ...]:
+    """Adapt slate candidate rows to the ``top_results`` shape report writers read.
+
+    The slate row carries ``scene_id`` / ``score`` / ``keyframe_url`` (no
+    ``similarity`` / ``filepath`` / ``rank`` keys), so we map those across to
+    match ``_result_rows``'s output contract used by the text path.
+    """
+    out: list[dict[str, Any]] = []
+    for i, row in enumerate(rows[:limit], start=1):
+        out.append(
+            {
+                "rank": i,
+                "scene_id": scene_id_key(row.get("scene_id", "")),
+                "similarity": float(row.get("score", 0.0)),
+                "filepath": str(row.get("keyframe_url", "")),
+            }
+        )
+    return tuple(out)
+
+
+def _run_modal_eval(
+    cfg,
+    queries: list[ModalQuery],
+    *,
+    modality: str,
+    library_dir: Path,
+    film_slug: str | None,
+    seed: int = 0,
+    top_k: int = 10,
+    relevance_resolver=None,
+) -> RetrievalRun:
+    """Shared scoring loop for the image / audio / fusion / rhyme modalities.
+
+    Generates each query's slate via :func:`cinemateca.eval.slates.generate_slate`
+    (the real backend), resolves relevance via ``relevance_resolver`` (defaults
+    to :func:`_default_relevance`), and scores with :func:`evaluate_query`.
+    Returns a :class:`RetrievalRun` the report writer serialises unchanged.
+
+    ``library_dir`` MUST be the full library root (``cfg.paths.library_dir``),
+    not a single-film override — ``generate_slate`` (and ``find_rhymes``) walk
+    every film under it. Single-film modalities (image/audio/fusion) are scoped
+    to ``film_slug`` after generation when one is given; rhyme is inherently
+    cross-film and is never scoped out.
+    """
+    if top_k < 1:
+        raise EvalError("top_k must be at least 1")
+
+    seed_everything(seed)
+    resolve = relevance_resolver or _default_relevance
+
+    scope_slug = film_slug if modality != "rhyme" else None
+    methods: set[str] = set()
+    results: list[RetrievalResult] = []
+    warnings: list[str] = []
+
+    for q in (q for q in queries if q.query_type == modality):
+        rows = generate_slate(query=q, cfg=cfg, library_dir=library_dir, k=top_k)
+        if scope_slug:
+            rows = [r for r in rows if r.get("film_slug") == scope_slug]
+        rel_ids, rel_map, method = resolve(q, rows)
+        if not rel_ids:
+            # No ground truth and no rows to derive a pseudo-label from →
+            # cannot score this query; skip it (summarize_results needs ≥1).
+            warnings.append(f"{q.id}: no candidates and no labels — query skipped")
+            continue
+        methods.add(method)
+        ranked_ids = tuple(scene_id_key(r["scene_id"]) for r in rows)
+        result = evaluate_query(
+            query_id=q.id,
+            text=q.text or (q.anchor or ""),
+            relevant_scene_ids=rel_ids,
+            ranked_scene_ids=ranked_ids,
+            relevance=rel_map,
+            top_results=_modal_top_results(rows, limit=top_k),
+        )
+        results.append(result)
+
+    if not results:
+        raise EvalError(
+            f"no '{modality}' queries produced a scorable slate "
+            f"(checked {sum(1 for q in queries if q.query_type == modality)} candidates)"
+        )
+
+    context: dict[str, Any] = {
+        "config_path": "default",
+        "queries_path": "",
+        "model": modality,
+        "top_k": top_k,
+        "retriever": modality,
+        "modality": modality,
+        "film_slug": film_slug,
+        "seed": seed,
+        "relevance_method": "+".join(sorted(methods)) if methods else "none",
+    }
+
+    return RetrievalRun(
+        dataset=_modal_dataset(modality, queries, None),
+        metrics=summarize_results(results),
+        query_results=tuple(results),
+        context=context,
+        warnings=tuple(warnings),
+    )
+
+
+def run_image_eval(
+    cfg,
+    queries: list[ModalQuery],
+    *,
+    library_dir: Path,
+    film_slug: str | None,
+    seed: int = 0,
+    top_k: int = 10,
+    relevance_resolver=None,
+) -> RetrievalRun:
+    """Score the image queries via CLIP ``find`` slates (known-item relevance)."""
+    return _run_modal_eval(
+        cfg,
+        queries,
+        modality="image",
+        library_dir=library_dir,
+        film_slug=film_slug,
+        seed=seed,
+        top_k=top_k,
+        relevance_resolver=relevance_resolver,
+    )
+
+
+def run_audio_eval(
+    cfg,
+    queries: list[ModalQuery],
+    *,
+    library_dir: Path,
+    film_slug: str | None,
+    seed: int = 0,
+    top_k: int = 10,
+    relevance_resolver=None,
+) -> RetrievalRun:
+    """Score the audio queries via CLAP ``search_audio`` slates (pseudo relevance)."""
+    return _run_modal_eval(
+        cfg,
+        queries,
+        modality="audio",
+        library_dir=library_dir,
+        film_slug=film_slug,
+        seed=seed,
+        top_k=top_k,
+        relevance_resolver=relevance_resolver,
+    )
+
+
+def run_fusion_eval(
+    cfg,
+    queries: list[ModalQuery],
+    *,
+    library_dir: Path,
+    film_slug: str | None,
+    seed: int = 0,
+    top_k: int = 10,
+    relevance_resolver=None,
+) -> RetrievalRun:
+    """Score the fusion queries via CLIP×CLAP ``search_fusion`` slates.
+
+    Uses YAML hypotheses when the query carries them, else a pseudo-relevance
+    placeholder (the m3_full fusion queries are unlabelled today).
+    """
+    return _run_modal_eval(
+        cfg,
+        queries,
+        modality="fusion",
+        library_dir=library_dir,
+        film_slug=film_slug,
+        seed=seed,
+        top_k=top_k,
+        relevance_resolver=relevance_resolver,
+    )
+
+
+def run_rhyme_eval(
+    cfg,
+    queries: list[ModalQuery],
+    *,
+    library_dir: Path,
+    film_slug: str | None,
+    seed: int = 0,
+    top_k: int = 10,
+    relevance_resolver=None,
+) -> RetrievalRun:
+    """Score the rhyme queries via cross-film ``find_rhymes`` slates.
+
+    Rhyme is inherently cross-film (anchor film excluded from the candidate
+    pool), so the scorer never scopes rows to ``film_slug``. The known-item
+    relevance target is the anchor scene — intentionally a hard target the
+    cross-film slate usually cannot contain (see :func:`_default_relevance`).
+    """
+    return _run_modal_eval(
+        cfg,
+        queries,
+        modality="rhyme",
+        library_dir=library_dir,
+        film_slug=film_slug,
+        seed=seed,
+        top_k=top_k,
+        relevance_resolver=relevance_resolver,
     )

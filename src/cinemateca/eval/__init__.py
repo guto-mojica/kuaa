@@ -15,6 +15,14 @@ from cinemateca.eval.grader_metrics import (
 from cinemateca.eval.grades import grades_by_query, grades_for_query
 from cinemateca.eval.metrics import QueryMetrics, RetrievalResult, summarize_results
 from cinemateca.eval.paths import eval_root, eval_run_id
+from cinemateca.eval.retrieval import (
+    RetrievalRun,
+    run_audio_eval,
+    run_fusion_eval,
+    run_image_eval,
+    run_retrieval_eval,
+    run_rhyme_eval,
+)
 from cinemateca.eval.slates import ModalQuery, generate_slate, load_modal_queries
 
 __all__ = [
@@ -25,6 +33,7 @@ __all__ = [
     "QueryCase",
     "QueryMetrics",
     "RetrievalResult",
+    "RetrievalRun",
     "annotator_summary",
     "build_iaa",
     "compute_annotation_stats",
@@ -41,5 +50,10 @@ __all__ = [
     "load_queries",
     "other_grades_for_current",
     "query_conflict_set",
+    "run_audio_eval",
+    "run_fusion_eval",
+    "run_image_eval",
+    "run_retrieval_eval",
+    "run_rhyme_eval",
     "summarize_results",
 ]

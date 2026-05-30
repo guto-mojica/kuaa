@@ -75,6 +75,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Retriever to evaluate when not running --all-modes.",
     )
     parser.add_argument(
+        "--modality",
+        choices=["text", "image", "audio", "fusion", "rhyme", "all"],
+        default="text",
+        help=(
+            "Eval modality. 'text' (default) runs the CLIP/BM25/hybrid retriever "
+            "path unchanged. 'image|audio|fusion|rhyme' score the matching slate "
+            "(--queries must be an m3_full-shaped multimodal YAML). 'all' runs text "
+            "plus every non-text modality, writing each to <output-dir>/<modality>.json."
+        ),
+    )
+    parser.add_argument(
         "--all-modes",
         action="store_true",
         help="Evaluate clip / bm25 / hybrid in one run and emit a comparison table.",
@@ -116,6 +127,81 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     return parser.parse_args(argv)
+
+
+def _is_multimodal_yaml(queries_path: Path) -> bool:
+    """True when the query YAML uses the m3_full multimodal shape.
+
+    The discriminator is a ``query_type`` key on the first query entry — legacy
+    text datasets (e.g. archive_demo_queries.yaml) never carry it, so they keep
+    flowing through the strict ``load_dataset`` loader (the M3 regression pin),
+    while an m3_full file is recognised and its text subset extracted below.
+    """
+    import yaml
+
+    try:
+        raw = yaml.safe_load(queries_path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError):
+        return False
+    queries = raw.get("queries") if isinstance(raw, dict) else None
+    if not isinstance(queries, list) or not queries:
+        return False
+    first = queries[0]
+    return isinstance(first, dict) and "query_type" in first
+
+
+def _text_dataset_from_multimodal(queries_path: Path):
+    """Build a text-only EvaluationDataset from an m3_full multimodal YAML.
+
+    Lets ``--modality text`` (which must keep using ``run_retrieval_eval``
+    byte-for-byte) accept the same multimodal file the other modalities take:
+    only the ``query_type == "text"`` entries — which carry the maintainer's
+    ``relevant_scene_ids`` / ``relevance`` hypotheses — become ``QueryCase``
+    rows. Non-text entries are ignored. Raises if there are no text queries.
+    """
+    from cinemateca.eval.datasets import DatasetError, EvaluationDataset, QueryCase
+    from cinemateca.eval.slates import load_modal_queries
+    from cinemateca.scene_ids import scene_id_key
+
+    modal = load_modal_queries(queries_path)
+    cases = []
+    for q in modal:
+        if q.query_type != "text" or not q.text:
+            continue
+        relevant = tuple(scene_id_key(s) for s in q.relevant_scene_ids)
+        if not relevant:
+            continue
+        relevance = {scene_id_key(k): float(v) for k, v in q.relevance.items()} or {
+            sid: 1.0 for sid in relevant
+        }
+        cases.append(
+            QueryCase(
+                id=q.id,
+                text=q.text,
+                relevant_scene_ids=relevant,
+                relevance=relevance,
+                notes=q.notes or "",
+            )
+        )
+    if not cases:
+        raise DatasetError(f"no text queries with relevant_scene_ids in {queries_path}")
+    return EvaluationDataset(
+        dataset="m3_text",
+        version=1,
+        queries=tuple(cases),
+        source={"modality": "text", "from": str(queries_path)},
+        label_status="seed_curator_grading_pending",
+        path=queries_path,
+    )
+
+
+def _load_text_dataset(queries_path: Path):
+    """Load a text EvaluationDataset, auto-detecting legacy vs m3_full shape."""
+    if _is_multimodal_yaml(queries_path):
+        return _text_dataset_from_multimodal(queries_path)
+    from cinemateca.eval.datasets import load_dataset
+
+    return load_dataset(queries_path)
 
 
 def _override_film_paths(cfg, slug: str) -> None:
@@ -248,7 +334,7 @@ def _krrf_sweep_table(sweep_rows: list[dict[str, Any]]) -> str:
 def _single_mode(args: argparse.Namespace) -> int:
     from cinemateca.config import load_config
     from cinemateca.eval.annotations import AnnotationStatsError, load_annotation_stats
-    from cinemateca.eval.datasets import DatasetError, load_dataset
+    from cinemateca.eval.datasets import DatasetError
     from cinemateca.eval.report import write_reports
     from cinemateca.eval.retrieval import EvalError, run_retrieval_eval
 
@@ -257,7 +343,7 @@ def _single_mode(args: argparse.Namespace) -> int:
     output_dir = project_path(args.output_dir)
 
     try:
-        dataset = load_dataset(queries_path)
+        dataset = _load_text_dataset(queries_path)
         cfg = load_config(config_path, project_root=REPO_ROOT)
         from cinemateca.reproducibility import seed_everything
 
@@ -443,8 +529,172 @@ def _all_modes(args: argparse.Namespace) -> int:
     return 0
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Non-text modality routing (E3b): image / audio / fusion / rhyme.
+#
+# These dispatch to the per-modality scorers in cinemateca.eval.retrieval, which
+# call the REAL retrieval backend (CLIP find / CLAP search_audio / search_fusion
+# / find_rhymes) via cinemateca.eval.slates.generate_slate and return the same
+# RetrievalRun the text path produces — so the existing report writer serialises
+# them unchanged. The text path (_single_mode / _all_modes) is left untouched.
+# ─────────────────────────────────────────────────────────────────────────────
+
+_MODAL_SCORERS = ("image", "audio", "fusion", "rhyme")
+
+
+def _run_one_modality(cfg, queries, modality: str, args: argparse.Namespace, config_path: Path):
+    """Run one non-text modality scorer and return its RetrievalRun."""
+    from cinemateca.eval import retrieval as _retr
+
+    scorers = {
+        "image": _retr.run_image_eval,
+        "audio": _retr.run_audio_eval,
+        "fusion": _retr.run_fusion_eval,
+        "rhyme": _retr.run_rhyme_eval,
+    }
+    library_dir = Path(getattr(cfg.paths, "library_dir", REPO_ROOT / "data" / "library"))
+    run = scorers[modality](
+        cfg,
+        queries,
+        library_dir=library_dir,
+        film_slug=args.film_slug or None,
+        seed=args.seed,
+        top_k=args.top_k,
+    )
+    # Record the actual config + queries paths the text path also reports.
+    run.context["config_path"] = str(config_path)
+    run.context["queries_path"] = str(project_path(args.queries))
+    return run
+
+
+def _modal_mode(args: argparse.Namespace) -> int:
+    """Score a single non-text modality; write summary.json + report.md."""
+    from cinemateca.config import load_config
+    from cinemateca.errors import EvalError
+    from cinemateca.eval.report import write_reports
+    from cinemateca.eval.slates import load_modal_queries
+
+    config_path = project_path(args.config)
+    queries_path = project_path(args.queries)
+    output_dir = project_path(args.output_dir)
+
+    try:
+        cfg = load_config(config_path, project_root=REPO_ROOT)
+        from cinemateca.reproducibility import seed_everything
+
+        seed_everything(cfg.seed)
+        queries = load_modal_queries(queries_path)
+        run = _run_one_modality(cfg, queries, args.modality, args, config_path)
+        json_path, md_path = write_reports(run, output_dir)
+    except (EvalError, FileNotFoundError) as exc:
+        print(f"Evaluation failed: {exc}", file=sys.stderr)
+        return 1
+
+    m = run.metrics
+    print(f"Modality: {args.modality}")
+    print(f"Queries scored: {m['query_count']}")
+    print(f"Relevance method: {run.context.get('relevance_method', '?')}")
+    print(f"Recall@5:  {m['recall_at_5']:.3f}")
+    print(f"Recall@10: {m['recall_at_10']:.3f}")
+    print(f"MRR:       {m['mrr']:.3f}")
+    print(f"nDCG@10:   {m['ndcg_at_10']:.3f}")
+    print(f"JSON: {json_path}")
+    print(f"Markdown: {md_path}")
+    return 0
+
+
+def _all_modalities(args: argparse.Namespace) -> int:
+    """Run text (via --retriever) + every non-text modality.
+
+    The text run writes <output-dir>/text.json; each non-text modality writes
+    <output-dir>/<modality>.json (mirroring _all_modes's {mode}.json convention).
+    A non-text modality that cannot be scored (e.g. its slate is empty) is
+    reported as a warning and skipped rather than aborting the whole sweep.
+    """
+    from cinemateca.config import load_config
+    from cinemateca.eval.datasets import DatasetError
+    from cinemateca.eval.report import build_payload
+    from cinemateca.eval.retrieval import EvalError, run_retrieval_eval
+    from cinemateca.eval.slates import load_modal_queries
+
+    config_path = project_path(args.config)
+    queries_path = project_path(args.queries)
+    output_dir = project_path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        cfg = load_config(config_path, project_root=REPO_ROOT)
+        from cinemateca.reproducibility import seed_everything
+
+        seed_everything(cfg.seed)
+    except (EvalError, FileNotFoundError) as exc:
+        print(f"Evaluation setup failed: {exc}", file=sys.stderr)
+        return 1
+
+    # Text run (regression-preserving: same dataset loader + film-path override).
+    try:
+        dataset = _load_text_dataset(queries_path)
+        text_cfg = load_config(config_path, project_root=REPO_ROOT)
+        _override_film_paths(text_cfg, args.film_slug)
+        text_run = run_retrieval_eval(
+            text_cfg,
+            dataset,
+            config_path=config_path,
+            top_k=args.top_k,
+            retriever=args.retriever,
+            sem_w=args.sem_weight,
+            bm25_w=args.bm25_weight,
+            k_rrf=args.k_rrf,
+            seed=args.seed,
+        )
+        (output_dir / "text.json").write_text(
+            json.dumps(build_payload(text_run), indent=2), encoding="utf-8"
+        )
+        m = text_run.metrics
+        print(
+            f"[text/{args.retriever}] R@5={m['recall_at_5']:.3f} R@10={m['recall_at_10']:.3f} "
+            f"MRR={m['mrr']:.3f} nDCG@10={m['ndcg_at_10']:.3f}"
+        )
+    except (DatasetError, EvalError, FileNotFoundError) as exc:
+        print(f"[text] Evaluation failed: {exc}", file=sys.stderr)
+        return 1
+
+    # Non-text modalities — each may legitimately have an empty slate on a
+    # given corpus (e.g. a silent film and no CLAP index); warn + continue.
+    try:
+        modal_queries = load_modal_queries(queries_path)
+    except EvalError as exc:
+        print(f"[modalities] could not load modal queries: {exc}", file=sys.stderr)
+        return 1
+
+    for modality in _MODAL_SCORERS:
+        try:
+            run = _run_one_modality(cfg, modal_queries, modality, args, config_path)
+        except EvalError as exc:
+            print(f"[{modality}] skipped: {exc}", file=sys.stderr)
+            continue
+        (output_dir / f"{modality}.json").write_text(
+            json.dumps(build_payload(run), indent=2), encoding="utf-8"
+        )
+        mm = run.metrics
+        print(
+            f"[{modality}] n={mm['query_count']} R@5={mm['recall_at_5']:.3f} "
+            f"R@10={mm['recall_at_10']:.3f} MRR={mm['mrr']:.3f} nDCG@10={mm['ndcg_at_10']:.3f} "
+            f"({run.context.get('relevance_method', '?')})"
+        )
+
+    print()
+    print(f"Wrote per-modality reports to {output_dir}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    if args.modality == "all":
+        return _all_modalities(args)
+    if args.modality in _MODAL_SCORERS:
+        return _modal_mode(args)
+    # modality == "text": preserve the existing retriever path byte-for-byte.
     if args.all_modes:
         return _all_modes(args)
     return _single_mode(args)
