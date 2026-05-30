@@ -4,6 +4,7 @@ from cinemateca.errors import EvalError
 from cinemateca.eval.ablation import AblationRowConfig, AblationTable, run_ablation
 from cinemateca.eval.annotations import AnnotationStats, compute_annotation_stats
 from cinemateca.eval.datasets import EvaluationDataset, QueryCase, load_dataset, load_queries
+from cinemateca.eval.failures import FailureCase, worst_queries
 from cinemateca.eval.grader_metrics import (
     annotator_summary,
     build_iaa,
@@ -33,6 +34,7 @@ __all__ = [
     "AnnotationStats",
     "EvalError",
     "EvaluationDataset",
+    "FailureCase",
     "ModalQuery",
     "QueryCase",
     "QueryMetrics",
@@ -62,4 +64,5 @@ __all__ = [
     "run_retrieval_eval",
     "run_rhyme_eval",
     "summarize_results",
+    "worst_queries",
 ]
