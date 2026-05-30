@@ -12,6 +12,8 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ### Removido
 
+- **Transcrição Whisper** — removidos o backend `faster-whisper` (`Transcriber`), a etapa de pipeline `audio_transcribe` e a indexação de transcrições no BM25; adiado para o marco v0.8-rc. A busca de áudio CLAP (`audio_extract`/`audio_embed`) permanece. Ver o roadmap aspiracional.
+
 - **Fallback Streamlit (`app_streamlit.py`) excluído.** A interface
   FastAPI + HTMX é agora a única superfície suportada. Após o refactor
   P3 retirar `cinemateca.annotator`, o `app_streamlit.py` ficou com

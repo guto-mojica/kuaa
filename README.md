@@ -310,7 +310,7 @@ O sistema é organizado em módulos independentes que podem ser usados separadam
 Os backends de modelo ficam atrás de `Protocol`s tipados e são selecionados por
 configuração em `src/cinemateca/models/registry.py`.
 
-O pipeline parte de um arquivo de vídeo e produz, por cena: embeddings visuais SigLIP2 (1024-d), embeddings de áudio CLAP, transcrições Whisper e descrições em linguagem natural do Moondream 2. O motor de busca combina esses artefatos em cinco modos — pesquisa texto/imagem por cosseno SigLIP2, busca lexical BM25, fusão híbrida CLIP⊕BM25 com Reciprocal Rank Fusion, fusão cross-modal CLIP×CLAP e rimas visuais cross-film (kNN + MMR) — com reranker cross-encoder na saída. Os resultados chegam via exportação estruturada e pela UI FastAPI + HTMX.
+O pipeline parte de um arquivo de vídeo e produz, por cena: embeddings visuais SigLIP2 (1024-d), embeddings de áudio CLAP e descrições em linguagem natural do Moondream 2. O motor de busca combina esses artefatos em cinco modos — pesquisa texto/imagem por cosseno SigLIP2, busca lexical BM25, fusão híbrida CLIP⊕BM25 com Reciprocal Rank Fusion, fusão cross-modal CLIP×CLAP e rimas visuais cross-film (kNN + MMR) — com reranker cross-encoder na saída. Os resultados chegam via exportação estruturada e pela UI FastAPI + HTMX.
 
 ```mermaid
 flowchart TD
@@ -319,17 +319,15 @@ flowchart TD
     SC --> VIS[Visual analysis<br/>MTCNN faces · YOLOv8 objects · OpenCV env]
     SC --> EMB[Visual embeddings<br/>SigLIP2 1024-d · keyframe_embeddings.npy]
     SC --> AUD[Audio extract + CLAP embed<br/>scene WAV · clap_embeddings.npy]
-    SC --> AT[Whisper transcribe<br/>scene_transcripts.json]
     SC --> LLM[Moondream 2 descriptions<br/>scene_descriptions.json · scene_tags.json]
 
     EMB --> RET{Retrieval engine}
     AUD --> RET
-    AT --> RET
     LLM --> RET
     VIS --> RET
 
     RET --> TXT[Text / image search<br/>SigLIP2 cosine]
-    RET --> BM25[BM25 lexical<br/>transcripts + descriptions + tags]
+    RET --> BM25[BM25 lexical<br/>descriptions + tags]
     TXT --> HYB[Hybrid CLIP &oplus; BM25<br/>Reciprocal Rank Fusion]
     BM25 --> HYB
     RET --> FUS[CLIP x CLAP fusion<br/>linear late-fusion, visual_weight]
