@@ -103,8 +103,8 @@ portfolio roadmap:
 | [Demo video scripts](docs/DEMO_VIDEO_SCRIPT.md) | Two-minute demo and technical walkthrough scripts |
 | [Release notes draft](docs/RELEASE_NOTES_DRAFT.md) | GitHub release copy, demo artifact slots, and verification notes |
 | [Resume bullets](docs/RESUME_BULLETS.md) | Role-specific hiring copy and interview talking points |
-| [Portfolio implementation plan](docs/PORTFOLIO_IMPLEMENTATION_PLAN.md) | Phased plan for demo, evaluation, domain packs, and launch |
-| [Task breakdown](docs/TASK_BREAKDOWN.md) | Issue-sized tasks derived from the implementation plan |
+| [Portfolio implementation plan](docs/archive/PORTFOLIO_IMPLEMENTATION_PLAN.md) | Phased plan for demo, evaluation, domain packs, and launch (archived) |
+| [Task breakdown](docs/archive/TASK_BREAKDOWN.md) | Issue-sized tasks derived from the implementation plan (archived) |
 | [Roadmap](docs/ROADMAP.md) | Short public roadmap snapshot |
 
 ### Quick start
@@ -412,8 +412,8 @@ O desenvolvimento usa **Jeca Tatu (1959)** de Amácio Mazzaropi como referência
 ## Roadmap
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for the current public roadmap and
-[docs/PORTFOLIO_IMPLEMENTATION_PLAN.md](docs/PORTFOLIO_IMPLEMENTATION_PLAN.md)
-for the portfolio-oriented implementation plan.
+[docs/archive/PORTFOLIO_IMPLEMENTATION_PLAN.md](docs/archive/PORTFOLIO_IMPLEMENTATION_PLAN.md)
+for the archived portfolio-oriented implementation plan.
 
 Near-term focus:
 
