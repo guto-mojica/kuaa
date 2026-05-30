@@ -10,6 +10,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from api.contexts import InspectorContext
 from api.services.catalog import (
     derive_fps,
     keyframe_url,
@@ -108,7 +109,7 @@ def build_inspector_context(
     scene_id: int,
     slug: str | None,
     inspector_tab: str = "activity",
-) -> dict | None:
+) -> InspectorContext | None:
     """Build the template context for the right-pane inspector partial.
 
     Returns ``None`` when the (slug, scene_id) pair cannot be resolved —

@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from api.contexts import CenasContext
 from api.services.scenes._film_grid import (
     _build_groups_by_film,
     _format_runtime_hm,
@@ -36,7 +37,7 @@ def build_cenas_context(
     bucket: str | None = None,
     limit: int = 50,
     offset: int = 0,
-) -> dict:
+) -> CenasContext:
     """Return the full Cenas-tab template context.
 
     Powers the ``/scenes`` full-page route and the ``/tab/scenes``

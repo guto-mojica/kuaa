@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from api.contexts import ProcessingContext
 from api.deps import _get_translations, get_config, make_ctx
 from api.jobs import STEP_DEFS, JobState, active_jobs
 from api.services.chrome_service import build_chrome_context
@@ -49,7 +50,7 @@ def render_log_row(row: dict, locale: str = "pt_BR") -> str:
 # ── Context builder ───────────────────────────────────────────────────────────
 
 
-def build_processing_context() -> dict:
+def build_processing_context() -> ProcessingContext:
     """Build the template context the processing tab partial needs.
 
     Shared by the ``/tab/processing`` HTMX fragment and the

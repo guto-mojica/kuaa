@@ -1,21 +1,16 @@
 """Search service — thin HTTP adapter over :mod:`cinemateca.search`.
 
-After P1's deep-modules refactor (T3–T13) the search domain logic lives
-in :mod:`cinemateca.search`. This module is the HTTP-adapter surface the
-route layer + legacy test suite import through. It re-exports the
-symbols the FastAPI app and tests pin against, plus a few small wrappers
-that need the FastAPI app config (``_get_embedder`` monkeypatched by
-tests; ``_get_search_index`` / ``_get_bm25_index_for_ctx`` resolve
-``cfg.embeddings`` / ``cfg.search.bm25`` and forward to
-:mod:`cinemateca.search`; ``has_indexed_films`` probes the library;
-``dispatch_text_search`` orchestrates the per-film vs aggregate branch).
+After P1's deep-modules refactor the search domain logic lives in
+:mod:`cinemateca.search`. This module is the HTTP-adapter surface the
+route layer + tests import through. It re-exports the symbols the app
+and tests pin against, plus wrappers that need the FastAPI config
+(``_get_embedder`` monkeypatched by tests; ``_get_bm25_index_for_ctx``
+resolves ``cfg.search.bm25``; ``dispatch_text_search`` orchestrates
+per-film vs aggregate).
 
-Audio + fusion dispatchers live in :mod:`api.services._search_dispatch`.
-The reranker template-adapter lives in :mod:`api.services._search_rerank`.
-Both are re-exported here so all existing import paths are unchanged.
-``apply_reranker`` stays on this module because tests monkeypatch
-``api.services.search.search_rerank``; ``_search_rerank.apply_reranker``
-resolves the verb via a lazy import of this module at call time.
+Audio + fusion dispatchers live in ``_search_dispatch``; the reranker
+adapter in ``_search_rerank``. ``apply_reranker`` stays here so tests
+can monkeypatch ``api.services.search.search_rerank``.
 """
 
 from __future__ import annotations
@@ -23,6 +18,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+from api.contexts import SearchContext
 from api.services.catalog import keyframe_url  # noqa: F401  — used by routes
 from cinemateca.library import FilmContext
 
@@ -35,10 +31,12 @@ from cinemateca.search import rerank as search_rerank  # noqa: F401
 # layer doesn't import ``cinemateca.search._lookup`` directly (keeps
 # the routes-not-direct-core import-linter contract clean).
 from cinemateca.search._lookup import (
-    build_search_context,  # noqa: F401
-    build_search_context_aggregate,  # noqa: F401
     enrich_hits_with_film_metadata,  # noqa: F401
     films_by_id_lookup,  # noqa: F401
+)
+from cinemateca.search._lookup import (
+    build_search_context as _build_search_context_core,
+    build_search_context_aggregate as _build_search_context_aggregate_core,
 )
 from cinemateca.search._results import results_to_dicts  # noqa: F401
 
@@ -233,3 +231,17 @@ def dispatch_text_search(
         )
 
     return result_df, False
+
+
+# A10: typed wrappers — ``api.contexts.SearchContext`` can't be imported in
+# ``cinemateca.*`` (deep-modules rule), so we annotate at this api-layer boundary.
+
+
+def build_search_context(ctx: Any, cfg: Any | None = None) -> SearchContext:
+    """Typed wrapper over ``cinemateca.search._lookup.build_search_context``."""
+    return _build_search_context_core(ctx, cfg)  # type: ignore[return-value]
+
+
+def build_search_context_aggregate(cfg: Any) -> SearchContext:
+    """Typed wrapper over ``cinemateca.search._lookup.build_search_context_aggregate``."""
+    return _build_search_context_aggregate_core(cfg)  # type: ignore[return-value]

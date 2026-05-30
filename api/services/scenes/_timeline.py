@@ -11,6 +11,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+from api.contexts import TimelineContext
 from api.services.catalog import (
     derive_fps,
     keyframe_url,
@@ -113,7 +114,7 @@ def build_timeline_context(
     slug: str | None,
     scene_id: int | None,
     query: str = "",
-) -> dict | None:
+) -> TimelineContext | None:
     """Build the bottom-timeline (``.b-tl``) context.
 
     Renders meaningfully only when both *slug* and *scene_id* resolve to

@@ -37,6 +37,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from api.contexts import RimasContext
 from cinemateca import library
 from cinemateca.library import FilmContext
 from cinemateca.rhymes import Rhyme, find_rhymes
@@ -73,7 +74,7 @@ def build_rimas_context(
     echo: str | None = None,
     lambda_diversity: float | None = None,
     k_candidates: int | None = None,
-) -> dict:
+) -> RimasContext:
     """Build the Rimas Visuais template context.
 
     Returned keys match what ``partials/rimas.html`` /
@@ -210,7 +211,7 @@ def rimas_context(
     echo: str | None,
     lambda_: float | None,
     k_candidates: int | None,
-) -> dict:
+) -> RimasContext:
     """Assemble the rimas context from raw route params.
 
     Single call-site for the three rimas handlers (tab, echoes, inspector)
