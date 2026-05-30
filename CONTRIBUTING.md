@@ -107,6 +107,21 @@ establishes a new pattern.
 
 ---
 
+## CI-gated launch docs
+
+`scripts/check_launch_package.py` (CI) requires these five docs at their exact
+paths, with their exact headings and required link substrings, and **fails on any
+placeholder token** (`TODO`/`TBD`/`FIXME`/`REPLACE_ME`/`YOUR_*`/`{{…}}`/`[[…]]`/`lorem ipsum`):
+
+- `docs/CASE_STUDY.md`, `docs/LAUNCH_PLAN.md`, `docs/DEMO_VIDEO_SCRIPT.md`, `docs/RELEASE_NOTES_DRAFT.md`, `docs/RESUME_BULLETS.md`
+
+`docs/DEMO_DATA.md` is a required link substring in two of them, so it cannot be
+moved or deleted either. After editing any gated doc, run
+`uv run python scripts/check_launch_package.py` and confirm it passes. All other
+docs are ungated and may carry draft markers (e.g. `docs/launch/README_DRAFT.md`).
+
+---
+
 ## What Claude Code will not do without explicit request
 
 See `CLAUDE.md` for the full list. In particular: no force-push, no history
