@@ -82,6 +82,7 @@ class FasterWhisperTranscriber:
             self._model = _load_model(self._cfg, self._device)
 
     def transcribe(self, wav_path: str | Path) -> TranscriptionResult:
+        """Return a :data:`TranscriptionResult` dict; returns empty result on silent input."""
         self._ensure_model()
         segments_iter, info = self._model.transcribe(
             str(wav_path),

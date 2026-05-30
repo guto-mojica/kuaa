@@ -46,6 +46,7 @@ class StatCache(Generic[K, V]):
         self.misses = 0
 
     def get_or_load(self, *, key: K, signature: Signature, loader: Callable[[], V]) -> V:
+        """Return cached value if signature matches; otherwise call ``loader`` and cache the result."""
         with self._lock:
             cached = self._store.get(key)
             if cached is not None and cached[0] == signature:
@@ -57,6 +58,7 @@ class StatCache(Generic[K, V]):
             return value
 
     def clear(self) -> None:
+        """Evict all cached entries."""
         with self._lock:
             self._store.clear()
 

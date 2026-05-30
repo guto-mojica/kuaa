@@ -93,6 +93,7 @@ class SearchIndex:
 
     @property
     def ok(self) -> bool:
+        """True when the index loaded successfully and all fields are populated."""
         return self.status is IndexStatus.OK
 
 

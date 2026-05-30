@@ -47,6 +47,7 @@ class MTCNNFaceDetector:
         logger.info("MTCNN carregado no device: cpu")
 
     def detect(self, image_path: str | Path) -> dict:
+        """Return {"num_faces": int, "faces": [...]} for one keyframe."""
         if not self.enabled:
             return {"num_faces": 0, "faces": []}
 
@@ -72,6 +73,7 @@ class MTCNNFaceDetector:
         return {"num_faces": len(faces), "faces": faces}
 
     def detect_batch(self, image_paths: list[Path]) -> list[dict]:
+        """Return one detection dict per path, same order as input."""
         results = []
         for p in image_paths:
             r = self.detect(p)

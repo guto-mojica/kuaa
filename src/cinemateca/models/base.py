@@ -60,6 +60,34 @@ class ObjectDetector(Protocol):
         ...
 
 
+class SceneDescriptionRecord(TypedDict, total=False):
+    """One scene-description checkpoint row (resume shape for describe_batch).
+
+    ``scene_id`` + ``description`` are always present in a successful row;
+    the remaining keys are the structured Moondream outputs or scene-level
+    metadata fields populated by :func:`~cinemateca.models.describer._common.build_metadata`.
+    Error rows omit ``description`` and carry ``error`` instead.
+    """
+
+    scene_id: int
+    description: str
+    location: str
+    setting: str
+    time_of_day: str
+    num_people: int
+    people_action: str
+    objects: list[str]
+    tags: list[str]
+    # scene-level provenance fields (from build_metadata / pipeline row)
+    keyframe_id: str
+    keyframe_path: str
+    start_time_s: float | None
+    end_time_s: float | None
+    duration_s: float | None
+    # error path (mutually exclusive with description)
+    error: str
+
+
 @runtime_checkable
 class SceneDescriber(Protocol):
     """Generates natural-language metadata for a keyframe using a VLM."""
@@ -71,10 +99,10 @@ class SceneDescriber(Protocol):
     def describe_batch(
         self,
         keyframes_df: pd.DataFrame,
-        existing_results: list[dict] | None = None,
+        existing_results: list[SceneDescriptionRecord] | None = None,
         checkpoint_path: Path | None = None,
-    ) -> list[dict]:
-        """Process all rows; resume via existing_results."""
+    ) -> list[SceneDescriptionRecord]:
+        """Describe all rows; resume from ``existing_results`` if provided."""
         ...
 
 

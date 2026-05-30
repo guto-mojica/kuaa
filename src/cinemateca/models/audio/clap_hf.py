@@ -126,6 +126,7 @@ class ClapHFEmbedder:
     # ── Public API (AudioEmbedder Protocol) ──────────────────────────────
 
     def encode_audio_single(self, wav_path: str | Path) -> np.ndarray:
+        """Return (D,) float32 L2-normalised vector for one WAV (audio-by-audio search)."""
         self._load_model()
         chunks = self._chunk_audio(self._load_wav(wav_path), self._sample_rate)
         pooled = self._embed_chunks(chunks).mean(axis=0)
@@ -166,6 +167,7 @@ class ClapHFEmbedder:
         return out
 
     def encode_text(self, text: str) -> np.ndarray:
+        """Return (D,) float32 L2-normalised vector for a text query (shared CLAP space)."""
         import torch
 
         self._load_model()

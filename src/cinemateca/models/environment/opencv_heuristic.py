@@ -31,6 +31,7 @@ class OpenCVEnvironmentClassifier:
             self.edge_density_threshold = 0.05
 
     def classify(self, image_path: str | Path) -> dict:
+        """Return {"time_of_day","brightness_score","location","edge_density"} for one frame."""
         if not self.enabled:
             return {
                 "time_of_day": "desconhecido",
@@ -65,6 +66,7 @@ class OpenCVEnvironmentClassifier:
         }
 
     def classify_batch(self, image_paths: list[Path]) -> list[dict]:
+        """Return one classification dict per path, same order as input."""
         results = []
         for p in image_paths:
             r = self.classify(p)

@@ -21,9 +21,11 @@ import logging
 import shutil
 import time
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 
+from cinemateca.models.base import SceneDescriptionRecord
 from cinemateca.models.describer._common import (
     PROMPTS,
     build_metadata,
@@ -167,9 +169,9 @@ class MoondreamTransformersDescriber:
     def describe_batch(
         self,
         keyframes_df: pd.DataFrame,
-        existing_results: list | None = None,
+        existing_results: list[SceneDescriptionRecord] | None = None,
         checkpoint_path: Path | None = None,
-    ) -> list[dict]:
+    ) -> list[SceneDescriptionRecord]:
         """Process all rows; resume via existing_results.
 
         RESUME-BUG FIX (mirrors gguf.py): error rows are NOT counted as
@@ -202,7 +204,7 @@ class MoondreamTransformersDescriber:
                     except Exception as e:  # noqa: BLE001
                         raw[field] = f"ERROR: {e}"
                 meta = build_metadata(row, raw)
-                all_results.append(meta)
+                all_results.append(cast(SceneDescriptionRecord, meta))
                 logger.info(
                     "cena %s [%d/%d]: %s | tags=%s",
                     meta.get("scene_id"),
@@ -230,7 +232,7 @@ class MoondreamTransformersDescriber:
         return all_results
 
     @staticmethod
-    def build_tag_index(results: list[dict]) -> dict[str, list[str]]:
+    def build_tag_index(results: list[SceneDescriptionRecord]) -> dict[str, list[str]]:
         """Build a tag → [scene_id] index sorted by frequency descending.
 
         Scene IDs are stored as strings so the index type is homogeneous

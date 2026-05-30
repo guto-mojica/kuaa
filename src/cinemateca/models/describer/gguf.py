@@ -12,9 +12,11 @@ import logging
 import shutil
 import time
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 
+from cinemateca.models.base import SceneDescriptionRecord
 from cinemateca.models.describer._common import (
     PROMPTS,
     build_metadata,
@@ -124,6 +126,7 @@ class MoondreamGGUFDescriber:
         return resp["choices"][0]["message"]["content"].strip()
 
     def describe(self, image_path) -> dict:
+        """Return full metadata dict for a single keyframe."""
         self._load_model()
         raw = {}
         for field, (prompt, max_tokens) in self.prompts.items():
@@ -137,9 +140,9 @@ class MoondreamGGUFDescriber:
     def describe_batch(
         self,
         keyframes_df: pd.DataFrame,
-        existing_results: list | None = None,
+        existing_results: list[SceneDescriptionRecord] | None = None,
         checkpoint_path: Path | None = None,
-    ) -> list[dict]:
+    ) -> list[SceneDescriptionRecord]:
         # RESUME-BUG FIX: error rows are NOT counted as processed — they are
         # dropped so reprocessing can produce a good result (mirror pipeline.py:332).
         existing = list(existing_results or [])
@@ -168,7 +171,7 @@ class MoondreamGGUFDescriber:
                     except Exception as e:  # noqa: BLE001
                         raw[field] = f"ERROR: {e}"
                 meta = build_metadata(row, raw)
-                all_results.append(meta)
+                all_results.append(cast(SceneDescriptionRecord, meta))
                 logger.info(
                     "cena %s [%d/%d]: %s | tags=%s",
                     meta.get("scene_id"),
@@ -202,7 +205,7 @@ class MoondreamGGUFDescriber:
         return all_results
 
     @staticmethod
-    def build_tag_index(results: list[dict]) -> dict[str, list[str]]:
+    def build_tag_index(results: list[SceneDescriptionRecord]) -> dict[str, list[str]]:
         """Build a tag → [scene_id] index sorted by frequency descending.
 
         Scene IDs are stored as strings for type consistency with the manual
@@ -219,6 +222,7 @@ class MoondreamGGUFDescriber:
         return dict(sorted(idx.items(), key=lambda x: len(x[1]), reverse=True))
 
     def save(self, results, tag_index, output_dir):
+        """Persist results and tag index as JSON files under output_dir."""
         import json
 
         out = Path(output_dir)

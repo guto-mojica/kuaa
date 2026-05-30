@@ -54,6 +54,7 @@ class OpenClipEmbedder:
         logger.info("✓ CLIP carregado em %.1fs | device=%s", time.time() - t0, self._device)
 
     def encode_images(self, image_paths: list[Path]) -> np.ndarray:
+        """Return (N, D) float32 L2-normalised array for a batch of images."""
         import torch
         import torch.nn.functional as F
 
@@ -100,6 +101,7 @@ class OpenClipEmbedder:
         return embeddings
 
     def encode_text(self, text: str) -> np.ndarray:
+        """Return (D,) float32 L2-normalised vector for a text query (shared CLIP space)."""
         import torch
         import torch.nn.functional as F
 
@@ -137,6 +139,7 @@ class OpenClipEmbedder:
         embeddings_filename: str = "keyframe_embeddings.npy",
         mapping_filename: str = "index_mapping.json",
     ) -> tuple[Path, Path]:
+        """Persist embeddings array + JSON mapping to ``output_dir``; return (emb_path, map_path)."""
         out = Path(output_dir)
         out.mkdir(parents=True, exist_ok=True)
 
@@ -167,6 +170,7 @@ class OpenClipEmbedder:
         embeddings_path: str | Path,
         mapping_path: str | Path,
     ) -> tuple[np.ndarray, dict, pd.DataFrame]:
+        """Load embeddings + mapping from disk; return (embeddings, mapping_dict, kf_df)."""
         emb = np.load(embeddings_path)
         with open(mapping_path, encoding="utf-8") as f:
             mapping = json.load(f)

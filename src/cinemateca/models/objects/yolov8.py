@@ -36,6 +36,7 @@ class YOLOv8ObjectDetector:
         logger.info("YOLOv8 carregado: %s", self.model_name)
 
     def detect(self, image_path: str | Path) -> dict:
+        """Return {"num_objects": int, "objects": [...], "class_counts": {...}} for one frame."""
         if not self.enabled:
             return {"num_objects": 0, "objects": [], "class_counts": {}}
 
@@ -64,6 +65,7 @@ class YOLOv8ObjectDetector:
         }
 
     def detect_batch(self, image_paths: list[Path]) -> list[dict]:
+        """Return one detection dict per path, same order as input."""
         results = []
         for p in image_paths:
             r = self.detect(p)

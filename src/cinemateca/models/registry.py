@@ -64,6 +64,10 @@ def reset_caches() -> None:
 
 
 def get_image_embedder(cfg, device=None) -> ImageEmbedder:
+    """Return the configured image-embedding backend.
+
+    Provenance: see ModelCard via ``model_card(cfg, "image_embedder")``.
+    """
     name = _name(cfg, "image_embedder")
     key = (name, _device_key(device))
     cached = _image_embedder_cache.get(key)
@@ -90,6 +94,10 @@ def get_image_embedder(cfg, device=None) -> ImageEmbedder:
 
 
 def get_face_detector(cfg, device=None) -> FaceDetector:
+    """Return the configured face-detector backend.
+
+    Provenance: see ModelCard via ``model_card(cfg, "face_detector")``.
+    """
     name = _name(cfg, "face_detector")
     if name == "mtcnn_pytorch":
         from cinemateca.models.face.mtcnn import MTCNNFaceDetector
@@ -99,6 +107,10 @@ def get_face_detector(cfg, device=None) -> FaceDetector:
 
 
 def get_object_detector(cfg, device=None) -> ObjectDetector:
+    """Return the configured object-detector backend.
+
+    Provenance: see ModelCard via ``model_card(cfg, "object_detector")``.
+    """
     name = _name(cfg, "object_detector")
     if name == "yolov8":
         from cinemateca.models.objects.yolov8 import YOLOv8ObjectDetector
@@ -108,6 +120,10 @@ def get_object_detector(cfg, device=None) -> ObjectDetector:
 
 
 def get_scene_describer(cfg, device=None) -> SceneDescriber:
+    """Return the configured scene-describer (VLM) backend.
+
+    Provenance: see ModelCard via ``model_card(cfg, "scene_describer")``.
+    """
     name = _name(cfg, "scene_describer")
     # Order is load-bearing: moondream_transformers is the default backend.
     if name == "moondream_transformers":
@@ -124,6 +140,10 @@ def get_scene_describer(cfg, device=None) -> SceneDescriber:
 
 
 def get_environment_classifier(cfg, device=None) -> EnvironmentClassifier:
+    """Return the configured environment-classifier backend.
+
+    Provenance: see ModelCard via ``model_card(cfg, "environment_classifier")``.
+    """
     name = _name(cfg, "environment_classifier")
     if name == "opencv_heuristic":
         from cinemateca.models.environment.opencv_heuristic import (
@@ -135,6 +155,10 @@ def get_environment_classifier(cfg, device=None) -> EnvironmentClassifier:
 
 
 def get_audio_embedder(cfg, device=None) -> AudioEmbedder:
+    """Return the configured audio-embedding backend.
+
+    Provenance: see ModelCard via ``model_card(cfg, "audio_embedder")``.
+    """
     name = _name(cfg, "audio_embedder")
     key = (name, _device_key(device))
     cached = _audio_embedder_cache.get(key)

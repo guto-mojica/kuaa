@@ -102,6 +102,7 @@ class RegexTokenizer:
         self._stopwords_lang = stopwords_lang
 
     def tokenize(self, text: str) -> list[str]:
+        """Tokenize ``text`` using the configured stopwords language (if any)."""
         return tokenize(text, stopwords_lang=self._stopwords_lang)
 
 
