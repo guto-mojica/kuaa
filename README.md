@@ -117,6 +117,14 @@ uv sync --extra full --group dev
 uv run app.py                 # FastAPI + HTMX, opens at http://localhost:8501
 ```
 
+To prove a fresh checkout boots via `uv` alone (no Docker required):
+
+```bash
+scripts/verify_fresh_run.sh   # archives HEAD → isolated venv → boot → /health 200
+```
+
+See `SETUP.md §7` for flags (`--keep`, `--port`, `--timeout`, `--extra`).
+
 ### Public demo quickstart
 
 The M1 demo uses public Library of Congress footage and a precomputed artifact

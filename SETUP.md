@@ -249,6 +249,31 @@ domain:
 Os packs mudam prompts, campos e mapeamento de exportação sem alterar o
 pipeline. Veja `docs/DOMAIN_PACKS.md`.
 
+### Verificar uma instalação limpa (sem Docker)
+
+Para provar que um clone novo sobe com apenas `uv`:
+
+```bash
+uv sync --extra full --group dev
+uv run cinemateca serve            # http://127.0.0.1:8501
+# Em outro terminal:
+curl -fsS http://127.0.0.1:8501/health
+```
+
+Ou rode o verificador automatizado (clone efêmero → sync → boot → /health):
+
+```bash
+scripts/verify_fresh_run.sh
+```
+
+O script arquiva o HEAD atual, cria um `.venv` isolado no diretório temporário,
+sobe o servidor e aguarda `GET /health` retornar 200. Flags úteis:
+- `--keep` — mantém o diretório temporário para inspeção
+- `--port N` — porta do servidor (padrão: 8599)
+- `--timeout SECONDS` — tempo máximo de espera (padrão: 180)
+- `--extra EXTRA` — extras `uv` a instalar (padrão: `web`, que basta para
+  `/health`; use `full` para verificar a cadeia de importação completa)
+
 ### Exports and run manifests
 
 Depois que um catálogo existir, a interface pode exportar JSON e CSV:
@@ -290,27 +315,23 @@ O pacote também tem uma interface de linha de comando,
 
 **Inspecionar um vídeo:**
 ```bash
-python -m cinemateca info --video data/raw/jeca_tatu_1959.mp4
+uv run cinemateca info data/raw/jeca_tatu_1959.mp4
 ```
 
 **Processar um vídeo completo:**
 ```bash
-python -m cinemateca process --video data/raw/jeca_tatu_1959.mp4
+uv run cinemateca process data/raw/jeca_tatu_1959.mp4
 ```
 
 **Processar com configuração personalizada:**
 ```bash
-python -m cinemateca process \
-    --video data/raw/jeca_tatu_1959.mp4 \
-    --config config/local.yaml
+uv run cinemateca process data/raw/jeca_tatu_1959.mp4 --config config/local.yaml
 ```
 
 **Executar apenas etapas específicas** (útil para retomar processamento interrompido):
 ```bash
 # Só detecção de cenas e embeddings (pula frames e análise visual)
-python -m cinemateca process \
-    --video data/raw/jeca_tatu_1959.mp4 \
-    --steps scenes,embeddings
+uv run cinemateca process data/raw/jeca_tatu_1959.mp4 --steps scenes,embeddings
 ```
 
 Nomes válidos para `--steps`:
