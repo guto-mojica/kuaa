@@ -1,6 +1,6 @@
 # Cinemateca imgsearch — Continuous Integration
 #
-# Three jobs: lint (strict), test (strict), typecheck (report-only).
+# Four jobs: lint (strict), test-smoke (fast/model-free), test-heavy (full matrix), typecheck (report-only).
 #
 # Install strategy: we use the `full` extra + `dev` group. Why not a lighter
 # extra like `[search]`?  Several tests import `cinemateca.models.describer.*`
@@ -65,8 +65,33 @@ jobs:
       - name: Black (format check)
         run: uv run black --check .
 
-  test:
-    name: Tests (pytest)
+  test-smoke:
+    name: Tests — smoke (model-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Smoke tests are model-free: only the web extra + dev group are needed
+      # for FastAPI TestClient + the non-model code paths.
+      - name: Install (web extra + dev group)
+        run: uv sync --extra web --group dev
+
+      - name: Pytest (smoke only)
+        run: uv run pytest tests/ -q -m smoke
+
+  test-heavy:
+    name: Tests — heavy (full extra, matrix)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -89,8 +114,8 @@ jobs:
       - name: Install project (full extra + dev group)
         run: uv sync --extra full --group dev
 
-      - name: Pytest
-        run: uv run pytest tests/ -q
+      - name: Pytest (heavy + smoke, full extra)
+        run: uv run pytest tests/ -q -m "not e2e"
 
   typecheck:
     name: Typecheck (mypy, report-only)

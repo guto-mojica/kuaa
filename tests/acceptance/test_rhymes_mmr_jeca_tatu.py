@@ -54,10 +54,13 @@ def _films_with_embeddings() -> list[str]:
     ]
 
 
-pytestmark = pytest.mark.skipif(
-    len(_films_with_embeddings()) < 2,
-    reason="Need >=2 films with embeddings; current real library has fewer.",
-)
+pytestmark = [
+    pytest.mark.acceptance,
+    pytest.mark.skipif(
+        len(_films_with_embeddings()) < 2,
+        reason="Need >=2 films with embeddings; current real library has fewer.",
+    ),
+]
 
 
 @pytest.mark.parametrize("slug,sid", ANCHORS)

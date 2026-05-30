@@ -159,7 +159,13 @@ warn_unused_configs = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short --strict-markers"
+markers = [
+    "smoke: fast, model-free tests; the default CI gate (no torch/transformers weights).",
+    "heavy: requires the `full` extra / model wheels (mocked weights ok, real imports needed).",
+    "acceptance: runs against real on-disk demo artefacts (Jeca Tatu); skipped when absent.",
+    "e2e: browser-driven Playwright tests (a11y + UI render smoke).",
+]
 
 # ── uv ────────────────────────────────────────────────────────────────────────
 [tool.uv]

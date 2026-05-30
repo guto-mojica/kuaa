@@ -10,6 +10,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.smoke
+
 # Adicionar src ao path para testes sem instalação
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
