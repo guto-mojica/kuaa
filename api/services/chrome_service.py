@@ -64,7 +64,7 @@ def _collection_counts(cfg: Any, films: list[Film]) -> Counter[str]:
     ``Entire library`` count still comes from ``LibraryState.scene_count``.
     """
     from api.services.catalog import load_metadata
-    from api.services.scenes_service import tipo_of
+    from api.services.scenes import tipo_of
     from cinemateca.library import FilmContext
     from cinemateca.scene_ids import scene_id_key
 

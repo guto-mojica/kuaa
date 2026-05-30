@@ -33,7 +33,7 @@ from api.routes import (
 from api.services.annotations import build_annotate_context, normalize_annotate_tab
 from api.services.chrome_service import build_chrome_context
 from api.services.rhymes_service import build_rimas_context
-from api.services.scenes_service import build_cenas_context, build_timeline_context
+from api.services.scenes import build_cenas_context, build_timeline_context
 from api.templates import templates
 from cinemateca.library import FilmContext, keyframe_url, load_json, scan_library
 

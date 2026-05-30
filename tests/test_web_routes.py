@@ -1144,7 +1144,7 @@ def test_scenes_grid_groups_by_film(client, seed_metadata):
 
 def test_tipo_classifier_unit():
     """``tipo_of`` returns the documented bucket for each tag pattern."""
-    from api.services.scenes_service import tipo_of
+    from api.services.scenes import tipo_of
 
     assert tipo_of(["cartela", "title-card"], None) == "cartela"
     assert tipo_of(["interior", "baixa-luz"], None) == "interior"
@@ -1316,7 +1316,7 @@ def test_scene_dict_carries_start_s_and_duration_s(client, seed_metadata):
     """
     seed_metadata()
     from api.deps import get_config
-    from api.services.scenes_service import build_cenas_context
+    from api.services.scenes import build_cenas_context
 
     ctx = build_cenas_context(get_config())
     scenes = ctx["groups_by_film"][0]["scenes"]

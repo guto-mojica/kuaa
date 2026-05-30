@@ -21,7 +21,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 
 from api.deps import film_slug_query, get_config, make_ctx
-from api.services.scenes_service import (
+from api.services.scenes import (
     build_cenas_context,
     build_inspector_context,
 )
