@@ -310,40 +310,39 @@ O sistema é organizado em módulos independentes que podem ser usados separadam
 Os backends de modelo ficam atrás de `Protocol`s tipados e são selecionados por
 configuração em `src/cinemateca/models/registry.py`.
 
-```
-src/cinemateca/
-├── config.py           Configuração via YAML (default + override local)
-├── device.py           Detecção de hardware (CPU / CUDA / MPS)
-├── data_prep.py        Inspeção de vídeo e extração de frames (FFmpeg)
-├── scene_detector.py   Detecção de cenas (PySceneDetect)
-├── visual_analyzer.py  Fachada de análise visual com backends injetados
-├── embeddings.py       Busca semântica NumPy sobre embeddings CLIP
-├── models/             Protocols + registry + backends concretos
-│   ├── clip/            OpenCLIP
-│   ├── describer/       Moondream 2 via transformers ou GGUF
-│   ├── environment/     Heurística OpenCV
-│   ├── face/            MTCNN
-│   └── objects/         YOLOv8
-└── pipeline.py         Orquestrador do pipeline completo
+O pipeline parte de um arquivo de vídeo e produz, por cena: embeddings visuais SigLIP2 (1024-d), embeddings de áudio CLAP, transcrições Whisper e descrições em linguagem natural do Moondream 2. O motor de busca combina esses artefatos em cinco modos — pesquisa texto/imagem por cosseno SigLIP2, busca lexical BM25, fusão híbrida CLIP⊕BM25 com Reciprocal Rank Fusion, fusão cross-modal CLIP×CLAP e rimas visuais cross-film (kNN + MMR) — com reranker cross-encoder na saída. Os resultados chegam via exportação estruturada e pela UI FastAPI + HTMX.
+
+```mermaid
+flowchart TD
+    V[Video file + film slug] --> FR[FFmpeg frame extraction<br/>frames/sample/*.jpg]
+    FR --> SC[PySceneDetect scene detection<br/>keyframes + keyframes_metadata.json]
+    SC --> VIS[Visual analysis<br/>MTCNN faces · YOLOv8 objects · OpenCV env]
+    SC --> EMB[Visual embeddings<br/>SigLIP2 1024-d · keyframe_embeddings.npy]
+    SC --> AUD[Audio extract + CLAP embed<br/>scene WAV · clap_embeddings.npy]
+    SC --> AT[Whisper transcribe<br/>scene_transcripts.json]
+    SC --> LLM[Moondream 2 descriptions<br/>scene_descriptions.json · scene_tags.json]
+
+    EMB --> RET{Retrieval engine}
+    AUD --> RET
+    AT --> RET
+    LLM --> RET
+    VIS --> RET
+
+    RET --> TXT[Text / image search<br/>SigLIP2 cosine]
+    RET --> BM25[BM25 lexical<br/>transcripts + descriptions + tags]
+    TXT --> HYB[Hybrid CLIP &oplus; BM25<br/>Reciprocal Rank Fusion]
+    BM25 --> HYB
+    RET --> FUS[CLIP x CLAP fusion<br/>linear late-fusion, visual_weight]
+    RET --> RHY[Cross-film visual rhymes<br/>kNN + MMR diversity]
+    HYB --> RR[Cross-encoder reranker<br/>bge-reranker-v2-m3]
+    FUS --> RR
+    RR --> RES[Ranked scenes]
+    RHY --> RES
+    RES --> EXP[Domain-aware export<br/>catalog.json / catalog.csv]
+    RES --> UI[FastAPI + HTMX UI<br/>Buscar / Cenas / Anotar / Rimas]
 ```
 
-**Pipeline de dados:**
-
-```
-Vídeo
-  │
-  ├─[FFmpeg]──────────► frames/         (1 frame/segundo)
-  │
-  ├─[PySceneDetect]──► keyframes/       (1 keyframe por cena)
-  │                     metadata/keyframes_metadata.json
-  │
-  ├─[MTCNN + YOLO]───► metadata/visual_analysis.json
-  │
-  ├─[CLIP]────────────► embeddings/     (vetores para busca semântica)
-  │
-  └─[Moondream 2]────► metadata/scene_descriptions.json
-                        metadata/scene_tags.json
-```
+Detalhes completos do pipeline e contratos de artefato em [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ---
 
