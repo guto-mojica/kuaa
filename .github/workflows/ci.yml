@@ -173,3 +173,43 @@ jobs:
         # --ignore-vuln GHSA-xxxx entries here (with a one-line comment) if a
         # transitive CVE surfaces that has no fix available.
         run: uvx pip-audit --progress-spinner off
+
+  build:
+    name: Build (sdist + wheel)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build sdist + wheel
+        # uv build is built-in — no extra dependency. Produces dist/*.tar.gz
+        # (sdist) + dist/*.whl (pure-Python wheel; no C extension so py3-none-any).
+        run: uv build
+
+      - name: Smoke-import the built wheel in a clean venv
+        # Installs the wheel (+ its declared base deps) into a throwaway venv,
+        # then imports the package and prints the version.  This proves the
+        # wheel is self-contained and that `import cinemateca` succeeds without
+        # the `full` or `dev` extras.  Pydantic>=2.0 is now a base dep (needed
+        # at import time by cinemateca.config.loader) so it installs with the wheel.
+        run: |
+          python -m venv /tmp/whltest
+          /tmp/whltest/bin/pip install --no-cache-dir dist/*.whl
+          /tmp/whltest/bin/python -c "import cinemateca; print('wheel import OK', cinemateca.__version__)"
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*
+          if-no-files-found: error
