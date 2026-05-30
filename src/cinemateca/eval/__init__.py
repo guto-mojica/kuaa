@@ -15,11 +15,13 @@ from cinemateca.eval.grader_metrics import (
 from cinemateca.eval.grades import grades_by_query, grades_for_query
 from cinemateca.eval.metrics import QueryMetrics, RetrievalResult, summarize_results
 from cinemateca.eval.paths import eval_root, eval_run_id
+from cinemateca.eval.slates import ModalQuery, generate_slate, load_modal_queries
 
 __all__ = [
     "AnnotationStats",
     "EvalError",
     "EvaluationDataset",
+    "ModalQuery",
     "QueryCase",
     "QueryMetrics",
     "RetrievalResult",
@@ -28,12 +30,14 @@ __all__ = [
     "compute_annotation_stats",
     "eval_root",
     "eval_run_id",
+    "generate_slate",
     "grades_by_query",
     "grades_for_query",
     "grader_initials",
     "initials",
     "kappa_quality_label",
     "load_dataset",
+    "load_modal_queries",
     "load_queries",
     "other_grades_for_current",
     "query_conflict_set",
