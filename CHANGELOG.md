@@ -34,6 +34,23 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ### Adicionado
 
+- **WS-1 — refactor profundo do núcleo de busca (C1–C11).**
+  `aggregate_search` (god-function de 353 LOC) decomposto em pipeline
+  componível `FilmFilter → Scorers → GlobalRRF → Materializer` (carga de
+  índice única, antes dobrada), preservando comportamento byte-a-byte
+  (snapshot-gated); `cfg: Any` tipado como `Settings` na superfície
+  pública; caches CLIP/áudio/BM25 unificados em um `StatCache` com
+  `clear_film` + contadores; `find(rerank=...)` retorna `SearchResult`
+  tipado (default OFF — flip default-ON adiado para a Fase 2, dependente
+  de evidência de tuning E2/E6 de WS-4); metadados por consulta no
+  `SearchResult` (`fusion_used`, `reranker_applied`, `latency_ms`, …);
+  `describe_batch` com checkpoint tipado (`SceneDescriptionRecord`) +
+  proveniência de modelos via `ModelCard`. **Adiado por critério §10:**
+  C7 (busca async — sem latência visível na escala demo de 2 filmes;
+  a decomposição C1 a torna trivialmente adicionável depois), C8 (harness
+  de comparação de backends — pertence a WS-4 E2, evita duplicação) e C12
+  (batching — sem ganho de perfil mensurável na escala demo).
+
 - **Tokenizador BM25 plugável (C6 / WS-1).** `cinemateca.retrieval.tokenize`
   agora exporta um `Tokenizer` Protocol (runtime-checkable), `RegexTokenizer`
   (comportamento padrão — identico ao código anterior), `MultilingualTokenizer`
