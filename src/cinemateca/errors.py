@@ -54,6 +54,12 @@ class IndexMissing(RetrievalError):
     default_code = "retrieval.index_missing"
 
 
+class EvalError(RetrievalError):
+    """Raised for clear user-facing evaluation failures."""
+
+    default_code = "eval.failure"
+
+
 class UserInputError(CinematecaError):
     """Client supplied invalid input (bad upload, bad slug, bad query)."""
 
@@ -101,6 +107,7 @@ __all__ = [
     "PipelineError",
     "RetrievalError",
     "IndexMissing",
+    "EvalError",
     "UserInputError",
     "ArtefactError",
     "http_status_for",

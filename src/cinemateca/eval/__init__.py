@@ -1,5 +1,6 @@
 """Evaluation utilities for demo and local collection quality checks."""
 
+from cinemateca.errors import EvalError
 from cinemateca.eval.annotations import AnnotationStats, compute_annotation_stats
 from cinemateca.eval.datasets import EvaluationDataset, QueryCase, load_dataset, load_queries
 from cinemateca.eval.grader_metrics import (
@@ -17,6 +18,7 @@ from cinemateca.eval.paths import eval_root, eval_run_id
 
 __all__ = [
     "AnnotationStats",
+    "EvalError",
     "EvaluationDataset",
     "QueryCase",
     "QueryMetrics",
