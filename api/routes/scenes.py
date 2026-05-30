@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 
 from api.deps import film_slug_query, get_config, make_ctx
+from api.schemas import Pagination
 from api.services.scenes import (
     build_cenas_context,
     build_inspector_context,
@@ -63,12 +64,14 @@ async def api_scenes(
     group: str = "film",
     sort: str = "timecode",
     bucket: str | None = None,
+    page: Pagination = Depends(Pagination),
 ) -> HTMLResponse:
     """Return the filtered Cenas grid fragment for HTMX swaps."""
     cfg = get_config()
     ctx = build_cenas_context(
         cfg, tags=tags, keyword=q, selected_scene_id=_parse_scene_id(request),
         slug=slug, group=group, sort=sort, bucket=bucket,
+        limit=page.limit, offset=page.offset,
     )
     grid_ctx = {
         "groups_by_film": ctx["groups_by_film"],

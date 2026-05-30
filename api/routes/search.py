@@ -58,6 +58,7 @@ async def api_search(
     tags: list[str] = Query(default=[]),
     slug: str | None = Depends(film_slug_query),
     ctx: FilmContext | None = Depends(optional_film_context),
+    offset: int = Query(default=0, ge=0),  # A7 paging: zero-based result offset
 ) -> HTMLResponse:
     """Semantic search across one (``?film=<slug>``) or all films."""
     q = params.q.strip()
@@ -75,9 +76,10 @@ async def api_search(
         cfg, params.retriever, params.sem_w, params.bm25_w
     )
     logger.info(
-        f"api_search q={q!r} slug={slug or '(agg)'} retriever={retriever} top_k={params.top_k} "
-        f"min_sim={min_sim:.3f} sw={sw:.3f} bw={bw:.3f} tags={list(tags) or None} "
-        f"reranker_enabled={params.reranker_enabled}"
+        "api_search q=%r slug=%s retriever=%s top_k=%d min_sim=%.3f sw=%.3f bw=%.3f "
+        "tags=%s reranker_enabled=%s offset=%d",
+        q, slug or "(agg)", retriever, params.top_k, min_sim, sw, bw,
+        list(tags) or None, params.reranker_enabled, offset,
     )
     args = (cfg, ctx, q, tags, params.top_k, min_sim, retriever, sw, bw, rrf_k)
     payload, no_index = await asyncio.get_running_loop().run_in_executor(
@@ -91,12 +93,9 @@ async def api_search(
     else:
         results = _enriched_per_film(cfg, ctx, payload, slug)
     results = search_service.rerank_template_results(
-        results,
-        cfg=cfg,
-        query=q,
-        mode=retriever,
-        enabled=params.reranker_enabled,
+        results, cfg=cfg, query=q, mode=retriever, enabled=params.reranker_enabled,
     )
+    results = results[offset : offset + params.top_k]  # A7: page by offset
     return _render_results(
         request, slug=slug, cfg=cfg, results=results, query=q,
         highlighted_tags=set(tags),

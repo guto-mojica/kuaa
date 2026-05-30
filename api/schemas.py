@@ -133,13 +133,31 @@ class ErrorEnvelope(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Pagination shared base (A7)
+# Pagination query params (A7)
 # ---------------------------------------------------------------------------
 
 
 class Pagination(BaseModel):
-    """Shared pagination envelope used by list endpoints (A7)."""
+    """Query-parameter pagination model; used via ``Depends(Pagination)`` (A7).
 
-    total: int = Field(description="Total number of items matching the query")
-    offset: int = Field(default=0, ge=0, description="Zero-based offset of the first item returned")
-    limit: int = Field(default=20, ge=1, le=500, description="Maximum items per page")
+    FastAPI resolves the fields from query-string parameters:
+      ``?limit=10&offset=20`` → ``Pagination(limit=10, offset=20)``
+
+    Validation constraints are enforced before the handler runs, so an
+    out-of-range ``limit`` (e.g. ``?limit=9999``) returns **422** with
+    a structured error body rather than a 500 from the handler.
+    """
+
+    model_config = {"extra": "ignore"}
+
+    limit: int = Field(
+        default=50,
+        ge=1,
+        le=200,
+        description="Maximum number of items per page (1–200, default 50)",
+    )
+    offset: int = Field(
+        default=0,
+        ge=0,
+        description="Zero-based offset of the first item (default 0)",
+    )

@@ -34,6 +34,8 @@ def build_cenas_context(
     group: str = "film",
     sort: str = "timecode",
     bucket: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
 ) -> dict:
     """Return the full Cenas-tab template context.
 
@@ -98,9 +100,25 @@ def build_cenas_context(
             film_slug = getattr(scene_film, "slug", None) or ""
             flat_cards.append({**s, "film_slug": film_slug})
 
+    # ── A7: pagination ────────────────────────────────────────────────────────
+    # ``total_scenes`` / ``film_count`` / ``total_runtime_s`` remain UNPAGED
+    # so the countrow shows the honest library-wide totals ("showing N of M").
+    # The grid is sliced by building a paged flat sequence, then filtering the
+    # original groups down to only the scenes that fall in the current page.
+    paged_cards = flat_cards[offset : offset + limit]
+    paged_scene_ids: set[int] = {c["scene_id"] for c in paged_cards}
+
+    # Rebuild groups_by_film to only contain paged scenes; drop empty groups.
+    paged_groups: list[dict] = []
+    for grp in groups:
+        paged_scenes = [s for s in grp["scenes"] if s.get("scene_id") in paged_scene_ids]
+        if paged_scenes:
+            paged_groups.append({**grp, "scenes": paged_scenes})
+
     return {
-        "groups_by_film": groups,
+        "groups_by_film": paged_groups,
         "selected_scene_id": selected_scene_id,
+        # UNPAGED totals — countrow shows library-wide summary.
         "total_scenes": total_scenes,
         "film_count": len(groups),
         "total_runtime_s": total_runtime_s,
@@ -117,7 +135,7 @@ def build_cenas_context(
         "active_filter_count": len(tags) + (1 if bucket in _VALID_BUCKETS else 0),
         "no_data": total_scenes == 0,
         "available_tags": sorted(all_tags),
-        "cards": flat_cards,
+        "cards": paged_cards,
         # Echo back the active query so a re-render preserves the input
         # value on full-page navigation (and the inspector route can
         # plumb it through later if needed).
