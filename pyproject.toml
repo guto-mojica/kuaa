@@ -168,6 +168,33 @@ markers = [
     "e2e: browser-driven Playwright tests (a11y + UI render smoke).",
 ]
 
+[tool.coverage.run]
+source = ["src/cinemateca", "api"]
+branch = true
+omit = [
+    "*/tests/*",
+    "src/cinemateca/__main__.py",   # thin Typer entrypoint
+    "api/server.py",               # uvicorn glue
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+# Floor measured 2026-05-29 on the CPU-scoped suite (excluding the 3 GPU/real-data
+# regression tests that don't run in CI), with branch=true: TOTAL = 77.85%.
+# Statement-only (branch=false) was 80.55%; branch coverage is always lower.
+# fail_under = floor(77.85) - 2 = 75 — the -2 margin absorbs transient variation
+# without hiding real regressions. Ratchet upward as tasks add tests; never lower
+# without a CHANGELOG note + reviewer sign-off (same discipline as the LOC budget
+# in scripts/check_loc_budget.py).
+fail_under = 75
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
+
 # ── uv ────────────────────────────────────────────────────────────────────────
 [tool.uv]
 # Committed lockfile (was deferred during config-only uv adoption). Root
