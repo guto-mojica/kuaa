@@ -51,6 +51,29 @@ from cinemateca.library import FilmContext
 
 logger = logging.getLogger(__name__)
 
+
+def resolve_film_context(
+    slug: str | None,
+    request=None,
+) -> FilmContext:
+    """Resolve a ``FilmContext`` from ``?film=<slug>`` or the request cookie.
+
+    Centralises the ``slug → for_film / request → film_ctx / fallback``
+    resolution pattern shared by every annotate route handler.  Task 10
+    (A6 FilmContext dependency) will consolidate this into a FastAPI
+    ``Depends`` — for now it is a plain helper so the route bodies stay
+    small. Accepts ``request=None`` for call sites that always supply a
+    slug.
+    """
+    from api.deps import film_ctx
+
+    cfg = get_config()
+    if slug is not None:
+        return FilmContext.for_film(cfg, slug)
+    if request is not None:
+        return film_ctx(request, cfg)
+    return FilmContext.from_config(cfg)
+
 # Placeholder string Moondream emits when the prompt failed to produce a
 # real description; such "descriptions" do not count as a valid LLM
 # description for the no_llm filter. Verbatim from the pre-extraction
@@ -115,6 +138,28 @@ def build_annotate_context(
         "selected_film": _resolve_selected_film(ctx),
         **panel,
     }
+
+
+def build_description_edit_context(
+    fctx: FilmContext,
+    scene_id: int,
+    filter: str = "no_llm",
+) -> dict:
+    """Build the context for the ``/api/annotate/description/edit`` route.
+
+    Looks up the current description for ``scene_id`` from
+    ``scene_descriptions.json`` and returns it as ``current_description``.
+    Also returns ``scene_id`` and ``filter`` so the template can wire the
+    save form correctly.
+    """
+    from api.services.catalog import load_json
+
+    descriptions = load_json(fctx.metadata_dir / "scene_descriptions.json") or []
+    current = next(
+        (d.get("description", "") for d in descriptions if d.get("scene_id") == scene_id),
+        "",
+    )
+    return {"scene_id": scene_id, "filter": filter, "current_description": current}
 
 
 def build_scene_panel(ctx: FilmContext, scene_id: int | None, filter_mode: str) -> dict:

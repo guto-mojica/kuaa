@@ -1,16 +1,6 @@
-"""Annotate tab routes — manual scene tagging.
+"""Annotate tab routes — manual scene tagging (thin HTTP layer).
 
-Thin HTTP layer (Phase 3b): every route here only parses the request,
-delegates all JSON loading / id normalization / scene-list building /
-persistence to ``api/services/annotations.py``, and renders. No
-catalog/annotation logic is duplicated in this module anymore.
-
-T9: Routes accept an optional ``?film=<slug>`` query parameter.
-``slug=None`` → flat ``FilmContext.from_config`` (single-film /
-aggregate back-compat); ``slug=<value>`` → per-film
-``FilmContext.for_film``.  An aggregate-annotate view is deferred to
-a later plan; for now the annotate routes always operate on a single
-film context.
+Context builders live in :mod:`api.services.annotations` (A2 Task 5).
 """
 
 from __future__ import annotations
@@ -20,30 +10,32 @@ import logging
 from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse
 
-from api.deps import film_ctx, film_slug_query, get_config, make_ctx
+from api.deps import film_slug_query, make_ctx
 from api.services.annotations import (
     build_annotate_context,
+    build_description_edit_context,
     build_scene_panel,
     load_annotations,
     normalize_annotate_tab,
     normalize_tags,
+    resolve_film_context,
     save_annotations,
     save_description,
 )
 from api.templates import templates
-from cinemateca.library import FilmContext
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _ctx(slug: str | None, request: Request | None = None) -> FilmContext:
-    cfg = get_config()
-    if slug is not None:
-        return FilmContext.for_film(cfg, slug)
-    if request is not None:
-        return film_ctx(request, cfg)
-    return FilmContext.from_config(cfg)
+def _scene_resp(request, slug, filter, tab, ctx, **extra) -> HTMLResponse:
+    """Render ``partials/annotate_scene.html`` with the standard annotate context."""
+    return templates.TemplateResponse(
+        request,
+        "partials/annotate_scene.html",
+        make_ctx(request, current_slug=slug, filter=filter,
+                 annotate_tab=normalize_annotate_tab(tab), **ctx, **extra),
+    )
 
 
 @router.get("/tab/annotate", response_class=HTMLResponse)
@@ -58,10 +50,8 @@ async def tab_annotate(
         request,
         "partials/annotate.html",
         make_ctx(
-            request,
-            current_slug=slug,
-            annotate_tab=normalize_annotate_tab(tab),
-            **build_annotate_context(_ctx(slug, request), filter, id),
+            request, current_slug=slug, annotate_tab=normalize_annotate_tab(tab),
+            **build_annotate_context(resolve_film_context(slug, request), filter, id),
         ),
     )
 
@@ -74,18 +64,8 @@ async def api_annotate_scene(
     tab: str = Query(default="comments"),
     slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
-    ctx = build_scene_panel(_ctx(slug, request), id, filter)
-    return templates.TemplateResponse(
-        request,
-        "partials/annotate_scene.html",
-        make_ctx(
-            request,
-            current_slug=slug,
-            filter=filter,
-            annotate_tab=normalize_annotate_tab(tab),
-            **ctx,
-        ),
-    )
+    ctx = build_scene_panel(resolve_film_context(slug, request), id, filter)
+    return _scene_resp(request, slug, filter, tab, ctx)
 
 
 @router.post("/api/annotate/save", response_class=HTMLResponse)
@@ -97,27 +77,14 @@ async def api_annotate_save(
     tab: str = Form(default="annotations"),
     slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
-    fctx = _ctx(slug, request)
-
+    fctx = resolve_film_context(slug, request)
     new_tags = normalize_tags(tags)
     ann = load_annotations(fctx)
     ann[str(scene_id)] = new_tags
     save_annotations(fctx, ann)
     logger.info("Saved %d tag(s) for scene %s", len(new_tags), scene_id)
-
-    ctx = build_scene_panel(fctx, scene_id, filter)
-    return templates.TemplateResponse(
-        request,
-        "partials/annotate_scene.html",
-        make_ctx(
-            request,
-            current_slug=slug,
-            filter=filter,
-            annotate_tab=normalize_annotate_tab(tab),
-            saved=True,
-            **ctx,
-        ),
-    )
+    return _scene_resp(request, slug, filter, tab, build_scene_panel(fctx, scene_id, filter),
+                       saved=True)
 
 
 @router.get("/api/annotate/description/edit", response_class=HTMLResponse)
@@ -127,24 +94,12 @@ async def api_annotate_description_edit(
     filter: str = Query(default="no_llm"),
     slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
-    from api.services.catalog import load_json
-
-    fctx = _ctx(slug, request)
-    descriptions = load_json(fctx.metadata_dir / "scene_descriptions.json") or []
-    current = next(
-        (d.get("description", "") for d in descriptions if d.get("scene_id") == scene_id),
-        "",
-    )
+    fctx = resolve_film_context(slug, request)
+    edit_ctx = build_description_edit_context(fctx, scene_id, filter)
     return templates.TemplateResponse(
         request,
         "partials/annotate_desc_edit.html",
-        make_ctx(
-            request,
-            current_slug=slug,
-            scene_id=scene_id,
-            filter=filter,
-            current_description=current,
-        ),
+        make_ctx(request, current_slug=slug, **edit_ctx),
     )
 
 
@@ -157,23 +112,11 @@ async def api_annotate_description_save(
     tab: str = Form(default="comments"),
     slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
-    fctx = _ctx(slug, request)
+    fctx = resolve_film_context(slug, request)
     save_description(fctx, scene_id, description.strip())
     logger.info("Description updated for scene %s", scene_id)
-
-    ctx = build_scene_panel(fctx, scene_id, filter)
-    return templates.TemplateResponse(
-        request,
-        "partials/annotate_scene.html",
-        make_ctx(
-            request,
-            current_slug=slug,
-            filter=filter,
-            annotate_tab=normalize_annotate_tab(tab),
-            desc_saved=True,
-            **ctx,
-        ),
-    )
+    return _scene_resp(request, slug, filter, tab, build_scene_panel(fctx, scene_id, filter),
+                       desc_saved=True)
 
 
 @router.post("/api/annotate/clear", response_class=HTMLResponse)
@@ -184,23 +127,10 @@ async def api_annotate_clear(
     tab: str = Form(default="annotations"),
     slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
-    fctx = _ctx(slug, request)
-
+    fctx = resolve_film_context(slug, request)
     ann = load_annotations(fctx)
     ann.pop(str(scene_id), None)
     save_annotations(fctx, ann)
     logger.info("Cleared tags for scene %s", scene_id)
-
-    ctx = build_scene_panel(fctx, scene_id, filter)
-    return templates.TemplateResponse(
-        request,
-        "partials/annotate_scene.html",
-        make_ctx(
-            request,
-            current_slug=slug,
-            filter=filter,
-            annotate_tab=normalize_annotate_tab(tab),
-            cleared=True,
-            **ctx,
-        ),
-    )
+    return _scene_resp(request, slug, filter, tab, build_scene_panel(fctx, scene_id, filter),
+                       cleared=True)

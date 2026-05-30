@@ -222,3 +222,25 @@ def build_inspector_context(
         # guard skipping the .b-rimas block today.
         "rhymes": [],
     }
+
+
+# ── Inspector template selector ───────────────────────────────────────────────
+
+_VALID_KINDS = frozenset({"buscar", "cenas"})
+
+
+def resolve_inspector_template(kind: str) -> tuple[str, str]:
+    """Return ``(template_name, normalized_kind)`` for the given inspector kind.
+
+    ``kind="buscar"`` (default) → ``partials/search_inspector.html``.
+    ``kind="cenas"`` → ``partials/scenes_inspector.html``.
+    Any unknown value falls back to ``"buscar"`` — robustness over 400s for
+    a UX-only param.
+    """
+    normalized = kind if kind in _VALID_KINDS else "buscar"
+    template_name = (
+        "partials/scenes_inspector.html"
+        if normalized == "cenas"
+        else "partials/search_inspector.html"
+    )
+    return template_name, normalized

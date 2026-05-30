@@ -1,18 +1,9 @@
 """Service layer for the Eval-set-builder routes (Tasks 30–31).
 
-Builds the /eval page context, computes per-query metrics for the
-``/api/eval/metrics`` endpoint, and resolves the configured eval root
-+ run id (with safe defaults). Persistence lives in
-``cinemateca.eval.grades``; metrics math lives in
-``cinemateca.eval.grader_metrics``.
-
-Task 31 (the standalone grading UI) consumes ``build_eval_context``;
-the Task-30 routes consume ``compute_query_metrics``. The two
-``_eval_root`` / ``_eval_run_id`` resolvers are intentionally
-module-level functions (not config-namespace lookups inlined into the
-routes) so the test fixtures can ``monkeypatch.setattr`` them to a
-tmp_path / fixed run_id without having to construct a full Config
-namespace.
+``_eval_root`` / ``_eval_run_id`` are intentionally module-level
+functions so test fixtures can monkeypatch them to a tmp_path / fixed
+run_id without constructing a full Config namespace. Admin gate
+``require_admin`` moved here from api/routes/eval.py (A2 Task 5).
 """
 
 from __future__ import annotations
@@ -73,17 +64,9 @@ from cinemateca.eval.paths import (
 def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
     """Build the full /eval page context dict.
 
-    Keys returned:
-      run_id, queries, current_query, grades_by_query, annotator_count,
-      iaa_kappa, graded_count, pending_count, conflict_count,
-      query_conflict_set, iaa, grades_for_current_other, metrics,
-      grades_for_current, grader_name, grader_initials, token,
-      blind_mode, compare_mode, current_row_scene_id, result_count,
-      session_elapsed.
-
     All keys have safe zero/None defaults so the template renders on a
-    fresh unseeded run. Cookie-driven identity (grader, blind, compare)
-    is read from ``request`` when provided; falls back to anon / off.
+    fresh unseeded run. Cookie-driven identity is read from ``request``
+    when provided; falls back to anon / off.
     """
 
     run_root = _eval_root(cfg)
@@ -206,15 +189,10 @@ def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
 
 
 def compute_query_metrics(cfg, *, query_id: str | None = None) -> dict[str, Any]:
-    """Compute P@K + nDCG + inversions + histogram for one query.
+    """Return P@K/nDCG/inversions/histogram for ``query_id`` (zeroed when no grades).
 
-    When ``query_id`` is None, returns the list of graded query ids on
-    the run (``{"queries": [...]}``) — used by the /eval page to drive
-    the queue. When a ``query_id`` is given, returns the metric bundle
-    even if no grades exist yet (zeroed values), so the right-pane
-    template never has to special-case "first grade not yet saved".
+    When ``query_id`` is None, returns the graded query id list instead.
     """
-
     run_root = _eval_root(cfg)
     run = EvalRun(run_id=_eval_run_id(cfg), root=run_root)
     loaded = load_run(run)
@@ -241,5 +219,27 @@ def compute_query_metrics(cfg, *, query_id: str | None = None) -> dict[str, Any]
     }
 
 
-# All ``_underscored`` helpers are re-exported from cinemateca.eval.* at the top.
+# ``_underscored`` helpers above are re-exported from cinemateca.eval.* at the top.
 # The ``as _underscored`` aliases preserve names that test fixtures monkeypatch.
+
+
+def require_admin(request) -> None:
+    """Raise HTTPException(403) unless the request bears a valid EVAL_ADMIN_TOKEN.
+
+    Moved from api/routes/eval.py (A2 Task 5). Acceptable to raise HTTP-shaped
+    exceptions here: the gate is tiny, reused, and A4 leaves it as-is.
+    """
+    from fastapi import HTTPException, status
+
+    expected = os.getenv("EVAL_ADMIN_TOKEN", "")
+    if not expected:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Eval set builder is disabled. Set EVAL_ADMIN_TOKEN to enable.",
+        )
+    token = request.cookies.get("eval_admin") or request.query_params.get("token") or ""
+    if token != expected:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Eval set builder requires a valid admin token.",
+        )

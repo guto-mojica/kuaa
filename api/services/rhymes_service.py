@@ -202,3 +202,26 @@ def build_rimas_context(
         "threshold": threshold,
         "library_has_scenes": any(getattr(f, "is_processed", False) for f in films),
     }
+
+
+def rimas_context(
+    cfg,
+    anchor: str | None,
+    echo: str | None,
+    lambda_: float | None,
+    k_candidates: int | None,
+) -> dict:
+    """Assemble the rimas context from raw route params.
+
+    Single call-site for the three rimas handlers (tab, echoes, inspector)
+    — DRYs up the identical ``build_rimas_context(cfg, anchor=…, echo=…, …)``
+    calls. ``lambda_`` is the aliased FastAPI query param name (``alias="lambda"``);
+    it is forwarded as ``lambda_diversity`` to :func:`build_rimas_context`.
+    """
+    return build_rimas_context(
+        cfg,
+        anchor=anchor,
+        echo=echo,
+        lambda_diversity=lambda_,
+        k_candidates=k_candidates,
+    )

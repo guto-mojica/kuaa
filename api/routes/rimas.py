@@ -1,30 +1,7 @@
 """Rimas Visuais (cross-film visual rhymes) tab routes — Phase-5.
 
-Thin HTTP layer: param parsing + template dispatch only. The context
-itself is built by :func:`api.services.rhymes_service.build_rimas_context`,
-which walks the library, resolves the anchor scene, and runs the
-cross-film cosine kNN.
-
-Two endpoints:
-
-  * ``GET /tab/rimas`` — full-tab partial swap (the HTMX hx-target the
-    chrome's tab-bar fires when the user clicks the Rimas tab chip).
-    Renders ``partials/rimas.html`` with the complete page context
-    (anchor + echoes + knobs).
-
-  * ``GET /api/rimas/echoes`` — echo-grid fragment only. Used by
-    Task 22's anchor-switch interactions (clicking a film in the
-    sidebar or a candidate echo to "promote" it to the anchor swaps
-    only the echo grid, not the whole tab). Renders
-    ``partials/rimas_echoes.html`` against the same context shape.
-
-The ``?anchor=<slug>/<scene_id>`` query param controls which scene the
-service treats as the anchor; the service handles parsing + falling
-back to a default anchor + the empty-state branch (no params crash, no
-500s on unresolvable anchors).
-
-The full-page ``GET /rimas`` path in ``api/server.py`` now flows through
-``render_page`` and uses the same service builder as these fragment routes.
+Thin HTTP layer: param parsing + template dispatch only. Context builders
+live in :mod:`api.services.rhymes_service` (A2 Task 5).
 """
 
 from __future__ import annotations
@@ -42,6 +19,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _rimas_ctx(cfg, anchor, echo, lambda_, k_candidates) -> dict:
+    """Assemble rimas context from route params — single call for all three handlers."""
+    return build_rimas_context(
+        cfg, anchor=anchor, echo=echo,
+        lambda_diversity=lambda_, k_candidates=k_candidates,
+    )
+
+
 @router.get("/tab/rimas", response_class=HTMLResponse)
 async def tab_rimas(
     request: Request,
@@ -50,30 +35,10 @@ async def tab_rimas(
     lambda_: float | None = Query(default=None, alias="lambda"),
     k_candidates: int | None = None,
 ) -> HTMLResponse:
-    """Render the Rimas Visuais tab partial.
-
-    The service treats an absent / malformed ``anchor`` query param as
-    "use the default anchor" — the first processed film, scene 1. When
-    no film qualifies the partial renders an empty state. ``?echo=``
-    deep-shares a specific rhyme card and pre-populates the inspector.
-
-    ``?lambda=`` overrides ``cfg.retrieval.rhymes.diversity`` (the MMR
-    relevance↔diversity trade-off; clamped to ``[0, 1]`` service-side);
-    ``?k_candidates=`` overrides the pre-MMR pool size (default 30).
-    Both default to ``None`` so the service falls back to config / hard
-    defaults.
-    """
-    cfg = get_config()
-    ctx = build_rimas_context(
-        cfg,
-        anchor=anchor,
-        echo=echo,
-        lambda_diversity=lambda_,
-        k_candidates=k_candidates,
-    )
+    """Render the Rimas Visuais tab partial."""
+    ctx = _rimas_ctx(get_config(), anchor, echo, lambda_, k_candidates)
     return templates.TemplateResponse(
-        request,
-        "partials/rimas.html",
+        request, "partials/rimas.html",
         make_ctx(request, active_tab="rimas", **ctx),
     )
 
@@ -86,34 +51,10 @@ async def api_rimas_echoes(
     lambda_: float | None = Query(default=None, alias="lambda"),
     k_candidates: int | None = None,
 ) -> HTMLResponse:
-    """Return the echo-grid fragment for HTMX anchor swaps.
-
-    The fragment is consumed by anchor-switch interactions: clicking a
-    film in the sidebar or promoting a candidate echo to anchor fires
-    this endpoint with the new ``?anchor=`` value and swaps the grid in
-    place without reloading the whole tab.
-
-    Shares the full context shape with :func:`tab_rimas` so the
-    fragment can read every key the page template can (the echoes
-    partial intentionally reads only ``echoes`` + the knob trio +
-    ``selected_echo_id`` for the ``.sel`` highlight class; the rest is
-    no-op).
-
-    ``?lambda=`` and ``?k_candidates=`` mirror :func:`tab_rimas`: the
-    diversity slider and the pre-MMR pool size, both threaded straight
-    into the service.
-    """
-    cfg = get_config()
-    ctx = build_rimas_context(
-        cfg,
-        anchor=anchor,
-        echo=echo,
-        lambda_diversity=lambda_,
-        k_candidates=k_candidates,
-    )
+    """Return the echo-grid fragment for HTMX anchor swaps."""
+    ctx = _rimas_ctx(get_config(), anchor, echo, lambda_, k_candidates)
     return templates.TemplateResponse(
-        request,
-        "partials/rimas_echoes.html",
+        request, "partials/rimas_echoes.html",
         make_ctx(request, **ctx),
     )
 
@@ -126,32 +67,9 @@ async def api_rimas_inspector(
     lambda_: float | None = Query(default=None, alias="lambda"),
     k_candidates: int | None = None,
 ) -> HTMLResponse:
-    """Return the right-pane inspector fragment.
-
-    Fired by the .r-echo cards on click (hx-target="#right-pane",
-    hx-swap="innerHTML"). The fragment renders the .r-pair comparison +
-    similarity card + shared tags + actions for the selected echo, or
-    an "anchor-only" empty branch when ``?echo=`` is omitted or
-    unresolvable.
-
-    Same 200-only contract as the other rimas endpoints: any
-    unresolvable input collapses to an empty-but-rendered inspector,
-    never a 500.
-
-    ``?lambda=`` and ``?k_candidates=`` mirror :func:`tab_rimas` so the
-    inspector stays in sync when the user scrubs the diversity slider
-    or the pool size on the echo grid.
-    """
-    cfg = get_config()
-    ctx = build_rimas_context(
-        cfg,
-        anchor=anchor,
-        echo=echo,
-        lambda_diversity=lambda_,
-        k_candidates=k_candidates,
-    )
+    """Return the right-pane inspector fragment."""
+    ctx = _rimas_ctx(get_config(), anchor, echo, lambda_, k_candidates)
     return templates.TemplateResponse(
-        request,
-        "partials/rimas_inspector.html",
+        request, "partials/rimas_inspector.html",
         make_ctx(request, **ctx),
     )
