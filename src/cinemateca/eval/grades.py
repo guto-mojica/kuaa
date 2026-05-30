@@ -220,6 +220,53 @@ def load_run_per_annotator(
     return out
 
 
+def export_run(run: EvalRun) -> dict:
+    """Collapse the append-only JSONL to a per-query graded structure.
+
+    Uses :func:`load_run` (last-write-wins reduce) so a re-graded
+    ``(query_id, scene_id)`` pair reflects the LATEST grade only.
+
+    Returns::
+
+        {
+          "run_id": run.run_id,
+          "grades": {query_id: {scene_id: int_grade, ...}, ...},
+          "summary": {
+              "distinct_pairs": <count of (query_id, scene_id) pairs>,
+              "queries": <count of distinct query ids>,
+              "graders": <count of distinct annotators>,
+          },
+        }
+
+    An absent or empty JSONL returns a valid structure with empty grades
+    and zero summary counts (a not-yet-started run).
+    """
+    loaded = load_run(run)
+
+    grades_out: dict[str, dict[str, int]] = {}
+    for (qid, sid), entry in loaded.grades.items():
+        grades_out.setdefault(str(qid), {})[str(sid)] = int(entry.grade)
+
+    # Count distinct annotators from the raw JSONL (load_run collapses
+    # across graders, so we re-read per-annotator just for the grader count).
+    per_annot = load_run_per_annotator(run)
+    graders: set[str] = set()
+    for by_who in per_annot.values():
+        graders.update(by_who.keys())
+
+    distinct_pairs = sum(len(scenes) for scenes in grades_out.values())
+
+    return {
+        "run_id": run.run_id,
+        "grades": grades_out,
+        "summary": {
+            "distinct_pairs": distinct_pairs,
+            "queries": len(grades_out),
+            "graders": len(graders),
+        },
+    }
+
+
 def grades_by_query(loaded: LoadedRun) -> dict[str, list[Grade]]:
     """Group LoadedRun.grades by query_id."""
 

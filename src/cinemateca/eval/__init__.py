@@ -14,7 +14,7 @@ from cinemateca.eval.grader_metrics import (
     other_grades_for_current,
     query_conflict_set,
 )
-from cinemateca.eval.grades import grades_by_query, grades_for_query
+from cinemateca.eval.grades import EvalRun, Grade, export_run, grades_by_query, grades_for_query
 from cinemateca.eval.metrics import QueryMetrics, RetrievalResult, summarize_results
 from cinemateca.eval.paths import eval_root, eval_run_id
 from cinemateca.eval.proxy import proxy_labels
@@ -33,8 +33,10 @@ __all__ = [
     "AblationTable",
     "AnnotationStats",
     "EvalError",
+    "EvalRun",
     "EvaluationDataset",
     "FailureCase",
+    "Grade",
     "ModalQuery",
     "QueryCase",
     "QueryMetrics",
@@ -45,6 +47,7 @@ __all__ = [
     "compute_annotation_stats",
     "eval_root",
     "eval_run_id",
+    "export_run",
     "generate_slate",
     "grades_by_query",
     "grades_for_query",

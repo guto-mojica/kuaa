@@ -80,6 +80,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Print the M4 markdown to stdout without touching the doc.",
     )
+    parser.add_argument(
+        "--grades",
+        default=None,
+        metavar="RUN_ID_OR_PATH",
+        help=(
+            "Use human grades from this grading run instead of proxy labels. "
+            "Accepts a run ID (looked up in data/eval/) or an absolute path to "
+            "a run JSONL file. When provided, queries present in the grade log "
+            "use human-validated relevance; absent queries fall back to proxy. "
+            "Without --grades, behavior is byte-for-byte unchanged (proxy only)."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -160,6 +172,45 @@ def _merge_into_doc(doc_path: Path, m4_section: str) -> None:
     doc_path.write_text(merged, encoding="utf-8")
 
 
+def _load_graded_labels(
+    grades_arg: str | None,
+) -> tuple[dict | None, str | None]:
+    """Load graded labels from a run ID or path; return (graded_labels, validated_label).
+
+    ``graded_labels`` is ``{query_id: {scene_id: float_grade}}`` with positive
+    grades only (the ablation caller filters zero/negative itself, but we skip
+    them here for clarity). Returns ``(None, None)`` when no ``--grades`` arg.
+    """
+    if grades_arg is None:
+        return None, None
+
+    from pathlib import Path as _Path
+
+    from cinemateca.eval.grades import EvalRun, export_run
+
+    path = _Path(grades_arg)
+    if path.is_absolute() and path.exists():
+        run = EvalRun(run_id=path.stem, root=path.parent)
+    else:
+        # Treat as run_id under data/eval/.
+        run_root = REPO_ROOT / "data" / "eval"
+        run = EvalRun(run_id=grades_arg, root=run_root)
+
+    exported = export_run(run)
+    # graded_labels: {query_id: {scene_id: float_grade}}
+    graded_labels: dict = {}
+    for qid, scenes in exported["grades"].items():
+        pos = {sid: float(g) for sid, g in scenes.items() if float(g) > 0}
+        if pos:
+            graded_labels[qid] = pos
+
+    distinct = exported["summary"]["distinct_pairs"]
+    validated_label = (
+        f"human-validated (run {run.run_id}, n={distinct} grades)"
+    )
+    return graded_labels, validated_label
+
+
 def main(argv: list[str] | None = None) -> int:
     from cinemateca.config import load_config
     from cinemateca.errors import EvalError
@@ -176,6 +227,8 @@ def main(argv: list[str] | None = None) -> int:
     config_path = project_path(args.config)
     out_path = project_path(args.out)
 
+    graded_labels, validated_label = _load_graded_labels(getattr(args, "grades", None))
+
     try:
         cfg = load_config(config_path, project_root=REPO_ROOT, ensure_dirs=False)
         queries = load_modal_queries(queries_path)
@@ -188,6 +241,8 @@ def main(argv: list[str] | None = None) -> int:
             queries=queries,
             configs=configs,
             seed=args.seed,
+            graded_labels=graded_labels,
+            validated_label=validated_label,
         )
     except (EvalError, FileNotFoundError) as exc:
         print(f"Ablation failed: {exc}", file=sys.stderr)

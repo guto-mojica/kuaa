@@ -123,7 +123,9 @@ class AblationTable:
     ``rows`` is a list of ``(AblationRowConfig, metrics | None)``: a ``None``
     metrics value marks a ``pending`` row (its cells render ``pending
     (<reason>)``). ``corpus`` and ``common_query_set`` populate the methodology
-    banner.
+    banner. ``validated_label`` overrides the proxy-methodology banner when human
+    grades were used (set by the caller when ``graded_labels`` is provided to
+    :func:`run_ablation`).
     """
 
     rows: list[tuple[AblationRowConfig, dict[str, float | int] | None]] = field(
@@ -133,9 +135,17 @@ class AblationTable:
     common_query_set: str = ""
     # Optional per-row footnotes keyed by row name (e.g. the rerank-base note).
     footnotes: dict[str, str] = field(default_factory=dict)
+    # When set, the banner flips from proxy wording to this human-validated label.
+    validated_label: str | None = None
 
     def _banner(self) -> list[str]:
         """The methodology banner: KI/PR/HY definitions + corpus + caveat."""
+        if self.validated_label:
+            return [
+                f"**Human-validated methodology.** {self.validated_label} "
+                "Every row below is scored on a common query set with the **same** "
+                "human grades, so the comparison is apples-to-apples. Proxy signals:",
+            ]
         return [
             "**Proxy methodology.** These are **proxy metrics**, not human-graded "
             "ground truth — they upgrade to human-validated numbers when curator "
@@ -241,7 +251,13 @@ _ROW_FOOTNOTES: dict[str, str] = {
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def _hy_text_dataset(queries: list[ModalQuery], *, library_dir: Path, cfg: Any) -> EvaluationDataset:
+def _hy_text_dataset(
+    queries: list[ModalQuery],
+    *,
+    library_dir: Path,
+    cfg: Any,
+    graded_labels: dict[str, dict[str, float]] | None = None,
+) -> EvaluationDataset:
     """Build the common text :class:`EvaluationDataset` with HY proxy labels.
 
     Each ``text`` query is labelled via :func:`proxy_labels`; only HY-labelled
@@ -249,19 +265,51 @@ def _hy_text_dataset(queries: list[ModalQuery], *, library_dir: Path, cfg: Any) 
     single honesty tier. ``run_retrieval_eval`` reads ``relevant_scene_ids`` /
     ``relevance`` off the ``QueryCase`` rows — i.e. the HY labels — directly.
 
+    When ``graded_labels`` is provided, per-query relevance is taken from
+    ``graded_labels[query_id]`` (with scene_id keys canonicalised via
+    :func:`scene_id_key`) instead of calling :func:`proxy_labels`. Queries
+    absent from ``graded_labels`` fall back to :func:`proxy_labels`. The
+    label_method recorded on each row reflects the source used.
+
     Raises:
-        EvalError: when no text query yields a usable HY label.
+        EvalError: when no text query yields a usable label.
     """
     cases: list[QueryCase] = []
     for q in queries:
         if q.query_type != "text" or not q.text:
             continue
-        rel_ids, relevance, method = proxy_labels(q, library_dir=library_dir, cfg=cfg)
-        if method != "HY" or not rel_ids:
-            # The common set is HY-only; a text query without a usable
-            # hypothesis is skipped rather than blended in under another tier.
-            logger.debug("ablation: skipping %s (method=%s, ids=%s)", q.id, method, rel_ids)
-            continue
+
+        # Prefer human grades when available for this query.
+        if graded_labels is not None and q.id in graded_labels:
+            raw_rel = graded_labels[q.id]
+            # Canonicalise keys + keep only positive grades.
+            relevance = {
+                scene_id_key(k): float(v)
+                for k, v in raw_rel.items()
+                if float(v) > 0
+            }
+            if not relevance:
+                # All grades non-positive → fall back to proxy so this query
+                # contributes to the common set rather than being dropped.
+                rel_ids, relevance, method = proxy_labels(q, library_dir=library_dir, cfg=cfg)
+                if method != "HY" or not rel_ids:
+                    logger.debug(
+                        "ablation: skipping %s (graded all-zero + no HY, method=%s)",
+                        q.id,
+                        method,
+                    )
+                    continue
+            else:
+                rel_ids = tuple(relevance.keys())
+                method = "GRADED"
+        else:
+            rel_ids, relevance, method = proxy_labels(q, library_dir=library_dir, cfg=cfg)
+            if method != "HY" or not rel_ids:
+                # The common set is HY-only; a text query without a usable
+                # hypothesis is skipped rather than blended in under another tier.
+                logger.debug("ablation: skipping %s (method=%s, ids=%s)", q.id, method, rel_ids)
+                continue
+
         cases.append(
             QueryCase(
                 id=q.id,
@@ -542,6 +590,8 @@ def run_ablation(
     queries: list[ModalQuery],
     configs: tuple[AblationRowConfig, ...] = DEFAULT_ABLATION_CONFIGS,
     seed: int = 0,
+    graded_labels: dict[str, dict[str, float]] | None = None,
+    validated_label: str | None = None,
 ) -> AblationTable:
     """Run each row's retriever on the common text query set with HY labels.
 
@@ -560,11 +610,22 @@ def run_ablation(
         queries: parsed :class:`ModalQuery` list (only the text subset is used).
         configs: the rows to compute (default :data:`DEFAULT_ABLATION_CONFIGS`).
         seed: PRNG seed forwarded to every row for reproducibility.
+        graded_labels: optional per-query relevance from human grades.
+            When provided, ``{query_id: {scene_id: float_grade}}`` maps take
+            precedence over :func:`proxy_labels` for queries present in the
+            dict (positive grades only). Queries absent fall back to proxy.
+            Without ``--grades``, behavior is byte-for-byte unchanged (still proxy).
+        validated_label: when provided, the :class:`AblationTable` banner flips
+            from the proxy wording to this string (e.g. ``"human-validated (run
+            <id>, n=<N> grades)"``). Only meaningful when ``graded_labels`` is
+            set; ignored otherwise.
 
     Returns:
         An :class:`AblationTable` ready to ``to_markdown()``.
     """
-    dataset = _hy_text_dataset(queries, library_dir=library_dir, cfg=cfg)
+    dataset = _hy_text_dataset(
+        queries, library_dir=library_dir, cfg=cfg, graded_labels=graded_labels
+    )
     slug = _primary_film_slug(library_dir, queries)
     corpus = _corpus_description(library_dir, slug, dataset)
 
@@ -607,6 +668,7 @@ def run_ablation(
         corpus=corpus,
         common_query_set=f"{len(dataset.queries)} text queries (m3_full)",
         footnotes=footnotes,
+        validated_label=validated_label,
     )
 
 

@@ -58,6 +58,38 @@ from cinemateca.eval.paths import (
     eval_run_id as _eval_run_id,
 )
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+
+def _first_ungraded(
+    queries: list[dict],
+    per_annotator: dict[tuple[str, str], dict[str, Any]],
+    grader_name: str,
+) -> dict | None:
+    """Return the first query in ``queries`` that ``grader_name`` has not graded.
+
+    A query is considered graded by ``grader_name`` when at least one
+    ``(query_id, scene_id)`` entry in ``per_annotator`` contains
+    ``grader_name`` as a key. Returns ``None`` when the grader has graded
+    every query (or when ``queries`` is empty) — the caller falls back to
+    ``queries[0]`` in that case so a finished grader doesn't land on None.
+
+    ``per_annotator`` shape: ``{(query_id, scene_id): {grader: GradeEntry}}``.
+    """
+    # Pre-compute the set of query_ids grader_name has touched to avoid
+    # an O(n²) inner scan.
+    graded_qids: set[str] = set()
+    for (qid, _sid), by_who in per_annotator.items():
+        if grader_name in by_who:
+            graded_qids.add(str(qid))
+
+    for q in queries:
+        qid = str(q.get("id", ""))
+        if qid and qid not in graded_qids:
+            return q
+    return None
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 
@@ -76,9 +108,9 @@ def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
     per_annotator = load_run_per_annotator(run)
 
     queries = _load_queries(run_root, run_id)
-    current_query = queries[0] if queries else None
 
-    # Resolve grader identity FIRST — IAA + compare-mode helpers below
+    # Resolve grader identity BEFORE current_query — _first_ungraded
+    # needs grader_name, and the IAA + compare-mode helpers below also
     # need it to pick "the other annotator". Cookie-driven when a
     # request is provided; falls back to "anon" for direct callers (tests).
     grader_name = "anon"
@@ -90,6 +122,10 @@ def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
         blind_mode = request.cookies.get("eval_blind", "") == "1"
         compare_mode = request.cookies.get("eval_compare", "") == "1"
         token = request.cookies.get("eval_admin") or request.query_params.get("token") or token
+
+    current_query = _first_ungraded(queries, per_annotator, grader_name) or (
+        queries[0] if queries else None
+    )
 
     annotator_count, iaa_kappa = _annotator_summary(per_annotator)
     grades_by_query = _grades_by_query(loaded)

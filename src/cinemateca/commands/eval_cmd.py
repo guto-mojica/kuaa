@@ -143,6 +143,49 @@ def eval_slate(
     typer.echo(f"✓ Wrote {len(records)} slate queries ({modality}) to {out_path}")
 
 
+# ─── cinemateca eval export ──────────────────────────────────────────────────
+
+
+@app.command("export")
+def eval_export(
+    run: Annotated[
+        str,
+        typer.Option("--run", help="Run ID to export (becomes <root>/<run>.jsonl source)."),
+    ] = "default",
+    root: Annotated[
+        Path,
+        typer.Option("--root", help="Eval data directory containing the run JSONL."),
+    ] = Path("data/eval"),
+    format: Annotated[
+        str,
+        typer.Option("--format", help="Output format: json or csv."),
+    ] = "json",
+) -> None:
+    """Export a grading run to JSON or CSV on stdout.
+
+    Collapses the append-only JSONL to a per-query last-write-wins view
+    and prints either a structured JSON object or CSV rows
+    (``query_id,scene_id,grade``) on stdout.
+    """
+    from cinemateca.eval.grades import EvalRun, export_run
+
+    if format not in ("json", "csv"):
+        typer.echo(f"FAIL: --format must be 'json' or 'csv', got {format!r}")
+        raise typer.Exit(code=1)
+
+    eval_run = EvalRun(run_id=run, root=root)
+    result = export_run(eval_run)
+
+    if format == "json":
+        typer.echo(json.dumps(result, indent=2, ensure_ascii=False))
+    else:
+        # CSV: header + one row per (query_id, scene_id, grade)
+        typer.echo("query_id,scene_id,grade")
+        for qid, scenes in sorted(result["grades"].items()):
+            for sid, grade in sorted(scenes.items()):
+                typer.echo(f"{qid},{sid},{grade}")
+
+
 # ─── cinemateca eval clap-sanity ─────────────────────────────────────────────
 
 
