@@ -21,6 +21,8 @@ from api.middleware import RequestContextMiddleware
 from api.routes import (
     about,
     annotate,
+    annotate_description,
+    annotate_tags,
     export,
     library,
     palette,
@@ -131,6 +133,8 @@ app.mount("/static", StaticFiles(directory=str(_BASE / "web" / "static")), name=
 app.include_router(search.router, tags=["search"])
 app.include_router(scenes.router, tags=["scenes"])
 app.include_router(annotate.router, tags=["annotate"])
+app.include_router(annotate_tags.router, tags=["annotate"])
+app.include_router(annotate_description.router, tags=["annotate"])
 app.include_router(processing.router, tags=["processing"])
 app.include_router(about.router, tags=["system"])
 app.include_router(library.router, tags=["library"])

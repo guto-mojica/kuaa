@@ -13,16 +13,11 @@ from fastapi.responses import HTMLResponse
 from api.deps import annotate_film_context, film_slug_query, make_ctx
 from api.services.annotations import (
     build_annotate_context,
-    build_description_edit_context,
     build_scene_panel,
-    delete_manual_tag,
     load_annotations,
     normalize_annotate_tab,
     normalize_tags,
-    rename_manual_tag,
     save_annotations,
-    save_description,
-    toggle_ai_tag,
 )
 from api.templates import templates
 from cinemateca.library import FilmContext
@@ -98,145 +93,6 @@ async def api_annotate_save(
     logger.info("Saved %d tag(s) for scene %s", len(new_tags), scene_id)
     return _scene_resp(
         request, slug, filter, tab, build_scene_panel(fctx, scene_id, filter), saved=True
-    )
-
-
-@router.post("/api/annotate/tag/delete", response_class=HTMLResponse)
-async def api_annotate_tag_delete(
-    request: Request,
-    scene_id: int = Form(...),
-    tag: str = Form(...),
-    filter: str = Form(default="no_llm"),
-    tab: str = Form(default="annotations"),
-    slug: str | None = Depends(film_slug_query),
-    fctx: FilmContext = Depends(annotate_film_context),
-) -> HTMLResponse:
-    delete_manual_tag(fctx, scene_id, tag)
-
-    ctx = build_scene_panel(fctx, scene_id, filter)
-    return templates.TemplateResponse(
-        request,
-        "partials/annotate_scene.html",
-        make_ctx(
-            request,
-            current_slug=slug,
-            filter=filter,
-            annotate_tab=normalize_annotate_tab(tab),
-            saved=True,
-            **ctx,
-        ),
-    )
-
-
-@router.post("/api/annotate/tag/edit", response_class=HTMLResponse)
-async def api_annotate_tag_edit(
-    request: Request,
-    scene_id: int = Form(...),
-    old_tag: str = Form(...),
-    new_tag: str = Form(default=""),
-    filter: str = Form(default="no_llm"),
-    tab: str = Form(default="annotations"),
-    slug: str | None = Depends(film_slug_query),
-    fctx: FilmContext = Depends(annotate_film_context),
-) -> HTMLResponse:
-    rename_manual_tag(fctx, scene_id, old_tag, new_tag)
-
-    ctx = build_scene_panel(fctx, scene_id, filter)
-    return templates.TemplateResponse(
-        request,
-        "partials/annotate_scene.html",
-        make_ctx(
-            request,
-            current_slug=slug,
-            filter=filter,
-            annotate_tab=normalize_annotate_tab(tab),
-            saved=True,
-            **ctx,
-        ),
-    )
-
-
-@router.post("/api/annotate/ai-tag/toggle", response_class=HTMLResponse)
-async def api_annotate_ai_tag_toggle(
-    request: Request,
-    scene_id: int = Form(...),
-    tag: str = Form(...),
-    suppressed: bool = Form(default=True),
-    filter: str = Form(default="no_llm"),
-    tab: str = Form(default="annotations"),
-    slug: str | None = Depends(film_slug_query),
-    fctx: FilmContext = Depends(annotate_film_context),
-) -> HTMLResponse:
-    """Suppress / restore a single AI-generated tag (non-destructive override).
-
-    Writes ``tag_overrides.json`` only; ``scene_tags.json`` is untouched. The
-    BM25 cache keys on the override file so the suppression takes effect on the
-    next search.
-    """
-    toggle_ai_tag(fctx, scene_id, tag, suppressed=suppressed)
-
-    ctx = build_scene_panel(fctx, scene_id, filter)
-    return templates.TemplateResponse(
-        request,
-        "partials/annotate_scene.html",
-        make_ctx(
-            request,
-            current_slug=slug,
-            filter=filter,
-            annotate_tab=normalize_annotate_tab(tab),
-            saved=True,
-            **ctx,
-        ),
-    )
-
-
-@router.get("/api/annotate/description/edit", response_class=HTMLResponse)
-async def api_annotate_description_edit(
-    request: Request,
-    scene_id: int = Query(...),
-    filter: str = Query(default="no_llm"),
-    slug: str | None = Depends(film_slug_query),
-    fctx: FilmContext = Depends(annotate_film_context),
-) -> HTMLResponse:
-    edit_ctx = build_description_edit_context(fctx, scene_id, filter)
-    return templates.TemplateResponse(
-        request,
-        "partials/annotate_desc_edit.html",
-        make_ctx(request, current_slug=slug, **edit_ctx),
-    )
-
-
-@router.get("/api/annotate/description/cancel", response_class=HTMLResponse)
-async def api_annotate_description_cancel() -> HTMLResponse:
-    """Abort the inline description editor — clear the editor container only.
-
-    Aborting an edit must NOT re-render the scene panel. The earlier Cancel
-    wiring re-fetched ``/api/annotate/scene`` (a full panel re-render), which
-    re-resolved the film/filter/scene context from scratch; whenever that
-    resolution landed on a different scene (filter excluded the edited scene,
-    or the active-film cookie disagreed with the omitted ``&film=``) the
-    visible description vanished until the user navigated away and back. The
-    editor lives in its own ``#annotate-llm-edit`` swap container *below* the
-    read-only description, so returning an empty fragment closes the editor
-    and leaves the already-correct description untouched.
-    """
-    return HTMLResponse("")
-
-
-@router.post("/api/annotate/description", response_class=HTMLResponse)
-async def api_annotate_description_save(
-    request: Request,
-    scene_id: int = Form(...),
-    filter: str = Form(default="no_llm"),
-    description: str = Form(default=""),
-    tab: str = Form(default="comments"),
-    slug: str | None = Depends(film_slug_query),
-    fctx: FilmContext = Depends(annotate_film_context),
-) -> HTMLResponse:
-    save_description(fctx, scene_id, description.strip())
-    logger.info("Description updated for scene %s", scene_id)
-    return _scene_resp(
-        request, slug, filter, tab, build_scene_panel(fctx, scene_id, filter), desc_saved=True
     )
 
 

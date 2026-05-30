@@ -31,17 +31,21 @@ from __future__ import annotations
 import logging
 
 from api.deps import get_config
+
+# Per-tag curation helpers (delete / rename / AI-tag suppress) live in
+# _annotate_curation (split out to keep this module within its LOC cap);
+# re-exported so ``api.services.annotations`` stays the import surface.
+from api.services._annotate_curation import (  # noqa: F401
+    dedupe_tags,
+    delete_manual_tag,
+    rename_manual_tag,
+    toggle_ai_tag,
+)
 from cinemateca.annotations.descriptions import save_description  # noqa: F401
 from cinemateca.annotations.io import (  # noqa: F401
     load_annotations,
     normalize_tags,
     save_annotations,
-)
-from cinemateca.annotations.overrides import (
-    load_overrides,
-    normalize_override_tag,
-    save_overrides,
-    set_suppressed,
 )
 from cinemateca.annotations.scenes import (  # noqa: F401
     build_scene_list,
@@ -92,89 +96,6 @@ _BROKEN_LLM = "One or two sentences about subject"
 # ``comments`` — same defensive contract the Buscar inspector uses for
 # its ``inspector_tab`` query param.
 _VALID_ANNOTATE_TABS = ("comments", "annotations", "properties")
-
-
-def dedupe_tags(tags: list[str]) -> list[str]:
-    """Drop duplicate tags, preserving first-seen order.
-
-    Applied only on the per-tag curation paths (delete / rename) — NOT in
-    :func:`normalize_tags`, whose no-dedupe / order-preserving contract is
-    pinned by snapshot tests and shared with the byte-preserved bulk-save
-    route.
-    """
-    seen: set[str] = set()
-    out: list[str] = []
-    for t in tags:
-        if t not in seen:
-            seen.add(t)
-            out.append(t)
-    return out
-
-
-def delete_manual_tag(ctx: FilmContext, scene_id: int, tag: str) -> None:
-    """Remove a single manual tag from a scene, pruning an emptied entry.
-
-    Matching is normalisation-aware (``normalize_tags`` form) so the chip
-    label round-trips regardless of how it was originally entered. A no-op
-    when the scene or tag is absent.
-    """
-    target = normalize_override_tag(tag)
-    ann = load_annotations(ctx)
-    sid = str(scene_id)
-    current = ann.get(sid)
-    if not current:
-        return
-    kept = dedupe_tags([t for t in current if normalize_override_tag(t) != target])
-    if kept:
-        ann[sid] = kept
-    else:
-        ann.pop(sid, None)
-    save_annotations(ctx, ann)
-    logger.info("Deleted tag %r from scene %s", target, scene_id)
-
-
-def rename_manual_tag(ctx: FilmContext, scene_id: int, old_tag: str, new_tag: str) -> None:
-    """Rename one manual tag in place (normalised + deduped).
-
-    The new tag is normalised via :func:`normalize_tags`; an empty result
-    (e.g. the curator cleared the field) falls back to a plain delete. Order
-    is preserved and duplicates collapse.
-    """
-    old_norm = normalize_override_tag(old_tag)
-    new_norm = normalize_tags(new_tag)
-    if not new_norm:
-        delete_manual_tag(ctx, scene_id, old_tag)
-        return
-    ann = load_annotations(ctx)
-    sid = str(scene_id)
-    current = ann.get(sid)
-    if not current:
-        return
-    replaced: list[str] = []
-    for t in current:
-        replaced.extend(new_norm if normalize_override_tag(t) == old_norm else [t])
-    ann[sid] = dedupe_tags(replaced)
-    save_annotations(ctx, ann)
-    logger.info("Renamed tag %r -> %r on scene %s", old_norm, new_norm, scene_id)
-
-
-def toggle_ai_tag(ctx: FilmContext, scene_id: int, tag: str, *, suppressed: bool) -> None:
-    """Suppress or restore one AI-generated tag for a scene (override layer).
-
-    Writes ``tag_overrides.json`` only; ``scene_tags.json`` (model output) is
-    never mutated, so the action is fully reversible. The BM25 cache keys on
-    this file's stamp, so the change is reflected on the next search with no
-    explicit reindex call.
-    """
-    overrides = load_overrides(ctx)
-    set_suppressed(overrides, scene_id, tag, suppressed=suppressed)
-    save_overrides(ctx, overrides)
-    logger.info(
-        "%s AI tag %r on scene %s",
-        "Suppressed" if suppressed else "Restored",
-        normalize_override_tag(tag),
-        scene_id,
-    )
 
 
 def normalize_annotate_tab(tab: str | None) -> str:

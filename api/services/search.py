@@ -118,8 +118,8 @@ from api.services._search_rerank import (  # noqa: F401
     _gpu_available,
     _reranker_settings,
     apply_reranker,
-    reranker_default_enabled,
     rerank_template_results,
+    reranker_default_enabled,
 )
 
 logger = logging.getLogger(__name__)
@@ -172,17 +172,11 @@ def dispatch_text_search(
     fast path doesn't read disk when ``retriever == "clip"`` and ``tags``
     is empty (preserving the legacy behaviour).
 
-    When ``cfg.search.rerank_enabled`` is true the per-film first stage
-    retrieves ``reranker.top_k`` candidates (default 50), then
-    ``rerank_dataframe`` re-scores them with a cross-encoder and trims to
-    the original ``top_k``. Aggregate mode is not reranked (each per-film
-    result is already trimmed before aggregation).
+    Reranking is applied downstream by the route layer
+    (``rerank_template_results`` over the enriched cards), not here — this
+    verb returns the first-stage ranking.
     """
     from api.services.catalog import load_tag_index
-
-    rerank_enabled = bool(getattr(cfg.search, "rerank_enabled", False))
-    reranker_cfg = getattr(cfg.search, "reranker", None)
-    candidate_k = int(getattr(reranker_cfg, "top_k", 50)) if reranker_cfg else 50
 
     if ctx is None:
         try:
@@ -214,12 +208,8 @@ def dispatch_text_search(
         return None, True
     tag_index = load_tag_index(ctx.metadata_dir) if tags else {}
 
-    # Widen first-stage retrieval when reranking so the cross-encoder has
-    # enough candidates to reshuffle. Trimming to ``top_k`` happens after.
-    first_k = max(top_k, candidate_k) if rerank_enabled and q else top_k
-
     if retriever == "clip":
-        result_df = search_text(index, q, tags, tag_index, first_k, min_sim)
+        result_df = search_text(index, q, tags, tag_index, top_k, min_sim)
     else:
         bm25 = _get_bm25_index_for_ctx(ctx)
         result_df = search_hybrid(
@@ -228,7 +218,7 @@ def dispatch_text_search(
             query=q,
             tags=tags,
             tag_index=tag_index,
-            top_k=first_k,
+            top_k=top_k,
             min_similarity=min_sim,
             retriever_mode=retriever,
             sem_w=sw,
