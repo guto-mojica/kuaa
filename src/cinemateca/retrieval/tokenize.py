@@ -4,6 +4,13 @@ The default config ships without stopword removal — PT stopwords overlap
 with cinematographically meaningful words (`sem`, `não`) and lossy-
 defaults risk more than they save. Callers may opt in via
 ``stopwords_lang="pt"`` (requires ``nltk`` installed; not a hard dep).
+
+Pluggable tokenizer classes
+----------------------------
+``Tokenizer`` (Protocol, runtime-checkable) — single ``tokenize(text) -> list[str]``.
+``RegexTokenizer`` — wraps the module-level ``tokenize`` function (default).
+``MultilingualTokenizer`` — PT-aware: enables PT stopword removal.
+``get_tokenizer(name)`` — resolve by config name (``regex`` | ``multilingual``).
 """
 
 from __future__ import annotations
@@ -11,6 +18,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from functools import lru_cache
+from typing import Protocol, runtime_checkable
 
 # Unicode letter or digit, run-length 1+. \w in Python 3 with the
 # default re flags is Unicode-aware and covers PT diacritics
@@ -72,3 +80,57 @@ def _keep_token(t: str) -> bool:
     if len(t) >= 2:
         return True
     return not t.isascii()
+
+
+# ── Pluggable tokenizer Protocol + implementations ───────────────────────────
+
+
+@runtime_checkable
+class Tokenizer(Protocol):
+    """Tokenises text for BM25 indexing/querying."""
+
+    def tokenize(self, text: str) -> list[str]: ...
+
+
+class RegexTokenizer:
+    """Default tokenizer — wraps the legacy module-level ``tokenize``.
+
+    Unicode NFKC + lowercase + letter/digit runs; length-1 ASCII dropped.
+    """
+
+    def __init__(self, *, stopwords_lang: str | None = None) -> None:
+        self._stopwords_lang = stopwords_lang
+
+    def tokenize(self, text: str) -> list[str]:
+        return tokenize(text, stopwords_lang=self._stopwords_lang)
+
+
+class MultilingualTokenizer(RegexTokenizer):
+    """PT-aware tokenizer matching the SigLIP-multilingual visual story.
+
+    Adds PT-stopword removal by default so PT queries don't dilute the
+    BM25 ranking with function words.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(stopwords_lang="pt")
+
+
+def get_tokenizer(name: str) -> Tokenizer:
+    """Resolve a tokenizer by config name (``regex`` | ``multilingual``).
+
+    Args:
+        name: One of ``"regex"`` (default, no stopword removal) or
+            ``"multilingual"`` (PT-aware stopword removal).
+
+    Returns:
+        A :class:`Tokenizer`-protocol-conforming instance.
+
+    Raises:
+        ValueError: If ``name`` is not a recognised tokenizer id.
+    """
+    if name == "regex":
+        return RegexTokenizer()
+    if name == "multilingual":
+        return MultilingualTokenizer()
+    raise ValueError(f"Unknown bm25 tokenizer: {name!r}")

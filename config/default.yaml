@@ -154,6 +154,7 @@ search:
     stopwords_lang: null       # null = no stopword removal
     rrf_k: 60                  # RRF rank-shift constant (Cormack et al.)
     include_transcripts: true   # M4 ablation flag
+    tokenizer: regex            # "regex" (default, unchanged behavior) | "multilingual" (PT-aware, opt-in via C6)
   rerank_enabled: false       # Default UI state for the Buscar Rerank toggle.
   mmr_lambda: 0.5             # Legacy Search config; Rimas uses retrieval.rhymes.
   # Modality gates (each toggles its chip on/off in the Buscar tab).

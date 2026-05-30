@@ -34,6 +34,17 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ### Adicionado
 
+- **Tokenizador BM25 plugável (C6 / WS-1).** `cinemateca.retrieval.tokenize`
+  agora exporta um `Tokenizer` Protocol (runtime-checkable), `RegexTokenizer`
+  (comportamento padrão — identico ao código anterior), `MultilingualTokenizer`
+  (PT-aware: remove stopwords portuguesas via nltk, opt-in) e `get_tokenizer(name)`.
+  O tokenizador é injetável em `build_corpus`, `BM25Index.build`/`.query` e
+  `bm25_index_for_dir`/`bm25_index_for_ctx`. Novo campo `search.bm25.tokenizer:
+  regex` em `config/default.yaml` + `Bm25Cfg` no schema. O padrão `regex` mantém
+  comportamento idêntico ao anterior — snapshots de regressão byte-a-byte
+  confirmados sem re-record. `multilingual` ativa via `config/local.yaml`:
+  `search.bm25.tokenizer: multilingual` (requer `nltk` instalado).
+
 - **Reproducibilidade determinística (F3 / Phase 0).** Novo módulo
   `cinemateca.reproducibility` com `seed_everything(seed)` (fixa `random`,
   `numpy` global e `torch` CPU+CUDA) e `make_generator(seed, *salt)` (retorna

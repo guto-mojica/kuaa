@@ -173,6 +173,7 @@ class Bm25Cfg(_Section):
     stopwords_lang: str | None = None
     rrf_k: int = 60
     include_transcripts: bool = True
+    tokenizer: str = "regex"  # "regex" (default, unchanged) | "multilingual" (PT-aware, opt-in)
 
 
 class SearchCfg(_Section):

@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 
-from cinemateca.retrieval.tokenize import tokenize
+from cinemateca.retrieval.tokenize import RegexTokenizer, Tokenizer, tokenize
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +26,7 @@ def build_corpus(
     *,
     transcripts: Sequence[dict] | None = None,
     stopwords_lang: str | None = None,
+    tokenizer: Tokenizer | None = None,
 ) -> list[tuple[int, list[str]]]:
     """Build ``[(scene_id, tokens), …]`` for a single film.
 
@@ -36,12 +37,21 @@ def build_corpus(
             ``load_tag_index(metadata_dir)``.
         transcripts: Optional list of ``{"scene_id": int, "text": str}``
             dicts as read from ``scene_transcripts.json``.
-        stopwords_lang: Forwarded to ``tokenize``.
+        stopwords_lang: Forwarded to the default ``RegexTokenizer`` when
+            ``tokenizer`` is ``None``. Ignored if an explicit ``tokenizer``
+            is provided.
+        tokenizer: Optional :class:`~cinemateca.retrieval.tokenize.Tokenizer`
+            instance. When ``None``, a ``RegexTokenizer(stopwords_lang=…)`` is
+            constructed from the ``stopwords_lang`` argument (preserving the
+            legacy calling convention byte-for-byte).
 
     Returns:
         Sorted-by-scene_id list of ``(scene_id, tokens)``. Scenes with
         no description text, transcript text, or tag are omitted.
     """
+    # Resolve tokenizer: explicit injection wins; fall back to the legacy
+    # RegexTokenizer path so existing callers are unaffected.
+    _tok: Tokenizer = tokenizer if tokenizer is not None else RegexTokenizer(stopwords_lang=stopwords_lang)
     desc_by_sid: dict[int, str] = {}
     for entry in descriptions:
         sid = entry.get("scene_id")
@@ -86,7 +96,7 @@ def build_corpus(
         # Future tuning levers are per-surface boosts (tag_boost,
         # transcript_boost) once a larger corpus gives stable metrics.
         text = " ".join(part for part in (desc, transcript, " ".join(tags)) if part).strip()
-        tokens = tokenize(text, stopwords_lang=stopwords_lang)
+        tokens = _tok.tokenize(text)
         if not tokens:
             # Distinguish two empty-token shapes:
             #   * text itself was empty (no desc + no tags) — silently
@@ -100,19 +110,19 @@ def build_corpus(
                 pruned_by_stopwords += 1
                 logger.debug(
                     "build_corpus: scene_id=%s text=%r tokenized to empty "
-                    "(stopwords_lang=%s); not indexed",
+                    "(tokenizer=%s); not indexed",
                     sid,
                     text,
-                    stopwords_lang,
+                    type(_tok).__name__,
                 )
             continue
         docs.append((sid, tokens))
     if pruned_by_stopwords:
         logger.info(
             "build_corpus: %d scene(s) had non-empty text but tokenized "
-            "to empty under stopwords_lang=%s — those scenes are "
+            "to empty under tokenizer=%s — those scenes are "
             "BM25-invisible (will rank via CLIP only in hybrid mode)",
             pruned_by_stopwords,
-            stopwords_lang,
+            type(_tok).__name__,
         )
     return docs

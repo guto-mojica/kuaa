@@ -46,6 +46,7 @@ from typing import Any
 
 from cinemateca.library.metadata import load_tag_index
 from cinemateca.retrieval.bm25 import BM25Index
+from cinemateca.retrieval.tokenize import get_tokenizer
 from cinemateca.search._cache_core import StatCache, stat_sig
 from cinemateca.search.cache import register_cache_clearer
 
@@ -66,10 +67,11 @@ def _file_stamp(path: Path) -> tuple[int, int]:
 
 
 # ── Outer StatCache (slug-keyed so clear_film works) ──────────────────────────
-# Key: (slug, str(metadata_dir), stopwords_lang_or_empty, k1_str, b_str, incl_transcripts)
+# Key: (slug, str(metadata_dir), stopwords_lang_or_empty, k1_str, b_str,
+#       incl_transcripts, tokenizer_name)
 # First component is the film slug so clear_film(slug) invalidates exactly one
 # film's BM25 slot without touching other films.
-_BM25_CACHE: StatCache[tuple[str, str, str, str, str, bool], BM25Index] = StatCache()
+_BM25_CACHE: StatCache[tuple[str, str, str, str, str, bool, str], BM25Index] = StatCache()
 
 
 # ── Inner lru_cache loader (kept for back-compat: cache_info().currsize) ──────
@@ -84,6 +86,7 @@ def _cached_bm25_index(
     stopwords_lang: str | None,
     k1: float,
     b: float,
+    tokenizer_name: str = "regex",
 ) -> BM25Index:
     """Build a BM25 index for the given (already-stamped) metadata dir.
 
@@ -124,11 +127,13 @@ def _cached_bm25_index(
         except json.JSONDecodeError:
             logger.warning("BM25: malformed %s; using empty transcripts", transcripts_path)
 
+    tokenizer = get_tokenizer(tokenizer_name)
     return BM25Index.build(
         descriptions=descriptions,
         tag_index=tag_index,
         transcripts=transcripts,
         stopwords_lang=stopwords_lang,
+        tokenizer=tokenizer,
         k1=k1,
         b=b,
     )
@@ -141,14 +146,16 @@ def bm25_index_for_dir(
     k1: float,
     b: float,
     include_transcripts: bool = True,
+    tokenizer_name: str = "regex",
 ) -> BM25Index:
     """Load (cached) BM25 index for a metadata directory.
 
     Routes through the outer ``_BM25_CACHE`` (StatCache, slug-keyed) then
     falls through to the inner ``_cached_bm25_index`` (lru_cache). Any
     write to any source file invalidates both layers automatically.
-    ``stopwords_lang`` / ``k1`` / ``b`` / ``include_transcripts``
-    participate in the key so a config change reloads correctly.
+    ``stopwords_lang`` / ``k1`` / ``b`` / ``include_transcripts`` /
+    ``tokenizer_name`` participate in the key so a config change reloads
+    correctly.
     """
     transcripts_path = metadata_dir.parent / "audio" / "scene_transcripts.json"
     d_stamp = _file_stamp(metadata_dir / "scene_descriptions.json")
@@ -166,7 +173,15 @@ def bm25_index_for_dir(
 
     # Slug = immediate parent dir name (data/library/<slug>/metadata/ → slug).
     slug = metadata_dir.parent.name
-    cache_key = (slug, str(metadata_dir), stopwords_lang or "", str(k1), str(b), include_transcripts)
+    cache_key = (
+        slug,
+        str(metadata_dir),
+        stopwords_lang or "",
+        str(k1),
+        str(b),
+        include_transcripts,
+        tokenizer_name,
+    )
 
     def _load() -> BM25Index:
         return _cached_bm25_index(
@@ -179,6 +194,7 @@ def bm25_index_for_dir(
             stopwords_lang,
             k1,
             b,
+            tokenizer_name,
         )
 
     return _BM25_CACHE.get_or_load(key=cache_key, signature=sig, loader=_load)
@@ -191,13 +207,14 @@ def bm25_index_for_ctx(
     k1: float,
     b: float,
     include_transcripts: bool = True,
+    tokenizer_name: str = "regex",
 ) -> BM25Index:
     """Load BM25 index for a film context (duck-typed).
 
-    ``ctx`` must expose ``metadata_dir``. The three BM25 tunables are
-    passed explicitly so this module stays free of any ``api.*``
-    import — the call-site shim in ``api/services/search.py`` resolves
-    them from ``cfg.search.bm25`` and forwards.
+    ``ctx`` must expose ``metadata_dir``. The BM25 tunables are passed
+    explicitly so this module stays free of any ``api.*`` import — the
+    call-site shim in ``api/services/search.py`` resolves them from
+    ``cfg.search.bm25`` and forwards.
     """
     return bm25_index_for_dir(
         metadata_dir=ctx.metadata_dir,
@@ -205,6 +222,7 @@ def bm25_index_for_ctx(
         k1=k1,
         b=b,
         include_transcripts=include_transcripts,
+        tokenizer_name=tokenizer_name,
     )
 
 
