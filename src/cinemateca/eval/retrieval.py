@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -28,13 +29,20 @@ from cinemateca.eval.metrics import RetrievalResult, evaluate_query, summarize_r
 from cinemateca.eval.slates import ModalQuery, generate_slate
 from cinemateca.reproducibility import seed_everything
 from cinemateca.retrieval.hybrid import DEFAULT_RRF_K, fuse_rrf, resolve_weights
-from cinemateca.rhymes.algorithm import _SCENE_NUM_RE
 from cinemateca.scene_ids import scene_id_key
 
 logger = logging.getLogger(__name__)
 
 
 VALID_RETRIEVERS = ("clip", "bm25", "hybrid")
+
+# Scene-number extractor for an image keyframe basename (e.g.
+# "...Scene-012-02.jpg" -> 12). Inlined here rather than imported from the
+# sibling ``cinemateca.rhymes.algorithm`` (whose copy is underscore-private):
+# the project invariant keeps a package's public surface in its __init__, and
+# .importlinter prefers inlining a one-line helper over a cross-package
+# carve-out. This pattern MUST mirror ``cinemateca.rhymes.algorithm._SCENE_NUM_RE``.
+_SCENE_NUM_RE = re.compile(r"[Ss]cene[-_](\d+)")
 
 
 @dataclass(frozen=True)
@@ -532,24 +540,35 @@ def _default_relevance(
       * **text / fusion WITH YAML hypotheses** — use the maintainer's
         ``relevant_scene_ids`` + ``relevance`` from the query file.
       * **image** — known-item: the anchor scene id parsed out of the
-        ``image_path`` basename via :data:`_SCENE_NUM_RE` (reused from
-        ``cinemateca.rhymes.algorithm``).
+        ``image_path`` basename via :data:`_SCENE_NUM_RE` (inlined here; mirrors
+        the pattern in ``cinemateca.rhymes.algorithm``).
       * **rhyme** — known-item: the anchor scene id from ``"<slug>/<scene_id>"``.
-        Note the rhyme slate is cross-film-only, so the anchor scene (in the
-        anchor film) is excluded from candidates — this KI is intentionally
-        a hard target that usually scores 0; it exists to make the GATE
-        produce metrics, and E2's proxy supersedes it.
+        This target **structurally always scores 0**: the anchor scene lives in
+        the anchor film, and ``find_rhymes(cross_film_only=True)`` excludes the
+        anchor film, so the anchor scene can NEVER appear in the candidate pool
+        — recall and reciprocal-rank are 0 regardless of retriever quality. The
+        rhyme row therefore measures only GATE-completeness (that the modality
+        runs end-to-end and emits a metrics block), NOT rhyme quality. A real
+        rhyme metric needs different labels — curator-graded cross-film matches
+        — which E2/E5 owns.
       * **audio / fusion WITHOUT YAML labels** — pseudo-relevance placeholder
         (top-1 returned scene treated as relevant).
     """
     if query.relevant_scene_ids:
         # text (always labelled) + any fusion query the maintainer labelled.
         rel = tuple(scene_id_key(s) for s in query.relevant_scene_ids)
-        rmap = (
-            {scene_id_key(k): float(v) for k, v in query.relevance.items()}
-            if query.relevance
-            else {sid: 1.0 for sid in rel}
-        )
+        # Keep only positive grades — ``ndcg_at_k`` raises a *bare* ValueError
+        # (not an EvalError) when no grade is > 0, which _modal_mode/_all_modalities
+        # would not catch. If the maintainer's relevance map is all-zero/negative
+        # but relevant_scene_ids exist, fall back to a flat 1.0 per relevant id so
+        # the labelled query stays scorable.
+        rmap: dict[str, float] = {}
+        if query.relevance:
+            rmap = {
+                scene_id_key(k): float(v) for k, v in query.relevance.items() if float(v) > 0
+            }
+        if not rmap:
+            rmap = {sid: 1.0 for sid in rel}
         return rel, rmap, "hypothesis"
 
     if query.query_type == "image" and query.image_path is not None:
@@ -615,6 +634,17 @@ def _run_modal_eval(
     every film under it. Single-film modalities (image/audio/fusion) are scoped
     to ``film_slug`` after generation when one is given; rhyme is inherently
     cross-film and is never scoped out.
+
+    .. warning::
+       **A mixed-method run's aggregate ``metrics`` blends scores across honesty
+       tiers** and is NOT publishable as-is. ``pseudo`` queries are tautological
+       (top-1 is *defined* as relevant, so their recall@k / RR are 1.0 by
+       construction) and inflate the average; ``known_item`` rhyme queries are
+       structurally 0 (see :func:`_default_relevance`). Any consumer that
+       publishes numbers (E2/E8 ablation tables) MUST segregate per query using
+       ``context["relevance_methods_by_query"]`` (``{query_id: method}``) and
+       report only the tier it intends to. ``context["relevance_method"]`` is the
+       coarse ``"+".join`` aggregate, kept for back-compat only.
     """
     if top_k < 1:
         raise EvalError("top_k must be at least 1")
@@ -624,6 +654,7 @@ def _run_modal_eval(
 
     scope_slug = film_slug if modality != "rhyme" else None
     methods: set[str] = set()
+    methods_by_query: dict[str, str] = {}
     results: list[RetrievalResult] = []
     warnings: list[str] = []
 
@@ -638,6 +669,7 @@ def _run_modal_eval(
             warnings.append(f"{q.id}: no candidates and no labels — query skipped")
             continue
         methods.add(method)
+        methods_by_query[q.id] = method
         ranked_ids = tuple(scene_id_key(r["scene_id"]) for r in rows)
         result = evaluate_query(
             query_id=q.id,
@@ -664,7 +696,13 @@ def _run_modal_eval(
         "modality": modality,
         "film_slug": film_slug,
         "seed": seed,
+        # Coarse aggregate (back-compat). For honesty-segregated reporting use
+        # ``relevance_methods_by_query`` — see the method docstring warning.
         "relevance_method": "+".join(sorted(methods)) if methods else "none",
+        # Per-query method so a consumer can tell pseudo (tautological) from
+        # real (hypothesis / known_item) queries and avoid publishing the
+        # blended average. This is the I2-mandated honesty hook for E2/E8.
+        "relevance_methods_by_query": methods_by_query,
     }
 
     return RetrievalRun(
@@ -762,9 +800,12 @@ def run_rhyme_eval(
     """Score the rhyme queries via cross-film ``find_rhymes`` slates.
 
     Rhyme is inherently cross-film (anchor film excluded from the candidate
-    pool), so the scorer never scopes rows to ``film_slug``. The known-item
-    relevance target is the anchor scene — intentionally a hard target the
-    cross-film slate usually cannot contain (see :func:`_default_relevance`).
+    pool), so the scorer never scopes rows to ``film_slug``. Under the default
+    resolver the known-item relevance target is the anchor scene, which the
+    cross-film slate can NEVER contain — so the rhyme metrics are structurally
+    0 and certify only GATE-completeness, not rhyme quality (see
+    :func:`_default_relevance`). A real rhyme metric needs curator-graded
+    cross-film labels, supplied by E2/E5 via ``relevance_resolver``.
     """
     return _run_modal_eval(
         cfg,
