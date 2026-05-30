@@ -138,3 +138,38 @@ jobs:
 
       - name: Mypy
         run: uv run mypy src api
+
+  security:
+    name: Security (bandit + pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # bandit and pip-audit run via uvx (ephemeral — fetched on the fly,
+      # no project dependency, no uv.lock change). This is the reconciliation
+      # from the implementation plan: avoids adding bandit/pip-audit to the
+      # dev group while the lockfile has an unrelated in-flight prune.
+      - name: Bandit (SAST, MEDIUM+ severity)
+        # -c reads [tool.bandit] from pyproject.toml for exclude_dirs + skips.
+        # -ll = MEDIUM+ only; Low findings are documented false-positives in
+        # [tool.bandit].skips with inline justification.
+        run: uvx bandit -c pyproject.toml -r src api -ll
+
+      - name: pip-audit (dependency CVEs)
+        # Audit the active environment resolved by pip's own resolver against
+        # the PyPI advisory database. No --ignore-vuln entries needed: the
+        # current scan returns clean (verified 2026-05-30). Add pinned
+        # --ignore-vuln GHSA-xxxx entries here (with a one-line comment) if a
+        # transitive CVE surfaces that has no fix available.
+        run: uvx pip-audit --progress-spinner off

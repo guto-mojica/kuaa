@@ -3,9 +3,9 @@
 # Install once with:  uv run pre-commit install
 # Run on all files:   uv run pre-commit run --all-files
 #
-# Scope mirrors the CI `lint` job (ruff + black) plus basic file hygiene.
-# Mypy is intentionally NOT here — too slow on import-heavy modules and the
-# tree has ~27 pre-existing errors that would block every commit.
+# Scope mirrors the CI `lint` job (ruff + black) plus basic file hygiene
+# and bandit SAST.
+# Mypy is intentionally NOT here — too slow on import-heavy modules.
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -29,3 +29,12 @@ repos:
     rev: 24.10.0
     hooks:
       - id: black
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.10
+    hooks:
+      - id: bandit
+        # -c reads [tool.bandit] from pyproject.toml (exclude_dirs + skips).
+        # -ll reports only MEDIUM+ severity — keeps pre-commit fast and
+        # matches the CI security job threshold.
+        args: ["-c", "pyproject.toml", "-ll"]

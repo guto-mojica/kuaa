@@ -158,6 +158,27 @@ ignore_missing_imports = true
 warn_unused_configs = true
 warn_unused_ignores = true
 
+[tool.bandit]
+# Scan first-party source only. tests/ is excluded: assert is idiomatic there,
+# and tmp-file / subprocess usage in test helpers is intentional.
+exclude_dirs = ["tests", ".venv", "build", "dist"]
+# Skipped test IDs and justification (all Low severity; no High/Medium excluded here):
+# B101 assert_used — asserts in src/ are mypy-narrowing guards after checked invariants
+#   (e.g. index.ok guarantees non-None; assert just narrows the Optional for the type
+#   checker). Removing them would require rewriting to TypeGuard or casting.  They are
+#   not security-relevant.
+# B110 try_except_pass — all instances are explicit, commented defensive swallows in
+#   the job-log broadcaster (failure MUST NOT crash the producer) and in the
+#   logger-cleanup finaliser (must be idempotent).  Not hiding real errors.
+# B404 import_subprocess — both usages invoke ffmpeg/ffprobe with a fully static
+#   command list constructed from Path objects and config constants.  No user input
+#   reaches the command.  B404 is an informational import-presence check, not an
+#   exec-path analysis.
+# B603 subprocess_without_shell_equals_true — same as B404: shell=False (the default)
+#   is CORRECT here; the commands are safe fixed-argument lists.  This check is a
+#   false positive whenever shell=False is the right choice.
+skips = ["B101", "B110", "B404", "B603"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --tb=short --strict-markers"

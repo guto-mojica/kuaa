@@ -77,8 +77,9 @@ class ClapHFEmbedder:
             self._device = str(get_device("auto"))
 
         logger.info("Carregando CLAP: %s (device=%s)", self._model_id, self._device)
-        self._processor = ClapProcessor.from_pretrained(self._model_id)
-        self._model = ClapModel.from_pretrained(self._model_id, device_map=self._device).eval()
+        # model_id comes from project config, not user input (offline-only system).
+        self._processor = ClapProcessor.from_pretrained(self._model_id)  # nosec B615
+        self._model = ClapModel.from_pretrained(self._model_id, device_map=self._device).eval()  # nosec B615
 
     # ── Helpers ───────────────────────────────────────────────────────────
 
