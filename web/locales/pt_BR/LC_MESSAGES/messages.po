@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cinemateca-ai 0.3.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-25 19:28-0400\n"
+"POT-Creation-Date: 2026-05-30 11:25-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pt_BR\n"
@@ -263,7 +263,7 @@ msgid "rank"
 msgstr "rank"
 
 #: web/templates/eval/rows.html:100
-#: web/templates/partials/scenes_inspector.html:155
+#: web/templates/partials/scenes_inspector.html:134
 #: web/templates/partials/search_results.html:91
 msgid "No description yet."
 msgstr "Sem descrição ainda."
@@ -276,213 +276,91 @@ msgstr "Nenhum candidato carregado para esta busca."
 msgid "No query selected."
 msgstr "Nenhuma busca selecionada."
 
-#: web/templates/partials/_help_overlay.html:59
+#: web/templates/partials/_help_overlay.html:55
 msgid "Keyboard shortcuts"
 msgstr "Atalhos de teclado"
 
-#: web/templates/partials/_help_overlay.html:62
+#: web/templates/partials/_help_overlay.html:58
 #: web/templates/partials/_toast_host.html:28
 #: web/templates/partials/about_modal.html:62
 #: web/templates/partials/about_modal.html:63
-#: web/templates/partials/about_modal.html:188
+#: web/templates/partials/about_modal.html:182
 msgid "Close"
 msgstr "Fechar"
 
-#: web/templates/partials/_help_overlay.html:68
+#: web/templates/partials/_help_overlay.html:64
 msgid "Navigation"
 msgstr "Navegação"
 
 # ── Navigation / chrome ───────────────────────────────────────────────
-#: web/templates/partials/_help_overlay.html:70
-#: web/templates/partials/_icon_rail.html:30
-#: web/templates/partials/_icon_rail.html:31
-#: web/templates/partials/_topbar.html:46
-#: web/templates/partials/annotate_scene.html:93
-#: web/templates/partials/search.html:112
+#: web/templates/partials/_help_overlay.html:66
+#: web/templates/partials/_topbar.html:43
+#: web/templates/partials/search.html:157
 msgid "Search"
 msgstr "Buscar"
 
-#: web/templates/partials/_help_overlay.html:71
-#: web/templates/partials/_icon_rail.html:34
-#: web/templates/partials/_icon_rail.html:35
-#: web/templates/partials/_topbar.html:47
+#: web/templates/partials/_help_overlay.html:67
+#: web/templates/partials/_topbar.html:44
 msgid "Scenes"
 msgstr "Cenas"
 
-#: web/templates/partials/_help_overlay.html:72
-#: web/templates/partials/_icon_rail.html:38
-#: web/templates/partials/_icon_rail.html:39
-#: web/templates/partials/_topbar.html:48
-#: web/templates/partials/scenes_inspector.html:46
-#: web/templates/partials/scenes_inspector.html:166
+#: web/templates/partials/_help_overlay.html:68
+#: web/templates/partials/_topbar.html:45
+#: web/templates/partials/scenes_inspector.html:145
 msgid "Annotate"
 msgstr "Anotar"
 
-#: web/templates/partials/_help_overlay.html:73
+#: web/templates/partials/_help_overlay.html:69
 #: web/templates/partials/rimas.html:36
 msgid "Visual rhymes"
 msgstr "Rimas visuais"
 
-#: web/templates/partials/_help_overlay.html:74
-#: web/templates/partials/_icon_rail.html:49
-#: web/templates/partials/_icon_rail.html:50
-#: web/templates/partials/_topbar.html:50
+#: web/templates/partials/_help_overlay.html:70
+#: web/templates/partials/_topbar.html:47
 #: web/templates/partials/processing.html:36
 #: web/templates/partials/processing_job.html:51
 msgid "Processing"
 msgstr "Processamento"
 
-#: web/templates/partials/_help_overlay.html:75
-msgid "Next · previous item"
-msgstr "Próximo · item anterior"
-
-#: web/templates/partials/_help_overlay.html:76
-#: web/templates/partials/scenes_grid.html:88
-msgid "Select"
-msgstr "Selecionar"
-
-#: web/templates/partials/_help_overlay.html:77
-msgid "Back · close"
-msgstr "Voltar · fechar"
-
-#: web/templates/partials/_help_overlay.html:94
+#: web/templates/partials/_help_overlay.html:87
 msgid "Universal"
 msgstr "Universal"
 
-#: web/templates/partials/_help_overlay.html:96
+#: web/templates/partials/_help_overlay.html:89
 #: web/templates/partials/_palette.html:46
 msgid "Command palette"
 msgstr "Paleta de comandos"
 
-#: web/templates/partials/_help_overlay.html:97
+#: web/templates/partials/_help_overlay.html:90
 msgid "This help"
 msgstr "Esta ajuda"
 
-# ── Navigation / chrome ───────────────────────────────────────────────
-#: web/templates/partials/_help_overlay.html:98
-msgid "Global search"
-msgstr "Busca global"
-
-#: web/templates/partials/_help_overlay.html:99
-#: web/templates/partials/annotate.html:78
-#: web/templates/partials/annotate.html:79
-msgid "Back"
-msgstr "Voltar"
-
-#: web/templates/partials/_help_overlay.html:100
-msgid "Reload index"
-msgstr "Recarregar índice"
-
-# ── Search tab ────────────────────────────────────────────────────────
-#: web/templates/partials/_help_overlay.html:101
-msgid "Export"
-msgstr "Exportar"
-
-#: web/templates/partials/_help_overlay.html:118
-msgid "Annotate · Review"
-msgstr "Anotar · Revisar"
-
-#: web/templates/partials/_help_overlay.html:120
-msgid "Play · pause"
-msgstr "Reproduzir · pausar"
-
-#: web/templates/partials/_help_overlay.html:121
-msgid "Back · forward 5s"
-msgstr "Voltar · avançar 5s"
-
-#: web/templates/partials/_help_overlay.html:122
-msgid "Pin comment to frame"
-msgstr "Fixar comentário no frame"
-
-#: web/templates/partials/_help_overlay.html:123
-msgid "Resolve comment"
-msgstr "Resolver comentário"
-
-#: web/templates/partials/_help_overlay.html:124
-msgid "Previous · next scene"
-msgstr "Cena anterior · próxima"
-
-#: web/templates/partials/_help_overlay.html:141
+#: web/templates/partials/_help_overlay.html:107
 msgid "Eval · Grading"
 msgstr "Eval · Julgamento"
 
-#: web/templates/partials/_help_overlay.html:143
+#: web/templates/partials/_help_overlay.html:109
 msgid "Grade · 0 / 1 / 2 / 3"
 msgstr "Nota · 0 / 1 / 2 / 3"
 
-#: web/templates/partials/_help_overlay.html:144
+#: web/templates/partials/_help_overlay.html:110
 msgid "Skip · unjudgable"
 msgstr "Pular · não julgável"
 
-#: web/templates/partials/_help_overlay.html:145
+#: web/templates/partials/_help_overlay.html:111
 msgid "Save query and advance"
 msgstr "Salvar busca e avançar"
 
-#: web/templates/partials/_help_overlay.html:146
+#: web/templates/partials/_help_overlay.html:112
 msgid "Blind mode (toggle)"
 msgstr "Modo cego (alternar)"
 
-#: web/templates/partials/_help_overlay.html:147
+#: web/templates/partials/_help_overlay.html:113
 msgid "Skip query"
 msgstr "Pular busca"
 
-#: web/templates/partials/_help_overlay.html:164
-msgid "Scenes + Search"
-msgstr "Cenas + Buscar"
-
-#: web/templates/partials/_help_overlay.html:166
-msgid "Swap anchor · Visual rhymes"
-msgstr "Trocar âncora · Rimas visuais"
-
-#: web/templates/partials/_help_overlay.html:167
-msgid "Copy timecode"
-msgstr "Copiar timecode"
-
-#: web/templates/partials/_help_overlay.html:168
-#: web/templates/partials/annotate_scene.html:157
-#: web/templates/partials/search_inspector.html:192
-msgid "Add tag"
-msgstr "Adicionar tag"
-
-#: web/templates/partials/_help_overlay.html:169
-msgid "Toggle view mode (grid · list · compact)"
-msgstr "Alternar modo de visualização (grade · lista · compacto)"
-
-#: web/templates/partials/_help_overlay.html:170
-msgid "Select all · clear"
-msgstr "Selecionar tudo · limpar"
-
-#: web/templates/partials/_help_overlay.html:171
-#: web/templates/partials/annotate_scene.html:117
-#: web/templates/partials/processing.html:136
-msgid "Filter"
-msgstr "Filtrar"
-
-#: web/templates/partials/_icon_rail.html:22
-msgid "Tab navigation"
-msgstr "Navegação por abas"
-
-#: web/templates/partials/_icon_rail.html:26
-#: web/templates/partials/_icon_rail.html:27
-#: web/templates/partials/_topbar.html:27
-msgid "Home"
-msgstr "Início"
-
-#: web/templates/partials/_icon_rail.html:42
-#: web/templates/partials/_icon_rail.html:43
-#: web/templates/partials/_topbar.html:49
-msgid "Rhymes"
-msgstr "Rimas"
-
-#: web/templates/partials/_icon_rail.html:58
-#: web/templates/partials/_icon_rail.html:59
-#: web/templates/partials/annotate.html:229
-#: web/templates/partials/search_timeline.html:56
-msgid "Settings"
-msgstr "Configurações"
-
 #: web/templates/partials/_left_pane.html:27
-#: web/templates/partials/annotate.html:85
+#: web/templates/partials/annotate.html:85 web/templates/partials/home.html:12
 msgid "Library"
 msgstr "Acervo"
 
@@ -528,11 +406,6 @@ msgstr "Nenhum filme no acervo"
 msgid "Collections"
 msgstr "Coleções"
 
-#: web/templates/partials/_left_pane_body.html:88
-#: web/templates/partials/_left_pane_body.html:89
-msgid "New collection"
-msgstr "Nova coleção"
-
 #: web/templates/partials/_palette.html:47
 msgid "Search films, scenes, actions…"
 msgstr "Buscar filmes, cenas, ações…"
@@ -574,40 +447,21 @@ msgstr "Embeddings"
 msgid "LLM descriptions"
 msgstr "Descrições LLM"
 
-#: web/templates/partials/_topbar.html:32
+#: web/templates/partials/_topbar.html:18
+msgid "Home"
+msgstr "Início"
+
+#: web/templates/partials/_topbar.html:28
 msgid "Breadcrumb"
 msgstr "Trilha"
 
-#: web/templates/partials/_topbar.html:44
+#: web/templates/partials/_topbar.html:41
 msgid "Main tabs"
 msgstr "Abas principais"
 
-#: web/templates/partials/_topbar.html:72
-msgid "Filters · ⇧⌘F"
-msgstr "Filtros · ⇧⌘F"
-
-#: web/templates/partials/_topbar.html:73
-msgid "Notifications"
-msgstr "Notificações"
-
-#: web/templates/partials/_topbar.html:77
-msgid "Import media · ⌘U"
-msgstr "Importar mídia · ⌘U"
-
-#: web/templates/partials/_topbar.html:81
-#, python-format
-msgid "%(n)d viewers online"
-msgstr "%(n)d espectadores online"
-
-#: web/templates/partials/_topbar.html:95
-#: web/templates/partials/annotate_comments.html:80
-#: web/templates/partials/scenes_inspector.html:49
-msgid "Share"
-msgstr "Compartilhar"
-
-#: web/templates/partials/_topbar.html:99
-msgid "Anonymous"
-msgstr "Anônimo"
+#: web/templates/partials/_topbar.html:46
+msgid "Rhymes"
+msgstr "Rimas"
 
 #: web/templates/partials/about_modal.html:70
 msgid "stable"
@@ -636,10 +490,10 @@ msgstr ""
 
 #: web/templates/partials/about_modal.html:92
 msgid ""
-"Indexes scenes, descriptions, visual embeddings and transcripts to "
-"support curation, programming and research."
+"Indexes scenes, descriptions, visual and audio embeddings to support "
+"curation, programming and research."
 msgstr ""
-"Indexa cenas, descrições, embeddings visuais e transcrições para apoiar "
+"Indexa cenas, descrições, embeddings visuais e de áudio para apoiar "
 "curadoria, programação e pesquisa."
 
 #: web/templates/partials/about_modal.html:93
@@ -679,29 +533,23 @@ msgstr "Stack"
 msgid "Credits"
 msgstr "Créditos"
 
-#: web/templates/partials/about_modal.html:181
-msgid "Documentation"
-msgstr "Documentação"
-
-#: web/templates/partials/about_modal.html:183
-msgid "Changelog"
-msgstr "Histórico de mudanças"
-
-#: web/templates/partials/add_film_form.html:11
+#: web/templates/partials/add_film_form.html:12
 msgid "Absolute path or filename in raw dir"
 msgstr "Caminho absoluto ou nome de arquivo no diretório raw"
 
-#: web/templates/partials/add_film_form.html:17
+#: web/templates/partials/add_film_form.html:18
+#: web/templates/partials/processing.html:65
 msgid "Title (optional)"
 msgstr "Título (opcional)"
 
-#: web/templates/partials/add_film_form.html:19
+#: web/templates/partials/add_film_form.html:20
 msgid "Add"
 msgstr "Adicionar"
 
-#: web/templates/partials/add_film_form.html:23
+#: web/templates/partials/add_film_form.html:24
 #: web/templates/partials/annotate_desc_edit.html:22
-#: web/templates/partials/processing_job.html:68
+#: web/templates/partials/processing.html:68
+#: web/templates/partials/processing_job.html:67
 #: web/templates/partials/remove_film_confirm.html:15
 msgid "Cancel"
 msgstr "Cancelar"
@@ -711,114 +559,63 @@ msgstr "Cancelar"
 msgid "Run the Scene Detection step first."
 msgstr "Execute a etapa Detecção de cenas primeiro."
 
+#: web/templates/partials/annotate.html:78
+#: web/templates/partials/annotate.html:79
+msgid "Back"
+msgstr "Voltar"
+
 #: web/templates/partials/annotate.html:88
 msgid "Current film"
 msgstr "Filme atual"
 
 #: web/templates/partials/annotate.html:98
-#: web/templates/partials/annotate_props.html:68
-#: web/templates/partials/scenes_inspector.html:135
-#: web/templates/partials/search_inspector.html:121
+#: web/templates/partials/annotate_props.html:65
+#: web/templates/partials/scenes_inspector.html:114
+#: web/templates/partials/search_inspector.html:114
 #: web/templates/partials/search_results.html:73
 msgid "indexed"
 msgstr "indexado"
 
-#: web/templates/partials/annotate.html:100
-#: web/templates/partials/processing.html:137
-#: web/templates/partials/scenes_inspector.html:52
-msgid "Download"
+#: web/templates/partials/annotate.html:104
+#: web/templates/partials/annotate.html:105
+#, fuzzy
+msgid "Download keyframe"
 msgstr "Baixar"
-
-#: web/templates/partials/annotate.html:103
-msgid "Toggle right pane"
-msgstr "Alternar painel direito"
-
-#: web/templates/partials/annotate.html:106
-#: web/templates/partials/annotate_scene.html:96
-#: web/templates/partials/scenes_grid.html:101
-#: web/templates/partials/scenes_inspector.html:55
-#: web/templates/partials/search_inspector.html:73
-#: web/templates/partials/search_results.html:103
-msgid "More"
-msgstr "Mais"
-
-#: web/templates/partials/annotate.html:106
-#: web/templates/partials/annotate_scene.html:96
-#: web/templates/partials/scenes_inspector.html:55
-#: web/templates/partials/search_inspector.html:73
-msgid "More actions"
-msgstr "Mais ações"
 
 #: web/templates/partials/annotate.html:116
 #, python-format
 msgid "Scene %(n)s keyframe"
 msgstr "Keyframe da cena %(n)s"
 
-#: web/templates/partials/annotate.html:153
+#: web/templates/partials/annotate.html:140
 msgid "Scene playback position"
 msgstr "Posição de reprodução da cena"
 
-#: web/templates/partials/annotate.html:181
-#: web/templates/partials/annotate.html:182
-#: web/templates/partials/annotate.html:187
+#: web/templates/partials/annotate.html:168
+#: web/templates/partials/annotate.html:169
+#: web/templates/partials/annotate.html:174
 msgid "Previous scene"
 msgstr "Cena anterior"
 
-#: web/templates/partials/annotate.html:192
-#: web/templates/partials/rimas.html:136
+#: web/templates/partials/annotate.html:179
+#: web/templates/partials/rimas.html:135
 #: web/templates/partials/rimas_inspector.html:50
 #: web/templates/partials/rimas_inspector.html:60
 msgid "scene"
 msgstr "cena"
 
-#: web/templates/partials/annotate.html:197
-#: web/templates/partials/annotate.html:198
-#: web/templates/partials/annotate.html:203
+#: web/templates/partials/annotate.html:183
+#: web/templates/partials/annotate.html:184
+#: web/templates/partials/annotate.html:189
 msgid "Next scene"
 msgstr "Próxima cena"
 
-#: web/templates/partials/annotate.html:209
-msgid "Loop"
-msgstr "Loop"
+#: web/templates/partials/annotate.html:194
+#, fuzzy
+msgid "Scene timecode"
+msgstr "Copiar timecode"
 
-#: web/templates/partials/annotate.html:212
-msgid "Back 5s"
-msgstr "Voltar 5s"
-
-#: web/templates/partials/annotate.html:212
-msgid "Back 5 seconds"
-msgstr "Voltar 5 segundos"
-
-#: web/templates/partials/annotate.html:213
-#: web/templates/partials/search_timeline.html:53
-msgid "Play"
-msgstr "Reproduzir"
-
-#: web/templates/partials/annotate.html:216
-msgid "Forward 5s"
-msgstr "Avançar 5s"
-
-#: web/templates/partials/annotate.html:216
-msgid "Forward 5 seconds"
-msgstr "Avançar 5 segundos"
-
-#: web/templates/partials/annotate.html:222
-msgid "Volume"
-msgstr "Volume"
-
-#: web/templates/partials/annotate.html:225
-msgid "Playback speed"
-msgstr "Velocidade de reprodução"
-
-#: web/templates/partials/annotate.html:226
-msgid "Quality"
-msgstr "Qualidade"
-
-#: web/templates/partials/annotate.html:232
-msgid "Fullscreen"
-msgstr "Tela cheia"
-
-#: web/templates/partials/annotate.html:247
+#: web/templates/partials/annotate.html:210
 msgid ""
 "All scenes have valid LLM descriptions. You can still add manual tags "
 "below."
@@ -826,46 +623,26 @@ msgstr ""
 "Todas as cenas têm descrição LLM válida. Você ainda pode adicionar tags "
 "manuais abaixo."
 
-#: web/templates/partials/annotate.html:254
+#: web/templates/partials/annotate.html:217
 msgid "No scenes match the current filter."
 msgstr "Nenhuma cena corresponde ao filtro atual."
 
 #: web/templates/partials/annotate_comments.html:27
-#: web/templates/partials/inspector_activity.html:19
+#: web/templates/partials/inspector_activity.html:18
 msgid "AI · description"
 msgstr "IA · descrição"
 
 #: web/templates/partials/annotate_comments.html:44
-#: web/templates/partials/inspector_activity.html:31
 msgid "Edit"
 msgstr "Editar"
 
-#: web/templates/partials/annotate_comments.html:46
-#: web/templates/partials/annotate_comments.html:80
-#: web/templates/partials/inspector_activity.html:30
-msgid "Reply"
-msgstr "Responder"
-
-#: web/templates/partials/annotate_comments.html:47
-#: web/templates/partials/inspector_activity.html:32
-msgid "Re-generate"
-msgstr "Regenerar"
-
-#: web/templates/partials/annotate_comments.html:54
+#: web/templates/partials/annotate_comments.html:50
 msgid "No LLM description"
 msgstr "Sem descrição LLM"
 
-#: web/templates/partials/annotate_comments.html:59
+#: web/templates/partials/annotate_comments.html:55
 msgid "Add description"
 msgstr "Adicionar descrição"
-
-#: web/templates/partials/annotate_comments.html:80
-msgid "Resolve"
-msgstr "Resolver"
-
-#: web/templates/partials/annotate_comments.html:88
-msgid "PINNED"
-msgstr "FIXADO"
 
 #: web/templates/partials/annotate_desc_edit.html:11
 msgid ""
@@ -879,164 +656,160 @@ msgstr ""
 msgid "Overwrite & Save"
 msgstr "Sobrescrever e salvar"
 
-#: web/templates/partials/annotate_props.html:11
-#: web/templates/partials/inspector_properties.html:10
-#: web/templates/partials/scenes.html:168
-#: web/templates/partials/scenes.html:333
-#: web/templates/partials/scenes.html:336
-#: web/templates/partials/scenes.html:358
-#: web/templates/partials/scenes_inspector.html:95
+#: web/templates/partials/annotate_props.html:12
+#: web/templates/partials/inspector_properties.html:15
+#: web/templates/partials/scenes.html:184
+#: web/templates/partials/scenes.html:343
+#: web/templates/partials/scenes.html:346
+#: web/templates/partials/scenes.html:363
+#: web/templates/partials/scenes_inspector.html:80
 msgid "Timecode"
 msgstr "Timecode"
 
-#: web/templates/partials/annotate_props.html:16
-#: web/templates/partials/inspector_properties.html:20
-#: web/templates/partials/scenes.html:334
-#: web/templates/partials/scenes.html:363
-#: web/templates/partials/scenes_inspector.html:98
+#: web/templates/partials/annotate_props.html:17
+#: web/templates/partials/inspector_properties.html:25
+#: web/templates/partials/scenes.html:344
+#: web/templates/partials/scenes.html:368
+#: web/templates/partials/scenes_inspector.html:83
 msgid "Duration"
 msgstr "Duração"
 
-#: web/templates/partials/annotate_props.html:20
-#: web/templates/partials/inspector_properties.html:24
+#: web/templates/partials/annotate_props.html:21
+#: web/templates/partials/inspector_properties.html:29
 msgid "Scene ID"
 msgstr "ID da cena"
 
-#: web/templates/partials/annotate_props.html:24
-#: web/templates/partials/scenes_inspector.html:140
+#: web/templates/partials/annotate_props.html:25
+#: web/templates/partials/scenes_inspector.html:119
 msgid "Position"
 msgstr "Posição"
 
 # ── Processing tab ────────────────────────────────────────────────────
-#: web/templates/partials/annotate_props.html:29
-#: web/templates/partials/annotate_props.html:36
-#: web/templates/partials/inspector_properties.html:27
-#: web/templates/partials/scenes.html:272
-#: web/templates/partials/scenes.html:275
-#: web/templates/partials/scenes.html:297
+#: web/templates/partials/annotate_props.html:30
+#: web/templates/partials/annotate_props.html:37
+#: web/templates/partials/inspector_properties.html:32
+#: web/templates/partials/scenes.html:287
+#: web/templates/partials/scenes.html:290
+#: web/templates/partials/scenes.html:307
 msgid "Film"
 msgstr "Filme"
 
-#: web/templates/partials/annotate_props.html:32
-#: web/templates/partials/inspector_properties.html:31
+#: web/templates/partials/annotate_props.html:33
+#: web/templates/partials/inspector_properties.html:36
 msgid "Year"
 msgstr "Ano"
 
-#: web/templates/partials/annotate_props.html:40
-#: web/templates/partials/inspector_properties.html:41
-#: web/templates/partials/scenes_inspector.html:117
+#: web/templates/partials/annotate_props.html:41
+#: web/templates/partials/inspector_properties.html:46
+#: web/templates/partials/scenes_inspector.html:101
 msgid "Tags"
 msgstr "Tags"
 
-#: web/templates/partials/annotate_props.html:49
+#: web/templates/partials/annotate_props.html:48
 msgid "No manual tags yet."
 msgstr "Sem tags manuais ainda."
 
-#: web/templates/partials/annotate_props.html:54
+#: web/templates/partials/annotate_props.html:53
 #: web/templates/partials/annotate_tags.html:79
 msgid "LLM tags"
 msgstr "Tags LLM"
 
-#: web/templates/partials/annotate_props.html:64
-#: web/templates/partials/scenes_inspector.html:131
+#: web/templates/partials/annotate_props.html:61
+#: web/templates/partials/scenes_inspector.html:110
 msgid "Status"
 msgstr "Status"
 
-#: web/templates/partials/annotate_scene.html:59
+#: web/templates/partials/annotate_scene.html:65
 msgid "Annotation tabs"
 msgstr "Abas de anotação"
 
-#: web/templates/partials/annotate_scene.html:67
+#: web/templates/partials/annotate_scene.html:73
 msgid "Comments"
 msgstr "Comentários"
 
-#: web/templates/partials/annotate_scene.html:77
+#: web/templates/partials/annotate_scene.html:83
 #: web/templates/partials/search_inspector.html:60
 msgid "Annotations"
 msgstr "Anotações"
 
-#: web/templates/partials/annotate_scene.html:87
+#: web/templates/partials/annotate_scene.html:93
 #: web/templates/partials/search_inspector.html:70
 msgid "Properties"
 msgstr "Propriedades"
 
-#: web/templates/partials/annotate_scene.html:90
-#: web/templates/partials/annotate_scene.html:120
-msgid "Sort"
-msgstr "Ordenar"
-
-#: web/templates/partials/annotate_scene.html:93
-msgid "Search annotations"
-msgstr "Buscar anotações"
-
-#: web/templates/partials/annotate_scene.html:104
-#: web/templates/partials/rimas.html:124
+#: web/templates/partials/annotate_scene.html:100
+#: web/templates/partials/rimas.html:123
 #: web/templates/partials/rimas_echoes.html:48
-#: web/templates/partials/scenes_inspector.html:79
-#: web/templates/partials/search_inspector.html:108
-#: web/templates/partials/search_timeline.html:73
-#: web/templates/partials/search_timeline.html:74
+#: web/templates/partials/scenes_inspector.html:64
+#: web/templates/partials/search_inspector.html:101
+#: web/templates/partials/search_timeline.html:67
+#: web/templates/partials/search_timeline.html:68
 #, python-format
 msgid "Scene %(n)s"
 msgstr "Cena %(n)s"
 
-#: web/templates/partials/annotate_scene.html:106
+#: web/templates/partials/annotate_scene.html:102
 msgid "tags"
 msgstr "tags"
 
-#: web/templates/partials/annotate_scene.html:131
+#: web/templates/partials/annotate_scene.html:119
 msgid "Description saved"
 msgstr "Descrição salva"
 
-#: web/templates/partials/annotate_scene.html:151
+#: web/templates/partials/annotate_scene.html:139
 msgid "Commenting at this timecode"
 msgstr "Comentando neste timecode"
 
-#: web/templates/partials/annotate_scene.html:154
-#: web/templates/partials/search_inspector.html:191
+#: web/templates/partials/annotate_scene.html:142
+#: web/templates/partials/search_inspector.html:184
 msgid "Pin"
 msgstr "Fixar"
 
-#: web/templates/partials/annotate_scene.html:154
-#: web/templates/partials/search_inspector.html:191
+#: web/templates/partials/annotate_scene.html:142
+#: web/templates/partials/search_inspector.html:184
 msgid "Add pin"
 msgstr "Adicionar marcador"
 
-#: web/templates/partials/annotate_scene.html:157
-#: web/templates/partials/search_inspector.html:192
+#: web/templates/partials/annotate_scene.html:145
+#: web/templates/partials/search_inspector.html:185
 msgid "Tag"
 msgstr "Tag"
 
-#: web/templates/partials/annotate_scene.html:160
-#: web/templates/partials/search_inspector.html:193
+#: web/templates/partials/annotate_scene.html:145
+#: web/templates/partials/search_inspector.html:185
+msgid "Add tag"
+msgstr "Adicionar tag"
+
+#: web/templates/partials/annotate_scene.html:148
+#: web/templates/partials/search_inspector.html:186
 msgid "Attach"
 msgstr "Anexar"
 
-#: web/templates/partials/annotate_scene.html:160
-#: web/templates/partials/search_inspector.html:193
+#: web/templates/partials/annotate_scene.html:148
+#: web/templates/partials/search_inspector.html:186
 msgid "Attach file"
 msgstr "Anexar arquivo"
 
-#: web/templates/partials/annotate_scene.html:163
-#: web/templates/partials/search_inspector.html:194
+#: web/templates/partials/annotate_scene.html:151
+#: web/templates/partials/search_inspector.html:187
 msgid "Emoji"
 msgstr "Emoji"
 
 # ── About surface (Mojica redesign · Task 29) ─────────────────────────
-#: web/templates/partials/annotate_scene.html:163
-#: web/templates/partials/search_inspector.html:194
+#: web/templates/partials/annotate_scene.html:151
+#: web/templates/partials/search_inspector.html:187
 msgid "Insert emoji"
 msgstr "Inserir emoji"
 
-#: web/templates/partials/annotate_scene.html:170
+#: web/templates/partials/annotate_scene.html:158
 msgid "Leave a comment…"
 msgstr "Deixe um comentário…"
 
-#: web/templates/partials/annotate_scene.html:172
+#: web/templates/partials/annotate_scene.html:160
 msgid "Send · ⌘⏎"
 msgstr "Enviar · ⌘⏎"
 
-#: web/templates/partials/annotate_scene.html:172
+#: web/templates/partials/annotate_scene.html:160
 msgid "Send comment"
 msgstr "Enviar comentário"
 
@@ -1049,27 +822,27 @@ msgid "Tags cleared"
 msgstr "Tags removidas"
 
 #: web/templates/partials/annotate_tags.html:47
-#: web/templates/partials/inspector_annotations.html:26
+#: web/templates/partials/inspector_annotations.html:21
 msgid "Manual tags"
 msgstr "Tags manuais"
 
 #: web/templates/partials/annotate_tags.html:59
-#: web/templates/partials/inspector_annotations.html:38
+#: web/templates/partials/inspector_annotations.html:35
 msgid "rural, exterior, horse, single-person"
 msgstr "rural, exterior, cavalo, pessoa-unica"
 
 #: web/templates/partials/annotate_tags.html:62
-#: web/templates/partials/inspector_annotations.html:41
+#: web/templates/partials/inspector_annotations.html:39
 msgid "Use hyphens for compound tags: two-people, night-scene"
 msgstr "Use hífens para tags compostas: duas-pessoas, cena-noturna"
 
 #: web/templates/partials/annotate_tags.html:65
-#: web/templates/partials/inspector_annotations.html:44
+#: web/templates/partials/inspector_annotations.html:42
 msgid "Save"
 msgstr "Salvar"
 
 #: web/templates/partials/annotate_tags.html:72
-#: web/templates/partials/scenes.html:225
+#: web/templates/partials/scenes.html:241
 msgid "Clear"
 msgstr "Limpar"
 
@@ -1082,24 +855,52 @@ msgstr "Filme"
 msgid "Acervo inteiro"
 msgstr "Acervo inteiro"
 
-#: web/templates/partials/inspector_activity.html:39
+# ── Processing tab ────────────────────────────────────────────────────
+#: web/templates/partials/home.html:14 web/templates/partials/rimas.html:40
+#: web/templates/partials/rimas.html:157 web/templates/partials/scenes.html:429
+#: web/templates/partials/search.html:407
+msgid "films"
+msgstr "filmes"
+
+#: web/templates/partials/home.html:30
+#: web/templates/partials/processing_stats.html:19
+#: web/templates/partials/scenes.html:426
+#: web/templates/partials/search_timeline.html:45
+msgid "scenes"
+msgstr "cenas"
+
+#: web/templates/partials/home.html:32
+#, fuzzy
+msgid "unprocessed"
+msgstr "Ainda não processado"
+
+#: web/templates/partials/home.html:48
+#, fuzzy
+msgid "No films in library yet."
+msgstr "Nenhum filme no acervo"
+
+#: web/templates/partials/home.html:49
+msgid "Use the + button in the sidebar to add your first film."
+msgstr ""
+
+#: web/templates/partials/inspector_activity.html:31
 msgid "No description yet. Run the LLM pipeline step to generate one."
 msgstr "Sem descrição ainda. Execute a etapa LLM do pipeline para gerar uma."
 
-#: web/templates/partials/inspector_annotations.html:22
+#: web/templates/partials/inspector_annotations.html:17
 msgid "Tags saved"
 msgstr "Tags salvas"
 
-#: web/templates/partials/inspector_annotations.html:49
+#: web/templates/partials/inspector_annotations.html:48
 msgid "Current tags"
 msgstr "Tags atuais"
 
-#: web/templates/partials/inspector_properties.html:15
-#: web/templates/partials/scenes.html:451
+#: web/templates/partials/inspector_properties.html:20
+#: web/templates/partials/scenes.html:459
 msgid "Scene"
 msgstr "Cena"
 
-#: web/templates/partials/inspector_properties.html:36
+#: web/templates/partials/inspector_properties.html:41
 msgid "Director"
 msgstr "Diretor"
 
@@ -1130,52 +931,72 @@ msgstr "Remover"
 msgid "active"
 msgstr "ativo"
 
-#: web/templates/partials/processing.html:58
+#: web/templates/partials/processing.html:49
+#, fuzzy
+msgid "Add film…"
+msgstr "Adicionar filme"
+
+#: web/templates/partials/processing.html:60
+#, fuzzy
+msgid "Absolute path to video file"
+msgstr "Caminho absoluto ou nome de arquivo no diretório raw"
+
+#: web/templates/partials/processing.html:67
+#, fuzzy
+msgid "Register"
+msgstr "resultados"
+
+#: web/templates/partials/processing.html:92
 msgid "No video files found in the raw directory."
 msgstr "Nenhum arquivo de vídeo encontrado no diretório raw."
 
-#: web/templates/partials/processing.html:75
+#: web/templates/partials/processing.html:109
 msgid "Start processing"
 msgstr "Iniciar processamento"
 
-#: web/templates/partials/processing.html:78
+#: web/templates/partials/processing.html:112
 msgid "Starting…"
 msgstr "Iniciando…"
 
-#: web/templates/partials/processing.html:96
+#: web/templates/partials/processing.html:129
 msgid "No active jobs."
 msgstr "Nenhum processamento em andamento."
 
-#: web/templates/partials/processing.html:133
+#: web/templates/partials/processing.html:166
 msgid "Log · SSE"
 msgstr "Log · SSE"
 
-#: web/templates/partials/processing.html:140
+#: web/templates/partials/processing.html:171
+#: web/templates/partials/processing.html:172
+#, fuzzy
+msgid "Download log"
+msgstr "Baixar"
+
+#: web/templates/partials/processing.html:176
 msgid "auto-scroll"
 msgstr "auto-scroll"
 
-#: web/templates/partials/processing.html:145
+#: web/templates/partials/processing.html:186
 msgid "Waiting for events…"
 msgstr "Aguardando eventos…"
+
+#: web/templates/partials/processing.html:218
+msgid "Step detail appears here while a film is processing."
+msgstr ""
 
 #: web/templates/partials/processing_job.html:55
 msgid "started at"
 msgstr "iniciado em"
 
-#: web/templates/partials/processing_job.html:61
-#: web/templates/partials/search_inspector.html:76
-msgid "Expand"
-msgstr "Expandir"
-
-#: web/templates/partials/processing_job.html:83
+#: web/templates/partials/processing_job.html:82
 msgid "complete"
 msgstr "concluído"
 
-#: web/templates/partials/processing_job.html:87
+#: web/templates/partials/processing_job.html:86
 msgid "step"
 msgstr "etapa"
 
-#: web/templates/partials/processing_job.html:90
+#: web/templates/partials/processing_job.html:89
 msgid "ETA"
 msgstr "ETA"
 
@@ -1194,12 +1015,6 @@ msgstr "ESTATÍSTICAS"
 #: web/templates/partials/processing_stats.html:15
 msgid "frames"
 msgstr "quadros"
-
-#: web/templates/partials/processing_stats.html:19
-#: web/templates/partials/scenes.html:418
-#: web/templates/partials/search_timeline.html:45
-msgid "scenes"
-msgstr "cenas"
 
 #: web/templates/partials/processing_stats.html:23
 msgid "embeddings"
@@ -1229,17 +1044,18 @@ msgstr "Pipeline falhou"
 msgid "Pipeline cancelled"
 msgstr "Pipeline cancelado"
 
-#: web/templates/partials/processing_substeps.html:15
+#: web/templates/partials/processing_substeps.html:14
 msgid "Step"
 msgstr "Etapa"
 
-#: web/templates/partials/processing_substeps.html:23
+#: web/templates/partials/processing_substeps.html:22
 msgid "SUB-STEPS"
 msgstr "SUB-ETAPAS"
 
-#: web/templates/partials/processing_substeps.html:35
-msgid "GPU"
-msgstr "GPU"
+#: web/templates/partials/processing_substeps.html:34
+#, fuzzy
+msgid "RESOURCES"
+msgstr "resultados"
 
 #: web/templates/partials/remove_film_confirm.html:8
 msgid "Library only"
@@ -1249,20 +1065,14 @@ msgstr "Apenas acervo"
 msgid "+ wipe data"
 msgstr "+ apagar dados"
 
-#: web/templates/partials/rimas.html:40 web/templates/partials/rimas.html:158
+#: web/templates/partials/rimas.html:40 web/templates/partials/rimas.html:157
 msgid "rhymes in"
 msgstr "rimas em"
 
-# ── Processing tab ────────────────────────────────────────────────────
-#: web/templates/partials/rimas.html:40 web/templates/partials/rimas.html:158
-#: web/templates/partials/scenes.html:421
-#: web/templates/partials/search.html:367
-msgid "films"
-msgstr "filmes"
-
-#: web/templates/partials/rimas.html:42
-msgid "Pick an anchor scene to discover cross-film visual echoes."
-msgstr "Escolha uma cena âncora para descobrir ecos visuais cross-film."
+#: web/templates/partials/rimas.html:42 web/templates/partials/rimas.html:181
+#: web/templates/partials/rimas_inspector.html:144
+msgid "No anchor selected"
+msgstr "Nenhuma âncora selecionada"
 
 #: web/templates/partials/rimas.html:51
 msgid "Pick a new anchor scene"
@@ -1272,83 +1082,85 @@ msgstr "Escolher uma nova cena âncora"
 msgid "Swap anchor"
 msgstr "Trocar âncora"
 
-#: web/templates/partials/rimas.html:52
-msgid "Save collection"
-msgstr "Salvar coleção"
-
-#: web/templates/partials/rimas.html:57
+#: web/templates/partials/rimas.html:56
 msgid "Model"
 msgstr "Modelo"
 
-#: web/templates/partials/rimas.html:58
+#: web/templates/partials/rimas.html:57
 msgid "Distance"
 msgstr "Distância"
 
-#: web/templates/partials/rimas.html:70
+#: web/templates/partials/rimas.html:69
 msgid "Diversidade"
 msgstr "Diversidade"
 
-#: web/templates/partials/rimas.html:79 web/templates/partials/rimas.html:80
+#: web/templates/partials/rimas.html:78 web/templates/partials/rimas.html:79
 msgid "Visual rhyme diversity"
 msgstr "Diversidade das rimas visuais"
 
-#: web/templates/partials/rimas.html:83
+#: web/templates/partials/rimas.html:82
 msgid "More relevance"
 msgstr "Mais relevância"
 
-#: web/templates/partials/rimas.html:83
+#: web/templates/partials/rimas.html:82
 msgid "More diversity"
 msgstr "Mais diversidade"
 
-#: web/templates/partials/rimas.html:103
+#: web/templates/partials/rimas.html:102
 msgid "Cross-film"
 msgstr "Cross-film"
 
-#: web/templates/partials/rimas.html:103
+#: web/templates/partials/rimas.html:102
 msgid "required"
 msgstr "obrigatório"
 
-#: web/templates/partials/rimas.html:105
+#: web/templates/partials/rimas.html:104
 msgid "Threshold"
 msgstr "Limiar"
 
-#: web/templates/partials/rimas.html:116
+#: web/templates/partials/rimas.html:115
 #: web/templates/partials/rimas_inspector.html:43
 msgid "Anchor"
 msgstr "Âncora"
 
-#: web/templates/partials/rimas.html:122
+#: web/templates/partials/rimas.html:121
 msgid "Reference scene · fixed embedding"
 msgstr "Cena de referência · embedding fixo"
 
-#: web/templates/partials/rimas.html:160
+#: web/templates/partials/rimas.html:159
 msgid "rhymes"
 msgstr "rimas"
 
-#: web/templates/partials/rimas.html:177
-msgid "No anchor selected"
-msgstr "Nenhuma âncora selecionada"
-
-#: web/templates/partials/rimas.html:179
+#: web/templates/partials/rimas.html:183
+#: web/templates/partials/rimas_inspector.html:146
 msgid "Open a scene in the Scenes tab and click"
 msgstr "Abra uma cena na aba Cenas e clique em"
 
-#: web/templates/partials/rimas.html:180
-#: web/templates/partials/scenes_inspector.html:170
+#: web/templates/partials/rimas.html:184
+#: web/templates/partials/rimas_inspector.html:147
+#: web/templates/partials/scenes_inspector.html:149
 msgid "Find visual rhymes"
 msgstr "Buscar rimas visuais"
 
-#: web/templates/partials/rimas.html:181
+#: web/templates/partials/rimas.html:185
+#: web/templates/partials/rimas_inspector.html:148
 msgid "to explore cross-film visual echoes."
 msgstr "para explorar ecos visuais entre filmes."
 
-#: web/templates/partials/rimas.html:185
+#: web/templates/partials/rimas.html:191
 msgid ""
 "No processed films yet — run the embeddings pipeline to enable Rimas "
 "Visuais."
 msgstr ""
 "Nenhum filme processado ainda — execute o pipeline de embeddings para "
 "ativar Rimas Visuais."
+
+#: web/templates/partials/rimas_echoes.html:34
+#: web/templates/partials/scenes_grid.html:89
+#: web/templates/partials/search_results.html:70
+#, fuzzy
+msgid "Keyframe"
+msgstr "keyframes"
 
 #: web/templates/partials/rimas_echoes.html:49
 msgid "open"
@@ -1406,10 +1218,6 @@ msgstr "Anotar rima"
 msgid "Pick a rhyme on the left to see the comparison."
 msgstr "Escolha uma rima à esquerda para ver a comparação."
 
-#: web/templates/partials/rimas_inspector.html:140
-msgid "No anchor selected."
-msgstr "Nenhuma âncora selecionada."
-
 # ── Scenes tab ────────────────────────────────────────────────────────
 #: web/templates/partials/scenes.html:43
 msgid "No scenes found. Run the pipeline with the Scene Detection step first."
@@ -1417,136 +1225,145 @@ msgstr ""
 "Nenhuma cena encontrada. Execute o pipeline com a etapa Detecção de cenas"
 " primeiro."
 
-#: web/templates/partials/scenes.html:92
+#: web/templates/partials/scenes.html:108
 msgid "Appearance"
 msgstr "Aparência"
 
-#: web/templates/partials/scenes.html:102
+#: web/templates/partials/scenes.html:118
 msgid "Card density"
 msgstr ""
 
-#: web/templates/partials/scenes.html:109
+#: web/templates/partials/scenes.html:125
 msgid "Comfortable"
 msgstr ""
 
-#: web/templates/partials/scenes.html:115
-#: web/templates/partials/search.html:405
+#: web/templates/partials/scenes.html:131
+#: web/templates/partials/search.html:452
 msgid "Compact"
 msgstr "Compacto"
 
 # ── Processing tab ────────────────────────────────────────────────────
-#: web/templates/partials/scenes.html:137
+#: web/templates/partials/scenes.html:153
 msgid "Fields"
 msgstr "Campos"
 
 # ── Processing tab ────────────────────────────────────────────────────
-#: web/templates/partials/scenes.html:151
+#: web/templates/partials/scenes.html:167
 #, fuzzy
 msgid "Visible fields"
 msgstr "Campos"
 
-#: web/templates/partials/scenes.html:162
+#: web/templates/partials/scenes.html:178
 #, fuzzy
 msgid "Reset"
 msgstr "resultados"
 
-#: web/templates/partials/scenes.html:172
-#: web/templates/partials/scenes.html:335
-#: web/templates/partials/scenes.html:368
+#: web/templates/partials/scenes.html:188
+#: web/templates/partials/scenes.html:345
+#: web/templates/partials/scenes.html:373
 msgid "Pin count"
 msgstr ""
 
-#: web/templates/partials/scenes.html:176
+#: web/templates/partials/scenes.html:192
 #, fuzzy
 msgid "Version"
 msgstr "INVERSÕES"
 
-#: web/templates/partials/scenes.html:180
+#: web/templates/partials/scenes.html:196
 #, fuzzy
 msgid "Director · year"
 msgstr "Diretor"
 
-#: web/templates/partials/scenes.html:184
+#: web/templates/partials/scenes.html:200
 #, fuzzy
 msgid "Type pill"
 msgstr "Tipo"
 
-#: web/templates/partials/scenes.html:206
+#: web/templates/partials/scenes.html:222
 msgid "Filters"
 msgstr "Filtros"
 
-#: web/templates/partials/scenes.html:216
+#: web/templates/partials/scenes.html:232
 #, fuzzy
 msgid "Filter by tag"
 msgstr "Filtrar acervo…"
 
-#: web/templates/partials/scenes.html:245
+#: web/templates/partials/scenes.html:261
 msgid "No tags available yet."
 msgstr ""
 
-#: web/templates/partials/scenes.html:270
+#: web/templates/partials/scenes.html:285
 msgid "Grouped by"
 msgstr "Agrupado por"
 
-#: web/templates/partials/scenes.html:273
-#: web/templates/partials/scenes.html:302
-#: web/templates/partials/scenes_inspector.html:107
+#: web/templates/partials/scenes.html:288
+#: web/templates/partials/scenes.html:312
+#: web/templates/partials/scenes_inspector.html:92
 msgid "Type"
 msgstr "Tipo"
 
-#: web/templates/partials/scenes.html:274
+#: web/templates/partials/scenes.html:289
 #, fuzzy
 msgid "None"
 msgstr "anon"
 
-#: web/templates/partials/scenes.html:291
+#: web/templates/partials/scenes.html:301
 #, fuzzy
 msgid "Group scenes by"
 msgstr "Agrupado por"
 
-#: web/templates/partials/scenes.html:307
+#: web/templates/partials/scenes.html:317
 msgid "None (flat)"
 msgstr ""
 
-#: web/templates/partials/scenes.html:331
+#: web/templates/partials/scenes.html:341
 msgid "Sorted by"
 msgstr "Ordenado por"
 
-#: web/templates/partials/scenes.html:352
+#: web/templates/partials/scenes.html:357
 #, fuzzy
 msgid "Sort scenes by"
 msgstr "Ordenado por"
 
-#: web/templates/partials/scenes.html:363
+#: web/templates/partials/scenes.html:368
 msgid "longest first"
 msgstr ""
 
-#: web/templates/partials/scenes.html:368
+#: web/templates/partials/scenes.html:373
 msgid "most pinned first"
 msgstr ""
 
 # ── Navigation / chrome ───────────────────────────────────────────────
-#: web/templates/partials/scenes.html:406
+#: web/templates/partials/scenes.html:414
 msgid "Search…"
 msgstr "Buscar…"
 
-#: web/templates/partials/scenes.html:424
+#: web/templates/partials/scenes.html:432
 msgid "runtime"
 msgstr "runtime"
 
-#: web/templates/partials/scenes.html:427
+#: web/templates/partials/scenes.html:435
 msgid "keyframes"
 msgstr "keyframes"
 
-#: web/templates/partials/scenes.html:455
-msgid "Select a scene to see its details."
-msgstr "Selecione uma cena para ver seus detalhes."
+#: web/templates/partials/scenes.html:468
+#, fuzzy
+msgid "No scene selected"
+msgstr "Nenhuma busca selecionada."
+
+#: web/templates/partials/scenes.html:469
+msgid "Select a scene in the grid to inspect its keyframe, tags, and description."
+msgstr ""
 
 #: web/templates/partials/scenes_grid.html:56
 msgid "No scenes match the filters."
 msgstr "Nenhuma cena corresponde aos filtros."
 
-#: web/templates/partials/scenes_grid.html:105
+#: web/templates/partials/scenes_grid.html:88
+msgid "Select"
+msgstr "Selecionar"
+
+#: web/templates/partials/scenes_grid.html:102
 msgid "TYPE"
 msgstr "TIPO"
 
@@ -1554,176 +1371,150 @@ msgstr "TIPO"
 msgid "Item selected"
 msgstr "Item selecionado"
 
-#: web/templates/partials/scenes_inspector.html:86
-#: web/templates/partials/search_inspector.html:115
+#: web/templates/partials/scenes_inspector.html:71
+#: web/templates/partials/search_inspector.html:108
 msgid "dir."
 msgstr "dir."
 
-#: web/templates/partials/scenes_inspector.html:150
+#: web/templates/partials/scenes_inspector.html:129
 msgid "Description"
 msgstr "Descrição"
 
-#: web/templates/partials/scenes_inspector.html:152
+#: web/templates/partials/scenes_inspector.html:131
 msgid "edit"
 msgstr "editar"
 
-#: web/templates/partials/scenes_inspector.html:162
+#: web/templates/partials/scenes_inspector.html:141
 msgid "Find similar"
 msgstr "Buscar semelhantes"
 
-#: web/templates/partials/search.html:103
+#: web/templates/partials/search.html:148
 msgid "Search the library — describe a scene, paste an image…"
 msgstr "Buscar no acervo — descreva uma cena, cole uma imagem…"
 
-#: web/templates/partials/search.html:120
+#: web/templates/partials/search.html:165
 msgid "Input type"
 msgstr "Tipo de entrada"
 
 # ── Search tab ────────────────────────────────────────────────────────
-#: web/templates/partials/search.html:140
+#: web/templates/partials/search.html:184
 msgid "Text"
 msgstr "Texto"
 
-#: web/templates/partials/search.html:151
+#: web/templates/partials/search.html:195
 msgid "Image"
 msgstr "Imagem"
 
-#: web/templates/partials/search.html:162
+#: web/templates/partials/search.html:206
 msgid "Audio"
 msgstr "Áudio"
 
-#: web/templates/partials/search.html:173
-#: web/templates/partials/search.html:325
+#: web/templates/partials/search.html:217
+#: web/templates/partials/search.html:354
 msgid "Fusion"
 msgstr "Fusão"
 
-#: web/templates/partials/search.html:190
+#: web/templates/partials/search.html:233
 msgid "Híbrido"
 msgstr "Híbrido"
 
-#: web/templates/partials/search.html:198
-#: web/templates/partials/search.html:218
+#: web/templates/partials/search.html:241
+#: web/templates/partials/search.html:261
 msgid "CLIP only"
 msgstr "Apenas CLIP"
 
-#: web/templates/partials/search.html:199
-#: web/templates/partials/search.html:222
+#: web/templates/partials/search.html:242
+#: web/templates/partials/search.html:265
 msgid "BM25 only"
 msgstr "Apenas BM25"
 
-#: web/templates/partials/search.html:210
-#: web/templates/partials/search.html:211
+#: web/templates/partials/search.html:253
+#: web/templates/partials/search.html:254
 msgid "Retrieval mode"
 msgstr "Modo de busca"
 
-#: web/templates/partials/search.html:214
+#: web/templates/partials/search.html:257
 msgid "Hybrid"
 msgstr "Híbrido"
 
-#: web/templates/partials/search.html:226
+#: web/templates/partials/search.html:269
 msgid "Semantic weight"
 msgstr "Peso semântico"
 
-#: web/templates/partials/search.html:226
+#: web/templates/partials/search.html:269
 msgid "Lexical weight"
 msgstr "Peso lexical"
-
-#: web/templates/partials/search.html:255
-msgid "Rerank"
-msgstr "Rerank"
-
-#: web/templates/partials/search.html:258
-msgid "on"
-msgstr "ligado"
-
-#: web/templates/partials/search.html:259
-msgid "off"
-msgstr "desligado"
-
-#: web/templates/partials/search.html:266
-#: web/templates/partials/search.html:267
-msgid "Cross-encoder reranker"
-msgstr "Reordenador cross-encoder"
-
-#: web/templates/partials/search.html:270
-msgid "Enable reranking"
-msgstr "Ativar reordenação"
-
-#: web/templates/partials/search.html:272
-msgid "Default model: bge-reranker-v2-m3 — multilingual, ~100ms per query on CPU."
-msgstr ""
-"Modelo padrão: bge-reranker-v2-m3 — multilíngue, ~100ms por consulta em "
-"CPU."
-
-#: web/templates/partials/search.html:277
-msgid "Maximal Marginal Relevance λ — ships in M3"
-msgstr "Maximal Marginal Relevance λ — disponível em M3"
 
 #: web/templates/partials/search.html:298
 #: web/templates/partials/search.html:299
 msgid "Results per query"
 msgstr "Resultados por busca"
 
+#: web/templates/partials/search.html:321
+#: web/templates/partials/search.html:331
+#: web/templates/partials/search.html:332
+msgid "Rerank"
+msgstr "Rerank"
+
 #: web/templates/partials/search.html:335
-#: web/templates/partials/search.html:336
+#, fuzzy
+msgid "Cross-encoder rerank"
+msgstr "Reordenador cross-encoder"
+
+#: web/templates/partials/search.html:364
+#: web/templates/partials/search.html:365
 msgid "Visual ↔ Audio weight"
 msgstr "Peso visual ↔ áudio"
 
-#: web/templates/partials/search.html:339
+#: web/templates/partials/search.html:368
 msgid "Visual weight"
 msgstr "Peso visual"
 
-#: web/templates/partials/search.html:339
+#: web/templates/partials/search.html:368
 msgid "Audio weight"
 msgstr "Peso áudio"
 
-#: web/templates/partials/search.html:346
+#: web/templates/partials/search.html:375
 msgid "visual"
 msgstr "visual"
 
-#: web/templates/partials/search.html:347
+#: web/templates/partials/search.html:376
 msgid "audio"
 msgstr "áudio"
 
-#: web/templates/partials/search.html:361
+#: web/templates/partials/search.html:402
 msgid "results"
 msgstr "resultados"
 
-#: web/templates/partials/search.html:363
+#: web/templates/partials/search.html:412
 msgid "No results."
 msgstr "Nenhum resultado."
 
-#: web/templates/partials/search.html:371
+#: web/templates/partials/search.html:418
 msgid "Type a query to search"
 msgstr "Digite uma busca"
 
-#: web/templates/partials/search.html:382
+#: web/templates/partials/search.html:429
 msgid "Result layout"
 msgstr "Layout dos resultados"
 
-#: web/templates/partials/search.html:389
+#: web/templates/partials/search.html:436
 msgid "Grid"
 msgstr "Grade"
 
-#: web/templates/partials/search.html:397
+#: web/templates/partials/search.html:444
 msgid "List"
 msgstr "Lista"
 
-#: web/templates/partials/search.html:423
-#: web/templates/partials/search.html:430
-#: web/templates/partials/search.html:432
-msgid "Choose image…"
-msgstr "Escolher imagem…"
-
-#: web/templates/partials/search.html
+#: web/templates/partials/search.html:513
 msgid "Drop an image here or click to choose"
 msgstr "Solte uma imagem aqui ou clique para escolher"
 
-#: web/templates/partials/search.html
+#: web/templates/partials/search.html:514
 msgid "Search by visual similarity · PNG, JPG, WebP"
 msgstr "Busca por similaridade visual · PNG, JPG, WebP"
 
-#: web/templates/partials/search.html
+#: web/templates/partials/search.html:522
 msgid "Click or drop to replace"
 msgstr "Clique ou solte para trocar"
 
@@ -1743,32 +1534,28 @@ msgstr "Clique em um card para ver seu keyframe, anotações e rimas visuais aqu
 msgid "Activity"
 msgstr "Atividade"
 
-#: web/templates/partials/search_inspector.html:76
-msgid "Expand inspector"
-msgstr "Expandir inspetor"
-
-#: web/templates/partials/search_inspector.html:95
+#: web/templates/partials/search_inspector.html:88
 #, python-format
 msgid "%(n)d annotations"
 msgstr "%(n)d anotações"
 
-#: web/templates/partials/search_inspector.html:138
+#: web/templates/partials/search_inspector.html:131
 msgid "Why this result"
 msgstr "Por que este resultado"
 
-#: web/templates/partials/search_inspector.html:157
+#: web/templates/partials/search_inspector.html:150
 msgid "Visual rhymes · cross-film"
 msgstr "Rimas visuais · cross-film"
 
-#: web/templates/partials/search_inspector.html:159
+#: web/templates/partials/search_inspector.html:152
 msgid "See all"
 msgstr "Ver tudo"
 
-#: web/templates/partials/search_inspector.html:184
+#: web/templates/partials/search_inspector.html:177
 msgid "Add a comment or annotation…"
 msgstr "Adicione um comentário ou anotação…"
 
-#: web/templates/partials/search_inspector.html:196
+#: web/templates/partials/search_inspector.html:189
 msgid "Comment"
 msgstr "Comentário"
 
@@ -1801,15 +1588,7 @@ msgstr "Linha do tempo"
 msgid "matches"
 msgstr "correspondências"
 
-#: web/templates/partials/search_timeline.html:53
-msgid "Play scene"
-msgstr "Reproduzir cena"
-
-#: web/templates/partials/search_timeline.html:56
-msgid "Timeline settings"
-msgstr "Configurações da linha do tempo"
-
-#: web/templates/partials/search_timeline.html:67
+#: web/templates/partials/search_timeline.html:61
 msgid "Film scenes timeline"
 msgstr "Linha do tempo das cenas do filme"
 
@@ -1847,11 +1626,197 @@ msgstr "Linha do tempo das cenas do filme"
 #~ msgstr "Pesos do retrieval híbrido"
 
 #~ msgid "on"
-#~ msgstr "on"
+#~ msgstr "ligado"
 
 #~ msgid "Soundtrack"
 #~ msgstr "Trilha"
 
 #~ msgid "Multimodal"
 #~ msgstr "Multimodal"
+
+#~ msgid "Next · previous item"
+#~ msgstr "Próximo · item anterior"
+
+#~ msgid "Back · close"
+#~ msgstr "Voltar · fechar"
+
+# ── Navigation / chrome ───────────────────────────────────────────────
+#~ msgid "Global search"
+#~ msgstr "Busca global"
+
+#~ msgid "Reload index"
+#~ msgstr "Recarregar índice"
+
+# ── Search tab ────────────────────────────────────────────────────────
+#~ msgid "Export"
+#~ msgstr "Exportar"
+
+#~ msgid "Annotate · Review"
+#~ msgstr "Anotar · Revisar"
+
+#~ msgid "Play · pause"
+#~ msgstr "Reproduzir · pausar"
+
+#~ msgid "Back · forward 5s"
+#~ msgstr "Voltar · avançar 5s"
+
+#~ msgid "Pin comment to frame"
+#~ msgstr "Fixar comentário no frame"
+
+#~ msgid "Resolve comment"
+#~ msgstr "Resolver comentário"
+
+#~ msgid "Previous · next scene"
+#~ msgstr "Cena anterior · próxima"
+
+#~ msgid "Scenes + Search"
+#~ msgstr "Cenas + Buscar"
+
+#~ msgid "Swap anchor · Visual rhymes"
+#~ msgstr "Trocar âncora · Rimas visuais"
+
+#~ msgid "Toggle view mode (grid · list · compact)"
+#~ msgstr "Alternar modo de visualização (grade · lista · compacto)"
+
+#~ msgid "Select all · clear"
+#~ msgstr "Selecionar tudo · limpar"
+
+#~ msgid "Filter"
+#~ msgstr "Filtrar"
+
+#~ msgid "Tab navigation"
+#~ msgstr "Navegação por abas"
+
+#~ msgid "Settings"
+#~ msgstr "Configurações"
+
+#~ msgid "New collection"
+#~ msgstr "Nova coleção"
+
+#~ msgid "Filters · ⇧⌘F"
+#~ msgstr "Filtros · ⇧⌘F"
+
+#~ msgid "Notifications"
+#~ msgstr "Notificações"
+
+#~ msgid "Import media · ⌘U"
+#~ msgstr "Importar mídia · ⌘U"
+
+#~ msgid "%(n)d viewers online"
+#~ msgstr "%(n)d espectadores online"
+
+#~ msgid "Share"
+#~ msgstr "Compartilhar"
+
+#~ msgid "Anonymous"
+#~ msgstr "Anônimo"
+
+#~ msgid "Documentation"
+#~ msgstr "Documentação"
+
+#~ msgid "Changelog"
+#~ msgstr "Histórico de mudanças"
+
+#~ msgid "Toggle right pane"
+#~ msgstr "Alternar painel direito"
+
+#~ msgid "More"
+#~ msgstr "Mais"
+
+#~ msgid "More actions"
+#~ msgstr "Mais ações"
+
+#~ msgid "Loop"
+#~ msgstr "Loop"
+
+#~ msgid "Back 5s"
+#~ msgstr "Voltar 5s"
+
+#~ msgid "Back 5 seconds"
+#~ msgstr "Voltar 5 segundos"
+
+#~ msgid "Play"
+#~ msgstr "Reproduzir"
+
+#~ msgid "Forward 5s"
+#~ msgstr "Avançar 5s"
+
+#~ msgid "Forward 5 seconds"
+#~ msgstr "Avançar 5 segundos"
+
+#~ msgid "Volume"
+#~ msgstr "Volume"
+
+#~ msgid "Playback speed"
+#~ msgstr "Velocidade de reprodução"
+
+#~ msgid "Quality"
+#~ msgstr "Qualidade"
+
+#~ msgid "Fullscreen"
+#~ msgstr "Tela cheia"
+
+#~ msgid "Reply"
+#~ msgstr "Responder"
+
+#~ msgid "Re-generate"
+#~ msgstr "Regenerar"
+
+#~ msgid "Resolve"
+#~ msgstr "Resolver"
+
+#~ msgid "PINNED"
+#~ msgstr "FIXADO"
+
+#~ msgid "Sort"
+#~ msgstr "Ordenar"
+
+#~ msgid "Search annotations"
+#~ msgstr "Buscar anotações"
+
+#~ msgid "Expand"
+#~ msgstr "Expandir"
+
+#~ msgid "GPU"
+#~ msgstr "GPU"
+
+#~ msgid "Pick an anchor scene to discover cross-film visual echoes."
+#~ msgstr "Escolha uma cena âncora para descobrir ecos visuais cross-film."
+
+#~ msgid "Save collection"
+#~ msgstr "Salvar coleção"
+
+#~ msgid "No anchor selected."
+#~ msgstr "Nenhuma âncora selecionada."
+
+#~ msgid "Select a scene to see its details."
+#~ msgstr "Selecione uma cena para ver seus detalhes."
+
+#~ msgid "off"
+#~ msgstr "desligado"
+
+#~ msgid "Enable reranking"
+#~ msgstr "Ativar reordenação"
+
+#~ msgid ""
+#~ "Default model: bge-reranker-v2-m3 — "
+#~ "multilingual, ~100ms per query on CPU."
+#~ msgstr ""
+#~ "Modelo padrão: bge-reranker-v2-m3 — "
+#~ "multilíngue, ~100ms por consulta em CPU."
+
+#~ msgid "Maximal Marginal Relevance λ — ships in M3"
+#~ msgstr "Maximal Marginal Relevance λ — disponível em M3"
+
+#~ msgid "Choose image…"
+#~ msgstr "Escolher imagem…"
+
+#~ msgid "Expand inspector"
+#~ msgstr "Expandir inspetor"
+
+#~ msgid "Play scene"
+#~ msgstr "Reproduzir cena"
+
+#~ msgid "Timeline settings"
+#~ msgstr "Configurações da linha do tempo"
 
