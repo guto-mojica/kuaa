@@ -93,13 +93,14 @@ def test_buscar_renders_real_library_chrome(guarded_page: Any) -> None:
     """Buscar shows the live shell: search box, modality chips, knob popovers.
 
     Asserts the real-data path renders the interactive chrome (not just an
-    empty placeholder) — the search input, the four modality chips, and at
+    empty placeholder) — the search input, the two modality chips, and at
     least one toolbar ``.popover`` (the focus-trap negative control surface).
     """
     guarded_page.goto("/search", wait_until="domcontentloaded")
     assert guarded_page.locator("#search-input").count() == 1
-    # Four modality chips (text / image / audio / fusion).
-    assert guarded_page.locator(".modes .chip").count() == 4
+    # Two modality chips (text / image). Audio + fusion removed with the
+    # audio feature (R2).
+    assert guarded_page.locator(".modes .chip").count() == 2
     # Toolbar popovers exist (the U3 negative-control surface).
     assert guarded_page.locator(".knob-popover .popover").count() >= 1
     guarded_page.console_guard.assert_clean()

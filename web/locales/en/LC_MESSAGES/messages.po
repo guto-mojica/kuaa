@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cinemateca-ai 0.3.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-31 10:37-0400\n"
+"POT-Creation-Date: 2026-05-31 13:21-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -21,8 +21,43 @@ msgstr ""
 msgid "About"
 msgstr "About"
 
-#: web/templates/base.html:13
+#: web/templates/base.html:13 web/templates/base.html:120
+#: web/templates/base.html:127
 msgid "Mojica · Cinemateca Digital"
+msgstr ""
+
+#: web/templates/base.html:121 web/templates/partials/_help_overlay.html:75
+#: web/templates/partials/_topbar.html:67
+#: web/templates/partials/about_modal.html:182
+#: web/templates/partials/search.html:195
+msgid "Search"
+msgstr "Search"
+
+#: web/templates/base.html:122 web/templates/partials/_help_overlay.html:76
+#: web/templates/partials/_topbar.html:68
+#: web/templates/partials/about_modal.html:183
+msgid "Scenes"
+msgstr "Scenes"
+
+#: web/templates/base.html:123 web/templates/partials/_help_overlay.html:77
+#: web/templates/partials/_topbar.html:69
+#: web/templates/partials/about_modal.html:184
+#: web/templates/partials/scenes_inspector.html:145
+msgid "Annotate"
+msgstr "Annotate"
+
+#: web/templates/base.html:124 web/templates/partials/_help_overlay.html:79
+#: web/templates/partials/_topbar.html:71
+#: web/templates/partials/about_modal.html:186
+#: web/templates/partials/processing.html:36
+#: web/templates/partials/processing_job.html:51
+msgid "Processing"
+msgstr "Processing"
+
+#: web/templates/base.html:125 web/templates/partials/_help_overlay.html:78
+#: web/templates/partials/about_modal.html:185
+#: web/templates/partials/rimas.html:36
+msgid "Visual rhymes"
 msgstr ""
 
 #: web/templates/eval/layout.html:21
@@ -278,41 +313,41 @@ msgstr ""
 # ── Field-level validation errors (U1) ────────────────────────────────
 # en msgstrs intentionally empty: gettext falls back to the English msgid
 # (the source string), matching the dominant pattern in this catalog.
-#: web/templates/partials/_field_error.html:38
+#: web/templates/partials/_field_error.html:46
 msgid "Image is too large. Use a file under 8 MB."
 msgstr ""
 
-#: web/templates/partials/_field_error.html:40
+#: web/templates/partials/_field_error.html:48
 msgid "Unsupported file type. Use a PNG, JPG, or WebP image."
 msgstr ""
 
-#: web/templates/partials/_field_error.html:42
+#: web/templates/partials/_field_error.html:50
 msgid "Type a query to search."
 msgstr ""
 
-#: web/templates/partials/_field_error.html:44
+#: web/templates/partials/_field_error.html:52
 msgid "Type at least 2 characters to search."
 msgstr ""
 
-#: web/templates/partials/_field_error.html:46
+#: web/templates/partials/_field_error.html:54
 msgid "Enter the film's path or filename."
 msgstr ""
 
-#: web/templates/partials/_field_error.html:48
+#: web/templates/partials/_field_error.html:56
 msgid "File not found. Check the path or filename."
 msgstr ""
 
-#: web/templates/partials/_field_error.html:50
+#: web/templates/partials/_field_error.html:58
 msgid "A film with this name is already in the library."
 msgstr ""
 
-#: web/templates/partials/_help_overlay.html:56
+#: web/templates/partials/_help_overlay.html:64
 #: web/templates/partials/about_modal.html:178
 #: web/templates/partials/about_modal.html:180
 msgid "Keyboard shortcuts"
 msgstr ""
 
-#: web/templates/partials/_help_overlay.html:59
+#: web/templates/partials/_help_overlay.html:67
 #: web/templates/partials/_toast_host.html:28
 #: web/templates/partials/about_modal.html:63
 #: web/templates/partials/about_modal.html:64
@@ -320,80 +355,46 @@ msgstr ""
 msgid "Close"
 msgstr "Close"
 
-#: web/templates/partials/_help_overlay.html:65
+#: web/templates/partials/_help_overlay.html:73
 msgid "Navigation"
 msgstr ""
 
-#: web/templates/partials/_help_overlay.html:67
-#: web/templates/partials/_topbar.html:67
-#: web/templates/partials/about_modal.html:182
-#: web/templates/partials/search.html:194
-msgid "Search"
-msgstr "Search"
-
-#: web/templates/partials/_help_overlay.html:68
-#: web/templates/partials/_topbar.html:68
-#: web/templates/partials/about_modal.html:183
-msgid "Scenes"
-msgstr "Scenes"
-
-#: web/templates/partials/_help_overlay.html:69
-#: web/templates/partials/_topbar.html:69
-#: web/templates/partials/about_modal.html:184
-#: web/templates/partials/scenes_inspector.html:145
-msgid "Annotate"
-msgstr "Annotate"
-
-#: web/templates/partials/_help_overlay.html:70
-#: web/templates/partials/about_modal.html:185
-#: web/templates/partials/rimas.html:36
-msgid "Visual rhymes"
-msgstr ""
-
-#: web/templates/partials/_help_overlay.html:71
-#: web/templates/partials/_topbar.html:71
-#: web/templates/partials/about_modal.html:186
-#: web/templates/partials/processing.html:36
-#: web/templates/partials/processing_job.html:51
-msgid "Processing"
-msgstr "Processing"
-
-#: web/templates/partials/_help_overlay.html:88
+#: web/templates/partials/_help_overlay.html:96
 msgid "Universal"
 msgstr ""
 
-#: web/templates/partials/_help_overlay.html:90
-#: web/templates/partials/_palette.html:47
+#: web/templates/partials/_help_overlay.html:98
+#: web/templates/partials/_palette.html:55
 #: web/templates/partials/about_modal.html:187
 msgid "Command palette"
 msgstr ""
 
-#: web/templates/partials/_help_overlay.html:91
+#: web/templates/partials/_help_overlay.html:99
 #: web/templates/partials/about_modal.html:188
 msgid "This help"
 msgstr ""
 
-#: web/templates/partials/_help_overlay.html:108
+#: web/templates/partials/_help_overlay.html:116
 msgid "Eval · Grading"
 msgstr ""
 
-#: web/templates/partials/_help_overlay.html:110
+#: web/templates/partials/_help_overlay.html:118
 msgid "Grade · 0 / 1 / 2 / 3"
 msgstr ""
 
-#: web/templates/partials/_help_overlay.html:111
+#: web/templates/partials/_help_overlay.html:119
 msgid "Skip · unjudgable"
 msgstr ""
 
-#: web/templates/partials/_help_overlay.html:112
+#: web/templates/partials/_help_overlay.html:120
 msgid "Save query and advance"
 msgstr ""
 
-#: web/templates/partials/_help_overlay.html:113
+#: web/templates/partials/_help_overlay.html:121
 msgid "Blind mode (toggle)"
 msgstr ""
 
-#: web/templates/partials/_help_overlay.html:114
+#: web/templates/partials/_help_overlay.html:122
 msgid "Skip query"
 msgstr ""
 
@@ -444,23 +445,23 @@ msgstr "No films in library"
 msgid "Collections"
 msgstr ""
 
-#: web/templates/partials/_palette.html:48
+#: web/templates/partials/_palette.html:56
 msgid "Search films, scenes, actions…"
 msgstr ""
 
-#: web/templates/partials/_palette.html:51
+#: web/templates/partials/_palette.html:71
 msgid "Palette results"
 msgstr ""
 
-#: web/templates/partials/_palette.html:56
+#: web/templates/partials/_palette.html:76
 msgid "navigate"
 msgstr ""
 
-#: web/templates/partials/_palette.html:57
+#: web/templates/partials/_palette.html:77
 msgid "select"
 msgstr ""
 
-#: web/templates/partials/_palette.html:58
+#: web/templates/partials/_palette.html:78
 msgid "close"
 msgstr ""
 
@@ -537,8 +538,8 @@ msgstr ""
 
 #: web/templates/partials/about_modal.html:93
 msgid ""
-"Indexes scenes, descriptions, visual and audio embeddings to support "
-"curation, programming and research."
+"Indexes scenes, descriptions, visual embeddings to support curation, "
+"programming and research."
 msgstr ""
 
 #: web/templates/partials/about_modal.html:94
@@ -916,7 +917,7 @@ msgstr "Entire library"
 
 #: web/templates/partials/home.html:14 web/templates/partials/rimas.html:40
 #: web/templates/partials/rimas.html:157 web/templates/partials/scenes.html:432
-#: web/templates/partials/search.html:444
+#: web/templates/partials/search.html:403
 msgid "films"
 msgstr ""
 
@@ -1289,7 +1290,7 @@ msgid "Comfortable"
 msgstr ""
 
 #: web/templates/partials/scenes.html:133
-#: web/templates/partials/search.html:489
+#: web/templates/partials/search.html:452
 msgid "Compact"
 msgstr ""
 
@@ -1402,7 +1403,7 @@ msgstr "No scenes match the filters."
 msgid "Select"
 msgstr ""
 
-#: web/templates/partials/scenes_grid.html:103
+#: web/templates/partials/scenes_grid.html:107
 msgid "TYPE"
 msgstr ""
 
@@ -1422,131 +1423,101 @@ msgstr ""
 msgid "Find similar"
 msgstr ""
 
-#: web/templates/partials/search.html:175
+#: web/templates/partials/search.html:176
 msgid "Search the library — describe a scene, paste an image…"
 msgstr ""
 
-#: web/templates/partials/search.html:202
+#: web/templates/partials/search.html:208
 msgid "Input type"
 msgstr "Input type"
 
-#: web/templates/partials/search.html:221
+#: web/templates/partials/search.html:226
 msgid "Text"
 msgstr "Text"
 
-#: web/templates/partials/search.html:232
+#: web/templates/partials/search.html:236
 msgid "Image"
 msgstr "Image"
 
-#: web/templates/partials/search.html:243
-msgid "Audio"
-msgstr "Audio"
-
-#: web/templates/partials/search.html:254
-#: web/templates/partials/search.html:391
-msgid "Fusion"
-msgstr "Fusion"
-
-#: web/templates/partials/search.html:270
+#: web/templates/partials/search.html:264
 msgid "Híbrido"
 msgstr "Hybrid"
 
-#: web/templates/partials/search.html:278
-#: web/templates/partials/search.html:298
+#: web/templates/partials/search.html:279
+#: web/templates/partials/search.html:299
 msgid "CLIP only"
 msgstr "CLIP only"
 
-#: web/templates/partials/search.html:279
-#: web/templates/partials/search.html:302
+#: web/templates/partials/search.html:280
+#: web/templates/partials/search.html:303
 msgid "BM25 only"
 msgstr "BM25 only"
 
-#: web/templates/partials/search.html:290
 #: web/templates/partials/search.html:291
+#: web/templates/partials/search.html:292
 msgid "Retrieval mode"
 msgstr "Retrieval mode"
 
-#: web/templates/partials/search.html:294
+#: web/templates/partials/search.html:295
 msgid "Hybrid"
 msgstr "Hybrid"
 
-#: web/templates/partials/search.html:306
+#: web/templates/partials/search.html:307
 msgid "Semantic weight"
 msgstr "Semantic weight"
 
-#: web/templates/partials/search.html:306
+#: web/templates/partials/search.html:307
 msgid "Lexical weight"
 msgstr "Lexical weight"
 
-#: web/templates/partials/search.html:335
 #: web/templates/partials/search.html:336
+#: web/templates/partials/search.html:337
 msgid "Results per query"
 msgstr "Results per query"
 
-#: web/templates/partials/search.html:358
-#: web/templates/partials/search.html:368
+#: web/templates/partials/search.html:359
 #: web/templates/partials/search.html:369
+#: web/templates/partials/search.html:370
 msgid "Rerank"
 msgstr "Rerank"
 
-#: web/templates/partials/search.html:372
+#: web/templates/partials/search.html:373
 msgid "Cross-encoder rerank"
 msgstr ""
 
-#: web/templates/partials/search.html:401
-#: web/templates/partials/search.html:402
-msgid "Visual ↔ Audio weight"
-msgstr "Visual ↔ Audio weight"
-
-#: web/templates/partials/search.html:405
-msgid "Visual weight"
-msgstr "Visual weight"
-
-#: web/templates/partials/search.html:405
-msgid "Audio weight"
-msgstr "Audio weight"
-
-#: web/templates/partials/search.html:412
-msgid "visual"
-msgstr "visual"
-
-#: web/templates/partials/search.html:413
-msgid "audio"
-msgstr "audio"
-
-#: web/templates/partials/search.html:439
+#: web/templates/partials/search.html:398
 msgid "results"
 msgstr ""
 
-#: web/templates/partials/search.html:449
+#: web/templates/partials/search.html:408
 msgid "No results."
 msgstr "No results."
 
-#: web/templates/partials/search.html:455
+#: web/templates/partials/search.html:414
 msgid "Type a query to search"
 msgstr ""
 
-#: web/templates/partials/search.html:466
+#: web/templates/partials/search.html:429
 msgid "Result layout"
 msgstr ""
 
-#: web/templates/partials/search.html:473
+#: web/templates/partials/search.html:436
 msgid "Grid"
 msgstr ""
 
-#: web/templates/partials/search.html:481
+#: web/templates/partials/search.html:444
 msgid "List"
 msgstr ""
 
-#: web/templates/partials/search.html:562
+#: web/templates/partials/search.html:525
 msgid "Drop an image here or click to choose"
 msgstr "Drop an image here or click to choose"
 
-#: web/templates/partials/search.html:563
+#: web/templates/partials/search.html:526
 msgid "Search by visual similarity · PNG, JPG, WebP"
 msgstr "Search by visual similarity · PNG, JPG, WebP"
 
-#: web/templates/partials/search.html:571
+#: web/templates/partials/search.html:534
 msgid "Click or drop to replace"
 msgstr "Click or drop to replace"
 

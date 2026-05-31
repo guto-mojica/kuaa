@@ -17,8 +17,8 @@
        hx-target wiring keeps working; the inner partial is rewritten in
        Task 11 onto ``.b-card`` cards.
 
-   Modality chips update the hidden ``modality`` mirror and submit the text
-   form for live text/audio/fusion searches. Image search stays on the separate
+   Modality chips flip the ``mode`` signal between text and image and submit
+   the text form for live text searches. Image search stays on the separate
    multipart endpoint, so the image chip only shows the upload panel.
 
    The right-inspector and bottom-timeline includes are ``ignore missing``
@@ -158,15 +158,6 @@
       <input type="hidden" name="sem_w"     :value="$store.buscarRetrieval.sem_w">
       <input type="hidden" name="bm25_w"    :value="(1 - Number($store.buscarRetrieval.sem_w)).toFixed(2)">
       <input type="hidden" name="top_k"     :value="$store.buscarRetrieval.top_k">
-      {# Modality mirror — the chip click writes ``$store.buscarRetrieval.modality``
-         and this hidden input carries it into every HTMX search submission so the
-         FastAPI route sees the picked modality (text | audio | fusion).
-         Image still POSTs to its own endpoint. #}
-      <input type="hidden" name="modality" :value="$store.buscarRetrieval.modality">
-      {# Fusion w mirror — read by the /api/search route when modality=fusion.
-         Always emitted (cost: one extra query-string field); the route clamps to
-         [0,1] and ignores it when modality != fusion. #}
-      <input type="hidden" name="w" :value="$store.buscarRetrieval.fusion_w">
       {# Text reranker mirror — included on every HTMX search. The route ignores
          it for non-text modalities and applies it only after card enrichment so
          the cross-encoder can score scene descriptions. #}
@@ -205,10 +196,9 @@
       </button>
     </form>
 
-    {# Modality chips. Text, image, audio, and fusion are live when their
-       matching config flags are enabled. Disabled chips render with
-       aria-disabled + .disabled so a screen-reader announces them as
-       unavailable instead of clickable. #}
+    {# Modality chips. Text and image are live when their matching config
+       flags are enabled. Disabled chips render with aria-disabled + .disabled
+       so a screen-reader announces them as unavailable instead of clickable. #}
     {# a11y (U5): this row is a group of toggle buttons (the modality chips use
        ``aria-pressed``), and it ALSO holds the retrieval-knob popover triggers
        — so it is NOT a WAI-ARIA tablist (a tablist may only contain role=tab,
@@ -231,7 +221,7 @@
               :class="{ on: mode === 'text' }"
               data-mode="text"
               :aria-pressed="mode === 'text' ? 'true' : 'false'"
-              @click="mode = 'text'; $store.buscarRetrieval.modality = 'text'; clearResults(); refreshSearch()">
+              @click="mode = 'text'; clearResults(); refreshSearch()">
         <span class="ico">{{ icon('search', 14) }}</span>
         {{ _("Text") }}
       </button>
@@ -244,34 +234,6 @@
               @click="mode = 'image'; clearResults()">
         <span class="ico">{{ icon('image', 14) }}</span>
         {{ _("Image") }}
-      </button>
-      {#- NOTE: the audio + fusion chips' backing config keys (search.audio_enabled /
-         search.multimodal_enabled) were removed with the audio feature (R1); these
-         chips are deleted wholesale in the UI-removal task (R2). Until then they
-         render enabled via the .get(..., True) default so the chip render is
-         byte-identical to the pre-removal output. The leading dash on the comment
-         open tag strips this block's own indentation/newline; without it Jinja
-         (trim_blocks/lstrip_blocks both off) emits an orphaned blank line that
-         drifts the search-tab snapshots. #}
-      <button type="button"
-              class="chip{% if not cfg.search.get('audio_enabled', True) %} disabled{% endif %}"
-              :class="{ on: mode === 'audio' }"
-              data-mode="audio"
-              :aria-pressed="mode === 'audio' ? 'true' : 'false'"
-              {% if not cfg.search.get('audio_enabled', True) %}disabled aria-disabled="true"{% endif %}
-              @click="mode = 'audio'; $store.buscarRetrieval.modality = 'audio'; clearResults(); refreshSearch()">
-        <span class="ico">{{ icon('audio', 14) }}</span>
-        {{ _("Audio") }}
-      </button>
-      <button type="button"
-              class="chip{% if not cfg.search.get('multimodal_enabled', True) %} disabled{% endif %}"
-              :class="{ on: mode === 'multimodal' }"
-              data-mode="multimodal"
-              :aria-pressed="mode === 'multimodal' ? 'true' : 'false'"
-              {% if not cfg.search.get('multimodal_enabled', True) %}disabled aria-disabled="true"{% endif %}
-              @click="mode = 'multimodal'; $store.buscarRetrieval.modality = 'fusion'; clearResults(); refreshSearch()">
-        <span class="ico">{{ icon('rhymes', 14) }}</span>
-        {{ _("Fusion") }}
       </button>
 
       <span class="div-v" aria-hidden="true"></span>
@@ -410,48 +372,6 @@
             <input type="checkbox" x-model="$store.buscarRetrieval.rerank_enabled">
             {{ _("Cross-encoder rerank") }}
           </label>
-        </div>
-      </div>
-
-      {# Fusion w popover — only visible when the Fusion chip is active
-         (the chip click sets the store; this knob disappears otherwise). Slider [0, 1] in 0.05
-         steps. Readout: "visual X · audio 1-X" so the user reads the symmetry
-         directly. The hidden #w mirror above is always emitted because Alpine
-         x-show only toggles CSS, not the input's value binding. #}
-      <div class="knob knob-popover"
-           x-data="{ open: false }"
-           x-show="mode === 'multimodal'"
-           x-cloak>
-        <button type="button"
-                class="knob-toggle"
-                @click="open = !open"
-                :aria-expanded="open ? 'true' : 'false'"
-                aria-haspopup="dialog">
-          <span class="k">{{ _("Fusion") }}</span>
-          <span class="v acc"
-                x-text="'visual ' + Number($store.buscarRetrieval.fusion_w).toFixed(2) +
-                        ' · audio ' + (1 - Number($store.buscarRetrieval.fusion_w)).toFixed(2)"></span>
-        </button>
-        <div class="popover"
-             x-show="open"
-             x-cloak
-             @click.outside="open = false"
-             role="dialog"
-             aria-label="{{ _('Visual ↔ Audio weight') }}">
-          <h3>{{ _("Visual ↔ Audio weight") }}</h3>
-          <div class="slider-row">
-            <label for="fusion-w-slider">
-              {{ _("Visual weight") }} ↔ {{ _("Audio weight") }}
-            </label>
-            <input type="range"
-                   id="fusion-w-slider"
-                   min="0" max="1" step="0.05"
-                   x-model.number="$store.buscarRetrieval.fusion_w">
-            <span class="slider-readout">
-              {{ _("visual") }} <span x-text="Number($store.buscarRetrieval.fusion_w).toFixed(2)"></span>
-              · {{ _("audio") }} <span x-text="(1 - Number($store.buscarRetrieval.fusion_w)).toFixed(2)"></span>
-            </span>
-          </div>
         </div>
       </div>
     </div>

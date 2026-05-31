@@ -422,8 +422,8 @@ def test_topbar_active_for_each_tab(client, path, active):
 #
 # The Mojica Buscar template rewrites the legacy text/image toggle + raw
 # scene-grid into a single ``.b-cp`` section with:
-#   * ``.search-wrap`` containing the qbar + 4 modality chips + wired retrieval
-#     knobs (Hybrid sem/bm25, k, and Fusion weight when active),
+#   * ``.search-wrap`` containing the qbar + 2 modality chips + wired retrieval
+#     knobs (Hybrid sem/bm25, k, and Rerank when text),
 #   * ``.caption`` row (result/film/latency stats + view-toggle segments),
 #   * ``#search-results`` grid (the Task-11 .b-card cards land in this swap
 #     target),
@@ -447,16 +447,16 @@ def test_buscar_renders_modes_and_knobs(client):
     assert 'hx-push-url="true"' in html
     # Modality chips row.
     assert 'class="modes"' in html
-    # 4 modality chips visible. The labels are translated; the
+    # 2 modality chips visible. The labels are translated; the
     # ``data-mode`` attribute is stable across locales.
-    for mode in ("text", "image", "audio", "multimodal"):
+    for mode in ("text", "image"):
         assert f'data-mode="{mode}"' in html
-    # All four modality chips are live by default now: M2 lit Audio
-    # (``audio_enabled``) and M3 #1 lit Fusion (``multimodal_enabled``).
-    # The disabled affordance still exists in the template — it's gated
-    # on the per-modality ``cfg.search.*_enabled`` flags and re-engages
-    # if any flag flips back to false.
-    for mode in ("text", "image", "audio", "multimodal"):
+    # Both modality chips are live by default. The disabled affordance
+    # still exists in the template — it's gated on the per-modality
+    # ``cfg.search.*_enabled`` flags and re-engages if a flag flips to
+    # false. (The audio + fusion chips were removed with the audio
+    # feature, R2.)
+    for mode in ("text", "image"):
         chip = re.search(rf'<button[^>]*data-mode="{mode}"[^>]*>', html)
         assert chip and " disabled" not in chip.group(0), f"chip {mode!r} unexpectedly disabled"
     # Retrieval knob row — only backed controls are visible. Hybrid + k +

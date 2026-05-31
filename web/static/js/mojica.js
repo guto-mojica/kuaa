@@ -527,7 +527,7 @@
 // localStorage-backed Alpine stores driving toolrow popovers in
 // scenes.html (Appearance + Fields + Group + Sort), the view-toggle
 // segments in search.html (Grade / Lista / Compacto), and the Buscar
-// retrieval popovers (retriever / sem_w / top_k / rerank / fusion_w).
+// retrieval popovers (retriever / sem_w / top_k / rerank).
 // The server can't see localStorage, so these toggles are client-only —
 // Alpine reactively binds class names on the appropriate container to
 // flip layout, per-field visibility, and the hidden HTMX form mirrors.
@@ -539,10 +539,10 @@
 //   $store.cenasGroup.by                  // group key
 //   $store.cenasSort.by                   // sort key
 //   $store.buscarView.mode                // 'grid' | 'list' | 'compact'
-//   $store.buscarRetrieval.{mode,sem_w,top_k,modality,rerank_enabled,fusion_w}
+//   $store.buscarRetrieval.{mode,sem_w,top_k,rerank_enabled}
 //
 // The ``buscarRetrieval`` store backs the Buscar tab's knob-row popovers
-// (retriever / sem_w / bm25_w / top_k / rerank / fusion_w). Defaults mirror the canonical
+// (retriever / sem_w / bm25_w / top_k / rerank). Defaults mirror the canonical
 // hybrid baseline so a first-paint UI never drifts from the server
 // contract: ``retriever=hybrid``, ``sem_w=0.70``, ``bm25_w=0.30``,
 // ``top_k=9`` (UI preference; the route's FastAPI default is 8 — the
@@ -585,7 +585,6 @@
       mode: 'hybrid',
       sem_w: 0.70,
       top_k: 9,
-      modality: 'text',
       // Server-resolved profile default (GPU-on / CPU-off) injected as
       // ``window.RERANK_DEFAULT`` by base.html. Falls back to ``false``
       // when absent (older shell / direct partial render). A per-browser
@@ -593,7 +592,6 @@
       rerank_enabled: (typeof window !== 'undefined' && typeof window.RERANK_DEFAULT === 'boolean')
         ? window.RERANK_DEFAULT
         : false,
-      fusion_w: 0.5,
     },
     // ``rimasRetrieval`` mirrors ``retrieval.rhymes.{diversity, k_candidates}``
     // in ``config/default.yaml`` and feeds the Diversidade slider on the
@@ -697,7 +695,7 @@
     persistOnChange('cenasGroup',      KEYS.group,      ['by']);
     persistOnChange('cenasSort',       KEYS.sort,       ['by']);
     persistOnChange('buscarView',      KEYS.view,       ['mode']);
-    persistOnChange('buscarRetrieval', KEYS.retrieval,  ['mode', 'sem_w', 'top_k', 'modality', 'rerank_enabled', 'fusion_w']);
+    persistOnChange('buscarRetrieval', KEYS.retrieval,  ['mode', 'sem_w', 'top_k', 'rerank_enabled']);
     persistOnChange('rimasRetrieval',  KEYS.rimasRetrieval, ['diversity', 'k_candidates']);
   });
 })();
