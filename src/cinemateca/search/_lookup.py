@@ -13,12 +13,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from cinemateca.config import Settings
 from cinemateca.library.metadata import load_tag_index
 from cinemateca.search.display import filter_degenerate_tags
 
 
 def enrich_hits_with_film_metadata(
-    cfg: Any, results: list[dict], *, per_film_slug: str | None = None
+    cfg: Settings, results: list[dict], *, per_film_slug: str | None = None
 ) -> list[dict]:
     """Decorate result dicts with ``film_slug``, ``description``, ``tags``.
 
@@ -112,7 +113,7 @@ def enrich_hits_with_film_metadata(
     return enriched
 
 
-def films_by_id_lookup(cfg: Any) -> dict:
+def films_by_id_lookup(cfg: Settings) -> dict:
     """Return ``{film.slug: film}`` for every registered film.
 
     Task 11's ``.b-card`` markup looks up ``films_by_id[r.film_slug]``
@@ -161,7 +162,7 @@ def mojica_search_defaults() -> dict:
     }
 
 
-def build_search_context(ctx: Any, cfg: Any | None = None) -> dict:
+def build_search_context(ctx: Any, cfg: Settings | None = None) -> dict:
     """Build the per-film search-tab partial context.
 
     Uses the RAW merged tag index (only its keys feed
@@ -194,7 +195,7 @@ def build_search_context(ctx: Any, cfg: Any | None = None) -> dict:
     return ctx_dict
 
 
-def build_search_context_aggregate(cfg: Any) -> dict:
+def build_search_context_aggregate(cfg: Settings) -> dict:
     """Build the aggregate search-tab context (union across all films).
 
     Mirrors ``api.services.catalog.build_scenes_context_aggregate``'s

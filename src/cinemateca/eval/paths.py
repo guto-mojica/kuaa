@@ -7,10 +7,11 @@ concrete Path / str values.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+
+from cinemateca.config import Settings
 
 
-def eval_root(cfg: Any) -> Path:
+def eval_root(cfg: Settings) -> Path:
     """Resolve the eval data root from config, falling back to ``data/eval``.
 
     Tests ``monkeypatch.setattr`` this function to redirect writes to
@@ -33,7 +34,7 @@ def eval_root(cfg: Any) -> Path:
     return Path("data/eval")
 
 
-def eval_run_id(cfg: Any) -> str:
+def eval_run_id(cfg: Settings) -> str:
     """Resolve the current run id from config, falling back to ``"default"``."""
 
     eval_cfg = getattr(cfg, "eval", None)

@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from cinemateca.annotations import load as load_annotations
+from cinemateca.config import Settings
 from cinemateca.domain import DomainPack, export_record, load_domain_from_config
 from cinemateca.errors import ArtefactError
 from cinemateca.scene_ids import scene_id_key
@@ -95,7 +96,7 @@ def _tags_by_scene(tag_index: dict[str, Any]) -> dict[str, set[str]]:
     return by_scene
 
 
-def _artifact_paths(cfg: Any) -> dict[str, Path]:
+def _artifact_paths(cfg: Settings) -> dict[str, Path]:
     metadata_dir = Path(cfg.paths.metadata_dir)
     embeddings_dir = Path(cfg.paths.embeddings_dir)
     return {
@@ -142,7 +143,7 @@ def _full_scene_record(
 
 
 def build_catalog_export(
-    cfg: Any,
+    cfg: Settings,
     *,
     generated_at: datetime | None = None,
     domain_pack: DomainPack | None = None,

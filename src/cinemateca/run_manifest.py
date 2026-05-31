@@ -137,7 +137,7 @@ def domain_snapshot(cfg: Config) -> dict[str, Any]:
 
 
 def output_artifacts(
-    cfg: Any,
+    cfg: Config,
     *,
     metadata_dir: str | Path | None = None,
     embeddings_dir: str | Path | None = None,
@@ -217,7 +217,7 @@ def infer_status(result: Any | None, explicit_status: str | None = None) -> str:
 
 
 def build_run_manifest(
-    cfg: Any,
+    cfg: Config,
     video_path: str | Path,
     result: Any | None = None,
     *,
@@ -275,7 +275,7 @@ def write_manifest(path: str | Path, payload: dict[str, Any]) -> Path:
 
 
 def write_run_manifest(
-    cfg: Any,
+    cfg: Config,
     video_path: str | Path,
     result: Any | None = None,
     *,

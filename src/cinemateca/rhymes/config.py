@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any
+from cinemateca.config import Settings
 
 
-def rimas_cfg(cfg: Any) -> tuple[int, float, float]:
+def rimas_cfg(cfg: Settings) -> tuple[int, float, float]:
     """Read ``cfg.rimas.{top_n,mmr_lambda,threshold}`` with sensible defaults.
 
     Test configs built off a minimal SimpleNamespace may omit the

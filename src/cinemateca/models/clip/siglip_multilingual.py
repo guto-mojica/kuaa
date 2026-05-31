@@ -37,6 +37,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from cinemateca.config import Settings
+
 logger = logging.getLogger(__name__)
 
 # Imported lazily inside ``_load_model`` so the import-time graph stays
@@ -61,7 +63,7 @@ _DEFAULT_MODEL_ID = "google/siglip2-large-patch16-256"
 class SiglipMultilingualEmbedder:
     """SigLIP-multilingual via HuggingFace transformers."""
 
-    def __init__(self, cfg: Any = None, device: str | None = None) -> None:
+    def __init__(self, cfg: Settings | None = None, device: str | None = None) -> None:
         self._cfg = cfg
         self._device = device
         self._model: Any = None

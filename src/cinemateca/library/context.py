@@ -30,7 +30,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+
+from cinemateca.config import Settings
 
 
 @dataclass(frozen=True)
@@ -76,7 +77,7 @@ class FilmContext:
         return self.audio_dir / "segments"
 
     @classmethod
-    def from_config(cls, cfg: Any) -> FilmContext:
+    def from_config(cls, cfg: Settings) -> FilmContext:
         """Build the global/flat context from a loaded ``Config``.
 
         Reproduces, in ONE place, the exact path coercions the routes
@@ -139,7 +140,7 @@ class FilmContext:
         )
 
     @classmethod
-    def for_film(cls, cfg: Any, slug: str) -> FilmContext:
+    def for_film(cls, cfg: Settings, slug: str) -> FilmContext:
         """Build a per-film context from a loaded ``Config`` and a slug.
 
         The film must exist as a directory under ``cfg.paths.library_dir/``

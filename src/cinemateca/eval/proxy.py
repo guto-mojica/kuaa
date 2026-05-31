@@ -53,6 +53,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from cinemateca.config import Settings
 from cinemateca.eval.slates import ModalQuery
 from cinemateca.scene_ids import scene_id_key
 
@@ -149,7 +150,7 @@ def proxy_labels(
     query: ModalQuery,
     *,
     library_dir: Path,
-    cfg: Any,
+    cfg: Settings,
     reference_hits: list[dict] | None = None,
 ) -> tuple[tuple[str, ...], dict[str, float], str]:
     """Return ``(relevant_scene_ids, relevance, proxy_method)`` for one query.

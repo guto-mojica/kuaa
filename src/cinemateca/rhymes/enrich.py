@@ -7,8 +7,7 @@ Uses the per-scene metadata loaders from cinemateca.rhymes.metadata.
 
 from __future__ import annotations
 
-from typing import Any
-
+from cinemateca.config import Settings
 from cinemateca.library import FilmContext, keyframe_url, load_json
 from cinemateca.reproducibility import make_generator
 from cinemateca.rhymes.algorithm import Rhyme
@@ -18,7 +17,7 @@ from cinemateca.rhymes.metadata import (
 )
 
 
-def _resolve_keyframe_url(cfg: Any, slug: str, scene_id: int) -> str:
+def _resolve_keyframe_url(cfg: Settings, slug: str, scene_id: int) -> str:
     """Look up the served URL of the keyframe for ``(slug, scene_id)``.
 
     Reads ``keyframes_metadata.json`` for the film, finds the entry whose
@@ -42,7 +41,7 @@ def _resolve_keyframe_url(cfg: Any, slug: str, scene_id: int) -> str:
     return ""
 
 
-def enrich_rhyme(cfg: Any, rhyme: Rhyme, films_by_id: dict) -> dict:
+def enrich_rhyme(cfg: Settings, rhyme: Rhyme, films_by_id: dict) -> dict:
     """Convert a :class:`Rhyme` into the template's echo-card shape.
 
     Resolves a web-served ``keyframe_url`` by looking up the rhyme
@@ -108,7 +107,7 @@ def select_echo(
 def signals_for_pair(
     anchor_data: dict | None,
     selected_echo: dict | None,
-    cfg: Any = None,
+    cfg: Settings | None = None,
 ) -> list[dict]:
     """Synthetic 5-row similarity breakdown for the Rimas inspector card.
 
@@ -146,7 +145,7 @@ def signals_for_pair(
     ]
 
 
-def shared_tags(cfg: Any, anchor_data: dict | None, selected_echo: dict | None) -> list[str]:
+def shared_tags(cfg: Settings, anchor_data: dict | None, selected_echo: dict | None) -> list[str]:
     """Return the intersection of anchor + selected-echo tag sets.
 
     Used by the inspector's "Shared tags" block. Empty when either side

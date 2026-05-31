@@ -9,6 +9,7 @@ from typing import Any
 
 import yaml
 
+from cinemateca.config import Settings
 from cinemateca.errors import UserInputError
 
 DEFAULT_DOMAIN_PACK = "archive"
@@ -200,7 +201,7 @@ def load_domain_pack(path: str | Path) -> DomainPack:
     )
 
 
-def resolve_domain_pack_path(cfg: Any, project_root: str | Path | None = None) -> Path:
+def resolve_domain_pack_path(cfg: Settings, project_root: str | Path | None = None) -> Path:
     """Resolve the selected domain pack path from a loaded config object."""
 
     root = Path(project_root) if project_root is not None else Path.cwd()
@@ -228,7 +229,7 @@ def resolve_domain_pack_path(cfg: Any, project_root: str | Path | None = None) -
 
 
 def load_domain_from_config(
-    cfg: Any,
+    cfg: Settings,
     project_root: str | Path | None = None,
 ) -> DomainPack:
     """Load the selected domain pack from an application config."""

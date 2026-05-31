@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
 
+from cinemateca.config import Settings
 from cinemateca.library import (
     FilmContext,
     derive_fps,
@@ -24,7 +24,7 @@ from cinemateca.library import (
 logger = logging.getLogger(__name__)
 
 
-def load_scene_meta(cfg: Any, slug: str, scene_id: int) -> dict | None:
+def load_scene_meta(cfg: Settings, slug: str, scene_id: int) -> dict | None:
     """Return the anchor scene's metadata dict, or ``None`` if unresolvable.
 
     Mirrors :func:`api.services.scenes_service.build_inspector_context`'s
@@ -116,7 +116,7 @@ def tags_for(metadata_dir: Path, scene_id: int) -> list[str]:
     return tags
 
 
-def resolve_timecode(cfg: Any, slug: str, scene_id: int) -> str:
+def resolve_timecode(cfg: Settings, slug: str, scene_id: int) -> str:
     """Return the SMPTE timecode of ``(slug, scene_id)``'s start, or ``""``."""
     try:
         ctx = FilmContext.for_film(cfg, slug)

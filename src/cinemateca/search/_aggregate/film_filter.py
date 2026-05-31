@@ -18,8 +18,8 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
 
+from cinemateca.config import Settings
 from cinemateca.search.cache import IndexStatus, SearchIndex
 
 logger = logging.getLogger(__name__)
@@ -42,17 +42,17 @@ class FilmFilter:
     loader.
     """
 
-    def __init__(self, load_index: Callable[[Any, str], SearchIndex] | None = None) -> None:
+    def __init__(self, load_index: Callable[[Settings, str], SearchIndex] | None = None) -> None:
         self._load_index = load_index
 
-    def _loader(self) -> Callable[[Any, str], SearchIndex]:
+    def _loader(self) -> Callable[[Settings, str], SearchIndex]:
         if self._load_index is not None:
             return self._load_index
         from cinemateca.search.aggregate import _get_search_index
 
         return _get_search_index
 
-    def candidates(self, *, cfg: Any, slugs: list[str]) -> list[CandidateFilm]:
+    def candidates(self, *, cfg: Settings, slugs: list[str]) -> list[CandidateFilm]:
         """Return one :class:`CandidateFilm` per slug whose index is OK.
 
         Loads each slug's index exactly once. A slug whose loader raises

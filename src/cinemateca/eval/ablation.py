@@ -56,10 +56,10 @@ import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 
+from cinemateca.config import Settings
 from cinemateca.errors import EvalError
 from cinemateca.eval.datasets import EvaluationDataset, QueryCase
 from cinemateca.eval.metrics import evaluate_query, summarize_results
@@ -255,7 +255,7 @@ def _hy_text_dataset(
     queries: list[ModalQuery],
     *,
     library_dir: Path,
-    cfg: Any,
+    cfg: Settings,
     graded_labels: dict[str, dict[str, float]] | None = None,
 ) -> EvaluationDataset:
     """Build the common text :class:`EvaluationDataset` with HY proxy labels.
@@ -334,7 +334,7 @@ def _hy_text_dataset(
     )
 
 
-def _scope_cfg_to_film(cfg: Any, library_dir: Path, slug: str) -> Any:
+def _scope_cfg_to_film(cfg: Settings, library_dir: Path, slug: str) -> Settings:
     """Return a deep-copied cfg with ``paths.{embeddings,metadata,frames}_dir``
     pointed at one per-film library directory.
 
@@ -350,7 +350,7 @@ def _scope_cfg_to_film(cfg: Any, library_dir: Path, slug: str) -> Any:
     return scoped
 
 
-def _scope_cfg_openclip(cfg: Any, library_dir: Path, slug: str) -> Any:
+def _scope_cfg_openclip(cfg: Settings, library_dir: Path, slug: str) -> Settings:
     """Like :func:`_scope_cfg_to_film` but switched to the OpenCLIP index.
 
     Points the embeddings filename/mapping at the ``.clip_openclip`` artefacts
@@ -403,7 +403,7 @@ def _primary_film_slug(library_dir: Path, queries: list[ModalQuery]) -> str:
 
 
 def _run_text_retriever_row(
-    cfg: Any,
+    cfg: Settings,
     dataset: EvaluationDataset,
     *,
     library_dir: Path,
@@ -435,7 +435,7 @@ def _run_text_retriever_row(
 
 
 def _run_rerank_row(
-    cfg: Any,
+    cfg: Settings,
     dataset: EvaluationDataset,
     *,
     library_dir: Path,
@@ -483,7 +483,7 @@ def _run_rerank_row(
 
 
 def _run_fusion_row(
-    cfg: Any,
+    cfg: Settings,
     dataset: EvaluationDataset,
     *,
     library_dir: Path,
@@ -584,7 +584,7 @@ class _FilmCtx:
 
 
 def run_ablation(
-    cfg: Any,
+    cfg: Settings,
     *,
     library_dir: Path,
     queries: list[ModalQuery],
@@ -673,7 +673,7 @@ def run_ablation(
 
 
 def _dispatch_row(
-    cfg: Any,
+    cfg: Settings,
     dataset: EvaluationDataset,
     row_cfg: AblationRowConfig,
     *,

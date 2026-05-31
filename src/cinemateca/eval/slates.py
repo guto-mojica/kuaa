@@ -25,6 +25,7 @@ from typing import Any, cast
 
 import numpy as np
 
+from cinemateca.config import Settings
 from cinemateca.errors import EvalError
 from cinemateca.library import Library, derive_fps, load_metadata, to_smpte
 from cinemateca.models.registry import get_audio_embedder, get_image_embedder
@@ -282,7 +283,7 @@ def _empty_meta(slug: str) -> _FilmMeta:
     )
 
 
-def _film_meta_loader(cfg: Any, library_dir: Path):
+def _film_meta_loader(cfg: Settings, library_dir: Path):
     """Return a ``slug -> _FilmMeta`` memoised loader.
 
     Reads the registry (for title/year) and per-film metadata (for
@@ -338,7 +339,7 @@ def _film_meta_loader(cfg: Any, library_dir: Path):
 def generate_slate(
     *,
     query: ModalQuery,
-    cfg: Any,
+    cfg: Settings,
     library_dir: Path,
     k: int = 9,
 ) -> list[CandidateRow]:
