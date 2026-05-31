@@ -51,7 +51,7 @@
           <span class="stat">{{ icon("film-strip") }} {{ _("Processing") }}</span>
         </h2>
         <div class="sub">
-          {% if job.director %}<span>dir. {{ job.director }}</span><span>·</span>{% endif %}
+          {% if job.director %}<span>{{ _("dir.") }} {{ job.director }}</span><span>·</span>{% endif %}
           {% if job.started_at_display %}<span>{{ _("started at") }} {{ job.started_at_display }}</span>{% endif %}
           {% if job.elapsed_display %}<span>·</span><span>{{ job.elapsed_display }}</span>{% endif %}
         </div>

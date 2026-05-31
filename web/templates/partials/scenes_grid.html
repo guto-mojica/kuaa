@@ -67,7 +67,7 @@
       {% endif %}
       <span class="ct">{{ group.match_count }}{% if group.heading_total %} / {{ group.heading_total }}{% endif %}</span>
       {% if group.film and group.film.runtime_tc %}
-      <span class="meta"><span>runtime {{ group.film.runtime_tc }}</span></span>
+      <span class="meta"><span>{{ _("runtime") }} {{ group.film.runtime_tc }}</span></span>
       {% endif %}
     </div>
     {% endif %}

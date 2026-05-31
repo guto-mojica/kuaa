@@ -128,7 +128,7 @@
                 {% if anchor_film and anchor_film.year %}<span style="font-family: var(--font-mono); font-size: 11px; color: var(--c-muted);">{{ anchor_film.year }}</span>{% endif %}
               </span>
               {% if anchor_film and anchor_film.director %}
-                <span style="color: var(--c-muted); font-size: 12px;">dir. {{ anchor_film.director }}</span>
+                <span style="color: var(--c-muted); font-size: 12px;">{{ _("dir.") }} {{ anchor_film.director }}</span>
               {% endif %}
             </div>
             <div class="ids">

@@ -17,6 +17,7 @@ acceptance contract:
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -353,3 +354,212 @@ def test_vendored_phosphor_assets_present():
     for svg in svgs:
         body = svg.read_text(encoding="utf-8")
         assert "currentColor" in body  # color parity with old icon font
+
+
+# ── Bare-string guard: every user-facing string passes through i18n ────
+#
+# CLAUDE.md (HTML/Jinja conventions): "All user-visible strings must pass
+# through {{ _("...") }} for i18n." This guard scans every shipped Jinja
+# template for *prose that escaped translation* — both element text nodes
+# (``>Save changes<``) and user-facing attribute values (``placeholder``,
+# ``title``, ``aria-label``, ``alt``). It runs purely on the template
+# source (no app/import), so it is fully hermetic.
+#
+# It is deliberately PRAGMATIC, not a parser: it strips Jinja constructs
+# and HTML comments, then flags any remaining run of ≥2 alphabetic
+# characters that is NOT covered by the allowlist below. Wrapped strings
+# (``{{ _("…") }}`` / ``{% trans %}``) are removed by the Jinja-strip
+# step, so only genuinely-bare prose survives to be flagged.
+#
+# WHAT IS ALLOWLISTED (and why it is legitimately non-translatable):
+#   * Brand / product names — "Cinemateca", "Mojica", "EVAL" (mode badge
+#     on the internal eval shell). Fixed by the project vocabulary.
+#   * Language-switcher codes — "PT", "EN" (universal language abbrevs;
+#     the switcher's own aria-label *is* translated via _('Language')).
+#   * Keyboard keys / decorative glyphs — "esc"; HTML entities such as
+#     "&times;" are stripped before matching.
+#   * Model / library / algorithm identifiers — "moondream-2", "md"
+#     (avatar initials, aria-hidden), "CLIP-L/14", "CLIP", "cosine",
+#     "MMR", "mxbai-rerank-l", "bm25", "sem", "rk", "MIT", "repo",
+#     "Top-k", "ms". These are locale-invariant technical tokens shown
+#     as VALUES next to already-translated knob labels (e.g.
+#     ``{{ _('Distance') }} cosine``).
+#   * Single-letter math/IR variables ("k", "q", "s", "λ", …) and any
+#     run made only of symbols/digits (formula read-outs like
+#     ``k={n} · MMR λ {x}`` and the ``sem⊕bm25⊕rk`` source pill).
+#
+# A string is flagged unless EVERY whitespace/``=``/``·``/``⊕``-delimited
+# token in it is an allowed token, a math var, or pure symbol/number.
+# So "cosine" passes but "Save changes" / "dir. Watson" do not.
+
+_JINJA_EXPR = re.compile(r"\{\{.*?\}\}", re.S)
+_JINJA_STMT = re.compile(r"\{%.*?%\}", re.S)
+_JINJA_COMMENT = re.compile(r"\{#.*?#\}", re.S)
+_HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
+_SCRIPT_BLOCK = re.compile(r"<script\b.*?</script>", re.S | re.I)
+_STYLE_BLOCK = re.compile(r"<style\b.*?</style>", re.S | re.I)
+_TEXT_NODE = re.compile(r">([^<>]+)<")
+_HTML_ENTITY = re.compile(r"&[#A-Za-z0-9]+;")
+_WORD = re.compile(r"[A-Za-zÀ-ÿ]{2,}")
+_MATH_VAR = re.compile(r"^[a-zλ]$", re.I)  # k, q, s, … and λ
+_SYMBOLS_ONLY = re.compile(r"^[\W\d\s·⊕λ×]+$")  # · ⊕ λ ×
+_TOKEN_DELIM = re.compile(r"[\s=·⊕]+")  # whitespace, =, ·, ⊕
+
+# Attributes whose values are read/shown to the user (must be translated).
+_USER_FACING_ATTRS = (
+    "placeholder",
+    "title",
+    "aria-label",
+    "alt",
+    "aria-placeholder",
+    "aria-roledescription",
+)
+
+_ALLOWED_TOKENS = frozenset(
+    {
+        # Brand / product
+        "Cinemateca",
+        "Mojica",
+        "EVAL",
+        # Language-switcher codes
+        "PT",
+        "EN",
+        # Keyboard keys
+        "esc",
+        # Model / library / algorithm identifiers (locale-invariant)
+        "moondream-2",
+        "md",
+        "CLIP-L/14",
+        "CLIP",
+        "cosine",
+        "MMR",
+        "mxbai-rerank-l",
+        "bm25",
+        "sem",
+        "rk",
+        "MIT",
+        "repo",
+        "Top-k",
+        "ms",
+    }
+)
+
+
+def _strip_jinja_and_inert(html: str) -> str:
+    """Remove everything that is NOT static, user-visible prose: Jinja
+    comments/statements/expressions (``{{ _() }}`` included), HTML
+    comments, and ``<script>``/``<style>`` bodies."""
+    for rx in (
+        _JINJA_COMMENT,
+        _JINJA_STMT,
+        _JINJA_EXPR,
+        _HTML_COMMENT,
+        _SCRIPT_BLOCK,
+        _STYLE_BLOCK,
+    ):
+        html = rx.sub(" ", html)
+    return html
+
+
+def _is_bare_prose(text: str) -> bool:
+    """True if ``text`` contains translatable prose not covered by the
+    allowlist. ``text`` is a candidate node/attr value with Jinja already
+    stripped."""
+    s = _HTML_ENTITY.sub(" ", text).strip()
+    if not s or s in _ALLOWED_TOKENS:
+        return False
+    if _SYMBOLS_ONLY.match(s):
+        return False
+    tokens = [t for t in _TOKEN_DELIM.split(s) if t]
+
+    def _ok(tok: str) -> bool:
+        return (
+            tok in _ALLOWED_TOKENS
+            or bool(_MATH_VAR.match(tok))
+            or bool(re.fullmatch(r"[\W\d·⊕λ×]+", tok))
+        )
+
+    if tokens and all(_ok(t) for t in tokens):
+        return False
+    return bool(_WORD.search(s))
+
+
+def _scan_template_for_bare_strings(path: Path) -> list[str]:
+    """Return human-readable violation strings for one template file."""
+    raw = path.read_text(encoding="utf-8")
+    try:
+        rel: Path | str = path.relative_to(REPO)
+    except ValueError:  # synthetic file outside the repo (teeth self-test)
+        rel = path.name
+    out: list[str] = []
+
+    # 1) element text nodes
+    stripped = _strip_jinja_and_inert(raw)
+    for m in _TEXT_NODE.finditer(stripped):
+        node = m.group(1)
+        if _is_bare_prose(node):
+            out.append(f"{rel} :: bare text {node.strip()!r}")
+
+    # 2) user-facing attribute values (scan the RAW source so a wrapped
+    #    value like ``title="{{ _('x') }}"`` is recognised by the "_(" guard)
+    for attr in _USER_FACING_ATTRS:
+        for quote in ('"', "'"):
+            pat = re.compile(rf"\b{attr}\s*=\s*{quote}([^{quote}]*){quote}")
+            for am in pat.finditer(raw):
+                val = am.group(1)
+                if "_(" in val:  # already wrapped in gettext
+                    continue
+                inner = _JINJA_STMT.sub(" ", _JINJA_EXPR.sub(" ", val))
+                if _is_bare_prose(inner):
+                    out.append(f"{rel} :: bare @{attr} {val!r}")
+    return out
+
+
+def test_no_bare_user_facing_strings_in_templates():
+    """Every user-visible string in a shipped Jinja template must pass
+    through ``{{ _() }}`` / ``{% trans %}`` (CLAUDE.md i18n rule).
+
+    Scans element text + user-facing attribute values across
+    ``web/templates/**``; allowlists brand names, language codes,
+    technical/model identifiers, math variables, and symbol/number
+    fragments (see the module-level rationale above). If this fails, wrap
+    the reported string in ``_()`` or — if it is genuinely
+    non-translatable — extend ``_ALLOWED_TOKENS`` with a justification."""
+    violations: list[str] = []
+    for tpl in sorted(TEMPLATES.rglob("*.html")):
+        violations.extend(_scan_template_for_bare_strings(tpl))
+    assert not violations, "Bare (un-i18n'd) user-facing strings found in templates:\n" + "\n".join(
+        violations
+    )
+
+
+def test_bare_string_guard_has_teeth():
+    """Self-test: the guard must actually detect un-wrapped prose and must
+    not over-trigger on legitimately non-translatable tokens. Protects the
+    guard from silently decaying into a no-op as the allowlist grows."""
+    # Genuinely-bare prose → flagged.
+    assert _is_bare_prose("Save changes")
+    assert _is_bare_prose("No results found")
+    assert _is_bare_prose("dir. Watson")  # abbrev + name reads as prose
+    # Legitimately non-translatable → not flagged.
+    assert not _is_bare_prose("cosine")
+    assert not _is_bare_prose("Cinemateca Mojica")
+    assert not _is_bare_prose("PT")
+    assert not _is_bare_prose("sem⊕bm25⊕rk")
+    assert not _is_bare_prose("k=  · MMR λ")  # k={n} · MMR λ readout
+    assert not _is_bare_prose("")
+    # End-to-end: scanning a synthetic template with one bare span flags it.
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as d:
+        f = Path(d) / "x.html"
+        f.write_text(
+            '<div>{{ _("Wrapped") }}<span>Unwrapped label</span>'
+            '<input placeholder="bare ph"></div>',
+            encoding="utf-8",
+        )
+        hits = _scan_template_for_bare_strings(f)
+    joined = "\n".join(hits)
+    assert "Unwrapped label" in joined
+    assert "bare ph" in joined
+    assert "Wrapped" not in joined
