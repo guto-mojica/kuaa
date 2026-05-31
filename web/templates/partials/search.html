@@ -245,11 +245,14 @@
         <span class="ico">{{ icon('image', 14) }}</span>
         {{ _("Image") }}
       </button>
-      {# NOTE: the audio + fusion chips' backing config keys (search.audio_enabled /
+      {#- NOTE: the audio + fusion chips' backing config keys (search.audio_enabled /
          search.multimodal_enabled) were removed with the audio feature (R1); these
          chips are deleted wholesale in the UI-removal task (R2). Until then they
          render enabled via the .get(..., True) default so the chip render is
-         byte-identical to the pre-removal output. #}
+         byte-identical to the pre-removal output. The leading dash on the comment
+         open tag strips this block's own indentation/newline; without it Jinja
+         (trim_blocks/lstrip_blocks both off) emits an orphaned blank line that
+         drifts the search-tab snapshots. #}
       <button type="button"
               class="chip{% if not cfg.search.get('audio_enabled', True) %} disabled{% endif %}"
               :class="{ on: mode === 'audio' }"
