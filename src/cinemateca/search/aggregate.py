@@ -26,6 +26,7 @@ them for backward compatibility. Tests should monkeypatch
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -40,7 +41,7 @@ from cinemateca.library import (
 )
 from cinemateca.retrieval.hybrid import DEFAULT_RRF_K
 from cinemateca.scene_ids import normalize_tag_index, scene_id_key
-from cinemateca.search._aggregate.film_filter import FilmFilter
+from cinemateca.search._aggregate.film_filter import CandidateFilm, FilmFilter
 from cinemateca.search._aggregate.fusion import fuse_global_rrf as _fuse_rrf_many
 from cinemateca.search._aggregate.materialize import materialize_hits
 from cinemateca.search._aggregate.scorers import BM25Scorer, CLIPScorer, MetadataScorer
@@ -61,6 +62,35 @@ logger = logging.getLogger(__name__)
 # ``cfg.embeddings`` is absent (unit tests with minimal configs).
 _DEFAULT_EMBEDDINGS_FILENAME = "keyframe_embeddings.npy"
 _DEFAULT_MAPPING_FILENAME = "index_mapping.json"
+
+# A per-scene ranked list ``[(scene_id, score)]`` for one film.
+_RankedList = list[tuple[int, float]]
+# One film's score payload: ``(state, clip_ranked, bm25_hits, metadata_ranked)``.
+# ``state`` is the Phase-4 materialisation lookup; the three lists are this
+# film's per-scene contributions to the CLIP / BM25 / metadata global lists.
+_FilmScore = tuple[dict[str, Any], _RankedList, _RankedList, _RankedList]
+# A GLOBAL ranked list keyed by ``(film_slug, scene_id)``.
+_GlobalList = list[tuple[tuple[str, int], float]]
+
+
+@dataclass(frozen=True)
+class _ScoringContext:
+    """Loop-invariant inputs shared across every per-film scoring call.
+
+    Built once by :func:`_collect_global_lists` and threaded into
+    :func:`_score_film` so the per-film signature stays small. ``clip_scorer``
+    / ``bm25_scorer`` are stateless and reused across films.
+    """
+
+    cfg: Settings
+    query: str
+    text_vec: np.ndarray
+    min_similarity: float
+    selected_tags: list[str]
+    raw_k: int
+    retriever_mode: str
+    clip_scorer: CLIPScorer
+    bm25_scorer: BM25Scorer
 
 
 def _get_embedder(cfg: Settings) -> Any:
@@ -141,6 +171,345 @@ def has_indexed_films(cfg: Settings) -> bool:
     return False
 
 
+@dataclass(frozen=True)
+class _FilmArtifacts:
+    """Per-film JSON artefacts the scoring + materialisation passes consume."""
+
+    fps: float
+    meta_by_scene: dict[Any, Any]
+    descriptions: list[dict[str, Any]]
+    tag_index: dict[str, Any]
+    visual_rows: list[dict[str, Any]]
+
+
+def _load_film_artifacts(ctx: FilmContext) -> _FilmArtifacts:
+    """Load the five per-film metadata artefacts off ``ctx.metadata_dir``.
+
+    Each loader tolerates a missing/non-list payload (``[]`` / ``{}``), exactly
+    as the pre-C1 inline block did, so a film with partial metadata still scores.
+    """
+    kf_meta_data = load_json(ctx.metadata_dir / "keyframes_metadata.json") or []
+    kf_meta = kf_meta_data if isinstance(kf_meta_data, list) else []
+    descriptions_data = load_json(ctx.metadata_dir / "scene_descriptions.json") or []
+    visual_data = load_json(ctx.metadata_dir / "visual_analysis.json") or []
+    return _FilmArtifacts(
+        fps=derive_fps(kf_meta),
+        meta_by_scene={e["scene_id"]: e for e in kf_meta if "scene_id" in e},
+        descriptions=descriptions_data if isinstance(descriptions_data, list) else [],
+        tag_index=load_tag_index(ctx.metadata_dir) or {},
+        visual_rows=visual_data if isinstance(visual_data, list) else [],
+    )
+
+
+def _film_bm25_hits(
+    sctx: _ScoringContext,
+    film_ctx: FilmContext,
+    film: Any,
+    allowed_scene_keys: set[str] | None,
+) -> _RankedList:
+    """Per-film BM25 hits, or ``[]`` for ``"clip"`` mode / an empty corpus.
+
+    ``"clip"`` mode skips BM25 loading entirely (no disk read for a corpus
+    we'll ignore). A loader failure or an unbuilt corpus contributes nothing —
+    in hybrid mode the scene still surfaces via CLIP, in pure-bm25 mode it
+    surfaces nothing (correct: BM25 has no signal). Verbatim from pre-C1.
+    """
+    if sctx.retriever_mode == "clip":
+        return []
+    try:
+        bm25 = _get_bm25_index_for_ctx_with_cfg(sctx.cfg, film_ctx)
+    except (FileNotFoundError, OSError, ValueError):
+        # Narrow set of loader failure modes — anything else is a programming
+        # bug we want to surface, not silently absorb.
+        logger.warning(
+            "aggregate_search: bm25 loader failed for %s; "
+            "contributing no BM25 entries for this film",
+            film.slug,
+            exc_info=True,
+        )
+        bm25 = None
+    if bm25 is None or bm25.model is None:
+        logger.info(
+            "aggregate_search: film=%s bm25 empty; no BM25 entries " "(mode=%s requested)",
+            film.slug,
+            sctx.retriever_mode,
+        )
+    return sctx.bm25_scorer.score(
+        bm25=bm25,
+        query=sctx.query,
+        raw_k=sctx.raw_k,
+        allowed_scene_keys=allowed_scene_keys,
+    )
+
+
+def _allowed_scene_keys(
+    selected_tags: list[str], tag_index: dict[str, Any]
+) -> set[str] | None:
+    """AND-intersect the selected tags into a canonical scene-key set.
+
+    Returns ``None`` when no tags are selected (no filter), or the intersected
+    membership set otherwise (possibly empty → caller skips the film). Mirrors
+    ``SemanticSearch.combined``: normalise the raw tag_index, intersect sets.
+    """
+    if not selected_tags:
+        return None
+    norm_index = normalize_tag_index(tag_index)
+    allowed = set(norm_index.get(selected_tags[0], set()))
+    for t in selected_tags[1:]:
+        allowed &= set(norm_index.get(t, set()))
+    return allowed
+
+
+def _score_film(sctx: _ScoringContext, cand: CandidateFilm, film: Any) -> _FilmScore | None:
+    """Score one candidate film into its per-film state + three ranked lists.
+
+    Returns ``(state, clip_ranked, bm25_hits, metadata_ranked)`` where
+    ``state`` is the Phase-4 lookup payload (film + kf_df + best-row map +
+    fps + scene→meta) and the three lists are this film's per-scene
+    contributions (CLIP cosine, BM25, metadata-lexical). Returns ``None``
+    when a tag pre-filter (AND-intersection over ``selected_tags``) excludes
+    the whole film — the legacy ``continue`` that skips it entirely.
+
+    Reads ``cand.index`` directly (load-once): the index is never re-loaded
+    here. Per-film logging is emitted verbatim from the pre-C1 loop body.
+    """
+    idx = cand.index  # load-once: read off the candidate, never re-load
+    film_ctx = FilmContext.for_film(sctx.cfg, film.slug)
+    art = _load_film_artifacts(film_ctx)
+    metadata_scores = (
+        MetadataScorer().score(
+            query=sctx.query,
+            descriptions=art.descriptions,
+            tag_index=art.tag_index,
+            visual_rows=art.visual_rows,
+        )
+        if sctx.retriever_mode == "hybrid"
+        else {}
+    )
+    metadata_ranked: _RankedList = sorted(
+        metadata_scores.items(), key=lambda p: p[1], reverse=True
+    )[: sctx.raw_k]
+
+    allowed_scene_keys = _allowed_scene_keys(sctx.selected_tags, art.tag_index)
+    if sctx.selected_tags:
+        if not allowed_scene_keys:
+            return None  # tag intersection empty → skip the whole film
+        metadata_ranked = [
+            (sid, s) for sid, s in metadata_ranked if scene_id_key(sid) in allowed_scene_keys
+        ]
+
+    embeddings: Any = idx.embeddings
+    kf_df: Any = idx.kf_df
+
+    # CLIP-side ranked list (best keyframe per scene, descending).
+    clip_ranked, best_row_by_sid = sctx.clip_scorer.score(
+        embeddings=embeddings,
+        kf_df=kf_df,
+        text_vec=sctx.text_vec,
+        min_similarity=sctx.min_similarity,
+        allowed_scene_keys=allowed_scene_keys,
+        raw_k=sctx.raw_k,
+    )
+    bm25_hits = _film_bm25_hits(sctx, film_ctx, film, allowed_scene_keys)
+
+    state: dict[str, Any] = {
+        "film": film,
+        "kf_df": kf_df,
+        "best_row_by_sid": best_row_by_sid,
+        "fps": art.fps,
+        "meta_by_scene": art.meta_by_scene,
+    }
+
+    scores: np.ndarray = embeddings @ sctx.text_vec
+    if scores.size:
+        top3 = np.sort(scores)[-3:][::-1]
+        logger.info(
+            "aggregate_search: film=%s n_vectors=%d top3=%s "
+            "clip_n=%d bm25_n=%d metadata_n=%d (retriever=%s)",
+            film.slug,
+            int(scores.size),
+            [round(float(s), 3) for s in top3],
+            len(clip_ranked),
+            len(bm25_hits),
+            len(metadata_ranked),
+            sctx.retriever_mode,
+        )
+    return state, clip_ranked, bm25_hits, metadata_ranked
+
+
+def _dispatch_ranked(
+    retriever_mode: str,
+    *,
+    global_clip: _GlobalList,
+    global_bm25: _GlobalList,
+    global_metadata: _GlobalList,
+    sem_w: float,
+    bm25_w: float,
+    rrf_k: int,
+) -> _GlobalList:
+    """Build the unified ``ranked`` list from the three global lists (Phase 3).
+
+    ``"clip"`` / ``"bm25"`` surface their global list as-is. ``"hybrid"``
+    fuses via weighted RRF: when a metadata signal exists it carries a fixed
+    0.65 weight and the CLIP/BM25 residual is split by their normalised
+    sem/bm25 weights; otherwise it is the plain two-way sem/bm25 RRF. All
+    weighting arithmetic is verbatim from the pre-C1 Phase-3 dispatch.
+
+    Global RRF (over the cross-film-concatenated lists) is deliberate: the
+    pre-decomposition implementation ran per-film RRF and then sorted across
+    films by raw RRF score, which is DEGENERATE — every film's per-film rank-1
+    contribution gets the same ``1/(rrf_k+1)`` score, so the cross-film top-K
+    ordering was decided by film-iteration order, not signal strength.
+    Assigning each item a single GLOBAL rank per side breaks that tie.
+    """
+    if retriever_mode == "clip":
+        return global_clip
+    if retriever_mode == "bm25":
+        return global_bm25
+    # "hybrid"
+    if global_metadata:
+        metadata_w = 0.65
+        residual_w = 1.0 - metadata_w
+        retrieval_total = max(float(sem_w) + float(bm25_w), 1e-12)
+        return _fuse_rrf_many(
+            [
+                (global_metadata, metadata_w),
+                (global_clip, residual_w * float(sem_w) / retrieval_total),
+                (global_bm25, residual_w * float(bm25_w) / retrieval_total),
+            ],
+            k_rrf=rrf_k,
+        )
+    return _fuse_rrf_many(
+        [
+            (global_clip, float(sem_w)),
+            (global_bm25, float(bm25_w)),
+        ],
+        k_rrf=rrf_k,
+    )
+
+
+def _collect_global_lists(
+    sctx: _ScoringContext,
+    candidates: list[CandidateFilm],
+    film_by_slug: dict[str, Any],
+) -> tuple[dict[str, dict[str, Any]], _GlobalList, _GlobalList, _GlobalList]:
+    """Phase 1+2: score every candidate, then sort the three global lists.
+
+    Each :func:`_score_film` reads ``cand.index`` (load-once) and returns this
+    film's tag-filtered per-scene contributions; ``None`` means the tag
+    pre-filter excluded the whole film (the legacy ``continue``). The three
+    GLOBAL lists are keyed by ``(film_slug, scene_id)`` and returned sorted by
+    score, descending. ``per_film`` is the Phase-4 materialisation lookup.
+    """
+    per_film: dict[str, dict[str, Any]] = {}
+    global_clip: _GlobalList = []
+    global_bm25: _GlobalList = []
+    global_metadata: _GlobalList = []
+
+    for cand in candidates:
+        film = film_by_slug[cand.slug]
+        scored = _score_film(sctx, cand, film)
+        if scored is None:
+            continue
+        state, clip_ranked, bm25_hits, metadata_ranked = scored
+        per_film[film.slug] = state
+        for sid, s in clip_ranked:
+            global_clip.append(((film.slug, sid), s))
+        for sid, s in bm25_hits:
+            global_bm25.append(((film.slug, sid), s))
+        for sid, s in metadata_ranked:
+            global_metadata.append(((film.slug, sid), s))
+
+    global_clip.sort(key=lambda p: p[1], reverse=True)
+    global_bm25.sort(key=lambda p: p[1], reverse=True)
+    global_metadata.sort(key=lambda p: p[1], reverse=True)
+    return per_film, global_clip, global_bm25, global_metadata
+
+
+def _resolve_candidates(
+    cfg: Settings,
+) -> tuple[list[CandidateFilm], dict[str, Any]] | None:
+    """Scan the library and gate to films with an OK index (load-once).
+
+    Returns ``(candidates, film_by_slug)`` or ``None`` when the library is
+    empty or no film has an indexable CLIP index — both map to an empty
+    aggregate result. The film list is materialised BEFORE the embedder so an
+    empty library short-circuits without paying the ~4 s CLIP model init.
+
+    FilmFilter loads each film's index exactly once and attaches the loaded
+    :class:`SearchIndex` to its candidate, collapsing the pre-C1 double load
+    (a pre-scan ``valid_slugs`` pass plus a re-loading main loop). The injected
+    loader is ``_get_search_index`` — monkeypatched in tests, cached in prod —
+    so test fixtures that stub the index are respected.
+    """
+    from cinemateca.library import scan_library
+
+    films = list(scan_library(Path(cfg.paths.library_dir)))
+    if not films:
+        return None
+    film_by_slug = {film.slug: film for film in films}
+    candidates = FilmFilter(load_index=_get_search_index).candidates(
+        cfg=cfg, slugs=[film.slug for film in films]
+    )
+    if not candidates:
+        return None
+    return candidates, film_by_slug
+
+
+def _encode_query_vec(cfg: Settings, query: str) -> np.ndarray:
+    """Encode + L2-normalise the text query into the joint embedding space."""
+    embedder = _get_embedder(cfg)
+    text_vec: np.ndarray = embedder.encode_text(query)
+    norm = float(np.linalg.norm(text_vec))
+    return text_vec / (norm + 1e-12)
+
+
+def _log_query_start(
+    sctx: _ScoringContext,
+    *,
+    num_films: int,
+    top_k: int,
+    sem_w: float,
+    bm25_w: float,
+    rrf_k: int,
+) -> None:
+    """Emit the per-query INFO line (verbatim format from pre-C1)."""
+    logger.info(
+        "aggregate_search: query=%r films=%d top_k=%d tags=%s min_sim=%.3f "
+        "retriever=%s sem_w=%.2f bm25_w=%.2f rrf_k=%d",
+        sctx.query,
+        num_films,
+        top_k,
+        sctx.selected_tags or None,
+        sctx.min_similarity,
+        sctx.retriever_mode,
+        sem_w,
+        bm25_w,
+        rrf_k,
+    )
+
+
+def _log_result(
+    query: str,
+    *,
+    global_clip: _GlobalList,
+    global_bm25: _GlobalList,
+    global_metadata: _GlobalList,
+    all_hits: list[dict],
+) -> None:
+    """Emit the result-summary INFO line (verbatim format from pre-C1)."""
+    logger.info(
+        "aggregate_search: query=%r global_clip=%d global_bm25=%d global_metadata=%d "
+        "returned=%d top_score=%.6f",
+        query,
+        len(global_clip),
+        len(global_bm25),
+        len(global_metadata),
+        len(all_hits),
+        float(all_hits[0]["score"]) if all_hits else 0.0,
+    )
+
+
 def aggregate_search(
     cfg: Settings,
     *,
@@ -156,288 +525,78 @@ def aggregate_search(
 ) -> list[dict]:
     """Run cross-film search using GLOBAL retrieval lists, not per-film.
 
-    For ``modality == "text"`` only in this plan; image / audio / fusion
-    modalities are wired in Plans 3-5.
-
-    Pipeline (all three modes):
-      1. Walk every registered film. For each, compute the per-film
-         CLIP cosine list (best keyframe per scene_id, descending) and,
-         for non-``clip`` modes, the per-film BM25 hit list. Skip films
-         whose CLIP index is missing/corrupt or whose tag-intersection
-         (when ``tags`` is non-empty) is empty.
-      2. Concatenate every film's lists into two GLOBAL ranked lists
-         keyed by ``(film_slug, scene_id)`` — the global CLIP list
-         sorted by cosine, the global BM25 list sorted by raw BM25 score.
-      3. Dispatch by ``retriever_mode``:
-
-         * ``"clip"`` — surface the global CLIP list (cosine is cross-
-           film-comparable; the legacy path's score and ordering are
-           preserved byte-for-byte, since this is the same set of items
-           in the same order).
-         * ``"bm25"`` — surface the global BM25 list. Per-film IDF
-           variance means raw BM25 scores are only approximately
-           comparable cross-film, but rank-sort by raw score is a
-           defensible heuristic (and identical to the legacy code).
-         * ``"hybrid"`` — fuse the global CLIP and global BM25 lists
-           via weighted RRF. The previous implementation ran per-film
-           RRF and then sorted across films by raw RRF score, which is
-           DEGENERATE: every film's per-film rank-1 contribution gets
-           the same score ``1/(rrf_k+1)``, so the cross-film top-K
-           tied scores and ordering was decided by film-iteration
-           order, not signal strength. Global RRF assigns each item
-           a single global rank per side, breaking the tie.
-
-      4. Materialise the top_k as hit dicts. Keyframe filepath uses the
-         per-film best-cosine row when available (the same
-         ``best_row_by_sid`` map the CLIP pass built); pure BM25-only
-         scenes fall back to the first kf_df row for that scene_id —
-         deterministic.
+    Text modality only (image / audio / fusion land in later plans). Four
+    phases, each in a helper: :func:`_resolve_candidates` (scan + load-once
+    index gate), :func:`_collect_global_lists` (Phase 1+2 — per-film scoring
+    into three GLOBAL ``(film_slug, scene_id)``-keyed lists, sorted desc),
+    :func:`_dispatch_ranked` (Phase 3 — clip / bm25 / hybrid-RRF), and
+    :func:`materialize_hits` (Phase 4 — top_k → hit dicts).
 
     ``tags`` AND-intersects across selected tags via the same
-    ``normalize_tag_index`` / ``scene_id_key`` pipeline used by
-    ``SemanticSearch.combined`` — applied identically to the CLIP and
-    BM25 sides so ``?retriever=bm25&tags=outdoor`` cannot silently
-    ignore the tag.
+    ``normalize_tag_index`` / ``scene_id_key`` pipeline as
+    ``SemanticSearch.combined`` — applied identically to the CLIP and BM25
+    sides so ``?retriever=bm25&tags=outdoor`` cannot silently ignore the tag.
 
-    ``min_similarity`` floors the CLIP cosine before it enters the
-    global list. It is NOT applied to BM25 scores (different scale) or
-    to fused RRF scores (different scale again) — same contract as the
-    legacy code.
+    ``min_similarity`` floors the CLIP cosine before it enters the global
+    list. It is NOT applied to BM25 scores (different scale) or fused RRF
+    scores (different scale again) — same contract as the legacy code.
     """
-    from cinemateca.library import scan_library
-
     if modality != "text":
         raise NotImplementedError(
             f"modality={modality!r} lands in a later plan; only 'text' is supported here"
         )
 
-    library_dir = Path(cfg.paths.library_dir)
-    # Materialise the film list BEFORE loading the embedder.  When the library
-    # is empty (0 registered films) we return early and avoid the ~4 s CLIP
-    # model initialisation that _get_embedder triggers.
-    films = list(scan_library(library_dir))
-    if not films:
+    resolved = _resolve_candidates(cfg)
+    if resolved is None:
         return []
+    candidates, film_by_slug = resolved
 
-    # Single index-load gate (load-once): FilmFilter loads each film's
-    # index exactly once and returns the OK candidates with the loaded
-    # SearchIndex attached. This collapses the pre-C1 double load (a
-    # pre-scan pass that built ``valid_slugs`` plus a main loop that
-    # re-loaded each index). The injected loader is _get_search_index —
-    # monkeypatched in tests, cached in production — so test fixtures
-    # that stub the index are still respected.
-    film_by_slug = {film.slug: film for film in films}
-    candidates = FilmFilter(load_index=_get_search_index).candidates(
-        cfg=cfg, slugs=[film.slug for film in films]
-    )
-    if not candidates:
-        return []
-
-    embedder = _get_embedder(cfg)
-
-    text_vec: np.ndarray = embedder.encode_text(query)
-    norm = float(np.linalg.norm(text_vec))
-    text_vec = text_vec / (norm + 1e-12)
-
-    selected_tags = list(tags) if tags else []
     # Widen the per-film retrieval window so the global pool stays dense
     # enough to fill ``top_k`` after fusion. Short object queries often need
     # lexical/object matches rescued from below the weak SigLIP top ranks.
-    raw_k = max(top_k * 12, 50, 1)
-
-    logger.info(
-        "aggregate_search: query=%r films=%d top_k=%d tags=%s min_sim=%.3f "
-        "retriever=%s sem_w=%.2f bm25_w=%.2f rrf_k=%d",
-        query,
-        len(films),
-        top_k,
-        selected_tags or None,
-        min_similarity,
-        retriever_mode,
-        sem_w,
-        bm25_w,
-        rrf_k,
+    sctx = _ScoringContext(
+        cfg=cfg,
+        query=query,
+        text_vec=_encode_query_vec(cfg, query),
+        min_similarity=min_similarity,
+        selected_tags=list(tags) if tags else [],
+        raw_k=max(top_k * 12, 50, 1),
+        retriever_mode=retriever_mode,
+        clip_scorer=CLIPScorer(),
+        bm25_scorer=BM25Scorer(),
+    )
+    _log_query_start(
+        sctx, num_films=len(film_by_slug), top_k=top_k, sem_w=sem_w, bm25_w=bm25_w, rrf_k=rrf_k
     )
 
-    # Per-film state cache. Keys are film slugs; values carry every
-    # object the materialisation step (Phase 4) needs to build a hit
-    # dict — film metadata, the CLIP index (kf_df), best-row-by-sid
-    # map, fps, and the scene-id → kf_meta lookup. We populate it once
-    # per film during Phase 1 so Phase 4 is pure look-up.
-    per_film: dict[str, dict[str, Any]] = {}
-    # GLOBAL ranked lists. Keys are (film_slug, scene_id) tuples.
-    # ``fuse_rrf`` only requires hashable keys; the int-only type hint
-    # is a documentation choice, not a runtime constraint.
-    global_clip: list[tuple[tuple[str, int], float]] = []
-    global_bm25: list[tuple[tuple[str, int], float]] = []
-    global_metadata: list[tuple[tuple[str, int], float]] = []
+    # Phase 1+2: score each candidate into the three GLOBAL ranked lists
+    # (keyed by ``(film_slug, scene_id)``), sorted by score descending.
+    # ``per_film`` carries every object Phase 4 needs for a pure look-up.
+    per_film, global_clip, global_bm25, global_metadata = _collect_global_lists(
+        sctx, candidates, film_by_slug
+    )
 
-    clip_scorer = CLIPScorer()
-    bm25_scorer = BM25Scorer()
-    for cand in candidates:
-        film = film_by_slug[cand.slug]
-        idx = cand.index  # load-once: read off the candidate, never re-load
-        ctx = FilmContext.for_film(cfg, film.slug)
-        kf_meta_data = load_json(ctx.metadata_dir / "keyframes_metadata.json") or []
-        kf_meta = kf_meta_data if isinstance(kf_meta_data, list) else []
-        fps = derive_fps(kf_meta)
-        meta_by_scene = {e["scene_id"]: e for e in kf_meta if "scene_id" in e}
-        descriptions_data = load_json(ctx.metadata_dir / "scene_descriptions.json") or []
-        descriptions = descriptions_data if isinstance(descriptions_data, list) else []
-        tag_index = load_tag_index(ctx.metadata_dir) or {}
-        visual_data = load_json(ctx.metadata_dir / "visual_analysis.json") or []
-        visual_rows = visual_data if isinstance(visual_data, list) else []
-        metadata_scores = (
-            MetadataScorer().score(
-                query=query,
-                descriptions=descriptions,
-                tag_index=tag_index,
-                visual_rows=visual_rows,
-            )
-            if retriever_mode == "hybrid"
-            else {}
-        )
-        metadata_ranked: list[tuple[int, float]] = sorted(
-            metadata_scores.items(), key=lambda p: p[1], reverse=True
-        )[:raw_k]
-
-        # Tag pre-filter (AND intersection across selected tags). Mirrors
-        # SemanticSearch.combined: normalize the raw tag_index to canonical
-        # str scene ids, intersect membership sets, skip the film entirely
-        # if any selected tag is missing or the intersection is empty.
-        allowed_scene_keys: set[str] | None = None
-        if selected_tags:
-            norm_index = normalize_tag_index(tag_index)
-            allowed_scene_keys = set(norm_index.get(selected_tags[0], set()))
-            for t in selected_tags[1:]:
-                allowed_scene_keys &= set(norm_index.get(t, set()))
-            if not allowed_scene_keys:
-                continue
-
-        embeddings: Any = idx.embeddings
-        kf_df: Any = idx.kf_df
-
-        # CLIP-side ranked list (best keyframe per scene, descending).
-        clip_ranked, best_row_by_sid = clip_scorer.score(
-            embeddings=embeddings,
-            kf_df=kf_df,
-            text_vec=text_vec,
-            min_similarity=min_similarity,
-            allowed_scene_keys=allowed_scene_keys,
-            raw_k=raw_k,
-        )
-
-        # BM25-side ranked list. ``"clip"`` mode skips BM25 loading
-        # entirely (no need to pay the disk read for a corpus we'll
-        # ignore). A film whose BM25 corpus is empty contributes
-        # nothing to the global BM25 list — in hybrid mode that scene
-        # still surfaces via CLIP-only contribution, in pure-bm25 mode
-        # it surfaces nothing (which is correct: BM25 has no signal).
-        bm25_hits: list[tuple[int, float]] = []
-        if retriever_mode != "clip":
-            try:
-                bm25 = _get_bm25_index_for_ctx_with_cfg(cfg, ctx)
-            except (FileNotFoundError, OSError, ValueError):
-                # Narrow set of loader failure modes — anything else is
-                # a programming bug we want to surface, not silently
-                # absorb. The film simply contributes no BM25 entries.
-                logger.warning(
-                    "aggregate_search: bm25 loader failed for %s; "
-                    "contributing no BM25 entries for this film",
-                    film.slug,
-                    exc_info=True,
-                )
-                bm25 = None
-            if bm25 is None or bm25.model is None:
-                logger.info(
-                    "aggregate_search: film=%s bm25 empty; no BM25 entries " "(mode=%s requested)",
-                    film.slug,
-                    retriever_mode,
-                )
-            bm25_hits = bm25_scorer.score(
-                bm25=bm25,
-                query=query,
-                raw_k=raw_k,
-                allowed_scene_keys=allowed_scene_keys,
-            )
-
-        per_film[film.slug] = {
-            "film": film,
-            "kf_df": kf_df,
-            "best_row_by_sid": best_row_by_sid,
-            "fps": fps,
-            "meta_by_scene": meta_by_scene,
-        }
-        for sid, s in clip_ranked:
-            global_clip.append(((film.slug, sid), s))
-        for sid, s in bm25_hits:
-            global_bm25.append(((film.slug, sid), s))
-        for sid, s in metadata_ranked:
-            if allowed_scene_keys is None or scene_id_key(sid) in allowed_scene_keys:
-                global_metadata.append(((film.slug, sid), s))
-
-        scores: np.ndarray = embeddings @ text_vec
-        if scores.size:
-            top3 = np.sort(scores)[-3:][::-1]
-            logger.info(
-                "aggregate_search: film=%s n_vectors=%d top3=%s "
-                "clip_n=%d bm25_n=%d metadata_n=%d (retriever=%s)",
-                film.slug,
-                int(scores.size),
-                [round(float(s), 3) for s in top3],
-                len(clip_ranked),
-                len(bm25_hits),
-                len(metadata_ranked),
-                retriever_mode,
-            )
-
-    # Phase 2: build globally-ranked lists.
-    global_clip.sort(key=lambda p: p[1], reverse=True)
-    global_bm25.sort(key=lambda p: p[1], reverse=True)
-    global_metadata.sort(key=lambda p: p[1], reverse=True)
-
-    # Phase 3: dispatch by mode. ``ranked`` is the unified output:
+    # Phase 3: dispatch by mode. ``ranked`` is the unified output —
     # a list of ``((film_slug, scene_id), score)`` pairs, top first.
-    ranked: list[tuple[tuple[str, int], float]]
-    if retriever_mode == "clip":
-        ranked = global_clip
-    elif retriever_mode == "bm25":
-        ranked = global_bm25
-    else:  # "hybrid"
-        if global_metadata:
-            metadata_w = 0.65
-            residual_w = 1.0 - metadata_w
-            retrieval_total = max(float(sem_w) + float(bm25_w), 1e-12)
-            ranked = _fuse_rrf_many(
-                [
-                    (global_metadata, metadata_w),
-                    (global_clip, residual_w * float(sem_w) / retrieval_total),
-                    (global_bm25, residual_w * float(bm25_w) / retrieval_total),
-                ],
-                k_rrf=rrf_k,
-            )
-        else:
-            ranked = _fuse_rrf_many(
-                [
-                    (global_clip, float(sem_w)),
-                    (global_bm25, float(bm25_w)),
-                ],
-                k_rrf=rrf_k,
-            )
+    ranked = _dispatch_ranked(
+        retriever_mode,
+        global_clip=global_clip,
+        global_bm25=global_bm25,
+        global_metadata=global_metadata,
+        sem_w=sem_w,
+        bm25_w=bm25_w,
+        rrf_k=rrf_k,
+    )
 
     # Phase 4: materialise hit dicts. Keys are already unique
     # ((film_slug, scene_id)) so no dedupe pass is needed.
     all_hits = materialize_hits(ranked, per_film, top_k)
-
-    logger.info(
-        "aggregate_search: query=%r global_clip=%d global_bm25=%d global_metadata=%d "
-        "returned=%d top_score=%.6f",
+    _log_result(
         query,
-        len(global_clip),
-        len(global_bm25),
-        len(global_metadata),
-        len(all_hits),
-        float(all_hits[0]["score"]) if all_hits else 0.0,
+        global_clip=global_clip,
+        global_bm25=global_bm25,
+        global_metadata=global_metadata,
+        all_hits=all_hits,
     )
     return all_hits
 

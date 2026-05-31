@@ -8,6 +8,7 @@ pre-C1 ``aggregate_search`` so behavior is byte-identical (snapshot-gated).
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from typing import Any
 
 import numpy as np
@@ -16,6 +17,12 @@ from cinemateca.retrieval.tokenize import tokenize
 from cinemateca.scene_ids import scene_id_key
 
 _SCENE_ID_FROM_PATH_RE = re.compile(r"Scene-(\d+)", flags=re.IGNORECASE)
+
+# A bound ``MetadataScorer.score.add`` sink: ``add(scene_id, delta)`` folds a
+# positive ``delta`` into the per-scene accumulator (no-op for delta <= 0 or
+# an unparsable scene id). Each scoring pass below takes this sink so the
+# three passes share one ``scores`` dict.
+_AddFn = Callable[[Any, float], None]
 
 
 def _scene_id_from_visual_record(record: dict[str, Any]) -> int | None:
@@ -69,6 +76,106 @@ def _phrase_match_score(
     return 0.0
 
 
+def _score_tags(add: _AddFn, query_tokens: list[str], tag_index: dict[str, Any]) -> None:
+    """Fold exact/contains tag-name matches into the scene accumulator."""
+    for tag, sids in tag_index.items():
+        tag_score = _phrase_match_score(tag, query_tokens, exact=0.25, contains=0.1)
+        if tag_score <= 0 or not isinstance(sids, (list, tuple, set)):
+            continue
+        for sid in sids:
+            add(sid, tag_score)
+
+
+def _score_descriptions(
+    add: _AddFn, query_tokens: list[str], descriptions: list[dict[str, Any]]
+) -> None:
+    """Fold description / action / structured-label matches into the accumulator.
+
+    The written ``description`` and ``people_action`` are the strong prose
+    signal; structured generated labels (``objects`` / ``tags`` / raw-response
+    objects) are intentionally weaker and weaker still when no prose match
+    backs them, since those labels can carry loose object guesses.
+    """
+    for entry in descriptions:
+        sid = entry.get("scene_id")
+        if sid is None:
+            continue
+        desc_score = _phrase_match_score(
+            entry.get("description"), query_tokens, exact=12.0, contains=12.0
+        )
+        action_score = _phrase_match_score(
+            entry.get("people_action"), query_tokens, exact=2.0, contains=2.0
+        )
+        add(sid, desc_score)
+        add(sid, action_score)
+        has_description_evidence = desc_score > 0.0
+
+        structured_exact = 3.0 if has_description_evidence else 1.0
+        structured_contains = 2.0 if has_description_evidence else 0.5
+        for key in ("objects", "tags"):
+            add(
+                sid,
+                _phrase_match_score(
+                    entry.get(key),
+                    query_tokens,
+                    exact=structured_exact,
+                    contains=structured_contains,
+                ),
+            )
+        for key in ("setting", "location"):
+            add(sid, _phrase_match_score(entry.get(key), query_tokens, exact=2.0, contains=1.0))
+        raw = entry.get("_raw_responses")
+        if isinstance(raw, dict):
+            add(
+                sid,
+                _phrase_match_score(
+                    raw.get("objects"),
+                    query_tokens,
+                    exact=structured_exact,
+                    contains=structured_contains,
+                ),
+            )
+
+
+def _score_visual_rows(
+    add: _AddFn, query_tokens: list[str], visual_rows: list[dict[str, Any]]
+) -> None:
+    """Fold detector ``object_detection`` class hits into the accumulator.
+
+    Per-object class matches add a flat weight; ``class_counts`` matches scale
+    by the (clamped) detected count, capped at the description-tier ceiling.
+    """
+    for row in visual_rows:
+        sid = _scene_id_from_visual_record(row)
+        if sid is None:
+            continue
+        obj = row.get("object_detection")
+        if not isinstance(obj, dict):
+            continue
+        for detected in obj.get("objects") or []:
+            if isinstance(detected, dict):
+                add(
+                    sid,
+                    _phrase_match_score(
+                        detected.get("class"), query_tokens, exact=10.0, contains=7.0
+                    ),
+                )
+        class_counts = obj.get("class_counts")
+        if isinstance(class_counts, dict):
+            for cls, count in class_counts.items():
+                try:
+                    n = max(1.0, float(count))
+                except (TypeError, ValueError):
+                    n = 1.0
+                add(
+                    sid,
+                    min(
+                        12.0,
+                        n * _phrase_match_score(cls, query_tokens, exact=10.0, contains=7.0),
+                    ),
+                )
+
+
 class MetadataScorer:
     """Lexical exact-match scorer over tags / descriptions / detected objects.
 
@@ -102,86 +209,9 @@ class MetadataScorer:
                 return
             scores[sid_int] = scores.get(sid_int, 0.0) + delta
 
-        for tag, sids in tag_index.items():
-            tag_score = _phrase_match_score(tag, query_tokens, exact=0.25, contains=0.1)
-            if tag_score <= 0 or not isinstance(sids, (list, tuple, set)):
-                continue
-            for sid in sids:
-                add(sid, tag_score)
-
-        for entry in descriptions:
-            sid = entry.get("scene_id")
-            if sid is None:
-                continue
-            desc_score = _phrase_match_score(
-                entry.get("description"), query_tokens, exact=12.0, contains=12.0
-            )
-            action_score = _phrase_match_score(
-                entry.get("people_action"), query_tokens, exact=2.0, contains=2.0
-            )
-            add(sid, desc_score)
-            add(sid, action_score)
-            has_description_evidence = desc_score > 0.0
-
-            # Structured generated labels support the written description/action.
-            # Alone, they are intentionally weak: these labels can contain loose
-            # object guesses that are noisier than the prose or detector output.
-            structured_exact = 3.0 if has_description_evidence else 1.0
-            structured_contains = 2.0 if has_description_evidence else 0.5
-            for key in ("objects", "tags"):
-                add(
-                    sid,
-                    _phrase_match_score(
-                        entry.get(key),
-                        query_tokens,
-                        exact=structured_exact,
-                        contains=structured_contains,
-                    ),
-                )
-            for key in ("setting", "location"):
-                add(sid, _phrase_match_score(entry.get(key), query_tokens, exact=2.0, contains=1.0))
-            raw = entry.get("_raw_responses")
-            if isinstance(raw, dict):
-                add(
-                    sid,
-                    _phrase_match_score(
-                        raw.get("objects"),
-                        query_tokens,
-                        exact=structured_exact,
-                        contains=structured_contains,
-                    ),
-                )
-
-        for row in visual_rows:
-            sid = _scene_id_from_visual_record(row)
-            if sid is None:
-                continue
-            obj = row.get("object_detection")
-            if not isinstance(obj, dict):
-                continue
-            for detected in obj.get("objects") or []:
-                if isinstance(detected, dict):
-                    add(
-                        sid,
-                        _phrase_match_score(
-                            detected.get("class"), query_tokens, exact=10.0, contains=7.0
-                        ),
-                    )
-            class_counts = obj.get("class_counts")
-            if isinstance(class_counts, dict):
-                for cls, count in class_counts.items():
-                    try:
-                        n = max(1.0, float(count))
-                    except (TypeError, ValueError):
-                        n = 1.0
-                    add(
-                        sid,
-                        min(
-                            12.0,
-                            n * _phrase_match_score(cls, query_tokens, exact=10.0, contains=7.0),
-                        ),
-                    )
-
+        _score_tags(add, query_tokens, tag_index)
+        _score_descriptions(add, query_tokens, descriptions)
+        _score_visual_rows(add, query_tokens, visual_rows)
         return scores
 
 
@@ -270,4 +300,7 @@ __all__ = [
     "_scene_id_from_visual_record",
     "_tokens_for_value",
     "_phrase_match_score",
+    "_score_tags",
+    "_score_descriptions",
+    "_score_visual_rows",
 ]
