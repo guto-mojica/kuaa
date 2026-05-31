@@ -76,11 +76,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--modality",
-        choices=["text", "image", "audio", "fusion", "rhyme", "all"],
+        choices=["text", "image", "rhyme", "all"],
         default="text",
         help=(
             "Eval modality. 'text' (default) runs the CLIP/BM25/hybrid retriever "
-            "path unchanged. 'image|audio|fusion|rhyme' score the matching slate "
+            "path unchanged. 'image|rhyme' score the matching slate "
             "(--queries must be an m3_full-shaped multimodal YAML). 'all' runs text "
             "plus every non-text modality, writing each to <output-dir>/<modality>.json."
         ),
@@ -530,16 +530,16 @@ def _all_modes(args: argparse.Namespace) -> int:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Non-text modality routing (E3b): image / audio / fusion / rhyme.
+# Non-text modality routing (E3b): image / rhyme.
 #
 # These dispatch to the per-modality scorers in cinemateca.eval.retrieval, which
-# call the REAL retrieval backend (CLIP find / CLAP search_audio / search_fusion
-# / find_rhymes) via cinemateca.eval.slates.generate_slate and return the same
-# RetrievalRun the text path produces — so the existing report writer serialises
-# them unchanged. The text path (_single_mode / _all_modes) is left untouched.
+# call the REAL retrieval backend (CLIP find / find_rhymes) via
+# cinemateca.eval.slates.generate_slate and return the same RetrievalRun the text
+# path produces — so the existing report writer serialises them unchanged. The
+# text path (_single_mode / _all_modes) is left untouched.
 # ─────────────────────────────────────────────────────────────────────────────
 
-_MODAL_SCORERS = ("image", "audio", "fusion", "rhyme")
+_MODAL_SCORERS = ("image", "rhyme")
 
 
 def _run_one_modality(cfg, queries, modality: str, args: argparse.Namespace, config_path: Path):
@@ -548,8 +548,6 @@ def _run_one_modality(cfg, queries, modality: str, args: argparse.Namespace, con
 
     scorers = {
         "image": _retr.run_image_eval,
-        "audio": _retr.run_audio_eval,
-        "fusion": _retr.run_fusion_eval,
         "rhyme": _retr.run_rhyme_eval,
     }
     library_dir = Path(getattr(cfg.paths, "library_dir", REPO_ROOT / "data" / "library"))

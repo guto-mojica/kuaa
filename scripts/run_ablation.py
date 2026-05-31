@@ -125,10 +125,6 @@ def _build_m4_section(table_md: str, *, with_rerank: bool, seed: int, queries: P
         "- **The multilingual upgrade matters.** The OpenCLIP baseline (`multilingual` "
         "row, C8) trails the SigLIP2 `CLIP` row on every metric on this PT/EN query "
         "mix — evidence for the SigLIP2-multilingual swap.",
-        "- **Fusion underperforms on text queries.** These queries describe *visual* "
-        "content; the CLAP audio term (w=0.5) pulls the ranking off. Fusion's value is "
-        "on audio/cross-modal intent, not visual text queries — see the per-modality "
-        "breakdown (E4).",
         "",
         "Reproduce:",
         "",

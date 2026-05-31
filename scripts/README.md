@@ -10,7 +10,7 @@ Operational and analysis scripts. Two tiers:
 | `verify_fresh_run.sh` | Clean checkout → `uv sync` → boot → `/health` | T8 gate; run before a release |
 | `run_eval.py` | Retrieval eval (clip/bm25/hybrid; `--all-modes`) | SETUP §7, WS-4 eval, EVALUATION_RESULTS |
 | `bench_retrieval.py` | Latency p50/p95/p99 per retriever | WS-4 E6, T9 CI benchmark job |
-| `verify_features.py` | E2E audio/fusion/reranker on real artefacts | release verification |
+| `verify_reranker.py` | E2E cross-encoder reranker on real artefacts | release verification |
 | `check_launch_package.py` | Zero-placeholder gate on public docs | D10 |
 | `build_demo_bundle.py` | Deterministic demo ZIP | demo release |
 | `prepare_demo.py` | Download/validate demo bundle | SETUP §7 |
