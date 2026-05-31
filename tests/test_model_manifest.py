@@ -1,7 +1,7 @@
 """Model manifest (F6) — backend-keyed ModelCard registry.
 
 Spec §17 override: CARDS is keyed by backend id (not role), so the
-active card for a role is CARDS[settings.models.<role>].  Nine backends
+active card for a role is CARDS[settings.models.<role>].  Eight backends
 are registered: two image backends (default siglip_multilingual + alt
 clip_openclip) and two describer backends (default
 moondream_transformers + alt moondream_gguf) plus one backend per other
@@ -19,7 +19,6 @@ from cinemateca.models.manifest import CARDS, ModelCard
 EXPECTED_BACKENDS = {
     "siglip_multilingual",
     "clip_openclip",
-    "clap_hf",
     "moondream_transformers",
     "moondream_gguf",
     "yolov8",
@@ -43,7 +42,6 @@ def _shipped_backend_cards() -> dict[str, ModelCard]:
     *function* under that same name, which shadows the submodule on a plain
     ``import cinemateca.search.rerank as ...``.
     """
-    from cinemateca.models.audio.clap_hf import ClapHFEmbedder
     from cinemateca.models.clip.openclip import OpenClipEmbedder
     from cinemateca.models.clip.siglip_multilingual import SiglipMultilingualEmbedder
     from cinemateca.models.describer.gguf import MoondreamGGUFDescriber
@@ -57,7 +55,6 @@ def _shipped_backend_cards() -> dict[str, ModelCard]:
     return {
         "OpenClipEmbedder": OpenClipEmbedder.CARD,
         "SiglipMultilingualEmbedder": SiglipMultilingualEmbedder.CARD,
-        "ClapHFEmbedder": ClapHFEmbedder.CARD,
         "MoondreamTransformersDescriber": MoondreamTransformersDescriber.CARD,
         "MoondreamGGUFDescriber": MoondreamGGUFDescriber.CARD,
         "YOLOv8ObjectDetector": YOLOv8ObjectDetector.CARD,
@@ -84,10 +81,6 @@ def test_each_card_is_wellformed(backend):
 
 def test_siglip_multilingual_dim():
     assert CARDS["siglip_multilingual"].dim == 1024
-
-
-def test_clap_hf_dim():
-    assert CARDS["clap_hf"].dim == 512
 
 
 def test_moondream_transformers_revision():

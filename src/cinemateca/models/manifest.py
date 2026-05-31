@@ -74,16 +74,6 @@ CARDS: dict[str, ModelCard] = {
         output_shape="(N, 512) float32 L2-normalised; shared text+image space",
         download_hint="open-clip-torch downloads ViT-B-32/openai weights on first encode",
     ),
-    # ── audio_embedder ───────────────────────────────────────────────────────
-    "clap_hf": ModelCard(
-        role="audio_embedder",
-        backend="clap_hf",
-        model_id="laion/larger_clap_general",
-        license="MIT",
-        dim=512,
-        output_shape="(N, 512) float32 L2-normalised; joint text+audio space",
-        download_hint="HF hub on first encode (~1.7 GB)",
-    ),
     # ── scene_describer: default backend ─────────────────────────────────────
     "moondream_transformers": ModelCard(
         role="scene_describer",

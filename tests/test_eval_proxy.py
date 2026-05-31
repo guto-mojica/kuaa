@@ -94,8 +94,11 @@ def test_pseudo_relevance_uses_reference_top1() -> None:
     The reference hit list is supplied independently of any retriever the row
     is comparing; PR must lock onto ``reference_hits[0]`` (scene 7 here), so a
     variant that ranks scene 7 below #1 produces a real, non-tautological miss.
+
+    An unlabelled ``text`` query (not image/rhyme, so no known-item anchor) is
+    the PR fallback path.
     """
-    q = _modal_query(qid="audio-01", query_type="audio", text="rural ambience")
+    q = _modal_query(qid="text-pr", query_type="text", text="rural ambience")
     reference_hits = [{"scene_id": 7, "score": 0.9}, {"scene_id": 3, "score": 0.5}]
 
     rel_ids, relevance, method = proxy_labels(

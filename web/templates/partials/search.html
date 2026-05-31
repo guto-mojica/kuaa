@@ -245,22 +245,27 @@
         <span class="ico">{{ icon('image', 14) }}</span>
         {{ _("Image") }}
       </button>
+      {# NOTE: the audio + fusion chips' backing config keys (search.audio_enabled /
+         search.multimodal_enabled) were removed with the audio feature (R1); these
+         chips are deleted wholesale in the UI-removal task (R2). Until then they
+         render enabled via the .get(..., True) default so the chip render is
+         byte-identical to the pre-removal output. #}
       <button type="button"
-              class="chip{% if not cfg.search.audio_enabled %} disabled{% endif %}"
+              class="chip{% if not cfg.search.get('audio_enabled', True) %} disabled{% endif %}"
               :class="{ on: mode === 'audio' }"
               data-mode="audio"
               :aria-pressed="mode === 'audio' ? 'true' : 'false'"
-              {% if not cfg.search.audio_enabled %}disabled aria-disabled="true"{% endif %}
+              {% if not cfg.search.get('audio_enabled', True) %}disabled aria-disabled="true"{% endif %}
               @click="mode = 'audio'; $store.buscarRetrieval.modality = 'audio'; clearResults(); refreshSearch()">
         <span class="ico">{{ icon('audio', 14) }}</span>
         {{ _("Audio") }}
       </button>
       <button type="button"
-              class="chip{% if not cfg.search.multimodal_enabled %} disabled{% endif %}"
+              class="chip{% if not cfg.search.get('multimodal_enabled', True) %} disabled{% endif %}"
               :class="{ on: mode === 'multimodal' }"
               data-mode="multimodal"
               :aria-pressed="mode === 'multimodal' ? 'true' : 'false'"
-              {% if not cfg.search.multimodal_enabled %}disabled aria-disabled="true"{% endif %}
+              {% if not cfg.search.get('multimodal_enabled', True) %}disabled aria-disabled="true"{% endif %}
               @click="mode = 'multimodal'; $store.buscarRetrieval.modality = 'fusion'; clearResults(); refreshSearch()">
         <span class="ico">{{ icon('rhymes', 14) }}</span>
         {{ _("Fusion") }}

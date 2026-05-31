@@ -63,8 +63,7 @@ def process(
         str | None,
         typer.Option(
             help="Etapas a executar, separadas por vírgula. "
-            "Valores: frames, scenes, visual, embeddings, llm, "
-            "audio_extract, audio_embed. "
+            "Valores: frames, scenes, visual, embeddings, llm. "
             "Padrão: todas as etapas habilitadas na config.",
         ),
     ] = None,

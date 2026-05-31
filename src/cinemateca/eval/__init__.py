@@ -20,8 +20,6 @@ from cinemateca.eval.paths import eval_root, eval_run_id
 from cinemateca.eval.proxy import proxy_labels
 from cinemateca.eval.retrieval import (
     RetrievalRun,
-    run_audio_eval,
-    run_fusion_eval,
     run_image_eval,
     run_retrieval_eval,
     run_rhyme_eval,
@@ -61,8 +59,6 @@ __all__ = [
     "proxy_labels",
     "query_conflict_set",
     "run_ablation",
-    "run_audio_eval",
-    "run_fusion_eval",
     "run_image_eval",
     "run_retrieval_eval",
     "run_rhyme_eval",

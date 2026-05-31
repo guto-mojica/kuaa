@@ -146,16 +146,6 @@ class EmbeddingsCfg(_Section):
     min_similarity: float = 0.0
 
 
-# ── audio_embeddings ─────────────────────────────────────────────────────────
-class AudioEmbeddingsCfg(_Section):
-    model_id: str = "laion/larger_clap_general"
-    batch_size: int = 8
-    chunk_seconds: float = 10.0
-    sample_rate: int = 48000
-    filename: str = "clap_embeddings.npy"
-    mapping_filename: str = "audio_mapping.json"
-
-
 # ── search (+ nested bm25) ───────────────────────────────────────────────────
 class Bm25Cfg(_Section):
     k1: float = 1.5
@@ -175,8 +165,6 @@ class SearchCfg(_Section):
     rerank_enabled: bool = False
     mmr_lambda: float = 0.5
     image_enabled: bool = True
-    audio_enabled: bool = True
-    multimodal_enabled: bool = True
     signals_enabled: bool = False
 
 
@@ -187,11 +175,6 @@ class RerankerCfg(_Section):
     model: str = "default"
 
 
-class FusionCfg(_Section):
-    visual_weight: float = 0.5
-    k_each: int = 50
-
-
 class RhymesRetrievalCfg(_Section):
     diversity: float = 0.5
     k_candidates: int = 30
@@ -200,7 +183,6 @@ class RhymesRetrievalCfg(_Section):
 
 class RetrievalCfg(_Section):
     reranker: RerankerCfg
-    fusion: FusionCfg
     rhymes: RhymesRetrievalCfg
 
 
@@ -236,7 +218,6 @@ class ModelsCfg(_Section):
     object_detector: Literal["yolov8"]
     scene_describer: Literal["moondream_transformers", "moondream_gguf"]
     environment_classifier: Literal["opencv_heuristic"]
-    audio_embedder: Literal["clap_hf"]
 
 
 # ── pipeline (+ nested steps) ────────────────────────────────────────────────
@@ -246,8 +227,6 @@ class PipelineStepsCfg(_Section):
     visual_analysis: bool = True
     embeddings: bool = True
     llm_description: bool = True
-    audio_extract: bool = False
-    audio_embed: bool = False
 
 
 class PipelineCfg(_Section):
@@ -295,7 +274,6 @@ class Settings(_Section):
     scene_detection: SceneDetectionCfg
     visual_analysis: VisualAnalysisCfg
     embeddings: EmbeddingsCfg
-    audio_embeddings: AudioEmbeddingsCfg
     search: SearchCfg
     retrieval: RetrievalCfg
     rimas: RimasCfg

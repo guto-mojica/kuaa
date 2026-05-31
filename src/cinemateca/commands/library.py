@@ -60,8 +60,7 @@ def library_reembed(
         str,
         typer.Option(
             help="Etapas a executar, separadas por vírgula. "
-            "Valores: frames, scenes, visual, embeddings, llm, "
-            "audio_extract, audio_embed.",
+            "Valores: frames, scenes, visual, embeddings, llm.",
         ),
     ] = "embeddings",
     keep_existing: Annotated[
@@ -123,8 +122,6 @@ def library_reembed(
             stale: list[tuple[str, tuple[str, ...]]] = []
             if "embeddings" in enabled:
                 stale.append(("embeddings", ("keyframe_embeddings.npy", "index_mapping.json")))
-            if "audio_embed" in enabled:
-                stale.append(("audio", ("clap_embeddings.npy", "audio_mapping.json")))
             for subdir, files in stale:
                 for fname in files:
                     p = library_dir / film.slug / subdir / fname

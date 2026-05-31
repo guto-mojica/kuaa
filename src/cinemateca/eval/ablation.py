@@ -24,7 +24,6 @@ row               how                                                         pr
 ``BM25``          :func:`run_retrieval_eval` ``retriever="bm25"``             HY
 ``hybrid``        :func:`run_retrieval_eval` ``retriever="hybrid"``           HY
 ``hybrid+rerank`` production ``find(mode="hybrid", rerank=...)`` ± C5         HY
-``fusion``        :func:`cinemateca.search.fusion.search_fusion` per query    HY
 ``multilingual``  C8: OpenCLIP index vs the SigLIP2 ``CLIP`` row              HY
 ================  ==========================================================  =====
 
@@ -45,14 +44,12 @@ on disk, so the switch is a config-copy mutation — no fragile plumbing.
 
 Layering: this is core (``cinemateca.*``); it MUST NOT import ``api.*``
 (import-linter). The reranker (:func:`cinemateca.search.rerank.rerank` via
-``find``) and :func:`cinemateca.search.fusion.search_fusion` are all
-``cinemateca``-side.
+``find``) is ``cinemateca``-side.
 """
 
 from __future__ import annotations
 
 import copy
-import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -65,7 +62,7 @@ from cinemateca.eval.datasets import EvaluationDataset, QueryCase
 from cinemateca.eval.metrics import evaluate_query, summarize_results
 from cinemateca.eval.proxy import proxy_labels
 from cinemateca.eval.retrieval import RetrievalRun, run_retrieval_eval
-from cinemateca.eval.slates import ModalQuery, _normalise_clip_mapping, _NullEncoder
+from cinemateca.eval.slates import ModalQuery
 from cinemateca.scene_ids import scene_id_key
 
 logger = logging.getLogger(__name__)
@@ -85,10 +82,6 @@ _METRIC_COLUMNS: tuple[tuple[str, str], ...] = (
 _OPENCLIP_EMB_FILENAME = "keyframe_embeddings.clip_openclip.npy"
 _OPENCLIP_MAP_FILENAME = "index_mapping.clip_openclip.json"
 
-# Default fusion visual↔audio weight for the fusion row (matches the
-# ``search_fusion`` default and the M3 UI midpoint).
-_FUSION_WEIGHT = 0.5
-
 
 @dataclass(frozen=True)
 class AblationRowConfig:
@@ -97,7 +90,7 @@ class AblationRowConfig:
     Attributes:
         name: published row label (e.g. ``"hybrid+rerank"``).
         retriever: which retriever mechanism to run —
-            ``"clip" | "bm25" | "hybrid" | "fusion" | "multilingual"``.
+            ``"clip" | "bm25" | "hybrid" | "multilingual"``.
         proxy: the proxy signal used for the row's labels — ``"KI" | "PR" |
             "HY"`` (the whole launch table is ``"HY"``; the field exists so a
             future mixed table can segregate tiers).
@@ -211,7 +204,6 @@ DEFAULT_ABLATION_CONFIGS: tuple[AblationRowConfig, ...] = (
     AblationRowConfig(name="BM25", retriever="bm25", proxy="HY"),
     AblationRowConfig(name="hybrid", retriever="hybrid", proxy="HY"),
     AblationRowConfig(name="hybrid+rerank", retriever="hybrid", proxy="HY", rerank=True),
-    AblationRowConfig(name="fusion", retriever="fusion", proxy="HY"),
     AblationRowConfig(name="multilingual", retriever="multilingual", proxy="HY"),
 )
 
@@ -225,7 +217,6 @@ DEFAULT_ABLATION_CONFIGS_NO_RERANK: tuple[AblationRowConfig, ...] = (
     AblationRowConfig(
         name="hybrid+rerank", retriever="hybrid", proxy="HY", rerank=True, pending_reason="C5"
     ),
-    AblationRowConfig(name="fusion", retriever="fusion", proxy="HY"),
     AblationRowConfig(name="multilingual", retriever="multilingual", proxy="HY"),
 )
 
@@ -478,90 +469,18 @@ def _run_rerank_row(
     return summarize_results(results)
 
 
-def _run_fusion_row(
-    cfg: Settings,
-    dataset: EvaluationDataset,
-    *,
-    library_dir: Path,
-    slug: str,
-    seed: int,
-) -> dict[str, float | int]:
-    """fusion row — CLIP × CLAP :func:`search_fusion` per text query.
-
-    Loads the per-film CLIP + CLAP indexes (reusing the loading
-    ``cinemateca.eval.slates._slate_fusion`` does) and scores the fused ranking
-    against the HY labels. A film without a CLAP index just doesn't contribute
-    the audio term (graceful — Porter has no CLAP); the scored corpus is the
-    text-row film (Jeca Tatu), which DOES have CLAP.
-    """
-    from cinemateca.models.registry import get_audio_embedder, get_image_embedder
-    from cinemateca.reproducibility import seed_everything
-    from cinemateca.search.audio import load_audio_index
-    from cinemateca.search.fusion import FusionConfig, search_fusion
-
-    seed_everything(seed)
-    emb_dir = library_dir / slug / "embeddings"
-    clip_emb_path = emb_dir / "keyframe_embeddings.npy"
-    clip_map_path = emb_dir / "index_mapping.json"
-    if not (clip_emb_path.exists() and clip_map_path.exists()):
-        raise EvalError(f"fusion row: CLIP index missing for {slug} under {emb_dir}")
-
-    clip_emb = np.load(clip_emb_path).astype("float32", copy=False)
-    clip_mapping = _normalise_clip_mapping(json.loads(clip_map_path.read_text()))
-
-    audio_idx = load_audio_index(library_dir / slug / "audio")
-    has_clap = audio_idx is not None
-
-    clip_embedder = get_image_embedder(cfg, device=None)
-    clap_embedder = get_audio_embedder(cfg, device=None) if has_clap else _NullEncoder()
-    if has_clap:
-        assert audio_idx is not None
-        clap_emb = audio_idx.embeddings
-        clap_mapping = [{"scene_id": int(m["scene_id"])} for m in audio_idx.mapping]
-    else:
-        clap_emb, clap_mapping = np.zeros((0, 1), dtype="float32"), []
-
-    results = []
-    for case in dataset.queries:
-        hits = search_fusion(
-            clip_emb=clip_emb,
-            clap_emb=clap_emb,
-            clip_mapping=clip_mapping,
-            clap_mapping=clap_mapping,
-            query_text=case.text,
-            clip_embedder=clip_embedder,
-            clap_embedder=clap_embedder,
-            cfg=FusionConfig(visual_weight=_FUSION_WEIGHT, k_each=50, k_final=10),
-        )
-        ranked = tuple(scene_id_key(h["scene_id"]) for h in hits)
-        results.append(
-            evaluate_query(
-                query_id=case.id,
-                text=case.text,
-                relevant_scene_ids=case.relevant_scene_ids,
-                ranked_scene_ids=ranked,
-                relevance=case.relevance,
-            )
-        )
-    if not results:
-        raise EvalError("fusion row produced no scorable queries")
-    return summarize_results(results)
-
-
 @dataclass(frozen=True)
 class _FilmCtx:
     """Minimal duck-typed ``film=`` arg for :func:`cinemateca.search.find`.
 
-    ``find`` reads ``.slug`` / ``.embeddings_dir`` / ``.metadata_dir`` (and the
-    fusion/audio paths via other callers). Built from derived paths so the
-    rerank row works whether or not the slug is registry-gated — mirrors
-    :class:`cinemateca.eval.slates._SlateFilmCtx`.
+    ``find`` reads ``.slug`` / ``.embeddings_dir`` / ``.metadata_dir``. Built
+    from derived paths so the rerank row works whether or not the slug is
+    registry-gated — mirrors :class:`cinemateca.eval.slates._SlateFilmCtx`.
     """
 
     slug: str
     metadata_dir: Path
     embeddings_dir: Path
-    audio_dir: Path
 
     @classmethod
     def for_slug(cls, library_dir: Path, slug: str) -> _FilmCtx:
@@ -570,7 +489,6 @@ class _FilmCtx:
             slug=slug,
             metadata_dir=film_dir / "metadata",
             embeddings_dir=film_dir / "embeddings",
-            audio_dir=film_dir / "audio",
         )
 
 
@@ -685,8 +603,6 @@ def _dispatch_row(
         return _run_text_retriever_row(
             cfg, dataset, library_dir=library_dir, slug=slug, retriever=retriever, seed=seed
         )
-    if retriever == "fusion":
-        return _run_fusion_row(cfg, dataset, library_dir=library_dir, slug=slug, seed=seed)
     raise EvalError(f"unknown ablation retriever {retriever!r}")
 
 

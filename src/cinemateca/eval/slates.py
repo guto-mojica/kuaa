@@ -7,9 +7,8 @@ rows in the exact 9-key contract the ``/eval`` rows template renders (see
 instead of from a hand-written placeholder).
 
 Layering: this is core (``cinemateca.*``) and MUST NOT import from ``api.*``
-— the per-modality dispatchers in ``api/services/_search_dispatch.py`` are a
-reference for the scene_id→row join, but the join is reimplemented here with
-``cinemateca.*`` / numpy / json primitives only (enforced by import-linter).
+(enforced by import-linter); the scene_id→row join is implemented here with
+``cinemateca.*`` primitives only.
 
 E3a is hermetic and scoring-free: it produces the slate. Scoring, the CLI,
 and GPU acceptance are E3b.
@@ -17,23 +16,17 @@ and GPU acceptance are E3b.
 
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, cast
-
-import numpy as np
+from typing import Any
 
 from cinemateca.config import Settings
 from cinemateca.errors import EvalError
 from cinemateca.library import Library, derive_fps, load_metadata, to_smpte
-from cinemateca.models.registry import get_audio_embedder, get_image_embedder
 from cinemateca.rhymes import find_rhymes
 from cinemateca.scene_ids import scene_id_key
 from cinemateca.search import Query, find
-from cinemateca.search.audio import load_audio_index, search_audio
-from cinemateca.search.fusion import FusionConfig, search_fusion
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +45,7 @@ _ROW_KEYS = (
     "keyframe_url",
 )
 
-_VALID_TYPES = frozenset({"text", "image", "audio", "fusion", "rhyme"})
+_VALID_TYPES = frozenset({"text", "image", "rhyme"})
 
 # Default rhymes knobs — used when cfg.retrieval.rhymes.* is absent (e.g. a
 # SimpleNamespace test cfg). Mirror config/default.yaml → retrieval.rhymes.
@@ -89,10 +82,9 @@ def load_modal_queries(path: Path) -> list[ModalQuery]:
     The YAML's top-level dict carries a ``queries:`` list; each entry is
     mapped to a :class:`ModalQuery` and validated per ``query_type``:
 
-      * **text** / **audio** — ``text`` present and non-empty.
+      * **text** — ``text`` present and non-empty.
       * **image** — ``image_path`` present AND the file exists on disk
         (resolved against the repo root / CWD when relative).
-      * **fusion** — ``text`` present AND ``w`` is a float in ``[0.0, 1.0]``.
       * **rhyme** — ``anchor`` present AND parses as ``<slug>/<scene_id>``
         (exactly one ``/``; ``scene_id`` an int).
 
@@ -148,7 +140,7 @@ def _parse_entry(entry: dict, *, index: int, path: Path) -> ModalQuery:
     relevance = {str(k): float(v) for k, v in rel_raw.items()} if isinstance(rel_raw, dict) else {}
 
     # ── per-type validation ──────────────────────────────────────────
-    if qtype in ("text", "audio"):
+    if qtype == "text":
         if not text or not text.strip():
             raise EvalError(f"query {qid!r} ({qtype}) in {path}: 'text' is required")
     elif qtype == "image":
@@ -157,13 +149,6 @@ def _parse_entry(entry: dict, *, index: int, path: Path) -> ModalQuery:
         if not _resolve_image(image_path).exists():
             raise EvalError(
                 f"query {qid!r} (image) in {path}: image_path does not exist: {image_path}"
-            )
-    elif qtype == "fusion":
-        if not text or not text.strip():
-            raise EvalError(f"query {qid!r} (fusion) in {path}: 'text' is required")
-        if w is None or not 0.0 <= w <= 1.0:
-            raise EvalError(
-                f"query {qid!r} (fusion) in {path}: 'w' must be a float in [0, 1], got {w_raw!r}"
             )
     elif qtype == "rhyme":
         if anchor is None or anchor.count("/") != 1:
@@ -253,8 +238,7 @@ class _SlateFilmCtx:
 
     Carries exactly the attributes ``find`` (clip mode) reads — ``slug``,
     ``embeddings_dir`` (index loader) and ``metadata_dir`` (tag-filter
-    path) — plus ``audio_dir`` for symmetry with the audio/fusion paths.
-    Built from derived paths in :func:`_ctx_for`, decoupled from the
+    path). Built from derived paths in :func:`_ctx_for`, decoupled from the
     registry-gated ``FilmContext`` so a slate works whether or not the
     slug is registered.
     """
@@ -262,7 +246,6 @@ class _SlateFilmCtx:
     slug: str
     metadata_dir: Path
     embeddings_dir: Path
-    audio_dir: Path
 
 
 @dataclass(frozen=True)
@@ -345,14 +328,14 @@ def generate_slate(
 ) -> list[CandidateRow]:
     """Generate a candidate slate for ``query`` by calling the real backend.
 
-    Dispatches on ``query.query_type`` to one of the four ``_slate_*``
-    helpers, each of which calls the production retrieval primitive for
-    that modality and maps the results into :data:`CandidateRow` dicts
-    (descending score, ``k`` rows max). Films/scenes without metadata are
-    rendered with safe defaults rather than raising.
+    Dispatches on ``query.query_type`` to one of the ``_slate_*`` helpers,
+    each of which calls the production retrieval primitive for that modality
+    and maps the results into :data:`CandidateRow` dicts (descending score,
+    ``k`` rows max). Films/scenes without metadata are rendered with safe
+    defaults rather than raising.
 
-    Text and image queries both route through CLIP ``find``; audio /
-    fusion / rhyme call their dedicated primitives.
+    Text and image queries both route through CLIP ``find``; rhyme calls its
+    dedicated primitive.
 
     Raises:
         EvalError: unknown ``query_type`` (validation should have caught
@@ -361,8 +344,6 @@ def generate_slate(
     dispatch = {
         "text": _slate_text,
         "image": _slate_image,
-        "audio": _slate_audio,
-        "fusion": _slate_fusion,
         "rhyme": _slate_rhyme,
     }
     helper = dispatch.get(query.query_type)
@@ -435,84 +416,6 @@ def _slate_image(*, query, cfg, library_dir, k, load_meta) -> list[CandidateRow]
     return _slate_find(q=q, cfg=cfg, library_dir=library_dir, k=k, load_meta=load_meta)
 
 
-def _slate_audio(*, query, cfg, library_dir, k, load_meta) -> list[CandidateRow]:
-    """Audio query → CLAP ``search_audio`` per film; films without an index skipped."""
-    embedder = None
-    rows: list[CandidateRow] = []
-    for slug in _iter_films(library_dir):
-        index = load_audio_index(library_dir / slug / "audio")
-        if index is None:
-            continue
-        if embedder is None:
-            embedder = get_audio_embedder(cfg, device=None)
-        hits = search_audio(index, embedder, query.text or "", top_k=k)
-        meta = load_meta(slug)
-        for h in hits:
-            rows.append(
-                _candidate_row(
-                    scene_id=int(h["scene_id"]), film_slug=slug, score=float(h["score"]), meta=meta
-                )
-            )
-    rows.sort(key=lambda r: r["score"], reverse=True)
-    return rows[:k]
-
-
-def _slate_fusion(*, query, cfg, library_dir, k, load_meta) -> list[CandidateRow]:
-    """Fusion query → linear CLIP×CLAP ``search_fusion`` per film, merged.
-
-    Index/mapping loading mirrors ``api.services._search_dispatch`` but uses
-    only numpy/json + cinemateca primitives (no api import). Films with
-    neither a CLIP nor a CLAP index are skipped.
-    """
-    w = float(query.w) if query.w is not None else 0.5
-    clip_embedder = None
-    clap_embedder = None
-    rows: list[CandidateRow] = []
-    for slug in _iter_films(library_dir):
-        emb_dir = library_dir / slug / "embeddings"
-        clip_emb_path = emb_dir / "keyframe_embeddings.npy"
-        clip_map_path = emb_dir / "index_mapping.json"
-        has_clip = clip_emb_path.exists() and clip_map_path.exists()
-        audio_idx = load_audio_index(library_dir / slug / "audio")
-        has_clap = audio_idx is not None
-        if not has_clip and not has_clap:
-            continue
-        if has_clip and clip_embedder is None:
-            clip_embedder = get_image_embedder(cfg, device=None)
-        if has_clap and clap_embedder is None:
-            clap_embedder = get_audio_embedder(cfg, device=None)
-        if has_clip:
-            clip_emb = np.load(clip_emb_path).astype("float32", copy=False)
-            clip_mapping = _normalise_clip_mapping(json.loads(clip_map_path.read_text()))
-        else:
-            clip_emb, clip_mapping = np.zeros((0, 1), dtype="float32"), []
-        if has_clap:
-            assert audio_idx is not None
-            clap_emb = audio_idx.embeddings
-            clap_mapping = [{"scene_id": int(m["scene_id"])} for m in audio_idx.mapping]
-        else:
-            clap_emb, clap_mapping = np.zeros((0, 1), dtype="float32"), []
-        hits = search_fusion(
-            clip_emb=clip_emb,
-            clap_emb=clap_emb,
-            clip_mapping=clip_mapping,
-            clap_mapping=clap_mapping,
-            query_text=query.text or "",
-            clip_embedder=cast(Any, clip_embedder if has_clip else _NullEncoder()),
-            clap_embedder=cast(Any, clap_embedder if has_clap else _NullEncoder()),
-            cfg=FusionConfig(visual_weight=w, k_each=50, k_final=k),
-        )
-        meta = load_meta(slug)
-        for h in hits:
-            rows.append(
-                _candidate_row(
-                    scene_id=int(h["scene_id"]), film_slug=slug, score=float(h["score"]), meta=meta
-                )
-            )
-    rows.sort(key=lambda r: r["score"], reverse=True)
-    return rows[:k]
-
-
 def _slate_rhyme(*, query, cfg, library_dir, k, load_meta) -> list[CandidateRow]:
     """Rhyme query → cross-film ``find_rhymes`` from the parsed anchor."""
     assert query.anchor is not None  # validated at load time
@@ -565,32 +468,7 @@ def _ctx_for(library_dir: Path, slug: str) -> _SlateFilmCtx | None:
         slug=slug,
         metadata_dir=film_dir / "metadata",
         embeddings_dir=film_dir / "embeddings",
-        audio_dir=film_dir / "audio",
     )
-
-
-def _normalise_clip_mapping(raw: Any) -> list[dict]:
-    """Coerce ``index_mapping.json`` to ``list[{'scene_id': int}]``.
-
-    Handles both the parallel-array shape (``{"scene_ids": [...]}``, the
-    SigLIP2 writer) and a list-of-dicts shape. Reimplemented from the api
-    dispatcher (no api import).
-    """
-    if isinstance(raw, dict) and "scene_ids" in raw:
-        sids = raw["scene_ids"]
-        return [{"scene_id": int(sids[i])} for i in range(len(sids))]
-    if isinstance(raw, list):
-        return [{"scene_id": int(m["scene_id"])} for m in raw]
-    raise EvalError(
-        "unrecognised CLIP index_mapping shape: expected dict with 'scene_ids' or list of dicts"
-    )
-
-
-class _NullEncoder:
-    """Zero-vector text encoder for an absent fusion modality (mirrors api stub)."""
-
-    def encode_text(self, text: str) -> np.ndarray:  # pragma: no cover - trivial
-        return np.zeros(1, dtype="float32")
 
 
 __all__ = [

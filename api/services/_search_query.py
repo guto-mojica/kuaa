@@ -2,8 +2,7 @@
 
 Keeps ``api/routes/search.py`` HTTP-shape only. ``dispatch_search`` parses
 the validated params, applies the U1 accessible inline query validation, and
-fans out to the audio / fusion / text render paths in
-:mod:`api.services._search_render`.
+fans out to the text render path in :mod:`api.services._search_render`.
 """
 
 from __future__ import annotations
@@ -20,7 +19,7 @@ from api.services._field_errors import (
     render_field_error_fragment,
     submit_triggered,
 )
-from api.services._search_render import api_search_audio, api_search_fusion, run_text_search
+from api.services._search_render import run_text_search
 from cinemateca.library import FilmContext
 
 _QUERY_ERROR_SLOT = "search-query-error"
@@ -40,8 +39,8 @@ async def dispatch_search(
     U1 accessible inline query validation: a query < 2 chars surfaces an OOB
     field-error into ``#search-query-error`` on an explicit SUBMIT
     (``query_empty`` / ``query_too_short``) but stays silent (empty slot) on a
-    live keyup; a valid query dispatches to the audio / fusion / text path and
-    prepends an OOB swap that CLEARS the slot.
+    live keyup; a valid query dispatches to the text path and prepends an OOB
+    swap that CLEARS the slot.
     """
     q = params.q.strip()
     if len(q) < 2:
@@ -54,31 +53,24 @@ async def dispatch_search(
         )
 
     cfg = get_config()
-    if params.modality == "audio":
-        resp = await api_search_audio(request, q=q, top_k=params.top_k, slug=slug, cfg=cfg)
-    elif params.modality == "fusion":
-        resp = await api_search_fusion(
-            request, q=q, top_k=params.top_k, w=params.w, slug=slug, cfg=cfg
-        )
-    else:
-        retriever, sw, bw, rrf_k = search_service.resolve_retriever_args(
-            cfg, params.retriever, params.sem_w, params.bm25_w
-        )
-        resp = await run_text_search(
-            request,
-            q=q,
-            slug=slug,
-            ctx=ctx,
-            cfg=cfg,
-            tags=list(tags),
-            top_k=params.top_k,
-            retriever=retriever,
-            sem_w=sw,
-            bm25_w=bw,
-            rrf_k=rrf_k,
-            reranker_enabled=params.reranker_enabled,
-            offset=offset,
-        )
+    retriever, sw, bw, rrf_k = search_service.resolve_retriever_args(
+        cfg, params.retriever, params.sem_w, params.bm25_w
+    )
+    resp = await run_text_search(
+        request,
+        q=q,
+        slug=slug,
+        ctx=ctx,
+        cfg=cfg,
+        tags=list(tags),
+        top_k=params.top_k,
+        retriever=retriever,
+        sem_w=sw,
+        bm25_w=bw,
+        rrf_k=rrf_k,
+        reranker_enabled=params.reranker_enabled,
+        offset=offset,
+    )
     return prepend_oob(
         resp,
         render_field_error_fragment(request, slot_id=_QUERY_ERROR_SLOT, message_key=""),

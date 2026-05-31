@@ -71,8 +71,8 @@ _OPENAPI_TAGS = [
     {
         "name": "search",
         "description": (
-            "Semantic search over the film archive. Supports text (CLIP), "
-            "image upload, audio (CLAP), and cross-modal fusion queries."
+            "Semantic search over the film archive. Supports text (CLIP) "
+            "and image-upload queries, with hybrid BM25+vector retrieval."
         ),
     },
     {
@@ -118,8 +118,8 @@ app = FastAPI(
     description=(
         "Offline audiovisual cataloguing API for film archives. "
         "Indexes scenes from video files and exposes semantic search "
-        "(text, image, audio, fusion) over CLIP and CLAP embeddings, "
-        "with hybrid BM25+vector retrieval and cross-encoder reranking. "
+        "(text, image) over CLIP embeddings, with hybrid BM25+vector "
+        "retrieval and cross-encoder reranking. "
         "All inference runs locally — no cloud APIs are used."
     ),
     openapi_tags=_OPENAPI_TAGS,

@@ -8,10 +8,9 @@ and tests pin against, plus wrappers that need the FastAPI config
 resolves ``cfg.search.bm25``; ``dispatch_text_search`` orchestrates
 per-film vs aggregate).
 
-Audio + fusion dispatchers live in ``_search_dispatch``; the reranker
-boundary (typed-``SearchResult`` rerank + the card↔result projection
-helpers ``cards_to_result`` / ``result_to_cards``) in ``_search_rerank``.
-``apply_reranker`` stays here so tests can monkeypatch
+The reranker boundary (typed-``SearchResult`` rerank + the card↔result
+projection helpers ``cards_to_result`` / ``result_to_cards``) lives in
+``_search_rerank``. ``apply_reranker`` stays here so tests can monkeypatch
 ``api.services.search.search_rerank``.
 """
 
@@ -109,13 +108,8 @@ if TYPE_CHECKING:
     from cinemateca.retrieval.bm25 import BM25Index
 
 # ── Re-exports from split sibling modules ────────────────────────────────────
-# Routes import these as ``search_service.dispatch_audio_search`` etc.; the
-# names must remain resolvable on THIS module's surface.
-from api.services._search_dispatch import (  # noqa: F401
-    audio_hits_to_template_dicts,
-    dispatch_audio_search,
-    dispatch_fusion_search,
-)
+# Routes import the reranker boundary as ``search_service.apply_reranker`` etc.;
+# the names must remain resolvable on THIS module's surface.
 from api.services._search_rerank import (  # noqa: F401
     _gpu_available,
     _reranker_settings,

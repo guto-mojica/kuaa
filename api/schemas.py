@@ -82,15 +82,6 @@ class SearchParams(BaseModel):
     bm25_w: float | None = Field(
         default=None, description="BM25 weight override for hybrid retrieval"
     )
-    modality: str = Field(
-        default="text",
-        description="Query modality: text (CLIP), audio (CLAP), fusion (CLIP×CLAP)",
-        json_schema_extra={"enum": ["text", "audio", "fusion"]},
-    )
-    w: float | None = Field(
-        default=None,
-        description="Fusion weight (visual ↔ audio, 0–1) for modality=fusion",
-    )
     reranker_enabled: bool | None = Field(
         default=None, description="Override the config default for cross-encoder reranking"
     )

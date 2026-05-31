@@ -17,7 +17,6 @@ from cinemateca.models.registry import model_card
 
 _ALL_ROLES = (
     "image_embedder",
-    "audio_embedder",
     "scene_describer",
     "object_detector",
     "face_detector",

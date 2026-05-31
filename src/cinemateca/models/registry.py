@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from cinemateca.config import Settings
     from cinemateca.models.base import (
-        AudioEmbedder,
         EnvironmentClassifier,
         FaceDetector,
         ImageEmbedder,
@@ -33,7 +32,6 @@ if TYPE_CHECKING:
 
 
 _image_embedder_cache: dict[tuple[str, str | None], Any] = {}
-_audio_embedder_cache: dict[tuple[str, str | None], Any] = {}
 
 
 def _name(cfg: Settings, attr: str) -> str:
@@ -53,13 +51,12 @@ def _device_key(device) -> str | None:
 def reset_caches() -> None:
     """Drop cached embedder singletons.
 
-    The image/audio embedder factories memoise by (backend_name, device)
-    so per-query fusion/audio paths don't reconstruct weights every call.
-    Tests that monkey-patch the underlying backend classes should call
-    this in setup so the cache returns a fresh build.
+    The image embedder factory memoises by (backend_name, device) so
+    query-time encoding doesn't reconstruct weights every call. Tests that
+    monkey-patch the underlying backend classes should call this in setup
+    so the cache returns a fresh build.
     """
     _image_embedder_cache.clear()
-    _audio_embedder_cache.clear()
 
 
 def get_image_embedder(cfg: Settings, device=None) -> ImageEmbedder:
@@ -153,26 +150,6 @@ def get_environment_classifier(cfg: Settings, device=None) -> EnvironmentClassif
     raise ValueError(f"Unknown environment_classifier: {name!r}")
 
 
-def get_audio_embedder(cfg: Settings, device=None) -> AudioEmbedder:
-    """Return the configured audio-embedding backend.
-
-    Provenance: see ModelCard via ``model_card(cfg, "audio_embedder")``.
-    """
-    name = _name(cfg, "audio_embedder")
-    key = (name, _device_key(device))
-    cached = _audio_embedder_cache.get(key)
-    if cached is not None:
-        return cached
-    if name == "clap_hf":
-        from cinemateca.models.audio.clap_hf import ClapHFEmbedder
-
-        instance: AudioEmbedder = ClapHFEmbedder(cfg, device)
-    else:
-        raise ValueError(f"Unknown audio_embedder: {name!r}")
-    _audio_embedder_cache[key] = instance
-    return instance
-
-
 # ---------------------------------------------------------------------------
 # Config-aware manifest accessor (F6)
 # ---------------------------------------------------------------------------
@@ -185,7 +162,6 @@ _MODELS_ROLES = frozenset(
         "object_detector",
         "scene_describer",
         "environment_classifier",
-        "audio_embedder",
     }
 )
 
@@ -196,10 +172,10 @@ def model_card(settings: Settings, role: str) -> ModelCard:
     Resolves the *active* backend from *settings* so the returned card
     always matches the configured backend — not a role-level default.
 
-    For the six roles with a ``settings.models.*`` selector
+    For the five roles with a ``settings.models.*`` selector
     (``image_embedder``, ``face_detector``, ``object_detector``,
-    ``scene_describer``, ``environment_classifier``, ``audio_embedder``),
-    the backend id is read from ``settings.models`` and used as the
+    ``scene_describer``, ``environment_classifier``), the backend id is
+    read from ``settings.models`` and used as the
     :data:`~cinemateca.models.manifest.CARDS` key.
 
     ``"reranker"`` has no ``settings.models`` selector (it is configured

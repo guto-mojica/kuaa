@@ -114,9 +114,9 @@ def test_default_relevance_known_item_for_rhyme_anchor():
     assert rmap == {"12": 1.0}
 
 
-def test_default_relevance_pseudo_for_unlabelled_audio_query_uses_top1():
-    """An unlabelled audio query → 'pseudo'; target is the top-1 returned scene."""
-    q = _modal_query(query_type="audio", text="orchestral strings")
+def test_default_relevance_pseudo_for_unlabelled_text_query_uses_top1():
+    """An unlabelled text query → 'pseudo'; target is the top-1 returned scene."""
+    q = _modal_query(query_type="text", text="orchestral strings")
     ids, rmap, method = _default_relevance(q, [_row(7, score=0.9), _row(3, score=0.4)])
     assert method == "pseudo"
     assert ids == ("7",)
@@ -125,7 +125,7 @@ def test_default_relevance_pseudo_for_unlabelled_audio_query_uses_top1():
 
 def test_default_relevance_empty_case_returns_empty_but_keeps_method_label():
     """No labels + no rows → empty ids/map, method still labelled ('pseudo')."""
-    q = _modal_query(query_type="audio", text="x")
+    q = _modal_query(query_type="text", text="x")
     ids, rmap, method = _default_relevance(q, [])
     assert ids == ()
     assert rmap == {}
@@ -228,40 +228,40 @@ def test_run_modal_eval_invokes_injected_resolver_once_per_query(monkeypatch):
 
 def test_run_modal_eval_defaults_to_default_relevance_when_no_resolver(monkeypatch):
     """Without an injected resolver, _default_relevance drives the method label."""
-    q = _modal_query(qid="aud-1", query_type="audio", text="strings")
-    _patch_slate(monkeypatch, {"aud-1": [_row(7), _row(3)]})
+    q = _modal_query(qid="txt-1", query_type="text", text="strings")
+    _patch_slate(monkeypatch, {"txt-1": [_row(7), _row(3)]})
 
     run = _run_modal_eval(
         _cfg(),
         [q],
-        modality="audio",
+        modality="text",
         library_dir=Path("/unused"),
         film_slug=None,
     )
     assert run.context["relevance_method"] == "pseudo"
-    assert run.context["relevance_methods_by_query"] == {"aud-1": "pseudo"}
+    assert run.context["relevance_methods_by_query"] == {"txt-1": "pseudo"}
 
 
 def test_run_modal_eval_records_mixed_methods_per_query(monkeypatch):
     """A mixed labelled+pseudo run records each query's method separately so a
     consumer can segregate tautological pseudo scores from real ones (I2)."""
     labelled = _modal_query(
-        qid="aud-lab",
-        query_type="audio",
+        qid="txt-lab",
+        query_type="text",
         text="labelled",
         relevant_scene_ids=(5,),
         relevance={"5": 1.0},
     )
-    unlabelled = _modal_query(qid="aud-pseudo", query_type="audio", text="unlabelled")
+    unlabelled = _modal_query(qid="txt-pseudo", query_type="text", text="unlabelled")
     _patch_slate(
         monkeypatch,
-        {"aud-lab": [_row(5), _row(9)], "aud-pseudo": [_row(7), _row(2)]},
+        {"txt-lab": [_row(5), _row(9)], "txt-pseudo": [_row(7), _row(2)]},
     )
 
     run = _run_modal_eval(
         _cfg(),
         [labelled, unlabelled],
-        modality="audio",
+        modality="text",
         library_dir=Path("/unused"),
         film_slug=None,
     )
@@ -269,13 +269,13 @@ def test_run_modal_eval_records_mixed_methods_per_query(monkeypatch):
     assert run.context["relevance_method"] == "hypothesis+pseudo"
     # ... but the per-query map keeps them distinguishable.
     assert run.context["relevance_methods_by_query"] == {
-        "aud-lab": "hypothesis",
-        "aud-pseudo": "pseudo",
+        "txt-lab": "hypothesis",
+        "txt-pseudo": "pseudo",
     }
     # Honesty guarantee: a consumer CAN recover which queries are publishable.
     by_q = run.context["relevance_methods_by_query"]
     real = [qid for qid, mth in by_q.items() if mth != "pseudo"]
-    assert real == ["aud-lab"]
+    assert real == ["txt-lab"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -359,11 +359,11 @@ def test_run_modal_eval_does_not_scope_rhyme_rows(monkeypatch):
 def test_run_modal_eval_raises_evalerror_when_no_query_scorable(monkeypatch):
     """Every query yields empty rows + no labels → clean EvalError, not the bare
     ValueError summarize_results raises on an empty list."""
-    # Unlabelled audio queries with empty slates: _default_relevance returns no
+    # Unlabelled text queries with empty slates: _default_relevance returns no
     # ids (the empty-case), every query is skipped, results stays empty.
     queries = [
-        _modal_query(qid="aud-1", query_type="audio", text="x"),
-        _modal_query(qid="aud-2", query_type="audio", text="y"),
+        _modal_query(qid="txt-1", query_type="text", text="x"),
+        _modal_query(qid="txt-2", query_type="text", text="y"),
     ]
     _patch_slate(monkeypatch, {})  # generate_slate returns [] for every qid
 
@@ -371,12 +371,12 @@ def test_run_modal_eval_raises_evalerror_when_no_query_scorable(monkeypatch):
         _run_modal_eval(
             _cfg(),
             queries,
-            modality="audio",
+            modality="text",
             library_dir=Path("/unused"),
             film_slug=None,
         )
     # The message names the modality + how many candidates were checked.
-    assert "audio" in str(excinfo.value)
+    assert "text" in str(excinfo.value)
     assert "scorable slate" in str(excinfo.value)
 
 

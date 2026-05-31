@@ -18,7 +18,7 @@ def test_openapi_declares_response_models(client) -> None:
     # Typed search params surface as query parameters with enum/constraint metadata.
     search_get = spec["paths"]["/api/search"]["get"]
     param_names = {p["name"] for p in search_get.get("parameters", [])}
-    assert {"q", "retriever", "modality", "top_k"} <= param_names
+    assert {"q", "retriever", "top_k"} <= param_names
 
 
 def test_docs_and_redoc_render(client) -> None:
@@ -77,13 +77,12 @@ def test_search_params_typed_in_openapi(client) -> None:
     spec = client.get("/openapi.json").json()
     params = {p["name"]: p for p in spec["paths"]["/api/search"]["get"].get("parameters", [])}
     # All typed params must be present
-    for name in ("q", "retriever", "modality", "top_k", "reranker_enabled"):
+    for name in ("q", "retriever", "top_k", "reranker_enabled"):
         assert name in params, f"param {name!r} missing from /api/search"
     # top_k must carry ge/le constraints (minimum/maximum in JSON Schema)
     top_k_schema = params["top_k"]["schema"]
     assert top_k_schema.get("minimum") == 1, f"top_k minimum not set: {top_k_schema}"
     assert top_k_schema.get("maximum") == 200, f"top_k maximum not set: {top_k_schema}"
-    # retriever and modality are string params (permissive — unknown values
+    # retriever is a string param (permissive — unknown values
     # fall back in the service layer, preserving backward compat)
     assert params["retriever"]["schema"]["type"] == "string"
-    assert params["modality"]["schema"]["type"] == "string"

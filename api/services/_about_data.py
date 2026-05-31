@@ -15,14 +15,14 @@ def model_attributions() -> list[dict[str, Any]]:
     """Return the model-attribution cards rendered in the About modal.
 
     Order follows the pipeline: visual embedding (CLIP), scene description
-    (Moondream), object detection (YOLO), face detection (MTCNN), then
-    audio embedding (CLAP). Each entry has:
+    (Moondream), object detection (YOLO), then face detection (MTCNN). Each
+    entry has:
 
       * ``key``    — one- or two-char badge text (drives the coloured
                      ``.ab-model .ico`` square at the start of the card).
       * ``color``  — colour variant for the badge: ``""`` (accent purple,
-                     the default) / ``"yellow"`` / ``"green"`` / ``"orange"``
-                     / ``"pink"``. Maps to the corresponding
+                     the default) / ``"yellow"`` / ``"green"`` / ``"orange"``.
+                     Maps to the corresponding
                      ``.ab-model .ico.<color>`` rule in ``about.css``.
       * ``name``   — HuggingFace / GitHub identifier, rendered in mono.
       * ``version``— short version tag shown next to the name.
@@ -73,16 +73,6 @@ def model_attributions() -> list[dict[str, Any]]:
             "lic": "MIT",
             "repo_url": "https://github.com/timesler/facenet-pytorch",
         },
-        {
-            "key": "A",
-            "color": "pink",
-            "name": "laion/larger_clap_general",
-            "version": "general",
-            "role": "Audio embedding",
-            "org": "LAION",
-            "lic": "MIT",
-            "repo_url": "https://github.com/LAION-AI/CLAP",
-        },
     ]
 
 
@@ -118,7 +108,7 @@ def credits_list() -> list[dict[str, Any]]:
         {"role": "Engineering", "name": "Rafael Perez", "dim": False},
         {
             "role": "AI integration",
-            "name": "moondream, openai, ultralytics, laion (model authors)",
+            "name": "moondream, openai, ultralytics (model authors)",
             "dim": True,
         },
         {"role": "Funding", "name": "—", "dim": True},

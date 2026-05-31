@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sys
 import types
 
 import numpy as np
@@ -10,7 +9,6 @@ import numpy as np
 
 def test_base_protocols_exist_and_are_runtime_checkable():
     from cinemateca.models.base import (
-        AudioEmbedder,
         EnvironmentClassifier,
         FaceDetector,
         ImageEmbedder,
@@ -24,7 +22,6 @@ def test_base_protocols_exist_and_are_runtime_checkable():
         ObjectDetector,
         SceneDescriber,
         EnvironmentClassifier,
-        AudioEmbedder,
     ):
         assert getattr(proto, "_is_runtime_protocol", False), proto
 
@@ -32,7 +29,6 @@ def test_base_protocols_exist_and_are_runtime_checkable():
 def test_protocols_isinstance_structural():
     """Structural isinstance checks — no real models, no GPU, numpy only."""
     from cinemateca.models.base import (
-        AudioEmbedder,
         EnvironmentClassifier,
         FaceDetector,
         ImageEmbedder,
@@ -177,43 +173,6 @@ def test_protocols_isinstance_structural():
 
     assert {"classify", "classify_batch"}.issubset(_env_members)
 
-    # ------------------------------------------------------------------ #
-    # AudioEmbedder
-    # ------------------------------------------------------------------ #
-    class _GoodAudio:
-        def encode_audio(self, wav_paths):
-            return np.zeros((len(wav_paths), 4), dtype="float32")
-
-        def encode_text(self, text):
-            return np.zeros(4, dtype="float32")
-
-        def encode_audio_single(self, wav_path):
-            return np.zeros(4, dtype="float32")
-
-        def save(
-            self,
-            embeddings,
-            rows,
-            output_dir,
-            embeddings_filename="clap.npy",
-            mapping_filename="map.json",
-        ):
-            from pathlib import Path
-
-            return Path(output_dir) / embeddings_filename, Path(output_dir) / mapping_filename
-
-    class _BadAudio:
-        def encode_audio(self, wav_paths):
-            return np.zeros((len(wav_paths), 4), dtype="float32")
-
-        # missing encode_text, encode_audio_single, save
-
-    assert isinstance(_GoodAudio(), AudioEmbedder) is True
-    assert isinstance(_BadAudio(), AudioEmbedder) is False
-
-    _audio_members = {m for m in vars(AudioEmbedder) if not m.startswith("_")}
-    assert {"encode_audio", "encode_text", "encode_audio_single", "save"}.issubset(_audio_members)
-
 
 def test_detector_backends_conform():
     from cinemateca.models.base import (
@@ -292,19 +251,12 @@ def _full_cfg(**model_overrides):
         object_detector="yolov8",
         scene_describer="moondream_gguf",
         environment_classifier="opencv_heuristic",
-        audio_embedder="clap_hf",
     )
     for k, v in model_overrides.items():
         setattr(models, k, v)
     return sn(
         models=models,
         embeddings=sn(model="ViT-B-32", pretrained="openai", batch_size=16),
-        audio_embeddings=sn(
-            model_id="laion/larger_clap_general",
-            batch_size=8,
-            chunk_seconds=10.0,
-            sample_rate=48000,
-        ),
         visual_analysis=sn(
             face_detection=sn(enabled=True, min_face_size=20, thresholds=[0.6, 0.7, 0.7]),
             object_detection=sn(enabled=True, model="yolov8n.pt", confidence=0.30),
@@ -320,11 +272,8 @@ def _full_cfg(**model_overrides):
 
 
 def test_registry_returns_correct_types(monkeypatch):
-    monkeypatch.setitem(sys.modules, "soundfile", types.SimpleNamespace())
-
     from cinemateca.models import registry
     from cinemateca.models.base import (
-        AudioEmbedder,
         EnvironmentClassifier,
         FaceDetector,
         ImageEmbedder,
@@ -338,7 +287,6 @@ def test_registry_returns_correct_types(monkeypatch):
     assert isinstance(registry.get_object_detector(cfg), ObjectDetector)
     assert isinstance(registry.get_scene_describer(cfg), SceneDescriber)
     assert isinstance(registry.get_environment_classifier(cfg), EnvironmentClassifier)
-    assert isinstance(registry.get_audio_embedder(cfg), AudioEmbedder)
 
 
 def test_registry_unknown_name_raises():
@@ -349,13 +297,3 @@ def test_registry_unknown_name_raises():
     cfg = _full_cfg(image_embedder="nope")
     with pytest.raises(ValueError):
         registry.get_image_embedder(cfg)
-
-
-def test_registry_unknown_audio_embedder_raises():
-    import pytest
-
-    from cinemateca.models import registry
-
-    cfg = _full_cfg(audio_embedder="nope")
-    with pytest.raises(ValueError):
-        registry.get_audio_embedder(cfg)

@@ -133,8 +133,8 @@ def _pseudo_relevance(
     """PR signal: the REFERENCE retriever's top-1 is treated as relevant.
 
     ``reference_hits`` is the ranked output of a *reference* retriever (each row
-    a dict with a ``"scene_id"`` key, matching ``search_audio`` /
-    ``generate_slate`` output); the top-1 is ``reference_hits[0]``. This is a
+    a dict with a ``"scene_id"`` key, matching ``generate_slate`` output); the
+    top-1 is ``reference_hits[0]``. This is a
     relative-agreement label — independent of whatever retriever is being scored
     against it — NOT the scored retriever's own top-1 (that would be tautological;
     see the module docstring). Returns empty labels when the reference produced
@@ -166,8 +166,8 @@ def proxy_labels(
       1. query carries HY labels (``relevance`` or ``relevant_scene_ids``
          non-empty) -> **HY** (maintainer's pre-curator hypothesis).
       2. ``query_type`` in ``{"image", "rhyme"}`` -> **KI** (the anchor scene).
-      3. ``reference_hits`` supplied (audio / fusion, or any variant-comparison
-         row) -> **PR** (the reference retriever's top-1).
+      3. ``reference_hits`` supplied (any variant-comparison row) -> **PR**
+         (the reference retriever's top-1).
       4. otherwise -> ``((), {}, <method>)`` with empty labels; the caller
          skips or handles the unlabelled query.
 

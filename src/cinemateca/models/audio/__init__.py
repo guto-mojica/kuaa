@@ -1,1 +1,0 @@
-"""Audio embedder (CLAP) backends."""

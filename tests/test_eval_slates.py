@@ -12,14 +12,13 @@ Two concerns are covered:
 2. ``generate_slate`` — dispatches on ``query.query_type`` to the real
    retrieval backend for that modality and maps the results into the
    9-key rows-template contract the ``/eval`` UI renders. These tests are
-   hermetic: the backends (``load_audio_index`` / ``search_audio`` /
-   ``find_rhymes``) are monkeypatched with fakes, and the cfg is a
-   ``SimpleNamespace``. No real models or indexes are loaded.
+   hermetic: the backends (``find`` / ``find_rhymes``) are monkeypatched
+   with fakes, and the cfg is a ``SimpleNamespace``. No real models or
+   indexes are loaded.
 """
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -56,7 +55,7 @@ def _write_yaml(path: Path, body: str) -> Path:
     return path
 
 
-def _five_type_yaml(image_path: str) -> str:
+def _three_type_yaml(image_path: str) -> str:
     """One representative entry per type, in the real m3_full shape."""
     return f"""\
 dataset: m3_test
@@ -78,17 +77,6 @@ queries:
     image_path: "{image_path}"
     lang: en
     notes: "Anchor frame for a face-with-textured-wall composition."
-  - id: audio-01
-    query_type: audio
-    text: "música orquestral com cordas"
-    lang: pt
-    notes: "Orchestral string-section probe."
-  - id: fusion-01
-    query_type: fusion
-    text: "silent landscape with melancholic music"
-    w: 0.5
-    lang: en
-    notes: "Spec's canonical fusion example."
   - id: rhyme-01
     query_type: rhyme
     anchor: "jeca_tatu/12"
@@ -98,42 +86,26 @@ queries:
 
 
 def test_load_modal_queries_validates_per_type(tmp_path: Path):
-    """All five real-shape types parse; malformed entries raise EvalError."""
+    """All real-shape types parse; malformed entries raise EvalError."""
     repo_root = Path(__file__).resolve().parents[1]
     real_image = repo_root / _REAL_IMAGE
     assert real_image.exists(), f"fixture image missing: {real_image}"
 
-    good = _write_yaml(tmp_path / "good.yaml", _five_type_yaml(str(real_image)))
+    good = _write_yaml(tmp_path / "good.yaml", _three_type_yaml(str(real_image)))
     queries = load_modal_queries(good)
 
-    assert len(queries) == 5
-    assert [q.query_type for q in queries] == ["text", "image", "audio", "fusion", "rhyme"]
+    assert len(queries) == 3
+    assert [q.query_type for q in queries] == ["text", "image", "rhyme"]
     by_id = {q.id: q for q in queries}
     assert by_id["text-01"].text == "trabalhador rural arando o campo"
     assert by_id["text-01"].relevant_scene_ids == (34, 50, 110)
     assert by_id["text-01"].relevance == {"34": 2.0, "50": 3.0, "110": 2.0}
     assert by_id["image-01"].image_path == real_image
-    assert by_id["fusion-01"].w == 0.5
     assert by_id["rhyme-01"].anchor == "jeca_tatu/12"
     assert by_id["rhyme-01"].text is None
     # Frozen dataclass — mutation must fail.
     with pytest.raises((AttributeError, Exception)):
         by_id["text-01"].text = "mutate"  # type: ignore[misc]
-
-    # fusion w out of range -> EvalError
-    bad_w = _write_yaml(
-        tmp_path / "bad_w.yaml",
-        """\
-queries:
-  - id: fusion-bad
-    query_type: fusion
-    text: "x"
-    w: 1.5
-    lang: en
-""",
-    )
-    with pytest.raises(EvalError):
-        load_modal_queries(bad_w)
 
     # rhyme anchor with no slash -> EvalError
     bad_anchor = _write_yaml(
@@ -193,81 +165,11 @@ class _StubEmbedder:
         return self._v
 
 
-def _fake_audio_index() -> Any:
-    """Two-row fake AudioIndex: row 0 aligns with the stub query vector."""
-    from cinemateca.search.audio import AudioIndex
-
-    emb = np.array([[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0]], dtype="float32")
-    mapping = [
-        {"scene_id": 7, "wav_path": "", "start_time_s": None, "end_time_s": None},
-        {"scene_id": 3, "wav_path": "", "start_time_s": None, "end_time_s": None},
-    ]
-    return AudioIndex(embeddings=emb, mapping=mapping)
-
-
 def _cfg() -> SimpleNamespace:
     """Minimal cfg; rhymes knobs read via getattr so this shape is enough."""
     return SimpleNamespace(
         retrieval=SimpleNamespace(rhymes=SimpleNamespace(diversity=0.5, k_candidates=30)),
     )
-
-
-def test_generate_slate_dispatches_audio_to_search_audio(tmp_path: Path, monkeypatch):
-    """Audio query → real search_audio over a fake CLAP index → 9-key rows."""
-    import cinemateca.eval.slates as slates
-
-    # One physically-present film so the film-walk has a slug to iterate;
-    # the patched load_audio_index ignores the path and returns the fake.
-    (tmp_path / "jeca").mkdir()
-
-    monkeypatch.setattr(slates, "load_audio_index", lambda audio_dir: _fake_audio_index())
-    monkeypatch.setattr(slates, "get_audio_embedder", lambda cfg, device=None: _StubEmbedder(4))
-
-    q = ModalQuery(
-        id="audio-01",
-        query_type="audio",
-        text="música orquestral com cordas",
-        image_path=None,
-        anchor=None,
-        w=None,
-        lang="pt",
-        relevant_scene_ids=(),
-        relevance={},
-        notes=None,
-    )
-    rows = generate_slate(query=q, cfg=_cfg(), library_dir=tmp_path, k=2)
-
-    assert isinstance(rows, list)
-    assert len(rows) == 2
-    for r in rows:
-        assert isinstance(r, dict)
-        assert set(r.keys()) == _ROWS_KEYS
-    # Ordered by descending score (row 0 of the fake index scores 1.0).
-    assert rows[0]["score"] >= rows[1]["score"]
-    assert rows[0]["scene_id"] == 7
-
-
-def test_generate_slate_audio_empty_when_no_index(tmp_path: Path, monkeypatch):
-    """A film with no CLAP index (load_audio_index -> None) yields an empty slate."""
-    import cinemateca.eval.slates as slates
-
-    (tmp_path / "jeca").mkdir()
-    monkeypatch.setattr(slates, "load_audio_index", lambda audio_dir: None)
-    monkeypatch.setattr(slates, "get_audio_embedder", lambda cfg, device=None: _StubEmbedder(4))
-
-    q = ModalQuery(
-        id="audio-01",
-        query_type="audio",
-        text="x",
-        image_path=None,
-        anchor=None,
-        w=None,
-        lang="pt",
-        relevant_scene_ids=(),
-        relevance={},
-        notes=None,
-    )
-    assert generate_slate(query=q, cfg=_cfg(), library_dir=tmp_path, k=2) == []
 
 
 def test_generate_slate_dispatches_rhyme_to_find_rhymes(tmp_path: Path, monkeypatch):
@@ -443,83 +345,3 @@ def test_generate_slate_dispatches_image_to_find(tmp_path: Path, monkeypatch):
     for r in rows:
         assert set(r.keys()) == _ROWS_KEYS
     assert rows[0]["score"] >= rows[1]["score"]
-
-
-# ── fusion index-loading + _normalise_clip_mapping ──────────────────────────
-
-
-def test_slate_fusion_loads_indexes_and_calls_search_fusion(tmp_path: Path, monkeypatch):
-    """Fusion query → on-disk CLIP index loaded + ``search_fusion`` called → 9-key rows.
-
-    The CLIP index files are written to disk so the real ``np.load`` +
-    ``_normalise_clip_mapping`` path runs; CLAP is absent (``load_audio_index``
-    → None), so the CLIP-only fusion branch is exercised. ``search_fusion`` is
-    faked to return the canonical 4-key hit dicts.
-    """
-    import cinemateca.eval.slates as slates
-
-    emb_dir = tmp_path / "jeca" / "embeddings"
-    emb_dir.mkdir(parents=True)
-    np.save(emb_dir / "keyframe_embeddings.npy", np.eye(3, dtype="float32"))
-    # Parallel-array mapping shape (the SigLIP2 writer) — must be normalised.
-    (emb_dir / "index_mapping.json").write_text(
-        json.dumps({"scene_ids": [5, 6, 7], "total_vectors": 3}), encoding="utf-8"
-    )
-
-    seen: dict[str, Any] = {}
-
-    def _fake_search_fusion(*, clip_emb, clap_emb, clip_mapping, clap_mapping, **kw):
-        # Assert the on-disk CLIP index reached the searcher in normalised form.
-        seen["clip_emb_shape"] = clip_emb.shape
-        seen["clip_mapping"] = clip_mapping
-        return [
-            {"scene_id": 5, "score": 0.88, "clip_score": 0.88, "clap_score": 0.0},
-            {"scene_id": 7, "score": 0.42, "clip_score": 0.42, "clap_score": 0.0},
-        ]
-
-    monkeypatch.setattr(slates, "load_audio_index", lambda audio_dir: None)
-    monkeypatch.setattr(slates, "get_image_embedder", lambda cfg, device=None: _StubEmbedder(4))
-    monkeypatch.setattr(slates, "get_audio_embedder", lambda cfg, device=None: _StubEmbedder(4))
-    monkeypatch.setattr(slates, "search_fusion", _fake_search_fusion)
-
-    q = ModalQuery(
-        id="fusion-01",
-        query_type="fusion",
-        text="silent landscape with melancholic music",
-        image_path=None,
-        anchor=None,
-        w=0.5,
-        lang="en",
-        relevant_scene_ids=(),
-        relevance={},
-        notes=None,
-    )
-    rows = generate_slate(query=q, cfg=_cfg(), library_dir=tmp_path, k=9)
-
-    assert len(rows) == 2
-    for r in rows:
-        assert set(r.keys()) == _ROWS_KEYS
-    assert rows[0]["score"] >= rows[1]["score"]
-    assert rows[0]["scene_id"] == 5
-    # The real np.load + _normalise_clip_mapping fed search_fusion correctly.
-    assert seen["clip_emb_shape"] == (3, 3)
-    assert seen["clip_mapping"] == [{"scene_id": 5}, {"scene_id": 6}, {"scene_id": 7}]
-
-
-def test_normalise_clip_mapping_handles_both_shapes():
-    """``_normalise_clip_mapping`` accepts BOTH the parallel-array and list shapes."""
-    from cinemateca.eval.slates import _normalise_clip_mapping
-
-    # Parallel-array shape (SigLIP2 writer): {"scene_ids": [...]}.
-    parallel = _normalise_clip_mapping({"scene_ids": [5, 6, 7], "total_vectors": 3})
-    assert parallel == [{"scene_id": 5}, {"scene_id": 6}, {"scene_id": 7}]
-
-    # List-of-dicts shape: [{"scene_id": ...}, ...] (extra keys ignored).
-    listish = _normalise_clip_mapping(
-        [{"scene_id": 9, "filepath": "a.jpg"}, {"scene_id": 4, "filepath": "b.jpg"}]
-    )
-    assert listish == [{"scene_id": 9}, {"scene_id": 4}]
-
-    # An unrecognised shape raises EvalError (defensive, E3b-critical).
-    with pytest.raises(EvalError):
-        _normalise_clip_mapping(42)

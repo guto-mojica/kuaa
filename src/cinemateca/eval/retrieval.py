@@ -490,7 +490,7 @@ def run_retrieval_eval(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Per-modality scorers (E3b): image / audio / fusion / rhyme.
+# Per-modality scorers (E3b): image / rhyme.
 #
 # Each calls cinemateca.eval.slates.generate_slate — the REAL retrieval backend
 # for that modality — and scores the returned candidate rows with the same
@@ -537,7 +537,7 @@ def _default_relevance(
 
     Strategy per modality:
 
-      * **text / fusion WITH YAML hypotheses** — use the maintainer's
+      * **text WITH YAML hypotheses** — use the maintainer's
         ``relevant_scene_ids`` + ``relevance`` from the query file.
       * **image** — known-item: the anchor scene id parsed out of the
         ``image_path`` basename via :data:`_SCENE_NUM_RE` (inlined here; mirrors
@@ -551,11 +551,11 @@ def _default_relevance(
         runs end-to-end and emits a metrics block), NOT rhyme quality. A real
         rhyme metric needs different labels — curator-graded cross-film matches
         — which E2/E5 owns.
-      * **audio / fusion WITHOUT YAML labels** — pseudo-relevance placeholder
+      * **any modality WITHOUT YAML labels** — pseudo-relevance placeholder
         (top-1 returned scene treated as relevant).
     """
     if query.relevant_scene_ids:
-        # text (always labelled) + any fusion query the maintainer labelled.
+        # any query the maintainer labelled (text is always labelled).
         rel = tuple(scene_id_key(s) for s in query.relevant_scene_ids)
         # Keep only positive grades — ``ndcg_at_k`` raises a *bare* ValueError
         # (not an EvalError) when no grade is > 0, which _modal_mode/_all_modalities
@@ -580,9 +580,9 @@ def _default_relevance(
         sid = scene_id_key(int(sid_s))
         return (sid,), {sid: 1.0}, "known_item"
 
-    # audio / fusion-without-labels (and any image whose basename didn't parse):
+    # any modality without labels (and any image whose basename didn't parse):
     # PR placeholder — E2's proxy.proxy_labels (KI/PR/HY) supersedes this; here
-    # only to make run_eval produce metrics for all 5 modalities (GATE).
+    # only to make run_eval produce metrics for the modality (GATE).
     if rows:
         sid = scene_id_key(rows[0]["scene_id"])
         return (sid,), {sid: 1.0}, "pseudo"
@@ -620,7 +620,7 @@ def _run_modal_eval(
     top_k: int = 10,
     relevance_resolver=None,
 ) -> RetrievalRun:
-    """Shared scoring loop for the image / audio / fusion / rhyme modalities.
+    """Shared scoring loop for the image / rhyme modalities.
 
     Generates each query's slate via :func:`cinemateca.eval.slates.generate_slate`
     (the real backend), resolves relevance via ``relevance_resolver`` (defaults
@@ -629,8 +629,8 @@ def _run_modal_eval(
 
     ``library_dir`` MUST be the full library root (``cfg.paths.library_dir``),
     not a single-film override — ``generate_slate`` (and ``find_rhymes``) walk
-    every film under it. Single-film modalities (image/audio/fusion) are scoped
-    to ``film_slug`` after generation when one is given; rhyme is inherently
+    every film under it. Single-film modalities (image) are scoped to
+    ``film_slug`` after generation when one is given; rhyme is inherently
     cross-film and is never scoped out.
 
     .. warning::
@@ -727,56 +727,6 @@ def run_image_eval(
         cfg,
         queries,
         modality="image",
-        library_dir=library_dir,
-        film_slug=film_slug,
-        seed=seed,
-        top_k=top_k,
-        relevance_resolver=relevance_resolver,
-    )
-
-
-def run_audio_eval(
-    cfg,
-    queries: list[ModalQuery],
-    *,
-    library_dir: Path,
-    film_slug: str | None,
-    seed: int = 0,
-    top_k: int = 10,
-    relevance_resolver=None,
-) -> RetrievalRun:
-    """Score the audio queries via CLAP ``search_audio`` slates (pseudo relevance)."""
-    return _run_modal_eval(
-        cfg,
-        queries,
-        modality="audio",
-        library_dir=library_dir,
-        film_slug=film_slug,
-        seed=seed,
-        top_k=top_k,
-        relevance_resolver=relevance_resolver,
-    )
-
-
-def run_fusion_eval(
-    cfg,
-    queries: list[ModalQuery],
-    *,
-    library_dir: Path,
-    film_slug: str | None,
-    seed: int = 0,
-    top_k: int = 10,
-    relevance_resolver=None,
-) -> RetrievalRun:
-    """Score the fusion queries via CLIP×CLAP ``search_fusion`` slates.
-
-    Uses YAML hypotheses when the query carries them, else a pseudo-relevance
-    placeholder (the m3_full fusion queries are unlabelled today).
-    """
-    return _run_modal_eval(
-        cfg,
-        queries,
-        modality="fusion",
         library_dir=library_dir,
         film_slug=film_slug,
         seed=seed,

@@ -1,9 +1,9 @@
-"""Unified mtime+size-keyed cache for CLIP / audio / BM25 indexes (C4).
+"""Unified mtime+size-keyed cache for CLIP / BM25 indexes (C4).
 
-Collapses three duplicated cache implementations (search.cache,
-search.audio, search.bm25) onto one ``StatCache``. The cache key's
-first element is conventionally the film slug so ``clear_film(slug)``
-can invalidate exactly one film's slots across every layer.
+Collapses the duplicated cache implementations (search.cache,
+search.bm25) onto one ``StatCache``. The cache key's first element is
+conventionally the film slug so ``clear_film(slug)`` can invalidate
+exactly one film's slots across every layer.
 """
 
 from __future__ import annotations

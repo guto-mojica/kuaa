@@ -1,8 +1,8 @@
 """Search render helpers extracted from ``api/routes/search.py`` (A2 / Task 5).
 
-These functions handle result enrichment, template assembly, and the audio/
-fusion dispatch shims. The route keeps only the FastAPI handlers and param
-parsing; all rendering logic lives here.
+These functions handle result enrichment and template assembly. The route
+keeps only the FastAPI handlers and param parsing; all rendering logic lives
+here.
 
 ``build_search_context`` lives here (moved from the route — G1 LOC fix) so
 ``api/server.py`` can continue to call it via ``search.build_search_context``
@@ -72,72 +72,6 @@ def enriched_per_film(cfg, ctx: FilmContext, results_df, slug: str | None) -> li
     mbs, fps = kf_meta(ctx)
     dicts = search_service.results_to_dicts(results_df, ctx.data_dir, mbs, fps)
     return search_service.enrich_hits_with_film_metadata(cfg, dicts, per_film_slug=slug)
-
-
-async def api_search_audio(
-    request: Request,
-    *,
-    q: str,
-    top_k: int,
-    slug: str | None,
-    cfg,
-) -> HTMLResponse:
-    """Audio-only search dispatch (CLAP joint text+audio space).
-
-    Thin shim: thread-pool offloads the encoder + dot-product into a
-    worker thread (CLAP encode + matmul are blocking + non-trivial),
-    then enriches the raw ``{scene_id, score}`` hits with the per-film
-    template fields the ``.b-card`` partial expects.
-    """
-    logger.info(f"api_search modality=audio q={q!r} slug={slug or '(agg)'} top_k={top_k}")
-    ctx = FilmContext.for_film(cfg, slug) if slug is not None else None
-    payload, no_index = await asyncio.get_running_loop().run_in_executor(
-        None, lambda: search_service.dispatch_audio_search(cfg, ctx, q, top_k)
-    )
-    if no_index:
-        return no_index_response(request)
-    card_dicts = search_service.audio_hits_to_template_dicts(cfg, payload, per_film_slug=slug)
-    results = search_service.enrich_hits_with_film_metadata(cfg, card_dicts, per_film_slug=slug)
-    return render_results(request, slug=slug, cfg=cfg, results=results, query=q)
-
-
-async def api_search_fusion(
-    request: Request,
-    *,
-    q: str,
-    top_k: int,
-    w: float | None,
-    slug: str | None,
-    cfg,
-) -> HTMLResponse:
-    """Cross-modal CLIP × CLAP fusion search.
-
-    Linear late-fusion: ``score = w * clip_cosine + (1 - w) * clap_cosine``.
-    ``w`` defaults to ``cfg.retrieval.fusion.visual_weight`` (0.5 unless
-    overridden in local config). Clamped to ``[0, 1]``.
-    """
-    if w is None:
-        fusion_cfg = getattr(getattr(cfg, "retrieval", None), "fusion", None)
-        weight_raw = float(getattr(fusion_cfg, "visual_weight", 0.5) if fusion_cfg else 0.5)
-    else:
-        weight_raw = float(w)
-    # Single clamp covers both branches — defends against malformed
-    # local.yaml overrides that bypass the FusionConfig dataclass validator.
-    weight = max(0.0, min(1.0, weight_raw))
-    logger.info(
-        f"api_search modality=fusion q={q!r} slug={slug or '(agg)'} "
-        f"top_k={top_k} w={weight:.3f}"
-    )
-    ctx = FilmContext.for_film(cfg, slug) if slug is not None else None
-    payload, no_index = await asyncio.get_running_loop().run_in_executor(
-        None,
-        lambda: search_service.dispatch_fusion_search(cfg, ctx, q, top_k, visual_weight=weight),
-    )
-    if no_index:
-        return no_index_response(request)
-    card_dicts = search_service.audio_hits_to_template_dicts(cfg, payload, per_film_slug=slug)
-    results = search_service.enrich_hits_with_film_metadata(cfg, card_dicts, per_film_slug=slug)
-    return render_results(request, slug=slug, cfg=cfg, results=results, query=q)
 
 
 async def run_text_search(
