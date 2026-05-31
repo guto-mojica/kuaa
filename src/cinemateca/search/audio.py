@@ -11,11 +11,14 @@ import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 import numpy as np
 
+from cinemateca.config import Settings
 from cinemateca.search._cache_core import StatCache, stat_sig
+from cinemateca.search.types import Hit, Query, SearchMode, SearchResult
+from cinemateca.timing import timed
 
 if TYPE_CHECKING:
     from cinemateca.models.base import AudioEmbedder
@@ -179,3 +182,119 @@ def search_audio(
         m = index.mapping[int(i)]
         out.append({"scene_id": int(m["scene_id"]), "score": float(scores[int(i)])})
     return out
+
+
+# ── Typed audio verbs (C9) ───────────────────────────────────────────────────
+# ``find_audio`` / ``aggregate_audio`` are the audio analogue of
+# ``cinemateca.search.find`` / ``aggregate``: they wrap the ``search_audio``
+# leaf, time the search, and return a typed :class:`SearchResult` carrying the
+# 5 per-query metadata fields (``retriever_mode="audio"``, ``fusion_used=False``,
+# ``reranker_applied=False``, ``num_films_searched``, ``latency_ms``). The leaf
+# stays ``list[dict]`` (consumed unchanged by ``cinemateca.eval``). The api
+# dispatcher projects ``SearchResult.hits`` back to the template view-dicts, so
+# the HTTP response shape is preserved.
+#
+# Audio ``Hit`` rows carry only ``scene_id`` / ``score`` / ``film_slug`` /
+# ``film_title`` — the join keys the api view-dict projector
+# (``audio_hits_to_template_dicts``) needs. ``keyframe_path`` / ``timecode`` /
+# ``description`` stay empty here; they are resolved at the api boundary from
+# ``keyframes_metadata.json`` (display-only, never on the core ``Hit``).
+
+# ``mode`` is structurally required by ``SearchResult`` (a ``SearchMode``
+# Literal) but is not a meaningful axis for audio retrieval; ``retriever_mode``
+# is the C9 semantic field consumers read. ``"clip"`` is the benign placeholder
+# (single-modality, no RRF) — mirrors how ``find`` reports ``mode="clip"`` for
+# the modality-less image path.
+_AUDIO_PLACEHOLDER_MODE: SearchMode = "clip"
+
+
+def _audio_hit(row: dict, *, film_slug: str | None, film_title: str | None) -> Hit:
+    """Lift one ``search_audio`` row to a typed :class:`Hit` (join keys only)."""
+    return Hit(
+        scene_id=int(row["scene_id"]),
+        score=float(row["score"]),
+        keyframe_path="",
+        film_slug=film_slug,
+        film_title=film_title,
+    )
+
+
+def find_audio(
+    index: AudioIndex,
+    embedder: AudioEmbedder,
+    query_text: str,
+    *,
+    film_slug: str | None = None,
+    top_k: int = 10,
+) -> SearchResult:
+    """Single-film CLAP search → typed :class:`SearchResult` (``num_films_searched=1``).
+
+    Wraps :func:`search_audio` and times the encode + dot-product the same way
+    :func:`cinemateca.search.find` times its leaf. ``film_slug`` is stamped onto
+    each :class:`Hit` so the api view-dict projector can resolve keyframes.
+    """
+    with timed("find.audio") as t:
+        rows = search_audio(index, embedder, query_text, top_k=top_k)
+    hits = [_audio_hit(r, film_slug=film_slug, film_title=None) for r in rows]
+    return SearchResult(
+        hits=hits,
+        mode=_AUDIO_PLACEHOLDER_MODE,
+        weights=None,
+        query=Query.of_text(query_text),
+        no_index=False,
+        retriever_mode="audio",
+        fusion_used=False,
+        reranker_applied=False,
+        num_films_searched=1,
+        latency_ms=t.elapsed_ms,
+    )
+
+
+def aggregate_audio(
+    cfg: Settings,
+    embedder_factory: Any,
+    query_text: str,
+    *,
+    top_k: int = 10,
+) -> SearchResult:
+    """Cross-film CLAP search → typed :class:`SearchResult` (``num_films_searched=N``).
+
+    Walks the registry (``cfg.paths.library_dir``), skips films without a CLAP
+    index, runs :func:`search_audio` per film, then merges + sorts descending —
+    mirroring :func:`cinemateca.search.aggregate`. ``num_films_searched`` counts
+    films that actually had an index searched (not the whole registry), matching
+    the audio dispatcher's prior aggregate semantics. ``embedder_factory`` is a
+    ``cfg -> AudioEmbedder`` callable (the registry ``get_audio_embedder``,
+    injected so this stays free of a hard registry import) and is invoked at most
+    once. ``no_index=True`` when no film carried a CLAP index.
+    """
+    from cinemateca.library import scan_library
+
+    library_dir = Path(cfg.paths.library_dir)
+    films = list(scan_library(library_dir))
+    embedder: AudioEmbedder | None = None
+    all_hits: list[Hit] = []
+    films_searched = 0
+    with timed("aggregate.audio") as t:
+        for film in films:
+            idx = load_audio_index(library_dir / film.slug / "audio")
+            if idx is None:
+                continue
+            films_searched += 1
+            if embedder is None:
+                embedder = embedder_factory(cfg)
+            rows = search_audio(idx, embedder, query_text, top_k=top_k)
+            all_hits.extend(_audio_hit(r, film_slug=film.slug, film_title=film.title) for r in rows)
+    all_hits.sort(key=lambda h: h.score, reverse=True)
+    return SearchResult(
+        hits=all_hits[:top_k],
+        mode=_AUDIO_PLACEHOLDER_MODE,
+        weights=None,
+        query=Query.of_text(query_text),
+        no_index=films_searched == 0,
+        retriever_mode="audio",
+        fusion_used=False,
+        reranker_applied=False,
+        num_films_searched=films_searched,
+        latency_ms=t.elapsed_ms,
+    )

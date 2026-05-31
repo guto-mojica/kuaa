@@ -331,3 +331,126 @@ def test_dispatch_fusion_search_per_film_parallel_array_clip_mapping(
     # should still have scene_id pulled out correctly.
     assert all(isinstance(h["scene_id"], int) for h in hits)
     assert all(h["film_slug"] == "jeca_tatu" for h in hits)
+
+
+# ── Typed fusion verbs (C9): per-query metadata on SearchResult ───────────────
+
+
+def _stub_factory(dim: int = 4):
+    """Return a ``cfg -> _Stub(dim)`` embedder factory for the core fusion verbs."""
+    return lambda _cfg: _Stub(dim)
+
+
+def test_find_fusion_returns_searchresult_with_fusion_metadata(tmp_config) -> None:
+    """find_fusion → typed SearchResult carrying the 5 C9 fields with fusion
+    semantics: fusion_used True, retriever_mode='fusion', reranker_applied
+    False, num_films_searched 1 (per-film), latency_ms timed."""
+    from cinemateca.search.fusion import find_fusion
+    from cinemateca.search.types import SearchResult
+
+    library_dir = Path(tmp_config.paths.library_dir)
+    _register(library_dir, "jeca_tatu")
+    _seed_clip(library_dir / "jeca_tatu")
+    _seed_clap(library_dir / "jeca_tatu")
+
+    ctx = FilmContext.for_film(tmp_config, "jeca_tatu")
+    result = find_fusion(
+        tmp_config,
+        slug="jeca_tatu",
+        embeddings_dir=ctx.embeddings_dir,
+        audio_dir=Path(ctx.metadata_dir).parent / "audio",
+        query_text="x",
+        top_k=5,
+        image_embedder_factory=_stub_factory(),
+        audio_embedder_factory=_stub_factory(),
+    )
+
+    assert isinstance(result, SearchResult)
+    assert result.fusion_used is True
+    assert result.retriever_mode == "fusion"
+    assert result.reranker_applied is False
+    assert result.num_films_searched == 1
+    assert result.no_index is False
+    assert result.latency_ms is not None and result.latency_ms >= 0.0
+    assert len(result.hits) > 0
+    assert all(h.film_slug == "jeca_tatu" for h in result.hits)
+    scores = [h.score for h in result.hits]
+    assert scores == sorted(scores, reverse=True)
+
+
+def test_find_fusion_missing_both_indices_is_no_index(tmp_config) -> None:
+    """Neither CLIP nor CLAP present → no_index True, num_films_searched 0,
+    fusion_used still reports True (the requested modality)."""
+    from cinemateca.search.fusion import find_fusion
+
+    library_dir = Path(tmp_config.paths.library_dir)
+    _register(library_dir, "jeca_tatu")  # no indices seeded
+
+    ctx = FilmContext.for_film(tmp_config, "jeca_tatu")
+    result = find_fusion(
+        tmp_config,
+        slug="jeca_tatu",
+        embeddings_dir=ctx.embeddings_dir,
+        audio_dir=Path(ctx.metadata_dir).parent / "audio",
+        query_text="x",
+        top_k=5,
+        image_embedder_factory=_stub_factory(),
+        audio_embedder_factory=_stub_factory(),
+    )
+    assert result.no_index is True
+    assert result.num_films_searched == 0
+    assert result.fusion_used is True
+    assert result.retriever_mode == "fusion"
+    assert result.hits == []
+
+
+def test_aggregate_fusion_counts_contributing_films(tmp_config) -> None:
+    """aggregate_fusion walks the registry → num_films_searched == N films that
+    contributed a fused list (2 of 3 here; the index-less film is skipped)."""
+    from cinemateca.search.fusion import aggregate_fusion
+    from cinemateca.search.types import SearchResult
+
+    library_dir = Path(tmp_config.paths.library_dir)
+    _register(library_dir, "film_a", title="Film A")
+    _seed_clip(library_dir / "film_a")
+    _seed_clap(library_dir / "film_a")
+    _register(library_dir, "film_b")  # NO indices → skipped
+    _register(library_dir, "film_c", title="Film C")
+    _seed_clip(library_dir / "film_c")
+    _seed_clap(library_dir / "film_c")
+
+    result = aggregate_fusion(
+        tmp_config,
+        "x",
+        top_k=10,
+        image_embedder_factory=_stub_factory(),
+        audio_embedder_factory=_stub_factory(),
+    )
+
+    assert isinstance(result, SearchResult)
+    assert result.fusion_used is True
+    assert result.retriever_mode == "fusion"
+    assert result.reranker_applied is False
+    assert result.num_films_searched == 2
+    assert result.no_index is False
+    assert result.latency_ms is not None and result.latency_ms >= 0.0
+    slugs = {h.film_slug for h in result.hits}
+    assert slugs == {"film_a", "film_c"}
+    assert all(h.film_title in {"Film A", "Film C"} for h in result.hits)
+
+
+def test_aggregate_fusion_no_films_is_no_index(tmp_config) -> None:
+    """Empty registry → no_index True, num_films_searched 0."""
+    from cinemateca.search.fusion import aggregate_fusion
+
+    result = aggregate_fusion(
+        tmp_config,
+        "x",
+        top_k=5,
+        image_embedder_factory=_stub_factory(),
+        audio_embedder_factory=_stub_factory(),
+    )
+    assert result.no_index is True
+    assert result.num_films_searched == 0
+    assert result.fusion_used is True
+    assert result.hits == []
