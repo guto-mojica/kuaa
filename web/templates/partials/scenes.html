@@ -35,6 +35,7 @@
        take.
 #}
 {% from "partials/_icons.html" import icon %}
+{% from "partials/_skeleton.html" import skeleton_grid, skeleton_inspector %}
 <div class="tab-panel">
 
 {% if no_data %}
@@ -88,6 +89,7 @@
        hx-trigger="refresh"
        hx-target="#scenes-grid"
        hx-swap="innerHTML"
+       hx-indicator="#scenes-skeleton"
        hx-include="#scenes-toolrow">
 
     {# ── Appearance: card-density radio popover. Two options today
@@ -401,6 +403,7 @@
           hx-trigger="keyup changed delay:200ms, search"
           hx-target="#scenes-grid"
           hx-swap="innerHTML"
+          hx-indicator="#scenes-skeleton"
           hx-include="#scenes-toolrow">
       <span class="ico">{{ icon('search', 14) }}</span>
       {# Carry the active film slug into the grid-refresh GET. Without it the
@@ -440,6 +443,11 @@
     <div id="scenes-grid" class="grid">
       {% include "partials/scenes_grid.html" %}
     </div>
+    {# Loading skeleton — sibling of #scenes-grid (survives the innerHTML
+       swap). The toolrow + .find keyword form below point their
+       ``hx-indicator`` here so it shows only while a grid refresh is in
+       flight (see fx.css). #}
+    {{ skeleton_grid("scenes-skeleton", count=8) }}
   </div>
 
 </section>
@@ -452,24 +460,31 @@
      route's response (partials/scenes_inspector.html), which also renders a
      <section class="c-rp"> — so the outer aside is the neutral HTMX target
      and the section carries the .c-rp CSS (width 380px, flex column, etc.). #}
-<aside id="right-pane">
-  <section class="c-rp">
-    <div class="head">
-      <div class="l">
-        <span>{{ _('Scene') }}</span>
+<div class="rp-slot">
+  <aside id="right-pane">
+    <section class="c-rp">
+      <div class="head">
+        <div class="l">
+          <span>{{ _('Scene') }}</span>
+        </div>
       </div>
-    </div>
-    {# Empty state uses the shared ``.fx-empty`` primitive (centered 44px
-       glyph + ``.ttl`` + ``.sub``) so the 380px inspector column reads as
-       an intentional panel matching Buscar's rhythm, never a bare void. #}
-    <div class="inner inner--empty">
-      <div class="fx-empty">
-        <span class="glyph">{{ icon('image', 22) }}</span>
-        <p class="ttl">{{ _('No scene selected') }}</p>
-        <p class="sub">{{ _('Select a scene in the grid to inspect its keyframe, tags, and description.') }}</p>
+      {# Empty state uses the shared ``.fx-empty`` primitive (centered 44px
+         glyph + ``.ttl`` + ``.sub``) so the 380px inspector column reads as
+         an intentional panel matching Buscar's rhythm, never a bare void. #}
+      <div class="inner inner--empty">
+        <div class="fx-empty">
+          <span class="glyph">{{ icon('image', 22) }}</span>
+          <p class="ttl">{{ _('No scene selected') }}</p>
+          <p class="sub">{{ _('Select a scene in the grid to inspect its keyframe, tags, and description.') }}</p>
+        </div>
       </div>
-    </div>
-  </section>
-</aside>
+    </section>
+  </aside>
+  {# Inspector loading skeleton — overlays the aside while a scenecard click
+     loads the next fragment; every .scenecard hx-get points its
+     hx-indicator here. Sibling of #right-pane so the innerHTML swap leaves
+     it intact for the next click. #}
+  {{ skeleton_inspector("inspector-skeleton") }}
+</div>
 
 </div>

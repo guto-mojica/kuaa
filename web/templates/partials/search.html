@@ -26,6 +26,7 @@
    blocking this file. They render nothing today.
 #}
 {% from "partials/_icons.html" import icon %}
+{% from "partials/_skeleton.html" import skeleton_grid, skeleton_inspector %}
 <div class="tab-panel">
 
 {# Alpine ``x-data`` scope: the chip row, the image/tag sub-panels, the
@@ -126,6 +127,7 @@
           hx-get="/api/search"
           hx-trigger="submit"
           hx-target="#search-results"
+          hx-indicator="#search-skeleton"
           hx-include="#search-text-form, #search-tag-panel"
           hx-sync="this:replace"
           hx-push-url="true">
@@ -174,6 +176,7 @@
                hx-get="/api/search"
                hx-trigger="keyup changed delay:500ms"
                hx-target="#search-results"
+               hx-indicator="#search-skeleton"
                hx-include="#search-text-form, #search-tag-panel"
                hx-sync="closest form:replace"
                @keydown="clearQueryError()">
@@ -539,7 +542,8 @@
     <form hx-post="/api/search/image{% if current_slug %}?film={{ current_slug }}{% endif %}"
           hx-encoding="multipart/form-data"
           hx-trigger="change from:#image-input"
-          hx-target="#search-results">
+          hx-target="#search-results"
+          hx-indicator="#search-skeleton">
       {# Dropzone empty-state. ``is-compact`` (read from the parent .b-cp
          scope's searched/hits) collapses it to a slim bar once results show
          below. ``has-file`` / ``is-dragging`` drive the chosen + drag-over
@@ -606,6 +610,11 @@
        x-ref="searchResults">
     {% include "partials/search_results.html" %}
   </div>
+  {# Loading skeleton — sibling of #search-results so the innerHTML swap
+     never destroys it. Every /api/search trigger below points its
+     ``hx-indicator`` at #search-skeleton, so htmx reveals this grid only
+     while a search request is in flight (see fx.css). #}
+  {{ skeleton_grid("search-skeleton", count=8) }}
 
   {# ── Tag filter — refinement affordance below the results grid.
        The Mojica prototype keeps the empty Buscar pane uncluttered, so the
@@ -623,6 +632,7 @@
          hx-get="/api/search"
          hx-trigger="change from:input"
          hx-target="#search-results"
+         hx-indicator="#search-skeleton"
          hx-include="#search-text-form, #search-tag-panel"
          hx-sync="#search-text-form:replace">
       {% for tag in available_tags %}
@@ -644,8 +654,16 @@
 </section>
 
 {# ── Right inspector — HTMX swaps target ``#right-pane`` (innerHTML) to
-     replace the .b-rp section without touching this container. #}
-<aside id="right-pane">{% include "partials/search_inspector.html" %}</aside>
+     replace the .b-rp section without touching this container. The
+     ``.rp-slot`` wrapper is the positioning context for the inspector
+     skeleton, which overlays the aside while a card click loads the next
+     fragment (every .b-card / htab hx-get points its hx-indicator here).
+     The skeleton is a SIBLING of #right-pane so the innerHTML swap never
+     destroys it. #}
+<div class="rp-slot">
+  <aside id="right-pane">{% include "partials/search_inspector.html" %}</aside>
+  {{ skeleton_inspector("inspector-skeleton") }}
+</div>
 
 </div>
 

@@ -247,3 +247,151 @@ input[aria-invalid="true"]:focus {
 
 /* tag container — flex-wrap row of .fx-pill children */
 .tags { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* ─── LOADING SKELETONS (U2) ──────────────────────────────────────────────
+   Shimmer placeholders shown while an HTMX fragment is in flight, so the
+   three async panes (Buscar results · Cenas grid · scene inspector) never
+   flash a blank void between a click/keystroke and the swapped-in content.
+
+   Mechanism — the repo's existing htmx idiom (main.css):
+       .htmx-indicator { display: none }
+       .htmx-request .htmx-indicator { display: inline }
+   We extend it for skeletons. A skeleton container carries BOTH
+   `.htmx-indicator` and a layout class; the trigger element points
+   `hx-indicator` at it, so htmx 2.0.4 toggles `.htmx-request` ON THE
+   SKELETON ITSELF (htmx adds the request class to every hx-indicator
+   target, not just the requester — confirmed by its injected
+   `.htmx-request.htmx-indicator` default rule). The self-combinator rules
+   below therefore reveal the skeleton during the request and the existing
+   `display:none` default re-hides it the moment the real content swaps in.
+   The skeleton lives as a SIBLING of the swap target, so the innerHTML swap
+   that replaces the real content never destroys the skeleton — it stays
+   armed for the next request.
+
+   Motion: an animated sheen sweeps across the `--c-raised` base using the
+   `--c-hover` token as the highlight band (no new colours — the U6 hygiene
+   rule). The loop is a dedicated slow `fx-skeleton-sweep` keyframe (1200ms)
+   so the pulse reads as "working", distinct from the one-shot `--dur-*`
+   fade/colour micro-transitions U6 defined for hovers.
+
+   prefers-reduced-motion: reduce → the sweep animation is removed and the
+   moving-gradient background is replaced by a flat `--c-raised` block, so a
+   reduced-motion user sees a calm static placeholder with ZERO animation
+   (this is asserted by the U5 a11y gate). */
+
+/* Base block: rounded, raised-tint, animated diagonal sheen. */
+.skeleton {
+  position: relative;
+  border-radius: 6px;
+  background-color: var(--c-raised);
+  /* Sheen: a translucent highlight band swept across the block. The
+     gradient is 200% wide and animated via background-position so the
+     band travels left→right without layout work. */
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    var(--c-hover) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: fx-skeleton-sweep 1200ms ease-in-out infinite;
+  /* Never let a skeleton catch a click meant for nothing. */
+  pointer-events: none;
+}
+
+@keyframes fx-skeleton-sweep {
+  from { background-position: 150% 0; }
+  to   { background-position: -50% 0; }
+}
+
+/* Shape modifiers — sized to the real content so the swap doesn't jump. */
+.skeleton--line   { height: 11px; border-radius: 4px; }
+.skeleton--line.sm { width: 40%; }
+.skeleton--line.md { width: 70%; }
+.skeleton--line.lg { width: 90%; }
+.skeleton--pill   { height: 16px; width: 52px; border-radius: 14px; }
+/* Keyframe tile — two aspect ratios matching the two grids
+   (.b-card .kf is 4/3; .scenecard .kf / inspector tiles are 16/10). */
+.skeleton--kf     { width: 100%; aspect-ratio: 4 / 3; border-radius: 0; }
+.skeleton--kf-wide { width: 100%; aspect-ratio: 16 / 10; border-radius: 6px; }
+
+/* Card skeleton — mirrors .b-card / .scenecard: bordered panel, a top
+   keyframe tile, then a stack of text lines. Used inside the grid
+   skeletons below. */
+.skeleton-card {
+  background: var(--c-panel);
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.skeleton-card .sk-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+.skeleton-card .sk-tags {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+/* Grid skeleton — placeholder grid shown in place of search results /
+   the Cenas scene grid. Reuses the same auto-fill track sizing the real
+   `.b-cp .grid` / `.c-cp .grid` use so the columns line up before and
+   after the swap. */
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
+  gap: 16px;
+  align-content: start;
+  padding: 18px 24px 20px;
+}
+
+/* Inspector skeleton — placeholder for the 380px right-pane fragment:
+   a wide keyframe tile, a title line, a few property rows. It OVERLAYS the
+   inspector column (rather than adding a third flex column) by absolute-
+   positioning inside `.rp-slot`, a relative wrapper that wraps both the
+   `#right-pane` aside and this skeleton. The aside keeps its own 380px
+   width (from `.b-rp`/`.c-rp`); the slot sizes to it and never reserves an
+   extra column, so the skeleton sits exactly on top of the old inspector
+   while the next fragment loads. */
+.rp-slot { position: relative; flex-shrink: 0; }
+.skeleton-inspector {
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 16px 18px;
+  position: absolute;
+  inset: 0;
+  background: var(--c-panel);
+  border-left: 1px solid var(--c-border);
+  z-index: var(--z-overlay-content);
+}
+.skeleton-inspector .sk-props {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 4px;
+}
+
+/* ── Indicator gating ──────────────────────────────────────────────────
+   Hidden until the matching trigger is in flight. The self-combinator
+   (`.skeleton-*.htmx-request`) matches because htmx puts `.htmx-request`
+   on the hx-indicator target element directly. `display:grid/flex` is
+   restored (not `inline`) so the internal layout paints correctly. */
+.skeleton-grid.htmx-indicator,
+.skeleton-inspector.htmx-indicator { display: none; }
+.skeleton-grid.htmx-indicator.htmx-request { display: grid; }
+.skeleton-inspector.htmx-indicator.htmx-request { display: flex; }
+
+/* prefers-reduced-motion: calm static placeholder — no sweep, flat tint. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+    background-image: none;
+    background-color: var(--c-raised);
+  }
+}

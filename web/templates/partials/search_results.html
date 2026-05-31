@@ -66,6 +66,7 @@
              hx-get="/api/scenes/{{ r.scene_id }}/inspector{% if r.film_slug %}?film={{ r.film_slug }}{% endif %}"
              hx-target="#right-pane"
              hx-swap="innerHTML"
+             hx-indicator="#inspector-skeleton"
              hx-trigger="click, keyup[key=='Enter' || key==' ']">
       <div class="kf" role="img" aria-label="{{ _('Keyframe') }}"{% if r.img_url %} style="background-image: url('{{ r.img_url }}');"{% endif %}>
         <span class="tl">

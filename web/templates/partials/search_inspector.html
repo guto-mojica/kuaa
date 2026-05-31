@@ -43,7 +43,8 @@
             aria-selected="{{ 'true' if inspector_tab == 'activity' else 'false' }}"
             hx-get="/api/scenes/{{ selected_scene.scene_id }}/inspector?tab=activity{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
             hx-target="#right-pane"
-            hx-swap="innerHTML">
+            hx-swap="innerHTML"
+            hx-indicator="#inspector-skeleton">
       {{ icon('comment', 14) }} {{ _("Activity") }}
       {% if selected_scene.activity_count %}<span class="pip">{{ selected_scene.activity_count }}</span>{% endif %}
     </button>
@@ -53,7 +54,8 @@
             aria-selected="{{ 'true' if inspector_tab == 'annotations' else 'false' }}"
             hx-get="/api/scenes/{{ selected_scene.scene_id }}/inspector?tab=annotations{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
             hx-target="#right-pane"
-            hx-swap="innerHTML">
+            hx-swap="innerHTML"
+            hx-indicator="#inspector-skeleton">
       {{ icon('pin', 14) }} {{ _("Annotations") }}
       {% if selected_scene.annotation_count %}<span class="pip">{{ selected_scene.annotation_count }}</span>{% endif %}
     </button>
@@ -63,7 +65,8 @@
             aria-selected="{{ 'true' if inspector_tab == 'properties' else 'false' }}"
             hx-get="/api/scenes/{{ selected_scene.scene_id }}/inspector?tab=properties{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
             hx-target="#right-pane"
-            hx-swap="innerHTML">
+            hx-swap="innerHTML"
+            hx-indicator="#inspector-skeleton">
       {{ _("Properties") }}
     </button>
   </div>

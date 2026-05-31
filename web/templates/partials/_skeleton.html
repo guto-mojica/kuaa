@@ -1,0 +1,53 @@
+{# ── Loading-skeleton macros (U2) ──────────────────────────────────────────
+   Reusable shimmer placeholders shown while an HTMX fragment is in flight,
+   so the three async panes (Buscar results · Cenas grid · scene inspector)
+   never flash a blank void between the trigger and the swapped-in content.
+
+   Wiring (see fx.css "LOADING SKELETONS"): each macro renders a container
+   carrying BOTH `.htmx-indicator` and its layout class. The triggering
+   element points `hx-indicator` at the container's id, so htmx toggles
+   `.htmx-request` on the container and the `.skeleton-*.htmx-request` CSS
+   reveals it for the duration of the request only. The container is a
+   SIBLING of the swap target, so the innerHTML swap that drops in the real
+   content never destroys the skeleton — it stays armed for the next fetch.
+
+   Accessibility: the container is `aria-hidden="true"` (decorative — the
+   real content carries the semantics) and is not a focus target. The sheen
+   animation is disabled under prefers-reduced-motion by fx.css. #}
+
+{# Grid of card placeholders — mirrors .b-card / .scenecard shape so the
+   swap to the real grid doesn't jump. `count` cards; `el_id` wires the
+   `hx-indicator`. #}
+{% macro skeleton_grid(el_id, count=8) %}
+<div id="{{ el_id }}" class="skeleton-grid htmx-indicator" aria-hidden="true">
+  {% for _ in range(count) %}
+  <div class="skeleton-card">
+    <div class="skeleton skeleton--kf"></div>
+    <div class="sk-body">
+      <div class="skeleton skeleton--line lg"></div>
+      <div class="skeleton skeleton--line md"></div>
+      <div class="sk-tags">
+        <div class="skeleton skeleton--pill"></div>
+        <div class="skeleton skeleton--pill"></div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endmacro %}
+
+{# Inspector placeholder — a wide keyframe tile, a title line, and a stack
+   of property rows, matching the .b-rp / .c-rp inner layout. #}
+{% macro skeleton_inspector(el_id) %}
+<div id="{{ el_id }}" class="skeleton-inspector htmx-indicator" aria-hidden="true">
+  <div class="skeleton skeleton--kf-wide"></div>
+  <div class="skeleton skeleton--line lg"></div>
+  <div class="skeleton skeleton--line sm"></div>
+  <div class="sk-props">
+    <div class="skeleton skeleton--line md"></div>
+    <div class="skeleton skeleton--line md"></div>
+    <div class="skeleton skeleton--line sm"></div>
+    <div class="skeleton skeleton--line md"></div>
+  </div>
+</div>
+{% endmacro %}
