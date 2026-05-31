@@ -17,15 +17,13 @@ from fastapi.responses import HTMLResponse
 from api.deps import film_slug_query, flat_film_context, get_config, make_ctx, optional_film_context
 from api.schemas import SearchParams
 from api.services import search as search_service
-from api.services._search_render import api_search_audio as _api_search_audio
-from api.services._search_render import api_search_fusion as _api_search_fusion
+from api.services._field_errors import upload_error_response
+from api.services._search_query import dispatch_search as _dispatch_search
 from api.services._search_render import build_search_context
 from api.services._search_render import enriched_per_film as _enriched_per_film
 from api.services._search_render import no_index_response as _no_index_response
 from api.services._search_render import render_results as _render_results
-from api.services._search_render import run_text_search as _run_text_search
 from api.templates import templates
-from cinemateca.errors import UserInputError
 from cinemateca.library import FilmContext
 
 logger = logging.getLogger(__name__)
@@ -53,34 +51,13 @@ async def api_search(
     ctx: FilmContext | None = Depends(optional_film_context),
     offset: int = Query(default=0, ge=0),  # A7 paging: zero-based result offset
 ) -> HTMLResponse:
-    """Semantic search across one (``?film=<slug>``) or all films."""
-    q = params.q.strip()
-    if len(q) < 2:
-        return HTMLResponse("")
-    cfg = get_config()
-    if params.modality == "audio":
-        return await _api_search_audio(request, q=q, top_k=params.top_k, slug=slug, cfg=cfg)
-    if params.modality == "fusion":
-        return await _api_search_fusion(
-            request, q=q, top_k=params.top_k, w=params.w, slug=slug, cfg=cfg
-        )
-    retriever, sw, bw, rrf_k = search_service.resolve_retriever_args(
-        cfg, params.retriever, params.sem_w, params.bm25_w
-    )
-    return await _run_text_search(
-        request,
-        q=q,
-        slug=slug,
-        ctx=ctx,
-        cfg=cfg,
-        tags=list(tags),
-        top_k=params.top_k,
-        retriever=retriever,
-        sem_w=sw,
-        bm25_w=bw,
-        rrf_k=rrf_k,
-        reranker_enabled=params.reranker_enabled,
-        offset=offset,
+    """Semantic search across one (``?film=<slug>``) or all films.
+
+    Orchestration (validate → dispatch → accessible inline-error swap) lives
+    in ``_search_query.dispatch_search`` so this stays HTTP-shape only.
+    """
+    return await _dispatch_search(
+        request, params=params, tags=list(tags), slug=slug, ctx=ctx, offset=offset
     )
 
 
@@ -92,18 +69,30 @@ async def api_search_image(
     slug: str | None = Depends(film_slug_query),
     ctx: FilmContext | None = Depends(optional_film_context),
 ) -> HTMLResponse:
-    """Image-similarity search. Upload validated first (→400 before index check)."""
+    """Image-similarity search. Upload validated first (→400 before index check).
+
+    On rejection (U1) the response keeps its honest 400 status (pinned by
+    ``test_image_upload_rejection_is_4xx``) but its body is the accessible
+    inline field-error fragment targeting ``#image-upload-error`` via an OOB
+    swap. The ``htmx:beforeSwap`` shim in mojica.js permits that fragment to
+    apply despite the 4xx (HTMX suppresses body swaps on error codes by
+    default), so the user sees a field-level message instead of the page-level
+    error envelope.
+    """
     # Validate before loading the index: a bad file is a 400 regardless of state.
     data = await file.read(search_service.MAX_UPLOAD_BYTES + 1)
     if len(data) > search_service.MAX_UPLOAD_BYTES:
-        msg = f"file too large ({len(data)} bytes > {search_service.MAX_UPLOAD_BYTES} limit)"
-        logger.info("Image-search upload rejected: %s", msg)
-        raise UserInputError(msg)
+        logger.info(
+            "Image-search upload rejected: file too large (%d bytes > %d limit)",
+            len(data),
+            search_service.MAX_UPLOAD_BYTES,
+        )
+        return upload_error_response(request, "upload_too_large")
     try:
         suffix = search_service.validate_upload(file.filename, file.content_type, data)
     except search_service.UploadRejected as exc:
         logger.info("Image-search upload rejected: %s", exc)
-        raise UserInputError(str(exc)) from exc
+        return upload_error_response(request, "upload_unsupported")
 
     cfg = get_config()
     ctx = ctx if ctx is not None else flat_film_context()

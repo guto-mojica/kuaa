@@ -245,10 +245,16 @@ def test_no_index_response(tmp_config):
 
 
 def test_short_query_returns_empty(tmp_config):
-    """Query shorter than 2 chars short-circuits to an empty HTMLResponse."""
+    """Query < 2 chars short-circuits without running a search.
+
+    No submit trigger (a bare request) → the body is the (empty) clear-error
+    OOB span for ``#search-query-error``, never an ``is-error`` message (U1).
+    The dispatcher is not invoked for keystroke noise.
+    """
     client = _client()
     r = client.get("/api/search", params={"q": "a", "top_k": 5})
     assert r.status_code == 200
+    assert "field-error is-error" not in r.text  # silent on a non-submit short query
     payload = {"status": r.status_code, "html": _slim(r.text)}
     assert_snapshot("p1_search_edge__short_query", payload)
 

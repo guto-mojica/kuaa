@@ -1,4 +1,4 @@
 {
-  "html": "",
+  "html": "<span id=\"search-query-error\" class=\"field-error\" role=\"alert\" aria-live=\"assertive\" data-field-error hx-swap-oob=\"outerHTML\"></span>",
   "status": 200
 }

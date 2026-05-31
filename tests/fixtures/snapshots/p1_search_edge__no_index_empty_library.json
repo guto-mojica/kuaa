@@ -1,4 +1,4 @@
 {
-  "html": "<div class=\"empty-state\"> <p>No search index found. Run the pipeline with the Embeddings step first.</p> </div>",
+  "html": "<span id=\"search-query-error\" class=\"field-error\" role=\"alert\" aria-live=\"assertive\" data-field-error hx-swap-oob=\"outerHTML\"></span> <div class=\"empty-state\"> <p>No search index found. Run the pipeline with the Embeddings step first.</p> </div>",
   "status": 200
 }

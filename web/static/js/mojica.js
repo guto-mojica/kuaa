@@ -147,6 +147,49 @@
   }
 })();
 
+// ─── Inline field-error swap allowance (U1) ───────────────────────────
+// Accessible inline validation (partials/_field_error.html) is returned as
+// an out-of-band swap so the message lands next to its field. One surface —
+// the image-search upload — answers an invalid upload with an HONEST 4xx
+// (UserInputError → 400; pinned by test_image_upload_rejection_is_4xx). But
+// HTMX's default responseHandling maps `[45]..` to {swap:false, error:true},
+// so OOB fragments on a 4xx body are dropped and the user sees nothing.
+//
+// This listener re-enables the swap for exactly those error responses that
+// carry our field-error fragment (detected by the `data-field-error`
+// marker the partial stamps on its element). It does NOT clobber the
+// primary target: `swapOverride = 'none'` skips the main-target swap so
+// only the OOB fragment is applied (the dropzone's `#search-results` keeps
+// whatever it had). Any other 4xx/5xx (real server errors) is left to
+// HTMX's default error handling untouched.
+//
+// Kept as its own IIFE so it has no shared state with the autoscroll layer
+// above; registered on document.body so it sees swaps from every surface.
+(function () {
+  'use strict';
+
+  function init() {
+    document.body.addEventListener('htmx:beforeSwap', function (evt) {
+      var d = evt.detail;
+      if (!d || !d.isError) return;
+      var xhr = d.xhr;
+      var body = xhr && typeof xhr.responseText === 'string' ? xhr.responseText : '';
+      if (body.indexOf('data-field-error') === -1) return;
+      // Permit the OOB error fragment to apply; leave the field's own
+      // target alone (only the OOB slot updates).
+      d.shouldSwap = true;
+      d.isError = false;
+      d.swapOverride = 'none';
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+
 // ─── ToastBus (Phase 7 · Task 26) ─────────────────────────────────────
 // Global notification bus. Any HTMX response can trigger a toast by
 // emitting an `HX-Trigger` header with a "toast" event payload. JS code

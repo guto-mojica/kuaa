@@ -191,6 +191,56 @@
   max-width: 240px;
 }
 
+/* ─── FIELD-LEVEL ERROR STATE (U1) ───────────────────────────────────────
+   Accessible inline validation for the three input surfaces (image dropzone,
+   add-film form, search). The error message element (`.field-error`) lives
+   as an always-present empty slot next to its field and is filled by an HTMX
+   out-of-band swap (partials/_field_error.html). It only paints once it
+   carries `.is-error`; an empty slot collapses to nothing so the layout
+   doesn't reserve a gap before any error fires.
+
+   `.is-error` is dual-purpose:
+     * on the message slot → reveals the red message text;
+     * on an input / label / dropzone → red error border + ring.
+   It pairs with `aria-invalid="true"` on the offending field; the
+   attribute selector below means an error border also shows even if a
+   surface forgets the class, keeping the visual and the a11y state in sync.
+   Colours use the canonical `--c-red*` tokens; transitions reuse the U6
+   `--dur-fast` / `--dur-norm` motion tokens (no new magic numbers). */
+.field-error {
+  display: none;
+  font-size: 11.5px; line-height: 1.45;
+  color: var(--c-red);
+  font-family: var(--font-sans);
+}
+.field-error.is-error {
+  display: block;
+  /* gentle entrance: fade + color settle on the U6 normal duration */
+  animation: fx-field-error-in var(--dur-norm) var(--ease-emphasized);
+}
+@keyframes fx-field-error-in {
+  from { opacity: 0; transform: translateY(-1px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Invalid-field affordance: red border + soft ring. Applies to the
+   .fx-input wrapper, raw inputs, and the image dropzone label — whichever
+   carries .is-error or aria-invalid. The ring reuses the focus-ring spread
+   the .fx-input :focus-within rule already uses, swapped to the red tint. */
+.fx-input.is-error,
+.is-error > .fx-input,
+input.is-error,
+input[aria-invalid="true"],
+[aria-invalid="true"].fx-input {
+  border-color: var(--c-red) !important;
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.fx-input.is-error:focus-within,
+input.is-error:focus,
+input[aria-invalid="true"]:focus {
+  box-shadow: 0 0 0 3px var(--c-red-bg);
+}
+
 /* generic utilities */
 .fx-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .fx-truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

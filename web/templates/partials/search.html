@@ -82,10 +82,33 @@
                  window.htmx.trigger('#search-text-form', 'submit');
                }
              });
+           },
+           {# Clear the inline query-validation message + reset aria-invalid on
+              the next keystroke, so an error shown after a bad submit doesn't
+              linger while the user corrects the query. The slot is re-filled
+              by the route's OOB swap only if a subsequent SUBMIT is still
+              invalid. #}
+           clearQueryError() {
+             const slot = document.getElementById('search-query-error');
+             if (slot) { slot.textContent = ''; slot.classList.remove('is-error'); }
+             const input = this.$refs.searchInput;
+             if (input) input.setAttribute('aria-invalid', 'false');
+           },
+           {# Mirror the query error slot's state onto the input's aria-invalid
+              after a search swap. The OOB error fragment lands in the slot;
+              this keeps the field's a11y state in sync with the visible
+              message (set when present, cleared when not). #}
+           syncQueryError() {
+             const slot = document.getElementById('search-query-error');
+             const input = this.$refs.searchInput;
+             if (!input) return;
+             const invalid = !!(slot && slot.classList.contains('is-error'));
+             input.setAttribute('aria-invalid', invalid ? 'true' : 'false');
            }
          }"
          x-init="recountResults()"
-         @htmx:after-swap.window="if ($event.target && $event.target.id === 'search-results') recountResults()">
+         @htmx:after-swap.window="if ($event.target && $event.target.id === 'search-results') { recountResults(); syncQueryError(); }"
+         @htmx:oob-after-swap.window="if ($event.detail && $event.detail.target && $event.detail.target.id === 'search-query-error') syncQueryError()">
 
   {# ── Search row: qbar + chips + knobs ─────────────────────────────── #}
   <div class="search-wrap">
@@ -145,14 +168,25 @@
                x-ref="searchInput"
                autocomplete="off"
                value="{{ query or '' }}"
+               aria-invalid="false"
+               aria-describedby="search-query-error"
                placeholder="{{ _('Search the library — describe a scene, paste an image…') }}"
                hx-get="/api/search"
                hx-trigger="keyup changed delay:500ms"
                hx-target="#search-results"
                hx-include="#search-text-form, #search-tag-panel"
-               hx-sync="closest form:replace">
+               hx-sync="closest form:replace"
+               @keydown="clearQueryError()">
         <span class="kbd">⌘K</span>
       </label>
+      {# Inline query-validation slot. Empty on first paint; the /api/search
+         route fills it via an OOB swap (partials/_field_error.html) only when
+         the user SUBMITS an empty / too-short query (live keyup stays silent
+         so the message never flashes mid-typing). aria-describedby on the
+         input above points here; role="alert" announces it on appearance. #}
+      {% with slot_id="search-query-error", message_key="", oob=False %}
+        {% include "partials/_field_error.html" %}
+      {% endwith %}
       <button type="submit" class="fx-btn primary">
         {{ _("Search") }} <span class="kbd">⏎</span>
       </button>
@@ -471,8 +505,19 @@
          filename: '',
          preview: '',
          dragging: false,
+         {# Clear any prior inline upload error + reset the field's invalid
+            state the moment a new file is chosen, so a fresh attempt starts
+            clean. If the new upload is also rejected the route re-fills the
+            slot via its OOB swap. #}
+         clearUploadError() {
+           const slot = document.getElementById('image-upload-error');
+           if (slot) { slot.textContent = ''; slot.classList.remove('is-error'); }
+           const input = this.$refs.imageInput;
+           if (input) input.setAttribute('aria-invalid', 'false');
+         },
          setFile(file) {
            if (!file) return;
+           this.clearUploadError();
            this.filename = file.name;
            if (this.preview) URL.revokeObjectURL(this.preview);
            this.preview = URL.createObjectURL(file);
@@ -528,9 +573,20 @@
                name="file"
                accept="image/*"
                x-ref="imageInput"
+               aria-invalid="false"
+               aria-describedby="image-upload-error"
                @change="onPick($event)">
       </label>
     </form>
+    {# Always-present, initially-empty inline error slot for the upload.
+       The POST /api/search/image route fills it via an out-of-band swap
+       (partials/_field_error.html) on a rejected upload — too large /
+       unsupported type — without touching #search-results. role="alert"
+       on the slot means the message is announced when it appears, and the
+       file input's aria-describedby points here. #}
+    {% with slot_id="image-upload-error", message_key="", oob=False %}
+      {% include "partials/_field_error.html" %}
+    {% endwith %}
   </div>
 
   {# ── Results grid (the .grid class triggers buscar.css auto-fill).

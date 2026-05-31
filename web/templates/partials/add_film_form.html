@@ -1,21 +1,39 @@
-{% if error %}
-<p class="add-film-form__error">{{ error }}</p>
-{% endif %}
+{# ── Add-film form (U1: accessible inline validation) ────────────────────────
+   POSTs to /api/library/add and re-renders into its own target (#add-film-zone
+   or #lp-scroll) — so on error this whole fragment swaps back in WITHOUT a
+   full-page reload, placing the message right under the offending field.
+
+   ``error_key`` (stable machine key, set by the route on a failed submit) is
+   translated by the shared field-error partial. When present, the path input
+   carries ``aria-invalid="true"`` and ``aria-describedby`` pointing at the
+   inline ``role="alert"`` message, so screen readers announce it and bind it
+   to the field. The errors that reach here:
+     * ``video_not_found``  — the path/filename resolved to no file;
+     * ``slug_duplicate``   — a film with the derived slug is already registered.
+#}
+{% set error_key = error_key | default("") %}
+{% set has_error = error_key | length > 0 %}
 <form class="add-film-form"
       hx-post="/api/library/add"
       hx-target="#lp-scroll"
       hx-swap="innerHTML">
     <input type="hidden" name="source" value="left-pane">
-    <input class="filter-input"
+    <input class="filter-input{% if has_error %} is-error{% endif %}"
            type="text"
            name="video_path"
            placeholder="{{ _('Absolute path or filename in raw dir') }}"
            required
-           autofocus>
+           autofocus
+           {% if has_error %}aria-invalid="true" aria-describedby="add-film-error"{% else %}aria-invalid="false"{% endif %}>
     <input class="filter-input"
            type="text"
            name="title"
            placeholder="{{ _('Title (optional)') }}">
+    {# Always render the slot so aria-describedby has a stable target; it only
+       paints (.is-error) when error_key is set. #}
+    {% with slot_id="add-film-error", message_key=error_key, oob=False %}
+      {% include "partials/_field_error.html" %}
+    {% endwith %}
     <div class="add-film-form__actions">
         <button type="submit" class="tree-node tree-node--add">{{ _("Add") }}</button>
         <div class="tree-node"

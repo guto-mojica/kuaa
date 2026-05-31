@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse
@@ -24,9 +24,6 @@ from api.services import search as search_service
 from api.services.catalog import derive_fps, load_json
 from api.templates import templates
 from cinemateca.library import FilmContext
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

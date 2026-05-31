@@ -196,13 +196,18 @@ def test_api_search_default_modality_is_text_preserved(client) -> None:
 def test_api_search_modality_audio_short_query_returns_empty(
     client, tmp_config, patch_audio_embedder
 ) -> None:
-    """A < 2-char query short-circuits with an empty body — same contract
-    as the text path. Prevents the dispatcher from loading the audio
-    index for keystroke noise."""
+    """A < 2-char query short-circuits before the audio dispatch — same
+    contract as the text path. Prevents the dispatcher from loading the
+    audio index for keystroke noise.
+
+    U1: with no submit trigger the body is the (empty) clear-error OOB span
+    for ``#search-query-error`` rather than a literal empty string, and never
+    an ``is-error`` message. The guard still fires before any audio work."""
     _seed_clap_film(tmp_config)
     resp = client.get(
         "/api/search",
         params={"q": "x", "modality": "audio", "film": SLUG},
     )
     assert resp.status_code == 200
-    assert resp.text == ""
+    assert "field-error is-error" not in resp.text
+    assert "b-card" not in resp.text  # no results rendered → dispatcher not invoked

@@ -2,17 +2,9 @@
 
 Render/context helpers live in :mod:`api.services.library_render` (A2 Task 5).
 Admin orchestration (register/symlink/remove) lives in
-:mod:`api.services.library_admin` (A2 Task 5).
-
-Routes
-------
-GET  /api/library/filter              — filtered library tree (HTMX fragment)
-GET  /api/library/tree                — Mojica LeftPane body (HTMX fragment)
-GET  /api/library/select/{slug}       — navigate to a film (HX-Redirect)
-GET  /api/library/add-form            — inline add-film form
-POST /api/library/add                 — register a new film
-GET  /api/library/remove-confirm/{slug} — inline remove confirmation
-POST /api/library/remove/{slug}       — deregister (+ optional data wipe)
+:mod:`api.services.library_admin` (A2 Task 5). The route decorators below are
+the authoritative path list (filter / tree / select / add-form / add /
+remove-confirm / remove).
 """
 
 from __future__ import annotations
@@ -22,7 +14,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
-from api.deps import film_slug_query, get_config
+from api.deps import film_slug_query, get_config, make_ctx
 from api.services.library_admin import register_and_symlink, resolve_video_path
 from api.services.library_render import chrome_filter_ctx, library_ctx, tree_response
 from api.templates import templates
@@ -77,7 +69,9 @@ async def api_library_select(slug: str) -> Response:
 
 @router.get("/api/library/add-form", response_class=HTMLResponse)
 async def api_library_add_form(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse(request, "partials/add_film_form.html", {"request": request})
+    # make_ctx (not a bare {"request": …}) so the form's {{ _(...) }} strings
+    # honour the locale cookie instead of the global default.
+    return templates.TemplateResponse(request, "partials/add_film_form.html", make_ctx(request))
 
 
 @router.post("/api/library/add", response_class=HTMLResponse, response_model=None)
@@ -94,9 +88,11 @@ async def api_library_add(
     raw_dir = Path(cfg.paths.raw_dir)
 
     video = resolve_video_path(video_path, str(raw_dir))
-
+    # On failure, re-render the form with a U1 accessible inline error keyed by
+    # ``error_key`` (the partial translates it + sets aria-invalid). make_ctx
+    # carries the locale so the message + labels render in the cookie locale.
     if not video.exists():
-        ctx = {"request": request, "error": f"File not found: {video_path}"}
+        ctx = make_ctx(request, error_key="video_not_found")
         return templates.TemplateResponse(request, "partials/add_film_form.html", ctx)
 
     slug = slugify(video.stem)
@@ -104,8 +100,8 @@ async def api_library_add(
 
     try:
         register_and_symlink(library_dir, video, slug, film_title, raw_dir)
-    except ValueError as exc:
-        ctx = {"request": request, "error": str(exc)}
+    except ValueError:  # register_film raises only for an already-registered slug
+        ctx = make_ctx(request, error_key="slug_duplicate")
         return templates.TemplateResponse(request, "partials/add_film_form.html", ctx)
 
     if source == "processing":

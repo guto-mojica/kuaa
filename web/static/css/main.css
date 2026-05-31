@@ -309,12 +309,8 @@ button.tree-node {
     justify-content: center;
     font-size: 0.9rem;
 }
-.add-film-form__error {
-    font-size: 0.8rem;
-    color: var(--c-error);
-    padding: 2px 0;
-    margin: 0;
-}
+/* (.add-film-form__error retired in U1 — the add-film error now uses the
+   shared accessible .field-error slot styled in fx.css.) */
 /* trailing slot: scene count + remove button, pushed right */
 .tree-node__trailing {
     margin-left: auto;

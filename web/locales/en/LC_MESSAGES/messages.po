@@ -1596,6 +1596,37 @@ msgstr ""
 msgid "Film scenes timeline"
 msgstr ""
 
+# ── Field-level validation errors (U1) ────────────────────────────────
+# en msgstrs intentionally empty: gettext falls back to the English msgid
+# (the source string), matching the dominant pattern in this catalog.
+#: web/templates/partials/_field_error.html:38
+msgid "Image is too large. Use a file under 8 MB."
+msgstr ""
+
+#: web/templates/partials/_field_error.html:40
+msgid "Unsupported file type. Use a PNG, JPG, or WebP image."
+msgstr ""
+
+#: web/templates/partials/_field_error.html:42
+msgid "Type a query to search."
+msgstr ""
+
+#: web/templates/partials/_field_error.html:44
+msgid "Type at least 2 characters to search."
+msgstr ""
+
+#: web/templates/partials/_field_error.html:46
+msgid "Enter the film's path or filename."
+msgstr ""
+
+#: web/templates/partials/_field_error.html:48
+msgid "File not found. Check the path or filename."
+msgstr ""
+
+#: web/templates/partials/_field_error.html:50
+msgid "A film with this name is already in the library."
+msgstr ""
+
 #~ msgid "two people talking outdoors"
 #~ msgstr "two people talking outdoors"
 

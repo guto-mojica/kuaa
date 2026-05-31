@@ -1,0 +1,59 @@
+{# ── Shared field-level error fragment (U1) ──────────────────────────────────
+   Accessible inline validation message for a single input surface, designed
+   to be returned as an HTMX out-of-band swap so the message lands in a stable
+   error slot next to the offending field WITHOUT a full-page reload and
+   WITHOUT clobbering the field's normal swap target (e.g. #search-results).
+
+   Caller contract:
+     * ``slot_id``      — id of the always-present empty error slot in the page
+                           (e.g. "search-query-error"). This element's id is
+                           what the field's ``aria-describedby`` points at, so
+                           screen readers announce the message and associate it
+                           with the input.
+     * ``message_key``  — a STABLE machine key (see the map below). The human
+                           string is translated HERE so the literals live in a
+                           template (the Babel catalog is template-only; see
+                           web/babel.cfg) and PT/EN both resolve. Empty / unset
+                           key → an empty slot (the clear-error path).
+
+   Optional:
+     * ``oob``      — when true (the HTMX path), the element carries its own
+                       ``id="<slot_id>"`` and ``hx-swap-oob="outerHTML"`` so
+                       HTMX matches the live slot by id and replaces it
+                       regardless of the request's primary target. When false
+                       (server-side first render / no-JS), the bare slot is
+                       emitted inline.
+
+   a11y:
+     * ``role="alert"`` + ``aria-live="assertive"`` → the message is announced
+       the moment it appears.
+     * The ``data-field-error`` marker lets the htmx:beforeSwap shim in
+       mojica.js permit this fragment to swap even on a 4xx response (HTMX
+       suppresses body swaps on error codes by default).
+#}
+{# Key → translated string. Each branch is a real ``_( … )`` literal so the
+   Babel extractor (templates-only) sees it and PT/EN are both populated. #}
+{% set message_key = message_key | default("") %}
+{% if message_key == "upload_too_large" %}
+  {% set message = _("Image is too large. Use a file under 8 MB.") %}
+{% elif message_key == "upload_unsupported" %}
+  {% set message = _("Unsupported file type. Use a PNG, JPG, or WebP image.") %}
+{% elif message_key == "query_empty" %}
+  {% set message = _("Type a query to search.") %}
+{% elif message_key == "query_too_short" %}
+  {% set message = _("Type at least 2 characters to search.") %}
+{% elif message_key == "video_path_required" %}
+  {% set message = _("Enter the film's path or filename.") %}
+{% elif message_key == "video_not_found" %}
+  {% set message = _("File not found. Check the path or filename.") %}
+{% elif message_key == "slug_duplicate" %}
+  {% set message = _("A film with this name is already in the library.") %}
+{% else %}
+  {% set message = "" %}
+{% endif %}
+<span id="{{ slot_id }}"
+      class="field-error{% if message %} is-error{% endif %}"
+      role="alert"
+      aria-live="assertive"
+      data-field-error
+      {% if oob %}hx-swap-oob="outerHTML"{% endif %}>{{ message }}</span>

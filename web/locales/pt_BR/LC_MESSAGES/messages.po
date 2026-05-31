@@ -1592,6 +1592,35 @@ msgstr "correspondências"
 msgid "Film scenes timeline"
 msgstr "Linha do tempo das cenas do filme"
 
+# ── Field-level validation errors (U1) ────────────────────────────────
+#: web/templates/partials/_field_error.html:38
+msgid "Image is too large. Use a file under 8 MB."
+msgstr "Imagem muito grande. Use um arquivo de até 8 MB."
+
+#: web/templates/partials/_field_error.html:40
+msgid "Unsupported file type. Use a PNG, JPG, or WebP image."
+msgstr "Tipo de arquivo não suportado. Use uma imagem PNG, JPG ou WebP."
+
+#: web/templates/partials/_field_error.html:42
+msgid "Type a query to search."
+msgstr "Digite uma busca para pesquisar."
+
+#: web/templates/partials/_field_error.html:44
+msgid "Type at least 2 characters to search."
+msgstr "Digite ao menos 2 caracteres para buscar."
+
+#: web/templates/partials/_field_error.html:46
+msgid "Enter the film's path or filename."
+msgstr "Informe o caminho ou nome do arquivo do filme."
+
+#: web/templates/partials/_field_error.html:48
+msgid "File not found. Check the path or filename."
+msgstr "Arquivo não encontrado. Verifique o caminho ou nome do arquivo."
+
+#: web/templates/partials/_field_error.html:50
+msgid "A film with this name is already in the library."
+msgstr "Um filme com este nome já está no acervo."
+
 #~ msgid "two people talking outdoors"
 #~ msgstr "duas pessoas conversando ao ar livre"
 

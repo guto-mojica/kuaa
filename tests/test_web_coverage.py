@@ -135,11 +135,15 @@ class TestNoDataState:
         assert SEARCH_NO_INDEX in r.text
 
     def test_short_query_returns_empty_body(self, client):
-        """< 2 chars short-circuits before any index touch (no crash,
-        empty body) — documents the guard, CLIP-free."""
+        """< 2 chars short-circuits before any index touch (no crash) —
+        documents the guard, CLIP-free.
+
+        U1: with no submit trigger the body is the (empty) clear-error OOB
+        span for ``#search-query-error`` rather than a literal empty string,
+        and never carries an ``is-error`` message."""
         r = client.get("/api/search", params={"q": "a"})
         assert r.status_code == 200
-        assert r.text == ""
+        assert "field-error is-error" not in r.text  # silent on a non-submit short query
 
 
 # ── Group 2: seeded scenes render ─────────────────────────────────────────────
@@ -689,22 +693,23 @@ def test_image_search_rejected_upload_degrades_gracefully(client, stub_search_em
     """A POST to /api/search/image that ``validate_upload`` rejects must
     return HTTP 400 (client error), NOT HTML 200.
 
-    WS-2 A4 intentional status-code change: upload rejections now raise
-    ``UserInputError`` (→ 400) and go through the A4 error envelope, rather
-    than returning a 200 HTML page with an inline error notice.
-
-    The endpoint now validates the upload BEFORE loading the index, so no
-    well-formed index is required to reach this branch. The rejection is
-    deterministic: a ``text/plain`` body with a ``.txt`` suffix fails the
-    content-type/suffix guard in ``validate_upload``.
+    The 400 status is preserved (honest client error). U1 changes the BODY:
+    instead of the JSON / page-level A4 envelope, the route returns the
+    accessible inline field-error fragment (OOB swap into
+    ``#image-upload-error``) so the HTMX dropzone shows a field-level message.
+    The mojica.js ``htmx:beforeSwap`` shim lets that fragment apply despite
+    the 4xx. Validation runs BEFORE the index load, so no index is needed.
     """
     r = client.post(
         "/api/search/image",
         files={"file": ("note.txt", b"not an image", "text/plain")},
     )
     assert r.status_code == 400, r.text[:300]
-    # The A4 envelope carries the machine code and human message.
-    body = r.json()
-    assert body["status"] == 400
-    assert body["code"] == "input.invalid"
-    assert "content-type" in body["error"].lower() or "unsupported" in body["error"].lower()
+    assert "text/html" in r.headers["content-type"]
+    html = r.text
+    # Accessible inline field error, not the JSON envelope.
+    assert 'id="image-upload-error"' in html
+    assert 'role="alert"' in html
+    assert "data-field-error" in html
+    assert 'hx-swap-oob="outerHTML"' in html
+    assert "Unsupported file type" in html
