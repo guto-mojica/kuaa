@@ -355,6 +355,78 @@ def test_aggregate_bm25_mode_respects_tag_filter(
     ) not in pairs, "B:1 (menina, NOT outdoor) leaked through — tag filter not applied to BM25 hits"
 
 
+def test_aggregate_hybrid_mode_tag_filter_drops_metadata_only_hit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A ``tags=[...]`` filter must also prune the hybrid METADATA list.
+
+    Coverage gap closed (C1 review follow-up): the metadata tag-filter
+    list-comprehension in ``_score_film`` (``[(sid, s) for sid, s in
+    metadata_ranked if scene_id_key(sid) in allowed_scene_keys]``) runs
+    only when ``metadata_ranked`` is non-empty, and ``metadata_ranked`` is
+    populated *only* in hybrid mode. No prior test combined a non-empty
+    ``tags=`` with ``retriever_mode="hybrid"``, so that predicate was never
+    executed.
+
+    Fixture: film A has three scenes. The query token ``"gato"`` appears in
+    the description of BOTH scene 0 and scene 2, so each earns a strong
+    (12.0) MetadataScorer description hit — i.e. both enter ``metadata_ranked``.
+    Only scene 0 carries the ``gato`` tag. Scene 2's CLIP vector is
+    orthogonal to the query, so its sole route into the result list is the
+    metadata signal (the 0.65-weighted leg of hybrid RRF), surfaced via the
+    BM25-only ``iloc`` keyframe fallback in ``materialize_hits``.
+
+    With ``tags=["gato"]`` the relocated predicate must drop scene 2 from
+    ``metadata_ranked`` (its scene_id is outside the tag intersection) while
+    scene 0 (tag + description) survives. If the predicate is inverted
+    (``not in``) scene 2 leaks back in through the metadata leg — this test
+    fails — which is exactly the regression the coverage gap hid.
+    """
+    library_dir = tmp_path / "library"
+    library_dir.mkdir()
+    register_film(library_dir, slug="a", title="A", year=2000, raw_filename="a.mp4")
+    # Scene 0: CLIP-aligned + "gato" in description + "gato" tag → survives.
+    # Scene 1: filler, no "gato" anywhere.
+    # Scene 2: CLIP-orthogonal + "gato" in description but NOT tagged "gato"
+    #          → its only route to a hit is the metadata list, which the tag
+    #            filter must prune.
+    _make_film_with_embeddings(
+        library_dir,
+        "a",
+        [[1.0, 0.0], [1.0, 0.0], [0.0, 1.0]],
+        descriptions=[
+            "gato preto no telhado",
+            "homem caminhando na rua",
+            "gato branco na janela",
+        ],
+        tag_index={"gato": [0]},
+    )
+
+    class StubEmbedder:
+        def encode_text(self, q: str) -> np.ndarray:
+            return np.array([1.0, 0.0], dtype=np.float32)
+
+    monkeypatch.setattr(_AGGREGATE_MODULE, "_get_embedder", lambda cfg: StubEmbedder())
+
+    hits = aggregate_search(
+        _cfg(library_dir),
+        query="gato",
+        modality="text",
+        top_k=10,
+        tags=["gato"],
+        min_similarity=0.0,
+        retriever_mode="hybrid",
+        sem_w=0.7,
+        bm25_w=0.3,
+    )
+    pairs = {(h["film_slug"], h["scene_id"]) for h in hits}
+    assert ("a", 0) in pairs, "A:0 (gato tag + description) must survive the tag filter"
+    assert ("a", 2) not in pairs, (
+        "A:2 (description-only 'gato', NOT tagged) leaked through — the hybrid "
+        "metadata list was not tag-filtered in _score_film"
+    )
+
+
 @pytest.fixture()
 def degeneracy_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> object:
     """Two 3-doc films, each contributing a rank-1 CLIP + rank-1 BM25 scene.
