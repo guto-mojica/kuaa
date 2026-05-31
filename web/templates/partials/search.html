@@ -109,7 +109,17 @@
          }"
          x-init="recountResults()"
          @htmx:after-swap.window="if ($event.target && $event.target.id === 'search-results') { recountResults(); syncQueryError(); }"
-         @htmx:oob-after-swap.window="if ($event.detail && $event.detail.target && $event.detail.target.id === 'search-query-error') syncQueryError()">
+         @htmx:oob-after-swap.window="if ($event.detail && $event.detail.target && $event.detail.target.id === 'search-query-error') syncQueryError()"
+         {# afterSettle is the authoritative point to mirror aria-invalid: the
+            OOB error fragment is an ``outerHTML`` swap that REPLACES the
+            #search-query-error node, and on the real htmx cycle the
+            oob-after-swap / after-swap handlers above can run a microtask
+            before the freshly-swapped node (carrying .is-error) is the one
+            getElementById returns — so the field's aria-invalid stayed 'false'
+            even with the error visible. after-settle fires once the swap has
+            fully committed, so reading .is-error here is reliable. (Caught by
+            the e2e form-error test.) #}
+         @htmx:after-settle.window="if ($event.target && ($event.target.id === 'search-results' || $event.target.id === 'search-query-error')) syncQueryError()">
 
   {# ── Search row: qbar + chips + knobs ─────────────────────────────── #}
   <div class="search-wrap">
@@ -268,15 +278,22 @@
                 :aria-expanded="open ? 'true' : 'false'"
                 aria-haspopup="dialog">
           <span class="k" x-text="({ clip: 'CLIP', bm25: 'BM25', hybrid: '{{ _("Híbrido") }}' })[$store.buscarRetrieval.mode]"></span>
-          {# |tojson emits a properly-escaped JSON string literal (with
-             double quotes + backslash-escaping) — safe to inline as a JS
-             string value even when the translation contains apostrophes,
-             newlines, or any other char that would break a hand-rolled
-             single-quoted literal. Drop the surrounding `'…'` wrappers
-             the previous version had. #}
+          {# |tojson emits a properly-escaped JSON string literal (double
+             quotes + backslash-escaping) — safe to inline as a JS string
+             value even when the translation contains apostrophes, newlines,
+             or any other char that would break a hand-rolled single-quoted
+             literal. |forceescape is REQUIRED on top of it: this x-text
+             attribute is itself double-quoted, so the bare double quotes
+             |tojson emits would terminate the attribute early (Alpine then
+             throws "Unexpected token" mid-init and aborts initialising every
+             later component — palette, help overlay, About — leaving them
+             cloaked). forceescape rewrites the quotes to &#34; entities, which
+             the browser decodes back to " inside the attribute value, so
+             Alpine sees valid JS. (Regression: the palette stopped opening on
+             ⌘K — caught by the e2e focus-trap test.) #}
           <span class="v acc" x-text="(
-            { clip: {{ _('CLIP only')|tojson }},
-              bm25: {{ _('BM25 only')|tojson }},
+            { clip: {{ _('CLIP only')|tojson|forceescape }},
+              bm25: {{ _('BM25 only')|tojson|forceescape }},
               hybrid: 'sem ' + Number($store.buscarRetrieval.sem_w).toFixed(2) +
                       ' bm25 ' + (1 - Number($store.buscarRetrieval.sem_w)).toFixed(2)
             })[$store.buscarRetrieval.mode]

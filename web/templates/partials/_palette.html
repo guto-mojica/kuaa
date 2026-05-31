@@ -36,6 +36,14 @@
 <div class="cp-back" id="palette"
      role="dialog" aria-modal="true" aria-labelledby="cp-input"
      data-focus-trap
+     {# A bare ``x-data`` is REQUIRED: Alpine only initialises directives on
+        elements inside an ``x-data`` tree. This overlay is a direct child of
+        <body> with no ``x-data`` ancestor, so without its own ``x-data`` Alpine
+        skips it entirely — ``x-show`` / ``@keydown.escape.window`` never wire
+        up, the element stays ``x-cloak``-hidden, and ⌘K can't open the palette
+        (the store flips but nothing reacts). Mirrors the About modal, which
+        carries ``x-data`` and works. Caught by the e2e focus-trap test. #}
+     x-data
      x-show="$store.palette.open"
      x-cloak
      @click.self="$store.palette.open = false"

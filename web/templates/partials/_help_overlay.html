@@ -47,6 +47,14 @@
 <div class="kh-back" id="help"
      role="dialog" aria-modal="true" aria-labelledby="kh-title"
      data-focus-trap
+     {# A bare ``x-data`` is REQUIRED: Alpine only initialises directives on
+        elements inside an ``x-data`` tree. This overlay is a direct child of
+        <body> with no ``x-data`` ancestor, so without its own ``x-data`` Alpine
+        skips it — ``x-show`` / ``@keydown.escape.window`` never wire up and the
+        ``?`` shortcut can't reveal the legend (the store flips but nothing
+        reacts). Mirrors the About modal, which carries ``x-data`` and works.
+        Caught by the e2e focus-trap test. #}
+     x-data
      x-show="$store.help.open"
      x-cloak
      @click.self="$store.help.open = false"

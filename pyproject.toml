@@ -140,6 +140,18 @@ dev = [
     # not directly into cinemateca.search. See .importlinter.
     "import-linter>=2.0",
 ]
+# Browser-driven a11y + UI-render + interaction tests (marker `e2e`). OPTIONAL
+# and explicitly NOT in the main CI install: test-smoke runs `-m smoke` and
+# test-heavy runs `-m "not e2e"`, so Playwright is a local/manual gate only.
+# Install with `uv sync --group e2e` (or `uv pip install`), then
+# `uv run playwright install chromium`. The justfile `e2e` recipe runs them.
+# Kept out of `dev` so the standard `uv sync --extra full --group dev` install
+# (and CI) never pulls Playwright. Not pinned in the committed uv.lock by
+# design — it is not a CI dependency.
+e2e = [
+    "playwright>=1.40",
+    "pytest-playwright>=0.4",
+]
 
 # ── Ferramentas de desenvolvimento ────────────────────────────────────────────
 
