@@ -22,6 +22,7 @@ from cinemateca.eval.grader_metrics import (
     grader_initials as _grader_initials,  # noqa: F401
 )
 from cinemateca.eval.grader_metrics import (
+    grades_for_current_grader,
     histogram,
     inversions,
     ndcg_at_k,
@@ -46,6 +47,9 @@ from cinemateca.eval.grades import (
     load_run_per_annotator,
 )
 from cinemateca.eval.grades import (
+    first_ungraded as _first_ungraded,
+)
+from cinemateca.eval.grades import (
     grades_by_query as _grades_by_query,  # noqa: F401
 )
 from cinemateca.eval.grades import (
@@ -57,38 +61,6 @@ from cinemateca.eval.paths import (  # noqa: F401
 from cinemateca.eval.paths import (
     eval_run_id as _eval_run_id,
 )
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-
-def _first_ungraded(
-    queries: list[dict],
-    per_annotator: dict[tuple[str, str], dict[str, Any]],
-    grader_name: str,
-) -> dict | None:
-    """Return the first query in ``queries`` that ``grader_name`` has not graded.
-
-    A query is considered graded by ``grader_name`` when at least one
-    ``(query_id, scene_id)`` entry in ``per_annotator`` contains
-    ``grader_name`` as a key. Returns ``None`` when the grader has graded
-    every query (or when ``queries`` is empty) — the caller falls back to
-    ``queries[0]`` in that case so a finished grader doesn't land on None.
-
-    ``per_annotator`` shape: ``{(query_id, scene_id): {grader: GradeEntry}}``.
-    """
-    # Pre-compute the set of query_ids grader_name has touched to avoid
-    # an O(n²) inner scan.
-    graded_qids: set[str] = set()
-    for (qid, _sid), by_who in per_annotator.items():
-        if grader_name in by_who:
-            graded_qids.add(str(qid))
-
-    for q in queries:
-        qid = str(q.get("id", ""))
-        if qid and qid not in graded_qids:
-            return q
-    return None
-
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
@@ -155,27 +127,17 @@ def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
     if current_query is not None:
         cq_id = str(current_query.get("id", ""))
         if cq_id:
-            # ``grades_for_current`` drives the .gb chip render in
-            # rows.html — it must show THIS grader's grade, not the
-            # last-write-wins reduce of ``loaded.grades`` (which would
-            # surface the other annotator's grade in a multi-grader
-            # run and make every disagree-by-≥2 chip vanish). Read
-            # from ``per_annotator`` keyed by the current grader,
-            # falling back to the collapsed reduce when no
-            # per-annotator entry exists yet (e.g. anonymous viewers).
-            for (qid, scene_id), by_who in per_annotator.items():
-                if qid != cq_id:
-                    continue
-                if grader_name in by_who:
-                    grades_for_current[str(scene_id)] = by_who[grader_name].grade
-                elif by_who:
-                    # No record from current grader — surface whatever
-                    # is on file so the row isn't ungraded-looking.
-                    # Prefer the collapsed-loaded.grades entry to
-                    # preserve the prior single-grader semantics.
-                    canonical = loaded.grades.get((qid, scene_id))
-                    if canonical is not None:
-                        grades_for_current[str(scene_id)] = canonical.grade
+            # ``grades_for_current`` drives the .gb chip render in rows.html
+            # — it must show THIS grader's grade (keyed from ``per_annotator``),
+            # not the last-write-wins reduce of ``loaded.grades``. See
+            # ``grades_for_current_grader`` for the fallback semantics when the
+            # current grader has no per-annotator record yet.
+            grades_for_current = grades_for_current_grader(
+                per_annotator,
+                loaded.grades,
+                current_query_id=cq_id,
+                grader_name=grader_name,
+            )
             # Compare-mode counterpart — same query, other annotator.
             other_name = iaa.get("other", {}).get("name") if iaa.get("enabled") else None
             grades_for_current_other = _other_grades_for_current(

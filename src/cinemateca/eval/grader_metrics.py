@@ -385,6 +385,40 @@ def other_grades_for_current(
     return out
 
 
+def grades_for_current_grader(
+    per_annotator: dict[tuple[str, str], dict[str, GradeEntry]],
+    loaded_grades: dict[tuple[str, str], GradeEntry],
+    *,
+    current_query_id: str,
+    grader_name: str,
+) -> dict[str, Grade]:
+    """``scene_id -> Grade`` for the CURRENT grader on the current query.
+
+    Drives the ``.gb`` chip render in rows.html: it must show THIS grader's
+    grade, not the last-write-wins reduce of ``loaded_grades`` (which would
+    surface the other annotator's grade in a multi-grader run and make every
+    disagree-by-≥2 chip vanish). Reads from ``per_annotator`` keyed by
+    ``grader_name``; when the current grader has no record on a scene but
+    someone else does, it falls back to the collapsed ``loaded_grades`` entry
+    so the row isn't ungraded-looking (preserving the prior single-grader
+    semantics).
+
+    The mirror of :func:`other_grades_for_current` for the active grader.
+    """
+
+    out: dict[str, Grade] = {}
+    for (qid, scene_id), by_who in per_annotator.items():
+        if qid != current_query_id:
+            continue
+        if grader_name in by_who:
+            out[str(scene_id)] = by_who[grader_name].grade
+        elif by_who:
+            canonical = loaded_grades.get((qid, scene_id))
+            if canonical is not None:
+                out[str(scene_id)] = canonical.grade
+    return out
+
+
 def query_conflict_set(
     per_annotator: dict[tuple[str, str], dict[str, GradeEntry]],
 ) -> set[str]:

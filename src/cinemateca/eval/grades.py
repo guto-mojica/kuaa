@@ -280,3 +280,34 @@ def grades_for_query(loaded: LoadedRun, query_id: str) -> list[Grade]:
     """Return the grade list for a single query (any scene id)."""
 
     return [entry.grade for (qid, _scene_id), entry in loaded.grades.items() if qid == query_id]
+
+
+def first_ungraded(
+    queries: list[dict],
+    per_annotator: dict[tuple[str, str], dict[str, GradeEntry]],
+    grader_name: str,
+) -> dict | None:
+    """Return the first query in ``queries`` that ``grader_name`` has not graded.
+
+    A query is graded by ``grader_name`` when at least one
+    ``(query_id, scene_id)`` entry in ``per_annotator`` carries
+    ``grader_name`` as a key. Returns ``None`` when the grader has graded
+    every query (or ``queries`` is empty) — the /eval context builder falls
+    back to ``queries[0]`` so a finished grader doesn't land on None.
+
+    Drives the /eval session-resume landing row (open the page → first
+    unjudged query for the active grader). Extracted from the api service so
+    the resume rule lives next to the grade-loading primitives it reads.
+    """
+    # Pre-compute the set of query_ids grader_name has touched to avoid
+    # an O(n²) inner scan.
+    graded_qids: set[str] = set()
+    for (qid, _sid), by_who in per_annotator.items():
+        if grader_name in by_who:
+            graded_qids.add(str(qid))
+
+    for q in queries:
+        qid = str(q.get("id", ""))
+        if qid and qid not in graded_qids:
+            return q
+    return None
