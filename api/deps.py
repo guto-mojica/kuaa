@@ -100,6 +100,19 @@ def film_slug_query(
     return slug if film_dir.is_dir() else None
 
 
+def request_gettext(request: Request):
+    """Return the locale-bound ``gettext`` callable for this request.
+
+    Routes that need to translate a string *outside* a template render
+    (e.g. a toast title passed to :func:`toast_trigger`) use this to honour
+    the ``locale`` cookie the same way :func:`make_ctx` does. Returns the
+    bound method so callers can ``_ = request_gettext(request)`` then
+    ``_("Saved")``.
+    """
+    locale = request.cookies.get("locale", "pt_BR")
+    return _get_translations(locale).gettext
+
+
 def make_ctx(request: Request, **kwargs) -> dict:
     """Build a Jinja2 template context with per-request locale and active film.
 

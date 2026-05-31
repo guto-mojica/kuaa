@@ -701,3 +701,61 @@
     persistOnChange('rimasRetrieval',  KEYS.rimasRetrieval, ['diversity', 'k_candidates']);
   });
 })();
+
+// ─── Offline status badge (U11) ───────────────────────────────────────
+// Reflects ``navigator.onLine`` on the ``#offline-badge`` chip in the
+// topbar (server-rendered hidden). Reinforces the offline-first value
+// prop: when the network drops, the app keeps working and the chip says
+// so instead of letting failed requests look like breakage.
+//
+// a11y: the chip is an ``aria-live="polite"`` ``role="status"`` region.
+// The visible label is short ("Offline"); the polite live region reads a
+// full sentence ("Working offline" / "Back online"). We swap the live
+// text on every transition so a screen reader announces BOTH directions
+// — going offline AND recovering — rather than only the first. We do NOT
+// use aria-hidden: that would suppress the very status change we want
+// surfaced. Toggling the ``hidden`` attribute drives visibility (the
+// chip is removed from layout when online).
+//
+// Vanilla + dependency-free (no Alpine, no htmx): the listener attaches
+// at load and works on the standalone error pages too. Idempotent —
+// re-syncing to the same state is a no-op.
+(function () {
+  'use strict';
+
+  function syncOfflineBadge() {
+    var badge = document.getElementById('offline-badge');
+    if (!badge) return;
+    // ``navigator.onLine`` is the source of truth; default to online when
+    // the API is unavailable (very old engines) so the chip stays hidden.
+    var online = (typeof navigator === 'undefined') || (navigator.onLine !== false);
+    var live = badge.querySelector('.vh');
+    if (online) {
+      // Update the live text to the recovery message BEFORE hiding, so an
+      // SR tracking the region announces "Back online" on reconnect.
+      if (live && live.getAttribute('data-online-msg')) {
+        live.textContent = live.getAttribute('data-online-msg');
+      }
+      badge.setAttribute('hidden', '');
+    } else {
+      if (live && live.getAttribute('data-offline-msg')) {
+        live.textContent = live.getAttribute('data-offline-msg');
+      }
+      badge.removeAttribute('hidden');
+    }
+  }
+
+  window.addEventListener('online', syncOfflineBadge);
+  window.addEventListener('offline', syncOfflineBadge);
+
+  // Initial paint: cover the case where the page loads while already
+  // offline (the badge ships hidden, so without this it would stay hidden
+  // until the next transition). DOMContentLoaded — the topbar element is
+  // guaranteed parsed by then; this script is deferred so it usually
+  // fires after, in which case readyState is already 'interactive'/'complete'.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', syncOfflineBadge);
+  } else {
+    syncOfflineBadge();
+  }
+})();

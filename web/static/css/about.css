@@ -284,6 +284,31 @@
 .ab-credits .v.dim { color: var(--c-text-2); }
 .ab-credits .v b { color: var(--c-accent); font-weight: 500; }
 
+/* ─── Keyboard shortcuts reference (U8) ───────────────────────────────
+   Static legend mirroring partials/_help_overlay.html, surfaced inside
+   the About modal/page so the shortcut map is discoverable even on the
+   standalone /about render (no mojica.js → no ``?`` overlay there). Reuses
+   the credits-grid visual language (mono key column + value), with <kbd>
+   chips styled like the footer .kbd token. */
+.ab-keys {
+  background: var(--c-bg); border: 1px solid var(--c-border); border-radius: 6px;
+  padding: 12px 16px; margin: 0;
+  display: flex; flex-direction: column; gap: 7px;
+  font-size: 12.5px;
+}
+.ab-key-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 18px;
+}
+.ab-keys dt { color: var(--c-text); }
+.ab-keys dd { margin: 0; display: inline-flex; align-items: center; gap: 4px; }
+.ab-keys kbd {
+  font-family: var(--font-mono); font-size: 10.5px; line-height: 1.6;
+  min-width: 18px; text-align: center; padding: 0 6px; border-radius: 4px;
+  color: var(--c-text-2);
+  background: var(--c-raised); border: 1px solid var(--c-border-2);
+}
+.ab-keys .plus { color: var(--c-faint); font-size: 11px; }
+
 /* ─── FOOTER ──────────────────────────────────────────────────────── */
 .ab-foot {
   display: flex; align-items: center; justify-content: space-between;

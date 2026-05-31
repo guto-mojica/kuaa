@@ -16,7 +16,13 @@ import logging
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse
 
-from api.deps import annotate_film_context, film_slug_query, make_ctx
+from api.deps import (
+    annotate_film_context,
+    film_slug_query,
+    make_ctx,
+    request_gettext,
+    toast_trigger,
+)
 from api.services.annotations import (
     build_scene_panel,
     delete_manual_tag,
@@ -34,8 +40,13 @@ router = APIRouter()
 def _saved_scene(
     request: Request, slug: str | None, filter: str, tab: str, ctx: dict
 ) -> HTMLResponse:
-    """Render ``partials/annotate_scene.html`` (saved=True) after a curation edit."""
-    return templates.TemplateResponse(
+    """Render ``partials/annotate_scene.html`` (saved=True) after a curation edit.
+
+    Also fires a U7 success toast (``HX-Trigger``) so every tag-curation
+    mutation (delete / rename / AI-tag suppress) surfaces feedback both
+    inline (the ``saved=True`` ✓ row) and as the global toast.
+    """
+    resp = templates.TemplateResponse(
         request,
         "partials/annotate_scene.html",
         make_ctx(
@@ -47,6 +58,9 @@ def _saved_scene(
             **ctx,
         ),
     )
+    _ = request_gettext(request)
+    toast_trigger(resp, title=_("Saved"), kind="success")
+    return resp
 
 
 @router.post("/api/annotate/tag/delete", response_class=HTMLResponse)

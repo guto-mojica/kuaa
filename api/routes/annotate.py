@@ -10,7 +10,13 @@ import logging
 from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse
 
-from api.deps import annotate_film_context, film_slug_query, make_ctx
+from api.deps import (
+    annotate_film_context,
+    film_slug_query,
+    make_ctx,
+    request_gettext,
+    toast_trigger,
+)
 from api.services.annotations import (
     build_annotate_context,
     build_scene_panel,
@@ -91,9 +97,15 @@ async def api_annotate_save(
     ann[str(scene_id)] = new_tags
     save_annotations(fctx, ann)
     logger.info("Saved %d tag(s) for scene %s", len(new_tags), scene_id)
-    return _scene_resp(
+    resp = _scene_resp(
         request, slug, filter, tab, build_scene_panel(fctx, scene_id, filter), saved=True
     )
+    # U7: success toast alongside the inline ✓ (rendered by annotate_tags.html
+    # on ``saved=True``). The header is set on the returned TemplateResponse —
+    # see the api_library_add note for why injection-merge doesn't apply here.
+    _ = request_gettext(request)
+    toast_trigger(resp, title=_("Saved"), kind="success")
+    return resp
 
 
 @router.post("/api/annotate/clear", response_class=HTMLResponse)

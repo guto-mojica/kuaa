@@ -120,6 +120,95 @@ def test_about_page_renders_full_page(client):
     assert 'class="ab-modal"' in r.text
 
 
+# ── U8: keyboard-shortcut discoverability in About ───────────────────────────
+#
+# The ``?`` overlay (partials/_help_overlay.html) is unreachable on the
+# standalone /about page (it deliberately omits mojica.js). U8 surfaces the
+# shortcut map as a STATIC reference inside the shared about_modal partial, so
+# both the modal and the standalone page document the shortcuts regardless of
+# scripting. These tests pin that the legend renders with its keys + labels.
+
+
+@pytest.mark.parametrize("path", ["/api/about", "/about"])
+def test_about_surfaces_keyboard_shortcuts(client, path):
+    """Both About surfaces render the static keyboard-shortcuts reference.
+
+    The ``/about`` standalone page has no mojica.js, so the interactive ``?``
+    overlay cannot open there — the static ``.ab-keys`` list is the only way
+    the shortcut map is discoverable. It must render on BOTH the HTMX modal
+    (``/api/about``) and the full page (``/about``).
+    """
+    r = client.get(path)
+    assert r.status_code == 200, r.text[:500]
+    html = r.text
+    # The static legend container + its section heading.
+    assert 'class="ab-keys"' in html
+    assert ">Keyboard shortcuts<" in html
+    # Representative shortcut labels (mirrors _help_overlay's nav + universal).
+    assert ">Command palette<" in html
+    assert ">This help<" in html
+    # The keys render as <kbd> chips, not bare text.
+    assert "<kbd>1</kbd>" in html
+    assert "<kbd>?</kbd>" in html
+    assert "<kbd>⌘</kbd>" in html
+
+
+# ── U11: offline status indicator ────────────────────────────────────────────
+#
+# A topbar badge reflecting ``navigator.onLine`` reinforces the offline-first
+# value prop. It is server-rendered hidden and toggled by a vanilla
+# online/offline listener in mojica.js. These tests pin the markup (present in
+# the chrome shell, correct aria treatment) and the JS listener contract.
+
+
+def test_offline_badge_present_in_chrome_with_aria_live(client):
+    """The offline badge ships in the chrome shell with a polite live region.
+
+    a11y: the badge conveys a *status* the user should be told about, so it is
+    an ``aria-live="polite"`` ``role="status"`` region (NOT aria-hidden — that
+    would suppress the very change we want announced). It is server-rendered
+    ``hidden`` (online is the default state); the JS toggles the attribute.
+    """
+    r = client.get("/search")
+    assert r.status_code == 200
+    html = r.text
+    assert 'id="offline-badge"' in html
+    assert 'role="status"' in html
+    assert 'aria-live="polite"' in html
+    # Hidden at rest (online) — the JS removes this on the offline event.
+    assert "offline-badge" in html
+    badge_start = html.index('id="offline-badge"')
+    badge_tag = html[badge_start - 40 : badge_start + 120]
+    assert "hidden" in badge_tag, badge_tag
+    # The visible short label + the SR sentence both render.
+    assert ">Offline<" in html
+    assert "Working offline" in html
+
+
+@pytest.mark.parametrize("path", ["/search", "/scenes", "/annotate", "/rimas"])
+def test_offline_badge_on_every_chrome_tab(client, path):
+    """The badge lives in base.html chrome, so every full-page tab carries it."""
+    r = client.get(path)
+    assert r.status_code == 200
+    assert 'id="offline-badge"' in r.text
+
+
+def test_mojica_js_has_offline_listener(client):
+    """``mojica.js`` wires the vanilla online/offline listeners to the badge.
+
+    Pins the client contract: the file binds BOTH the ``online`` and
+    ``offline`` window events and targets ``offline-badge``. Without these the
+    badge would render hidden forever (server state) and never react.
+    """
+    body = client.get("/static/js/mojica.js").text
+    assert "addEventListener('online'" in body
+    assert "addEventListener('offline'" in body
+    assert "offline-badge" in body
+    # Toggling visibility goes through the ``hidden`` attribute (not a class),
+    # matching the server-rendered initial state.
+    assert "navigator.onLine" in body
+
+
 def test_tab_processing_empty_has_no_active_jobs(client):
     """With no jobs the processing tab shows the empty-state line."""
     r = client.get("/tab/processing")
@@ -1743,6 +1832,161 @@ def test_toast_trigger_helper_sets_hx_trigger_header():
         "sub": "2 tags · scene 351",
         "duration": 5000,
     }
+
+
+# ── U7: success/confirmation states (toast bus wiring + inline ✓) ─────────────
+#
+# The ``toast_trigger`` helper had 0 callers before U7. These tests pin the
+# end-to-end wiring: the mutating routes (add-film + the annotate save /
+# description-save / tag-curation routes) now set the ``HX-Trigger`` toast
+# header on success, AND the annotate responses still carry the inline ✓
+# confirmation row. The header is parsed back to the exact wire shape the JS
+# ToastBus consumes (``{"toast": {...}}``).
+
+
+def _toast_payload(response):
+    """Parse the ``HX-Trigger`` header into the ``toast`` spec dict.
+
+    Returns ``None`` when the header is absent or carries no ``toast`` key.
+    Mirrors the client-side contract: htmx fires a ``toast`` CustomEvent
+    whose ``detail`` is the inner object (see ``mojica.js`` ToastBus).
+    """
+    import json as _json
+
+    raw = response.headers.get("HX-Trigger")
+    if not raw:
+        return None
+    return _json.loads(raw).get("toast")
+
+
+def test_add_film_success_emits_toast_trigger(tmp_config, client):
+    """``POST /api/library/add`` carries a success toast on the happy path.
+
+    The video must reside in the configured raw dir (the admin service
+    rejects out-of-tree paths). The success response is the left-pane swap;
+    the toast rides along on the ``HX-Trigger`` header the ToastBus listens
+    for. Locale is pinned to ``en`` by the ``client`` fixture, so the title
+    resolves to the English msgstr.
+    """
+    from pathlib import Path
+
+    raw_dir = Path(tmp_config.paths.raw_dir)
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    video = raw_dir / "novo_filme.mp4"
+    video.touch()
+
+    r = client.post(
+        "/api/library/add",
+        data={"video_path": str(video), "title": "Novo Filme"},
+    )
+    assert r.status_code == 200, r.text[:300]
+    toast = _toast_payload(r)
+    assert toast is not None, "add-film success must emit an HX-Trigger toast"
+    assert toast["kind"] == "success"
+    assert toast["title"] == "Film added"
+    # The film title rides along as the toast sub-line.
+    assert toast["sub"] == "Novo Filme"
+
+
+def test_add_film_failure_does_not_emit_toast(client):
+    """A failed add (missing video) re-renders the form WITHOUT a toast.
+
+    The error path returns the add-film form with a U1 inline field error;
+    no success toast must fire (the toast is a success-only affordance).
+    """
+    r = client.post(
+        "/api/library/add",
+        data={"video_path": "/does/not/exist.mp4", "title": "Ghost"},
+    )
+    assert r.status_code == 200, r.text[:300]
+    assert _toast_payload(r) is None
+
+
+def test_annotate_save_emits_toast_and_inline_check(seed_metadata, client):
+    """``POST /api/annotate/save`` carries BOTH the toast and the inline ✓.
+
+    U7 requires the inline confirmation (next to the saved control) in
+    addition to the global toast. The inline ✓ is the
+    ``annotate-feedback--success`` row rendered on ``saved=True``; the
+    toast is the ``HX-Trigger`` header.
+    """
+    seed_metadata()
+    r = client.post(
+        "/api/annotate/save",
+        data={"scene_id": 351, "filter": "all", "tags": "rural"},
+    )
+    assert r.status_code == 200, r.text[:300]
+    # Inline ✓ (the existing success row) — still present.
+    assert "annotate-feedback--success" in r.text
+    assert "✓" in r.text  # the ✓ glyph
+    # Global toast.
+    toast = _toast_payload(r)
+    assert toast is not None, "annotate save must emit an HX-Trigger toast"
+    assert toast["kind"] == "success"
+    assert toast["title"] == "Saved"
+
+
+def test_annotate_description_save_emits_toast_and_inline_check(seed_metadata, client):
+    """``POST /api/annotate/description`` carries the toast + the inline ✓ row."""
+    seed_metadata()
+    r = client.post(
+        "/api/annotate/description",
+        data={
+            "scene_id": 351,
+            "filter": "all",
+            "description": "a quiet rural road at dawn",
+            "tab": "comments",
+        },
+    )
+    assert r.status_code == 200, r.text[:300]
+    # Inline "✓ Description saved" row (rendered on desc_saved=True).
+    assert "annotate-feedback--success" in r.text
+    assert "Description saved" in r.text
+    toast = _toast_payload(r)
+    assert toast is not None
+    assert toast["kind"] == "success"
+    assert toast["title"] == "Saved"
+
+
+def test_annotate_tag_delete_emits_toast(seed_metadata, client):
+    """The tag-curation routes (delete) emit a success toast via ``_saved_scene``.
+
+    Scene 352 carries a seeded manual tag ``manual-only``; deleting it
+    exercises the shared ``_saved_scene`` helper that fires the toast for
+    all three curation routes (delete / rename / AI-tag suppress).
+    """
+    seed_metadata()
+    r = client.post(
+        "/api/annotate/tag/delete",
+        data={
+            "scene_id": 352,
+            "tag": "manual-only",
+            "filter": "all",
+            "tab": "annotations",
+        },
+    )
+    assert r.status_code == 200, r.text[:300]
+    toast = _toast_payload(r)
+    assert toast is not None
+    assert toast["kind"] == "success"
+    assert toast["title"] == "Saved"
+
+
+def test_toast_bus_consumes_hx_trigger_event(client):
+    """Prove the ToastBus consumes the exact ``HX-Trigger`` the helper sets.
+
+    The server helper writes ``HX-Trigger: {"toast": {...}}``. htmx turns the
+    top-level key into a CustomEvent named ``toast`` whose ``detail`` is the
+    inner object. ``mojica.js`` must (a) register a body listener for the
+    ``'toast'`` event and (b) forward ``evt.detail`` into ``ToastBus.push``.
+    This pins the JS side so the round trip is real end-to-end, not just a
+    header that nothing reads.
+    """
+    body = client.get("/static/js/mojica.js").text
+    # The listener is bound on document.body for the 'toast' event.
+    assert "addEventListener('toast'" in body
+    # …and forwards the event detail straight into the bus.
+    assert "ToastBus.push(evt && evt.detail)" in body
 
 
 # ── Phase 7 / Task 28: keyboard help overlay (?) ─────────────────────────────

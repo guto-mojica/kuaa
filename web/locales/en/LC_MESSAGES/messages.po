@@ -1627,6 +1627,27 @@ msgstr ""
 msgid "A film with this name is already in the library."
 msgstr ""
 
+#: api/routes/library.py:120
+msgid "Film added"
+msgstr "Film added"
+
+#: api/routes/annotate.py:99 api/routes/annotate_description.py:90
+#: api/routes/annotate_tags.py:49
+msgid "Saved"
+msgstr "Saved"
+
+#: web/templates/partials/_topbar.html:56
+msgid "Offline"
+msgstr "Offline"
+
+#: web/templates/partials/_topbar.html:57
+msgid "Working offline"
+msgstr "Working offline"
+
+#: web/templates/partials/_topbar.html:58
+msgid "Back online"
+msgstr "Back online"
+
 #~ msgid "two people talking outdoors"
 #~ msgstr "two people talking outdoors"
 

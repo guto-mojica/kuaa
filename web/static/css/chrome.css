@@ -6,6 +6,34 @@
   border-bottom: 1px solid var(--c-border); background: var(--c-panel);
 }
 .ch-top .l { display: flex; align-items: center; gap: 12px; }
+
+/* ─── Offline status badge (U11) ──────────────────────────────────────
+   Small amber chip that appears in the topbar's left region when
+   ``navigator.onLine`` is false. Hidden by the ``hidden`` attribute at
+   rest (online); mojica.js toggles that attribute on the online/offline
+   events. Uses the U6 ``--dur-*`` token for the fade so the appearance
+   reads as intentional rather than a layout jump. */
+.offline-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px; border-radius: 12px;
+  font-size: 11.5px; font-weight: 500; line-height: 1;
+  color: var(--c-orange);
+  background: rgba(245, 144, 66, 0.12);
+  border: 1px solid var(--c-orange);
+  transition: opacity var(--dur-fast) var(--ease-emphasized);
+}
+.offline-badge[hidden] { display: none; }
+.offline-badge .dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--c-orange);
+}
+/* Visually-hidden SR text — kept in the a11y tree (the aria-live region
+   reads it) but clipped from view. Scoped to the badge so it does not
+   leak as a global utility. */
+.offline-badge .vh {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; border: 0; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
 .ch-top .brand { display: flex; align-items: center; gap: 9px; padding: 5px 9px; border-radius: 6px; cursor: pointer; }
 .ch-top .brand:hover { background: var(--c-hover); }
 .ch-top .brand .n {

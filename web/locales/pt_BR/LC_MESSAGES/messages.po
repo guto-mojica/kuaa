@@ -1621,6 +1621,27 @@ msgstr "Arquivo não encontrado. Verifique o caminho ou nome do arquivo."
 msgid "A film with this name is already in the library."
 msgstr "Um filme com este nome já está no acervo."
 
+#: api/routes/library.py:120
+msgid "Film added"
+msgstr "Filme adicionado"
+
+#: api/routes/annotate.py:99 api/routes/annotate_description.py:90
+#: api/routes/annotate_tags.py:49
+msgid "Saved"
+msgstr "Salvo"
+
+#: web/templates/partials/_topbar.html:56
+msgid "Offline"
+msgstr "Offline"
+
+#: web/templates/partials/_topbar.html:57
+msgid "Working offline"
+msgstr "Trabalhando offline"
+
+#: web/templates/partials/_topbar.html:58
+msgid "Back online"
+msgstr "Online novamente"
+
 #~ msgid "two people talking outdoors"
 #~ msgstr "duas pessoas conversando ao ar livre"
 

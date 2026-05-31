@@ -162,6 +162,41 @@
                     {% endfor %}
                 </div>
 
+                {# ── Keyboard shortcuts (U8) ─────────────────────────
+                   Surfaced here as a STATIC reference because this partial
+                   is shared byte-for-byte with the standalone /about page,
+                   which intentionally omits mojica.js — so the ``?`` toggle
+                   that opens partials/_help_overlay.html is unavailable
+                   there. Rendering the legend as a plain list (not the
+                   interactive overlay) keeps it readable with scripting off
+                   and on the modal alike. Labels + keys mirror
+                   _help_overlay.html's Navigation + Universal groups (the
+                   shortcuts actually wired in mojica.js's keyboard router);
+                   the Eval-only group is omitted as out of scope for the
+                   archive's About surface. #}
+                <div class="ab-sect">
+                    <span>{{ _('Keyboard shortcuts') }}</span>
+                </div>
+                <dl class="ab-keys" aria-label="{{ _('Keyboard shortcuts') }}">
+                    {% set about_shortcuts = [
+                      (_('Search'),          ['1']),
+                      (_('Scenes'),          ['2']),
+                      (_('Annotate'),        ['3']),
+                      (_('Visual rhymes'),   ['4']),
+                      (_('Processing'),      ['5']),
+                      (_('Command palette'), ['⌘', 'K']),
+                      (_('This help'),       ['?']),
+                    ] %}
+                    {% for label, keys in about_shortcuts %}
+                        <div class="ab-key-row">
+                            <dt>{{ label }}</dt>
+                            <dd>
+                                {% for k in keys %}<kbd>{{ k }}</kbd>{% if not loop.last %}<span class="plus">+</span>{% endif %}{% endfor %}
+                            </dd>
+                        </div>
+                    {% endfor %}
+                </dl>
+
                 {# ── Credits grid ────────────────────────────────── #}
                 <div class="ab-sect">
                     <span>{{ _('Credits') }}</span>

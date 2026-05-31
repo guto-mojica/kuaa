@@ -15,7 +15,13 @@ import logging
 from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse
 
-from api.deps import annotate_film_context, film_slug_query, make_ctx
+from api.deps import (
+    annotate_film_context,
+    film_slug_query,
+    make_ctx,
+    request_gettext,
+    toast_trigger,
+)
 from api.services.annotations import (
     build_description_edit_context,
     build_scene_panel,
@@ -75,7 +81,7 @@ async def api_annotate_description_save(
     save_description(fctx, scene_id, description.strip())
     logger.info("Description updated for scene %s", scene_id)
     ctx = build_scene_panel(fctx, scene_id, filter)
-    return templates.TemplateResponse(
+    resp = templates.TemplateResponse(
         request,
         "partials/annotate_scene.html",
         make_ctx(
@@ -87,3 +93,8 @@ async def api_annotate_description_save(
             **ctx,
         ),
     )
+    # U7: success toast alongside the inline ✓ "Description saved" row that
+    # annotate_scene.html renders on ``desc_saved=True``.
+    _ = request_gettext(request)
+    toast_trigger(resp, title=_("Saved"), kind="success")
+    return resp

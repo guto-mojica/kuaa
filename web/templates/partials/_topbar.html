@@ -36,6 +36,30 @@
       {% endfor %}
     </nav>
     {% endif %}
+
+    {# ── Offline status badge (U11) ────────────────────────────────────
+       Reinforces the offline-first value prop: this app runs with no
+       outbound traffic, so losing the network must never look like a
+       failure. Lives inside ``.l`` (NOT as a direct .ch-top grid child —
+       the topbar is a 3-column ``auto 1fr auto`` grid and an extra child
+       would shove .tabs out of its column). Server-rendered hidden and
+       toggled by the vanilla online/offline listener in mojica.js —
+       present in the DOM from first paint so the listener has a stable
+       target and the first transition needs no insert.
+
+       a11y: ``role="status"`` + ``aria-live="polite"`` (NOT aria-hidden).
+       The badge conveys a status the user should learn about — when
+       connectivity drops, an SR politely announces "Working offline"
+       without stealing focus. A decorative aria-hidden treatment would
+       suppress exactly the change we want surfaced, so it is the wrong
+       choice here. The visually-hidden ``.vh`` span carries the full
+       sentence for SRs; the chip shows the short "Offline" label. #}
+    <div id="offline-badge" class="offline-badge" role="status" aria-live="polite" hidden>
+      <span class="dot" aria-hidden="true"></span>
+      <span aria-hidden="true">{{ _('Offline') }}</span>
+      <span class="vh" data-offline-msg="{{ _('Working offline') }}"
+            data-online-msg="{{ _('Back online') }}">{{ _('Working offline') }}</span>
+    </div>
   </div>
 
   <nav class="tabs" aria-label="{{ _('Main tabs') }}">

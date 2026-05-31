@@ -14,7 +14,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
-from api.deps import film_slug_query, get_config, make_ctx
+from api.deps import film_slug_query, get_config, make_ctx, request_gettext, toast_trigger
 from api.services.library_admin import register_and_symlink, resolve_video_path
 from api.services.library_render import chrome_filter_ctx, library_ctx, tree_response
 from api.templates import templates
@@ -105,16 +105,21 @@ async def api_library_add(
         return templates.TemplateResponse(request, "partials/add_film_form.html", ctx)
 
     if source == "processing":
-        return Response(
+        resp: HTMLResponse | Response = Response(
             status_code=200,
             headers={"HX-Redirect": f"/processing?film={slug}"},
         )
-
-    return templates.TemplateResponse(
-        request,
-        "partials/_left_pane_body.html",
-        chrome_filter_ctx(request, ""),
-    )
+    else:
+        resp = templates.TemplateResponse(
+            request,
+            "partials/_left_pane_body.html",
+            chrome_filter_ctx(request, ""),
+        )
+    # U7: success toast. Header set on the *returned* response — FastAPI only
+    # merges an injected Response's headers for non-Response return values.
+    _ = request_gettext(request)
+    toast_trigger(resp, title=_("Film added"), sub=film_title, kind="success")
+    return resp
 
 
 @router.get("/api/library/remove-confirm/{slug}", response_class=HTMLResponse)
