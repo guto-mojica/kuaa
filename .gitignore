@@ -45,6 +45,9 @@ data/demo/runtime/
 # Evaluation reports are generated runtime output; source query YAML is tracked.
 data/eval/reports/
 
+# Benchmark output (`cinemateca eval bench` / the timed CI hook) is generated metrics.
+data/perf/
+
 # Per-run eval output (candidate slates, grades JSONL, frozen tarballs) are
 # runtime artefacts — only the committed seed YAMLs + README belong in git.
 # See docs/EVAL_PROTOCOL.md §5.
