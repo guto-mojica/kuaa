@@ -15,8 +15,8 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 - **Tabela de ablação proxy-first (WS-4 E2b).** Novo módulo
   `cinemateca.eval.ablation` (`run_ablation`, `AblationTable`,
   `AblationRowConfig`) + CLI `scripts/run_ablation.py`. Compara variantes de
-  retrieval (CLIP SigLIP2 · BM25 · híbrido · híbrido+rerank C5 · fusão
-  CLIP×CLAP · baseline multilíngue OpenCLIP/C8) sobre um conjunto comum de 15
+  retrieval (CLIP SigLIP2 · BM25 · híbrido · híbrido+rerank C5 · baseline
+  multilíngue OpenCLIP/C8) sobre um conjunto comum de 15
   queries de texto, todas rotuladas **HY** via `proxy.proxy_labels` — um único
   tier de honestidade, números reais no corpus de demo (Jeca Tatu), sem
   qualquer métrica fabricada. Linhas cujo backend não está conectado renderizam
@@ -25,6 +25,33 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
   (baseline OpenCLIP) intacta. Resultado-chave: o híbrido supera o CLIP puro
   neste corpus maior, e o baseline OpenCLIP fica atrás do SigLIP2 na mistura de
   queries PT/EN (evidência para o upgrade multilíngue).
+
+### Removido
+
+- **Busca por áudio CLAP + fusão cross-modal CLIP×CLAP (R1–R4).** Toda a
+  modalidade de áudio foi removida do escopo do v1.0 (decisão do mantenedor,
+  2026-05-31), focando a superfície de lançamento na história de retrieval
+  visual/texto. Removidos: os módulos `cinemateca.search.audio` /
+  `cinemateca.search.fusion`, `src/cinemateca/audio_extractor.py` e o backend
+  CLAP (`src/cinemateca/models/audio/`); o Protocol `AudioEmbedder`,
+  `get_audio_embedder` e o model card `clap_hf` do manifesto (backends
+  embarcados 9 → 8); as etapas de pipeline `audio_extract` / `audio_embed`; a
+  config `audio_embeddings` + `FusionCfg`/`retrieval.fusion` +
+  `models.audio_embedder` + `search.audio_enabled`/`multimodal_enabled`; os
+  parâmetros de busca `?modality=audio|fusion` + `w` (`schemas.py`) e os
+  dispatchers `dispatch_audio_search` / `dispatch_fusion_search`; os chips
+  Áudio/Fusão + o popover de peso `visual ↔ áudio` na UI + 7 msgids; os
+  geradores de slate de áudio/fusão, a linha de ablação `fusion` e o comando
+  CLI `cinemateca eval clap-sanity`. A cadeia de retrieval colapsa de forma
+  limpa para **CLIP → BM25 híbrido → SigLIP2 multilíngue → rimas visuais
+  cross-film (MMR) → reranker cross-encoder**. **Mantidos (não são áudio):** a
+  RRF rank-fusion do híbrido CLIP⊕BM25 (`SearchResult.fusion_used`), o
+  retriever Híbrido, o reranker e as rimas visuais. A feature completa está
+  preservada no branch `backup/pre-audio-removal`; registro em
+  `docs/archive/2026-05-31-audio-feature-extraction.md`.
+- **Remanescentes do Whisper na documentação.** O spec de re-adição do Whisper
+  (em `docs/plans/`) foi excluído e os links de entrada limpos (o código Whisper
+  já havia sido removido no `0.8.0-rc1`).
 
 ## [0.8.0-rc1] - 2026-05-29
 

@@ -21,9 +21,9 @@ cinematecas nacionais e arquivos públicos de filme.
 ## Overview (English)
 
 **Offline multimodal retrieval for film archives.** Search hours of
-audiovisual material by what's on screen and what's *heard* — without sending
-a frame to the cloud. After installation and model downloads, processing and
-search run locally, with no video, keyframes, annotations, embeddings, or
+audiovisual material by what's on screen and how it's *described* — without
+sending a frame to the cloud. After installation and model downloads, processing
+and search run locally, with no video, keyframes, annotations, embeddings, or
 search queries sent to hosted AI APIs.
 
 ### What it does
@@ -38,13 +38,6 @@ per-query cost.
   but SigLIP2 is the default.
 - **Hybrid lexical retrieval** — BM25 over LLM descriptions + tags, fused with
   the dense scores via Reciprocal Rank Fusion. This is the default retriever.
-- **Audio search** over CLAP joint text+audio embeddings
-  (`laion/larger_clap_general`) — query "footsteps on wood" and get the scenes
-  that *sound* like it. 10-second chunks, mean-pooled, L2-normalised; served
-  via `?modality=audio` on `/api/search`.
-- **Cross-modal fusion** — `quiet scene with melancholic music` combines CLIP
-  and CLAP scores with linear late-fusion under one `visual_weight` knob
-  (default 0.5). Lives at `?modality=fusion&w=0.5` on `/api/search`.
 - **Cross-film visual rhymes** — kNN over keyframe embeddings, diversified by
   **MMR** (Carbonell & Goldstein 1998) with a λ=0.5 default and a `Diversidade`
   slider in the UI.
@@ -58,16 +51,13 @@ The full canonical stack:
 | Role | Backend |
 |---|---|
 | Image embedder | `google/siglip2-large-patch16-256` (default), OpenCLIP ViT-B/32 (legacy) |
-| Audio embedder | `laion/larger_clap_general` (10s chunks + mean-pool) |
 | Reranker | `BAAI/bge-reranker-v2-m3` (typed/wired; default-off pending WS-4) |
 | Scene describer | Moondream2 (HF transformers default; GGUF opt-in) |
 | Object detection | YOLOv8 |
 | Face detection | MTCNN |
 
 Retrieval metrics — Recall@K / MRR / nDCG@10 — land with the WS-4 ablation;
-see [`docs/EVAL_PROTOCOL.md`](docs/EVAL_PROTOCOL.md). A CLAP archival-audio
-sanity gate currently pins Recall@5 ≥ 0.6 over five canned queries on the Jeca
-Tatu library (`cinemateca eval clap-sanity`).
+see [`docs/EVAL_PROTOCOL.md`](docs/EVAL_PROTOCOL.md).
 
 ### What it doesn't do
 
@@ -76,8 +66,6 @@ Tatu library (`cinemateca eval clap-sanity`).
 - **Replace the catalogue of record.** Cinemateca imgsearch sits *next to* the
   existing catalogue and feeds curators retrieval candidates; authoritative
   metadata still lives in the institution's system.
-- **Learn fusion weights from data.** Fusion stays at one tunable knob
-  (`visual_weight`); learned weights are explicitly out of scope for v1.0.
 
 ### Also includes (production signals)
 
@@ -352,7 +340,7 @@ O sistema é organizado em módulos independentes que podem ser usados separadam
 Os backends de modelo ficam atrás de `Protocol`s tipados e são selecionados por
 configuração em `src/cinemateca/models/registry.py`.
 
-O pipeline parte de um arquivo de vídeo e produz, por cena: embeddings visuais SigLIP2 (1024-d), embeddings de áudio CLAP e descrições em linguagem natural do Moondream 2. O motor de busca combina esses artefatos em cinco modos — pesquisa texto/imagem por cosseno SigLIP2, busca lexical BM25, fusão híbrida CLIP⊕BM25 com Reciprocal Rank Fusion, fusão cross-modal CLIP×CLAP e rimas visuais cross-film (kNN + MMR) — com reranker cross-encoder na saída. Os resultados chegam via exportação estruturada e pela UI FastAPI + HTMX.
+O pipeline parte de um arquivo de vídeo e produz, por cena: embeddings visuais SigLIP2 (1024-d) e descrições em linguagem natural do Moondream 2. O motor de busca combina esses artefatos em quatro modos — pesquisa texto/imagem por cosseno SigLIP2, busca lexical BM25, fusão híbrida CLIP⊕BM25 com Reciprocal Rank Fusion e rimas visuais cross-film (kNN + MMR) — com reranker cross-encoder na saída. Os resultados chegam via exportação estruturada e pela UI FastAPI + HTMX.
 
 ```mermaid
 flowchart TD
@@ -360,11 +348,9 @@ flowchart TD
     FR --> SC[PySceneDetect scene detection<br/>keyframes + keyframes_metadata.json]
     SC --> VIS[Visual analysis<br/>MTCNN faces · YOLOv8 objects · OpenCV env]
     SC --> EMB[Visual embeddings<br/>SigLIP2 1024-d · keyframe_embeddings.npy]
-    SC --> AUD[Audio extract + CLAP embed<br/>scene WAV · clap_embeddings.npy]
     SC --> LLM[Moondream 2 descriptions<br/>scene_descriptions.json · scene_tags.json]
 
     EMB --> RET{Retrieval engine}
-    AUD --> RET
     LLM --> RET
     VIS --> RET
 
@@ -372,10 +358,8 @@ flowchart TD
     RET --> BM25[BM25 lexical<br/>descriptions + tags]
     TXT --> HYB[Hybrid CLIP &oplus; BM25<br/>Reciprocal Rank Fusion]
     BM25 --> HYB
-    RET --> FUS[CLIP x CLAP fusion<br/>linear late-fusion, visual_weight]
     RET --> RHY[Cross-film visual rhymes<br/>kNN + MMR diversity]
     HYB --> RR[Cross-encoder reranker<br/>bge-reranker-v2-m3]
-    FUS --> RR
     RR --> RES[Ranked scenes]
     RHY --> RES
     RES --> EXP[Domain-aware export<br/>catalog.json / catalog.csv]
@@ -392,7 +376,6 @@ Detalhes completos do pipeline e contratos de artefato em [docs/ARCHITECTURE.md]
 |---|---|---|---|
 | [SigLIP 2](https://huggingface.co/google/siglip2-large-patch16-256) | Embeddings visuais e de texto, busca semântica | transformers (`siglip_multilingual`, 1024-d) | Padrão; multilíngue |
 | [OpenCLIP ViT-B/32](https://github.com/mlfoundations/open_clip) | Embeddings visuais (legado) | OpenCLIP (`clip_openclip`, 512-d) | Alternativa/legado; backups `.clip_openclip.npy` por filme |
-| [CLAP](https://huggingface.co/laion/larger_clap_general) | Embeddings de áudio, busca por som e fusão cross-modal | transformers (`clap_hf`, `laion/larger_clap_general`) | Chunks de 10s + mean-pool, espaço conjunto texto+áudio |
 | [Moondream 2](https://huggingface.co/vikhyatk/moondream2) | Descrição de cenas em linguagem natural | transformers por padrão; GGUF opcional | Revisão fixada em config para reprodutibilidade |
 | [YOLOv8n](https://github.com/ultralytics/ultralytics) | Detecção de objetos | Ultralytics | Licença AGPL/Enterprise exige atenção |
 | [MTCNN](https://github.com/timesler/facenet-pytorch) | Detecção facial/contagem | facenet-pytorch | Detecção, não reconhecimento de identidade |

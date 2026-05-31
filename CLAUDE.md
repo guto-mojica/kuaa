@@ -330,7 +330,9 @@ defer features; timeline extension is one option among several. Grilled
 > (`docs/superpowers/specs/2026-05-29-presentation-refactor-design.md`, §13 maps
 > these tracker checkboxes to workstream IDs WS-1…WS-6). Docker is **cut** (uv-only,
 > §16); HuggingFace Spaces is **re-scoped** to an optional buildpack-PaaS stretch;
-> Whisper transcription is **cut/deferred to v0.8-rc** (§16). See `docs/README.md`
+> Whisper transcription is **cut/deferred to v0.8-rc** (§16); the **CLAP audio +
+> CLIP×CLAP fusion** modality is **cut** (2026-05-31, §16; removal recorded in
+> `docs/archive/2026-05-31-audio-feature-extraction.md`). See `docs/README.md`
 > for the documentation map.
 
 ### Month 1 — Foundation
@@ -341,16 +343,12 @@ defer features; timeline extension is one option among several. Grilled
   Acceptance migration of real Jeca Tatu data still pending (T12, manual).
 - [x] ~~Docker image, one-command run~~ → **cut (§16); replaced by `uv` reproducible-run hardening (WS-5 T8)**: `uv sync --extra full --group dev` + `uv run cinemateca serve`, verified by `scripts/verify_fresh_run.sh`.
 - [ ] Hosted demo — **re-scoped (§16)**: HF Spaces needs the Docker SDK (conflicts with no-Docker). Demo leads with the recorded 90s video + local `uv` run; a hosted instance is an optional stretch on a buildpack PaaS (Render/Railway, no in-repo Dockerfile). Not a committed v1.0 deliverable.
-- [x] CLAP integration kickoff — `AudioEmbedder` Protocol +
-  `ClapHFEmbedder` (HF transformers, `laion/larger_clap_general`, 10s
-  chunk + mean-pool, L2-normalised joint text+audio space) +
-  `SceneAudioExtractor` (ffmpeg → 48 kHz mono PCM16 per scene) +
-  two pipeline steps `audio_extract`/`audio_embed` (default OFF; opt-in
-  via `--steps`). Real-data acceptance on Jeca Tatu: 412 scenes encoded
-  in 111 s on CUDA (RTX 5090), `audio/clap_embeddings.npy` shape
-  (412, 512) float32 L2-normalised, mapping schema verified. Suite
-  332 → 413 passing on `feat/clap-audio-kickoff`. See
-  (internal design notes).
+- [x] ~~CLAP integration kickoff — `AudioEmbedder` Protocol + `ClapHFEmbedder` +
+  `SceneAudioExtractor` + `audio_extract`/`audio_embed` steps~~ → **CUT
+  (2026-05-31, §16).** Implemented and accepted on Jeca Tatu (412 scenes in
+  111 s on CUDA), then removed from `main` along with the whole audio modality
+  to focus the v1.0 launch surface; preserved on `backup/pre-audio-removal`.
+  Removal recorded in `docs/archive/2026-05-31-audio-feature-extraction.md`.
 - [x] Eval annotation tool (FastAPI page behind admin flag; 5-sample validation)
   — lands as `/eval` at admin-flagged route; standalone 3-pane UI + JSONL grade
   persistence + P@K / nDCG / inversions / Cohen's κ metrics + keyboard router
@@ -400,12 +398,8 @@ defer features; timeline extension is one option among several. Grilled
 - [ ] Pre-launch LinkedIn "I'm building this" post
 
 ### Month 2 — Retrieval depth + audio (HARD FREEZE on new features)
-- [x] CLAP audio embeddings complete; audio-only search in UI — `/api/search?modality=audio`
-  dispatches to `cinemateca.search.audio.search_audio()` over the CLAP joint
-  text+audio space; Buscar surface ships an Áudio/Soundtrack chip wired
-  through Alpine; PT/EN i18n landed. Jeca Tatu regression snapshot pinned
-  at `tests/fixtures/audio_search_regression.json` (M3 pre-flight Phase 1+2).
-- [x] ~~Whisper transcripts indexed (faster-whisper, `Transcriber` Protocol)~~ → **cut from v1.0; deferred to v0.8-rc (§16).** Prototyped (`dc2c8f8`) then removed from `main` (2026-05-30) to keep the launch surface focused; CLAP audio search (`audio_extract`/`audio_embed`) covers the audio modality for launch. Re-add spec: `docs/plans/2026-05-28-whisper-transcript-indexing-followup.md`.
+- [x] ~~CLAP audio embeddings complete; audio-only search in UI (`/api/search?modality=audio`)~~ → **CUT (2026-05-31, §16).** Shipped end-to-end (CLAP joint text+audio space, Áudio chip, PT/EN i18n, Jeca Tatu regression snapshot) then removed from `main` with the whole audio modality. Preserved on `backup/pre-audio-removal`; removal recorded in `docs/archive/2026-05-31-audio-feature-extraction.md`.
+- [x] ~~Whisper transcripts indexed (faster-whisper, `Transcriber` Protocol)~~ → **cut from v1.0; deferred to v0.8-rc (§16).** Prototyped (`dc2c8f8`) then removed from `main` (2026-05-30) to keep the launch surface focused. The CLAP audio modality that briefly covered audio for launch was itself cut on 2026-05-31 (see above).
 - [x] Hybrid search (CLIP ⊕ BM25, Reciprocal Rank Fusion) — shipped 2026-05-23
   on `worktree-hybrid-search-spec`. New package `src/cinemateca/retrieval/`
   (tokenize + corpus + BM25Index + RRF) feeds `search_hybrid()` orchestrator;
@@ -432,23 +426,23 @@ defer features; timeline extension is one option among several. Grilled
   for the plan's invented siglip-large-multilingual id; library uniformly
   migrated). Registry-dispatch fix in `cinemateca.search.{cache,aggregate}`
   so query-time text encoder honours the config flag.
-- [x] CLAP archival-audio sanity check (pre-commit gate on Jeca Tatu) —
-  `cinemateca eval clap-sanity` CLI; 5-query fixture, auto-picked baseline.
+- [x] ~~CLAP archival-audio sanity check (`cinemateca eval clap-sanity`)~~ →
+  **CUT (2026-05-31, §16)** with the audio modality. Removal recorded in
+  `docs/archive/2026-05-31-audio-feature-extraction.md`.
 
 ### Month 3 — Fusion + visual rhymes + eval annotation
 - [x] M3 pre-flight (close M2 leftovers) — Phases 0–5 shipped on
-  `m3-preflight`: audio search end-to-end (CLAP joint space + UI chip +
-  i18n + regression snapshot), reranker stub filled in (bge-reranker-v2-m3,
-  service wrapper, UI affordance — production dispatcher wiring tracked
-  as follow-up Task 3.2b), SigLIP2-multilingual rolled out library-wide,
-  CLAP archival sanity gate (`cinemateca eval clap-sanity`). See
+  `m3-preflight`: ~~audio search end-to-end~~ (CUT 2026-05-31), reranker stub
+  filled in (bge-reranker-v2-m3, service wrapper, UI affordance — production
+  dispatcher wiring tracked as follow-up Task 3.2b), SigLIP2-multilingual
+  rolled out library-wide, ~~CLAP archival sanity gate~~ (CUT 2026-05-31). See
   (internal design notes).
-- [x] Cross-modal CLIP × CLAP fusion search — `?modality=fusion&w=0.5`,
-      linear late-fusion (`score = w·clip + (1-w)·clap`), UI slider with
-      `visual ↔ audio` weight popover, regression-pinned on Jeca Tatu
-      (skipif-guarded). Implementation: `dispatch_fusion_search` mirrors
-      the audio dispatcher; CLIP `index_mapping.json` normalised for the
-      SigLIP2 parallel-array shape that broke the first real-data run.
+- [x] ~~Cross-modal CLIP × CLAP fusion search (`?modality=fusion&w=0.5`)~~ →
+      **CUT (2026-05-31, §16).** Shipped (linear late-fusion `score = w·clip +
+      (1-w)·clap`, `visual ↔ audio` weight popover, Jeca Tatu regression pin)
+      then removed from `main` with the whole audio modality. Preserved on
+      `backup/pre-audio-removal`; removal recorded in
+      `docs/archive/2026-05-31-audio-feature-extraction.md`.
 - [x] Visual rhymes (cross-film kNN + MMR diversity) — MMR live in M3:
   `?lambda=` + `?k_candidates=` query params on `/tab/rimas`,
   `/api/rimas/echoes`, `/api/rimas/inspector`; UI Diversidade popover
@@ -457,20 +451,20 @@ defer features; timeline extension is one option among several. Grilled
   on real 2-film library (10 tests) confirms cross_film_only +
   MMR-runs-cleanly + unique-scene diversification. Curated single-anchor
   refinements still deferred to M4 stretch.
-- [x] M3 eval data infrastructure (M3 #3) — 50 curated bilingual queries in
-      `data/eval/m3_full_queries.yaml` covering the spec §7.1 distribution
-      (15 text · 10 image · 10 audio · 10 fusion · 5 rhyme); text-only
-      subset `m3_text_queries.yaml` runs end-to-end through
-      `scripts/run_eval.py` against Jeca Tatu CLIP index (R@5=0.189,
-      MRR=0.254 on pre-curator hypotheses); `cinemateca eval seed` writes
-      candidate slates; protocol in `docs/EVAL_PROTOCOL.md`;
+- [x] M3 eval data infrastructure (M3 #3) — curated bilingual queries in
+      `data/eval/m3_full_queries.yaml` (originally 15 text · 10 image · 10 audio
+      · 10 fusion · 5 rhyme per spec §7.1; the 20 audio + fusion entries were
+      retired with the audio cut on 2026-05-31, leaving **30 scorable** —
+      15 text · 10 image · 5 rhyme); text-only subset `m3_text_queries.yaml`
+      runs end-to-end through `scripts/run_eval.py` against Jeca Tatu CLIP index
+      (R@5=0.189, MRR=0.254 on pre-curator hypotheses); `cinemateca eval seed`
+      writes candidate slates; protocol in `docs/EVAL_PROTOCOL.md`;
       `scripts/freeze_eval_run.sh` snapshots grades as SHA256 tarballs;
       `.gitignore` covers per-run output (`*-run-*/`, `*-run-*.queries.json`,
       `*-run-*.jsonl`, `*.frozen-*.tar.gz`). **Curator annotation sessions
-      (~50 grades × 9 candidates) are the remaining human-gated work** —
-      surface in M4 standups until complete. Non-text query types
-      (image / audio / fusion / rhyme) need a per-modality slate generator
-      before `run_eval.py` can score them; tracked as M3 follow-up.
+      are the remaining human-gated work** — surface in M4 standups until
+      complete. Non-text query types (image / rhyme) have per-modality slate
+      generators so `run_eval.py` scores them.
 - [ ] 50–100 curator-annotated eval pairs — grading sessions on the M3 slate
 - [x] Landing-page README draft; blog post outline; demo-video scope —
       the README draft was folded into `README.md` (D6; archived at
@@ -482,9 +476,10 @@ defer features; timeline extension is one option among several. Grilled
 
 ### Month 4 — Eval + writeup + launch
 - [x] Ablation table + per-modality breakdown — WS-4 E2 (proxy-first ablation,
-  KI/PR/HY labels; 6 retriever-variant rows on the SigLIP2 default —
-  CLIP/BM25/hybrid/hybrid+rerank/fusion/OpenCLIP) in `docs/EVALUATION_RESULTS.md`
-  §M4; per-modality scoring (E3) via `run_eval --modality {text,image,audio,fusion,rhyme,all}`.
+  KI/PR/HY labels; retriever-variant rows on the SigLIP2 default —
+  CLIP/BM25/hybrid/hybrid+rerank/OpenCLIP; the `fusion` row was dropped with the
+  audio cut on 2026-05-31) in `docs/EVALUATION_RESULTS.md`
+  §M4; per-modality scoring (E3) via `run_eval --modality {text,image,rhyme,all}`.
   Numbers are HY-proxy on the Jeca Tatu corpus; they upgrade to human-validated
   on curator grades (`eval export` → `run_ablation --grades`). Evidence: hybrid
   (R@5 0.467) > CLIP (0.444); SigLIP2 > OpenCLIP; rerank *hurts* on short
@@ -506,7 +501,8 @@ Keep this list updated as steps complete.
 |---|---|
 | Docker image / one-command run | **cut**; `uv` fresh-run = WS-5 **T8** |
 | Hosted demo (HF Spaces) | **re-scoped** §16; optional buildpack stretch |
-| Whisper transcripts indexed | **cut** → deferred to v0.8-rc (§16); CLAP retained |
+| Whisper transcripts indexed | **cut** → deferred to v0.8-rc (§16) |
+| CLAP audio search / CLIP×CLAP fusion | **cut** (2026-05-31, §16); `backup/pre-audio-removal` |
 | Cross-encoder reranker | WS-1 **C5** (typed; default-OFF pending WS-4 evidence) |
 | Ablation table / failure-mode analysis | WS-4 **E2 / E4 / E8** |
 | Curator-annotated eval pairs | WS-4 **E5** `[HUMAN]` (proxy fallback E2 so launch isn't hard-blocked) |
