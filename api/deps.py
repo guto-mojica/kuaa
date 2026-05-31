@@ -189,10 +189,11 @@ def toast_trigger(
     .. code-block:: python
 
         @router.post("/api/things/save")
-        async def save(response: Response, ...):
+        async def save(...):
             ...  # do the work
-            toast_trigger(response, title="Saved", kind="success")
-            return templates.TemplateResponse(...)
+            resp = templates.TemplateResponse(...)
+            toast_trigger(resp, title="Saved", kind="success")
+            return resp
 
     The header value is a JSON object whose ``toast`` key carries the
     spec consumed by ``window.ToastBus.push(spec)``::
@@ -205,8 +206,13 @@ def toast_trigger(
     Parameters
     ----------
     response:
-        The FastAPI ``Response`` (injected by FastAPI when the route
-        signature declares it). Headers are mutated in-place.
+        The response object you will **return** (``Response`` /
+        ``TemplateResponse`` / ``HTMLResponse``). The header is set on it
+        in-place, so set it on the object you actually return — NOT on a
+        ``Response`` injected as a route parameter. FastAPI only merges an
+        injected ``Response``'s headers when the handler returns a
+        non-``Response`` value; routes that return a ``Response`` subclass
+        (most of ours) would silently drop the header.
     title:
         Required top line.
     sub:
