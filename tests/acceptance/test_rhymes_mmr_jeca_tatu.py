@@ -20,7 +20,7 @@ Scope note (2026-05-25):
         diversification mechanism is doing real work.
     The cross-film distinct-film diversification assertion will be added
     in a future M3.5 task once a 3rd film is registered. See
-    docs/rhymes_acceptance_2026-05-25.md.
+    docs/archive/rhymes_acceptance_2026-05-25.md.
 
     Real-data finding documented during this acceptance run: the
     production index format stores one row per KEYFRAME (not per scene),
@@ -81,7 +81,7 @@ def test_mmr_runs_on_real_library_without_errors(slug: str, sid: int) -> None:
     if not out:
         pytest.skip(
             f"No rhymes for {slug}/{sid}; refresh anchor picks in "
-            "docs/rhymes_acceptance_2026-05-25.md"
+            "docs/archive/rhymes_acceptance_2026-05-25.md"
         )
 
     # Sanity: all rhymes are from films OTHER than the anchor.
