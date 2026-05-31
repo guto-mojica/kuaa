@@ -3,10 +3,12 @@
 Thin adapters over the typed core verbs in ``cinemateca.search.audio`` /
 ``cinemateca.search.fusion``. The core verbs (``find_audio`` /
 ``aggregate_audio`` / ``find_fusion`` / ``aggregate_fusion``) own the search +
-per-query metadata (C9) and return a typed :class:`SearchResult` for
-programmatic consumers (eval). These HTTP dispatchers return the ``list[dict]``
-view rows the ``.b-card`` template path expects, so the HTTP response shape is
-unchanged.
+per-query metadata (C9) and return a typed :class:`SearchResult`. That typed
+metadata is plumbing for future eval grouping / UI affordances — ``cinemateca.eval``
+does *not* consume it today; eval calls the metadata-less ``search_audio`` /
+``search_fusion`` leaves directly (see ``cinemateca.eval.slates``). These HTTP
+dispatchers return the ``list[dict]`` view rows the ``.b-card`` template path
+expects, so the HTTP response shape is unchanged.
 
 * Audio: delegates fully to the core verb, then projects ``SearchResult.hits``
   to view rows (audio rows need only ``scene_id`` / ``score`` / ``film_slug`` /

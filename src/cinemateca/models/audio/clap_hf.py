@@ -30,6 +30,9 @@ from typing import Any
 import numpy as np
 import soundfile as sf
 
+from cinemateca.config import Settings
+from cinemateca.models.manifest import ModelCard, get_card
+
 logger = logging.getLogger(__name__)
 
 _DEFAULT_MODEL_ID = "laion/larger_clap_general"
@@ -46,7 +49,10 @@ _CLAP_DIM = 512
 class ClapHFEmbedder:
     """HF-transformers CLAP audio embedder."""
 
-    def __init__(self, cfg=None, device=None) -> None:
+    #: Provenance for this backend (manifest single source of truth, C10/F6).
+    CARD: ModelCard = get_card("clap_hf")
+
+    def __init__(self, cfg: Settings | None = None, device=None) -> None:
         self._cfg = cfg
         self._device = device
         # transformers stubs are incomplete (no get_audio_features/etc.).

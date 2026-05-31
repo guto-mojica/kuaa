@@ -6,10 +6,14 @@ import json
 import logging
 import time
 from pathlib import Path
+from typing import Any, ClassVar
 
 import numpy as np
 import pandas as pd
 from PIL import Image
+
+from cinemateca.config import Settings
+from cinemateca.models.manifest import ModelCard, get_card
 
 logger = logging.getLogger(__name__)
 
@@ -17,10 +21,19 @@ logger = logging.getLogger(__name__)
 class OpenClipEmbedder:
     """CLIP (ViT-B/32 via open_clip) image/text embedder, L2-normalised."""
 
-    def __init__(self, cfg=None, device=None):
-        self._model = None
-        self._preprocess = None
-        self._tokenizer = None
+    #: Provenance for this backend (manifest single source of truth, C10/F6).
+    #: Declared ``ModelCard | None`` so the unshipped ``MClipEmbedder`` subclass
+    #: can override it to ``None`` (it has no manifest card); the value here is
+    #: always a real card.
+    CARD: ClassVar[ModelCard | None] = get_card("clip_openclip")
+
+    def __init__(self, cfg: Settings | None = None, device=None):
+        # Lazy-loaded backends (populated by ``_load_model``); typed ``Any``
+        # so the lazy-``None`` initial value doesn't poison call sites — same
+        # convention as the SigLIP/CLAP backends.
+        self._model: Any = None
+        self._preprocess: Any = None
+        self._tokenizer: Any = None
         self._device = device
 
         if cfg is not None:

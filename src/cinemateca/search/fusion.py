@@ -133,8 +133,11 @@ def search_fusion(
 # index loading, wrap the ``search_fusion`` leaf, time the search, and return a
 # typed :class:`SearchResult` carrying the 5 per-query metadata fields
 # (``fusion_used=True``, ``retriever_mode="fusion"``, ``reranker_applied=False``,
-# ``num_films_searched``, ``latency_ms``). The leaf stays ``list[dict]``
-# (consumed unchanged by ``cinemateca.eval``). The api dispatcher projects
+# ``num_films_searched``, ``latency_ms``). That typed metadata is plumbing for
+# future eval grouping / UI affordances — it is *not* consumed by
+# ``cinemateca.eval`` today: eval calls the ``search_fusion`` leaf directly (see
+# ``cinemateca.eval.slates``). The leaf stays ``list[dict]`` precisely so eval
+# keeps consuming it unchanged. The api dispatcher projects
 # ``SearchResult.hits`` back to template view-dicts, preserving the HTTP shape.
 #
 # The loading helpers (``normalise_clip_mapping`` / ``NullEncoder``) are the

@@ -5,6 +5,9 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from cinemateca.config import Settings
+from cinemateca.models.manifest import ModelCard, get_card
+
 logger = logging.getLogger(__name__)
 
 
@@ -19,7 +22,12 @@ class OpenCVEnvironmentClassifier:
     module does not trigger the full OpenCV load at server startup.
     """
 
-    def __init__(self, cfg=None, device=None):  # device is accepted but unused (CPU-only heuristic)
+    #: Provenance for this backend (manifest single source of truth, C10/F6).
+    CARD: ModelCard = get_card("opencv_heuristic")
+
+    def __init__(
+        self, cfg: Settings | None = None, device=None
+    ):  # device is accepted but unused (CPU-only heuristic)
         if cfg is not None:
             env_cfg = cfg.visual_analysis.environment
             self.enabled = env_cfg.enabled

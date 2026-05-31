@@ -243,7 +243,11 @@ def load_index(
         # path (clip_openclip) keeps the OpenClipEmbedder() already built by
         # _load_and_validate so tests that monkeypatch openclip.OpenClipEmbedder
         # continue to work without any changes.
-        if index.ok and embedder_name not in ("clip_openclip", None):
+        # ``cfg is not None`` is implied by ``embedder_name`` being a non-default
+        # backend (the ternary above returns "clip_openclip" when cfg is None),
+        # but state it explicitly so the typed ``get_image_embedder(cfg: Settings)``
+        # factory sees a non-optional cfg.
+        if index.ok and cfg is not None and embedder_name not in ("clip_openclip", None):
             try:
                 from cinemateca.models.registry import get_image_embedder
 

@@ -12,16 +12,18 @@ import logging
 import shutil
 import time
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import pandas as pd
 
+from cinemateca.config import Settings
 from cinemateca.models.base import SceneDescriptionRecord
 from cinemateca.models.describer._common import (
     PROMPTS,
     build_metadata,
 )
 from cinemateca.models.describer.domain_prompts import prompts_from_config
+from cinemateca.models.manifest import ModelCard, get_card
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +36,13 @@ _MMPROJ_GGUF = "moondream2-mmproj-f16.gguf"
 class MoondreamGGUFDescriber:
     """SceneDescriber backed by Moondream 2 GGUF + llama-cpp-python."""
 
-    def __init__(self, cfg=None, device=None):
-        self._llm = None
+    #: Provenance for this backend (manifest single source of truth, C10/F6).
+    CARD: ModelCard = get_card("moondream_gguf")
+
+    def __init__(self, cfg: Settings | None = None, device=None):
+        # Lazy-loaded llama-cpp model (populated by ``_load_model``); typed
+        # ``Any`` so the lazy-``None`` initial value doesn't poison call sites.
+        self._llm: Any = None
         if cfg is not None and getattr(cfg, "llm", None) is not None:
             self.checkpoint_interval = cfg.llm.checkpoint_interval
             self.process_limit = cfg.llm.process_limit
@@ -143,6 +150,12 @@ class MoondreamGGUFDescriber:
         existing_results: list[SceneDescriptionRecord] | None = None,
         checkpoint_path: Path | None = None,
     ) -> list[SceneDescriptionRecord]:
+        """Describe all rows; resume from ``existing_results`` if provided.
+
+        RESUME-BUG FIX (mirrors transformers_hf.py): error rows are NOT
+        counted as processed — they are dropped so reprocessing can produce
+        a good result; good rows are preserved verbatim, not rebuilt.
+        """
         # RESUME-BUG FIX: error rows are NOT counted as processed — they are
         # dropped so reprocessing can produce a good result (mirror pipeline.py:332).
         existing = list(existing_results or [])

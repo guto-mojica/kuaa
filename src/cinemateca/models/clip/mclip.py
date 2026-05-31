@@ -20,10 +20,13 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import Any, ClassVar
 
 import numpy as np
 
+from cinemateca.config import Settings
 from cinemateca.models.clip.openclip import OpenClipEmbedder
+from cinemateca.models.manifest import ModelCard
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +42,18 @@ class MClipEmbedder(OpenClipEmbedder):
     without modification.
     """
 
-    def __init__(self, cfg=None, device=None):
+    #: No manifest card: M-CLIP is an unshipped multilingual *fallback*
+    #: (superseded by ``siglip_multilingual`` as the shipped multilingual
+    #: default), so it is intentionally absent from ``manifest.CARDS``. Set
+    #: explicitly to ``None`` rather than inheriting ``OpenClipEmbedder.CARD``,
+    #: which would mislabel this backend as ``clip_openclip`` (it swaps in a
+    #: different XLM-Roberta text encoder). If M-CLIP is ever shipped, add a
+    #: ``clip_mclip`` card and point this at ``get_card("clip_mclip")``.
+    CARD: ClassVar[ModelCard | None] = None
+
+    def __init__(self, cfg: Settings | None = None, device=None):
         super().__init__(cfg, device)
-        self._st_model = None
+        self._st_model: Any = None
 
     def _load_mclip(self) -> None:
         if self._st_model is not None:

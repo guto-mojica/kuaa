@@ -36,7 +36,7 @@ _image_embedder_cache: dict[tuple[str, str | None], Any] = {}
 _audio_embedder_cache: dict[tuple[str, str | None], Any] = {}
 
 
-def _name(cfg, attr: str) -> str:
+def _name(cfg: Settings, attr: str) -> str:
     models = getattr(cfg, "models", None)
     if models is None:
         raise ValueError("config has no [models] section")
@@ -62,7 +62,7 @@ def reset_caches() -> None:
     _audio_embedder_cache.clear()
 
 
-def get_image_embedder(cfg, device=None) -> ImageEmbedder:
+def get_image_embedder(cfg: Settings, device=None) -> ImageEmbedder:
     """Return the configured image-embedding backend.
 
     Provenance: see ModelCard via ``model_card(cfg, "image_embedder")``.
@@ -92,7 +92,7 @@ def get_image_embedder(cfg, device=None) -> ImageEmbedder:
     return instance
 
 
-def get_face_detector(cfg, device=None) -> FaceDetector:
+def get_face_detector(cfg: Settings, device=None) -> FaceDetector:
     """Return the configured face-detector backend.
 
     Provenance: see ModelCard via ``model_card(cfg, "face_detector")``.
@@ -105,7 +105,7 @@ def get_face_detector(cfg, device=None) -> FaceDetector:
     raise ValueError(f"Unknown face_detector: {name!r}")
 
 
-def get_object_detector(cfg, device=None) -> ObjectDetector:
+def get_object_detector(cfg: Settings, device=None) -> ObjectDetector:
     """Return the configured object-detector backend.
 
     Provenance: see ModelCard via ``model_card(cfg, "object_detector")``.
@@ -118,7 +118,7 @@ def get_object_detector(cfg, device=None) -> ObjectDetector:
     raise ValueError(f"Unknown object_detector: {name!r}")
 
 
-def get_scene_describer(cfg, device=None) -> SceneDescriber:
+def get_scene_describer(cfg: Settings, device=None) -> SceneDescriber:
     """Return the configured scene-describer (VLM) backend.
 
     Provenance: see ModelCard via ``model_card(cfg, "scene_describer")``.
@@ -138,7 +138,7 @@ def get_scene_describer(cfg, device=None) -> SceneDescriber:
     raise ValueError(f"Unknown scene_describer: {name!r}")
 
 
-def get_environment_classifier(cfg, device=None) -> EnvironmentClassifier:
+def get_environment_classifier(cfg: Settings, device=None) -> EnvironmentClassifier:
     """Return the configured environment-classifier backend.
 
     Provenance: see ModelCard via ``model_card(cfg, "environment_classifier")``.
@@ -153,7 +153,7 @@ def get_environment_classifier(cfg, device=None) -> EnvironmentClassifier:
     raise ValueError(f"Unknown environment_classifier: {name!r}")
 
 
-def get_audio_embedder(cfg, device=None) -> AudioEmbedder:
+def get_audio_embedder(cfg: Settings, device=None) -> AudioEmbedder:
     """Return the configured audio-embedding backend.
 
     Provenance: see ModelCard via ``model_card(cfg, "audio_embedder")``.

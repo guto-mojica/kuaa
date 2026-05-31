@@ -21,16 +21,18 @@ import logging
 import shutil
 import time
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import pandas as pd
 
+from cinemateca.config import Settings
 from cinemateca.models.base import SceneDescriptionRecord
 from cinemateca.models.describer._common import (
     PROMPTS,
     build_metadata,
 )
 from cinemateca.models.describer.domain_prompts import prompts_from_config
+from cinemateca.models.manifest import ModelCard, get_card
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +45,14 @@ _INPUT_SIZE = 378
 class MoondreamTransformersDescriber:
     """SceneDescriber backed by Moondream 2 via HF transformers."""
 
-    def __init__(self, cfg=None, device=None):
-        self._model = None
-        self._tokenizer = None
+    #: Provenance for this backend (manifest single source of truth, C10/F6).
+    CARD: ModelCard = get_card("moondream_transformers")
+
+    def __init__(self, cfg: Settings | None = None, device=None):
+        # Lazy-loaded model + tokenizer (populated by ``_load_model``); typed
+        # ``Any`` so the lazy-``None`` initial value doesn't poison call sites.
+        self._model: Any = None
+        self._tokenizer: Any = None
         self._enc_cache: tuple[str, object] | None = None
         self._device = device
         if cfg is not None and getattr(cfg, "llm", None) is not None:

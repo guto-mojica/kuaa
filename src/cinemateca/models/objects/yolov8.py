@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
+
+from cinemateca.config import Settings
+from cinemateca.models.manifest import ModelCard, get_card
 
 logger = logging.getLogger(__name__)
 
@@ -11,8 +15,13 @@ logger = logging.getLogger(__name__)
 class YOLOv8ObjectDetector:
     """Detects objects using YOLOv8 (Ultralytics)."""
 
-    def __init__(self, cfg=None, device=None):
-        self._model = None
+    #: Provenance for this backend (manifest single source of truth, C10/F6).
+    CARD: ModelCard = get_card("yolov8")
+
+    def __init__(self, cfg: Settings | None = None, device=None):
+        # Lazy-loaded YOLO model (populated by ``_load_model``); typed ``Any``
+        # so the lazy-``None`` initial value doesn't poison call sites.
+        self._model: Any = None
         self._device = device
 
         if cfg is not None:

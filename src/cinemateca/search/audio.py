@@ -189,10 +189,13 @@ def search_audio(
 # ``cinemateca.search.find`` / ``aggregate``: they wrap the ``search_audio``
 # leaf, time the search, and return a typed :class:`SearchResult` carrying the
 # 5 per-query metadata fields (``retriever_mode="audio"``, ``fusion_used=False``,
-# ``reranker_applied=False``, ``num_films_searched``, ``latency_ms``). The leaf
-# stays ``list[dict]`` (consumed unchanged by ``cinemateca.eval``). The api
-# dispatcher projects ``SearchResult.hits`` back to the template view-dicts, so
-# the HTTP response shape is preserved.
+# ``reranker_applied=False``, ``num_films_searched``, ``latency_ms``). That
+# typed metadata is plumbing for future eval grouping / UI affordances — it is
+# *not* consumed by ``cinemateca.eval`` today: eval calls the ``search_audio``
+# leaf directly (see ``cinemateca.eval.slates``). The leaf stays ``list[dict]``
+# precisely so eval keeps consuming it unchanged. The api dispatcher projects
+# ``SearchResult.hits`` back to the template view-dicts, so the HTTP response
+# shape is preserved.
 #
 # Audio ``Hit`` rows carry only ``scene_id`` / ``score`` / ``film_slug`` /
 # ``film_title`` — the join keys the api view-dict projector

@@ -38,6 +38,7 @@ import numpy as np
 import pandas as pd
 
 from cinemateca.config import Settings
+from cinemateca.models.manifest import ModelCard, get_card
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,9 @@ _DEFAULT_MODEL_ID = "google/siglip2-large-patch16-256"
 
 class SiglipMultilingualEmbedder:
     """SigLIP-multilingual via HuggingFace transformers."""
+
+    #: Provenance for this backend (manifest single source of truth, C10/F6).
+    CARD: ModelCard = get_card("siglip_multilingual")
 
     def __init__(self, cfg: Settings | None = None, device: str | None = None) -> None:
         self._cfg = cfg

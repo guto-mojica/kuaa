@@ -27,9 +27,17 @@ from dataclasses import replace
 from functools import lru_cache
 from typing import Protocol
 
+from cinemateca.models.manifest import ModelCard, get_card
 from cinemateca.search.types import Hit, SearchResult
 
 logger = logging.getLogger(__name__)
+
+#: Provenance for the cross-encoder reranker backend (manifest single source
+#: of truth, C10/F6). The reranker has no ``models.*`` config selector (it is
+#: configured under ``retrieval.reranker.*``), so it is a module-level link
+#: rather than a class attribute; ``registry.model_card(settings, "reranker")``
+#: resolves to this same card.
+CARD: ModelCard = get_card("bge_reranker_v2_m3")
 
 _DEFAULT_MODEL_ID = "BAAI/bge-reranker-v2-m3"
 DEFAULT_TOP_K_IN = 20
