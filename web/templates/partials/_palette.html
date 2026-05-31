@@ -35,6 +35,7 @@
 {% from "partials/_icons.html" import icon %}
 <div class="cp-back" id="palette"
      role="dialog" aria-modal="true" aria-labelledby="cp-input"
+     data-focus-trap
      x-show="$store.palette.open"
      x-cloak
      @click.self="$store.palette.open = false"

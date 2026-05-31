@@ -78,6 +78,14 @@
        before Alpine boots; the IIFE bodies never touch ``window.Alpine``
        synchronously, only inside listeners or on-demand helpers. #}
     <script src="{{ request.url_for('static', path='js/alpine.min.js') }}" defer></script>
+    {# focus_trap.js — U3 accessible focus management for modal overlays.
+       Vendored vanilla IIFE, no deps. Order-independent: it registers no
+       ``alpine:init`` listener (only a MutationObserver + a capture-phase
+       keydown), so it can follow Alpine safely. It manages every element
+       tagged ``data-focus-trap`` (the command palette, keyboard-help, and
+       About modal): traps Tab/Shift+Tab inside the open overlay and
+       restores focus to the trigger on close. #}
+    <script src="{{ request.url_for('static', path='js/focus_trap.js') }}" defer></script>
 </head>
 <body class="fx-app"
       data-active-tab="{{ active_tab }}"

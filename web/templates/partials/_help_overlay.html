@@ -46,6 +46,7 @@
 {% from "partials/_icons.html" import icon %}
 <div class="kh-back" id="help"
      role="dialog" aria-modal="true" aria-labelledby="kh-title"
+     data-focus-trap
      x-show="$store.help.open"
      x-cloak
      @click.self="$store.help.open = false"

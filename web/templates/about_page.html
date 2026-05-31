@@ -27,6 +27,11 @@
        or HTMX surfaces, so the toast bus + keyboard router would just
        register stores no markup reads. #}
     <script src="{{ request.url_for('static', path='js/alpine.min.js') }}" defer></script>
+    {# focus_trap.js — U3: the About modal is the entire page here, so the
+       trap activates on load (pulling focus into the dialog) and releases
+       when the modal is emptied. Vendored vanilla IIFE, order-independent
+       (MutationObserver + capture-phase keydown, no alpine:init listener). #}
+    <script src="{{ request.url_for('static', path='js/focus_trap.js') }}" defer></script>
 </head>
 <body class="fx-app" data-active-tab="about" data-locale="{{ locale }}">
 {# A live ``#modal-container`` is still rendered so the modal's onclick

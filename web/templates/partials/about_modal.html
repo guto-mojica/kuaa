@@ -36,6 +36,7 @@
 
 <div class="ab-app" id="about"
      role="dialog" aria-modal="true" aria-labelledby="about-title"
+     data-focus-trap
      x-data="{ close() { document.getElementById('modal-container').innerHTML = '' } }"
      @keydown.escape.window="close()">
     {# ── Atmospheric backdrop ────────────────────────────────────────
