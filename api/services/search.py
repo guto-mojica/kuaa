@@ -9,8 +9,10 @@ resolves ``cfg.search.bm25``; ``dispatch_text_search`` orchestrates
 per-film vs aggregate).
 
 Audio + fusion dispatchers live in ``_search_dispatch``; the reranker
-adapter in ``_search_rerank``. ``apply_reranker`` stays here so tests
-can monkeypatch ``api.services.search.search_rerank``.
+boundary (typed-``SearchResult`` rerank + the card↔result projection
+helpers ``cards_to_result`` / ``result_to_cards``) in ``_search_rerank``.
+``apply_reranker`` stays here so tests can monkeypatch
+``api.services.search.search_rerank``.
 """
 
 from __future__ import annotations
@@ -118,8 +120,10 @@ from api.services._search_rerank import (  # noqa: F401
     _gpu_available,
     _reranker_settings,
     apply_reranker,
-    rerank_template_results,
+    cards_to_result,
+    rerank_search_result,
     reranker_default_enabled,
+    result_to_cards,
 )
 
 logger = logging.getLogger(__name__)
@@ -172,9 +176,11 @@ def dispatch_text_search(
     fast path doesn't read disk when ``retriever == "clip"`` and ``tags``
     is empty (preserving the legacy behaviour).
 
-    Reranking is applied downstream by the route layer
-    (``rerank_template_results`` over the enriched cards), not here — this
-    verb returns the first-stage ranking.
+    Reranking is applied downstream by the render layer: the enriched
+    cards are lifted to a typed ``SearchResult`` (``cards_to_result``),
+    reranked typed (``rerank_search_result``), then projected back for the
+    template (``result_to_cards``) — this verb returns the first-stage
+    ranking only.
     """
     from api.services.catalog import load_tag_index
 

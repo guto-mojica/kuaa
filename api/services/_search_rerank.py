@@ -1,8 +1,18 @@
-"""Cross-encoder reranker adapter (split from api/services/search.py — Task A1).
+"""Cross-encoder reranker boundary (split from api/services/search.py — Task A1).
 
-``apply_reranker`` and the template-dict adapter ``rerank_template_results``
-are the two public surfaces imported by routes and tests.  Both are
-re-exported on ``api.services.search`` so caller import paths are unchanged.
+``apply_reranker`` is the typed verb wrapper: it reads
+``retrieval.reranker.*`` off ``cfg`` and forwards a :class:`SearchResult`
+to :func:`cinemateca.search.rerank`. It is re-exported on
+``api.services.search`` so caller import paths are unchanged.
+
+C5: the production text-search path now carries a typed :class:`SearchResult`
+from enrichment through rerank to the render boundary, so the old
+``dict → SearchResult → dict`` adapter (``rerank_template_results``) is gone.
+The two thin boundary helpers that replace it —
+:func:`cards_to_result` (lift enriched card dicts to a typed result) and
+:func:`result_to_cards` (project the reranked result back to card dicts) —
+make the typed result the through-line rather than something rerank
+reconstructs and discards on every call.
 
 Monkeypatch note: tests patch ``api.services.search.search_rerank`` (the
 aliased :func:`cinemateca.search.rerank` verb).  ``apply_reranker`` performs a
@@ -123,11 +133,11 @@ def apply_reranker(
     return _svc.search_rerank(result, model=model, top_k_in=top_k_in)
 
 
-def _result_key(row: dict[str, Any]) -> tuple[str, int]:
+def _card_key(row: dict[str, Any]) -> tuple[str, int]:
     return (str(row.get("film_slug") or ""), int(row.get("scene_id") or 0))
 
 
-def _row_score(row: dict[str, Any]) -> float:
+def _card_score(row: dict[str, Any]) -> float:
     raw = row.get("similarity", row.get("score", 0.0))
     try:
         return float(raw or 0.0)
@@ -135,27 +145,28 @@ def _row_score(row: dict[str, Any]) -> float:
         return 0.0
 
 
-def rerank_template_results(
-    results: list[dict[str, Any]],
+def cards_to_result(
+    cards: list[dict[str, Any]],
     *,
-    cfg: Any,
     query: str,
     mode: str = "hybrid",
-    enabled: bool | None = None,
-) -> list[dict[str, Any]]:
-    """Apply the text reranker to enriched template-result dicts.
+) -> tuple[SearchResult, dict[tuple[str, int], dict[str, Any]]]:
+    """Lift enriched template-card dicts into a typed :class:`SearchResult`.
 
-    Current HTTP dispatchers still produce DataFrames / ``list[dict]`` before
-    route-level enrichment adds descriptions and tags. The cross-encoder needs
-    those descriptions, so adapt the final card dicts into ``SearchResult``,
-    rerank once, then return the same dict shape in reranked order.
+    The *single* dict→typed boundary on the text-search path (C5). Enrichment
+    reads descriptions/tags as JSON dicts, so the card list is where typed
+    :class:`Hit` objects are built once. The returned ``originals`` map (keyed
+    by ``(film_slug, scene_id)``) lets :func:`result_to_cards` re-emit the
+    exact template dicts in result order — every display-only field the
+    ``.b-card`` template reads (``img_url`` / ``similarity`` / ``pin_count``)
+    lives there, not on the core ``Hit``. The ``SearchResult`` is the
+    through-line: the caller passes it to :func:`rerank_search_result` then
+    :func:`result_to_cards`, so the reranker operates on the result the path
+    built rather than reconstructing one per call.
     """
-    if enabled is False or not results:
-        return results
-
     originals: dict[tuple[str, int], dict[str, Any]] = {}
     hits: list[Hit] = []
-    for row in results:
+    for row in cards:
         try:
             sid = int(row.get("scene_id") or 0)
         except (TypeError, ValueError):
@@ -166,7 +177,7 @@ def rerank_template_results(
         hits.append(
             Hit(
                 scene_id=sid,
-                score=_row_score(row),
+                score=_card_score(row),
                 keyframe_path=str(row.get("keyframe_path") or row.get("filepath") or ""),
                 film_slug=key[0] or None,
                 film_title=row.get("film_title"),
@@ -175,26 +186,32 @@ def rerank_template_results(
                 tags=list(tags) if isinstance(tags, list) else [],
             )
         )
-    if not hits:
-        return results
-
     search_mode = cast(SearchMode, mode if mode in {"clip", "bm25", "hybrid"} else "hybrid")
-    search_result = SearchResult(
+    result = SearchResult(
         hits=hits,
         mode=search_mode,
         weights=None,
         query=Query.of_text(query),
         no_index=False,
     )
-    try:
-        reranked = apply_reranker(search_result, cfg=cfg, enabled_override=enabled)
-    except Exception as exc:
-        logger.warning("reranker failed; leaving text results unchanged: %s", exc)
-        return results
+    return result, originals
 
+
+def result_to_cards(
+    result: SearchResult,
+    originals: dict[tuple[str, int], dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Project a (possibly reranked) :class:`SearchResult` back to card dicts.
+
+    Re-emits the original enriched template dict for each ``Hit`` in result
+    order, attaching ``rerank_score`` when the cross-encoder set it. Cards the
+    result dropped (e.g. ranks beyond ``top_k_in`` once reranking is enabled)
+    are appended after the head in their original order, so enabling rerank
+    never makes cards disappear merely for being below the input window.
+    """
     ordered: list[dict[str, Any]] = []
     used: set[tuple[str, int]] = set()
-    for hit in reranked.hits:
+    for hit in result.hits:
         key = (hit.film_slug or "", hit.scene_id)
         original = originals.get(key)
         if original is None:
@@ -204,11 +221,30 @@ def rerank_template_results(
             row["rerank_score"] = hit.rerank_score
         ordered.append(row)
         used.add(key)
-
-    if not ordered:
-        return results
-    # If the configured top_k_in is lower than the requested top-k, preserve
-    # unscored tail results after the reranked head instead of making cards
-    # disappear merely because reranking is enabled.
-    ordered.extend(row for row in results if _result_key(row) not in used)
+    # Preserve the original card order for the unscored tail (originals is
+    # insertion-ordered to match the input ``cards`` list).
+    ordered.extend(dict(row) for key, row in originals.items() if key not in used)
     return ordered
+
+
+def rerank_search_result(
+    result: SearchResult,
+    *,
+    cfg: Any,
+    enabled: bool | None = None,
+) -> SearchResult:
+    """Rerank a typed text :class:`SearchResult` at the render boundary.
+
+    Thin wrapper over :func:`apply_reranker` owning the two policy bits the
+    render layer should not repeat: a no-op short-circuit for an empty result
+    or ``enabled=False``, and a defensive ``try/except`` so a cross-encoder
+    load/scoring failure degrades to the first-stage ranking instead of
+    500-ing the request. The typed result flows straight through.
+    """
+    if enabled is False or not result.hits:
+        return result
+    try:
+        return apply_reranker(result, cfg=cfg, enabled_override=enabled)
+    except Exception as exc:  # noqa: BLE001 — degrade to first-stage ranking
+        logger.warning("reranker failed; leaving text results unchanged: %s", exc)
+        return result

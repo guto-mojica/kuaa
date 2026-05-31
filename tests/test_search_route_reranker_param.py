@@ -53,7 +53,13 @@ def test_api_search_reranker_enabled_logged(client, caplog) -> None:
 
 
 def test_api_search_threads_reranker_toggle_into_result_adapter(client, monkeypatch) -> None:
-    """The route passes the request toggle into the rerank adapter."""
+    """The route threads the request toggle into the typed rerank boundary.
+
+    C5: the dict round-trip adapter (``rerank_template_results``) is gone; the
+    render layer lifts enriched cards to a typed ``SearchResult``
+    (``cards_to_result``, receiving query+mode) and reranks that typed result
+    (``rerank_search_result``, receiving the request ``enabled`` toggle).
+    """
     import api.routes.search as route
 
     captured: dict = {}
@@ -82,11 +88,18 @@ def test_api_search_threads_reranker_toggle_into_result_adapter(client, monkeypa
     )
     monkeypatch.setattr(route.search_service, "films_by_id_lookup", lambda cfg: {})
 
-    def fake_rerank(results, *, cfg, query, mode, enabled):
-        captured.update({"query": query, "mode": mode, "enabled": enabled})
-        return results
+    real_cards_to_result = route.search_service.cards_to_result
 
-    monkeypatch.setattr(route.search_service, "rerank_template_results", fake_rerank)
+    def spy_cards_to_result(cards, *, query, mode="hybrid"):
+        captured.update({"query": query, "mode": mode})
+        return real_cards_to_result(cards, query=query, mode=mode)
+
+    def fake_rerank(result, *, cfg, enabled=None):
+        captured["enabled"] = enabled
+        return result
+
+    monkeypatch.setattr(route.search_service, "cards_to_result", spy_cards_to_result)
+    monkeypatch.setattr(route.search_service, "rerank_search_result", fake_rerank)
 
     resp = client.get(
         "/api/search",

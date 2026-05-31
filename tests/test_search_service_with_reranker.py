@@ -139,13 +139,19 @@ def test_reranker_default_enabled_mirrors_auto(fake_cfg, monkeypatch):
     assert svc.reranker_default_enabled(fake_cfg) is False
 
 
-def test_rerank_template_results_orders_enriched_dicts(fake_cfg, monkeypatch):
-    """Route-level dict adapter feeds descriptions into the reranker."""
+def test_typed_rerank_boundary_orders_enriched_cards(fake_cfg, monkeypatch):
+    """Typed rerank boundary feeds descriptions in and re-emits reordered cards.
+
+    C5: replaces the old ``rerank_template_results`` dict round-trip. The card
+    list is lifted to a typed ``SearchResult`` (``cards_to_result``), reranked
+    on that typed result (``rerank_search_result`` → ``search_rerank``), then
+    projected back to template card dicts in result order (``result_to_cards``),
+    carrying ``rerank_score``.
+    """
     from api.services import search as svc
 
-    fake_cfg.retrieval.reranker.enabled = False
-
     def fake_rerank(result, *, model, top_k_in):
+        # Descriptions enriched onto the cards must reach the cross-encoder.
         assert [h.description for h in result.hits] == ["less relevant", "exact match"]
         assert model == "noop"
         assert top_k_in == 5
@@ -158,7 +164,7 @@ def test_rerank_template_results_orders_enriched_dicts(fake_cfg, monkeypatch):
         )
 
     monkeypatch.setattr(svc, "search_rerank", fake_rerank)
-    rows = [
+    cards = [
         {
             "film_slug": "default",
             "scene_id": 351,
@@ -173,13 +179,12 @@ def test_rerank_template_results_orders_enriched_dicts(fake_cfg, monkeypatch):
         },
     ]
 
-    out = svc.rerank_template_results(
-        rows,
-        cfg=fake_cfg,
-        query="match",
-        mode="hybrid",
-        enabled=True,
-    )
+    result, originals = svc.cards_to_result(cards, query="match", mode="hybrid")
+    result = svc.rerank_search_result(result, cfg=fake_cfg, enabled=True)
+    out = svc.result_to_cards(result, originals)
 
     assert [r["scene_id"] for r in out] == [352, 351]
     assert out[0]["rerank_score"] == pytest.approx(10.0)
+    # Display-only fields the template reads survive the round-trip untouched.
+    assert out[0]["similarity"] == pytest.approx(0.4)
+    assert out[1]["similarity"] == pytest.approx(0.9)

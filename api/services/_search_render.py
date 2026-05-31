@@ -187,14 +187,20 @@ async def run_text_search(
         return no_index_response(request)
     if slug is None:
         agg = search_service.aggregate_hits_to_template_dicts(cfg, payload) if payload else []
-        results = search_service.enrich_hits_with_film_metadata(cfg, agg) if agg else []
+        cards = search_service.enrich_hits_with_film_metadata(cfg, agg) if agg else []
     else:
         if ctx is None:
             return no_index_response(request)
-        results = enriched_per_film(cfg, ctx, payload, slug)
-    results = search_service.rerank_template_results(
-        results, cfg=cfg, query=q, mode=retriever, enabled=reranker_enabled
-    )
+        cards = enriched_per_film(cfg, ctx, payload, slug)
+    # C5: carry a typed SearchResult from enrichment through rerank to the
+    # render boundary. ``cards_to_result`` is the single dict→typed lift;
+    # ``rerank_search_result`` operates on that result (no dict round-trip);
+    # ``result_to_cards`` projects it back for the HTML template, which still
+    # reads display-only fields (img_url / similarity / pin_count) off the
+    # card dicts rather than the core ``Hit``.
+    result, originals = search_service.cards_to_result(cards, query=q, mode=retriever)
+    result = search_service.rerank_search_result(result, cfg=cfg, enabled=reranker_enabled)
+    results = search_service.result_to_cards(result, originals)
     results = results[offset : offset + top_k]
     return render_results(
         request, slug=slug, cfg=cfg, results=results, query=q, highlighted_tags=set(tags)
