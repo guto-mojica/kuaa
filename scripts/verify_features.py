@@ -298,7 +298,12 @@ def verify_reranker(cfg: Any, fast: bool) -> SectionResult:
     """Hybrid baseline top-50 → rerank top-10. Verify the order shifts."""
     import sys as _sys
 
-    from api.services.search import dispatch_text_search, rerank_template_results
+    from api.services.search import (
+        cards_to_result,
+        dispatch_text_search,
+        rerank_search_result,
+        result_to_cards,
+    )
     from cinemateca.library import FilmContext
 
     section = SectionResult(name="Cross-encoder reranker (hybrid baseline → rerank)")
@@ -356,13 +361,9 @@ def verify_reranker(cfg: Any, fast: bool) -> SectionResult:
     # Reranker: explicit enable.
     try:
         t0 = time.perf_counter()
-        reranked = rerank_template_results(
-            baseline_rows,
-            cfg=cfg,
-            query=RERANKER_QUERY,
-            mode="hybrid",
-            enabled=True,
-        )
+        result, originals = cards_to_result(baseline_rows, query=RERANKER_QUERY, mode="hybrid")
+        result = rerank_search_result(result, cfg=cfg, enabled=True)
+        reranked = result_to_cards(result, originals)
         lat_ms = (time.perf_counter() - t0) * 1000.0
         top10_reranked = [int(r["scene_id"]) for r in reranked[:10]]
         top10_baseline = baseline_ids[:10]
