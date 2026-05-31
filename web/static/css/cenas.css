@@ -34,7 +34,7 @@
   border-radius: 6px; padding: 5px 10px;
   display: flex; align-items: center; gap: 8px;
   font-size: 12px; color: var(--c-muted); min-width: 240px;
-  transition: border-color .12s, background .12s, box-shadow .12s;
+  transition: border-color var(--dur-fast), background var(--dur-fast), box-shadow var(--dur-fast);
 }
 .c-cp .toolrow .find:focus-within {
   border-color: var(--c-accent); background: var(--c-raised);
@@ -99,7 +99,7 @@
   background: var(--c-panel); border: 1px solid var(--c-border);
   border-radius: 7px; overflow: hidden;
   cursor: pointer; display: flex; flex-direction: column;
-  transition: border-color .12s, transform .12s;
+  transition: border-color var(--dur-fast), transform var(--dur-fast);
   position: relative;
 }
 .c-cp .scenecard:hover { border-color: var(--c-border-2); transform: translateY(-1px); }
@@ -109,8 +109,8 @@
   width: 18px; height: 18px; border-radius: 4px;
   background: rgba(14,16,20,0.75); border: 1px solid var(--c-border-2);
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; opacity: 0; transition: opacity .12s;
-  color: var(--c-text); z-index: 2;
+  cursor: pointer; opacity: 0; transition: opacity var(--dur-fast);
+  color: var(--c-text); z-index: var(--z-overlay-content);
 }
 .c-cp .scenecard:hover .check { opacity: 1; }
 .c-cp .scenecard.sel .check {
@@ -290,7 +290,7 @@
   border: 1px solid var(--c-border);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
-  z-index: 20;
+  z-index: var(--z-popover);
 }
 
 .scenes-filter-popover__head {
@@ -357,7 +357,7 @@
   color: var(--c-text);
   border-radius: 5px;
   cursor: pointer;
-  transition: background .12s;
+  transition: background var(--dur-fast);
 }
 .scenes-prefs-row:hover { background: var(--c-hover); }
 .scenes-prefs-row input { margin: 0; accent-color: var(--c-accent); }

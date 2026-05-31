@@ -41,7 +41,7 @@
   font-weight: 500; letter-spacing: -0.003em;
   border: none; background: transparent;
   white-space: nowrap;
-  transition: background .12s, color .12s;
+  transition: background var(--dur-fast), color var(--dur-fast);
 }
 .ch-top .tab:hover { color: var(--c-text); }
 .ch-top .tab.on {
@@ -239,7 +239,7 @@
   letter-spacing: 0.04em;
   padding: 1px 2px;
   border-radius: 3px;
-  transition: color .12s;
+  transition: color var(--dur-fast);
 }
 .ch-lp .lp-aux .locale .lc:hover { color: var(--c-text); }
 .ch-lp .lp-aux .locale .lc.on { color: var(--c-accent); }
@@ -249,7 +249,7 @@
   color: var(--c-muted);
   text-decoration: none;
   font-size: 11px;
-  transition: color .12s;
+  transition: color var(--dur-fast);
 }
 .ch-lp .lp-aux .about:hover { color: var(--c-text); }
 

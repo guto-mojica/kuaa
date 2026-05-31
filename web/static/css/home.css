@@ -40,7 +40,7 @@
   overflow: hidden;
   text-decoration: none;
   color: inherit;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color var(--dur-norm), background var(--dur-norm);
 }
 
 .home-card:hover {

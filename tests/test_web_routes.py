@@ -570,10 +570,13 @@ def test_search_full_page_includes_inspector_partial_without_crashing(client):
     """
     r = client.get("/search")
     assert r.status_code == 200, r.text[:500]
-    # The inspector partial is included by search.html and now renders an
-    # ``.b-rp.b-rp-empty`` placeholder when no scene is selected. The full
-    # ``.b-rp`` chrome (htabs, .insp-kf, .b-thread, …) must NOT be present.
-    assert 'class="b-rp b-rp-empty"' in r.text, "empty-state placeholder missing"
+    # The inspector partial is included by search.html and now renders a
+    # ``.b-rp.b-rp-empty`` placeholder when no scene is selected. Since U6 it
+    # also carries the shared ``.fx-empty`` primitive, so assert on the class
+    # token rather than the exact attribute string. The full ``.b-rp`` chrome
+    # (htabs, .insp-kf, .b-thread, …) must NOT be present.
+    assert "b-rp-empty" in r.text, "empty-state placeholder missing"
+    assert "fx-empty" in r.text, "empty-state did not adopt the shared .fx-empty primitive"
     assert 'class="htabs"' not in r.text, "selected-state htabs leaked into empty render"
     assert 'class="insp-kf"' not in r.text, "selected-state keyframe leaked into empty render"
 

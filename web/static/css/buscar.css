@@ -19,7 +19,7 @@
   flex: 1; background: var(--c-panel); border: 1px solid var(--c-border);
   border-radius: 7px; padding: 9px 12px;
   display: flex; align-items: center; gap: 10px;
-  transition: border-color .12s, background .12s, box-shadow .12s;
+  transition: border-color var(--dur-fast), background var(--dur-fast), box-shadow var(--dur-fast);
 }
 .b-cp .qbar .qinput:focus-within {
   border-color: var(--c-accent); background: var(--c-raised);
@@ -125,7 +125,7 @@
   background: var(--c-panel); border: 1px solid var(--c-border);
   border-radius: 8px; overflow: hidden;
   cursor: pointer; display: flex; flex-direction: column;
-  transition: border-color .12s, transform .12s;
+  transition: border-color var(--dur-fast), transform var(--dur-fast);
 }
 .b-card:hover { border-color: var(--c-border-2); transform: translateY(-1px); }
 .b-card.sel { border-color: var(--c-accent); box-shadow: 0 0 0 2px var(--c-accent-bg); }
@@ -285,7 +285,7 @@
 .b-rp .anno .anno-input-wrap {
   background: var(--c-bg); border: 1px solid var(--c-border);
   border-radius: 6px; padding: 7px 11px;
-  transition: border-color .12s, background .12s, box-shadow .12s;
+  transition: border-color var(--dur-fast), background var(--dur-fast), box-shadow var(--dur-fast);
 }
 .b-rp .anno .anno-input-wrap:focus-within {
   border-color: var(--c-accent); background: var(--c-raised);
@@ -412,7 +412,7 @@
   width: 100%; aspect-ratio: 4/3;
   background-size: cover; background-position: center;
   border-radius: 4px; filter: contrast(1.05) brightness(0.94);
-  border: 1px solid var(--c-border); transition: border-color .12s;
+  border: 1px solid var(--c-border); transition: border-color var(--dur-fast);
 }
 .b-rimas .ry:hover .kf { border-color: var(--c-accent); }
 .b-rimas .ry .lab {
@@ -483,7 +483,7 @@
   background-size: cover; background-position: center;
   border-right: 1px solid rgba(0,0,0,0.5);
   filter: brightness(0.55) contrast(1.05);
-  position: relative; cursor: pointer; transition: filter .15s;
+  position: relative; cursor: pointer; transition: filter var(--dur-norm);
 }
 .b-tl .seg:hover { filter: brightness(0.9) contrast(1.05); }
 .b-tl .seg.match::after {
@@ -493,7 +493,7 @@
 .b-tl .seg.sel { filter: brightness(1.0) contrast(1.1); }
 .b-tl .seg.sel::before {
   content: ''; position: absolute; inset: 0;
-  outline: 2px solid var(--c-yellow); outline-offset: -2px; z-index: 2;
+  outline: 2px solid var(--c-yellow); outline-offset: -2px; z-index: var(--z-overlay-content);
 }
 .b-tl .seg.sel::after { background: var(--c-yellow); height: 4px; }
 .b-tl .ticks {
@@ -504,30 +504,27 @@
 /* ─── Right-pane empty state ─────────────────────────────────────────────
    Rendered when no scene is selected (initial /search load) so the 380px
    right column doesn't appear as a dead void. The placeholder shares the
-   .b-rp namespace so the chrome grid keeps its sizing — only the inner
-   layout differs. */
+   .b-rp namespace so the chrome grid keeps its sizing.
+
+   U6: the inner layout (centered glyph + .ttl + .sub) is now the shared
+   `.fx-empty` primitive — which was *generalised from this very rule* (see
+   fx.css). The template applies `.fx-empty` directly to the <section>; this
+   `.b-rp-empty` block only carries the two properties unique to the inspector
+   column (border-left + panel fill) so the rendered box is byte-identical to
+   the prior `.b-rp.b-rp-empty` + `.b-rp-empty-inner` pair. `.fx-empty` already
+   supplies `display:flex; flex-direction:column; align-items/justify-content:
+   center; gap:8px; padding:32px 24px; color:var(--c-muted)` (== the old outer
+   centering + padding), its `.glyph` reproduces the old `.ico` 44px circle,
+   and `.ttl`/`.sub` are identical.
+
+   `flex: 0 0 380px` re-asserts the fixed pane main-size: `.fx-empty` carries
+   `flex: 1` (= `1 1 0%`), which would otherwise let this <section> grow and
+   shrink off its 380px `.b-rp` width when it is a flex child of the buscar
+   row. The `.b-rp.b-rp-empty` selector (specificity 0,2,0) wins over
+   `.fx-empty` (0,1,0), so the pane stays exactly 380px as before. */
 .b-rp.b-rp-empty {
   border-left: 1px solid var(--c-border); background: var(--c-panel);
-  display: flex; align-items: center; justify-content: center;
-  padding: 32px 24px;
-}
-.b-rp-empty-inner {
-  display: flex; flex-direction: column; align-items: center;
-  gap: 8px; text-align: center; max-width: 240px;
-  color: var(--c-muted);
-}
-.b-rp-empty-inner .ico {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 44px; height: 44px; border-radius: 50%;
-  background: var(--c-raised); color: var(--c-muted);
-  margin-bottom: 4px;
-}
-.b-rp-empty-inner .ttl {
-  margin: 0; font-size: 13.5px; font-weight: 600; color: var(--c-text);
-  letter-spacing: -0.005em;
-}
-.b-rp-empty-inner .sub {
-  margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--c-muted);
+  flex: 0 0 380px;
 }
 
 /* ─── Tag-filter section height cap ──────────────────────────────────────
@@ -696,7 +693,7 @@
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  z-index: 30;
+  z-index: var(--z-popover-raised);
   min-width: 220px;
   padding: 10px 12px;
   background: var(--c-panel);

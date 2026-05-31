@@ -48,7 +48,7 @@
   display:flex; align-items:center; justify-content:center;
   background: transparent; border: none; color: var(--c-text-2);
   cursor: pointer; font-family: var(--font-mono); font-size: 14px;
-  transition: background .12s, color .12s;
+  transition: background var(--dur-fast), color var(--dur-fast);
   position: relative;
 }
 .fx-icbtn:hover { background: var(--c-hover); color: var(--c-text); }
@@ -93,7 +93,7 @@
   background: var(--c-panel); border: 1px solid var(--c-border);
   padding: 7px 11px; border-radius: 6px;
   display:flex; align-items:center; gap: 9px;
-  transition: border-color .12s, background .12s, box-shadow .12s;
+  transition: border-color var(--dur-fast), background var(--dur-fast), box-shadow var(--dur-fast);
 }
 .fx-input:focus-within {
   border-color: var(--c-accent); background: var(--c-raised);
@@ -117,7 +117,7 @@
   padding: 6px 13px; border-radius: 6px;
   font-family: var(--font-sans); font-size: 12.5px; font-weight: 500;
   cursor: pointer; background: transparent; border: 1px solid transparent;
-  transition: background .12s, color .12s, border-color .12s;
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
 }
 .fx-btn .kbd {
   font-family: var(--font-mono); font-size: 10px; padding: 0 5px;

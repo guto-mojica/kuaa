@@ -71,7 +71,7 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 .ch-body > *:not(.ch-lp) {
-  animation: p-fade-in 220ms cubic-bezier(.2,.7,.3,1);
+  animation: p-fade-in 220ms var(--ease-emphasized);
   animation-fill-mode: both;
 }
 
@@ -88,7 +88,7 @@
 .fx-icbtn:active { transform: scale(0.92); }
 .ch-top .tab:active { transform: scale(0.98); }
 .fx-btn, .fx-icbtn, .ch-top .tab {
-  transition: background .12s, color .12s, border-color .12s, transform .08s, box-shadow .12s;
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast), transform .08s, box-shadow var(--dur-fast);
 }
 
 /* ─── Pulse: yellow annotation pins ──────────────────────────────────── */
@@ -112,9 +112,9 @@
   border: 1px solid var(--c-border-2);
   box-shadow: 0 4px 16px rgba(0,0,0,0.5);
   opacity: 0; pointer-events: none;
-  transition: opacity .12s, transform .12s;
+  transition: opacity var(--dur-fast), transform var(--dur-fast);
   transition-delay: 0s;
-  z-index: 1000;
+  z-index: var(--z-tooltip);
   letter-spacing: -0.005em;
 }
 .fx-app [data-tip][data-tip-pos="bottom"]::after {
@@ -146,7 +146,7 @@
   backdrop-filter: blur(8px);
   display: flex; align-items: flex-start; justify-content: center;
   padding-top: 14vh;
-  z-index: 10000;
+  z-index: var(--z-modal);
   animation: p-fade-in 160ms ease-out;
 }
 .cp-back[hidden] { display: none; }
@@ -238,7 +238,7 @@
   backdrop-filter: blur(8px);
   display: flex; align-items: center; justify-content: center;
   padding: 30px;
-  z-index: 10000;
+  z-index: var(--z-modal);
   animation: p-fade-in 160ms ease-out;
 }
 .kh-back[hidden] { display: none; }
@@ -310,7 +310,7 @@
 .toast-host {
   position: fixed; right: 18px; bottom: 18px;
   display: flex; flex-direction: column-reverse; gap: 8px;
-  z-index: 9000;
+  z-index: var(--z-toast);
   pointer-events: none;
 }
 @keyframes p-toast-in {
@@ -330,7 +330,7 @@
   display: flex; align-items: center; gap: 10px;
   font-size: 12.5px; color: var(--c-text);
   box-shadow: 0 12px 30px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,0,0,0.3);
-  animation: p-toast-in 180ms cubic-bezier(.2,.7,.3,1);
+  animation: p-toast-in 180ms var(--ease-emphasized);
   position: relative; overflow: hidden;
 }
 .toast.exiting { animation: p-toast-out 200ms ease forwards; }
@@ -370,8 +370,8 @@
   border-radius: 18px;
   font-size: 11.5px; color: var(--c-text-2);
   box-shadow: 0 4px 16px rgba(0,0,0,0.35);
-  cursor: pointer; z-index: 8500;
-  transition: border-color .12s, background .12s, transform .12s;
+  cursor: pointer; z-index: var(--z-hint);
+  transition: border-color var(--dur-fast), background var(--dur-fast), transform var(--dur-fast);
 }
 .poke-chip:hover { border-color: var(--c-border-2); background: var(--c-hover); transform: translateY(-1px); }
 .poke-chip .ic {
@@ -389,7 +389,7 @@
 
 /* ─── Subtle row hover on .ev-row & .l-issue & .b-card ───────────────── */
 .ev-row, .b-card, .c-cp .scenecard, .r-echo {
-  transition: background .1s ease, border-color .12s ease, transform .1s ease, box-shadow .12s ease;
+  transition: background .1s ease, border-color var(--dur-fast) ease, transform .1s ease, box-shadow var(--dur-fast) ease;
 }
 
 /* ─── Better scrollbar everywhere (Firefox) ──────────────────────────── */

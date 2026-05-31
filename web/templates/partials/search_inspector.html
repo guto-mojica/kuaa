@@ -27,12 +27,10 @@
 #}
 {% from "partials/_icons.html" import icon %}
 {%- if not selected_scene %}
-<section class="b-rp b-rp-empty" aria-label="{{ _('Result details') }}">
-  <div class="b-rp-empty-inner">
-    <span class="ico" aria-hidden="true">{{ icon('search', 28) }}</span>
-    <p class="ttl">{{ _("Select a result") }}</p>
-    <p class="sub">{{ _("Click a card to see its keyframe, annotations, and visual rhymes here.") }}</p>
-  </div>
+<section class="b-rp b-rp-empty fx-empty" aria-label="{{ _('Result details') }}">
+  <span class="glyph" aria-hidden="true">{{ icon('search', 28) }}</span>
+  <p class="ttl">{{ _("Select a result") }}</p>
+  <p class="sub">{{ _("Click a card to see its keyframe, annotations, and visual rhymes here.") }}</p>
 </section>
 {%- else %}
 <section class="b-rp">

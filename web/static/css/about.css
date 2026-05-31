@@ -36,7 +36,7 @@
 .ab-app {
   position: fixed; inset: 0;
   font-family: var(--font-sans); font-size: 13px; color: var(--c-text);
-  z-index: 1000;
+  z-index: var(--z-overlay);
   overflow: hidden;
 }
 
@@ -108,7 +108,7 @@
   color: var(--c-text-2);
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; font-family: var(--font-mono); font-size: 14px;
-  transition: background .12s, border-color .12s, color .12s;
+  transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
 }
 .ab-head .close:hover { background: var(--c-hover); color: var(--c-text); border-color: var(--c-border-3); }
 
@@ -206,7 +206,7 @@
   align-items: center; gap: 12px;
   padding: 10px 12px;
   background: var(--c-bg); border: 1px solid var(--c-border); border-radius: 6px;
-  transition: border-color .12s, background .12s;
+  transition: border-color var(--dur-fast), background var(--dur-fast);
 }
 .ab-model:hover { background: var(--c-hover); border-color: var(--c-border-2); }
 .ab-model .ico {
@@ -295,7 +295,7 @@
   font-family: var(--font-mono); font-size: 10.5px;
   color: var(--c-muted); letter-spacing: 0.04em;
 }
-.ab-foot .l a { color: var(--c-text-2); cursor: pointer; transition: color .12s; text-decoration: none; }
+.ab-foot .l a { color: var(--c-text-2); cursor: pointer; transition: color var(--dur-fast); text-decoration: none; }
 .ab-foot .l a:hover { color: var(--c-accent); }
 .ab-foot .l .dot { color: var(--c-faint); }
 

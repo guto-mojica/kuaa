@@ -200,7 +200,7 @@
   background: var(--c-panel); border: 1px solid var(--c-border);
   border-radius: 8px; overflow: hidden; cursor: pointer;
   display: flex; flex-direction: column; gap: 0;
-  transition: border-color .12s, transform .12s, box-shadow .12s;
+  transition: border-color var(--dur-fast), transform var(--dur-fast), box-shadow var(--dur-fast);
   position: relative;
   /* anchor element styling: kill default underline + inherit colour so
      the card looks like a card, not a link. The card is a link only to
@@ -223,7 +223,7 @@
   font-family: var(--font-mono); font-size: 10px; font-weight: 600;
   padding: 2px 7px; border-radius: 4px;
   background: rgba(14,16,20,0.78); color: var(--c-text);
-  z-index: 2;
+  z-index: var(--z-overlay-content);
 }
 .r-echo .kf .sim,
 .r-echo > .sim {
@@ -232,7 +232,7 @@
   padding: 2px 7px; border-radius: 4px;
   background: rgba(14,16,20,0.86); color: var(--c-accent);
   font-variant-numeric: tabular-nums;
-  z-index: 2;
+  z-index: var(--z-overlay-content);
 }
 .r-echo .kf .filmbadge,
 .r-echo .meta .filmbadge {
@@ -332,7 +332,7 @@
   background: var(--c-accent-bg); padding: 4px 8px; border-radius: 12px;
   border: 1px solid var(--c-accent-dim);
   letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600;
-  z-index: 2;
+  z-index: var(--z-overlay-content);
 }
 .r-pair-wrap { position: relative; }
 

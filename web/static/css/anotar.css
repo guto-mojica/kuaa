@@ -79,7 +79,7 @@
   transform: rotate(-12deg);
   box-shadow: 0 0 0 4px rgba(245,200,66,0.22), 0 4px 12px rgba(0,0,0,0.4);
   cursor: pointer;
-  z-index: 3;
+  z-index: var(--z-pin);
 }
 .a-keyframe .pin.alt {
   background: var(--c-accent); color: #fff;
@@ -92,7 +92,7 @@
   background: var(--c-panel); border: 1px solid var(--c-border-2);
   border-radius: 7px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.3);
-  z-index: 4;
+  z-index: var(--z-pin-popover);
   display: flex; flex-direction: column; gap: 10px;
 }
 .a-keyframe .commentpop .com {
@@ -159,7 +159,7 @@
   white-space: nowrap;
   background: var(--c-bg); padding: 1px 5px; border-radius: 3px;
   border: 1px solid var(--c-border);
-  opacity: 0; transition: opacity .15s;
+  opacity: 0; transition: opacity var(--dur-norm);
 }
 .a-tl .scrub .marker:hover .label { opacity: 1; }
 .a-tl .scrub .av-pip {
@@ -379,7 +379,7 @@
   background: var(--c-bg); border: 1px solid var(--c-border);
   border-radius: 7px; padding: 8px 12px;
   display: flex; align-items: flex-end; gap: 8px;
-  transition: border-color .12s, box-shadow .12s;
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
 }
 .a-rp .composer .input-wrap:focus-within {
   border-color: var(--c-accent);
@@ -475,7 +475,7 @@
   border-radius: 6px; padding: 7px 11px;
   font-family: var(--font-mono); font-size: 13px; color: var(--c-text);
   letter-spacing: 0.01em; margin-bottom: 4px;
-  transition: border-color .12s, background .12s, box-shadow .12s;
+  transition: border-color var(--dur-fast), background var(--dur-fast), box-shadow var(--dur-fast);
 }
 .a-thread .annotate-tags-input:focus {
   outline: none; border-color: var(--c-accent); background: var(--c-raised);
@@ -508,7 +508,7 @@
   border-radius: 6px; padding: 8px 11px;
   font-family: var(--font-sans); font-size: 13px; color: var(--c-text);
   line-height: 1.55; resize: vertical; margin-bottom: 0;
-  transition: border-color .12s, background .12s, box-shadow .12s;
+  transition: border-color var(--dur-fast), background var(--dur-fast), box-shadow var(--dur-fast);
 }
 .a-thread .annotate-desc-textarea:focus {
   outline: none; border-color: var(--c-accent); background: var(--c-raised);

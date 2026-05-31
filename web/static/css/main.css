@@ -65,6 +65,35 @@
     --font-sans: 'Geist', system-ui, -apple-system, sans-serif;
     --font-mono: 'JetBrains Mono', 'Geist Mono', ui-monospace, monospace;
 
+    /* === Z-index scale (U6) ===
+       Named stacking layers. Each token's VALUE equals the raw literal it
+       replaced, so the rendered stacking order is byte-identical to the
+       pre-token tree. Two roles share value 1000 (`--z-tooltip` and
+       `--z-overlay`); they are distinct tokens purely for intent — CSS
+       resolves them to the same number, so their relative order is whatever
+       source-order already produced (unchanged). Ascending = front-most. */
+    --z-raised:                1;     /* in-flow raised element (stepper node) */
+    --z-overlay-content:       2;     /* badges/checks/outlines over media (rimas/cenas/buscar) */
+    --z-pin:                   3;     /* annotation pin marker (anotar) */
+    --z-pin-popover:           4;     /* comment popover anchored to a pin (anotar) */
+    --z-popover:               20;    /* tab filter popover (cenas) */
+    --z-popover-raised:        30;    /* knob popover, sits above --z-popover (buscar) */
+    --z-modal-backdrop-legacy: 100;   /* legacy v0.3 .modal-backdrop (main) */
+    --z-tooltip:               1000;  /* data-tip tooltip (polish) */
+    --z-overlay:               1000;  /* full-screen overlay: About app + legacy modal-backdrop */
+    --z-hint:                  8500;  /* bottom-left hint chip (polish) */
+    --z-toast:                 9000;  /* toast host (polish) */
+    --z-modal:                 10000; /* command palette + keyboard-help modal (polish) */
+
+    /* === Motion tokens (U6) ===
+       Durations equal to the existing literals, so timing is unchanged.
+       --dur-norm (150ms) also subsumes the `.15s` / `0.15s` spellings, which
+       are the same computed duration (150ms). --ease-emphasized is the
+       prototype's signature curve (was repeated inline as cubic-bezier). */
+    --dur-fast:          .12s;                   /* canonical hover/micro transition (58 sites) */
+    --dur-norm:          150ms;                  /* slower fade / color shift (== .15s == 0.15s) */
+    --ease-emphasized:   cubic-bezier(.2,.7,.3,1); /* fade-in / toast-in entrance curve */
+
     /* === Legacy aliases — keep until v0.3 tests retire === */
     --c-bg-base:        var(--c-bg);
     --c-bg-raised:      var(--c-raised);
@@ -302,7 +331,7 @@ button.tree-node {
     line-height: 1;
     padding: 0 1px;
     color: var(--c-text-muted);
-    transition: opacity 0.15s, color 0.15s;
+    transition: opacity var(--dur-norm), color var(--dur-norm);
     cursor: pointer;
 }
 .tree-node:hover .tree-node__remove { opacity: 0.5; }
@@ -442,7 +471,7 @@ button.tree-node {
     font-weight: 500;
     border-bottom: 2px solid transparent;
     cursor: pointer;
-    transition: color 150ms ease;
+    transition: color var(--dur-norm) ease;
     white-space: nowrap;
 }
 .tab:hover { color: var(--c-text-primary); }
@@ -468,7 +497,7 @@ button.tree-node {
 }
 
 /* ── HTMX transitions ──────────────────────────────────────────────────────── */
-.htmx-swapping { opacity: 0; transition: opacity 150ms ease; }
+.htmx-swapping { opacity: 0; transition: opacity var(--dur-norm) ease; }
 .htmx-settling  { opacity: 1; }
 
 /* ── Inline SVG icons (vendored Phosphor, offline) ─────────────────────────── */
@@ -527,7 +556,7 @@ button.tree-node {
     padding: 0 2px;
     cursor: pointer;
     line-height: 1;
-    transition: color 150ms ease;
+    transition: color var(--dur-norm) ease;
     flex-shrink: 0;
 }
 .search-submit-btn:hover { color: var(--c-accent-text); }
@@ -561,7 +590,7 @@ button.tree-node {
     border: 2px solid transparent;
     border-radius: 8px;
     overflow: hidden;
-    transition: border-color 150ms ease, box-shadow 150ms ease;
+    transition: border-color var(--dur-norm) ease, box-shadow var(--dur-norm) ease;
     cursor: pointer;
 }
 .scene-card:hover { border-color: rgba(200, 150, 62, 0.35); }
@@ -658,7 +687,7 @@ button.tree-node {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: var(--z-overlay);
     transition: opacity 200ms ease;
 }
 .modal-dialog {
@@ -928,7 +957,7 @@ button.tree-node {
     font-size: 0.6875rem;
     color: var(--c-text-muted);
     cursor: pointer;
-    transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
+    transition: border-color var(--dur-norm) ease, color var(--dur-norm) ease, background var(--dur-norm) ease;
     user-select: none;
 }
 .tag-pill input[type="checkbox"] {
@@ -1084,7 +1113,7 @@ button.tree-node {
     border: 1px solid transparent;
     background: transparent;
     cursor: pointer;
-    transition: color 150ms ease, border-color 150ms ease, background 150ms ease;
+    transition: color var(--dur-norm) ease, border-color var(--dur-norm) ease, background var(--dur-norm) ease;
 }
 .processing-job__cancel:hover {
     color: var(--c-error);
@@ -1131,7 +1160,7 @@ button.tree-node {
     justify-content: center;
     font-size: 1rem;
     position: relative;
-    z-index: 1;
+    z-index: var(--z-raised);
     margin-top: 1px;
 }
 
@@ -1218,7 +1247,7 @@ button.tree-node {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 100;
+    z-index: var(--z-modal-backdrop-legacy);
 }
 
 .modal-card {
