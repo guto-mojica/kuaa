@@ -1,6 +1,7 @@
 # Cinemateca imgsearch — Continuous Integration
 #
-# Four jobs: lint (strict), test-smoke (fast/model-free), test-heavy (full matrix), typecheck (report-only).
+# Seven jobs: lint (strict), test-smoke (fast/model-free), test-heavy (full matrix),
+# typecheck (mypy, blocking), security (bandit + pip-audit), build (sdist/wheel), benchmark (smoke).
 #
 # Install strategy: we use the `full` extra + `dev` group. Why not a lighter
 # extra like `[search]`?  Several tests import `cinemateca.models.describer.*`
