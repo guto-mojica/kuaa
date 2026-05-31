@@ -56,7 +56,19 @@
              placeholder="{{ _('Search films, scenes, actions…') }}">
       <span class="esc">esc</span>
     </div>
-    <div id="cp-list" class="cp-list" role="listbox" aria-label="{{ _('Palette results') }}">
+    {# ``tabindex="0"`` (U5): the list is an ``overflow-y:auto`` scroll
+       container. WCAG 2.1.1 (and axe ``scrollable-region-focusable``) require
+       a scrollable region to be keyboard-operable — a keyboard-only user must
+       be able to reach and scroll it. Primary navigation is from ``#cp-input``
+       (↑/↓ move the ``.sel`` row), but that is an ADDITIONAL affordance axe
+       can't infer; making the list itself Tab-focusable is the real fix and
+       lets a keyboard user scroll the results directly. The palette traps
+       focus while open and ``palette.js`` still pulls focus to ``#cp-input``
+       on open, so this extra stop doesn't change the open behaviour. The
+       ``role="listbox"`` + per-row ``role="option"`` (set in palette.js)
+       describe the structure for assistive tech. #}
+    <div id="cp-list" class="cp-list" role="listbox" tabindex="0"
+         aria-label="{{ _('Palette results') }}">
       {# Filled imperatively by palette.js on every input event. #}
     </div>
     <div class="cp-foot">

@@ -93,7 +93,11 @@
           {% if s.version %}<span class="ver">{{ s.version }}</span>{% endif %}
         </div>
         <div class="body">
-          <h3 class="name fx-truncate">{{ s.slug }}</h3>
+          {# h2 (U5): the scene cards are the primary content sections under the
+             page's (visually-hidden) h1, so their title is a level-2 heading.
+             Using h3 here skipped a level (h1→h3) → axe ``heading-order``.
+             Styling is unchanged (cenas.css targets ``.scenecard .name``). #}
+          <h2 class="name fx-truncate">{{ s.slug }}</h2>
           <div class="sub">
             <span class="dot-f" style="background: var(--c-accent);" aria-hidden="true"></span>
             <span>{% if film %}{{ film.director_last or film.title }}{% endif %}</span>

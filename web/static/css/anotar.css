@@ -319,7 +319,9 @@
   border-radius: 3px; background: var(--c-raised); color: var(--c-text-2);
   text-transform: uppercase; letter-spacing: 0.04em;
 }
-.a-com.ai .badge { background: var(--c-accent-bg); color: var(--c-accent); }
+/* AA (U5): accent text on --c-accent-bg (≈#2E3046 over --c-raised) is only
+   3.64:1; --c-accent-2 lifts it to 5.27:1. */
+.a-com.ai .badge { background: var(--c-accent-bg); color: var(--c-accent-2); }
 .a-com.pinned .badge { background: var(--c-yellow-bg); color: var(--c-yellow); }
 .a-com .body {
   font-size: 13px; line-height: 1.55; color: var(--c-text-2);

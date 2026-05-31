@@ -107,6 +107,24 @@
     {% endif %}
 
     <main class="ch-main" id="ch-main">
+        {# Accessible page heading (U5 / WCAG 1.3.1 + axe page-has-heading-one).
+           The Mojica chrome is visually heading-less (the top tabs carry the
+           wayfinding), but every page must expose exactly ONE level-one
+           heading to assistive tech and the document outline. This
+           visually-hidden h1 names the active view in the user's locale; it is
+           in the a11y tree (``.vh`` clips it, it is not ``display:none``) so
+           SRs announce "Search" / "Scenes" / … as the page's h1 while the
+           visual design is unchanged. Keyed on ``legacy_active_tab`` (the same
+           switch the tab include below uses) so the two never drift. #}
+        {% set _page_headings = {
+            'home': _('Mojica · Cinemateca Digital'),
+            'search': _('Search'),
+            'scenes': _('Scenes'),
+            'annotate': _('Annotate'),
+            'processing': _('Processing'),
+            'rimas': _('Visual rhymes'),
+        } %}
+        <h1 class="vh">{{ _page_headings.get(legacy_active_tab, _('Mojica · Cinemateca Digital')) }}</h1>
         {# Phase-2 cleanup: the legacy ``.shell > .sidebar + .main > .tab-bar``
            wrapper was deleted here. Its three roles were already carried by
            the new chrome partials: the film tree moved to ``_left_pane.html``

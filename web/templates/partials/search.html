@@ -209,7 +209,13 @@
        matching config flags are enabled. Disabled chips render with
        aria-disabled + .disabled so a screen-reader announces them as
        unavailable instead of clickable. #}
-    <div class="modes" role="tablist" aria-label="{{ _('Input type') }}" @change="refreshSearch()">
+    {# a11y (U5): this row is a group of toggle buttons (the modality chips use
+       ``aria-pressed``), and it ALSO holds the retrieval-knob popover triggers
+       — so it is NOT a WAI-ARIA tablist (a tablist may only contain role=tab,
+       and there are no associated role=tabpanel regions here). Modelling it as
+       ``role="group"`` with ``aria-pressed`` toggle chips is the correct,
+       complete semantic and clears axe ``aria-required-children``. #}
+    <div class="modes" role="group" aria-label="{{ _('Input type') }}" @change="refreshSearch()">
       {# Modality chips:
          * ``:class="{ on: mode === '…' }"`` reactively flips the highlight
            — Alpine merges this with the static ``chip`` (and optional
@@ -224,8 +230,7 @@
               class="chip"
               :class="{ on: mode === 'text' }"
               data-mode="text"
-              role="tab"
-              :aria-selected="mode === 'text' ? 'true' : 'false'"
+              :aria-pressed="mode === 'text' ? 'true' : 'false'"
               @click="mode = 'text'; $store.buscarRetrieval.modality = 'text'; clearResults(); refreshSearch()">
         <span class="ico">{{ icon('search', 14) }}</span>
         {{ _("Text") }}
@@ -234,8 +239,7 @@
               class="chip{% if not cfg.search.image_enabled %} disabled{% endif %}"
               :class="{ on: mode === 'image' }"
               data-mode="image"
-              role="tab"
-              :aria-selected="mode === 'image' ? 'true' : 'false'"
+              :aria-pressed="mode === 'image' ? 'true' : 'false'"
               {% if not cfg.search.image_enabled %}disabled aria-disabled="true"{% endif %}
               @click="mode = 'image'; clearResults()">
         <span class="ico">{{ icon('image', 14) }}</span>
@@ -245,8 +249,7 @@
               class="chip{% if not cfg.search.audio_enabled %} disabled{% endif %}"
               :class="{ on: mode === 'audio' }"
               data-mode="audio"
-              role="tab"
-              :aria-selected="mode === 'audio' ? 'true' : 'false'"
+              :aria-pressed="mode === 'audio' ? 'true' : 'false'"
               {% if not cfg.search.audio_enabled %}disabled aria-disabled="true"{% endif %}
               @click="mode = 'audio'; $store.buscarRetrieval.modality = 'audio'; clearResults(); refreshSearch()">
         <span class="ico">{{ icon('audio', 14) }}</span>
@@ -256,8 +259,7 @@
               class="chip{% if not cfg.search.multimodal_enabled %} disabled{% endif %}"
               :class="{ on: mode === 'multimodal' }"
               data-mode="multimodal"
-              role="tab"
-              :aria-selected="mode === 'multimodal' ? 'true' : 'false'"
+              :aria-pressed="mode === 'multimodal' ? 'true' : 'false'"
               {% if not cfg.search.multimodal_enabled %}disabled aria-disabled="true"{% endif %}
               @click="mode = 'multimodal'; $store.buscarRetrieval.modality = 'fusion'; clearResults(); refreshSearch()">
         <span class="ico">{{ icon('rhymes', 14) }}</span>
@@ -277,7 +279,19 @@
                 @click="open = !open"
                 :aria-expanded="open ? 'true' : 'false'"
                 aria-haspopup="dialog">
-          <span class="k" x-text="({ clip: 'CLIP', bm25: 'BM25', hybrid: '{{ _("Híbrido") }}' })[$store.buscarRetrieval.mode]"></span>
+          {# a11y/robustness (U5 carry-in, T5 M1): the ``hybrid:`` value
+             interpolates a TRANSLATED string into a JS object literal inside a
+             double-quoted ``x-text`` attribute. A hand-rolled single-quoted
+             literal (``'{{ _("Híbrido") }}'``) is the exact bug class that broke
+             Buscar's Alpine init once — any apostrophe / quote in a future
+             translation terminates the JS string (and the attribute), aborting
+             Alpine for the whole page. ``|tojson`` emits a properly-escaped JS
+             string and ``|forceescape`` rewrites its quotes to entities so the
+             double-quoted attribute survives — the same treatment the
+             ``CLIP only`` / ``BM25 only`` values below already use. ``clip`` /
+             ``bm25`` stay bare literals: they are fixed model names, never
+             translated. #}
+          <span class="k" x-text="({ clip: 'CLIP', bm25: 'BM25', hybrid: {{ _("Híbrido")|tojson|forceescape }} })[$store.buscarRetrieval.mode]"></span>
           {# |tojson emits a properly-escaped JSON string literal (double
              quotes + backslash-escaping) — safe to inline as a JS string
              value even when the translation contains apostrophes, newlines,
@@ -480,7 +494,11 @@
          human-readable hook for any future event delegation. The
          server-side ``active_view`` is no longer consulted here — the
          choice is per-user and lives in localStorage. #}
-    <div class="right" role="tablist" aria-label="{{ _('Result layout') }}">
+    {# a11y (U5): a segmented group of toggle buttons (each uses
+       ``aria-pressed``), not a tablist — there are no role=tabpanel regions
+       these control. ``role="group"`` is the correct container and clears axe
+       ``aria-required-children`` (which forbids non-tab children in a tablist). #}
+    <div class="right" role="group" aria-label="{{ _('Result layout') }}">
       <button type="button"
               class="seg"
               :class="{ on: $store.buscarView.mode === 'grid' }"

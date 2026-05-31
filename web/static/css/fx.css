@@ -124,9 +124,11 @@
   border-radius: 3px; opacity: 0.7;
 }
 .fx-btn.primary {
-  background: var(--c-accent); color: #FFFFFF; font-weight: 600;
+  /* AA (U5): white-on-fill needs ≥4.5:1 → --c-accent-btn (4.93:1), not the
+     brand --c-accent (3.55:1). Hover keeps white passing (5.35:1). */
+  background: var(--c-accent-btn); color: #FFFFFF; font-weight: 600;
 }
-.fx-btn.primary:hover { background: var(--c-accent-2); }
+.fx-btn.primary:hover { background: var(--c-accent-btn-hover); }
 .fx-btn.primary .kbd { background: rgba(0,0,0,0.18); }
 .fx-btn.secondary {
   background: var(--c-raised); border-color: var(--c-border-2); color: var(--c-text);
@@ -384,8 +386,16 @@ input[aria-invalid="true"]:focus {
    restored (not `inline`) so the internal layout paints correctly. */
 .skeleton-grid.htmx-indicator,
 .skeleton-inspector.htmx-indicator { display: none; }
-.skeleton-grid.htmx-indicator.htmx-request { display: grid; }
-.skeleton-inspector.htmx-indicator.htmx-request { display: flex; }
+/* The reveal rules pin BOTH display AND ``opacity: 1`` (U2 carry-in). htmx
+   ships a default indicator stylesheet that gates visibility on
+   ``opacity`` (``.htmx-indicator { opacity: 0 } .htmx-request .htmx-indicator
+   { opacity: 1 }``). We gate on ``display`` instead, but if that injected
+   opacity rule is ever present (or our gating is disabled) a revealed
+   skeleton could end up ``display:grid`` yet ``opacity:0`` — laid out but
+   invisible. Asserting ``opacity: 1`` here makes the reveal robust against
+   that, independent of htmx's injected styles. */
+.skeleton-grid.htmx-indicator.htmx-request { display: grid; opacity: 1; }
+.skeleton-inspector.htmx-indicator.htmx-request { display: flex; opacity: 1; }
 
 /* prefers-reduced-motion: calm static placeholder — no sweep, flat tint. */
 @media (prefers-reduced-motion: reduce) {
@@ -393,5 +403,42 @@ input[aria-invalid="true"]:focus {
     animation: none;
     background-image: none;
     background-color: var(--c-raised);
+  }
+}
+
+/* ── Global reduced-motion guard (U5) ──────────────────────────────────────
+   WCAG 2.1 — 2.3.3 Animation from Interactions (AAA) + the spirit of 2.2.2.
+   A single site-wide catch-all so EVERY animation/transition — current and
+   future, across all stylesheets — is neutralised when the user asks the OS
+   to reduce motion. This covers the keyframe animations that have no
+   per-rule guard otherwise: ``spin`` (loader), ``scenes-jump-shake``,
+   ``p-pin-pulse`` / ``p-pulse`` / ``p-pulse-g`` / ``p-stripes`` (processing +
+   annotation emphasis), ``p-fade-in`` / ``p-toast-in`` / ``p-toast-out``
+   (overlay + toast entrances), and the ``fx-field-error-in`` slide.
+
+   Near-zero (not literally 0) duration keeps a final-frame ``forwards``
+   animation landing on its end state and still firing ``animationend`` so JS
+   that listens for it isn't stranded. ``scroll-behavior: auto`` cancels
+   smooth-scroll. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Auto-dismiss feedback fades are the one exception: their keyframes end
+     at ``opacity: 0`` with ``forwards``, so collapsing the duration would
+     snap a success/confirmation message to invisible before it can be read.
+     Disabling the animation entirely holds them at their start state
+     (opacity 1) — the message stays legible (no motion, no premature hide)
+     and is cleared on the next navigation/swap instead. */
+  .annotate-feedback,
+  .a-thread .annotate-feedback,
+  .b-rp .anno .anno-feedback {
+    animation: none !important;
+    opacity: 1 !important;
   }
 }

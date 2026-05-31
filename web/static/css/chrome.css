@@ -218,7 +218,11 @@
   text-decoration: none;
 }
 .ch-coll:hover { background: var(--c-hover); }
-.ch-coll.active { background: var(--c-accent-bg); color: var(--c-accent); }
+/* AA (U5): the active row's label sits on --c-accent-bg over --c-panel
+   (≈#27283B); --c-accent text is only 4.08:1 there, so use the brighter
+   --c-accent-2 (5.90:1). The .ico glyph is decorative (not text) and stays
+   on the brand accent. */
+.ch-coll.active { background: var(--c-accent-bg); color: var(--c-accent-2); }
 .ch-coll .ico { display: flex; align-items: center; color: var(--c-muted); }
 .ch-coll.active .ico { color: var(--c-accent); }
 .ch-coll .ct { font-family: var(--font-mono); font-size: 10.5px; color: var(--c-muted); }

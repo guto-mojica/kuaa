@@ -26,7 +26,15 @@
 
    a11y:
      * ``role="alert"`` + ``aria-live="assertive"`` → the message is announced
-       the moment it appears.
+       the moment it appears. These are emitted ONLY when a message is present
+       (U5): an always-on, empty assertive live region is a known
+       screen-reader nuisance — some ATs announce the region or fire a spurious
+       "alert" on page load / on every unrelated OOB swap that re-renders the
+       empty slot. Gating the live-region roles on ``message`` keeps the slot's
+       ``id`` stable for ``aria-describedby`` (the element is always in the DOM)
+       while only turning it into an alert at the moment it actually carries
+       text. When the route clears the error it swaps back the role-less empty
+       span, which silently removes the live region again.
      * The ``data-field-error`` marker lets the htmx:beforeSwap shim in
        mojica.js permit this fragment to swap even on a 4xx response (HTMX
        suppresses body swaps on error codes by default).
@@ -53,7 +61,6 @@
 {% endif %}
 <span id="{{ slot_id }}"
       class="field-error{% if message %} is-error{% endif %}"
-      role="alert"
-      aria-live="assertive"
+      {% if message %}role="alert" aria-live="assertive"{% endif %}
       data-field-error
       {% if oob %}hx-swap-oob="outerHTML"{% endif %}>{{ message }}</span>
