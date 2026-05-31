@@ -564,9 +564,7 @@ def _default_relevance(
         # the labelled query stays scorable.
         rmap: dict[str, float] = {}
         if query.relevance:
-            rmap = {
-                scene_id_key(k): float(v) for k, v in query.relevance.items() if float(v) > 0
-            }
+            rmap = {scene_id_key(k): float(v) for k, v in query.relevance.items() if float(v) > 0}
         if not rmap:
             rmap = {sid: 1.0 for sid in rel}
         return rel, rmap, "hypothesis"

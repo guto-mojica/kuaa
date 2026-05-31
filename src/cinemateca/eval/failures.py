@@ -74,8 +74,11 @@ class FailureCase:
         header = "| | " + " | ".join(retrievers) + " |"
         sep = "| --- | " + " | ".join("---:" for _ in retrievers) + " |"
         rank_cells = [
-            "—" if self.first_relevant_rank_by_retriever[r] is None
-            else str(self.first_relevant_rank_by_retriever[r])
+            (
+                "—"
+                if self.first_relevant_rank_by_retriever[r] is None
+                else str(self.first_relevant_rank_by_retriever[r])
+            )
             for r in retrievers
         ]
         rank_row = "| First relevant rank | " + " | ".join(rank_cells) + " |"
@@ -85,7 +88,9 @@ class FailureCase:
         lines.append("")
 
         # Top wrong results — id + verbatim Moondream caption (the BM25/CLIP saw).
-        lines.append("**Top non-relevant results (rank order) — Moondream caption each retriever saw:**")
+        lines.append(
+            "**Top non-relevant results (rank order) — Moondream caption each retriever saw:**"
+        )
         lines.append("")
         if self.top_wrong:
             for i, row in enumerate(self.top_wrong, start=1):

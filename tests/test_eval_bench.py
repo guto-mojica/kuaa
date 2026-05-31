@@ -152,27 +152,27 @@ def test_bench_retrievers_uses_timed_hook(monkeypatch: pytest.MonkeyPatch) -> No
     assert "bm25" in result.modes
 
     hybrid_p50 = result.modes["hybrid"]["p50"]
-    assert isinstance(hybrid_p50, float) and not math.isnan(hybrid_p50), (
-        f"modes['hybrid']['p50'] should be a float, got {hybrid_p50!r}"
-    )
+    assert isinstance(hybrid_p50, float) and not math.isnan(
+        hybrid_p50
+    ), f"modes['hybrid']['p50'] should be a float, got {hybrid_p50!r}"
 
     clip_p50 = result.modes["clip"]["p50"]
-    assert isinstance(clip_p50, float) and not math.isnan(clip_p50), (
-        f"modes['clip']['p50'] should be a float, got {clip_p50!r}"
-    )
+    assert isinstance(clip_p50, float) and not math.isnan(
+        clip_p50
+    ), f"modes['clip']['p50'] should be a float, got {clip_p50!r}"
 
     bm25_p50 = result.modes["bm25"]["p50"]
-    assert isinstance(bm25_p50, float) and not math.isnan(bm25_p50), (
-        f"modes['bm25']['p50'] should be a float, got {bm25_p50!r}"
-    )
+    assert isinstance(bm25_p50, float) and not math.isnan(
+        bm25_p50
+    ), f"modes['bm25']['p50'] should be a float, got {bm25_p50!r}"
 
     # ── timed label assertions ─────────────────────────────────────────────
-    assert "clip_search" in recorded_labels, (
-        f"expected 'clip_search' in timed labels; got: {recorded_labels}"
-    )
-    assert "bm25_query" in recorded_labels, (
-        f"expected 'bm25_query' in timed labels; got: {recorded_labels}"
-    )
-    assert "rrf_materialize" in recorded_labels, (
-        f"expected 'rrf_materialize' in timed labels; got: {recorded_labels}"
-    )
+    assert (
+        "clip_search" in recorded_labels
+    ), f"expected 'clip_search' in timed labels; got: {recorded_labels}"
+    assert (
+        "bm25_query" in recorded_labels
+    ), f"expected 'bm25_query' in timed labels; got: {recorded_labels}"
+    assert (
+        "rrf_materialize" in recorded_labels
+    ), f"expected 'rrf_materialize' in timed labels; got: {recorded_labels}"

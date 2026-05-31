@@ -242,9 +242,7 @@ def _film_bm25_hits(
     )
 
 
-def _allowed_scene_keys(
-    selected_tags: list[str], tag_index: dict[str, Any]
-) -> set[str] | None:
+def _allowed_scene_keys(selected_tags: list[str], tag_index: dict[str, Any]) -> set[str] | None:
     """AND-intersect the selected tags into a canonical scene-key set.
 
     Returns ``None`` when no tags are selected (no filter), or the intersected

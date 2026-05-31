@@ -68,10 +68,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument("--config", default=str(REPO_ROOT / "config" / "default.yaml"))
-    parser.add_argument("--seed", type=int, default=0, help="PRNG seed (recorded for reproducibility).")
+    parser.add_argument(
+        "--seed", type=int, default=0, help="PRNG seed (recorded for reproducibility)."
+    )
     parser.add_argument("--n", type=int, default=8, help="Number of worst queries to surface.")
     parser.add_argument("--top-k", type=int, default=10, help="Ranked results per retriever.")
-    parser.add_argument("--out", default=str(DEFAULT_OUT), help="Markdown doc to write the M4 block into.")
+    parser.add_argument(
+        "--out", default=str(DEFAULT_OUT), help="Markdown doc to write the M4 block into."
+    )
     return parser.parse_args(argv)
 
 

@@ -67,8 +67,8 @@ def test_run_eval_scores_each_modality_on_demo_corpus(tmp_path: Path) -> None:
 
         payload = json.loads(summary_path.read_text(encoding="utf-8"))
         metrics = payload.get("metrics", {})
-        assert metrics.get("query_count", 0) >= 1, (
-            f"[{modality}] query_count must be >= 1, got {metrics.get('query_count')!r}"
-        )
+        assert (
+            metrics.get("query_count", 0) >= 1
+        ), f"[{modality}] query_count must be >= 1, got {metrics.get('query_count')!r}"
         for key in _METRIC_KEYS:
             assert key in metrics, f"[{modality}] summary.json metrics missing {key!r}"

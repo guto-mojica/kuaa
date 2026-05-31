@@ -31,7 +31,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _saved_scene(request: Request, slug: str | None, filter: str, tab: str, ctx: dict) -> HTMLResponse:
+def _saved_scene(
+    request: Request, slug: str | None, filter: str, tab: str, ctx: dict
+) -> HTMLResponse:
     """Render ``partials/annotate_scene.html`` (saved=True) after a curation edit."""
     return templates.TemplateResponse(
         request,

@@ -568,7 +568,9 @@ def _check_index_exists(cfg, *, film: str | None, smoke: bool) -> bool:
     if film is not None:
         for f in films:
             if f.slug == film:
-                idx_path = Path(cfg.paths.library_dir) / film / "embeddings" / "keyframe_embeddings.npy"
+                idx_path = (
+                    Path(cfg.paths.library_dir) / film / "embeddings" / "keyframe_embeddings.npy"
+                )
                 return idx_path.exists()
         return False
     # Any film with a CLIP index will do.

@@ -33,9 +33,9 @@ from cinemateca.timing import timed
 # ─── Constants ────────────────────────────────────────────────────────────────
 
 WARMUP_QUERIES = 5
-RRF_K = 60        # matches DEFAULT_RRF_K in the production dispatcher
-SEM_W = 0.70      # matches config/default.yaml → search.hybrid_sem_w
-BM25_W = 0.30     # matches config/default.yaml → search.hybrid_bm25_w
+RRF_K = 60  # matches DEFAULT_RRF_K in the production dispatcher
+SEM_W = 0.70  # matches config/default.yaml → search.hybrid_sem_w
+BM25_W = 0.30  # matches config/default.yaml → search.hybrid_bm25_w
 
 
 # ─── Stats helpers ────────────────────────────────────────────────────────────

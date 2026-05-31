@@ -232,7 +232,7 @@ DEFAULT_ABLATION_CONFIGS_NO_RERANK: tuple[AblationRowConfig, ...] = (
 # Footnotes attached to the rendered table when the matching row is present.
 _ROW_FOOTNOTES: dict[str, str] = {
     "hybrid+rerank": (
-        "Rerank delta is measured on the production `find(mode=\"hybrid\")` base "
+        'Rerank delta is measured on the production `find(mode="hybrid")` base '
         "(± the C5 bge-reranker-v2-m3 cross-encoder), which is a different hybrid "
         "implementation from the harness `hybrid` row above — compare the rerank "
         "row to the `find` hybrid base it sits on, not to the harness `hybrid` row."
@@ -283,11 +283,7 @@ def _hy_text_dataset(
         if graded_labels is not None and q.id in graded_labels:
             raw_rel = graded_labels[q.id]
             # Canonicalise keys + keep only positive grades.
-            relevance = {
-                scene_id_key(k): float(v)
-                for k, v in raw_rel.items()
-                if float(v) > 0
-            }
+            relevance = {scene_id_key(k): float(v) for k, v in raw_rel.items() if float(v) > 0}
             if not relevance:
                 # All grades non-positive → fall back to proxy so this query
                 # contributes to the common set rather than being dropped.

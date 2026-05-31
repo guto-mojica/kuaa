@@ -50,7 +50,9 @@ def test_worst_queries_orders_by_metric():
         _record("q1", ndcg=0.90, text="best one"),
         _record("q2", ndcg=0.10, text="worst one", ranks={"clip": 7, "bm25": None, "hybrid": 5}),
         _record("q3", ndcg=0.50, text="middling"),
-        _record("q4", ndcg=0.25, text="second worst", top_wrong=({"scene_id": "9", "description": "x"},)),
+        _record(
+            "q4", ndcg=0.25, text="second worst", top_wrong=({"scene_id": "9", "description": "x"},)
+        ),
         _record("q5", ndcg=0.40, text="third worst"),
     ]
 
@@ -89,7 +91,7 @@ def test_stub_includes_real_description():
     """A FailureCase whose top_wrong row carries a Moondream description renders
     that EXACT string in to_markdown_stub() — the tool must cite the real caption
     the retriever saw, never paraphrase it."""
-    caption = 'A man in a hat and coat smokes a pipe in a dimly lit room.'
+    caption = "A man in a hat and coat smokes a pipe in a dimly lit room."
     case = FailureCase(
         query_id="text-09",
         query_text="homem com chapéu fumando dentro de casa",

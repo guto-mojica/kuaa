@@ -11,13 +11,11 @@ from __future__ import annotations
 
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
 
 import pytest
 
 from cinemateca.eval.grades import EvalRun, Grade, save_grade
 from cinemateca.eval.seed import SAMPLE_QUERIES, write_seed
-
 
 # ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -48,7 +46,9 @@ def _make_cfg(run_root: Path, run_id: str) -> SimpleNamespace:
 # ── tests ────────────────────────────────────────────────────────────────────
 
 
-def test_resume_picks_first_ungraded_for_grader(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_resume_picks_first_ungraded_for_grader(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """A grader who completed query 1 resumes to query 2; a fresh grader starts at 1."""
 
     run_id = "r"
@@ -73,19 +73,21 @@ def test_resume_picks_first_ungraded_for_grader(tmp_path: Path, monkeypatch: pyt
     # Grader "rg" has graded query 1 — should resume to query 2.
     ctx_rg = eval_service.build_eval_context(cfg, request=_fake_request("rg"))
     assert ctx_rg["current_query"] is not None
-    assert str(ctx_rg["current_query"]["id"]) == "2", (
-        f"expected resume to query 2, got {ctx_rg['current_query']['id']!r}"
-    )
+    assert (
+        str(ctx_rg["current_query"]["id"]) == "2"
+    ), f"expected resume to query 2, got {ctx_rg['current_query']['id']!r}"
 
     # Grader "fresh" has no grades — should start at query 1 (back-compat).
     ctx_fresh = eval_service.build_eval_context(cfg, request=_fake_request("fresh"))
     assert ctx_fresh["current_query"] is not None
-    assert str(ctx_fresh["current_query"]["id"]) == "1", (
-        f"expected fresh grader at query 1, got {ctx_fresh['current_query']['id']!r}"
-    )
+    assert (
+        str(ctx_fresh["current_query"]["id"]) == "1"
+    ), f"expected fresh grader at query 1, got {ctx_fresh['current_query']['id']!r}"
 
 
-def test_resume_all_graded_falls_back_to_first(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_resume_all_graded_falls_back_to_first(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """A grader who has graded every query falls back to query 1 (not None)."""
 
     run_id = "r"

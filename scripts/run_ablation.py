@@ -97,7 +97,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def _build_m4_section(table_md: str, *, with_rerank: bool, seed: int, queries: Path) -> str:
     """Wrap the rendered ablation table in the delimited M4 doc section."""
-    mode = "with-rerank (C5 cross-encoder live)" if with_rerank else "no-rerank (rerank row pending)"
+    mode = (
+        "with-rerank (C5 cross-encoder live)" if with_rerank else "no-rerank (rerank row pending)"
+    )
     lines = [
         _M4_START,
         "",
@@ -205,9 +207,7 @@ def _load_graded_labels(
             graded_labels[qid] = pos
 
     distinct = exported["summary"]["distinct_pairs"]
-    validated_label = (
-        f"human-validated (run {run.run_id}, n={distinct} grades)"
-    )
+    validated_label = f"human-validated (run {run.run_id}, n={distinct} grades)"
     return graded_labels, validated_label
 
 
