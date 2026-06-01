@@ -226,6 +226,46 @@ def test_generate_slate_dispatches_rhyme_to_find_rhymes(tmp_path: Path, monkeypa
     assert captured["cross_film_only"] is True
 
 
+def test_candidate_row_resolves_real_keyframe_url():
+    """Generated slate rows must use the scene's real stored keyframe path,
+    not a hardcoded /frames/scene_NNNN.jpg (review #4)."""
+    from cinemateca.eval.slates import _candidate_row, _FilmMeta
+
+    data_dir = Path("/srv/data").resolve()
+    fp = (
+        data_dir
+        / "library"
+        / "jeca"
+        / "frames"
+        / "scenes"
+        / "keyframes_content"
+        / "x-Scene-007-01.jpg"
+    )
+    meta = _FilmMeta(
+        title="Jeca",
+        year=1959,
+        fps=24.0,
+        kf_by_scene={7: {"scene_id": 7, "filepath": str(fp), "start_time_s": 12.0}},
+        desc_by_scene={},
+        tags_by_scene={},
+        data_dir=data_dir,
+    )
+    row = _candidate_row(scene_id=7, film_slug="jeca", score=0.9, meta=meta)
+    assert (
+        row["keyframe_url"]
+        == "/media/library/jeca/frames/scenes/keyframes_content/x-Scene-007-01.jpg"
+    )
+
+
+def test_candidate_row_missing_keyframe_falls_back_to_empty():
+    """A scene with no on-disk keyframe yields keyframe_url='' (contract holds)."""
+    from cinemateca.eval.slates import _candidate_row, _empty_meta
+
+    meta = _empty_meta("jeca", Path("/srv/data").resolve())
+    row = _candidate_row(scene_id=99, film_slug="jeca", score=0.5, meta=meta)
+    assert row["keyframe_url"] == ""
+
+
 # ── text / image find path (cross-film, registry-free) ──────────────────────
 
 

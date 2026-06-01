@@ -23,7 +23,7 @@ from typing import Any
 
 from cinemateca.config import Settings
 from cinemateca.errors import EvalError
-from cinemateca.library import Library, derive_fps, load_metadata, to_smpte
+from cinemateca.library import Library, derive_fps, keyframe_url, load_metadata, to_smpte
 from cinemateca.rhymes import find_rhymes
 from cinemateca.scene_ids import scene_id_key
 from cinemateca.search import Query, find
@@ -211,6 +211,12 @@ def _candidate_row(
     kf_entry = meta.kf_by_scene.get(scene_id) or {}
     start_s = float(kf_entry.get("start_time_s") or 0.0)
     timecode = to_smpte(start_s, meta.fps) if start_s > 0 else "00:00:00"
+    # Resolve the *real* served keyframe URL from the scene's stored filepath
+    # (production layout: frames/scenes/keyframes_content/...), mirroring the
+    # rhymes enricher. Falls back to "" when the scene has no on-disk keyframe
+    # (hermetic tests / unresolvable path) — the row contract only requires a
+    # string, and the template renders a placeholder for an empty src.
+    keyframe_url_val = keyframe_url(str(kf_entry.get("filepath", "")), meta.data_dir) or ""
     row: CandidateRow = {
         "scene_id": int(scene_id),
         "film_slug": film_slug,
@@ -220,11 +226,7 @@ def _candidate_row(
         "description": description,
         "tags": sorted(meta.tags_by_scene.get(key, set())),
         "score": float(score),
-        # Match seed._mock_result so the /eval rows template renders generated
-        # slates exactly as it renders the seeded ones (deterministic, no
-        # per-scene metadata read needed — corroborated by the canonical
-        # frame layout used in cinemateca.rhymes.algorithm).
-        "keyframe_url": f"/media/library/{film_slug}/frames/scene_{int(scene_id):04d}.jpg",
+        "keyframe_url": keyframe_url_val,
     }
     # The 9-key contract is a self-checking invariant: every consumer
     # (the /eval rows template, E3b scoring) depends on exactly these keys.
@@ -258,11 +260,18 @@ class _FilmMeta:
     kf_by_scene: dict[int, dict]
     desc_by_scene: dict[Any, Any]
     tags_by_scene: dict[str, set[str]]
+    data_dir: Path  # /media root, for resolving a keyframe's served URL
 
 
-def _empty_meta(slug: str) -> _FilmMeta:
+def _empty_meta(slug: str, data_dir: Path) -> _FilmMeta:
     return _FilmMeta(
-        title=slug, year=0, fps=24.0, kf_by_scene={}, desc_by_scene={}, tags_by_scene={}
+        title=slug,
+        year=0,
+        fps=24.0,
+        kf_by_scene={},
+        desc_by_scene={},
+        tags_by_scene={},
+        data_dir=data_dir,
     )
 
 
@@ -275,6 +284,11 @@ def _film_meta_loader(cfg: Settings, library_dir: Path):
     that have no on-disk metadata.
     """
     library = Library(library_dir)
+    # /media serves from cfg.paths.data_dir (api/server.py); keyframe filepaths
+    # in metadata resolve relative to it. Fall back to library_dir.parent (the
+    # data root above data/library) when the config omits an explicit data_dir.
+    _paths = getattr(cfg, "paths", None)
+    data_dir = Path(getattr(_paths, "data_dir", None) or library_dir.parent).resolve()
     cache: dict[str, _FilmMeta] = {}
 
     def _invert_tags(tag_index: dict[str, set[str]]) -> dict[str, set[str]]:
@@ -290,7 +304,7 @@ def _film_meta_loader(cfg: Settings, library_dir: Path):
         # Start from the all-defaults row and override only the fields a
         # successful lookup supplies; when BOTH the registry and metadata
         # reads fail the result IS _empty_meta(slug) (keeps the docstring true).
-        meta = _empty_meta(slug)
+        meta = _empty_meta(slug, data_dir)
         try:
             film = library.get_film(slug)
             year = int(film.year) if film.year is not None else 0

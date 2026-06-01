@@ -171,8 +171,48 @@ def find(
         latency_ms=t.elapsed_ms,
     )
     if rerank:
+        result = _attach_descriptions(result, film)
         result = _rerank(result, model=rerank_model)
     return result
+
+
+def _attach_descriptions(result: SearchResult, film: Any) -> SearchResult:
+    """Fill empty ``Hit.description`` from the film's ``scene_descriptions.json``.
+
+    The CLIP index df carries only ``filepath`` + ``scene_id`` (the openclip
+    loader), so hits built by :func:`_df_to_result` have an empty description.
+    The cross-encoder reranker scores ``(query, description)`` pairs — without
+    this it would score against ``""`` and produce a meaningless reordering
+    (this is exactly what confounded the WS-4 rerank ablation). Loaded lazily
+    and only when reranking; keyed by ``scene_id`` (first row wins). A missing
+    ``metadata_dir`` or file leaves descriptions untouched, so callers that
+    already populated them keep working unchanged.
+    """
+    metadata_dir = getattr(film, "metadata_dir", None)
+    if metadata_dir is None or not result.hits:
+        return result
+    from cinemateca.library import load_json
+
+    raw = load_json(metadata_dir / "scene_descriptions.json") or []
+    if not isinstance(raw, list):
+        return result
+    by_scene: dict[int, str] = {}
+    for entry in raw:
+        try:
+            sid = int(entry.get("scene_id"))
+        except (AttributeError, TypeError, ValueError):
+            continue
+        if sid not in by_scene:
+            by_scene[sid] = str(entry.get("description") or "")
+    hits = [
+        (
+            replace(h, description=by_scene[h.scene_id])
+            if (not h.description) and h.scene_id in by_scene
+            else h
+        )
+        for h in result.hits
+    ]
+    return replace(result, hits=hits)
 
 
 def _load_tag_index(film: Any) -> dict:
