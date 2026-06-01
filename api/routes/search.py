@@ -65,7 +65,7 @@ async def api_search(
 async def api_search_image(
     request: Request,
     file: UploadFile = File(...),
-    top_k: int = 8,
+    top_k: int = Query(default=8, ge=1, le=200),  # bounded like text search (SearchParams)
     slug: str | None = Depends(film_slug_query),
     ctx: FilmContext | None = Depends(optional_film_context),
 ) -> HTMLResponse:

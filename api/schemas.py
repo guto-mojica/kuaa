@@ -58,8 +58,16 @@ class QueryMetrics(BaseModel):
 class SearchParams(BaseModel):
     """Typed query parameters for GET /api/search.
 
-    Used via ``Depends(SearchParams)`` so FastAPI surfaces constrained
-    types in /docs (Literal → enum, ge/le → minimum/maximum).
+    Used via ``Depends(SearchParams)`` so FastAPI surfaces the bounded
+    types in /docs (``top_k`` ``ge/le`` → minimum/maximum).
+
+    Note on ``retriever``: it is a plain ``str`` with an OpenAPI ``enum``
+    *hint*, NOT a ``Literal``, so it is **not validated** — an unknown value
+    is accepted and normalised downstream (``resolve_retriever_args`` warns
+    and falls back to ``hybrid``; pinned by
+    ``test_search_route_unknown_retriever_falls_back_to_default``). This is
+    deliberate: bookmarked/older clients with a stale ``?retriever=`` keep
+    working (graceful fallback) instead of getting a 422.
     """
 
     model_config = {"extra": "ignore"}
@@ -73,7 +81,10 @@ class SearchParams(BaseModel):
     )
     retriever: str = Field(
         default="hybrid",
-        description="Retrieval backend: clip (semantic), bm25 (keyword), hybrid (RRF fusion)",
+        description=(
+            "Retrieval backend: clip (semantic), bm25 (keyword), hybrid (RRF fusion). "
+            "Accepted-and-normalised: an unknown value falls back to hybrid (not a 422)."
+        ),
         json_schema_extra={"enum": ["clip", "bm25", "hybrid"]},
     )
     sem_w: float | None = Field(

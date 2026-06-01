@@ -580,17 +580,22 @@
   {{ skeleton_grid("search-skeleton", count=8) }}
 
   {# ── Tag filter — refinement affordance below the results grid.
-       The Mojica prototype keeps the empty Buscar pane uncluttered, so the
-       full tag cloud is hidden until the user has issued a query (or kept
-       a tag-only filter active). When visible, the section caps its height
-       and scrolls internally so it never dominates the viewport on small
-       vocabularies vs. very large ones. Hidden in image mode (the upload
-       drives results from the file, not the tag pills). #}
-  {% if available_tags and (query or highlighted_tags) %}
-  <div id="search-tag-panel"
+       Rendered whenever the library exposes tags, so the ``#search-tag-panel``
+       node (and the checkbox inputs ``hx-include`` depends on) always exists in
+       the normal HTMX flow — not only on a render that happens to carry a query
+       or highlighted tags. To keep the empty Buscar pane uncluttered it is a
+       native ``<details>`` collapsed by default (expand on demand); the inner
+       inputs stay in the DOM while collapsed, so a checked tag is still
+       serialised into the search request. Hidden in image mode (the upload
+       drives results from the file, not the tag pills). When highlighted_tags
+       is non-empty (a tag-driven search) the panel starts open so the active
+       pills are visible. #}
+  {% if available_tags %}
+  <details id="search-tag-panel"
        class="search-tag-section"
        x-show="mode === 'text'"
-       x-cloak>
+       x-cloak{% if highlighted_tags %} open{% endif %}>
+    <summary class="search-tag-summary">{{ _("Tags") }} <span class="search-tag-count">{{ available_tags|length }}</span></summary>
     <div class="search-tag-filter tag-filter"
          hx-get="/api/search"
          hx-trigger="change from:input"
@@ -604,7 +609,7 @@
       </label>
       {% endfor %}
     </div>
-  </div>
+  </details>
   {% endif %}
 
   {# ── Bottom timeline (.b-tl) — Task 13. The partial self-guards on

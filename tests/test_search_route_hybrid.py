@@ -249,3 +249,29 @@ def test_search_route_degenerate_zero_weights_falls_back_to_defaults(
     assert resp.status_code == 200
     assert _scene_ids(resp.text) == [0]
     assert any("sw=0.700 bw=0.300" in r.getMessage() for r in caplog.records)
+
+
+def test_search_offset_paginates_distinct_results(indexed_search_client) -> None:
+    """#1: ``offset`` must page into deeper results, not slice an already
+    ``top_k``-truncated list to empty. Page 2 returns a distinct, non-empty
+    scene — proving the first stage fetched ``top_k + offset`` candidates.
+    """
+
+    def _page(offset: int) -> list[int]:
+        r = indexed_search_client.get(
+            "/api/search",
+            params={
+                "q": "menina",
+                "retriever": "clip",
+                "film": SLUG,
+                "top_k": 1,
+                "offset": offset,
+            },
+        )
+        assert r.status_code == 200
+        return _scene_ids(r.text)
+
+    page0 = _page(0)
+    page1 = _page(1)
+    assert len(page0) == 1 and len(page1) == 1, (page0, page1)  # both pages non-empty
+    assert page0 != page1  # offset reached a deeper result, not empty / a dup
