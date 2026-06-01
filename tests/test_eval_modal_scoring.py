@@ -173,7 +173,7 @@ def test_default_relevance_hypothesis_keeps_only_positive_grades():
 def _patch_slate(monkeypatch, rows_by_qid: dict[str, list[dict]]):
     """Patch generate_slate (as bound in retrieval) to return canned rows per qid."""
 
-    def _fake_generate_slate(*, query, cfg, library_dir, k):
+    def _fake_generate_slate(*, query, cfg, library_dir, k, film_slug=None):
         return list(rows_by_qid.get(query.id, []))
 
     monkeypatch.setattr(retr, "generate_slate", _fake_generate_slate)

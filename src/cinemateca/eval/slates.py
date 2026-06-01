@@ -339,6 +339,7 @@ def generate_slate(
     cfg: Settings,
     library_dir: Path,
     k: int = 9,
+    film_slug: str | None = None,
 ) -> list[CandidateRow]:
     """Generate a candidate slate for ``query`` by calling the real backend.
 
@@ -350,6 +351,12 @@ def generate_slate(
 
     Text and image queries both route through CLIP ``find``; rhyme calls its
     dedicated primitive.
+
+    ``film_slug`` scopes text/image search to a single film *before* the
+    top-``k`` truncation. Without it the search merges all films and keeps the
+    global top ``k``, so a film-scoped eval that filtered afterwards could get
+    zero rows when another film dominated the global head (review #3). Ignored
+    for rhyme queries, which are cross-film by definition.
 
     Raises:
         EvalError: unknown ``query_type`` (validation should have caught
@@ -364,7 +371,9 @@ def generate_slate(
     if helper is None:
         raise EvalError(f"cannot generate slate for unknown query_type {query.query_type!r}")
     load_meta = _film_meta_loader(cfg, library_dir)
-    return helper(query=query, cfg=cfg, library_dir=library_dir, k=k, load_meta=load_meta)
+    return helper(
+        query=query, cfg=cfg, library_dir=library_dir, k=k, load_meta=load_meta, film_slug=film_slug
+    )
 
 
 def _iter_films(library_dir: Path) -> list[str]:
@@ -391,14 +400,19 @@ def _iter_films(library_dir: Path) -> list[str]:
     return sorted(p.name for p in library_dir.iterdir() if p.is_dir())
 
 
-def _slate_find(*, q: Query, cfg, library_dir, k, load_meta) -> list[CandidateRow]:
+def _slate_find(*, q: Query, cfg, library_dir, k, load_meta, film_slug=None) -> list[CandidateRow]:
     """CLIP ``find`` over ``q`` per film, merged by descending score.
 
     Shared by the text and image dispatch paths — both call ``find`` in
     CLIP mode and differ only in the :class:`Query` object built.
+
+    ``film_slug`` restricts the search to that single film, so the top-``k``
+    truncation happens within the scoped film rather than across the whole
+    library (review #3).
     """
     rows: list[CandidateRow] = []
-    for slug in _iter_films(library_dir):
+    slugs = [film_slug] if film_slug else _iter_films(library_dir)
+    for slug in slugs:
         ctx = _ctx_for(library_dir, slug)
         if ctx is None:
             continue
@@ -417,21 +431,29 @@ def _slate_find(*, q: Query, cfg, library_dir, k, load_meta) -> list[CandidateRo
     return rows[:k]
 
 
-def _slate_text(*, query, cfg, library_dir, k, load_meta) -> list[CandidateRow]:
+def _slate_text(*, query, cfg, library_dir, k, load_meta, film_slug=None) -> list[CandidateRow]:
     """Text query → CLIP ``find(Query.of_text(...))`` per film, merged."""
     q = Query.of_text(query.text or "")
-    return _slate_find(q=q, cfg=cfg, library_dir=library_dir, k=k, load_meta=load_meta)
+    return _slate_find(
+        q=q, cfg=cfg, library_dir=library_dir, k=k, load_meta=load_meta, film_slug=film_slug
+    )
 
 
-def _slate_image(*, query, cfg, library_dir, k, load_meta) -> list[CandidateRow]:
+def _slate_image(*, query, cfg, library_dir, k, load_meta, film_slug=None) -> list[CandidateRow]:
     """Image query → CLIP-only ``find(Query.image(...))`` per film, merged."""
     assert query.image_path is not None  # validated at load time
     q = Query.image(_resolve_image(query.image_path))
-    return _slate_find(q=q, cfg=cfg, library_dir=library_dir, k=k, load_meta=load_meta)
+    return _slate_find(
+        q=q, cfg=cfg, library_dir=library_dir, k=k, load_meta=load_meta, film_slug=film_slug
+    )
 
 
-def _slate_rhyme(*, query, cfg, library_dir, k, load_meta) -> list[CandidateRow]:
-    """Rhyme query → cross-film ``find_rhymes`` from the parsed anchor."""
+def _slate_rhyme(*, query, cfg, library_dir, k, load_meta, film_slug=None) -> list[CandidateRow]:
+    """Rhyme query → cross-film ``find_rhymes`` from the parsed anchor.
+
+    ``film_slug`` is accepted for a uniform dispatch signature but ignored —
+    rhymes are cross-film by definition (``cross_film_only=True``).
+    """
     assert query.anchor is not None  # validated at load time
     slug, sid_s = query.anchor.split("/", 1)
     anchor_scene_id = int(sid_s)

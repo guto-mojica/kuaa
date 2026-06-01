@@ -383,7 +383,7 @@ def _single_mode(args: argparse.Namespace) -> int:
 
 def _all_modes(args: argparse.Namespace) -> int:
     from cinemateca.config import load_config
-    from cinemateca.eval.datasets import DatasetError, load_dataset
+    from cinemateca.eval.datasets import DatasetError
     from cinemateca.eval.report import build_payload
     from cinemateca.eval.retrieval import EvalError, run_retrieval_eval
 
@@ -393,7 +393,10 @@ def _all_modes(args: argparse.Namespace) -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     try:
-        dataset = load_dataset(queries_path)
+        # Use the auto-detecting loader (legacy vs m3_full multimodal), same as
+        # the text path below — the strict load_dataset() rejects m3_full image
+        # rows that legitimately carry no relevant_scene_ids (review #2).
+        dataset = _load_text_dataset(queries_path)
         cfg = load_config(config_path, project_root=REPO_ROOT)
         from cinemateca.reproducibility import seed_everything
 
@@ -658,7 +661,7 @@ def _all_modalities(args: argparse.Namespace) -> int:
         return 1
 
     # Non-text modalities — each may legitimately have an empty slate on a
-    # given corpus (e.g. a silent film and no CLAP index); warn + continue.
+    # given corpus (e.g. a rhyme anchor with no cross-film neighbours); warn + continue.
     try:
         modal_queries = load_modal_queries(queries_path)
     except EvalError as exc:

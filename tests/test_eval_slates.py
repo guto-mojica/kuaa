@@ -266,6 +266,52 @@ def test_candidate_row_missing_keyframe_falls_back_to_empty():
     assert row["keyframe_url"] == ""
 
 
+def test_generate_slate_text_scopes_search_to_film_slug(tmp_path, monkeypatch):
+    """#3: film_slug scopes the search to that film BEFORE top-k truncation, so a
+    film that another film would crowd out of the global head still returns rows."""
+    import cinemateca.eval.slates as slates
+    from cinemateca.search.types import Hit, Query, SearchResult
+
+    called: list[str] = []
+
+    def fake_find(q: Query, *, film, mode, top_k, cfg):
+        called.append(film.slug)
+        return SearchResult(
+            hits=[Hit(scene_id=1, score=0.9, keyframe_path="")],
+            mode="clip",
+            weights=None,
+            query=q,
+        )
+
+    monkeypatch.setattr(slates, "find", fake_find)
+    monkeypatch.setattr(slates, "_iter_films", lambda lib: ["alpha", "beta"])
+    monkeypatch.setattr(slates, "_ctx_for", lambda lib, slug: SimpleNamespace(slug=slug))
+
+    q = ModalQuery(
+        id="t-01",
+        query_type="text",
+        text="rural",
+        image_path=None,
+        anchor=None,
+        w=None,
+        lang="en",
+        relevant_scene_ids=(),
+        relevance={},
+        notes=None,
+    )
+
+    # Scoped: only "beta" is searched, so it can't be crowded out by "alpha".
+    called.clear()
+    rows = generate_slate(query=q, cfg=_cfg(), library_dir=tmp_path, k=5, film_slug="beta")
+    assert called == ["beta"]
+    assert rows and all(r["film_slug"] == "beta" for r in rows)
+
+    # Unscoped (default): both films searched (the pre-fix global behaviour).
+    called.clear()
+    generate_slate(query=q, cfg=_cfg(), library_dir=tmp_path, k=5)
+    assert called == ["alpha", "beta"]
+
+
 # ── text / image find path (cross-film, registry-free) ──────────────────────
 
 

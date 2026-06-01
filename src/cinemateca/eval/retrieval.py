@@ -657,7 +657,13 @@ def _run_modal_eval(
     warnings: list[str] = []
 
     for q in (q for q in queries if q.query_type == modality):
-        rows = generate_slate(query=q, cfg=cfg, library_dir=library_dir, k=top_k)
+        # Scope the search to the film BEFORE top-k truncation (review #3):
+        # filtering a global top-k afterwards could leave a scoped film with
+        # zero rows when another film dominated the head. The post-filter below
+        # is now a defensive no-op for scoped runs.
+        rows = generate_slate(
+            query=q, cfg=cfg, library_dir=library_dir, k=top_k, film_slug=scope_slug
+        )
         if scope_slug:
             rows = [r for r in rows if r.get("film_slug") == scope_slug]
         rel_ids, rel_map, method = resolve(q, rows)
