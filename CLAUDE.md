@@ -334,6 +334,12 @@ defer features; timeline extension is one option among several. Grilled
 > CLIP×CLAP fusion** modality is **cut** (2026-05-31, §16; removal recorded in
 > `docs/archive/2026-05-31-audio-feature-extraction.md`). See `docs/README.md`
 > for the documentation map.
+>
+> **Status (2026-05-31): the presentation-refactor program is COMPLETE.** All six
+> workstreams (WS-1…WS-6) merged to `main`, every CI gate green; the drop-tier
+> (C7/C12/U9/U10) and WS-2 cosmetic (A7/A10) items are CONFIRMED CUT (spec §16/§17). The
+> remaining v1.0 work is **human-gated launch only**: curator eval grades (E5), the 90s demo
+> video + screenshots (D8), the blog post, the `v1.0.0` release tag, and the LinkedIn posts.
 
 ### Month 1 — Foundation
 - [x] **Multi-film library** — `films.json` registry; per-film `data/library/<slug>/`

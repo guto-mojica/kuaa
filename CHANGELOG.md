@@ -25,6 +25,22 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
   (baseline OpenCLIP) intacta. Resultado-chave: o híbrido supera o CLIP puro
   neste corpus maior, e o baseline OpenCLIP fica atrás do SigLIP2 na mistura de
   queries PT/EN (evidência para o upgrade multilíngue).
+- **Refactor de apresentação (WS-1…WS-6) — programa concluído (2026-05-31).** Acessibilidade
+  WCAG 2.1 AA: auditoria axe nas 5 abas + modais (0 serious/critical), `docs/ACCESSIBILITY.md`,
+  suporte a `prefers-reduced-motion`, foco com trap/restore em modais/paleta/ajuda. Polimento
+  de UI: validação de formulário acessível (`aria-invalid`/`aria-describedby` + swaps OOB do
+  HTMX), skeletons de carregamento, toasts de confirmação, atalhos de teclado na página Sobre,
+  badge de conectividade online/offline, tokens de CSS (`--z-*`/`--dur-*`). Paridade i18n PT/EN
+  com teste que barra strings não traduzidas. Suíte e2e Playwright (`tests/e2e/`) com harness
+  axe-core (marcada `e2e`, excluída do CI por padrão; dependência só-de-teste, sem npm/node de
+  projeto). Model cards no código (cada backend referencia seu `ModelCard`, F6).
+
+### Alterado
+
+- **Config tipada no core (F1/C2/C5).** `Settings` (Pydantic v2) substitui `cfg: Any` nas
+  assinaturas públicas do core; a `aggregate_search` (god-function de 363 LOC) foi decomposta
+  em unidades ≤80 LOC; e os dispatchers de busca de produção retornam `SearchResult` tipado
+  (sem o round-trip de dict-adapter). Comportamento preservado por snapshots byte-idênticos.
 
 ### Removido
 
@@ -52,6 +68,16 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 - **Remanescentes do Whisper na documentação.** O spec de re-adição do Whisper
   (em `docs/plans/`) foi excluído e os links de entrada limpos (o código Whisper
   já havia sido removido no `0.8.0-rc1`).
+- **Itens drop-tier e cosméticos — cortados do v1.0 (2026-05-31).** `C7` (aggregate
+  assíncrono), `C12` (batching de inferência), `U9` (tema claro/escuro — conflita com a lei
+  "no light theme" do DESIGN_SYSTEM), `U10` (animação escalonada) e os cosméticos WS-2 `A7`
+  (migração da rota de busca para o modelo `Pagination`) e `A10` (anotações `TypedDict` em
+  todo handler). Nenhum tinha código-stub; cortes só-de-documentação, registrados em spec
+  §16/§17.
+- **Slate de eval podada 50 → 30.** As 20 queries `audio`/`fusion` de
+  `data/eval/m3_full_queries.yaml` foram removidas com a feature de áudio (restam 15 texto ·
+  10 imagem · 5 rima). Artefatos de áudio órfãos em `data/library/<slug>/audio/` (≈497 MB)
+  apagados do disco; `data/perf/` (saída do bench) adicionado ao `.gitignore`.
 
 ## [0.8.0-rc1] - 2026-05-29
 
