@@ -76,6 +76,45 @@ _PATH_NAMES = (
 )
 
 
+# ── Hermeticity guard: the tracked data/eval/ must never be written by tests ──
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _guard_repo_eval_untouched():
+    """Fail the run if any test mutates the tracked repo ``data/eval/``.
+
+    ``eval_root()`` prioritises ``cfg.eval.root`` (schema default ``data/eval``),
+    so a test whose config did not rebase it writes straight into the repo
+    (this is how ``data/eval/default.jsonl`` kept getting dirtied). Eval writes
+    must go through a rebased root — ``tmp_config`` rebases ``cfg.eval.root`` and
+    ``test_eval_routes`` monkeypatches ``eval_root``. This session-level snapshot
+    catches any regression, including tests that bypass ``tmp_config`` entirely.
+    """
+    eval_dir = (REPO / "data" / "eval").resolve()
+
+    def _snapshot() -> dict[str, tuple[int, int]]:
+        if not eval_dir.exists():
+            return {}
+        return {
+            p.relative_to(eval_dir).as_posix(): (p.stat().st_mtime_ns, p.stat().st_size)
+            for p in eval_dir.rglob("*")
+            if p.is_file()
+        }
+
+    before = _snapshot()
+    yield
+    after = _snapshot()
+    if before != after:
+        added = sorted(set(after) - set(before))
+        removed = sorted(set(before) - set(after))
+        modified = sorted(k for k in before.keys() & after.keys() if before[k] != after[k])
+        raise AssertionError(
+            "Test run mutated tracked repo data/eval/ (hermeticity violation) — "
+            f"added={added} removed={removed} modified={modified}. Eval writes "
+            "must use a rebased eval root (see tmp_config / monkeypatch eval_root)."
+        )
+
+
 # ── Core isolated-config fixture ──────────────────────────────────────────────
 
 
@@ -99,6 +138,16 @@ def tmp_config(tmp_path, monkeypatch):
         d = tmp_path / name
         d.mkdir(parents=True, exist_ok=True)
         setattr(cfg.paths, name, d)
+
+    # eval_root() prioritises cfg.eval.root (schema default "data/eval", a
+    # TRACKED repo path) over cfg.paths.data_dir — so rebasing paths.* above is
+    # NOT enough to keep eval writes out of the repo. Rebase it too, or any test
+    # that posts a grade (e.g. test_openapi_schema's /api/eval/grade) appends to
+    # the real data/eval/default.jsonl.
+    if hasattr(cfg, "eval") and hasattr(cfg.eval, "root"):
+        eval_root_dir = tmp_path / "eval"
+        eval_root_dir.mkdir(parents=True, exist_ok=True)
+        cfg.eval.root = str(eval_root_dir)
 
     # Pin the image-embedder backend to the OpenClip baseline for hermetic
     # tests. Default.yaml flipped to ``siglip_multilingual`` in M3
@@ -183,6 +232,16 @@ def tmp_config(tmp_path, monkeypatch):
             f"{repo} — the temp-config sandbox did not rebase this path; "
             f"a test could mutate the real data/ directory"
         )
+    # eval_root() resolves cfg.eval.root, which is NOT in _PATH_NAMES — validate
+    # it too, so a future config change that un-rebases the eval root fails here
+    # instead of silently writing into the tracked data/eval/.
+    from cinemateca.eval.paths import eval_root as _eval_root
+
+    er = _eval_root(cfg).resolve()
+    assert repo not in er.parents and er != repo, (
+        f"eval_root(cfg) resolved to {er}, inside the repo root {repo} — "
+        f"eval writes (e.g. /api/eval/grade) would mutate the real data/eval/"
+    )
 
     return cfg
 
