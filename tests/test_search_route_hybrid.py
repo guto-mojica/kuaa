@@ -135,10 +135,22 @@ def _scene_ids(html: str) -> list[int]:
 
 
 def test_search_route_clip_uses_semantic_index(indexed_search_client) -> None:
-    """``retriever=clip`` short-circuits to pure CLIP — the regression-pin path."""
+    """``retriever=clip`` short-circuits to pure CLIP — the regression-pin path.
+
+    ``reranker_enabled=false`` isolates the retrieval stage under test: on a GPU
+    box the reranker default is ``auto``-on, and the cross-encoder would reorder
+    these results by description relevance. Rerank has its own coverage in
+    ``test_search_rerank`` / ``test_search_service_with_reranker``.
+    """
     resp = indexed_search_client.get(
         "/api/search",
-        params={"q": "menina", "retriever": "clip", "film": SLUG, "top_k": 1},
+        params={
+            "q": "menina",
+            "retriever": "clip",
+            "film": SLUG,
+            "top_k": 1,
+            "reranker_enabled": "false",
+        },
     )
     assert resp.status_code == 200
     assert SEARCH_NO_INDEX not in resp.text
@@ -148,7 +160,13 @@ def test_search_route_clip_uses_semantic_index(indexed_search_client) -> None:
 def test_search_route_bm25_uses_real_description_corpus(indexed_search_client) -> None:
     resp = indexed_search_client.get(
         "/api/search",
-        params={"q": "menina", "retriever": "bm25", "film": SLUG, "top_k": 3},
+        params={
+            "q": "menina",
+            "retriever": "bm25",
+            "film": SLUG,
+            "top_k": 3,
+            "reranker_enabled": "false",  # isolate retrieval ordering (see clip test)
+        },
     )
     assert resp.status_code == 200
     assert SEARCH_NO_INDEX not in resp.text
@@ -165,6 +183,7 @@ def test_search_route_hybrid_with_weights_changes_result_order(indexed_search_cl
             "bm25_w": 0.0,
             "film": SLUG,
             "top_k": 1,
+            "reranker_enabled": "false",  # isolate retrieval ordering (see clip test)
         },
     )
     assert resp.status_code == 200
@@ -202,6 +221,7 @@ def test_search_route_clamps_out_of_range_weights(indexed_search_client, caplog)
                 "bm25_w": -0.5,
                 "film": SLUG,
                 "top_k": 1,
+                "reranker_enabled": "false",  # isolate retrieval ordering (see clip test)
             },
         )
     assert resp.status_code == 200
@@ -223,6 +243,7 @@ def test_search_route_degenerate_zero_weights_falls_back_to_defaults(
                 "bm25_w": 0.0,
                 "film": SLUG,
                 "top_k": 1,
+                "reranker_enabled": "false",  # isolate retrieval ordering (see clip test)
             },
         )
     assert resp.status_code == 200

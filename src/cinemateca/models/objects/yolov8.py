@@ -50,7 +50,14 @@ class YOLOv8ObjectDetector:
             return {"num_objects": 0, "objects": [], "class_counts": {}}
 
         self._load_model()
-        results = self._model(str(image_path), conf=self.confidence, verbose=False)
+        # Honour the configured device (cuda / mps / cpu) the registry resolves
+        # from ``device_from_config`` and passes to the constructor. ultralytics
+        # treats ``device=None`` as auto-select, so forward the device only when
+        # one was set — leaving the prior auto behaviour intact when it wasn't.
+        detect_kwargs: dict[str, Any] = {"conf": self.confidence, "verbose": False}
+        if self._device is not None:
+            detect_kwargs["device"] = self._device
+        results = self._model(str(image_path), **detect_kwargs)
 
         objects = []
         class_counts: dict[str, int] = {}

@@ -116,6 +116,39 @@ def tags_for(metadata_dir: Path, scene_id: int) -> list[str]:
     return tags
 
 
+def keyframe_index(cfg: Settings, slug: str) -> tuple[dict[int, dict], float, Path] | None:
+    """Load one film's keyframe metadata once, for batch enrichment.
+
+    Returns ``(by_scene, fps, data_dir)`` where ``by_scene`` maps each
+    ``scene_id`` to its *first* keyframe entry. The production pipeline writes
+    N rows per scene (``scene_NNNN_kf_01..0N``); the first row is the one the
+    single-scene resolvers (``_resolve_keyframe_url`` / :func:`resolve_timecode`)
+    have always returned, so first-row-wins keeps the resolved URL byte-identical.
+
+    Returns ``None`` when the film is unresolvable or the metadata file is
+    missing/malformed, so callers fall back to empty url/timecode exactly as the
+    single-scene resolvers do. This is the batch counterpart to those resolvers:
+    the Rimas enricher loads each film's metadata once per request instead of
+    re-reading + re-parsing the same JSON twice per echo (URL + timecode).
+    """
+    try:
+        ctx = FilmContext.for_film(cfg, slug)
+    except ValueError:
+        return None
+    kf_meta = load_json(ctx.metadata_dir / "keyframes_metadata.json") or []
+    if not isinstance(kf_meta, list):
+        return None
+    by_scene: dict[int, dict] = {}
+    for entry in kf_meta:
+        try:
+            sid = int(entry.get("scene_id"))
+        except (AttributeError, TypeError, ValueError):
+            continue
+        if sid not in by_scene:  # first row per scene wins (matches legacy resolvers)
+            by_scene[sid] = entry
+    return by_scene, derive_fps(kf_meta), ctx.data_dir
+
+
 def resolve_timecode(cfg: Settings, slug: str, scene_id: int) -> str:
     """Return the SMPTE timecode of ``(slug, scene_id)``'s start, or ``""``."""
     try:

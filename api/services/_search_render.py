@@ -96,13 +96,26 @@ async def run_text_search(
     the rendered results partial.
     """
     min_sim = float(getattr(cfg.embeddings, "min_similarity", 0.0) or 0.0)
+    # Widen the first-stage candidate pool (1.1). Retrieving only ``top_k`` hits
+    # (a) starves the cross-encoder — ``rerank`` scores at most ``top_k_in`` of
+    # the hits it is handed, so without depth it can only reorder the page the
+    # first stage already surfaced rather than promote a deeper candidate — and
+    # (b) breaks ``offset`` paging, because the final ``[offset : offset+top_k]``
+    # slice would index past a ``top_k``-length list and return nothing. Fetch
+    # enough for both: the paging window plus, when reranking is on, the
+    # reranker's input window. The reorder + page slice still happen below.
+    rr_enabled, _rr_model, rr_top_k_in = search_service._reranker_settings(cfg, reranker_enabled)
+    first_stage_k = top_k + offset
+    if rr_enabled:
+        first_stage_k = max(first_stage_k, rr_top_k_in)
     logger.info(
-        "api_search q=%r slug=%s retriever=%s top_k=%d min_sim=%.3f sw=%.3f bw=%.3f "
-        "tags=%s reranker_enabled=%s offset=%d",
+        "api_search q=%r slug=%s retriever=%s top_k=%d first_stage_k=%d min_sim=%.3f "
+        "sw=%.3f bw=%.3f tags=%s reranker_enabled=%s offset=%d",
         q,
         slug or "(agg)",
         retriever,
         top_k,
+        first_stage_k,
         min_sim,
         sem_w,
         bm25_w,
@@ -110,7 +123,7 @@ async def run_text_search(
         reranker_enabled,
         offset,
     )
-    args = (cfg, ctx, q, tags, top_k, min_sim, retriever, sem_w, bm25_w, rrf_k)
+    args = (cfg, ctx, q, tags, first_stage_k, min_sim, retriever, sem_w, bm25_w, rrf_k)
     payload, no_index = await asyncio.get_running_loop().run_in_executor(
         None, lambda: search_service.dispatch_text_search(*args)
     )

@@ -143,7 +143,12 @@ def build_rimas_context(
             k_candidates=k_candidates,
         )
 
-    enriched = [_enrich_rhyme(cfg, r, films_by_id) for r in rhymes]
+    # Share one keyframe-metadata cache across the grid so a run of echoes from
+    # the same film parses ``keyframes_metadata.json`` once, not twice per echo
+    # (URL + timecode). Cross-film rhymes drawn from few films collapse to a
+    # handful of loads instead of ``2·len(rhymes)``.
+    kf_cache: dict[str, Any] = {}
+    enriched = [_enrich_rhyme(cfg, r, films_by_id, kf_cache=kf_cache) for r in rhymes]
 
     # ?echo=<slug>/<scene_id> highlights one of the echo cards and
     # populates the inspector. Re-uses _parse_anchor: it accepts the

@@ -7,51 +7,35 @@ Uses the per-scene metadata loaders from cinemateca.rhymes.metadata.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from cinemateca.config import Settings
-from cinemateca.library import FilmContext, keyframe_url, load_json
+from cinemateca.library import FilmContext, keyframe_url, to_smpte
 from cinemateca.reproducibility import make_generator
 from cinemateca.rhymes.algorithm import Rhyme
 from cinemateca.rhymes.metadata import (
-    resolve_timecode,
+    keyframe_index,
     tags_for,
 )
 
 
-def _resolve_keyframe_url(cfg: Settings, slug: str, scene_id: int) -> str:
-    """Look up the served URL of the keyframe for ``(slug, scene_id)``.
-
-    Reads ``keyframes_metadata.json`` for the film, finds the entry whose
-    ``scene_id`` matches, and converts its ``filepath`` to a ``/media/...``
-    URL via :func:`cinemateca.library.keyframe_url`. Returns ``""`` for
-    any unresolvable lookup so the template can render a placeholder.
-    """
-    try:
-        ctx = FilmContext.for_film(cfg, slug)
-    except ValueError:
-        return ""
-    kf_meta = load_json(ctx.metadata_dir / "keyframes_metadata.json") or []
-    if not isinstance(kf_meta, list):
-        return ""
-    for entry in kf_meta:
-        try:
-            if int(entry.get("scene_id")) == scene_id:
-                return keyframe_url(entry.get("filepath", ""), ctx.data_dir) or ""
-        except (TypeError, ValueError):
-            continue
-    return ""
-
-
-def enrich_rhyme(cfg: Settings, rhyme: Rhyme, films_by_id: dict) -> dict:
+def enrich_rhyme(
+    cfg: Settings,
+    rhyme: Rhyme,
+    films_by_id: dict,
+    *,
+    kf_cache: dict[str, tuple[dict[int, dict], float, Path] | None] | None = None,
+) -> dict:
     """Convert a :class:`Rhyme` into the template's echo-card shape.
 
-    Resolves a web-served ``keyframe_url`` by looking up the rhyme
-    scene's filepath in its film's ``keyframes_metadata.json`` (the
-    rhyme's ``keyframe_path`` attribute is a synthetic placeholder
-    derived from a slug + scene-id; the canonical URL comes from the
-    real keyframe filepath on disk, mirrored through
-    :func:`cinemateca.library.keyframe_url`). Films that disappeared
-    between the registry walk and the call collapse to an empty URL
-    so the template can render a placeholder card.
+    Resolves a web-served ``keyframe_url`` and SMPTE ``timecode`` from the
+    rhyme scene's entry in its film's ``keyframes_metadata.json`` — both from a
+    *single* load of that file per film. When ``kf_cache`` is supplied (the
+    Rimas grid build passes one shared dict per request) the parsed index is
+    memoised per slug, so a grid of N echoes from the same film reads and
+    parses the metadata once rather than ``2·N`` times. Films that disappeared
+    between the registry walk and the call collapse to empty url/timecode so
+    the template can render a placeholder card.
 
     M1 leaves ``reason`` empty — the M3 reranker is expected to surface
     a one-line caption explaining why the rhyme was picked; the key is
@@ -62,8 +46,22 @@ def enrich_rhyme(cfg: Settings, rhyme: Rhyme, films_by_id: dict) -> dict:
     film = films_by_id.get(slug)
     title = getattr(film, "title", None) or slug
 
-    img_url = _resolve_keyframe_url(cfg, slug, rhyme.scene_id)
-    timecode = resolve_timecode(cfg, slug, rhyme.scene_id)
+    if kf_cache is not None and slug in kf_cache:
+        index = kf_cache[slug]
+    else:
+        index = keyframe_index(cfg, slug)
+        if kf_cache is not None:
+            kf_cache[slug] = index
+
+    img_url = ""
+    timecode = ""
+    if index is not None:
+        by_scene, fps, data_dir = index
+        entry = by_scene.get(rhyme.scene_id)
+        if entry is not None:
+            img_url = keyframe_url(entry.get("filepath", ""), data_dir) or ""
+            start_s = float(entry.get("start_time_s") or 0.0)
+            timecode = to_smpte(start_s, fps) if start_s > 0 else ""
 
     return {
         "film_slug": slug,

@@ -108,3 +108,52 @@ def test_api_search_threads_reranker_toggle_into_result_adapter(client, monkeypa
 
     assert resp.status_code == 200
     assert captured == {"query": "walking", "mode": "hybrid", "enabled": True}
+
+
+def test_first_stage_pool_widens_for_reranker(client, monkeypatch) -> None:
+    """1.1: with rerank on, the first stage fetches >= ``top_k_in`` candidates.
+
+    The cross-encoder scores only the top ``top_k_in`` hits it is handed, so the
+    first stage must surface that depth — otherwise rerank can only reorder the
+    already-visible page and never promote a deeper candidate.
+    """
+    import api.routes.search as route
+
+    captured: dict = {}
+
+    def capture_dispatch(*args):
+        # dispatch_text_search(cfg, ctx, q, tags, top_k, min_sim, retriever, sw, bw, rrf_k)
+        captured["first_stage_k"] = args[4]
+        return ([], False)
+
+    monkeypatch.setattr(route.search_service, "dispatch_text_search", capture_dispatch)
+    resp = client.get(
+        "/api/search",
+        params={"q": "menina", "reranker_enabled": "true", "top_k": 8},
+    )
+    assert resp.status_code in (200, 204)
+    # top_k_in defaults to 20; top_k=8 < 20, so the pool must widen to >= 20.
+    assert captured["first_stage_k"] >= 20
+
+
+def test_first_stage_pool_covers_offset_when_rerank_off(client, monkeypatch) -> None:
+    """1.1: paging is honoured even with rerank off.
+
+    The final ``[offset : offset + top_k]`` slice would index past a
+    ``top_k``-length list, so the first stage must fetch ``top_k + offset``.
+    """
+    import api.routes.search as route
+
+    captured: dict = {}
+
+    def capture_dispatch(*args):
+        captured["first_stage_k"] = args[4]
+        return ([], False)
+
+    monkeypatch.setattr(route.search_service, "dispatch_text_search", capture_dispatch)
+    resp = client.get(
+        "/api/search",
+        params={"q": "menina", "reranker_enabled": "false", "top_k": 5, "offset": 10},
+    )
+    assert resp.status_code in (200, 204)
+    assert captured["first_stage_k"] == 15  # 5 + 10, no rerank widening

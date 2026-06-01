@@ -191,13 +191,11 @@ def test_generate_slate_dispatches_rhyme_to_find_rhymes(tmp_path: Path, monkeypa
                 film_slug="porter",
                 scene_id=4,
                 score=0.91,
-                keyframe_path=Path("/x/porter/frames/scene_0004.jpg"),
             ),
             Rhyme(
                 film_slug="porter",
                 scene_id=2,
                 score=0.80,
-                keyframe_path=Path("/x/porter/frames/scene_0002.jpg"),
             ),
         ]
 

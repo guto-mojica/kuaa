@@ -48,13 +48,17 @@ _SCENE_NUM_RE = re.compile(r"[Ss]cene[-_](\d+)")
 
 @dataclass
 class Rhyme:
-    """A single cross-film visual neighbour of an anchor keyframe."""
+    """A single cross-film visual neighbour of an anchor keyframe.
+
+    The served keyframe URL is resolved at enrichment time
+    (:func:`cinemateca.rhymes.enrich.enrich_rhyme`) from the film's
+    ``keyframes_metadata.json``, so no path is carried on the dataclass.
+    """
 
     film_slug: str
     scene_id: int
     score: float
-    keyframe_path: Path | None
-    embedding: np.ndarray | None = None  # NEW — populated when MMR is enabled
+    embedding: np.ndarray | None = None  # populated when MMR is enabled
 
 
 def find_rhymes(
@@ -133,7 +137,6 @@ def find_rhymes(
             film_slug=slug,
             scene_id=scene_id,
             score=sim,
-            keyframe_path=library_dir / slug / "frames" / f"scene_{scene_id:04d}.jpg",
             embedding=vec if lambda_diversity < 1.0 else None,
         )
         for sim, slug, scene_id, vec in candidates_raw
@@ -149,49 +152,6 @@ def find_rhymes(
     else:
         rhymes = rhymes[:top_n]
     return rhymes
-
-
-def _load_keyframe_paths(library_dir: Path, slug: str) -> dict[int, Path | None]:
-    """Return a ``{scene_id: Path}`` map for one film slug.
-
-    Reads ``<library_dir>/<slug>/metadata/keyframes_metadata.json`` and
-    extracts the ``filepath`` stored for each scene.  The path is stored as
-    an absolute string in the production pipeline output.
-
-    Returns an empty dict when the metadata file is absent, unreadable, or
-    uses an unexpected shape.  Callers treat a missing scene as ``None``
-    so the UI can show a placeholder image rather than crashing.
-    """
-    meta_path = library_dir / slug / "metadata" / "keyframes_metadata.json"
-    if not meta_path.exists():
-        return {}
-    try:
-        data = json.loads(meta_path.read_text())
-    except (OSError, json.JSONDecodeError):
-        logger.warning("rimas: could not read keyframes metadata for %s", slug)
-        return {}
-
-    # The metadata file may be a plain list or a dict with a "scenes" key.
-    scenes: list[dict]
-    if isinstance(data, list):
-        scenes = data
-    elif isinstance(data, dict) and "scenes" in data:
-        scenes = data["scenes"]
-    else:
-        logger.warning("rimas: unexpected keyframes_metadata shape for %s", slug)
-        return {}
-
-    result: dict[int, Path | None] = {}
-    for entry in scenes:
-        if not isinstance(entry, dict):
-            continue
-        try:
-            scene_id = int(entry["scene_id"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        fp = entry.get("filepath")
-        result[scene_id] = Path(fp) if fp else None
-    return result
 
 
 def _extract_scene_ids(mapping: dict) -> list[int]:

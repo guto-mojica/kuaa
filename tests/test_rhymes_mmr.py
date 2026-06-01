@@ -20,21 +20,18 @@ def test_mmr_lambda_one_equals_pure_relevance():
             film_slug="a",
             scene_id=1,
             score=0.9,
-            keyframe_path=None,
             embedding=_unit(np.array([0.9, 0.1, 0, 0])),
         ),
         Rhyme(
             film_slug="a",
             scene_id=2,
             score=0.8,
-            keyframe_path=None,
             embedding=_unit(np.array([0.95, 0.05, 0, 0])),
         ),  # near-dup of #1
         Rhyme(
             film_slug="b",
             scene_id=3,
             score=0.6,
-            keyframe_path=None,
             embedding=_unit(np.array([0, 0, 1, 0])),
         ),  # diverse
     ]
@@ -53,21 +50,18 @@ def test_mmr_lambda_zero_maximises_diversity():
             film_slug="a",
             scene_id=1,
             score=0.9,
-            keyframe_path=None,
             embedding=_unit(np.array([0.9, 0.1, 0, 0])),
         ),
         Rhyme(
             film_slug="a",
             scene_id=2,
             score=0.8,
-            keyframe_path=None,
             embedding=_unit(np.array([0.95, 0.05, 0, 0])),
         ),  # near-dup of #1
         Rhyme(
             film_slug="b",
             scene_id=3,
             score=0.6,
-            keyframe_path=None,
             embedding=_unit(np.array([0, 0, 1, 0])),
         ),  # diverse
     ]
@@ -84,12 +78,12 @@ def test_mmr_default_lambda_breaks_near_duplicates():
     anchor = _unit(np.array([1, 0, 0, 0], dtype="float32"))
     cands = [
         # 4 near-duplicates from "film_a"
-        Rhyme("a", 1, 0.90, None, _unit(np.array([0.90, 0.10, 0, 0]))),
-        Rhyme("a", 2, 0.89, None, _unit(np.array([0.91, 0.09, 0, 0]))),
-        Rhyme("a", 3, 0.88, None, _unit(np.array([0.92, 0.08, 0, 0]))),
-        Rhyme("a", 4, 0.87, None, _unit(np.array([0.93, 0.07, 0, 0]))),
+        Rhyme("a", 1, 0.90, _unit(np.array([0.90, 0.10, 0, 0]))),
+        Rhyme("a", 2, 0.89, _unit(np.array([0.91, 0.09, 0, 0]))),
+        Rhyme("a", 3, 0.88, _unit(np.array([0.92, 0.08, 0, 0]))),
+        Rhyme("a", 4, 0.87, _unit(np.array([0.93, 0.07, 0, 0]))),
         # 1 diverse outlier from "film_b"
-        Rhyme("b", 5, 0.50, None, _unit(np.array([0.50, 0.5, 0.5, 0.5]))),
+        Rhyme("b", 5, 0.50, _unit(np.array([0.50, 0.5, 0.5, 0.5]))),
     ]
     out = mmr_rerank(anchor_vec=anchor, candidates=cands, lambda_diversity=0.5, k_final=3)
     slugs = [r.film_slug for r in out]
@@ -101,8 +95,7 @@ def test_mmr_default_lambda_breaks_near_duplicates():
 def test_mmr_truncates_to_k_final():
     anchor = _unit(np.ones(4, dtype="float32"))
     cands = [
-        Rhyme("a", i, 0.5, None, _unit(np.random.default_rng(i).standard_normal(4)))
-        for i in range(20)
+        Rhyme("a", i, 0.5, _unit(np.random.default_rng(i).standard_normal(4))) for i in range(20)
     ]
     out = mmr_rerank(anchor_vec=anchor, candidates=cands, lambda_diversity=0.5, k_final=7)
     assert len(out) == 7
@@ -117,6 +110,6 @@ def test_mmr_requires_embedding_on_each_rhyme():
     """A Rhyme without an embedding cannot be MMR-reranked — surface this
     explicitly rather than silently returning the input unchanged."""
     anchor = _unit(np.ones(4, dtype="float32"))
-    cands = [Rhyme("a", 1, 0.5, None, embedding=None)]
+    cands = [Rhyme("a", 1, 0.5, embedding=None)]
     with pytest.raises(ValueError, match="embedding"):
         mmr_rerank(anchor_vec=anchor, candidates=cands, lambda_diversity=0.5, k_final=1)
