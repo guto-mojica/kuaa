@@ -249,7 +249,7 @@ def verify_graceful_degradation(cfg: Any) -> SectionResult:
             ],
             mode="hybrid",
             weights=None,
-            query=Query.text_query("q"),
+            query=Query.of_text("q"),
         )
         from types import SimpleNamespace
 

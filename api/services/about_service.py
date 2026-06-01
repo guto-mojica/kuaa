@@ -7,8 +7,8 @@ Mojica frame redesign). The surface has five named blocks:
     Sourced from :func:`cinemateca.library.scan_library` and
     :func:`library_state`; runtime is best-effort (``Film`` does not carry
     a runtime field yet, so the cell falls back to ``"—"``).
-  * **Model attributions** — 5 cards (CLIP / Moondream / YOLO / MTCNN /
-    CLAP), each with a coloured initial badge, name+version line, role
+  * **Model attributions** — one card per shipped model (CLIP / Moondream /
+    YOLO / MTCNN), each with a coloured initial badge, name+version line, role
     description, organisation + GitHub repo link, and a license pill.
     The list is *project-static*: every install ships these models, so the
     builder returns a hard-coded sequence rather than introspecting the

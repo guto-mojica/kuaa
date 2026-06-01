@@ -316,7 +316,7 @@ def _build_fixture(cfg, *, slug: str) -> BenchFixture:
     # uncoupled from pandas at type-check time; at runtime it's always
     # a DataFrame here (status is OK).
     n_scenes = (
-        int(idx.kf_df["scene_id"].nunique())  # type: ignore[index, union-attr]
+        int(idx.kf_df["scene_id"].nunique())  # type: ignore[index]
         if hasattr(idx.kf_df, "columns")
         else 0
     )

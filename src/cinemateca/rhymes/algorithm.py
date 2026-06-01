@@ -1,9 +1,9 @@
 """Cross-film visual rhymes via cosine kNN on CLIP keyframe embeddings.
 
-Minimum-viable backend for the Rimas Visuais (visual rhymes) feature.
-The full M3 stack — CLIP × CLAP fusion + MMR diversity + cross-encoder
-rerank — replaces this implementation, but the public surface
-(``find_rhymes`` returning ``list[Rhyme]``) is intended to stay stable.
+Backend for the Rimas Visuais (visual rhymes) feature. MMR diversity rerank
+now layers on top of the cosine kNN (see :func:`mmr_rerank`); a future
+cross-encoder pass may follow. The public surface (``find_rhymes`` returning
+``list[Rhyme]``) is intended to stay stable.
 
 Per-film embeddings are expected at::
 

@@ -214,7 +214,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # Reuse run_eval's text-subset extraction (the E3b loader) verbatim.
     sys.path.insert(0, str(REPO_ROOT / "scripts"))
-    from run_eval import _text_dataset_from_multimodal  # type: ignore[import-not-found]
+    from run_eval import _text_dataset_from_multimodal
 
     args = parse_args(argv)
     queries_path = project_path(args.queries)
@@ -230,9 +230,9 @@ def main(argv: list[str] | None = None) -> int:
         cfg = load_config(project_path(args.config), project_root=REPO_ROOT)
         seed_everything(args.seed)
         # Point the text retrievers at THIS film's live index (SigLIP2 by config).
-        cfg.paths.embeddings_dir = str(film_dir / "embeddings")
-        cfg.paths.metadata_dir = str(film_dir / "metadata")
-        cfg.paths.frames_dir = str(film_dir / "frames")
+        cfg.paths.embeddings_dir = film_dir / "embeddings"
+        cfg.paths.metadata_dir = film_dir / "metadata"
+        cfg.paths.frames_dir = film_dir / "frames"
 
         from cinemateca.eval.retrieval import run_retrieval_eval
 
