@@ -147,11 +147,15 @@ search:
 # default for one text-search request.
 retrieval:
   reranker:
-    enabled: auto           # auto = profile-aware: GPU-on / CPU-off so the
-                            # ~2.4 GB cross-encoder doesn't slow the CPU /
-                            # HuggingFace-Spaces demo. Accepts true/false to
-                            # pin it. The Buscar UI toggle still sends
-                            # ?reranker_enabled= to override per request.
+    enabled: false          # Disabled by default for v1.0 — DELIBERATE INTERIM
+                            # state, see docs/RERANKER_DECISION.md. The reranker's
+                            # true effect is currently UNMEASURED (the proxy
+                            # ablation reranked empty descriptions via a core-path
+                            # bug) and its text-only design is suspect on short
+                            # captions, so we don't ship a multi-second component
+                            # of unknown value default-on. Opt in per request with
+                            # ?reranker_enabled=true; 'auto' (GPU-on / CPU-off) and
+                            # 'true' still work for experiments + the re-measure.
     top_k_in: 20            # max hits the cross-encoder sees (cost cap).
     model: "default"        # 'default' → BAAI/bge-reranker-v2-m3
                             # 'noop'    → passthrough escape hatch (tests / UI off)

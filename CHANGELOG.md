@@ -41,6 +41,14 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
   assinaturas públicas do core; a `aggregate_search` (god-function de 363 LOC) foi decomposta
   em unidades ≤80 LOC; e os dispatchers de busca de produção retornam `SearchResult` tipado
   (sem o round-trip de dict-adapter). Comportamento preservado por snapshots byte-idênticos.
+- **Reranker cross-encoder desativado por padrão (`retrieval.reranker.enabled: false`).**
+  Decisão de v1.0: o efeito do reranker é *não medido* (a ablação por proxy reordenou
+  descrições vazias por um bug no caminho `find` do core) e o design text-only é suspeito
+  em legendas curtas. Continua opt-in via `?reranker_enabled=true`. Justificativa e plano de
+  correção em `docs/RERANKER_DECISION.md`.
+- **Busca: pool de 1º estágio alargado quando o rerank está ligado** (`max(top_k+offset, top_k_in)`):
+  corrige a fome de candidatos do cross-encoder e a paginação `?offset` (que fatiava além de uma
+  lista de tamanho `top_k`).
 
 ### Removido
 

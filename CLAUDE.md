@@ -423,7 +423,11 @@ defer features; timeline extension is one option among several. Grilled
   `cinemateca.search.rerank` (BAAI/bge-reranker-v2-m3 default, `model="noop"`
   escape hatch); `apply_reranker(result, *, cfg)` service wrapper ready
   (UI affordance live; live wiring in production dispatchers tracked as
-  follow-up Task 3.2b — default off).
+  follow-up Task 3.2b — default off). **v1.0 decision (2026-05-31): shipped
+  DISABLED by default (`retrieval.reranker.enabled: false`) as tracked debt —
+  its effect is unmeasured (the proxy ablation reranked empty descriptions) and
+  the design is suspect. Must be fixed properly (RRF-fuse / VLM-as-judge) or
+  removed before the portfolio is "finished." See `docs/RERANKER_DECISION.md`.**
 - [x] Multilingual visual model (SigLIP-multilingual; M-CLIP fallback) —
   `cinemateca.models.clip.siglip_multilingual.SiglipMultilingualEmbedder`
   registered behind `models.image_embedder`; library uniformly re-embedded
@@ -509,7 +513,7 @@ Keep this list updated as steps complete.
 | Hosted demo (HF Spaces) | **re-scoped** §16; optional buildpack stretch |
 | Whisper transcripts indexed | **cut** → deferred to v0.8-rc (§16) |
 | CLAP audio search / CLIP×CLAP fusion | **cut** (2026-05-31, §16); `backup/pre-audio-removal` |
-| Cross-encoder reranker | WS-1 **C5** (typed; default-OFF pending WS-4 evidence) |
+| Cross-encoder reranker | WS-1 **C5** (typed; **default-OFF for v1.0 by decision — `docs/RERANKER_DECISION.md`**; WS-4 rerank ablation was confounded by an empty-description core-path bug, so its effect is unmeasured) |
 | Ablation table / failure-mode analysis | WS-4 **E2 / E4 / E8** |
 | Curator-annotated eval pairs | WS-4 **E5** `[HUMAN]` (proxy fallback E2 so launch isn't hard-blocked) |
 | Blog / 90s video / `v1.0.0` tag / LinkedIn | WS-6 **D6 / D8**, gate **G5** |
