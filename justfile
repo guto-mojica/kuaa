@@ -21,9 +21,12 @@ smoke:
 test:
     uv run pytest -m "not e2e" -q
 
-# Browser a11y + UI render smoke (needs `uv run playwright install chromium`).
+# Browser a11y + UI render smoke. Requires the optional e2e group (Playwright):
+#   uv sync --group e2e && uv run playwright install chromium
+# The `--group e2e` flag ensures the group is installed for this run; without it
+# a default `uv sync --extra full --group dev` env has no `page` fixture.
 e2e:
-    uv run pytest tests/e2e -m e2e -q
+    uv run --group e2e pytest tests/e2e -m e2e -q
 
 # Coverage report to the terminal.
 cov:

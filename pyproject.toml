@@ -144,8 +144,9 @@ dev = [
 # Install with `uv sync --group e2e` (or `uv pip install`), then
 # `uv run playwright install chromium`. The justfile `e2e` recipe runs them.
 # Kept out of `dev` so the standard `uv sync --extra full --group dev` install
-# (and CI) never pulls Playwright. Not pinned in the committed uv.lock by
-# design — it is not a CI dependency.
+# (and CI) never pulls Playwright. uv locks all groups, so Playwright IS present
+# in the committed uv.lock — but it is only installed when you opt in with
+# `uv sync --group e2e` (the justfile `e2e` recipe passes `--group e2e`).
 e2e = [
     "playwright>=1.40",
     "pytest-playwright>=0.4",
