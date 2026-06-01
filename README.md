@@ -41,17 +41,19 @@ per-query cost.
 - **Cross-film visual rhymes** — kNN over keyframe embeddings, diversified by
   **MMR** (Carbonell & Goldstein 1998) with a λ=0.5 default and a `Diversidade`
   slider in the UI.
-- **Cross-encoder reranker** — `BAAI/bge-reranker-v2-m3` is the typed, wired
-  default backend. It is **off by default** pending end-to-end plumbing into
-  the production search dispatchers (the WS-4 work); the launch UI hides the
-  toggle until that lands. It is not applied to results today.
+- **Cross-encoder reranker** — `BAAI/bge-reranker-v2-m3`, typed and wired into
+  the search path but **off by default** for v1.0: its true effect is unmeasured
+  (the proxy ablation reranked empty descriptions — a now-fixed bug) and its
+  text-only design is suspect on short captions, so it ships as tracked debt
+  rather than a default-on feature. Opt in per request with
+  `?reranker_enabled=true`. See [docs/RERANKER_DECISION.md](docs/RERANKER_DECISION.md).
 
 The full canonical stack:
 
 | Role | Backend |
 |---|---|
 | Image embedder | `google/siglip2-large-patch16-256` (default), OpenCLIP ViT-B/32 (legacy) |
-| Reranker | `BAAI/bge-reranker-v2-m3` (typed/wired; default-off pending WS-4) |
+| Reranker | `BAAI/bge-reranker-v2-m3` (typed/wired; default-off — effect unmeasured, see RERANKER_DECISION.md) |
 | Scene describer | Moondream2 (HF transformers default; GGUF opt-in) |
 | Object detection | YOLOv8 |
 | Face detection | MTCNN |
@@ -124,7 +126,6 @@ portfolio roadmap:
 | [Reproducible demo](docs/DEMO.md) | Public demo quickstart using precomputed artifacts |
 | [Demo data](docs/DEMO_DATA.md) | Provenance, rights notes, artifact policy, and regional context |
 | [Demo verification](docs/DEMO_VERIFICATION.md) | Release-bundle and browser verification checklist |
-| [Demo quickstart + walkthrough](docs/DEMO.md) | Reproducible demo setup, review flow, and two-minute walkthrough script |
 | [Evaluation](docs/EVALUATION.md) | Query schema, retrieval metrics, and annotation-correction stats |
 | [Domain packs](docs/DOMAIN_PACKS.md) | Domain schema, archive and media-broadcast packs, prompt/export mapping |
 | [API reference](docs/API.md) | Local FastAPI/HTMX routes plus JSON/CSV export endpoints |
@@ -340,7 +341,7 @@ O sistema é organizado em módulos independentes que podem ser usados separadam
 Os backends de modelo ficam atrás de `Protocol`s tipados e são selecionados por
 configuração em `src/cinemateca/models/registry.py`.
 
-O pipeline parte de um arquivo de vídeo e produz, por cena: embeddings visuais SigLIP2 (1024-d) e descrições em linguagem natural do Moondream 2. O motor de busca combina esses artefatos em quatro modos — pesquisa texto/imagem por cosseno SigLIP2, busca lexical BM25, fusão híbrida CLIP⊕BM25 com Reciprocal Rank Fusion e rimas visuais cross-film (kNN + MMR) — com reranker cross-encoder na saída. Os resultados chegam via exportação estruturada e pela UI FastAPI + HTMX.
+O pipeline parte de um arquivo de vídeo e produz, por cena: embeddings visuais SigLIP2 (1024-d) e descrições em linguagem natural do Moondream 2. O motor de busca combina esses artefatos em quatro modos — pesquisa texto/imagem por cosseno SigLIP2, busca lexical BM25, fusão híbrida CLIP⊕BM25 com Reciprocal Rank Fusion e rimas visuais cross-film (kNN + MMR). Um reranker cross-encoder existe como opção, mas vem desligado por padrão na v1.0 (efeito não medido — ver `docs/RERANKER_DECISION.md`). Os resultados chegam via exportação estruturada e pela UI FastAPI + HTMX.
 
 ```mermaid
 flowchart TD
@@ -359,8 +360,8 @@ flowchart TD
     TXT --> HYB[Hybrid CLIP &oplus; BM25<br/>Reciprocal Rank Fusion]
     BM25 --> HYB
     RET --> RHY[Cross-film visual rhymes<br/>kNN + MMR diversity]
-    HYB --> RR[Cross-encoder reranker<br/>bge-reranker-v2-m3]
-    RR --> RES[Ranked scenes]
+    HYB --> RES[Ranked scenes]
+    HYB -. opt-in · default-off .-> RR[Cross-encoder reranker<br/>bge-reranker-v2-m3]
     RHY --> RES
     RES --> EXP[Domain-aware export<br/>catalog.json / catalog.csv]
     RES --> UI[FastAPI + HTMX UI<br/>Buscar / Cenas / Anotar / Rimas]
