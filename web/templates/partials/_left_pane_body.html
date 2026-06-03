@@ -23,13 +23,14 @@
 {# ── Films section ──────────────────────────────────────────────── #}
 <div class="fx-ph">
   <span>{{ _('Library · Films') }}</span>
-  <button class="add"
+  <button class="fx-btn ghost"
+          style="font-size: 11px; padding: 3px 8px; gap: 4px;"
           type="button"
           title="{{ _('Add film') }}"
           aria-label="{{ _('Add film') }}"
           hx-get="/api/library/add-form"
           hx-target="#add-film-zone"
-          hx-swap="innerHTML">{{ icon('plus', 12) }}</button>
+          hx-swap="innerHTML">{{ icon('plus', 10) }} {{ _('Add film') }}</button>
 </div>
 
 {% if films %}

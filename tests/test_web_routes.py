@@ -1858,14 +1858,12 @@ def _toast_payload(response):
     return _json.loads(raw).get("toast")
 
 
-def test_add_film_success_emits_toast_trigger(tmp_config, client):
-    """``POST /api/library/add`` carries a success toast on the happy path.
+def test_add_film_success_redirects_to_processing(tmp_config, client):
+    """``POST /api/library/add`` redirects to the Processing tab on success.
 
-    The video must reside in the configured raw dir (the admin service
-    rejects out-of-tree paths). The success response is the left-pane swap;
-    the toast rides along on the ``HX-Trigger`` header the ToastBus listens
-    for. Locale is pinned to ``en`` by the ``client`` fixture, so the title
-    resolves to the English msgstr.
+    After registering the film and enqueuing it, the route returns an
+    HX-Redirect to ``/processing?film=<slug>`` so the user lands on the
+    Processing tab where they can see and start the pending job.
     """
     from pathlib import Path
 
@@ -1879,12 +1877,11 @@ def test_add_film_success_emits_toast_trigger(tmp_config, client):
         data={"video_path": str(video), "title": "Novo Filme"},
     )
     assert r.status_code == 200, r.text[:300]
-    toast = _toast_payload(r)
-    assert toast is not None, "add-film success must emit an HX-Trigger toast"
-    assert toast["kind"] == "success"
-    assert toast["title"] == "Film added"
-    # The film title rides along as the toast sub-line.
-    assert toast["sub"] == "Novo Filme"
+    redirect = r.headers.get("HX-Redirect", "")
+    assert redirect.startswith("/processing"), (
+        f"add-film success must HX-Redirect to /processing, got: {redirect!r}"
+    )
+    assert "novo_filme" in redirect, "redirect URL should contain the film slug"
 
 
 def test_add_film_failure_does_not_emit_toast(client):

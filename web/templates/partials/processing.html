@@ -37,37 +37,15 @@
         {% if jobs %}<span class="pip">{{ jobs | length }} {{ _("active") }}</span>{% endif %}
       </h1>
 
-      {#- Add-film form: register a video from any path so it appears in
-          the selector below. Alpine toggles the form open/closed; on
-          success the server issues HX-Redirect back to /processing with
-          the new slug pre-selected. -#}
-      <div class="p-add-film" x-data="{ open: false }">
-        <button type="button"
-                class="fx-btn secondary"
-                @click="open = !open"
-                :aria-expanded="open">
-          {{ icon('plus', 14) }} {{ _("Add film…") }}
-        </button>
-        <form x-show="open"
-              x-cloak
-              class="p-add-film__form"
-              hx-post="/api/library/add"
-              hx-swap="none">
-          <input type="hidden" name="source" value="processing">
-          <input class="filter-input"
-                 type="text"
-                 name="video_path"
-                 placeholder="{{ _('Absolute path to video file') }}"
-                 required>
-          <input class="filter-input"
-                 type="text"
-                 name="title"
-                 placeholder="{{ _('Title (optional)') }}">
-          <div style="display:flex; gap:8px; margin-top:6px;">
-            <button type="submit" class="fx-btn primary">{{ _("Register") }}</button>
-            <button type="button" class="fx-btn secondary" @click="open = false">{{ _("Cancel") }}</button>
-          </div>
-        </form>
+      {#- Add-film: same button + zone pattern as the left-pane Library·Films "+". -#}
+      <div class="p-add-film">
+        <button class="add" type="button"
+                title="{{ _('Add film') }}"
+                aria-label="{{ _('Add film') }}"
+                hx-get="/api/library/add-form?source=processing"
+                hx-target="#proc-add-film-zone"
+                hx-swap="innerHTML">{{ icon('plus', 12) }}</button>
+        <div id="proc-add-film-zone"></div>
       </div>
 
       <div class="acts">
@@ -76,7 +54,7 @@
             so the active card, SSE log, queue, and right resource pane mount
             together after a job is accepted. -#}
         <form class="pipeline-launch-bar"
-              hx-post="/api/pipeline/enqueue"
+              hx-post="/api/pipeline/start"
               hx-target="closest .tab-panel"
               hx-swap="outerHTML"
               hx-indicator="#start-spinner"
@@ -111,30 +89,16 @@
           <span id="start-spinner" class="htmx-indicator text-muted" style="font-size:0.75rem">
             {{ _("Starting…") }}
           </span>
-        </form>
-
-        {#- + Queue button: same film/steps selection, always adds to pending
-            without starting. Posts to /api/pipeline/enqueue which calls
-            queue_job() (always-queue, never auto-start). -#}
-        <form class="pipeline-launch-bar"
-              hx-post="/api/pipeline/enqueue"
-              hx-target="closest .tab-panel"
-              hx-swap="outerHTML"
-              hx-indicator="#queue-spinner"
-              style="display:flex; align-items:center; gap:10px;">
-          {% if films %}
-            <select name="video_path" class="jump-select">
-              {% for film in films %}
-                <option value="{{ film.raw_path }}"{% if film.slug == active_film %} selected{% endif %}>{{ film.title }}</option>
-              {% endfor %}
-            </select>
-          {% endif %}
-          <div class="pipeline-steps-check" style="display:none;">
-            {% for name, label in step_defs %}
-              <input type="hidden" name="steps" value="{{ name }}">
-            {% endfor %}
-          </div>
-          <button type="submit" class="fx-btn secondary" {% if not films %}disabled{% endif %}>
+          {#- Queue button: posts the same form data to /enqueue instead of /start.
+              type="button" prevents native form submit; hx-include picks up the
+              select + checkboxes from the surrounding form. -#}
+          <button type="button" class="fx-btn secondary"
+                  {% if not films %}disabled{% endif %}
+                  hx-post="/api/pipeline/enqueue"
+                  hx-include="closest form"
+                  hx-target="closest .tab-panel"
+                  hx-swap="outerHTML"
+                  hx-indicator="#queue-spinner">
             {{ icon('plus', 14) }} {{ _("+ Queue") }}
           </button>
           <span id="queue-spinner" class="htmx-indicator text-muted" style="font-size:0.75rem">

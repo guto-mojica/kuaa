@@ -56,6 +56,8 @@
   {% set message = _("File not found. Check the path or filename.") %}
 {% elif message_key == "slug_duplicate" %}
   {% set message = _("A film with this name is already in the library.") %}
+{% elif message_key == "already_in_library" %}
+  {% set message = _("This film is already in the library.") %}
 {% else %}
   {% set message = "" %}
 {% endif %}

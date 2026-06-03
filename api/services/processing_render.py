@@ -85,7 +85,7 @@ def build_processing_context() -> ProcessingContext:
     from cinemateca.library import scan_library
 
     library_dir = Path(cfg.paths.library_dir)
-    films = scan_library(library_dir)
+    films = [f for f in scan_library(library_dir) if f.raw_path.exists()]
     active = active_jobs()
     jobs = enrich_jobs(active)
 

@@ -68,10 +68,8 @@ async def api_library_select(slug: str) -> Response:
 
 
 @router.get("/api/library/add-form", response_class=HTMLResponse)
-async def api_library_add_form(request: Request) -> HTMLResponse:
-    # make_ctx (not a bare {"request": …}) so the form's {{ _(...) }} strings
-    # honour the locale cookie instead of the global default.
-    return templates.TemplateResponse(request, "partials/add_film_form.html", make_ctx(request))
+async def api_library_add_form(request: Request, source: str = "left-pane") -> HTMLResponse:
+    return templates.TemplateResponse(request, "partials/add_film_form.html", make_ctx(request, source=source))
 
 
 @router.post("/api/library/add", response_class=HTMLResponse, response_model=None)
@@ -90,20 +88,51 @@ async def api_library_add(
     video = resolve_video_path(video_path, str(raw_dir))
     _ = request_gettext(request)
 
-    # Processing-tab form uses hx-swap="none" so a swapped partial is silently
-    # discarded. Route errors must travel as toast triggers (HX-Trigger header),
-    # which HTMX processes regardless of hx-swap. Left-pane form gets inline
-    # error re-rendered into #lp-scroll as before.
+    _ERROR_MESSAGES = {
+        "video_not_found": _("File not found. Check the path or filename."),
+        "slug_duplicate": _("A film with this name is already in the library."),
+        "already_in_library": _("This film is already in the library."),
+    }
+
+    def _proc_tab_response(*, error_key: str = "", sub: str = "", new_slug: str = "") -> HTMLResponse:
+        """Return the refreshed processing tab (outerHTML swap target).
+
+        Used for both success and error paths from the Processing-tab form so
+        the swap always lands properly — no reliance on HX-Redirect.  A toast
+        is added via HX-Trigger on every path.
+        """
+        from api.services.processing_render import build_processing_context
+
+        ctx = build_processing_context()
+        resp = templates.TemplateResponse(
+            request,
+            "partials/processing.html",
+            make_ctx(request, active_film=new_slug or "", current_slug=new_slug or "", **ctx),
+        )
+        if error_key:
+            toast_trigger(resp, title=_ERROR_MESSAGES.get(error_key, error_key), sub=sub, kind="error")
+        return resp
+
     def _error(error_key: str, sub: str = "") -> HTMLResponse | Response:
         if source == "processing":
-            resp: Response = Response(status_code=200)
-            toast_trigger(resp, title=_(error_key), sub=sub, kind="error")
-            return resp
+            return _proc_tab_response(error_key=error_key, sub=sub)
         ctx = make_ctx(request, error_key=error_key)
         return templates.TemplateResponse(request, "partials/add_film_form.html", ctx)
 
     if not video.exists():
         return _error("video_not_found", str(video))
+
+    # Detect files already registered by resolved path or matching filename.
+    from cinemateca.library import scan_library
+
+    video_resolved = video.resolve()
+    for film in scan_library(library_dir):
+        try:
+            if film.raw_path.resolve() == video_resolved or film.raw_path.name == video.name:
+                return _error("already_in_library", film.slug)
+        except (OSError, RuntimeError):
+            if film.raw_path.name == video.name:
+                return _error("already_in_library", film.slug)
 
     slug = slugify(video.stem)
     film_title = title.strip() or video.stem.replace("_", " ").title()
@@ -114,20 +143,18 @@ async def api_library_add(
         return _error("slug_duplicate", slug)
 
     if source == "processing":
-        resp: HTMLResponse | Response = Response(
-            status_code=200,
-            headers={"HX-Redirect": f"/processing?film={slug}"},
-        )
-    else:
-        resp = templates.TemplateResponse(
-            request,
-            "partials/_left_pane_body.html",
-            chrome_filter_ctx(request, ""),
-        )
-    # U7: success toast. Header set on the *returned* response — FastAPI only
-    # merges an injected Response's headers for non-Response return values.
-    _ = request_gettext(request)
-    toast_trigger(resp, title=_("Film added"), sub=film_title, kind="success")
+        resp: HTMLResponse | Response = _proc_tab_response(new_slug=slug)
+        toast_trigger(resp, title=_("Film added"), sub=film_title, kind="success")
+        return resp
+
+    # Enqueue the newly registered film for processing and redirect to the
+    # Processing tab so the user can see and start it immediately.
+    from api.jobs import STEP_DEFS, queue_job
+
+    symlink_path = library_dir / slug / "raw" / video.name
+    queue_job(str(symlink_path), {name for name, _ in STEP_DEFS}, cfg)
+    resp = Response(status_code=200)
+    resp.headers["HX-Redirect"] = f"/processing?film={slug}"
     return resp
 
 

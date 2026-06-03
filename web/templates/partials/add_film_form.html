@@ -1,23 +1,27 @@
 {# ── Add-film form (U1: accessible inline validation) ────────────────────────
-   POSTs to /api/library/add and re-renders into its own target (#add-film-zone
-   or #lp-scroll) — so on error this whole fragment swaps back in WITHOUT a
-   full-page reload, placing the message right under the offending field.
+   POSTs to /api/library/add. Used from two surfaces:
+
+   * left-pane (source="left-pane", default): swaps #lp-scroll innerHTML.
+     Inline validation errors re-render the form in-place.
+   * processing tab (source="processing"): swaps closest .tab-panel outerHTML.
+     Errors and success both return the refreshed processing tab + a toast.
 
    ``error_key`` (stable machine key, set by the route on a failed submit) is
-   translated by the shared field-error partial. When present, the path input
-   carries ``aria-invalid="true"`` and ``aria-describedby`` pointing at the
-   inline ``role="alert"`` message, so screen readers announce it and bind it
-   to the field. The errors that reach here:
-     * ``video_not_found``  — the path/filename resolved to no file;
-     * ``slug_duplicate``   — a film with the derived slug is already registered.
+   translated by the shared field-error partial (left-pane path only).
 #}
+{% set src = source | default("left-pane") %}
 {% set error_key = error_key | default("") %}
 {% set has_error = error_key | length > 0 %}
 <form class="add-film-form"
       hx-post="/api/library/add"
+      {% if src == "processing" %}
+      hx-target="closest .tab-panel"
+      hx-swap="outerHTML"
+      {% else %}
       hx-target="#lp-scroll"
-      hx-swap="innerHTML">
-    <input type="hidden" name="source" value="left-pane">
+      hx-swap="innerHTML"
+      {% endif %}>
+    <input type="hidden" name="source" value="{{ src }}">
     <input class="filter-input{% if has_error %} is-error{% endif %}"
            type="text"
            name="video_path"
@@ -36,9 +40,15 @@
     {% endwith %}
     <div class="add-film-form__actions">
         <button type="submit" class="tree-node tree-node--add">{{ _("Add") }}</button>
+        {% if src == "processing" %}
+        <button type="button" class="tree-node"
+                onclick="document.getElementById('proc-add-film-zone').innerHTML=''">
+            {{ _("Cancel") }}</button>
+        {% else %}
         <div class="tree-node"
              hx-get="/api/library/tree"
              hx-target="#lp-scroll"
              hx-swap="innerHTML">{{ _("Cancel") }}</div>
+        {% endif %}
     </div>
 </form>

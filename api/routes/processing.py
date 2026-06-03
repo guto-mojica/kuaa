@@ -14,7 +14,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 
-from api.deps import film_slug_query, get_config, make_ctx
+from api.deps import film_slug_query, get_config, make_ctx, request_gettext, toast_trigger
 from api.jobs import (
     STEP_DEFS,
     ConcurrencyRejected,
@@ -65,7 +65,13 @@ async def api_pipeline_start(
     vp = Path(video_path)
     if not vp.exists():
         logger.warning("/api/pipeline/start rejected — file not found: %s", vp)
-        return HTMLResponse(f'<p class="text-error">File not found: {vp}</p>', status_code=400)
+        _ = request_gettext(request)
+        ctx = build_processing_context()
+        resp = templates.TemplateResponse(
+            request, "partials/processing.html", make_ctx(request, **ctx)
+        )
+        toast_trigger(resp, title=_("File not found. Check the path or filename."), kind="error")
+        return resp
     try:
         job_id = start_job(str(vp), set(steps), cfg)
     except ConcurrencyRejected as exc:
@@ -91,7 +97,13 @@ async def api_pipeline_enqueue(
     vp = Path(video_path)
     if not vp.exists():
         logger.warning("/api/pipeline/enqueue rejected — file not found: %s", vp)
-        return HTMLResponse(f'<p class="text-error">File not found: {vp}</p>', status_code=400)
+        _ = request_gettext(request)
+        ctx = build_processing_context()
+        resp = templates.TemplateResponse(
+            request, "partials/processing.html", make_ctx(request, **ctx)
+        )
+        toast_trigger(resp, title=_("File not found. Check the path or filename."), kind="error")
+        return resp
     queue_job(str(vp), set(steps), cfg)
     logger.info("/api/pipeline/enqueue — queued %s", vp)
     return build_start_response(request, cfg, vp, request.cookies.get("active_film", ""))

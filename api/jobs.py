@@ -547,6 +547,7 @@ class JobRegistry:
         """
         with self._lock:
             self._jobs.clear()
+            self._pending.clear()
 
     def add(self, job: JobState) -> None:
         """Insert a pre-built :class:`JobState`, under the lock.
