@@ -1,11 +1,4 @@
-"""Library sidebar routes — registry filter (legacy + Mojica chrome) + management.
-
-Render/context helpers live in :mod:`api.services.library_render` (A2 Task 5).
-Admin orchestration (register/symlink/remove) lives in
-:mod:`api.services.library_admin` (A2 Task 5). The route decorators below are
-the authoritative path list (filter / tree / select / add-form / add /
-remove-confirm / remove).
-"""
+"""Library routes: filter / tree / select / add-form / add / remove-confirm / remove."""
 
 from __future__ import annotations
 
@@ -24,42 +17,18 @@ router = APIRouter()
 
 
 @router.get("/api/library/filter", response_class=HTMLResponse)
-async def api_library_filter(
-    request: Request,
-    q: str = "",
-    slug: str | None = Depends(film_slug_query),
-) -> HTMLResponse:
-    return templates.TemplateResponse(
-        request,
-        "partials/library_tree.html",
-        library_ctx(request, q, current_slug=slug),
-    )
+async def api_library_filter(request: Request, q: str = "", slug: str | None = Depends(film_slug_query)) -> HTMLResponse:
+    return templates.TemplateResponse(request, "partials/library_tree.html", library_ctx(request, q, current_slug=slug))
 
 
-@router.get("/api/library/tree", response_class=HTMLResponse)
-async def api_library_tree(
-    request: Request,
-    q: str = "",
-    slug: str | None = Depends(film_slug_query),
-) -> HTMLResponse:
-    """Return the Mojica LeftPane body for HTMX filter swaps."""
-    return templates.TemplateResponse(
-        request,
-        "partials/_left_pane_body.html",
-        chrome_filter_ctx(request, q, current_slug=slug),
-    )
+@router.get("/api/library/tree", response_class=HTMLResponse)  # Mojica LeftPane body for HTMX filter swaps
+async def api_library_tree(request: Request, q: str = "", slug: str | None = Depends(film_slug_query)) -> HTMLResponse:
+    return templates.TemplateResponse(request, "partials/_left_pane_body.html", chrome_filter_ctx(request, q, current_slug=slug))
 
 
 @router.get("/api/library/select/{slug}")
-async def api_library_select(slug: str) -> Response:
-    """Navigate the browser to the film's scenes tab via HX-Redirect.
-
-    Validates the slug against the films.json registry before redirecting.
-    An unknown slug raises :class:`IndexMissing` (→ 404) rather than
-    silently redirecting to a non-existent film page.
-    """
+async def api_library_select(slug: str) -> Response:  # HX-Redirect → /scenes?film=; IndexMissing on unknown slug
     from cinemateca.library import load_registry
-
     cfg = get_config()
     registry = load_registry(cfg.paths.library_dir)
     if slug not in registry:
@@ -94,13 +63,7 @@ async def api_library_add(
         "already_in_library": _("This film is already in the library."),
     }
 
-    def _proc_tab_response(*, error_key: str = "", sub: str = "", new_slug: str = "") -> HTMLResponse:
-        """Return the refreshed processing tab (outerHTML swap target).
-
-        Used for both success and error paths from the Processing-tab form so
-        the swap always lands properly — no reliance on HX-Redirect.  A toast
-        is added via HX-Trigger on every path.
-        """
+    def _proc_tab_response(*, error_key: str = "", sub: str = "", new_slug: str = "") -> HTMLResponse:  # outerHTML swap for both success/error paths
         from api.services.processing_render import build_processing_context
 
         ctx = build_processing_context()
@@ -127,16 +90,11 @@ async def api_library_add(
 
     try:
         register_and_symlink(library_dir, video, slug, film_title)
-    except ValueError:
-        # Slug already registered — only block if the existing film's raw
-        # symlink is healthy (file reachable). If it's an orphan (symlink
-        # missing or dangling), repair it silently and continue.
+    except ValueError:  # slug duplicate — block only if raw symlink is healthy; repair orphans silently
         from cinemateca.library import scan_library
-
         existing = next((f for f in scan_library(library_dir) if f.slug == slug), None)
         if existing and existing.raw_path.exists():
             return _error("already_in_library", slug)
-        # Orphan registration: recreate the symlink without re-registering.
         per_film_raw = library_dir / slug / "raw"
         per_film_raw.mkdir(parents=True, exist_ok=True)
         link = per_film_raw / video.name
@@ -148,14 +106,10 @@ async def api_library_add(
         toast_trigger(resp, title=_("Film added"), sub=film_title, kind="success")
         return resp
 
-    # Enqueue the newly registered film for processing and redirect to the
-    # Processing tab so the user can see and start it immediately.
-    from api.jobs import STEP_DEFS, queue_job
-
+    from api.jobs import STEP_DEFS, queue_job  # enqueue and redirect to Processing tab
     symlink_path = library_dir / slug / "raw" / video.name
     queue_job(str(symlink_path), {name for name, _ in STEP_DEFS}, cfg)
-    resp = Response(status_code=200)
-    resp.headers["HX-Redirect"] = f"/processing?film={slug}"
+    resp = Response(status_code=200, headers={"HX-Redirect": f"/processing?film={slug}"})
     return resp
 
 
@@ -166,11 +120,7 @@ async def api_library_remove_confirm(request: Request, slug: str) -> HTMLRespons
     cfg = get_config()
     registry = load_registry(cfg.paths.library_dir)
     film_title = registry.get(slug, {}).get("title", slug)
-    return templates.TemplateResponse(
-        request,
-        "partials/remove_film_confirm.html",
-        {**make_ctx(request), "slug": slug, "film_title": film_title},
-    )
+    return templates.TemplateResponse(request, "partials/remove_film_confirm.html", {**make_ctx(request), "slug": slug, "film_title": film_title})
 
 
 @router.post("/api/library/remove/{slug}", response_class=HTMLResponse)
@@ -184,8 +134,4 @@ async def api_library_remove(
     cfg = get_config()
     library_dir = Path(cfg.paths.library_dir)
     remove_film_and_wipe(library_dir, slug, wipe=bool(wipe))
-    return templates.TemplateResponse(
-        request,
-        "partials/_left_pane_body.html",
-        chrome_filter_ctx(request, ""),
-    )
+    return templates.TemplateResponse(request, "partials/_left_pane_body.html", chrome_filter_ctx(request, ""))

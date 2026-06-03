@@ -1,13 +1,8 @@
-"""Processing tab routes — pipeline start, SSE stream, status.
-
-``/tab/processing`` accepts ``?film=<slug>`` (T9; shows the global queue).
-"""
+"""Processing tab routes — pipeline start, SSE stream, status."""
 
 from __future__ import annotations
 
-import asyncio
 import logging
-import queue
 import uuid as _uuid
 from pathlib import Path
 
@@ -15,27 +10,10 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 
 from api.deps import film_slug_query, get_config, make_ctx, request_gettext, toast_trigger
-from api.jobs import (
-    STEP_DEFS,
-    ConcurrencyRejected,
-    cancel_job,
-    enqueue_job,
-    get_job,
-    queue_job,
-    remove_pending_job,
-    start_job,
-    start_queued_jobs,
-)
-from api.services.processing_render import (
-    build_processing_context,
-    build_start_response,
-    render_log_row,
-    render_stepper,
-)
+from api.jobs import STEP_DEFS, ConcurrencyRejected, cancel_job, enqueue_job, get_job, queue_job, remove_pending_job, start_job, start_queued_jobs
+from api.services.processing_render import build_processing_context, build_start_response, build_sse_generator
 from api.services.processing_service import enrich_jobs
 from api.templates import templates
-
-_TERMINAL_EVENTS = ("done", "error", "cancelled")
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -53,25 +31,23 @@ async def tab_processing(
     )
 
 
+def _file_not_found_response(request: Request) -> HTMLResponse:  # shared error path for start/enqueue
+    _ = request_gettext(request)
+    ctx = build_processing_context()
+    resp = templates.TemplateResponse(request, "partials/processing.html", make_ctx(request, **ctx))
+    toast_trigger(resp, title=_("File not found. Check the path or filename."), kind="error")
+    return resp
+
+
 @router.post("/api/pipeline/start", response_class=HTMLResponse)
-async def api_pipeline_start(
-    request: Request,
-    video_path: str = Form(...),
-    steps: list[str] = Form(default=[]),
-) -> HTMLResponse:
+async def api_pipeline_start(request: Request, video_path: str = Form(...), steps: list[str] = Form(default=[])) -> HTMLResponse:
     if not steps:
         steps = [name for name, _ in STEP_DEFS]
     cfg = get_config()
     vp = Path(video_path)
     if not vp.exists():
         logger.warning("/api/pipeline/start rejected — file not found: %s", vp)
-        _ = request_gettext(request)
-        ctx = build_processing_context()
-        resp = templates.TemplateResponse(
-            request, "partials/processing.html", make_ctx(request, **ctx)
-        )
-        toast_trigger(resp, title=_("File not found. Check the path or filename."), kind="error")
-        return resp
+        return _file_not_found_response(request)
     try:
         job_id = start_job(str(vp), set(steps), cfg)
     except ConcurrencyRejected as exc:
@@ -80,42 +56,22 @@ async def api_pipeline_start(
     return build_start_response(request, cfg, vp, request.cookies.get("active_film", ""))
 
 
-@router.post("/api/pipeline/enqueue", response_class=HTMLResponse)
-async def api_pipeline_enqueue(
-    request: Request,
-    video_path: str = Form(...),
-    steps: list[str] = Form(default=[]),
-) -> HTMLResponse:
-    """Add a film to the pending queue without starting it (Option B + Queue).
-
-    Always queues — never auto-starts. The queue is started explicitly via
-    POST /api/pipeline/queue/start.
-    """
+@router.post("/api/pipeline/enqueue", response_class=HTMLResponse)  # queue only, never auto-starts; use /queue/start
+async def api_pipeline_enqueue(request: Request, video_path: str = Form(...), steps: list[str] = Form(default=[])) -> HTMLResponse:
     if not steps:
         steps = [name for name, _ in STEP_DEFS]
     cfg = get_config()
     vp = Path(video_path)
     if not vp.exists():
         logger.warning("/api/pipeline/enqueue rejected — file not found: %s", vp)
-        _ = request_gettext(request)
-        ctx = build_processing_context()
-        resp = templates.TemplateResponse(
-            request, "partials/processing.html", make_ctx(request, **ctx)
-        )
-        toast_trigger(resp, title=_("File not found. Check the path or filename."), kind="error")
-        return resp
+        return _file_not_found_response(request)
     queue_job(str(vp), set(steps), cfg)
     logger.info("/api/pipeline/enqueue — queued %s", vp)
     return build_start_response(request, cfg, vp, request.cookies.get("active_film", ""))
 
 
-@router.post("/api/pipeline/queue/start", response_class=HTMLResponse)
+@router.post("/api/pipeline/queue/start", response_class=HTMLResponse)  # no-op when busy/empty
 async def api_pipeline_queue_start(request: Request) -> HTMLResponse:
-    """Start the first pending entry if the registry is idle.
-
-    No-op (200) when the registry is busy or the queue is empty — the
-    rebuilt tab reflects the current state either way.
-    """
     job_id = start_queued_jobs()
     logger.info("/api/pipeline/queue/start — job_id=%s", job_id)
     ctx = build_processing_context()
@@ -125,8 +81,7 @@ async def api_pipeline_queue_start(request: Request) -> HTMLResponse:
 
 
 @router.post("/api/pipeline/pending/{entry_id}/remove", response_class=HTMLResponse)
-async def api_pipeline_pending_remove(request: Request, entry_id: str) -> HTMLResponse:
-    """Remove a pending queue entry and return the refreshed queue fragment."""
+async def api_pipeline_pending_remove(request: Request, entry_id: str) -> HTMLResponse:  # returns refreshed queue fragment
     removed = remove_pending_job(entry_id)
     if not removed:
         logger.warning("/api/pipeline/pending/remove — entry %s not found", entry_id)
@@ -137,8 +92,7 @@ async def api_pipeline_pending_remove(request: Request, entry_id: str) -> HTMLRe
 
 
 @router.post("/api/pipeline/cancel/{job_id}", response_class=HTMLResponse)
-async def api_pipeline_cancel(request: Request, job_id: str) -> HTMLResponse:
-    """Cooperatively cancel a running job."""
+async def api_pipeline_cancel(request: Request, job_id: str) -> HTMLResponse:  # cooperative cancellation
     ok = cancel_job(job_id)
     job = get_job(job_id)
     if job is None:
@@ -151,9 +105,8 @@ async def api_pipeline_cancel(request: Request, job_id: str) -> HTMLResponse:
     )
 
 
-@router.get("/api/pipeline/job-card/{job_id}", response_class=HTMLResponse)
+@router.get("/api/pipeline/job-card/{job_id}", response_class=HTMLResponse)  # full .p-active card for polling refresh
 async def api_pipeline_job_card(request: Request, job_id: str) -> HTMLResponse:
-    """Return the full .p-active card for polling-based outer-card refresh."""
     job = get_job(job_id)
     if job is None:
         return HTMLResponse('<p class="text-error">Job not found.</p>', status_code=404)
@@ -163,52 +116,10 @@ async def api_pipeline_job_card(request: Request, job_id: str) -> HTMLResponse:
     )
 
 
-@router.get("/api/pipeline/stream/{job_id}")
+@router.get("/api/pipeline/stream/{job_id}")  # SSE: log / update / done|error|cancelled (terminal closes stream)
 async def api_pipeline_stream(request: Request, job_id: str) -> StreamingResponse:
-    """Stream pipeline progress as Server-Sent Events.
-
-    Event types: ``log`` (log row), ``update`` (stepper), ``done`` /
-    ``error`` / ``cancelled`` (terminal — stream closes after exactly one).
-    Unknown job_id → single ``error`` frame then close.
-    """
-    locale = request.cookies.get("locale", "pt_BR")
-
-    async def generator():
-        job = get_job(job_id)
-        if not job:
-            yield "event: error\ndata: <p class='text-error'>Job not found.</p>\n\n"
-            return
-
-        sub = job.subscribe()
-        logger.info("[job=%s] SSE connected (subs=%d)", job.id, job.broadcaster.subscriber_count())
-        try:
-            for row in list(job.log):
-                yield f"event: log\ndata: {render_log_row(row, locale)}\n\n"
-            if job.status not in _TERMINAL_EVENTS:
-                yield f"event: update\ndata: {render_stepper(job, locale)}\n\n"
-            while True:
-                try:
-                    name, data = sub.get_nowait()
-                except queue.Empty:
-                    if job.status in _TERMINAL_EVENTS:
-                        yield f"event: {job.status}\ndata: {render_stepper(job, locale)}\n\n"
-                        return
-                    await asyncio.sleep(0.4)
-                    yield ": keepalive\n\n"
-                    continue
-                if name in _TERMINAL_EVENTS:
-                    yield f"event: {name}\ndata: {render_stepper(job, locale)}\n\n"
-                    return
-                if name == "log":
-                    yield f"event: log\ndata: {render_log_row(data, locale)}\n\n"
-                    continue
-                yield f"event: update\ndata: {render_stepper(job, locale)}\n\n"
-        finally:
-            job.unsubscribe(sub)
-            logger.info("[job=%s] SSE disconnected", job.id)
-
     return StreamingResponse(
-        generator(),
+        build_sse_generator(job_id, request.cookies.get("locale", "pt_BR")),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

@@ -40,25 +40,8 @@ def _export_or_404():
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.get(
-    "/api/export/catalog.json",
-    summary="Export full catalog as JSON",
-    description=(
-        "Returns the entire catalogued archive as a structured JSON document "
-        "(``application/json``). The response is a file-download attachment. "
-        "Schema version is embedded in the response body under "
-        "``export.schema_version``."
-    ),
-    responses={
-        200: {
-            "content": {"application/json": {}},
-            "description": "Catalog JSON export (file attachment)",
-        }
-    },
-)
+@router.get("/api/export/catalog.json", summary="Export full catalog as JSON")
 async def api_export_catalog_json() -> Response:
-    """Return the current catalog as a reloadable JSON export."""
-
     text = catalog_export_to_json(_export_or_404())
     return Response(
         content=text,
@@ -67,24 +50,8 @@ async def api_export_catalog_json() -> Response:
     )
 
 
-@router.get(
-    "/api/export/catalog.csv",
-    summary="Export full catalog as CSV",
-    description=(
-        "Returns the entire catalogued archive flattened as a UTF-8 CSV file "
-        "(``text/csv``). One row per scene; multi-value fields (tags) are "
-        "pipe-delimited. The response is a file-download attachment."
-    ),
-    responses={
-        200: {
-            "content": {"text/csv": {}},
-            "description": "Catalog CSV export (file attachment)",
-        }
-    },
-)
+@router.get("/api/export/catalog.csv", summary="Export full catalog as CSV")
 async def api_export_catalog_csv() -> Response:
-    """Return the current catalog as a flat CSV export."""
-
     text = catalog_export_to_csv(_export_or_404())
     return Response(
         content=text,

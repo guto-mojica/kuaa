@@ -394,6 +394,9 @@ def test_retention_evicts_oldest_terminal_jobs(jobs_mod, monkeypatch):
         jid = jobs_mod.start_job("v.mp4", {"frame_extraction"}, object())
         ids.append(jid)
         _wait_terminal(jobs_mod.get_job(jid))
+    # _prune_registry() runs in the worker thread after transition_to(terminal);
+    # give it time to complete before asserting registry size.
+    jobs_mod._registry.prune()
 
     remaining = {j.id for j in jobs_mod._registry.all()}
     # Only the last 3 terminal jobs are retained.

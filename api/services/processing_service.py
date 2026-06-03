@@ -107,13 +107,7 @@ _STEP_DESCRIPTIONS: dict[str, dict[str, str]] = {
 # ── Job queue mapping ─────────────────────────────────────────────────────────
 
 
-def _humanise_delta(seconds: float) -> str:
-    """Render an elapsed-seconds float as a short human string.
-
-    The .p-queue cards expect a single short token: ``now`` / ``5m`` /
-    ``2h`` / ``4d``. No locale-specific suffixes — the rendered text
-    is intentionally minimal.
-    """
+def _humanise_delta(seconds: float) -> str:  # "now" / "5m" / "2h" / "4d"
     if seconds < 60:
         return "now"
     if seconds < 3600:
@@ -123,10 +117,7 @@ def _humanise_delta(seconds: float) -> str:
     return f"{int(seconds // 86400)}d"
 
 
-def _job_queue_status(job_status: str) -> str:
-    """Map the JobState lifecycle vocabulary onto the .p-queue item
-    status modifier (``done`` / ``proc`` / ``queued`` / ``error`` /
-    ``cancelled``) so proc.css colours the leading dot correctly."""
+def _job_queue_status(job_status: str) -> str:  # maps lifecycle vocab → proc.css dot colour
     if job_status == "running":
         return "proc"
     if job_status == "created":
@@ -138,14 +129,9 @@ def _job_queue_status(job_status: str) -> str:
     return "done"
 
 
-def build_job_queue(
+def build_job_queue(  # pending first, then active/terminal newest-first
     jobs: list[Any], *, pending: list[Any] | None = None
 ) -> list[dict[str, Any]]:
-    """Map all registered jobs and pending entries onto the .p-queue item shape.
-
-    Pending entries are shown first (they are next to run), followed by
-    active/terminal jobs newest-first.
-    """
     now = time.time()
     result: list[dict[str, Any]] = []
 

@@ -76,7 +76,7 @@ class ModalQuery:
     notes: str | None = None
 
 
-def load_modal_queries(path: Path) -> list[ModalQuery]:
+def load_modal_queries(path: Path, *, only_types: set[str] | None = None) -> list[ModalQuery]:
     """Load + validate ``m3_full_queries.yaml`` into a list of :class:`ModalQuery`.
 
     The YAML's top-level dict carries a ``queries:`` list; each entry is
@@ -108,6 +108,8 @@ def load_modal_queries(path: Path) -> list[ModalQuery]:
     for i, entry in enumerate(raw["queries"]):
         if not isinstance(entry, dict):
             raise EvalError(f"query #{i} in {path} is not a mapping: {entry!r}")
+        if only_types is not None and entry.get("query_type") not in only_types:
+            continue
         out.append(_parse_entry(entry, index=i, path=path))
     return out
 

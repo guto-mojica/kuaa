@@ -163,7 +163,7 @@ def _text_dataset_from_multimodal(queries_path: Path):
     from cinemateca.eval.slates import load_modal_queries
     from cinemateca.scene_ids import scene_id_key
 
-    modal = load_modal_queries(queries_path)
+    modal = load_modal_queries(queries_path, only_types={"text"})
     cases = []
     for q in modal:
         if q.query_type != "text" or not q.text:

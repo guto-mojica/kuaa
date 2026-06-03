@@ -9,13 +9,20 @@ and the full-page path use the same context.
 
 from __future__ import annotations
 
+import asyncio
+import logging
+import queue
 from pathlib import Path
 
 from api.contexts import ProcessingContext
 from api.deps import _get_translations, get_config, make_ctx
-from api.jobs import STEP_DEFS, JobState, active_jobs, pending_jobs
+from api.jobs import STEP_DEFS, JobState, active_jobs, get_job, pending_jobs
 from api.services.chrome_service import build_chrome_context
 from api.templates import templates
+
+logger = logging.getLogger(__name__)
+
+_TERMINAL_EVENTS = ("done", "error", "cancelled")
 
 # ── Rendering helpers ─────────────────────────────────────────────────────────
 
@@ -44,6 +51,40 @@ def render_log_row(row: dict, locale: str = "pt_BR") -> str:
         _=trans.gettext,
     )
     return html.replace("\n", " ").strip()
+
+
+async def build_sse_generator(job_id: str, locale: str):  # yields log / update / terminal SSE frames
+    job = get_job(job_id)
+    if not job:
+        yield "event: error\ndata: <p class='text-error'>Job not found.</p>\n\n"
+        return
+    sub = job.subscribe()
+    logger.info("[job=%s] SSE connected (subs=%d)", job.id, job.broadcaster.subscriber_count())
+    try:
+        for row in list(job.log):
+            yield f"event: log\ndata: {render_log_row(row, locale)}\n\n"
+        if job.status not in _TERMINAL_EVENTS:
+            yield f"event: update\ndata: {render_stepper(job, locale)}\n\n"
+        while True:
+            try:
+                name, data = sub.get_nowait()
+            except queue.Empty:
+                if job.status in _TERMINAL_EVENTS:
+                    yield f"event: {job.status}\ndata: {render_stepper(job, locale)}\n\n"
+                    return
+                await asyncio.sleep(0.4)
+                yield ": keepalive\n\n"
+                continue
+            if name in _TERMINAL_EVENTS:
+                yield f"event: {name}\ndata: {render_stepper(job, locale)}\n\n"
+                return
+            if name == "log":
+                yield f"event: log\ndata: {render_log_row(data, locale)}\n\n"
+                continue
+            yield f"event: update\ndata: {render_stepper(job, locale)}\n\n"
+    finally:
+        job.unsubscribe(sub)
+        logger.info("[job=%s] SSE disconnected", job.id)
 
 
 # ── Context builder ───────────────────────────────────────────────────────────
