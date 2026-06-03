@@ -169,7 +169,7 @@ async def api_library_remove_confirm(request: Request, slug: str) -> HTMLRespons
     return templates.TemplateResponse(
         request,
         "partials/remove_film_confirm.html",
-        {"request": request, "slug": slug, "film_title": film_title},
+        {**make_ctx(request), "slug": slug, "film_title": film_title},
     )
 
 
