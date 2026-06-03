@@ -47,8 +47,7 @@
          title="{{ film.title }}">
         <span class="arr">{{ icon('chev-d' if is_active else 'chev-r', 12) }}</span>
         <span class="ico">{{ icon('proc' if is_proc else 'film', 14) }}</span>
-        <span class="name fx-truncate">{{ film.title }}</span>
-        <span class="ct">{{ film.scene_count }}</span>
+        <span class="name fx-truncate">{{ film.title }}{% if film.scene_count %}<span class="ct">{{ film.scene_count }}</span>{% endif %}</span>
         <div class="meta">
           <span class="yr">{{ film.year if film.year else '——' }}</span>
           <span class="bar" style="--p: {{ pct }}%"></span>

@@ -71,51 +71,8 @@
     </div>
   </div>
 
-  {#- Outer overall-progress bar (CSS uses --p; computed from job.progress). -#}
-  <div class="p-pbar" style="--p: {{ ((job.progress or 0) * 100) | int }}%;">
-    <span class="v" style="position:absolute;right:-46px;top:-7px;font-family:var(--font-mono);font-size:11.5px;color:var(--c-orange);font-weight:700;">{{ ((job.progress or 0) * 100) | int }}%</span>
-  </div>
-
-  <div class="p-prog-row">
-    <div class="l">
-      <span class="pct">{{ ((job.progress or 0) * 100) | int }}%</span>
-      <span>{{ _("complete") }}</span>
-    </div>
-    <div class="r">
-      {%- set active_idx = job.active_step_idx if job.active_step_idx is defined else 0 -%}
-      <span>{{ _("step") }} <b>{{ active_idx + 1 }} / {{ job.steps | length }}</b></span>
-      {% if job.step_progress %}<span>·</span><span>{{ job.step_progress }}</span>{% endif %}
-      {% if job.throughput %}<span>·</span><span>{{ job.throughput }}</span>{% endif %}
-      {% if job.eta_display %}<span>·</span><span>{{ _("ETA") }} ~{{ job.eta_display }}</span>{% endif %}
-    </div>
-  </div>
-
-  {#- 5-pill step row (visual mirror of the inner stepper). Maps the
-      JobState ``StepInfo.state`` vocabulary (pending|active|done|
-      skipped|error|blocked) onto the prototype's .p-step modifier set
-      (.pending / .active / .done — error/blocked render as done-coloured
-      with the inner stepper carrying the actual error detail). -#}
-  <div class="p-steps">
-    {% for step in job.steps %}
-      {%- set vis_state = 'done' if step.state in ('done', 'skipped') else ('active' if step.state == 'active' else ('error' if step.state in ('error','blocked') else 'pending')) -%}
-      <div class="p-step {{ vis_state }}">
-        <div class="top">
-          <span class="stat {{ vis_state }}">
-            {%- if vis_state == 'done' -%}{{ icon('check', 10) }}
-            {%- else -%}{{ loop.index }}
-            {%- endif -%}
-          </span>
-          <span class="num">0{{ loop.index }}/0{{ job.steps | length }}</span>
-        </div>
-        <div class="name">{{ step_label(step.name) }}</div>
-        <div class="meta">
-          <span>{{ step.state }}</span>
-          {% if step.duration_s %}<span>·</span><b>{{ "%.0fs" | format(step.duration_s) }}</b>{% endif %}
-        </div>
-      </div>
-    {% endfor %}
-  </div>
-
+  {#- Progress bar, step counter, and step pills are now rendered inside
+      processing_stepper.html so they update live via SSE. -#}
   {#- ── SSE live inner stepper ──────────────────────────────────────
       Pinned contract (tests/test_sse.py):
         sse-close="done,error,cancelled"

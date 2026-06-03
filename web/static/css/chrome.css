@@ -153,9 +153,9 @@
 
 .ch-film-wrap { position: relative; display: block; }
 .ch-film-rm {
-  position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
-  width: 17px; height: 17px; padding: 0; border: none; border-radius: 3px;
-  background: transparent; color: transparent; cursor: pointer; font-size: 13px;
+  position: absolute; right: 5px; top: 7px;
+  width: 20px; height: 20px; padding: 0; border: none; border-radius: 3px;
+  background: transparent; color: transparent; cursor: pointer; font-size: 15px;
   display: flex; align-items: center; justify-content: center; line-height: 1;
   z-index: 1;
 }
@@ -163,7 +163,7 @@
 .ch-film-rm:hover { background: var(--c-hover); color: var(--c-text) !important; }
 
 .ch-film {
-  display: grid; grid-template-columns: 14px 14px 1fr auto;
+  display: grid; grid-template-columns: 14px 14px 1fr;
   align-items: center; gap: 7px;
   padding: 5px 12px; cursor: pointer; position: relative;
   font-size: 13px; color: var(--c-text-2);
@@ -183,10 +183,10 @@
 .ch-film.has-sel .name { color: var(--c-text); }
 .ch-film .ct {
   font-family: var(--font-mono); font-size: 10.5px; color: var(--c-muted);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums; margin-left: 5px;
 }
 .ch-film .meta {
-  grid-column: 3 / 5;
+  grid-column: 3 / 4;
   display: flex; align-items: center; gap: 8px;
   font-size: 11px; color: var(--c-muted); padding: 4px 0 2px;
 }
@@ -202,7 +202,7 @@
 .ch-film.proc .meta .bar::before { background: var(--c-orange); }
 .ch-film .meta .m { font-family: var(--font-mono); color: var(--c-text-2); }
 .ch-film .selptr {
-  grid-column: 1 / 5; margin-top: 4px;
+  grid-column: 1 / 4; margin-top: 4px;
   display: flex; align-items: center; gap: 7px;
   padding: 6px 8px; background: var(--c-bg); border-radius: 5px;
   font-family: var(--font-mono); font-size: 10.5px; color: var(--c-accent);
