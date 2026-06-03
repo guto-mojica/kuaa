@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cinemateca-ai 0.3.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-31 13:21-0400\n"
+"POT-Creation-Date: 2026-06-03 17:34-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -341,6 +341,11 @@ msgstr ""
 msgid "A film with this name is already in the library."
 msgstr ""
 
+#: web/templates/partials/_field_error.html:60
+#, fuzzy
+msgid "This film is already in the library."
+msgstr "No films in library"
+
 #: web/templates/partials/_help_overlay.html:64
 #: web/templates/partials/about_modal.html:178
 #: web/templates/partials/about_modal.html:180
@@ -424,24 +429,32 @@ msgstr ""
 msgid "Library · Films"
 msgstr ""
 
-#: web/templates/partials/_left_pane_body.html:28
 #: web/templates/partials/_left_pane_body.html:29
+#: web/templates/partials/_left_pane_body.html:30
+#: web/templates/partials/_left_pane_body.html:33
 #: web/templates/partials/library_tree.html:57
+#: web/templates/partials/processing.html:43
+#: web/templates/partials/processing.html:44
 msgid "Add film"
 msgstr ""
 
-#: web/templates/partials/_left_pane_body.html:64
+#: web/templates/partials/_left_pane_body.html:65
 #: web/templates/partials/annotate.html:91
 #, python-format
 msgid "scene %(n)s"
 msgstr ""
 
+#: web/templates/partials/_left_pane_body.html:71
 #: web/templates/partials/_left_pane_body.html:72
+msgid "Remove film"
+msgstr "Remove film"
+
+#: web/templates/partials/_left_pane_body.html:80
 #: web/templates/partials/library_tree.html:49
 msgid "No films in library"
 msgstr "No films in library"
 
-#: web/templates/partials/_left_pane_body.html:85
+#: web/templates/partials/_left_pane_body.html:93
 msgid "Collections"
 msgstr ""
 
@@ -579,22 +592,21 @@ msgstr ""
 msgid "Credits"
 msgstr ""
 
-#: web/templates/partials/add_film_form.html:24
+#: web/templates/partials/add_film_form.html:28
 msgid "Absolute path or filename in raw dir"
 msgstr ""
 
-#: web/templates/partials/add_film_form.html:31
-#: web/templates/partials/processing.html:65
+#: web/templates/partials/add_film_form.html:35
 msgid "Title (optional)"
 msgstr ""
 
-#: web/templates/partials/add_film_form.html:38
+#: web/templates/partials/add_film_form.html:42
 msgid "Add"
 msgstr ""
 
-#: web/templates/partials/add_film_form.html:42
+#: web/templates/partials/add_film_form.html:46
+#: web/templates/partials/add_film_form.html:51
 #: web/templates/partials/annotate_desc_edit.html:22
-#: web/templates/partials/processing.html:68
 #: web/templates/partials/processing_job.html:67
 #: web/templates/partials/remove_film_confirm.html:15
 msgid "Cancel"
@@ -740,6 +752,7 @@ msgstr ""
 #: web/templates/partials/annotate_props.html:41
 #: web/templates/partials/inspector_properties.html:46
 #: web/templates/partials/scenes_inspector.html:101
+#: web/templates/partials/search.html:598
 msgid "Tags"
 msgstr ""
 
@@ -888,6 +901,7 @@ msgstr "Save"
 
 #: web/templates/partials/annotate_tags.html:101
 #: web/templates/partials/scenes.html:243
+#: web/templates/partials/scenes.html:470
 msgid "Clear"
 msgstr "Clear"
 
@@ -953,7 +967,7 @@ msgid "Current tags"
 msgstr ""
 
 #: web/templates/partials/inspector_properties.html:20
-#: web/templates/partials/scenes.html:468
+#: web/templates/partials/scenes.html:490
 msgid "Scene"
 msgstr "Scene"
 
@@ -987,52 +1001,48 @@ msgstr ""
 msgid "active"
 msgstr ""
 
-#: web/templates/partials/processing.html:49
-msgid "Add film…"
-msgstr ""
-
-#: web/templates/partials/processing.html:60
-msgid "Absolute path to video file"
-msgstr ""
-
-#: web/templates/partials/processing.html:67
-msgid "Register"
-msgstr ""
-
-#: web/templates/partials/processing.html:92
+#: web/templates/partials/processing.html:70
 msgid "No video files found in the raw directory."
 msgstr "No video files found in the raw directory."
 
-#: web/templates/partials/processing.html:109
+#: web/templates/partials/processing.html:87
 msgid "Start processing"
 msgstr "Start processing"
 
-#: web/templates/partials/processing.html:112
+#: web/templates/partials/processing.html:90
 msgid "Starting…"
 msgstr "Starting…"
 
-#: web/templates/partials/processing.html:129
+#: web/templates/partials/processing.html:102
+msgid "+ Queue"
+msgstr ""
+
+#: web/templates/partials/processing.html:105
+msgid "Queuing…"
+msgstr ""
+
+#: web/templates/partials/processing.html:122
 msgid "No active jobs."
 msgstr "No active jobs."
 
-#: web/templates/partials/processing.html:166
+#: web/templates/partials/processing.html:159
 msgid "Log · SSE"
 msgstr ""
 
-#: web/templates/partials/processing.html:171
-#: web/templates/partials/processing.html:172
+#: web/templates/partials/processing.html:164
+#: web/templates/partials/processing.html:165
 msgid "Download log"
 msgstr ""
 
-#: web/templates/partials/processing.html:176
+#: web/templates/partials/processing.html:169
 msgid "auto-scroll"
 msgstr ""
 
-#: web/templates/partials/processing.html:186
+#: web/templates/partials/processing.html:179
 msgid "Waiting for events…"
 msgstr ""
 
-#: web/templates/partials/processing.html:218
+#: web/templates/partials/processing.html:211
 msgid "Step detail appears here while a film is processing."
 msgstr ""
 
@@ -1047,23 +1057,21 @@ msgstr ""
 msgid "started at"
 msgstr ""
 
-#: web/templates/partials/processing_job.html:82
-msgid "complete"
-msgstr ""
-
-#: web/templates/partials/processing_job.html:86
-msgid "step"
-msgstr ""
-
-#: web/templates/partials/processing_job.html:89
-msgid "ETA"
-msgstr ""
-
-#: web/templates/partials/processing_queue.html:8
+#: web/templates/partials/processing_queue.html:10
 msgid "QUEUE"
 msgstr ""
 
-#: web/templates/partials/processing_queue.html:20
+#: web/templates/partials/processing_queue.html:16
+#, fuzzy
+msgid "Start"
+msgstr "Starting…"
+
+#: web/templates/partials/processing_queue.html:30
+#: web/templates/partials/processing_queue.html:31
+msgid "Remove from queue"
+msgstr ""
+
+#: web/templates/partials/processing_queue.html:39
 msgid "No history yet."
 msgstr ""
 
@@ -1091,15 +1099,27 @@ msgstr ""
 msgid "objects"
 msgstr ""
 
-#: web/templates/partials/processing_stepper.html:37
+#: web/templates/partials/processing_stepper.html:12
+msgid "complete"
+msgstr ""
+
+#: web/templates/partials/processing_stepper.html:16
+msgid "step"
+msgstr ""
+
+#: web/templates/partials/processing_stepper.html:19
+msgid "ETA"
+msgstr ""
+
+#: web/templates/partials/processing_stepper.html:76
 msgid "Pipeline completed in"
 msgstr "Pipeline completed in"
 
-#: web/templates/partials/processing_stepper.html:42
+#: web/templates/partials/processing_stepper.html:81
 msgid "Pipeline failed"
 msgstr "Pipeline failed"
 
-#: web/templates/partials/processing_stepper.html:47
+#: web/templates/partials/processing_stepper.html:86
 msgid "Pipeline cancelled"
 msgstr "Pipeline cancelled"
 
@@ -1212,7 +1232,7 @@ msgid ""
 msgstr ""
 
 #: web/templates/partials/rimas_echoes.html:34
-#: web/templates/partials/scenes_grid.html:90
+#: web/templates/partials/scenes_grid.html:92
 #: web/templates/partials/search_results.html:71
 msgid "Keyframe"
 msgstr ""
@@ -1387,11 +1407,20 @@ msgstr ""
 msgid "keyframes"
 msgstr ""
 
-#: web/templates/partials/scenes.html:477
+#: web/templates/partials/scenes.html:463
+#, fuzzy
+msgid "scene(s) selected"
+msgstr "Scene detection"
+
+#: web/templates/partials/scenes.html:467
+msgid "Export EDL"
+msgstr ""
+
+#: web/templates/partials/scenes.html:499
 msgid "No scene selected"
 msgstr ""
 
-#: web/templates/partials/scenes.html:478
+#: web/templates/partials/scenes.html:500
 msgid "Select a scene in the grid to inspect its keyframe, tags, and description."
 msgstr ""
 
@@ -1399,11 +1428,11 @@ msgstr ""
 msgid "No scenes match the filters."
 msgstr "No scenes match the filters."
 
-#: web/templates/partials/scenes_grid.html:89
+#: web/templates/partials/scenes_grid.html:90
 msgid "Select"
 msgstr ""
 
-#: web/templates/partials/scenes_grid.html:107
+#: web/templates/partials/scenes_grid.html:109
 msgid "TYPE"
 msgstr ""
 
@@ -1828,4 +1857,13 @@ msgstr ""
 
 #~ msgid "Saved"
 #~ msgstr "Saved"
+
+#~ msgid "Add film…"
+#~ msgstr ""
+
+#~ msgid "Absolute path to video file"
+#~ msgstr ""
+
+#~ msgid "Register"
+#~ msgstr ""
 

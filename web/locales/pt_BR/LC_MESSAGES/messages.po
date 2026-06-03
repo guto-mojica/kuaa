@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cinemateca-ai 0.3.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-31 13:21-0400\n"
+"POT-Creation-Date: 2026-06-03 17:34-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pt_BR\n"
@@ -339,6 +339,11 @@ msgstr "Arquivo não encontrado. Verifique o caminho ou nome do arquivo."
 msgid "A film with this name is already in the library."
 msgstr "Um filme com este nome já está no acervo."
 
+#: web/templates/partials/_field_error.html:60
+#, fuzzy
+msgid "This film is already in the library."
+msgstr "Um filme com este nome já está no acervo."
+
 #: web/templates/partials/_help_overlay.html:64
 #: web/templates/partials/about_modal.html:178
 #: web/templates/partials/about_modal.html:180
@@ -422,24 +427,32 @@ msgstr "Idioma"
 msgid "Library · Films"
 msgstr "Acervo · Filmes"
 
-#: web/templates/partials/_left_pane_body.html:28
 #: web/templates/partials/_left_pane_body.html:29
+#: web/templates/partials/_left_pane_body.html:30
+#: web/templates/partials/_left_pane_body.html:33
 #: web/templates/partials/library_tree.html:57
+#: web/templates/partials/processing.html:43
+#: web/templates/partials/processing.html:44
 msgid "Add film"
 msgstr "Adicionar filme"
 
-#: web/templates/partials/_left_pane_body.html:64
+#: web/templates/partials/_left_pane_body.html:65
 #: web/templates/partials/annotate.html:91
 #, python-format
 msgid "scene %(n)s"
 msgstr "cena %(n)s"
 
+#: web/templates/partials/_left_pane_body.html:71
 #: web/templates/partials/_left_pane_body.html:72
+msgid "Remove film"
+msgstr "Remover filme"
+
+#: web/templates/partials/_left_pane_body.html:80
 #: web/templates/partials/library_tree.html:49
 msgid "No films in library"
 msgstr "Nenhum filme no acervo"
 
-#: web/templates/partials/_left_pane_body.html:85
+#: web/templates/partials/_left_pane_body.html:93
 msgid "Collections"
 msgstr "Coleções"
 
@@ -583,22 +596,21 @@ msgstr "Stack"
 msgid "Credits"
 msgstr "Créditos"
 
-#: web/templates/partials/add_film_form.html:24
+#: web/templates/partials/add_film_form.html:28
 msgid "Absolute path or filename in raw dir"
 msgstr "Caminho absoluto ou nome de arquivo no diretório raw"
 
-#: web/templates/partials/add_film_form.html:31
-#: web/templates/partials/processing.html:65
+#: web/templates/partials/add_film_form.html:35
 msgid "Title (optional)"
 msgstr "Título (opcional)"
 
-#: web/templates/partials/add_film_form.html:38
+#: web/templates/partials/add_film_form.html:42
 msgid "Add"
 msgstr "Adicionar"
 
-#: web/templates/partials/add_film_form.html:42
+#: web/templates/partials/add_film_form.html:46
+#: web/templates/partials/add_film_form.html:51
 #: web/templates/partials/annotate_desc_edit.html:22
-#: web/templates/partials/processing.html:68
 #: web/templates/partials/processing_job.html:67
 #: web/templates/partials/remove_film_confirm.html:15
 msgid "Cancel"
@@ -750,6 +762,7 @@ msgstr "Ano"
 #: web/templates/partials/annotate_props.html:41
 #: web/templates/partials/inspector_properties.html:46
 #: web/templates/partials/scenes_inspector.html:101
+#: web/templates/partials/search.html:598
 msgid "Tags"
 msgstr "Tags"
 
@@ -899,6 +912,7 @@ msgstr "Salvar"
 
 #: web/templates/partials/annotate_tags.html:101
 #: web/templates/partials/scenes.html:243
+#: web/templates/partials/scenes.html:470
 msgid "Clear"
 msgstr "Limpar"
 
@@ -968,7 +982,7 @@ msgid "Current tags"
 msgstr "Tags atuais"
 
 #: web/templates/partials/inspector_properties.html:20
-#: web/templates/partials/scenes.html:468
+#: web/templates/partials/scenes.html:490
 msgid "Scene"
 msgstr "Cena"
 
@@ -1003,52 +1017,50 @@ msgstr "Remover"
 msgid "active"
 msgstr "ativo"
 
-#: web/templates/partials/processing.html:49
-msgid "Add film…"
-msgstr "Adicionar filme…"
-
-#: web/templates/partials/processing.html:60
-msgid "Absolute path to video file"
-msgstr "Caminho absoluto para o arquivo de vídeo"
-
-#: web/templates/partials/processing.html:67
-msgid "Register"
-msgstr "Registrar"
-
-#: web/templates/partials/processing.html:92
+#: web/templates/partials/processing.html:70
 msgid "No video files found in the raw directory."
 msgstr "Nenhum arquivo de vídeo encontrado no diretório raw."
 
-#: web/templates/partials/processing.html:109
+#: web/templates/partials/processing.html:87
 msgid "Start processing"
 msgstr "Iniciar processamento"
 
-#: web/templates/partials/processing.html:112
+#: web/templates/partials/processing.html:90
 msgid "Starting…"
 msgstr "Iniciando…"
 
-#: web/templates/partials/processing.html:129
+#: web/templates/partials/processing.html:102
+#, fuzzy
+msgid "+ Queue"
+msgstr "FILA"
+
+#: web/templates/partials/processing.html:105
+#, fuzzy
+msgid "Queuing…"
+msgstr "FILA"
+
+#: web/templates/partials/processing.html:122
 msgid "No active jobs."
 msgstr "Nenhum processamento em andamento."
 
-#: web/templates/partials/processing.html:166
+#: web/templates/partials/processing.html:159
 msgid "Log · SSE"
 msgstr "Log · SSE"
 
-#: web/templates/partials/processing.html:171
-#: web/templates/partials/processing.html:172
+#: web/templates/partials/processing.html:164
+#: web/templates/partials/processing.html:165
 msgid "Download log"
 msgstr "Baixar log"
 
-#: web/templates/partials/processing.html:176
+#: web/templates/partials/processing.html:169
 msgid "auto-scroll"
 msgstr "auto-scroll"
 
-#: web/templates/partials/processing.html:186
+#: web/templates/partials/processing.html:179
 msgid "Waiting for events…"
 msgstr "Aguardando eventos…"
 
-#: web/templates/partials/processing.html:218
+#: web/templates/partials/processing.html:211
 msgid "Step detail appears here while a film is processing."
 msgstr "O detalhe da etapa aparece aqui enquanto um filme é processado."
 
@@ -1063,23 +1075,21 @@ msgstr "dir."
 msgid "started at"
 msgstr "iniciado em"
 
-#: web/templates/partials/processing_job.html:82
-msgid "complete"
-msgstr "concluído"
-
-#: web/templates/partials/processing_job.html:86
-msgid "step"
-msgstr "etapa"
-
-#: web/templates/partials/processing_job.html:89
-msgid "ETA"
-msgstr "ETA"
-
-#: web/templates/partials/processing_queue.html:8
+#: web/templates/partials/processing_queue.html:10
 msgid "QUEUE"
 msgstr "FILA"
 
-#: web/templates/partials/processing_queue.html:20
+#: web/templates/partials/processing_queue.html:16
+#, fuzzy
+msgid "Start"
+msgstr "ESTATÍSTICAS"
+
+#: web/templates/partials/processing_queue.html:30
+#: web/templates/partials/processing_queue.html:31
+msgid "Remove from queue"
+msgstr ""
+
+#: web/templates/partials/processing_queue.html:39
 msgid "No history yet."
 msgstr "Sem histórico."
 
@@ -1107,15 +1117,27 @@ msgstr "faces"
 msgid "objects"
 msgstr "objetos"
 
-#: web/templates/partials/processing_stepper.html:37
+#: web/templates/partials/processing_stepper.html:12
+msgid "complete"
+msgstr "concluído"
+
+#: web/templates/partials/processing_stepper.html:16
+msgid "step"
+msgstr "etapa"
+
+#: web/templates/partials/processing_stepper.html:19
+msgid "ETA"
+msgstr "ETA"
+
+#: web/templates/partials/processing_stepper.html:76
 msgid "Pipeline completed in"
 msgstr "Pipeline concluído em"
 
-#: web/templates/partials/processing_stepper.html:42
+#: web/templates/partials/processing_stepper.html:81
 msgid "Pipeline failed"
 msgstr "Pipeline falhou"
 
-#: web/templates/partials/processing_stepper.html:47
+#: web/templates/partials/processing_stepper.html:86
 msgid "Pipeline cancelled"
 msgstr "Pipeline cancelado"
 
@@ -1230,7 +1252,7 @@ msgstr ""
 "ativar Rimas Visuais."
 
 #: web/templates/partials/rimas_echoes.html:34
-#: web/templates/partials/scenes_grid.html:90
+#: web/templates/partials/scenes_grid.html:92
 #: web/templates/partials/search_results.html:71
 msgid "Keyframe"
 msgstr "Keyframe"
@@ -1411,11 +1433,22 @@ msgstr "runtime"
 msgid "keyframes"
 msgstr "keyframes"
 
-#: web/templates/partials/scenes.html:477
+#: web/templates/partials/scenes.html:463
+#, fuzzy
+msgid "scene(s) selected"
+msgstr "Nenhuma cena selecionada"
+
+# ── Search tab ────────────────────────────────────────────────────────
+#: web/templates/partials/scenes.html:467
+#, fuzzy
+msgid "Export EDL"
+msgstr "exportar"
+
+#: web/templates/partials/scenes.html:499
 msgid "No scene selected"
 msgstr "Nenhuma cena selecionada"
 
-#: web/templates/partials/scenes.html:478
+#: web/templates/partials/scenes.html:500
 msgid "Select a scene in the grid to inspect its keyframe, tags, and description."
 msgstr ""
 "Selecione uma cena na grade para inspecionar seu keyframe, tags e "
@@ -1425,11 +1458,11 @@ msgstr ""
 msgid "No scenes match the filters."
 msgstr "Nenhuma cena corresponde aos filtros."
 
-#: web/templates/partials/scenes_grid.html:89
+#: web/templates/partials/scenes_grid.html:90
 msgid "Select"
 msgstr "Selecionar"
 
-#: web/templates/partials/scenes_grid.html:107
+#: web/templates/partials/scenes_grid.html:109
 msgid "TYPE"
 msgstr "TIPO"
 
@@ -1854,4 +1887,13 @@ msgstr "Linha do tempo das cenas do filme"
 
 #~ msgid "Saved"
 #~ msgstr "Salvo"
+
+#~ msgid "Add film…"
+#~ msgstr "Adicionar filme…"
+
+#~ msgid "Absolute path to video file"
+#~ msgstr "Caminho absoluto para o arquivo de vídeo"
+
+#~ msgid "Register"
+#~ msgstr "Registrar"
 
