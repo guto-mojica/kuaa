@@ -408,6 +408,21 @@ class ConcurrencyRejected(Exception):
         )
 
 
+@dataclass
+class PendingEntry:
+    """A job waiting in the batch queue, not yet started."""
+
+    id: str
+    video_path: str
+    steps: frozenset
+    cfg: Any = field(default=None, repr=False)
+    created_at: float = field(default_factory=time.time)
+
+    @property
+    def video_name(self) -> str:
+        return PurePosixPath(self.video_path.replace("\\", "/")).name
+
+
 class JobRegistry:
     """Thread-safe job registry with bounded retention.
 
@@ -430,6 +445,7 @@ class JobRegistry:
 
     def __init__(self, max_terminal: int = MAX_RETAINED_TERMINAL_JOBS):
         self._jobs: dict[str, JobState] = {}
+        self._pending: list[PendingEntry] = []
         self._lock = threading.Lock()
         self._max_terminal = max_terminal
 
@@ -544,6 +560,108 @@ class JobRegistry:
         with self._lock:
             self._jobs[job.id] = job
 
+    # ── Batch queue ───────────────────────────────────────────────────────
+
+    def enqueue(self, video_path: str, steps: set[str], cfg) -> str:
+        """Start immediately if idle, otherwise add to the pending queue.
+
+        Returns the job_id (if started) or pending entry id (if queued).
+        Never raises :class:`ConcurrencyRejected`.
+        """
+        with self._lock:
+            if self._active_locked() is not None:
+                entry_id = uuid.uuid4().hex[:8]
+                entry = PendingEntry(
+                    id=entry_id,
+                    video_path=video_path,
+                    steps=frozenset(steps),
+                    cfg=cfg,
+                )
+                self._pending.append(entry)
+                logger.info(
+                    "Enqueued pending job %s for %s (depth=%d)",
+                    entry_id, video_path, len(self._pending),
+                )
+                return entry_id
+        # No active job — start immediately (takes its own lock).
+        return self.start(video_path, steps, cfg)
+
+    def queue_only(self, video_path: str, steps: set[str], cfg) -> str:
+        """Always add to the pending queue, even when the registry is idle.
+
+        Use this to pre-populate the queue before explicitly starting it
+        with :meth:`start_queue`. Never raises :class:`ConcurrencyRejected`.
+        """
+        with self._lock:
+            entry_id = uuid.uuid4().hex[:8]
+            entry = PendingEntry(
+                id=entry_id,
+                video_path=video_path,
+                steps=frozenset(steps),
+                cfg=cfg,
+            )
+            self._pending.append(entry)
+            logger.info(
+                "Queued (pending) job %s for %s (depth=%d)",
+                entry_id, video_path, len(self._pending),
+            )
+            return entry_id
+
+    def start_queue(self) -> str | None:
+        """Pop the first pending entry and start it if the registry is idle.
+
+        Returns the new job_id, or ``None`` if the registry is busy or the
+        queue is empty.
+        """
+        with self._lock:
+            if not self._pending or self._active_locked() is not None:
+                return None
+            entry = self._pending.pop(0)
+
+        logger.info("Starting queued job %s for %s", entry.id, entry.video_path)
+        try:
+            return self.start(entry.video_path, set(entry.steps), entry.cfg)
+        except ConcurrencyRejected:
+            with self._lock:
+                self._pending.insert(0, entry)
+            logger.warning("start_queue: concurrency conflict, re-queued %s", entry.id)
+            return None
+
+    def pending_entries(self) -> list[PendingEntry]:
+        """Snapshot of the pending queue, oldest first."""
+        with self._lock:
+            return list(self._pending)
+
+    def remove_pending(self, entry_id: str) -> bool:
+        """Remove a pending entry by id. Returns True if found and removed."""
+        with self._lock:
+            for i, entry in enumerate(self._pending):
+                if entry.id == entry_id:
+                    del self._pending[i]
+                    logger.info("Removed pending job %s", entry_id)
+                    return True
+        return False
+
+    def drain_pending(self) -> None:
+        """Pop the next pending entry and start it if the registry is now idle.
+
+        Called from the runner thread at the end of each terminal path so
+        the batch queue auto-advances without any external polling.
+        """
+        with self._lock:
+            if not self._pending or self._active_locked() is not None:
+                return
+            entry = self._pending.pop(0)
+
+        logger.info("Draining queue — starting %s for %s", entry.id, entry.video_path)
+        try:
+            self.start(entry.video_path, set(entry.steps), entry.cfg)
+        except ConcurrencyRejected:
+            # Another thread beat us; put it back at the front.
+            with self._lock:
+                self._pending.insert(0, entry)
+            logger.warning("drain_pending: concurrency conflict, re-queued %s", entry.id)
+
 
 # Process-global registry instance. Tests isolate state by calling
 # ``jobs._registry.reset()`` (a lock-guarded clear) and seed jobs via
@@ -589,6 +707,42 @@ def start_job(video_path: str, enabled_steps: set[str], cfg) -> str:
     (single-global-active-job policy).
     """
     return _registry.start(video_path, enabled_steps, cfg)
+
+
+def enqueue_job(video_path: str, enabled_steps: set[str], cfg) -> str:
+    """Start immediately if idle, or add to the pending batch queue.
+
+    Unlike :func:`start_job`, never raises :class:`ConcurrencyRejected`.
+    Returns the job id (started) or pending entry id (queued).
+    """
+    return _registry.enqueue(video_path, enabled_steps, cfg)
+
+
+def queue_job(video_path: str, enabled_steps: set[str], cfg) -> str:
+    """Always add to the pending queue without starting (Option B gesture).
+
+    Lets the user pre-populate the queue before explicitly starting it
+    with :func:`start_queued_jobs`.
+    """
+    return _registry.queue_only(video_path, enabled_steps, cfg)
+
+
+def start_queued_jobs() -> str | None:
+    """Start the first pending entry if the registry is idle.
+
+    Returns the new job_id, or None if busy / queue empty.
+    """
+    return _registry.start_queue()
+
+
+def pending_jobs() -> list[PendingEntry]:
+    """Snapshot of the pending batch queue (oldest first)."""
+    return _registry.pending_entries()
+
+
+def remove_pending_job(entry_id: str) -> bool:
+    """Remove a pending entry by id. Returns True if found."""
+    return _registry.remove_pending(entry_id)
 
 
 # ── Pipeline runner (runs in a daemon thread) ─────────────────────────────────
@@ -750,6 +904,7 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
             job.publish("cancelled")
             logger.info("[job=%s] cancelled after %.1fs", job.id, job.total_duration_s)
             _prune_registry()
+            _registry.drain_pending()
             return
         except Exception as exc:  # defensive: run_steps wraps step errors,
             # so this only fires on an orchestration-level fault.
@@ -761,6 +916,7 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
             job.publish("error")
             logger.exception("[job=%s] crashed in run_steps", job.id)
             _prune_registry()
+            _registry.drain_pending()
             return
 
         had_error = any(r.state in ("error", "blocked") for r in results.runs)
@@ -780,3 +936,4 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
             job.status,
         )
         _prune_registry()
+        _registry.drain_pending()

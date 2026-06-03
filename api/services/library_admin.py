@@ -13,8 +13,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import HTTPException
-
 
 def resolve_video_path(video_path_str: str, raw_dir_str: str) -> Path:
     """Resolve a video path string to an absolute Path.
@@ -36,13 +34,15 @@ def register_and_symlink(
     video: Path,
     slug: str,
     film_title: str,
-    raw_dir: Path,
+    raw_dir: Path | None = None,
 ) -> None:
     """Register the film in the registry and create the per-film raw symlink.
 
+    The symlink ``library/<slug>/raw/<filename>`` points to the resolved
+    absolute path of *video*, which may live anywhere on disk — not just in
+    the configured raw directory.
+
     Raises ``ValueError`` when the slug is already registered.
-    Raises ``HTTPException(400)`` when the video does not reside in the
-    configured raw directory.
     """
     from cinemateca.library import register_film
 
@@ -58,13 +58,7 @@ def register_and_symlink(
     per_film_raw.mkdir(parents=True, exist_ok=True)
     link = per_film_raw / video.name
     if not link.exists() and not link.is_symlink():
-        resolved_video = video.resolve()
-        if resolved_video.parent != raw_dir.resolve():
-            raise HTTPException(
-                status_code=400,
-                detail="Video must reside in the configured raw directory",
-            )
-        link.symlink_to(resolved_video)
+        link.symlink_to(video.resolve())
 
 
 def remove_film_and_wipe(library_dir: Path, slug: str, *, wipe: bool) -> None:

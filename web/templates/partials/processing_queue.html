@@ -1,11 +1,22 @@
-{#- Right-rail "QUEUE" card. ``job_queue`` is the bounded retained job
-    history (recent terminal jobs + the active one). Each item gets a
-    status class (``done`` / ``proc`` / ``queued`` / ``error`` /
-    ``cancelled``) that proc.css colours the leading dot from. The
-    ``filmdot`` is left at a neutral accent colour — per-film palette
-    swatches are a future polish, not blockers for M1. -#}
-<section class="p-queue">
-  <h3>{{ _("QUEUE") }}</h3>
+{#- Right-rail "QUEUE" card. ``job_queue`` is the pending batch queue
+    followed by the bounded retained job history (active + terminal).
+    Pending entries show a remove button; history items are read-only.
+    Status classes: ``queued`` / ``proc`` / ``done`` / ``error`` /
+    ``cancelled`` — proc.css colours the leading dot from these. -#}
+{% set pending_items = job_queue | selectattr('is_pending', 'equalto', True) | list %}
+{% set queue_is_idle = not jobs %}
+<section class="p-queue" id="p-queue-section">
+  <h3>
+    {{ _("QUEUE") }}
+    {% if pending_items and queue_is_idle %}
+    <button class="p-queue-start"
+            hx-post="/api/pipeline/queue/start"
+            hx-target="closest .tab-panel"
+            hx-swap="outerHTML">
+      {{ icon('play', 11) }} {{ _("Start") }} ({{ pending_items | length }})
+    </button>
+    {% endif %}
+  </h3>
   {% for q in job_queue %}
     <div class="item {{ q.status }}">
       <span class="dot"></span>
@@ -14,6 +25,14 @@
         {{ q.film_title }}
       </span>
       <span class="when">{{ q.when_display }}</span>
+      {% if q.is_pending %}
+      <button class="p-queue-rm"
+              title="{{ _('Remove from queue') }}"
+              aria-label="{{ _('Remove from queue') }}"
+              hx-post="/api/pipeline/pending/{{ q.entry_id }}/remove"
+              hx-target="#p-queue-section"
+              hx-swap="outerHTML">×</button>
+      {% endif %}
     </div>
   {% else %}
     <p class="fx-mono" style="font-size: 11px; color: var(--c-muted);">

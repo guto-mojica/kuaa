@@ -13,7 +13,7 @@ from pathlib import Path
 
 from api.contexts import ProcessingContext
 from api.deps import _get_translations, get_config, make_ctx
-from api.jobs import STEP_DEFS, JobState, active_jobs
+from api.jobs import STEP_DEFS, JobState, active_jobs, pending_jobs
 from api.services.chrome_service import build_chrome_context
 from api.templates import templates
 
@@ -113,7 +113,7 @@ def build_processing_context() -> ProcessingContext:
         "jobs": jobs,
         "initial_log_lines": initial_log_lines,
         "stats": aggregate_stats(library_dir),
-        "job_queue": build_job_queue(get_all_jobs()),
+        "job_queue": build_job_queue(get_all_jobs(), pending=pending_jobs()),
         "active_step": active_step,
         "gpu_metrics": gpu_metrics,
         "cfg": cfg,

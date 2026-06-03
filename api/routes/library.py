@@ -88,21 +88,30 @@ async def api_library_add(
     raw_dir = Path(cfg.paths.raw_dir)
 
     video = resolve_video_path(video_path, str(raw_dir))
-    # On failure, re-render the form with a U1 accessible inline error keyed by
-    # ``error_key`` (the partial translates it + sets aria-invalid). make_ctx
-    # carries the locale so the message + labels render in the cookie locale.
-    if not video.exists():
-        ctx = make_ctx(request, error_key="video_not_found")
+    _ = request_gettext(request)
+
+    # Processing-tab form uses hx-swap="none" so a swapped partial is silently
+    # discarded. Route errors must travel as toast triggers (HX-Trigger header),
+    # which HTMX processes regardless of hx-swap. Left-pane form gets inline
+    # error re-rendered into #lp-scroll as before.
+    def _error(error_key: str, sub: str = "") -> HTMLResponse | Response:
+        if source == "processing":
+            resp: Response = Response(status_code=200)
+            toast_trigger(resp, title=_(error_key), sub=sub, kind="error")
+            return resp
+        ctx = make_ctx(request, error_key=error_key)
         return templates.TemplateResponse(request, "partials/add_film_form.html", ctx)
+
+    if not video.exists():
+        return _error("video_not_found", str(video))
 
     slug = slugify(video.stem)
     film_title = title.strip() or video.stem.replace("_", " ").title()
 
     try:
-        register_and_symlink(library_dir, video, slug, film_title, raw_dir)
-    except ValueError:  # register_film raises only for an already-registered slug
-        ctx = make_ctx(request, error_key="slug_duplicate")
-        return templates.TemplateResponse(request, "partials/add_film_form.html", ctx)
+        register_and_symlink(library_dir, video, slug, film_title)
+    except ValueError:
+        return _error("slug_duplicate", slug)
 
     if source == "processing":
         resp: HTMLResponse | Response = Response(

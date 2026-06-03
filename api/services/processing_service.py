@@ -138,22 +138,39 @@ def _job_queue_status(job_status: str) -> str:
     return "done"
 
 
-def build_job_queue(jobs: list[Any]) -> list[dict[str, Any]]:
-    """Map all registered jobs onto the .p-queue item shape.
+def build_job_queue(
+    jobs: list[Any], *, pending: list[Any] | None = None
+) -> list[dict[str, Any]]:
+    """Map all registered jobs and pending entries onto the .p-queue item shape.
 
-    Newest first (jobs registry retains the bounded recent history).
+    Pending entries are shown first (they are next to run), followed by
+    active/terminal jobs newest-first.
     """
     now = time.time()
-    queue: list[dict[str, Any]] = []
+    result: list[dict[str, Any]] = []
+
+    for entry in (pending or []):
+        result.append(
+            {
+                "film_title": getattr(entry, "video_name", entry.id),
+                "status": "queued",
+                "when_display": _humanise_delta(now - getattr(entry, "created_at", now)),
+                "entry_id": entry.id,
+                "is_pending": True,
+            }
+        )
+
     for j in sorted(jobs, key=lambda j: getattr(j, "created_at", 0.0), reverse=True):
-        queue.append(
+        result.append(
             {
                 "film_title": getattr(j, "video_name", j.id),
                 "status": _job_queue_status(j.status),
                 "when_display": _humanise_delta(now - getattr(j, "created_at", now)),
+                "entry_id": None,
+                "is_pending": False,
             }
         )
-    return queue
+    return result
 
 
 # ── Active step (right pane) ──────────────────────────────────────────────────

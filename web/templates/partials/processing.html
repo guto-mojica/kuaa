@@ -76,7 +76,7 @@
             so the active card, SSE log, queue, and right resource pane mount
             together after a job is accepted. -#}
         <form class="pipeline-launch-bar"
-              hx-post="/api/pipeline/start"
+              hx-post="/api/pipeline/enqueue"
               hx-target="closest .tab-panel"
               hx-swap="outerHTML"
               hx-indicator="#start-spinner"
@@ -110,6 +110,35 @@
           </button>
           <span id="start-spinner" class="htmx-indicator text-muted" style="font-size:0.75rem">
             {{ _("Starting…") }}
+          </span>
+        </form>
+
+        {#- + Queue button: same film/steps selection, always adds to pending
+            without starting. Posts to /api/pipeline/enqueue which calls
+            queue_job() (always-queue, never auto-start). -#}
+        <form class="pipeline-launch-bar"
+              hx-post="/api/pipeline/enqueue"
+              hx-target="closest .tab-panel"
+              hx-swap="outerHTML"
+              hx-indicator="#queue-spinner"
+              style="display:flex; align-items:center; gap:10px;">
+          {% if films %}
+            <select name="video_path" class="jump-select">
+              {% for film in films %}
+                <option value="{{ film.raw_path }}"{% if film.slug == active_film %} selected{% endif %}>{{ film.title }}</option>
+              {% endfor %}
+            </select>
+          {% endif %}
+          <div class="pipeline-steps-check" style="display:none;">
+            {% for name, label in step_defs %}
+              <input type="hidden" name="steps" value="{{ name }}">
+            {% endfor %}
+          </div>
+          <button type="submit" class="fx-btn secondary" {% if not films %}disabled{% endif %}>
+            {{ icon('plus', 14) }} {{ _("+ Queue") }}
+          </button>
+          <span id="queue-spinner" class="htmx-indicator text-muted" style="font-size:0.75rem">
+            {{ _("Queuing…") }}
           </span>
         </form>
       </div>

@@ -81,12 +81,14 @@
       {% set film_slug = (film.slug if film else '') %}
       <article class="scenecard{% if selected_scene_id is not none and s.id == selected_scene_id %} sel{% endif %}"
                data-scene-id="{{ s.id }}"
+               x-bind:class="{ 'checked': $store.scenesSelection.has({{ s.id }}, '{{ film_slug }}') }"
                hx-get="/api/scenes/{{ s.id }}/inspector?film={{ film_slug }}&tab=properties&kind=cenas"
                hx-target="#right-pane"
                hx-swap="innerHTML"
                hx-indicator="#inspector-skeleton"
                hx-trigger="click">
-        <button type="button" class="check" title="{{ _('Select') }}" aria-label="{{ _('Select') }}">{{ icon('check', 12) }}</button>
+        <button type="button" class="check" title="{{ _('Select') }}" aria-label="{{ _('Select') }}"
+                @click.stop="$store.scenesSelection.toggle({{ s.id }}, '{{ film_slug }}', '{{ s.slug }}')">{{ icon('check', 12) }}</button>
         <div class="kf" role="img" aria-label="{{ _('Keyframe') }}"{% if s.keyframe_url %} style="background-image: url('{{ s.keyframe_url }}');"{% endif %}>
           {% if s.pin_count %}<span class="bl"><span class="pin"></span>{{ s.pin_count }}</span>{% endif %}
           {% if s.timecode %}<span class="br">{{ s.timecode[:8] }}</span>{% endif %}

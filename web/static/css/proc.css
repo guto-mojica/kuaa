@@ -334,12 +334,28 @@
   text-transform: uppercase; letter-spacing: 0.06em;
 }
 .p-queue h3 a { color: var(--c-accent); cursor: pointer; font-family: var(--font-mono); }
+.p-queue-start {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--c-green); color: #0E1014;
+  border: none; border-radius: 4px; cursor: pointer;
+  font-size: 10px; font-weight: 600; padding: 2px 7px;
+  font-family: var(--font-sans);
+  transition: filter var(--dur-fast);
+}
+.p-queue-start:hover { filter: brightness(1.1); }
 .p-queue .item {
-  display: grid; grid-template-columns: 22px 1fr auto;
+  display: grid; grid-template-columns: 22px 1fr auto auto;
   gap: 8px; padding: 7px 0; align-items: center;
   border-top: 1px solid var(--c-border);
   font-size: 12px;
 }
+.p-queue-rm {
+  background: none; border: none; cursor: pointer;
+  color: var(--c-faint); font-size: 14px; line-height: 1;
+  padding: 0 2px; border-radius: 3px;
+  transition: color var(--dur-fast);
+}
+.p-queue-rm:hover { color: var(--c-text); }
 .p-queue .item:first-of-type { border-top: none; }
 .p-queue .item .dot {
   width: 8px; height: 8px; border-radius: 50%; justify-self: center;

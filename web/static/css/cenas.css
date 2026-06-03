@@ -116,6 +116,36 @@
 .c-cp .scenecard.sel .check {
   opacity: 1; background: var(--c-accent); border-color: var(--c-accent); color: #fff;
 }
+/* Multi-selection state (.checked) — distinct green to differentiate from inspector .sel */
+.c-cp .scenecard.checked { border-color: var(--c-green); box-shadow: 0 0 0 2px var(--c-green-bg); }
+.c-cp .scenecard.checked .check {
+  opacity: 1; background: var(--c-green); border-color: var(--c-green); color: #0E1014;
+}
+
+/* Selection action bar — flex child of .c-cp, sits below the scroll area */
+.selection-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 10px 16px; flex-shrink: 0;
+  background: var(--c-panel); border-top: 1px solid var(--c-border-2);
+}
+.selection-bar .sel-count {
+  font-size: 13px; color: var(--c-text); font-variant-numeric: tabular-nums;
+}
+.selection-bar .sel-actions { display: flex; gap: 8px; }
+.selection-bar .sel-btn {
+  font-size: 12px; padding: 5px 12px; border-radius: 5px; cursor: pointer;
+  border: 1px solid transparent; font-family: var(--font-sans);
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.selection-bar .sel-btn--primary {
+  background: var(--c-green); color: #0E1014; border-color: var(--c-green);
+}
+.selection-bar .sel-btn--primary:hover { filter: brightness(1.1); }
+.selection-bar .sel-btn--ghost {
+  background: transparent; color: var(--c-muted); border-color: var(--c-border-2);
+}
+.selection-bar .sel-btn--ghost:hover { color: var(--c-text); border-color: var(--c-border-2); }
+
 .c-cp .scenecard .kf {
   width: 100%; aspect-ratio: 16/10;
   background: var(--c-bg) center/cover no-repeat;

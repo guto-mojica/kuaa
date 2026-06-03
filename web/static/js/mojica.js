@@ -688,6 +688,26 @@
     window.Alpine.store('buscarRetrieval', loadPrefs(KEYS.retrieval,  DEFAULTS.retrieval));
     window.Alpine.store('rimasRetrieval',  loadPrefs(KEYS.rimasRetrieval, DEFAULTS.rimasRetrieval));
 
+    // scenesSelection — ephemeral multi-selection of scene cards.
+    // Not persisted to localStorage (a selection is a transient gesture).
+    // Shape: { _entries: [{scene_id, film_slug, scene_slug}], ... methods }
+    window.Alpine.store('scenesSelection', {
+      _entries: [],
+      has: function (sceneId, filmSlug) {
+        return this._entries.some(function (e) { return e.scene_id === sceneId && e.film_slug === filmSlug; });
+      },
+      toggle: function (sceneId, filmSlug, sceneSlug) {
+        var idx = this._entries.findIndex(function (e) { return e.scene_id === sceneId && e.film_slug === filmSlug; });
+        if (idx >= 0) {
+          this._entries.splice(idx, 1);
+        } else {
+          this._entries.push({ scene_id: sceneId, film_slug: filmSlug, scene_slug: sceneSlug });
+        }
+      },
+      clear: function () { this._entries = []; },
+      get count() { return this._entries.length; },
+    });
+
     // Persistence effects must register AFTER the stores exist; same
     // alpine:init handler keeps the relative ordering deterministic.
     persistOnChange('cenasAppearance', KEYS.appearance, ['density']);
@@ -699,6 +719,45 @@
     persistOnChange('rimasRetrieval',  KEYS.rimasRetrieval, ['diversity', 'k_candidates']);
   });
 })();
+
+// ─── EDL download helper ──────────────────────────────────────────────
+// Called by the selection action bar's "Export EDL" button. Reads the
+// scenesSelection store, POSTs to /api/export/scenes.edl, and triggers a
+// browser file-save without a page reload.
+window.downloadSelectionEdl = function () {
+  var store = window.Alpine && window.Alpine.store('scenesSelection');
+  if (!store || store.count === 0) return;
+  var payload = {
+    scenes: store._entries.map(function (e) {
+      return { film_slug: e.film_slug, scene_id: e.scene_id, scene_slug: e.scene_slug };
+    }),
+    title: 'Cinemateca Export',
+  };
+  fetch('/api/export/scenes.edl', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+    .then(function (r) {
+      if (!r.ok) throw new Error('EDL export failed: ' + r.status);
+      return r.blob();
+    })
+    .then(function (blob) {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      var slugs = Array.from(new Set(store._entries.map(function (e) { return e.film_slug; })));
+      var prefix = slugs.length === 1 ? slugs[0] : 'multi';
+      a.download = prefix + '_selection.edl';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    })
+    .catch(function (err) {
+      console.error(err);
+    });
+};
 
 // ─── Offline status badge (U11) ───────────────────────────────────────
 // Reflects ``navigator.onLine`` on the ``#offline-badge`` chip in the

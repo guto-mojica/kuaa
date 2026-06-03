@@ -15,7 +15,17 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 
 from api.deps import film_slug_query, get_config, make_ctx
-from api.jobs import STEP_DEFS, ConcurrencyRejected, cancel_job, get_job, start_job
+from api.jobs import (
+    STEP_DEFS,
+    ConcurrencyRejected,
+    cancel_job,
+    enqueue_job,
+    get_job,
+    queue_job,
+    remove_pending_job,
+    start_job,
+    start_queued_jobs,
+)
 from api.services.processing_render import (
     build_processing_context,
     build_start_response,
@@ -62,6 +72,56 @@ async def api_pipeline_start(
         return HTMLResponse(f'<p class="text-error">{exc}</p>', status_code=409)
     logger.info("/api/pipeline/start — accepted job_id=%s", job_id)
     return build_start_response(request, cfg, vp, request.cookies.get("active_film", ""))
+
+
+@router.post("/api/pipeline/enqueue", response_class=HTMLResponse)
+async def api_pipeline_enqueue(
+    request: Request,
+    video_path: str = Form(...),
+    steps: list[str] = Form(default=[]),
+) -> HTMLResponse:
+    """Add a film to the pending queue without starting it (Option B + Queue).
+
+    Always queues — never auto-starts. The queue is started explicitly via
+    POST /api/pipeline/queue/start.
+    """
+    if not steps:
+        steps = [name for name, _ in STEP_DEFS]
+    cfg = get_config()
+    vp = Path(video_path)
+    if not vp.exists():
+        logger.warning("/api/pipeline/enqueue rejected — file not found: %s", vp)
+        return HTMLResponse(f'<p class="text-error">File not found: {vp}</p>', status_code=400)
+    queue_job(str(vp), set(steps), cfg)
+    logger.info("/api/pipeline/enqueue — queued %s", vp)
+    return build_start_response(request, cfg, vp, request.cookies.get("active_film", ""))
+
+
+@router.post("/api/pipeline/queue/start", response_class=HTMLResponse)
+async def api_pipeline_queue_start(request: Request) -> HTMLResponse:
+    """Start the first pending entry if the registry is idle.
+
+    No-op (200) when the registry is busy or the queue is empty — the
+    rebuilt tab reflects the current state either way.
+    """
+    job_id = start_queued_jobs()
+    logger.info("/api/pipeline/queue/start — job_id=%s", job_id)
+    ctx = build_processing_context()
+    return templates.TemplateResponse(
+        request, "partials/processing.html", make_ctx(request, **ctx)
+    )
+
+
+@router.post("/api/pipeline/pending/{entry_id}/remove", response_class=HTMLResponse)
+async def api_pipeline_pending_remove(request: Request, entry_id: str) -> HTMLResponse:
+    """Remove a pending queue entry and return the refreshed queue fragment."""
+    removed = remove_pending_job(entry_id)
+    if not removed:
+        logger.warning("/api/pipeline/pending/remove — entry %s not found", entry_id)
+    ctx = build_processing_context()
+    return templates.TemplateResponse(
+        request, "partials/processing_queue.html", make_ctx(request, **ctx)
+    )
 
 
 @router.post("/api/pipeline/cancel/{job_id}", response_class=HTMLResponse)

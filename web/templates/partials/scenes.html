@@ -450,6 +450,28 @@
     {{ skeleton_grid("scenes-skeleton", count=8) }}
   </div>
 
+  {# ── Selection action bar — sits at bottom of .c-cp (flex child, not scrolled).
+       Alpine reads the ephemeral scenesSelection store (not persisted).
+       x-cloak hides it on first paint before Alpine boots. #}
+  <div class="selection-bar"
+       x-data
+       x-show="$store.scenesSelection.count > 0"
+       x-cloak
+       x-transition.opacity.duration.150ms>
+    <span class="sel-count">
+      <span x-text="$store.scenesSelection.count"></span>
+      {{ _('scene(s) selected') }}
+    </span>
+    <div class="sel-actions">
+      <button type="button" class="sel-btn sel-btn--primary" @click="window.downloadSelectionEdl()">
+        {{ _('Export EDL') }}
+      </button>
+      <button type="button" class="sel-btn sel-btn--ghost" @click="$store.scenesSelection.clear()">
+        {{ _('Clear') }}
+      </button>
+    </div>
+  </div>
+
 </section>
 
 {% endif %}
