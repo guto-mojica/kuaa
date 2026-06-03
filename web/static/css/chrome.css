@@ -141,12 +141,13 @@
   font-size: 12px;
 }
 .ch-lp .filter input {
-  flex: 1; background: transparent; border: none; outline: none;
+  flex: 1; min-width: 0; background: transparent; border: none; outline: none;
   font: inherit; color: var(--c-text);
 }
 .ch-lp .filter input::placeholder { color: var(--c-muted); }
 .ch-lp .filter .ico { color: var(--c-muted); }
 .ch-lp .filter .kbd {
+  flex-shrink: 0; white-space: nowrap;
   font-family: var(--font-mono); font-size: 10px; padding: 0 4px;
   border: 1px solid var(--c-border-2); border-radius: 3px; color: var(--c-muted);
 }
