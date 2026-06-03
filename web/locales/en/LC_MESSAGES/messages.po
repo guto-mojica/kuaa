@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cinemateca-ai 0.3.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-06-03 17:34-0300\n"
+"POT-Creation-Date: 2026-06-03 18:43-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -1615,6 +1615,26 @@ msgstr ""
 #: web/templates/partials/search_timeline.html:61
 msgid "Film scenes timeline"
 msgstr ""
+
+#: api/services/chrome_service.py
+msgid "Entire library"
+msgstr "Entire library"
+
+#: api/services/chrome_service.py
+msgid "Exteriors"
+msgstr "Exteriors"
+
+#: api/services/chrome_service.py
+msgid "Title cards"
+msgstr "Title cards"
+
+#: api/services/chrome_service.py
+msgid "Dialogues"
+msgstr "Dialogues"
+
+#: api/services/chrome_service.py
+msgid "Night scenes"
+msgstr "Night scenes"
 
 #~ msgid "two people talking outdoors"
 #~ msgstr "two people talking outdoors"

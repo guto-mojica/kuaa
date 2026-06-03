@@ -121,7 +121,7 @@ def _default_collections(
         },
         {
             "active": current_bucket == "exterior",
-            "label": "Rural exteriors",
+            "label": "Exteriors",
             "icon": "folder",
             "count": bucket_counts["exterior"],
             "category": "exterior",
