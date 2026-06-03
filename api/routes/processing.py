@@ -10,8 +10,21 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 
 from api.deps import film_slug_query, get_config, make_ctx, request_gettext, toast_trigger
-from api.jobs import STEP_DEFS, ConcurrencyRejected, cancel_job, enqueue_job, get_job, queue_job, remove_pending_job, start_job, start_queued_jobs
-from api.services.processing_render import build_processing_context, build_start_response, build_sse_generator
+from api.jobs import (
+    STEP_DEFS,
+    ConcurrencyRejected,
+    cancel_job,
+    get_job,
+    queue_job,
+    remove_pending_job,
+    start_job,
+    start_queued_jobs,
+)
+from api.services.processing_render import (
+    build_processing_context,
+    build_sse_generator,
+    build_start_response,
+)
 from api.services.processing_service import enrich_jobs
 from api.templates import templates
 

@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, Response
 
 from api.deps import film_slug_query, get_config, make_ctx, request_gettext, toast_trigger
 from api.services.library_admin import register_and_symlink, resolve_video_path
-from api.services.library_render import chrome_filter_ctx, library_ctx, tree_response
+from api.services.library_render import chrome_filter_ctx, library_ctx
 from api.templates import templates
 from cinemateca.errors import IndexMissing
 
