@@ -17,18 +17,31 @@ router = APIRouter()
 
 
 @router.get("/api/library/filter", response_class=HTMLResponse)
-async def api_library_filter(request: Request, q: str = "", slug: str | None = Depends(film_slug_query)) -> HTMLResponse:
-    return templates.TemplateResponse(request, "partials/library_tree.html", library_ctx(request, q, current_slug=slug))
+async def api_library_filter(
+    request: Request, q: str = "", slug: str | None = Depends(film_slug_query)
+) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request, "partials/library_tree.html", library_ctx(request, q, current_slug=slug)
+    )
 
 
-@router.get("/api/library/tree", response_class=HTMLResponse)  # Mojica LeftPane body for HTMX filter swaps
-async def api_library_tree(request: Request, q: str = "", slug: str | None = Depends(film_slug_query)) -> HTMLResponse:
-    return templates.TemplateResponse(request, "partials/_left_pane_body.html", chrome_filter_ctx(request, q, current_slug=slug))
+@router.get(
+    "/api/library/tree", response_class=HTMLResponse
+)  # Mojica LeftPane body for HTMX filter swaps
+async def api_library_tree(
+    request: Request, q: str = "", slug: str | None = Depends(film_slug_query)
+) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request, "partials/_left_pane_body.html", chrome_filter_ctx(request, q, current_slug=slug)
+    )
 
 
 @router.get("/api/library/select/{slug}")
-async def api_library_select(slug: str) -> Response:  # HX-Redirect → /scenes?film=; IndexMissing on unknown slug
+async def api_library_select(
+    slug: str,
+) -> Response:  # HX-Redirect → /scenes?film=; IndexMissing on unknown slug
     from cinemateca.library import load_registry
+
     cfg = get_config()
     registry = load_registry(cfg.paths.library_dir)
     if slug not in registry:
@@ -38,7 +51,9 @@ async def api_library_select(slug: str) -> Response:  # HX-Redirect → /scenes?
 
 @router.get("/api/library/add-form", response_class=HTMLResponse)
 async def api_library_add_form(request: Request, source: str = "left-pane") -> HTMLResponse:
-    return templates.TemplateResponse(request, "partials/add_film_form.html", make_ctx(request, source=source))
+    return templates.TemplateResponse(
+        request, "partials/add_film_form.html", make_ctx(request, source=source)
+    )
 
 
 @router.post("/api/library/add", response_class=HTMLResponse, response_model=None)
@@ -63,7 +78,9 @@ async def api_library_add(
         "already_in_library": _("This film is already in the library."),
     }
 
-    def _proc_tab_response(*, error_key: str = "", sub: str = "", new_slug: str = "") -> HTMLResponse:  # outerHTML swap for both success/error paths
+    def _proc_tab_response(
+        *, error_key: str = "", sub: str = "", new_slug: str = ""
+    ) -> HTMLResponse:  # outerHTML swap for both success/error paths
         from api.services.processing_render import build_processing_context
 
         ctx = build_processing_context()
@@ -73,7 +90,9 @@ async def api_library_add(
             make_ctx(request, active_film=new_slug or "", current_slug=new_slug or "", **ctx),
         )
         if error_key:
-            toast_trigger(resp, title=_ERROR_MESSAGES.get(error_key, error_key), sub=sub, kind="error")
+            toast_trigger(
+                resp, title=_ERROR_MESSAGES.get(error_key, error_key), sub=sub, kind="error"
+            )
         return resp
 
     def _error(error_key: str, sub: str = "") -> HTMLResponse | Response:
@@ -90,8 +109,11 @@ async def api_library_add(
 
     try:
         register_and_symlink(library_dir, video, slug, film_title)
-    except ValueError:  # slug duplicate — block only if raw symlink is healthy; repair orphans silently
+    except (
+        ValueError
+    ):  # slug duplicate — block only if raw symlink is healthy; repair orphans silently
         from cinemateca.library import scan_library
+
         existing = next((f for f in scan_library(library_dir) if f.slug == slug), None)
         if existing and existing.raw_path.exists():
             return _error("already_in_library", slug)
@@ -107,6 +129,7 @@ async def api_library_add(
         return resp
 
     from api.jobs import STEP_DEFS, queue_job  # enqueue and redirect to Processing tab
+
     symlink_path = library_dir / slug / "raw" / video.name
     queue_job(str(symlink_path), {name for name, _ in STEP_DEFS}, cfg)
     resp = Response(status_code=200, headers={"HX-Redirect": f"/processing?film={slug}"})
@@ -120,7 +143,11 @@ async def api_library_remove_confirm(request: Request, slug: str) -> HTMLRespons
     cfg = get_config()
     registry = load_registry(cfg.paths.library_dir)
     film_title = registry.get(slug, {}).get("title", slug)
-    return templates.TemplateResponse(request, "partials/remove_film_confirm.html", {**make_ctx(request), "slug": slug, "film_title": film_title})
+    return templates.TemplateResponse(
+        request,
+        "partials/remove_film_confirm.html",
+        {**make_ctx(request), "slug": slug, "film_title": film_title},
+    )
 
 
 @router.post("/api/library/remove/{slug}", response_class=HTMLResponse)
@@ -134,4 +161,6 @@ async def api_library_remove(
     cfg = get_config()
     library_dir = Path(cfg.paths.library_dir)
     remove_film_and_wipe(library_dir, slug, wipe=bool(wipe))
-    return templates.TemplateResponse(request, "partials/_left_pane_body.html", chrome_filter_ctx(request, ""))
+    return templates.TemplateResponse(
+        request, "partials/_left_pane_body.html", chrome_filter_ctx(request, "")
+    )

@@ -53,7 +53,9 @@ def render_log_row(row: dict, locale: str = "pt_BR") -> str:
     return html.replace("\n", " ").strip()
 
 
-async def build_sse_generator(job_id: str, locale: str):  # yields log / update / terminal SSE frames
+async def build_sse_generator(
+    job_id: str, locale: str
+):  # yields log / update / terminal SSE frames
     job = get_job(job_id)
     if not job:
         yield "event: error\ndata: <p class='text-error'>Job not found.</p>\n\n"

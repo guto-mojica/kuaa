@@ -101,7 +101,9 @@ async def api_export_scenes_edl(body: _EdlExportRequest) -> Response:
             None,
         )
         if entry is None:
-            logger.warning("EDL export: scene_id=%d not found in slug=%s", ref.scene_id, ref.film_slug)
+            logger.warning(
+                "EDL export: scene_id=%d not found in slug=%s", ref.scene_id, ref.film_slug
+            )
             continue
         fps = fps_cache[ref.film_slug]
         slices.append(

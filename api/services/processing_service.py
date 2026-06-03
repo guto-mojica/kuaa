@@ -135,7 +135,7 @@ def build_job_queue(  # pending first, then active/terminal newest-first
     now = time.time()
     result: list[dict[str, Any]] = []
 
-    for entry in (pending or []):
+    for entry in pending or []:
         result.append(
             {
                 "film_title": getattr(entry, "video_name", entry.id),

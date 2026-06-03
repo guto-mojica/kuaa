@@ -44,7 +44,9 @@ async def tab_processing(
     )
 
 
-def _file_not_found_response(request: Request) -> HTMLResponse:  # shared error path for start/enqueue
+def _file_not_found_response(
+    request: Request,
+) -> HTMLResponse:  # shared error path for start/enqueue
     _ = request_gettext(request)
     ctx = build_processing_context()
     resp = templates.TemplateResponse(request, "partials/processing.html", make_ctx(request, **ctx))
@@ -53,7 +55,9 @@ def _file_not_found_response(request: Request) -> HTMLResponse:  # shared error 
 
 
 @router.post("/api/pipeline/start", response_class=HTMLResponse)
-async def api_pipeline_start(request: Request, video_path: str = Form(...), steps: list[str] = Form(default=[])) -> HTMLResponse:
+async def api_pipeline_start(
+    request: Request, video_path: str = Form(...), steps: list[str] = Form(default=[])
+) -> HTMLResponse:
     if not steps:
         steps = [name for name, _ in STEP_DEFS]
     cfg = get_config()
@@ -69,8 +73,12 @@ async def api_pipeline_start(request: Request, video_path: str = Form(...), step
     return build_start_response(request, cfg, vp, request.cookies.get("active_film", ""))
 
 
-@router.post("/api/pipeline/enqueue", response_class=HTMLResponse)  # queue only, never auto-starts; use /queue/start
-async def api_pipeline_enqueue(request: Request, video_path: str = Form(...), steps: list[str] = Form(default=[])) -> HTMLResponse:
+@router.post(
+    "/api/pipeline/enqueue", response_class=HTMLResponse
+)  # queue only, never auto-starts; use /queue/start
+async def api_pipeline_enqueue(
+    request: Request, video_path: str = Form(...), steps: list[str] = Form(default=[])
+) -> HTMLResponse:
     if not steps:
         steps = [name for name, _ in STEP_DEFS]
     cfg = get_config()
@@ -88,13 +96,13 @@ async def api_pipeline_queue_start(request: Request) -> HTMLResponse:
     job_id = start_queued_jobs()
     logger.info("/api/pipeline/queue/start — job_id=%s", job_id)
     ctx = build_processing_context()
-    return templates.TemplateResponse(
-        request, "partials/processing.html", make_ctx(request, **ctx)
-    )
+    return templates.TemplateResponse(request, "partials/processing.html", make_ctx(request, **ctx))
 
 
 @router.post("/api/pipeline/pending/{entry_id}/remove", response_class=HTMLResponse)
-async def api_pipeline_pending_remove(request: Request, entry_id: str) -> HTMLResponse:  # returns refreshed queue fragment
+async def api_pipeline_pending_remove(
+    request: Request, entry_id: str
+) -> HTMLResponse:  # returns refreshed queue fragment
     removed = remove_pending_job(entry_id)
     if not removed:
         logger.warning("/api/pipeline/pending/remove — entry %s not found", entry_id)
@@ -105,7 +113,9 @@ async def api_pipeline_pending_remove(request: Request, entry_id: str) -> HTMLRe
 
 
 @router.post("/api/pipeline/cancel/{job_id}", response_class=HTMLResponse)
-async def api_pipeline_cancel(request: Request, job_id: str) -> HTMLResponse:  # cooperative cancellation
+async def api_pipeline_cancel(
+    request: Request, job_id: str
+) -> HTMLResponse:  # cooperative cancellation
     ok = cancel_job(job_id)
     job = get_job(job_id)
     if job is None:
@@ -118,7 +128,9 @@ async def api_pipeline_cancel(request: Request, job_id: str) -> HTMLResponse:  #
     )
 
 
-@router.get("/api/pipeline/job-card/{job_id}", response_class=HTMLResponse)  # full .p-active card for polling refresh
+@router.get(
+    "/api/pipeline/job-card/{job_id}", response_class=HTMLResponse
+)  # full .p-active card for polling refresh
 async def api_pipeline_job_card(request: Request, job_id: str) -> HTMLResponse:
     job = get_job(job_id)
     if job is None:
@@ -129,7 +141,9 @@ async def api_pipeline_job_card(request: Request, job_id: str) -> HTMLResponse:
     )
 
 
-@router.get("/api/pipeline/stream/{job_id}")  # SSE: log / update / done|error|cancelled (terminal closes stream)
+@router.get(
+    "/api/pipeline/stream/{job_id}"
+)  # SSE: log / update / done|error|cancelled (terminal closes stream)
 async def api_pipeline_stream(request: Request, job_id: str) -> StreamingResponse:
     return StreamingResponse(
         build_sse_generator(job_id, request.cookies.get("locale", "pt_BR")),

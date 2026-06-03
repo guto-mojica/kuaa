@@ -581,7 +581,9 @@ class JobRegistry:
                 self._pending.append(entry)
                 logger.info(
                     "Enqueued pending job %s for %s (depth=%d)",
-                    entry_id, video_path, len(self._pending),
+                    entry_id,
+                    video_path,
+                    len(self._pending),
                 )
                 return entry_id
         # No active job — start immediately (takes its own lock).
@@ -604,7 +606,9 @@ class JobRegistry:
             self._pending.append(entry)
             logger.info(
                 "Queued (pending) job %s for %s (depth=%d)",
-                entry_id, video_path, len(self._pending),
+                entry_id,
+                video_path,
+                len(self._pending),
             )
             return entry_id
 
