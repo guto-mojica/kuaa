@@ -151,6 +151,17 @@
   border: 1px solid var(--c-border-2); border-radius: 3px; color: var(--c-muted);
 }
 
+.ch-film-wrap { position: relative; display: block; }
+.ch-film-rm {
+  position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+  width: 17px; height: 17px; padding: 0; border: none; border-radius: 3px;
+  background: transparent; color: transparent; cursor: pointer; font-size: 13px;
+  display: flex; align-items: center; justify-content: center; line-height: 1;
+  z-index: 1;
+}
+.ch-film-wrap:hover .ch-film-rm { color: var(--c-muted); }
+.ch-film-rm:hover { background: var(--c-hover); color: var(--c-text) !important; }
+
 .ch-film {
   display: grid; grid-template-columns: 14px 14px 1fr auto;
   align-items: center; gap: 7px;

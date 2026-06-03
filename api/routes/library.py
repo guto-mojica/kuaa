@@ -122,25 +122,26 @@ async def api_library_add(
     if not video.exists():
         return _error("video_not_found", str(video))
 
-    # Detect files already registered by resolved path or matching filename.
-    from cinemateca.library import scan_library
-
-    video_resolved = video.resolve()
-    for film in scan_library(library_dir):
-        try:
-            if film.raw_path.resolve() == video_resolved or film.raw_path.name == video.name:
-                return _error("already_in_library", film.slug)
-        except (OSError, RuntimeError):
-            if film.raw_path.name == video.name:
-                return _error("already_in_library", film.slug)
-
     slug = slugify(video.stem)
     film_title = title.strip() or video.stem.replace("_", " ").title()
 
     try:
         register_and_symlink(library_dir, video, slug, film_title)
     except ValueError:
-        return _error("slug_duplicate", slug)
+        # Slug already registered — only block if the existing film's raw
+        # symlink is healthy (file reachable). If it's an orphan (symlink
+        # missing or dangling), repair it silently and continue.
+        from cinemateca.library import scan_library
+
+        existing = next((f for f in scan_library(library_dir) if f.slug == slug), None)
+        if existing and existing.raw_path.exists():
+            return _error("already_in_library", slug)
+        # Orphan registration: recreate the symlink without re-registering.
+        per_film_raw = library_dir / slug / "raw"
+        per_film_raw.mkdir(parents=True, exist_ok=True)
+        link = per_film_raw / video.name
+        if not link.is_symlink():
+            link.symlink_to(video.resolve())
 
     if source == "processing":
         resp: HTMLResponse | Response = _proc_tab_response(new_slug=slug)
@@ -183,4 +184,8 @@ async def api_library_remove(
     cfg = get_config()
     library_dir = Path(cfg.paths.library_dir)
     remove_film_and_wipe(library_dir, slug, wipe=bool(wipe))
-    return tree_response(request)
+    return templates.TemplateResponse(
+        request,
+        "partials/_left_pane_body.html",
+        chrome_filter_ctx(request, ""),
+    )

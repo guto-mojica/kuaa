@@ -110,7 +110,12 @@ def test_add_film_file_not_found_is_accessible(client) -> None:
 
 
 def test_add_film_duplicate_slug_is_accessible(tmp_config, client) -> None:
-    """A duplicate slug → re-rendered form with the duplicate-slug message."""
+    """A duplicate slug → re-rendered form with the already-in-library message.
+
+    The re-add is only blocked when the existing film has a valid symlink.
+    Orphan registrations (missing symlink) allow repair; here we create the
+    symlink explicitly to simulate a fully-registered, healthy film.
+    """
     raw_dir = Path(tmp_config.paths.raw_dir)
     library_dir = Path(tmp_config.paths.library_dir)
     # Create a real file so video.exists() passes, then pre-register its slug.
@@ -118,6 +123,11 @@ def test_add_film_duplicate_slug_is_accessible(tmp_config, client) -> None:
     register_film(
         library_dir, slug="dup_film", title="Dup Film", year=None, raw_filename="dup_film.mp4"
     )
+    # Also create the symlink so the film is a healthy registration (not an
+    # orphan). Without the symlink, re-add would be treated as a repair.
+    per_film_raw = library_dir / "dup_film" / "raw"
+    per_film_raw.mkdir(parents=True, exist_ok=True)
+    (per_film_raw / "dup_film.mp4").symlink_to((raw_dir / "dup_film.mp4").resolve())
 
     r = client.post(
         "/api/library/add",
