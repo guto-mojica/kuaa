@@ -995,7 +995,7 @@ msgstr "Search index missing"
 #: web/templates/partials/library_tree.html:43
 #: web/templates/partials/remove_film_confirm.html:2
 msgid "Remove"
-msgstr ""
+msgstr "Remove"
 
 #: web/templates/partials/processing.html:37
 msgid "active"
@@ -1137,11 +1137,11 @@ msgstr ""
 
 #: web/templates/partials/remove_film_confirm.html:8
 msgid "Library only"
-msgstr ""
+msgstr "Library only"
 
 #: web/templates/partials/remove_film_confirm.html:10
 msgid "+ wipe data"
-msgstr ""
+msgstr "+ wipe data"
 
 #: web/templates/partials/rimas.html:40 web/templates/partials/rimas.html:157
 msgid "rhymes in"
