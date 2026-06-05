@@ -80,6 +80,7 @@
       {% set film = s.film or group.film %}
       {% set film_slug = (film.slug if film else '') %}
       <article class="scenecard{% if selected_scene_id is not none and s.id == selected_scene_id %} sel{% endif %}"
+               id="scene-{{ s.id }}"
                data-scene-id="{{ s.id }}"
                x-bind:class="{ 'checked': $store.scenesSelection.has({{ s.id }}, '{{ film_slug }}') }"
                hx-get="/api/scenes/{{ s.id }}/inspector?film={{ film_slug }}&tab=properties&kind=cenas"

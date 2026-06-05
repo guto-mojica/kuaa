@@ -68,18 +68,18 @@
 
 {% elif selected_scene %}
 
-<section class="a-stage">
+<section class="a-stage"
+         x-data="{ frame: {{ selected_scene.keyframe_url | tojson }}, framePct: 50 }">
 
   {# ── META BAR: back · breadcrumb · status · keyframe download ───────── #}
   <header class="a-meta">
     <div class="l">
-      <button type="button"
-              class="back"
-              title="{{ _('Back') }}"
-              aria-label="{{ _('Back') }}"
-              @click="history.back()">
+      <a class="back"
+         href="/scenes?{% if selected_scene.film_slug %}film={{ selected_scene.film_slug }}&{% endif %}scene={{ selected_scene.scene_id }}#scene-{{ selected_scene.scene_id }}"
+         title="{{ _('Back to Scenes') }}"
+         aria-label="{{ _('Back to Scenes') }}">
         {{ icon('chev-l', 14) }}
-      </button>
+      </a>
       <div class="filmpath">
         <span class="dot" style="background: var(--c-accent);" aria-hidden="true"></span>
         <span class="seg">{{ _("Library") }}</span>
@@ -88,8 +88,28 @@
           {% if selected_film %}{{ selected_film.title }}{% else %}{{ _("Current film") }}{% endif %}
         </span>
         <span class="sep" aria-hidden="true">/</span>
-        <span class="seg cur">{{ _("scene %(n)s") % {"n": "%03d"|format(selected_scene.scene_id or 0)} }}</span>
-        <span class="ver">V{{ selected_scene.version or 1 }} {{ icon('chev-d', 12) }}</span>
+        <div class="scene-picker" x-data="{ open: false }">
+          <button type="button"
+                  class="scene-picker-btn"
+                  @click="open = !open"
+                  :aria-expanded="open ? 'true' : 'false'"
+                  title="{{ _('Jump to scene') }}">
+            <span class="cur">{{ _("scene %(n)s") % {"n": "%03d"|format(selected_scene.scene_id or 0)} }}</span>
+            {{ icon('chev-d', 11) }}
+          </button>
+          <div class="scene-picker-menu"
+               x-show="open"
+               @click.outside="open = false">
+            {% for s in scene_list %}
+            <a class="scene-picker-item{% if s.scene_id == selected_scene.scene_id %} active{% endif %}"
+               href="/annotate?id={{ s.scene_id }}&filter={{ filter }}&tab={{ annotate_tab }}{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
+               @click="open = false">
+              <span class="n">{{ "%03d"|format(s.scene_id or 0) }}</span>
+              <span class="tc">{{ "%02d"|format((s.start_time_s or 0)|int // 60) }}:{{ "%02d"|format((s.start_time_s or 0)|int % 60) }}</span>
+            </a>
+            {% endfor %}
+          </div>
+        </div>
       </div>
     </div>
     <div class="r">
@@ -99,7 +119,7 @@
       </span>
       {% if selected_scene.keyframe_url %}
       <a class="fx-icbtn"
-         href="{{ selected_scene.keyframe_url }}"
+         :href="frame || '{{ selected_scene.keyframe_url }}'"
          download
          title="{{ _('Download keyframe') }}"
          aria-label="{{ _('Download keyframe') }}">
@@ -114,7 +134,7 @@
     <div class="a-keyframe"
          role="img"
          aria-label="{{ _('Scene %(n)s keyframe') % {'n': selected_scene.scene_id or 0} }}"
-         {% if selected_scene.keyframe_url %}style="background-image: url('{{ selected_scene.keyframe_url }}');"{% endif %}>
+         :style="frame ? 'background-image: url(' + frame + ')' : ''">
       {# A single neutral annotation pin marks the keyframe. The prototype's
          floating curator/AI comment popover (.commentpop) is deliberately NOT
          rendered: it attributes a quote to a fabricated curator, which this
@@ -140,17 +160,16 @@
            aria-label="{{ _('Scene playback position') }}"
            aria-valuemin="0" aria-valuemax="100"
            aria-valuenow="{{ selected_scene.progress_pct or 0 }}">
-        <div class="progress" style="width: {{ selected_scene.progress_pct or 0 }}%;"></div>
-        {# Neutral position markers only. The prototype's per-user avatar pips
-           (.av-pip, initials of fabricated viewers) are NOT rendered — they
-           imply multiple authors this single-user app does not have
-           (Decision-1). Markers below read as scene-position ticks. #}
-        {% for m in selected_scene.markers or [] %}
-          <span class="marker{% if m.kind == 'curator' %} curator{% endif %}"
-                style="left: {{ m.pct }}%;">
-            {% if m.label %}<span class="label">{{ m.label }}</span>{% endif %}
-          </span>
-        {% endfor %}
+        <div class="progress" :style="'width: ' + framePct + '%'"></div>
+        {% for kf in selected_scene.keyframe_urls %}{% if kf.url %}
+        <button type="button"
+                class="marker frame-marker"
+                :class="{ active: frame === {{ kf.url | tojson }} }"
+                style="left: {{ kf.pct }}%;"
+                @click="frame = {{ kf.url | tojson }}; framePct = {{ kf.pct }}"
+                aria-label="{{ _('Frame at %(pct)s%%') % {'pct': kf.pct} }}">
+        </button>
+        {% endif %}{% endfor %}
       </div>
     </div>
     {% if selected_scene.timeline_ticks %}

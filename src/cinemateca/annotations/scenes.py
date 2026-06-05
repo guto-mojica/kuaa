@@ -252,6 +252,21 @@ def scene_context(
 
     img_url = keyframe_url(fp, ctx.data_dir)
 
+    # Derive the two sibling frames. The pipeline always extracts 3 frames per
+    # scene via PySceneDetect save_images(num_images=3), naming them -01/-02/-03
+    # at ~25/50/75 % of the scene duration. The metadata stores -02 as the
+    # representative; -01 and -03 are derived by substitution.
+    def _sibling(base: str | None, n: int) -> str:
+        if base and "-02.jpg" in base:
+            return base.replace("-02.jpg", f"-{n:02d}.jpg")
+        return base or ""
+
+    keyframe_urls = [
+        {"url": _sibling(img_url, 1), "pct": 25},
+        {"url": img_url or "", "pct": 50},
+        {"url": _sibling(img_url, 3), "pct": 75},
+    ]
+
     # Mojica .a-stage context: SMPTE for the player TC readouts; short
     # MM:SS for the .a-tl scrubrow + commentpop chips. Stubs for the
     # collaboration overlays (pins/comments/avatars) keep the template
@@ -304,6 +319,7 @@ def scene_context(
         "ai_tags": ai_tags,
         "pins": demo_pins,
         "comment_popup": demo_popup,
+        "keyframe_urls": keyframe_urls,
         "markers": demo_markers,
         "timeline_avatars": demo_avatars,
         "timeline_ticks": [],
