@@ -69,7 +69,7 @@
 {% elif selected_scene %}
 
 <section class="a-stage"
-         x-data="{ frame: {{ selected_scene.keyframe_url | tojson }}, framePct: 50 }">
+         x-data="{ frame: '{{ selected_scene.keyframe_url }}', framePct: 50 }">
 
   {# ── META BAR: back · breadcrumb · status · keyframe download ───────── #}
   <header class="a-meta">
@@ -164,9 +164,9 @@
         {% for kf in selected_scene.keyframe_urls %}{% if kf.url %}
         <button type="button"
                 class="marker frame-marker"
-                :class="{ active: frame === {{ kf.url | tojson }} }"
+                :class="{ active: frame === '{{ kf.url }}' }"
                 style="left: {{ kf.pct }}%;"
-                @click="frame = {{ kf.url | tojson }}; framePct = {{ kf.pct }}"
+                @click="frame = '{{ kf.url }}'; framePct = {{ kf.pct }}"
                 aria-label="{{ _('Frame at %(pct)s%%') % {'pct': kf.pct} }}">
         </button>
         {% endif %}{% endfor %}
