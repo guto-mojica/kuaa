@@ -348,7 +348,7 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
             scene_id = None
         tab_ctx = {
             **build_annotate_context(fctx, filter_param, scene_id),
-            "annotate_tab": normalize_annotate_tab(request.query_params.get("tab") or "comments"),
+            "annotate_tab": normalize_annotate_tab(request.query_params.get("tab")),
         }
     else:
         tab_ctx = _TAB_CONTEXT_BUILDERS[active_tab]()

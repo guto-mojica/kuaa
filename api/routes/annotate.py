@@ -53,7 +53,7 @@ async def tab_annotate(
     request: Request,
     filter: str = Query(default="no_llm"),
     id: int | None = Query(default=None),
-    tab: str = Query(default="comments"),
+    tab: str = Query(default="annotations"),
     slug: str | None = Depends(film_slug_query),
     fctx: FilmContext = Depends(annotate_film_context),
 ) -> HTMLResponse:
@@ -74,7 +74,7 @@ async def api_annotate_scene(
     request: Request,
     id: int = Query(...),
     filter: str = Query(default="no_llm"),
-    tab: str = Query(default="comments"),
+    tab: str = Query(default="annotations"),
     slug: str | None = Depends(film_slug_query),
     fctx: FilmContext = Depends(annotate_film_context),
 ) -> HTMLResponse:
