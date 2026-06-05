@@ -198,7 +198,7 @@ collaboration:
   # screenshots match the prototype before a real comment backend lands.
   # Flip this off (or replace with ``threads_enabled: true``) once the
   # collaboration epic ships and real curator notes flow through.
-  demo_threads_enabled: true
+  demo_threads_enabled: false
 
 
 # ── Descrição LLM (NB05) ──────────────────────────────────────────────────────
