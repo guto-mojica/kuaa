@@ -301,6 +301,10 @@
   content: ''; position: absolute; left: 8px; right: 8px; bottom: -1px;
   height: 2px; background: var(--c-accent); border-radius: 1px;
 }
+.a-rp .htab.future {
+  opacity: 0.35; cursor: default;
+  pointer-events: none;
+}
 .a-rp .htab .pip {
   font-family: var(--font-mono); font-size: 10px; padding: 0 5px;
   background: var(--c-raised); border-radius: 8px; color: var(--c-text-2);

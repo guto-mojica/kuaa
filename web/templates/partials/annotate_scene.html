@@ -61,22 +61,12 @@
 {% set shown_comment_count = 1 if (selected_scene and selected_scene.description) else 0 %}
 <section class="a-rp">
 
-  {# ── Horizontal tabs: Comments · Annotations · Properties ───────────── #}
+  {# ── Horizontal tabs: Annotations · Comments (future) ───────────────── #}
   <div class="htabs" role="tablist" aria-label="{{ _('Annotation tabs') }}">
     <button type="button"
-            class="htab{% if annotate_tab == 'comments' %} on{% endif %}"
+            class="htab{% if annotate_tab != 'comments' %} on{% endif %}"
             role="tab"
-            aria-selected="{% if annotate_tab == 'comments' %}true{% else %}false{% endif %}"
-            hx-get="/api/annotate/scene?id={{ selected_scene.scene_id }}&filter={{ filter }}&tab=comments{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
-            hx-target="#annotate-scene"
-            hx-swap="innerHTML">
-      {{ icon('comment', 14) }} {{ _("Comments") }}
-      {% if shown_comment_count %}<span class="pip">{{ shown_comment_count }}</span>{% endif %}
-    </button>
-    <button type="button"
-            class="htab{% if annotate_tab == 'annotations' %} on{% endif %}"
-            role="tab"
-            aria-selected="{% if annotate_tab == 'annotations' %}true{% else %}false{% endif %}"
+            aria-selected="{% if annotate_tab != 'comments' %}true{% else %}false{% endif %}"
             hx-get="/api/annotate/scene?id={{ selected_scene.scene_id }}&filter={{ filter }}&tab=annotations{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
             hx-target="#annotate-scene"
             hx-swap="innerHTML">
@@ -84,13 +74,12 @@
       {% if existing_tags %}<span class="pip">{{ existing_tags|length }}</span>{% endif %}
     </button>
     <button type="button"
-            class="htab{% if annotate_tab == 'properties' %} on{% endif %}"
+            class="htab future"
             role="tab"
-            aria-selected="{% if annotate_tab == 'properties' %}true{% else %}false{% endif %}"
-            hx-get="/api/annotate/scene?id={{ selected_scene.scene_id }}&filter={{ filter }}&tab=properties{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
-            hx-target="#annotate-scene"
-            hx-swap="innerHTML">
-      {{ icon('fields', 14) }} {{ _("Properties") }}
+            aria-selected="false"
+            disabled
+            title="{{ _('Comments — available in a future version') }}">
+      {{ icon('comment', 14) }} {{ _("Comments") }}
     </button>
   </div>
 
@@ -98,10 +87,8 @@
   <div class="subhead">
     <div class="l">
       <span>{{ _("Scene %(n)s") % {"n": "%03d"|format(selected_scene.scene_id or 0)} }}</span>
-      {% if annotate_tab == 'annotations' and existing_tags %}
+      {% if existing_tags %}
         <span class="pip">{{ existing_tags|length }} {{ _("tags") }}</span>
-      {% elif annotate_tab == 'comments' and shown_comment_count %}
-        <span class="pip">{{ shown_comment_count }}</span>
       {% endif %}
       {# Legacy prev/next position counter — kept inline so existing tests
          that assert ``annotate-nav__pos`` (and the ``1 / 2`` shape) keep
@@ -120,12 +107,10 @@
     </div>
     {% endif %}
 
-    {% if annotate_tab == 'annotations' %}
-      {% include "partials/annotate_tags.html" %}
-    {% elif annotate_tab == 'properties' %}
-      {% include "partials/annotate_props.html" %}
-    {% else %}
+    {% if annotate_tab == 'comments' %}
       {% include "partials/annotate_comments.html" %}
+    {% else %}
+      {% include "partials/annotate_tags.html" %}
     {% endif %}
 
   </div>

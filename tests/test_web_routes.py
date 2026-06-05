@@ -877,39 +877,38 @@ def test_anotar_inspector_tab_switching(client, seed_metadata):
     All three valid values render the corresponding sub-partial:
         * ``comments``    → ``partials/annotate_comments.html`` (AI .a-com.ai)
         * ``annotations`` → ``partials/annotate_tags.html`` (tag editor)
-        * ``properties``  → ``partials/annotate_props.html`` (props dl)
+        * ``properties``  → now merged into annotate_tags.html, so props dl
+                            is visible under tab=annotations too.
 
-    Unknown values must fall back to ``comments`` via
+    Unknown values must fall back to ``annotations`` via
     :func:`api.services.annotations.normalize_annotate_tab`; assert that
     too so a future regression in the normaliser does not silently break
     the default-tab landing state.
     """
     seed_metadata()
 
-    # All three valid tabs render.
+    # comments tab still routes (disabled in UI, but the route is valid).
     r = client.get("/api/annotate/scene?id=351&tab=comments")
     assert r.status_code == 200
     assert 'class="a-rp"' in r.text
-    # Comments sub-partial: either renders the AI description body
-    # ("moondream-2") or the empty-state line ("No LLM description").
-    assert "moondream-2" in r.text or "No LLM description" in r.text
 
     r = client.get("/api/annotate/scene?id=351&tab=annotations")
     assert r.status_code == 200
     # Annotations sub-partial preserves the legacy tag-editor input.
     assert "annotate-tags-input" in r.text
+    # AI description + properties dl are now part of the annotations tab.
+    assert "moondream-2" in r.text or "No LLM description" in r.text
+    assert 'class="props"' in r.text
 
     r = client.get("/api/annotate/scene?id=351&tab=properties")
     assert r.status_code == 200
-    # Properties sub-partial renders a definition-list (<dl class="props">).
-    assert 'class="props"' in r.text
+    # properties is now an alias for annotations — same content.
+    assert "annotate-tags-input" in r.text
 
-    # Unknown tabs fall back to comments (markup proof: the
-    # annotate-tags-input only appears on annotations, so an unknown
-    # value must NOT show it).
+    # Unknown tabs fall back to annotations (which shows annotate-tags-input).
     r = client.get("/api/annotate/scene?id=351&tab=bogus")
     assert r.status_code == 200
-    assert "annotate-tags-input" not in r.text
+    assert "annotate-tags-input" in r.text
 
 
 def test_anotar_save_endpoint_still_works(client, seed_metadata):

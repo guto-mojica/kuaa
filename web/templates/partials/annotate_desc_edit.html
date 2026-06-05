@@ -3,10 +3,7 @@
       hx-swap="innerHTML">
     <input type="hidden" name="scene_id" value="{{ scene_id }}">
     <input type="hidden" name="filter" value="{{ filter }}">
-    {# Mojica Task 19: carry the .a-rp htab through the description save
-       so the user lands back on the Comments tab (where the description
-       lives) after submitting / cancelling. #}
-    <input type="hidden" name="tab" value="comments">
+    <input type="hidden" name="tab" value="annotations">
     <div class="annotate-edit-warning">
         ⚠ {{ _("You are about to overwrite the LLM-generated description. This cannot be undone.") }}
     </div>

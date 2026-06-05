@@ -26,6 +26,41 @@
    ``normalize_annotate_tab``).
 #}
 
+{# ── AI description ──────────────────────────────────────────────────── #}
+<p class="annotate-section-label">{{ _("AI description") }}</p>
+{% if selected_scene and selected_scene.description %}
+  <div class="a-com ai">
+    <div class="av" aria-hidden="true">md</div>
+    <div class="bx">
+      <div class="who">
+        <span class="n">moondream-2</span>
+        <span class="badge">{{ _("AI · description") }}</span>
+      </div>
+      <div class="body">
+        {% if selected_scene.timecode %}<span class="fx-tc">{{ selected_scene.timecode }}</span>{% endif %}
+        {{ selected_scene.description }}
+      </div>
+      <div class="replyrow">
+        <a href="/api/annotate/description/edit?scene_id={{ scene_id }}&filter={{ filter }}{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
+           hx-get="/api/annotate/description/edit?scene_id={{ scene_id }}&filter={{ filter }}{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
+           hx-target="#annotate-llm-edit"
+           hx-swap="innerHTML">{{ _("Edit") }}</a>
+      </div>
+    </div>
+  </div>
+{% else %}
+  <p class="annotate-no-llm text-muted">
+    {{ _("No LLM description") }}
+    <a href="/api/annotate/description/edit?scene_id={{ scene_id }}&filter={{ filter }}{% if selected_scene and selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
+       class="annotate-edit-trigger"
+       hx-get="/api/annotate/description/edit?scene_id={{ scene_id }}&filter={{ filter }}{% if selected_scene and selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
+       hx-target="#annotate-llm-edit"
+       hx-swap="innerHTML">{{ _("Add description") }}</a>
+  </p>
+{% endif %}
+<div id="annotate-llm-edit"></div>
+<div class="annotate-divider"></div>
+
 {% if saved %}
 <div class="annotate-feedback annotate-feedback--success">
     ✓ {{ existing_tags | length }} {{ _("tag(s) saved") }}
@@ -134,3 +169,8 @@
     {% endfor %}
 </div>
 {% endif %}
+
+{# ── Scene properties ─────────────────────────────────────────────────── #}
+<div class="annotate-divider"></div>
+<p class="annotate-section-label">{{ _("Properties") }}</p>
+{% include "partials/annotate_props.html" %}

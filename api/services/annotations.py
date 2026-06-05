@@ -99,16 +99,16 @@ _VALID_ANNOTATE_TABS = ("comments", "annotations", "properties")
 
 
 def normalize_annotate_tab(tab: str | None) -> str:
-    """Return a valid ``annotate_tab`` value or fall back to ``"comments"``.
+    """Return a valid ``annotate_tab`` value or fall back to ``"annotations"``.
 
-    The Anotar right pane (.a-rp) renders three htabs — Comments,
-    Annotations, Properties — selected by the ``?tab=`` query parameter
-    on ``/api/annotate/scene``. Unknown / missing values collapse to
-    Comments (the default landing state).
+    The Anotar right pane renders two interactive htabs — Annotations
+    (default) and Properties (route-accessible) — plus a disabled
+    Comments placeholder reserved for a future collaboration backend.
+    Unknown / missing values collapse to Annotations.
     """
     if tab in _VALID_ANNOTATE_TABS:
         return tab
-    return "comments"
+    return "annotations"
 
 
 # ── Tab context builder ───────────────────────────────────────────────────────
@@ -136,6 +136,13 @@ def build_annotate_context(
     scenes, desc_by_scene, annotations, filter_mode, all_done, no_data = _scene_list_with_fallback(
         ctx, filter_mode
     )
+    # If a specific scene_id was requested but is absent from the filtered list
+    # (e.g. it was just given a description so it dropped out of no_llm), fall
+    # back to the full "all" list so the correct scene is still shown.  Without
+    # this, scene_context silently defaults to scenes[0] — a different scene —
+    # making manually-saved descriptions appear to vanish on next navigation.
+    if scene_id is not None and not any(s["scene_id"] == scene_id for s in scenes):
+        scenes, desc_by_scene, annotations = build_scene_list(ctx, "all")
     cfg = get_config()
     demo_threads = bool(getattr(getattr(cfg, "collaboration", None), "demo_threads_enabled", False))
     panel = scene_context(
