@@ -188,12 +188,13 @@
 .a-tl .scrub .marker:hover .label { opacity: 1; }
 /* Frame markers — clickable buttons that switch the displayed keyframe */
 .a-tl .scrub .frame-marker {
-  background: var(--c-border-2);
+  background: var(--c-yellow);
   border: none; padding: 0;
   transform: translateX(-50%);
+  z-index: 3;
   transition: background 0.12s, top 0.12s, bottom 0.12s;
 }
-.a-tl .scrub .frame-marker:hover { background: var(--c-text-2); }
+.a-tl .scrub .frame-marker:hover { background: var(--c-yellow); filter: brightness(1.2); }
 .a-tl .scrub .frame-marker.active { background: var(--c-accent); top: 2px; bottom: 2px; }
 .a-tl .scrub .av-pip {
   position: absolute; top: -8px;
