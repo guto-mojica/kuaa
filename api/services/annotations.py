@@ -93,7 +93,7 @@ _BROKEN_LLM = "One or two sentences about subject"
 
 # Mojica Task 19: valid right-pane htab values for the .a-rp shell
 # (Comments / Annotations / Properties). Any other value falls back to
-# ``comments`` — same defensive contract the Buscar inspector uses for
+# ``annotations`` — same defensive contract the Buscar inspector uses for
 # its ``inspector_tab`` query param.
 _VALID_ANNOTATE_TABS = ("comments", "annotations", "properties")
 

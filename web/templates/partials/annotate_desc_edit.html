@@ -1,4 +1,4 @@
-<form hx-post="/api/annotate/description"
+<form hx-post="/api/annotate/description{% if current_slug %}?film={{ current_slug }}{% endif %}"
       hx-target="#annotate-scene"
       hx-swap="innerHTML">
     <input type="hidden" name="scene_id" value="{{ scene_id }}">

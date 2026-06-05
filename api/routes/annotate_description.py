@@ -74,7 +74,7 @@ async def api_annotate_description_save(
     scene_id: int = Form(...),
     filter: str = Form(default="no_llm"),
     description: str = Form(default=""),
-    tab: str = Form(default="comments"),
+    tab: str = Form(default="annotations"),
     slug: str | None = Depends(film_slug_query),
     fctx: FilmContext = Depends(annotate_film_context),
 ) -> HTMLResponse:
