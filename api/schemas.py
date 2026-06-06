@@ -9,9 +9,26 @@ All models use Pydantic v2 semantics (model_config, Field factories, etc.).
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
+from pydantic.functional_validators import BeforeValidator
+
+# Empty-string query params sent by HTMX when Alpine :value bindings haven't
+# fired yet (Alpine initialises asynchronously after the DOM renders). FastAPI
+# validates individual query params before the Pydantic model_validator runs,
+# so empty strings must be stripped at the field level via BeforeValidator.
+def _empty_str_to_none(v: object) -> object:
+    return None if v == "" else v
+
+_OptFloat = Annotated[float | None, BeforeValidator(_empty_str_to_none)]
+_OptBool = Annotated[bool | None, BeforeValidator(_empty_str_to_none)]
+
+def _empty_str_top_k(v: object) -> object:
+    """Convert empty-string top_k to the field default so HTMX startup quirks don't 422."""
+    return 8 if v == "" else v
+
+_TopK = Annotated[int, BeforeValidator(_empty_str_top_k)]
 
 # ---------------------------------------------------------------------------
 # Eval — grade + metrics
@@ -73,7 +90,7 @@ class SearchParams(BaseModel):
     model_config = {"extra": "ignore"}
 
     q: str = Field(default="", description="Free-text search query")
-    top_k: int = Field(
+    top_k: _TopK = Field(
         default=8,
         ge=1,
         le=200,
@@ -87,13 +104,13 @@ class SearchParams(BaseModel):
         ),
         json_schema_extra={"enum": ["clip", "bm25", "hybrid"]},
     )
-    sem_w: float | None = Field(
+    sem_w: _OptFloat = Field(
         default=None, description="Semantic weight override for hybrid retrieval"
     )
-    bm25_w: float | None = Field(
+    bm25_w: _OptFloat = Field(
         default=None, description="BM25 weight override for hybrid retrieval"
     )
-    reranker_enabled: bool | None = Field(
+    reranker_enabled: _OptBool = Field(
         default=None, description="Override the config default for cross-encoder reranking"
     )
 
