@@ -52,6 +52,7 @@ from cinemateca.search.aggregate import (  # noqa: F401
     _get_embedder,
     _get_search_index,
     aggregate_hits_to_template_dicts,
+    aggregate_image_search,
     aggregate_search,
     has_indexed_films,
 )

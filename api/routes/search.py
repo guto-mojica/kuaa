@@ -14,7 +14,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse
 
-from api.deps import film_slug_query, flat_film_context, get_config, make_ctx, optional_film_context
+from api.deps import film_slug_query, get_config, make_ctx, optional_film_context
 from api.schemas import SearchParams
 from api.services import search as search_service
 from api.services._field_errors import upload_error_response
@@ -95,26 +95,35 @@ async def api_search_image(
         return upload_error_response(request, "upload_unsupported")
 
     cfg = get_config()
-    ctx = ctx if ctx is not None else flat_film_context()
-    index = search_service.load_index(
-        ctx,
-        mapping_filename=cfg.embeddings.mapping_filename,
-        embeddings_filename=cfg.embeddings.filename,
-        cfg=cfg,
-    )
-    if not index.ok:
-        return _no_index_response(request)
+    loop = asyncio.get_running_loop()
     tmp_path: Path | None = None
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         tmp.write(data)
         tmp_path = Path(tmp.name)
     try:
-        loop = asyncio.get_running_loop()
-        results_df = await loop.run_in_executor(
-            None, search_service.search_image, index, tmp_path, top_k
-        )
+        if ctx is None:
+            # Aggregate: search across all registered films (each has its own
+            # current index).  flat_film_context() used the legacy
+            # data/embeddings/ index whose paths pointed to the pre-library
+            # data/frames/ tree — now empty — producing black cards.
+            cards = await loop.run_in_executor(
+                None, search_service.aggregate_image_search, cfg, tmp_path, top_k
+            )
+            results = search_service.enrich_hits_with_film_metadata(cfg, cards)
+        else:
+            index = search_service.load_index(
+                ctx,
+                mapping_filename=cfg.embeddings.mapping_filename,
+                embeddings_filename=cfg.embeddings.filename,
+                cfg=cfg,
+            )
+            if not index.ok:
+                return _no_index_response(request)
+            results_df = await loop.run_in_executor(
+                None, search_service.search_image, index, tmp_path, top_k
+            )
+            results = _enriched_per_film(cfg, ctx, results_df, slug)
     finally:
         if tmp_path is not None:
             tmp_path.unlink(missing_ok=True)
-    results = _enriched_per_film(cfg, ctx, results_df, slug)
     return _render_results(request, slug=slug, cfg=cfg, results=results)

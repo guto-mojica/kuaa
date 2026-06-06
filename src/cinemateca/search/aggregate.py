@@ -681,6 +681,59 @@ def aggregate(
     )
 
 
+def aggregate_image_search(
+    cfg: Settings,
+    image_path: "Path | str",
+    top_k: int,
+) -> list[dict]:
+    """Run image-similarity search across all registered films.
+
+    Loops over every indexed film (via :func:`cinemateca.library.scan_library`),
+    runs per-film CLIP image search, and returns a unified top-k list sorted by
+    cosine similarity.  Returns hit dicts shaped like
+    :func:`aggregate_hits_to_template_dicts` output so the same template renders.
+
+    Films whose index is missing or corrupt are silently skipped (a warning is
+    logged).  When the library has no indexed films the function returns ``[]``
+    rather than falling back to the legacy ``data/embeddings/`` flat index.
+    """
+    from cinemateca.library import FilmContext, keyframe_url, scan_library
+    from cinemateca.search.clip import search_image as _search_image
+
+    library_dir = Path(cfg.paths.library_dir)
+    data_dir = Path(cfg.paths.data_dir).resolve()
+    emb_file = getattr(getattr(cfg, "embeddings", None), "filename", _DEFAULT_EMBEDDINGS_FILENAME)
+    map_file = getattr(
+        getattr(cfg, "embeddings", None), "mapping_filename", _DEFAULT_MAPPING_FILENAME
+    )
+    all_hits: list[dict] = []
+
+    for film in scan_library(library_dir):
+        try:
+            film_ctx = FilmContext.for_film(cfg, film.slug)
+            index = load_index(film_ctx, embeddings_filename=emb_file, mapping_filename=map_file, cfg=cfg)
+            if not index.ok:
+                continue
+            df = _search_image(index, image_path, top_k)
+            for row in df.to_dict("records"):
+                all_hits.append(
+                    {
+                        "film_slug": film.slug,
+                        "film_title": str(getattr(film, "title", film.slug)),
+                        "scene_id": row["scene_id"],
+                        "similarity": float(row["similarity"]),
+                        "img_url": keyframe_url(str(row["filepath"]), data_dir),
+                        "description": str(row.get("description", "")),
+                        "timecode": "",
+                    }
+                )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("aggregate_image_search: film %r skipped: %s", film.slug, exc)
+
+    all_hits.sort(key=lambda h: h["similarity"], reverse=True)
+    return all_hits[:top_k]
+
+
 def aggregate_hits_to_template_dicts(cfg: Settings, hits: list[dict]) -> list[dict]:
     """Convert ``aggregate_search`` raw hits to ``.b-card``-shaped template dicts.
 
