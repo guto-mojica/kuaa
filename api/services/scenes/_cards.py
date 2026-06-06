@@ -116,6 +116,9 @@ def build_cenas_context(
         if paged_scenes:
             paged_groups.append({**grp, "scenes": paged_scenes})
 
+    has_more = (offset + limit) < total_scenes
+    has_prev = offset > 0
+
     return {
         "groups_by_film": paged_groups,
         "selected_scene_id": selected_scene_id,
@@ -124,6 +127,13 @@ def build_cenas_context(
         "film_count": len(groups),
         "total_runtime_s": total_runtime_s,
         "total_runtime_str": _format_runtime_hm(total_runtime_s),
+        # Pagination signals consumed by the grid partial's nav bar and sentinel.
+        "has_more": has_more,
+        "has_prev": has_prev,
+        "current_offset": offset,
+        "next_offset": offset + limit,
+        "prev_offset": max(0, offset - limit),
+        "current_limit": limit,
         # The keyframes-on-disk size is not summed today (would require
         # ``os.stat`` per keyframe — O(scenes) syscalls on every page
         # load). Em-dash placeholder until a cheap, cached source lands.

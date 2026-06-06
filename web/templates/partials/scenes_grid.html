@@ -51,13 +51,50 @@
    ``group=none`` they carry a synthetic namespace (tipo label or
    first-scene fallback) — the template guards on
    ``group.film.runtime_tc`` so the empty cases skip the meta. #}
+{% set _is_append = is_append | default(false) %}
+{% if not _is_append and total_scenes is defined and (has_prev or has_more) %}
+<nav class="pag-bar" aria-label="{{ _('Pagination') }}">
+  {# Baked-in params: same values used for this page, locked at render time.
+     Both Prev and Next reference these via hx-include="closest nav". #}
+  <input type="hidden" name="sort"   value="{{ sentinel_sort | default('timecode') }}">
+  <input type="hidden" name="group"  value="{{ sentinel_group | default('film') }}">
+  <input type="hidden" name="limit"  value="{{ current_limit }}">
+  <input type="hidden" name="q"      value="{{ sentinel_q | default('') }}">
+  <input type="hidden" name="bucket" value="{{ sentinel_bucket | default('') }}">
+  {% for tag in sentinel_tags | default([]) %}
+  <input type="hidden" name="tags"   value="{{ tag }}">
+  {% endfor %}
+  <span class="pag-info">
+    {{ current_offset + 1 }}–{{ [current_offset + current_limit, total_scenes] | min }}
+    {{ _('of') }} {{ total_scenes }}
+  </span>
+  <div class="pag-nav">
+    {% if has_prev %}
+    <button type="button" class="pag-btn"
+            hx-get="/api/scenes"
+            hx-include="closest nav"
+            hx-vals='{"offset": {{ prev_offset }}, "append": "false"}'
+            hx-target="#scenes-grid"
+            hx-swap="innerHTML">{{ _('← Prev') }}</button>
+    {% endif %}
+    {% if has_more %}
+    <button type="button" class="pag-btn"
+            hx-get="/api/scenes"
+            hx-include="closest nav"
+            hx-vals='{"offset": {{ next_offset }}, "append": "false"}'
+            hx-target="#scenes-grid"
+            hx-swap="innerHTML">{{ _('Next →') }}</button>
+    {% endif %}
+  </div>
+</nav>
+{% endif %}
 {% if not groups_by_film %}
   <div class="empty-state">
     <p>{{ _("No scenes match the filters.") }}</p>
   </div>
 {% else %}
   {% for group in groups_by_film %}
-    {% if group.is_grouped %}
+    {% if group.is_grouped and not _is_append %}
     <div class="group">
       <span class="chev" aria-hidden="true">{{ icon('chev-d', 12) }}</span>
       <span class="dot" style="background: {{ group.heading_dot or 'var(--c-accent)' }};" aria-hidden="true"></span>
@@ -114,4 +151,29 @@
       </article>
     {% endfor %}
   {% endfor %}
+{% endif %}
+{% if has_more %}
+<div class="load-more"
+     hx-get="/api/scenes"
+     hx-include="this"
+     hx-vals='{"offset": {{ next_offset }}, "append": "true"}'
+     hx-target="this"
+     hx-swap="outerHTML"
+     hx-indicator="#scenes-skeleton">
+  {# Hidden inputs lock the page-generation params so each append request
+     is an exact continuation of the current page (sort/group/limit/q/tags
+     baked at server-render time, not read from the live Alpine store). #}
+  <input type="hidden" name="sort"   value="{{ sentinel_sort | default('timecode') }}">
+  <input type="hidden" name="group"  value="{{ sentinel_group | default('film') }}">
+  <input type="hidden" name="limit"  value="{{ current_limit }}">
+  <input type="hidden" name="q"      value="{{ sentinel_q | default('') }}">
+  <input type="hidden" name="bucket" value="{{ sentinel_bucket | default('') }}">
+  {% if sentinel_slug | default('') %}
+  <input type="hidden" name="film"   value="{{ sentinel_slug }}">
+  {% endif %}
+  {% for tag in sentinel_tags | default([]) %}
+  <input type="hidden" name="tags"   value="{{ tag }}">
+  {% endfor %}
+  <button type="button" class="load-more__btn">{{ _('Load more') }}</button>
+</div>
 {% endif %}

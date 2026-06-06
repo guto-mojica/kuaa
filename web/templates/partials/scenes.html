@@ -102,7 +102,7 @@
          @keydown.escape.window="open = false">
       <button type="button"
               class="tool"
-              :class="{ 'tool--active': open || $store.cenasAppearance.density !== 'comfortable' }"
+              :class="{ 'tool--active': open || $store.cenasAppearance.density !== 'comfortable' || $store.cenasAppearance.perPage !== 50 }"
               :aria-expanded="open ? 'true' : 'false'"
               aria-haspopup="true"
               @click="open = !open">
@@ -133,8 +133,25 @@
             <span>{{ _('Compact') }}</span>
           </label>
         </div>
+        <header class="scenes-filter-popover__head">
+          <span class="scenes-filter-popover__title">{{ _('Per page') }}</span>
+        </header>
+        <div class="scenes-prefs-rows">
+          {% for n in [25, 50, 100] %}
+          <label class="scenes-prefs-row">
+            <input type="radio" name="per-page-radio"
+                   :value="{{ n }}"
+                   :checked="$store.cenasAppearance.perPage === {{ n }}"
+                   @change="$store.cenasAppearance.perPage = {{ n }}; htmx.trigger('#scenes-toolrow', 'refresh')">
+            <span>{{ n }}</span>
+          </label>
+          {% endfor %}
+        </div>
       </div>
     </div>
+    {# Hidden input carries the per-page limit on every /api/scenes request
+       via hx-include="#scenes-toolrow". Alpine keeps it reactive. #}
+    <input type="hidden" name="limit" :value="$store.cenasAppearance.perPage">
 
     {# ── Fields: per-field visibility popover. The pip surfaces the
          number of HIDDEN fields (zero by default → no pip), mirroring

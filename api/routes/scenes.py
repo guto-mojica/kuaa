@@ -53,6 +53,12 @@ async def tab_scenes(
         sort=sort,
         bucket=bucket,
     )
+    context["sentinel_sort"] = context["active_sort"]
+    context["sentinel_group"] = context["active_group"]
+    context["sentinel_bucket"] = context.get("active_bucket") or ""
+    context["sentinel_q"] = ""
+    context["sentinel_tags"] = []
+    context["sentinel_slug"] = slug or ""
     return templates.TemplateResponse(
         request,
         "partials/scenes.html",
@@ -70,8 +76,13 @@ async def api_scenes(
     sort: str = "timecode",
     bucket: str | None = None,
     page: Pagination = Depends(Pagination),
+    append: bool = Query(default=False),
 ) -> HTMLResponse:
-    """Return the filtered Cenas grid fragment for HTMX swaps."""
+    """Return the filtered Cenas grid fragment for HTMX swaps.
+
+    ``append=true`` is set by the load-more sentinel: the grid partial
+    suppresses group headers so they don't repeat when a film spans pages.
+    """
     cfg = get_config()
     ctx = build_cenas_context(
         cfg,
@@ -88,6 +99,22 @@ async def api_scenes(
     grid_ctx = {
         "groups_by_film": ctx["groups_by_film"],
         "selected_scene_id": ctx["selected_scene_id"],
+        "total_scenes": ctx["total_scenes"],
+        "has_more": ctx["has_more"],
+        "has_prev": ctx["has_prev"],
+        "current_offset": ctx["current_offset"],
+        "next_offset": ctx["next_offset"],
+        "prev_offset": ctx["prev_offset"],
+        "current_limit": ctx["current_limit"],
+        "is_append": append,
+        # Sentinel self-containment: baked-in params that load-more must
+        # preserve across pages (independent of the live Alpine store).
+        "sentinel_sort": ctx["active_sort"],
+        "sentinel_group": ctx["active_group"],
+        "sentinel_bucket": ctx.get("active_bucket") or "",
+        "sentinel_q": q or "",
+        "sentinel_tags": list(tags),
+        "sentinel_slug": slug or "",
     }
     return templates.TemplateResponse(
         request,

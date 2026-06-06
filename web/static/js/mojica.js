@@ -576,7 +576,7 @@
   // ``_VALID_SORTS`` defaults — keep the two in sync if either is
   // edited. ``retrieval`` mirrors ``/api/search`` query params.
   var DEFAULTS = {
-    appearance: { density: 'comfortable' },
+    appearance: { density: 'comfortable', perPage: 50 },
     fields:     { timecode: true, pin_count: true, version: true, sub: true, tipo: true },
     group:      { by: 'film' },
     sort:       { by: 'timecode' },
@@ -710,7 +710,7 @@
 
     // Persistence effects must register AFTER the stores exist; same
     // alpine:init handler keeps the relative ordering deterministic.
-    persistOnChange('cenasAppearance', KEYS.appearance, ['density']);
+    persistOnChange('cenasAppearance', KEYS.appearance, ['density', 'perPage']);
     persistOnChange('cenasFields',     KEYS.fields,     ['timecode', 'pin_count', 'version', 'sub', 'tipo']);
     persistOnChange('cenasGroup',      KEYS.group,      ['by']);
     persistOnChange('cenasSort',       KEYS.sort,       ['by']);
