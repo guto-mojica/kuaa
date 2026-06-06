@@ -33,6 +33,17 @@
           hx-swap="innerHTML">{{ icon('plus', 10) }} {{ _('Add film') }}</button>
 </div>
 
+{# "All films" clears the film filter and shows the library-wide aggregate. #}
+<a class="ch-film{% if not current_slug %} active{% endif %} ch-film--all"
+   href="/scenes"
+   hx-get="/tab/scenes"
+   hx-target="#ch-main"
+   hx-push-url="/scenes"
+   hx-on:click="document.querySelectorAll('.ch-lp .ch-film').forEach(el=>el.classList.remove('active')); this.classList.add('active');">
+  <span class="arr">{{ icon('chev-d' if not current_slug else 'chev-r', 12) }}</span>
+  <span class="ico">{{ icon('film-strip', 14) }}</span>
+  <span class="name fx-truncate">{{ _('All films') }}</span>
+</a>
 {% if films %}
   {% for film in films %}
     {% set is_active = current_slug and film.slug == current_slug %}
@@ -44,7 +55,11 @@
       <a class="ch-film{% if is_active %} active{% endif %}{% if sel %} has-sel{% endif %}{% if is_proc %} proc{% endif %}"
          href="/scenes?film={{ film.slug }}"
          data-slug="{{ film.slug }}"
-         title="{{ film.title }}">
+         title="{{ film.title }}"
+         hx-get="/tab/scenes?film={{ film.slug }}"
+         hx-target="#ch-main"
+         hx-push-url="/scenes?film={{ film.slug }}"
+         hx-on:click="document.querySelectorAll('.ch-lp .ch-film').forEach(el=>el.classList.remove('active')); this.classList.add('active');">
         <span class="arr">{{ icon('chev-d' if is_active else 'chev-r', 12) }}</span>
         <span class="ico">{{ icon('proc' if is_proc else 'film', 14) }}</span>
         <span class="name fx-truncate">{{ film.title }}{% if film.scene_count %}<span class="ct">{{ film.scene_count }}</span>{% endif %}</span>
