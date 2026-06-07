@@ -478,7 +478,7 @@ def write_markdown(payload: dict, out_path: Path) -> None:
         f"p95 {_fmt_ms(modes['hybrid']['p95'])} ms, "
         f"p99 {_fmt_ms(modes['hybrid']['p99'])} ms"
     )
-    lines.append(f"  on a {fx['n_scenes']}-scene corpus, k={top_k}, " f"device={fx['device']}")
+    lines.append(f"  on a {fx['n_scenes']}-scene corpus, k={top_k}, device={fx['device']}")
     lines.append(
         f"  (CPU: {hw['cpu_model'].split('@')[0].strip()}"
         + (f"; GPU: {hw['gpu'].split(',')[0].strip()})" if hw["gpu"] else ")")
@@ -638,7 +638,7 @@ def main(argv: list[str] | None = None) -> int:
         # confusing traceback; _pick_film will produce a similar message but
         # this guard fires earlier and is more explicit.
         print(
-            f"SKIP: {msg}. " "Run `uv run cinemateca process <video>` to build an index.",
+            f"SKIP: {msg}. Run `uv run cinemateca process <video>` to build an index.",
             flush=True,
         )
         return 0

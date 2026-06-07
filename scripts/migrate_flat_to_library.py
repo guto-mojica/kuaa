@@ -57,12 +57,11 @@ def migrate_flat_to_library(
     )
     if not raw_videos:
         raise FileNotFoundError(
-            f"No raw video files in {flat_raw}. "
-            f"Accepted extensions: {sorted(_VIDEO_EXTENSIONS)}"
+            f"No raw video files in {flat_raw}. Accepted extensions: {sorted(_VIDEO_EXTENSIONS)}"
         )
     if len(raw_videos) > 1:
         logger.warning(
-            "Multiple videos in %s; picking %s (alphabetical first). " "Other candidates: %s",
+            "Multiple videos in %s; picking %s (alphabetical first). Other candidates: %s",
             flat_raw,
             raw_videos[0].name,
             [p.name for p in raw_videos[1:]],

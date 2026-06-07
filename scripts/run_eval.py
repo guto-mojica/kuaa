@@ -518,7 +518,7 @@ def _all_modes(args: argparse.Namespace) -> int:
     if sweep_payloads:
         md_lines.extend(
             [
-                "## k_rrf sweep (hybrid, " f"sem_w={args.sem_weight}, bm25_w={args.bm25_weight})",
+                f"## k_rrf sweep (hybrid, sem_w={args.sem_weight}, bm25_w={args.bm25_weight})",
                 "",
                 _krrf_sweep_table(sweep_payloads),
                 "",

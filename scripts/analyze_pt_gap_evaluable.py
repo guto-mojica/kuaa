@@ -76,8 +76,7 @@ def main(argv):
             if extra:
                 ocl_v = extra[ret][mk]
                 print(
-                    f"| {ret} | {mk} | {ocl_v:.3f} | {en_v:.3f} | {pt_v:.3f} | "
-                    f"{sign}{abs(d):.3f} |"
+                    f"| {ret} | {mk} | {ocl_v:.3f} | {en_v:.3f} | {pt_v:.3f} | {sign}{abs(d):.3f} |"
                 )
             else:
                 print(f"| {ret} | {mk} | {en_v:.3f} | {pt_v:.3f} | {sign}{abs(d):.3f} |")

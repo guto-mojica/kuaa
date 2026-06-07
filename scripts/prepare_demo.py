@@ -138,7 +138,7 @@ def _validate_keyframe_paths(
             continue
         if not any(_is_inside(p, runtime_root) for p in existing):
             result.errors.append(
-                "Keyframe filepath must resolve inside the demo runtime root: " f"{raw}"
+                f"Keyframe filepath must resolve inside the demo runtime root: {raw}"
             )
 
 
@@ -274,8 +274,7 @@ def check_demo(
             )
     else:
         result.warnings.append(
-            "No raw/ directory found. The populated demo can still run from "
-            "precomputed artifacts."
+            "No raw/ directory found. The populated demo can still run from precomputed artifacts."
         )
 
     _validate_embeddings(root, result)
@@ -310,7 +309,7 @@ def _download_file(url: str, dest: Path, expected_sha256: str | None = None) -> 
         if actual.lower() != expected_sha256.lower():
             tmp.unlink(missing_ok=True)
             raise DemoError(
-                f"Checksum mismatch for {dest.name}: expected {expected_sha256}, " f"got {actual}"
+                f"Checksum mismatch for {dest.name}: expected {expected_sha256}, got {actual}"
             )
     tmp.replace(dest)
 
@@ -398,8 +397,7 @@ def extract_bundle(zip_path: Path, runtime_root: Path) -> None:
                 return
 
         raise DemoError(
-            "Artifact ZIP does not contain the expected metadata/, frames/, "
-            "and embeddings/ layout."
+            "Artifact ZIP does not contain the expected metadata/, frames/, and embeddings/ layout."
         )
 
 

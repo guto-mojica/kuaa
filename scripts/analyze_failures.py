@@ -171,7 +171,7 @@ def _render_m4_block(cases, *, context: dict[str, Any]) -> str:
         "here are robust to that.\n\n"
         "The three text retrievers (CLIP / BM25 / hybrid) are scored on the "
         f"{context['query_count']} HY-labelled text queries; the "
-        f"{context['n']} worst by nDCG@10 are below. Ranks are 1-based; \"—\" means "
+        f'{context["n"]} worst by nDCG@10 are below. Ranks are 1-based; "—" means '
         "the first relevant scene never appeared in that retriever's top-"
         f"{context['top_k']}. Each top non-relevant result cites the exact Moondream "
         "caption the retriever ranked.\n"

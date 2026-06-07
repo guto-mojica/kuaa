@@ -69,7 +69,7 @@ def _delta(en_val: float, pt_val: float) -> str:
 
 def _aggregate_table(en: dict, pt: dict, label_en: str = "EN", label_pt: str = "PT") -> str:
     lines = [
-        "| Retriever | metric | " f"{label_en} | {label_pt} | Δ (PT−{label_en}) |",
+        f"| Retriever | metric | {label_en} | {label_pt} | Δ (PT−{label_en}) |",
         "| --- | --- | ---: | ---: | ---: |",
     ]
     for ret in RETRIEVERS:
