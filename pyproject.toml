@@ -155,13 +155,14 @@ e2e = [
 
 [tool.ruff]
 line-length = 100
+target-version = "py311"
 
 [tool.ruff.format]
 # Black-compatible defaults: double quotes, spaces, trailing commas.
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
-ignore = ["E501"]  # linha longa (ruff format cuida)
+ignore = ["E501", "UP017", "UP042"]  # E501: ruff format cuida; UP017/UP042: py311+ only (project targets py310+)
 
 [tool.mypy]
 python_version = "3.11"
