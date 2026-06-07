@@ -9,7 +9,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 
-from api.deps import film_slug_query, get_config, make_ctx, request_gettext, toast_trigger
+from api.deps import film_slug_query, get_config, make_ctx, request_gettext
 from api.jobs import (
     STEP_DEFS,
     ConcurrencyRejected,
@@ -24,6 +24,7 @@ from api.services.processing_render import (
     build_processing_context,
     build_sse_generator,
     build_start_response,
+    processing_tab_response,
 )
 from api.services.processing_service import enrich_jobs
 from api.templates import templates
@@ -34,24 +35,13 @@ router = APIRouter()
 
 @router.get("/tab/processing", response_class=HTMLResponse)
 async def tab_processing(
-    request: Request,
-    slug: str | None = Depends(film_slug_query),
+    request: Request, slug: str | None = Depends(film_slug_query)
 ) -> HTMLResponse:
     ctx = build_processing_context()
     logger.info("/tab/processing — slug=%s jobs=%d", slug, len(ctx["jobs"]))
     return templates.TemplateResponse(
         request, "partials/processing.html", make_ctx(request, current_slug=slug, **ctx)
     )
-
-
-def _file_not_found_response(
-    request: Request,
-) -> HTMLResponse:  # shared error path for start/enqueue
-    _ = request_gettext(request)
-    ctx = build_processing_context()
-    resp = templates.TemplateResponse(request, "partials/processing.html", make_ctx(request, **ctx))
-    toast_trigger(resp, title=_("File not found. Check the path or filename."), kind="error")
-    return resp
 
 
 @router.post("/api/pipeline/start", response_class=HTMLResponse)
@@ -62,9 +52,11 @@ async def api_pipeline_start(
         steps = [name for name, _ in STEP_DEFS]
     cfg = get_config()
     vp = Path(video_path)
+    _ = request_gettext(request)
+    file_not_found = _("File not found. Check the path or filename.")
     if not vp.exists():
         logger.warning("/api/pipeline/start rejected — file not found: %s", vp)
-        return _file_not_found_response(request)
+        return processing_tab_response(request, error_message=file_not_found)
     try:
         job_id = start_job(str(vp), set(steps), cfg)
     except ConcurrencyRejected as exc:
@@ -73,7 +65,9 @@ async def api_pipeline_start(
     return build_start_response(request, cfg, vp, request.cookies.get("active_film", ""))
 
 
-@router.post("/api/pipeline/enqueue", response_class=HTMLResponse)  # queue only, never auto-starts; use /queue/start
+@router.post(
+    "/api/pipeline/enqueue", response_class=HTMLResponse
+)  # queue only, never auto-starts; use /queue/start
 async def api_pipeline_enqueue(
     request: Request, video_path: str = Form(...), steps: list[str] = Form(default=[])
 ) -> HTMLResponse:
@@ -81,9 +75,11 @@ async def api_pipeline_enqueue(
         steps = [name for name, _ in STEP_DEFS]
     cfg = get_config()
     vp = Path(video_path)
+    _ = request_gettext(request)
+    file_not_found = _("File not found. Check the path or filename.")
     if not vp.exists():
         logger.warning("/api/pipeline/enqueue rejected — file not found: %s", vp)
-        return _file_not_found_response(request)
+        return processing_tab_response(request, error_message=file_not_found)
     queue_job(str(vp), set(steps), cfg)
     logger.info("/api/pipeline/enqueue — queued %s", vp)
     return build_start_response(request, cfg, vp, request.cookies.get("active_film", ""))
@@ -126,7 +122,9 @@ async def api_pipeline_cancel(
     )
 
 
-@router.get("/api/pipeline/job-card/{job_id}", response_class=HTMLResponse)  # full .p-active card for polling refresh
+@router.get(
+    "/api/pipeline/job-card/{job_id}", response_class=HTMLResponse
+)  # full .p-active card for polling refresh
 async def api_pipeline_job_card(request: Request, job_id: str) -> HTMLResponse:
     job = get_job(job_id)
     if job is None:
@@ -137,7 +135,9 @@ async def api_pipeline_job_card(request: Request, job_id: str) -> HTMLResponse:
     )
 
 
-@router.get("/api/pipeline/stream/{job_id}")  # SSE: log / update / done|error|cancelled (terminal closes stream)
+@router.get(
+    "/api/pipeline/stream/{job_id}"
+)  # SSE: log / update / done|error|cancelled (terminal closes stream)
 async def api_pipeline_stream(request: Request, job_id: str) -> StreamingResponse:
     return StreamingResponse(
         build_sse_generator(job_id, request.cookies.get("locale", "pt_BR")),

@@ -17,7 +17,7 @@ projection helpers ``cards_to_result`` / ``result_to_cards``) lives in
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from api.contexts import SearchContext
 from api.services.catalog import keyframe_url  # noqa: F401  — used by routes
@@ -236,9 +236,9 @@ def dispatch_text_search(
 
 def build_search_context(ctx: Any, cfg: Any | None = None) -> SearchContext:
     """Typed wrapper over ``cinemateca.search._lookup.build_search_context``."""
-    return _build_search_context_core(ctx, cfg)  # type: ignore[return-value]
+    return cast(SearchContext, _build_search_context_core(ctx, cfg))
 
 
 def build_search_context_aggregate(cfg: Any) -> SearchContext:
     """Typed wrapper over ``cinemateca.search._lookup.build_search_context_aggregate``."""
-    return _build_search_context_aggregate_core(cfg)  # type: ignore[return-value]
+    return cast(SearchContext, _build_search_context_aggregate_core(cfg))

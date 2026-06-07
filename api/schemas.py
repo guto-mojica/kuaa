@@ -14,6 +14,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, Field
 from pydantic.functional_validators import BeforeValidator
 
+
 # Empty-string query params sent by HTMX when Alpine :value bindings haven't
 # fired yet (Alpine initialises asynchronously after the DOM renders). FastAPI
 # validates individual query params before the Pydantic model_validator runs,
@@ -21,12 +22,15 @@ from pydantic.functional_validators import BeforeValidator
 def _empty_str_to_none(v: object) -> object:
     return None if v == "" else v
 
+
 _OptFloat = Annotated[float | None, BeforeValidator(_empty_str_to_none)]
 _OptBool = Annotated[bool | None, BeforeValidator(_empty_str_to_none)]
+
 
 def _empty_str_top_k(v: object) -> object:
     """Convert empty-string top_k to the field default so HTMX startup quirks don't 422."""
     return 8 if v == "" else v
+
 
 _TopK = Annotated[int, BeforeValidator(_empty_str_top_k)]
 
@@ -107,9 +111,7 @@ class SearchParams(BaseModel):
     sem_w: _OptFloat = Field(
         default=None, description="Semantic weight override for hybrid retrieval"
     )
-    bm25_w: _OptFloat = Field(
-        default=None, description="BM25 weight override for hybrid retrieval"
-    )
+    bm25_w: _OptFloat = Field(default=None, description="BM25 weight override for hybrid retrieval")
     reranker_enabled: _OptBool = Field(
         default=None, description="Override the config default for cross-encoder reranking"
     )

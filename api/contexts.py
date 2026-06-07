@@ -23,8 +23,8 @@ from typing import Any, TypedDict
 # ---------------------------------------------------------------------------
 
 
-class CenasContext(TypedDict):
-    """Template context for the Cenas grid (``partials/scenes.html``)."""
+class _CenasContextRequired(TypedDict):
+    """Required keys for the Cenas grid context — always returned by the builder."""
 
     groups_by_film: list[dict[str, Any]]
     selected_scene_id: int | None
@@ -46,6 +46,28 @@ class CenasContext(TypedDict):
     active_group: str
     active_sort: str
     active_bucket: str
+    # Pagination signals consumed by the grid partial's nav bar.
+    has_more: bool
+    has_prev: bool
+    current_offset: int
+    next_offset: int
+    prev_offset: int
+    current_limit: int
+
+
+class CenasContext(_CenasContextRequired, total=False):
+    """Template context for the Cenas grid (``partials/scenes.html``).
+
+    Optional sentinel keys are set by the route (not the builder) to seed
+    Alpine reactive state for infinite-scroll / filter preservation.
+    """
+
+    sentinel_sort: str
+    sentinel_group: str
+    sentinel_bucket: str
+    sentinel_q: str
+    sentinel_tags: list[str]
+    sentinel_slug: str
 
 
 # ---------------------------------------------------------------------------

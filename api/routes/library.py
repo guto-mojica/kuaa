@@ -9,8 +9,8 @@ from fastapi.responses import HTMLResponse, Response
 
 from api.deps import film_slug_query, get_config, make_ctx, request_gettext, toast_trigger
 from api.services.library_admin import register_and_symlink, resolve_video_path
-from api.services.processing_render import processing_tab_response
 from api.services.library_render import chrome_filter_ctx, library_ctx
+from api.services.processing_render import processing_tab_response
 from api.templates import templates
 from cinemateca.errors import IndexMissing
 
@@ -26,9 +26,7 @@ async def api_library_filter(
     )
 
 
-@router.get(
-    "/api/library/tree", response_class=HTMLResponse
-)  # Mojica LeftPane body for HTMX filter swaps
+@router.get("/api/library/tree", response_class=HTMLResponse)
 async def api_library_tree(
     request: Request, q: str = "", slug: str | None = Depends(film_slug_query)
 ) -> HTMLResponse:
@@ -81,7 +79,9 @@ async def api_library_add(
 
     def _error(error_key: str, sub: str = "") -> HTMLResponse | Response:
         if source == "processing":
-            return processing_tab_response(request, error_message=_ERROR_MESSAGES.get(error_key, error_key), sub=sub)
+            return processing_tab_response(
+                request, error_message=_ERROR_MESSAGES.get(error_key, error_key), sub=sub
+            )
         ctx = make_ctx(request, error_key=error_key)
         return templates.TemplateResponse(request, "partials/add_film_form.html", ctx)
 

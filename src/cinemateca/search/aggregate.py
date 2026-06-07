@@ -683,7 +683,7 @@ def aggregate(
 
 def aggregate_image_search(
     cfg: Settings,
-    image_path: "Path | str",
+    image_path: Path | str,
     top_k: int,
 ) -> list[dict]:
     """Run image-similarity search across all registered films.
@@ -711,7 +711,9 @@ def aggregate_image_search(
     for film in scan_library(library_dir):
         try:
             film_ctx = FilmContext.for_film(cfg, film.slug)
-            index = load_index(film_ctx, embeddings_filename=emb_file, mapping_filename=map_file, cfg=cfg)
+            index = load_index(
+                film_ctx, embeddings_filename=emb_file, mapping_filename=map_file, cfg=cfg
+            )
             if not index.ok:
                 continue
             df = _search_image(index, image_path, top_k)

@@ -168,7 +168,7 @@ select = ["E", "F", "I", "UP"]
 ignore = ["E501"]  # linha longa (black já cuida)
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 ignore_missing_imports = true
 warn_unused_configs = true
 warn_unused_ignores = true
