@@ -139,8 +139,7 @@
           hx-target="#search-results"
           hx-indicator="#search-skeleton"
           hx-include="#search-text-form, #search-tag-panel"
-          hx-sync="this:replace"
-          hx-push-url="true">
+          hx-sync="this:replace">
       {# Carry the active film slug into the search GET — without this the
          hx-include only pulls q + tags and the URL-bar ?film=<slug> never
          reaches the API. Omitted entirely for aggregate (no slug). #}

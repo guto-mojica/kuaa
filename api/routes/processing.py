@@ -73,9 +73,7 @@ async def api_pipeline_start(
     return build_start_response(request, cfg, vp, request.cookies.get("active_film", ""))
 
 
-@router.post(
-    "/api/pipeline/enqueue", response_class=HTMLResponse
-)  # queue only, never auto-starts; use /queue/start
+@router.post("/api/pipeline/enqueue", response_class=HTMLResponse)  # queue only, never auto-starts; use /queue/start
 async def api_pipeline_enqueue(
     request: Request, video_path: str = Form(...), steps: list[str] = Form(default=[])
 ) -> HTMLResponse:
@@ -128,9 +126,7 @@ async def api_pipeline_cancel(
     )
 
 
-@router.get(
-    "/api/pipeline/job-card/{job_id}", response_class=HTMLResponse
-)  # full .p-active card for polling refresh
+@router.get("/api/pipeline/job-card/{job_id}", response_class=HTMLResponse)  # full .p-active card for polling refresh
 async def api_pipeline_job_card(request: Request, job_id: str) -> HTMLResponse:
     job = get_job(job_id)
     if job is None:
@@ -141,9 +137,7 @@ async def api_pipeline_job_card(request: Request, job_id: str) -> HTMLResponse:
     )
 
 
-@router.get(
-    "/api/pipeline/stream/{job_id}"
-)  # SSE: log / update / done|error|cancelled (terminal closes stream)
+@router.get("/api/pipeline/stream/{job_id}")  # SSE: log / update / done|error|cancelled (terminal closes stream)
 async def api_pipeline_stream(request: Request, job_id: str) -> StreamingResponse:
     return StreamingResponse(
         build_sse_generator(job_id, request.cookies.get("locale", "pt_BR")),

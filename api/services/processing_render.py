@@ -14,8 +14,11 @@ import logging
 import queue
 from pathlib import Path
 
+from fastapi import Request
+from fastapi.responses import HTMLResponse
+
 from api.contexts import ProcessingContext
-from api.deps import _get_translations, get_config, make_ctx
+from api.deps import _get_translations, get_config, make_ctx, toast_trigger
 from api.jobs import STEP_DEFS, JobState, active_jobs, get_job, pending_jobs
 from api.services.chrome_service import build_chrome_context
 from api.templates import templates
@@ -222,3 +225,22 @@ def build_start_response(request, cfg, video_path: Path, cookie_slug: str):
         "active_film", new_slug, max_age=86400 * 365, httponly=False, samesite="lax"
     )
     return response
+
+
+def processing_tab_response(
+    request: Request,
+    *,
+    error_message: str = "",
+    sub: str = "",
+    new_slug: str = "",
+) -> HTMLResponse:
+    """Render the processing tab partial for the add-film route's processing-source path."""
+    ctx = build_processing_context()
+    resp = templates.TemplateResponse(
+        request,
+        "partials/processing.html",
+        make_ctx(request, active_film=new_slug or "", current_slug=new_slug or "", **ctx),
+    )
+    if error_message:
+        toast_trigger(resp, title=error_message, sub=sub, kind="error")
+    return resp

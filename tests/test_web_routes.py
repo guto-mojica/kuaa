@@ -442,9 +442,10 @@ def test_buscar_renders_modes_and_knobs(client):
     # Outer .b-cp + .search-wrap.
     assert 'class="b-cp"' in html
     assert 'class="search-wrap"' in html
-    # qbar form with the new id + push-url contract.
+    # qbar form present; URL updates are done via server-side HX-Replace-Url
+    # (not hx-push-url="true") so history never accumulates /api/search?… entries.
     assert 'id="search-text-form"' in html
-    assert 'hx-push-url="true"' in html
+    assert 'hx-push-url="true"' not in html
     # Modality chips row.
     assert 'class="modes"' in html
     # 2 modality chips visible. The labels are translated; the

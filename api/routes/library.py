@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse, Response
 
 from api.deps import film_slug_query, get_config, make_ctx, request_gettext, toast_trigger
 from api.services.library_admin import register_and_symlink, resolve_video_path
+from api.services.processing_render import processing_tab_response
 from api.services.library_render import chrome_filter_ctx, library_ctx
 from api.templates import templates
 from cinemateca.errors import IndexMissing
@@ -78,26 +79,9 @@ async def api_library_add(
         "already_in_library": _("This film is already in the library."),
     }
 
-    def _proc_tab_response(
-        *, error_key: str = "", sub: str = "", new_slug: str = ""
-    ) -> HTMLResponse:  # outerHTML swap for both success/error paths
-        from api.services.processing_render import build_processing_context
-
-        ctx = build_processing_context()
-        resp = templates.TemplateResponse(
-            request,
-            "partials/processing.html",
-            make_ctx(request, active_film=new_slug or "", current_slug=new_slug or "", **ctx),
-        )
-        if error_key:
-            toast_trigger(
-                resp, title=_ERROR_MESSAGES.get(error_key, error_key), sub=sub, kind="error"
-            )
-        return resp
-
     def _error(error_key: str, sub: str = "") -> HTMLResponse | Response:
         if source == "processing":
-            return _proc_tab_response(error_key=error_key, sub=sub)
+            return processing_tab_response(request, error_message=_ERROR_MESSAGES.get(error_key, error_key), sub=sub)
         ctx = make_ctx(request, error_key=error_key)
         return templates.TemplateResponse(request, "partials/add_film_form.html", ctx)
 
@@ -124,7 +108,7 @@ async def api_library_add(
             link.symlink_to(video.resolve())
 
     if source == "processing":
-        resp: HTMLResponse | Response = _proc_tab_response(new_slug=slug)
+        resp: HTMLResponse | Response = processing_tab_response(request, new_slug=slug)
         toast_trigger(resp, title=_("Film added"), sub=film_title, kind="success")
         return resp
 

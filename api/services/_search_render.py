@@ -60,11 +60,27 @@ def no_index_response(request: Request) -> HTMLResponse:
 
 
 def render_results(req: Request, *, slug, cfg, results, **extra) -> HTMLResponse:
-    """Enrich and render the results partial."""
+    """Enrich and render the results partial.
+
+    Sets ``HX-Replace-Url`` to a navigable page URL (``/search?q=…``) when a
+    text query is present so the browser URL bar stays bookmarkable without
+    pushing the internal ``/api/search?…`` API URL into history.  Image-search
+    calls omit ``query`` in ``extra``, so they leave the URL bar untouched.
+    """
+    from urllib.parse import urlencode
+
     fbi = search_service.films_by_id_lookup(cfg)
-    return render_search(
+    resp = render_search(
         req, current_slug=slug, results=results, no_index=False, films_by_id=fbi, **extra
     )
+    q = (extra.get("query") or "").strip()
+    if q:
+        params: dict[str, str] = {}
+        if slug:
+            params["film"] = slug
+        params["q"] = q
+        resp.headers["HX-Replace-Url"] = "/search?" + urlencode(params)
+    return resp
 
 
 def enriched_per_film(cfg, ctx: FilmContext, results_df, slug: str | None) -> list[dict]:
