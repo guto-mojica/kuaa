@@ -34,7 +34,7 @@ def library_list(
     films = scan_library(Path(cfg.paths.library_dir))
 
     if not films:
-        print(f"Nenhum filme registrado em {Path(cfg.paths.library_dir)/'films.json'}")
+        print(f"Nenhum filme registrado em {Path(cfg.paths.library_dir) / 'films.json'}")
         return
 
     print(f"{'SLUG':<50}  {'SCENES':>7}  {'PROCESSED':>10}  TITLE")
@@ -90,7 +90,7 @@ def library_reembed(
     library_dir = Path(cfg.paths.library_dir)
     films = scan_library(library_dir)
     if not films:
-        typer.echo(f"✗ Nenhum filme registrado em {library_dir/'films.json'}", err=True)
+        typer.echo(f"✗ Nenhum filme registrado em {library_dir / 'films.json'}", err=True)
         raise typer.Exit(1)
 
     only_set = set(only or [])
@@ -175,7 +175,7 @@ def library_delete(
         raise typer.Exit(1)
 
     if not yes and not typer.confirm(
-        f"Remover {slug!r} e tudo em {library_dir/slug}? (irreversível)"
+        f"Remover {slug!r} e tudo em {library_dir / slug}? (irreversível)"
     ):
         typer.echo("Cancelado.")
         raise typer.Exit(0)

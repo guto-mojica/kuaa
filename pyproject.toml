@@ -120,12 +120,11 @@ where = ["src"]
 # Dev tooling. `uv sync` installs it (it is the only group); excluded from the
 # wheel. Not a [project.optional-dependencies] extra — `pip install -e ".[dev]"`
 # no longer works. Without uv:
-#   pip install -e ".[full]" && pip install pytest pytest-cov black ruff mypy
+#   pip install -e ".[full]" && pip install pytest pytest-cov ruff mypy
 [dependency-groups]
 dev = [
     "pytest>=7.4",
     "pytest-cov>=4.1",
-    "black>=23.0",
     "ruff>=0.1",
     "pre-commit>=4.0",
     "mypy>=1.5",
@@ -154,18 +153,15 @@ e2e = [
 
 # ── Ferramentas de desenvolvimento ────────────────────────────────────────────
 
-[tool.black]
-line-length = 100
-target-version = ["py310", "py311", "py312"]
-
 [tool.ruff]
 line-length = 100
 
+[tool.ruff.format]
+# Black-compatible defaults: double quotes, spaces, trailing commas.
+
 [tool.ruff.lint]
-# Same rule selection as before; moved under [tool.ruff.lint] per the
-# current ruff schema (top-level select/ignore is deprecated).
 select = ["E", "F", "I", "UP"]
-ignore = ["E501"]  # linha longa (black já cuida)
+ignore = ["E501"]  # linha longa (ruff format cuida)
 
 [tool.mypy]
 python_version = "3.11"

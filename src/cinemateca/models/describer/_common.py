@@ -21,15 +21,15 @@ PROMPTS: dict[str, tuple[str, int]] = {
         80,
     ),
     "location": (
-        "Is this scene indoors or outdoors? " "Answer with one word: indoor or outdoor.",
+        "Is this scene indoors or outdoors? Answer with one word: indoor or outdoor.",
         10,
     ),
     "setting": (
-        "Describe the setting in 2-4 words. " "Examples: urban street, rural field, farm, village.",
+        "Describe the setting in 2-4 words. Examples: urban street, rural field, farm, village.",
         20,
     ),
     "time_of_day": (
-        "What time of day is this scene? " "Answer with one word: day, night, or unknown.",
+        "What time of day is this scene? Answer with one word: day, night, or unknown.",
         10,
     ),
     "people_and_action": (
@@ -38,7 +38,7 @@ PROMPTS: dict[str, tuple[str, int]] = {
         30,
     ),
     "objects": (
-        "List the most notable objects in this scene, " "comma-separated. Maximum 6 items.",
+        "List the most notable objects in this scene, comma-separated. Maximum 6 items.",
         40,
     ),
 }

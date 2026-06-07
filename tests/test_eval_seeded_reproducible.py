@@ -93,9 +93,9 @@ def test_same_seed_identical_metrics(tmp_path: Path) -> None:
     run_b = run_retrieval_eval(cfg, dataset, config_path=None, retriever="bm25", top_k=3, seed=1234)
 
     assert run_a.metrics == run_b.metrics, "Two seeded runs produced different metrics"
-    assert (
-        run_a.context["seed"] == 1234
-    ), f"Expected seed=1234 in context, got {run_a.context.get('seed')!r}"
+    assert run_a.context["seed"] == 1234, (
+        f"Expected seed=1234 in context, got {run_a.context.get('seed')!r}"
+    )
     assert run_b.context["seed"] == 1234
 
 
@@ -149,6 +149,6 @@ def test_run_eval_cli_records_seed(tmp_path: Path) -> None:
 
     payload = json.loads(summary_path.read_text(encoding="utf-8"))
     assert "context" in payload, "summary.json missing 'context' key"
-    assert (
-        payload["context"].get("seed") == 7
-    ), f"Expected context.seed==7, got {payload['context'].get('seed')!r}"
+    assert payload["context"].get("seed") == 7, (
+        f"Expected context.seed==7, got {payload['context'].get('seed')!r}"
+    )

@@ -309,9 +309,9 @@ def test_aggregate_bm25_mode_returns_bm25_hits(two_film_library_cfg: object) -> 
     # Every BM25 hit must be from a scene whose description contains
     # "menina" — never the high-CLIP-score scenes (A:1, B:0).
     expected_pairs = {("a", 0), ("b", 1)}
-    assert (
-        bm25_pairs <= expected_pairs
-    ), f"BM25-mode hits leaked non-'menina' scenes: {bm25_pairs - expected_pairs}"
+    assert bm25_pairs <= expected_pairs, (
+        f"BM25-mode hits leaked non-'menina' scenes: {bm25_pairs - expected_pairs}"
+    )
 
 
 def test_aggregate_bm25_mode_respects_tag_filter(

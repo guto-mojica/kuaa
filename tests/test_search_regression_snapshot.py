@@ -115,11 +115,11 @@ def test_pre_m2_snapshot_matches_or_updates(regression_client: TestClient) -> No
         SNAPSHOT_PATH.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False) + "\n")
         pytest.skip(f"Snapshot updated at {SNAPSHOT_PATH}")
 
-    assert (
-        SNAPSHOT_PATH.exists()
-    ), "Snapshot missing. Run with UPDATE_HYBRID_SNAPSHOT=1 against pre-M2 main."
+    assert SNAPSHOT_PATH.exists(), (
+        "Snapshot missing. Run with UPDATE_HYBRID_SNAPSHOT=1 against pre-M2 main."
+    )
     expected: dict[str, list[int]] = json.loads(SNAPSHOT_PATH.read_text())
     for q, ids in snapshot.items():
-        assert (
-            ids == expected[q]
-        ), f"Snapshot drift for query={q!r}: got {ids}, expected {expected[q]}"
+        assert ids == expected[q], (
+            f"Snapshot drift for query={q!r}: got {ids}, expected {expected[q]}"
+        )

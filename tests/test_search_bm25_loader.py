@@ -119,9 +119,9 @@ def test_clear_index_cache_also_clears_bm25_lru_cache(tmp_path: Path) -> None:
 
     ctx = _make_ctx(tmp_path)
     _ = _get_bm25_index_for_ctx(ctx)
-    assert (
-        _cached_bm25_index.cache_info().currsize >= 1
-    ), "sanity check: BM25 loader must populate the lru_cache"
+    assert _cached_bm25_index.cache_info().currsize >= 1, (
+        "sanity check: BM25 loader must populate the lru_cache"
+    )
     clear_index_cache()
     assert _cached_bm25_index.cache_info().currsize == 0, (
         "clear_index_cache() must also flush _cached_bm25_index — "

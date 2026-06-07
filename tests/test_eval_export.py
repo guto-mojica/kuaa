@@ -39,7 +39,7 @@ def test_export_run_collapses_to_graded_structure(tmp_path: Path) -> None:
 
     # q1/s1 must show the LATEST grade (HIGHLY_RELEVANT = 3), not IRRELEVANT (0).
     assert result["grades"]["q1"]["s1"] == int(Grade.HIGHLY_RELEVANT), (
-        "expected latest grade (HIGHLY_RELEVANT=3), " f"got {result['grades']['q1']['s1']!r}"
+        f"expected latest grade (HIGHLY_RELEVANT=3), got {result['grades']['q1']['s1']!r}"
     )
 
     # q1/s2 grade.
@@ -49,9 +49,9 @@ def test_export_run_collapses_to_graded_structure(tmp_path: Path) -> None:
     assert result["grades"]["q2"]["s3"] == int(Grade.WEAKLY)
 
     # Summary: 3 distinct (qid, sid) pairs (q1/s1, q1/s2, q2/s3).
-    assert (
-        result["summary"]["distinct_pairs"] == 3
-    ), f"expected 3 distinct pairs, got {result['summary']['distinct_pairs']}"
+    assert result["summary"]["distinct_pairs"] == 3, (
+        f"expected 3 distinct pairs, got {result['summary']['distinct_pairs']}"
+    )
     assert result["summary"]["queries"] == 2
     assert result["summary"]["graders"] == 2
 

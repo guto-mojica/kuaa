@@ -71,9 +71,9 @@ def test_find_rhymes_lambda_half_diversifies_top_n(tmp_path: Path) -> None:
     )
     # MMR should knock out at least one near-dup in favour of #4 or #5.
     scene_ids = {r.scene_id for r in out}
-    assert (4 in scene_ids) or (
-        5 in scene_ids
-    ), f"MMR failed to break near-dup cluster: {scene_ids}"
+    assert (4 in scene_ids) or (5 in scene_ids), (
+        f"MMR failed to break near-dup cluster: {scene_ids}"
+    )
 
 
 def test_find_rhymes_backward_compat_default_args(tmp_path: Path) -> None:

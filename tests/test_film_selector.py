@@ -130,9 +130,9 @@ class TestFilmSelectorSelection:
             "ch-film--all must carry .active in aggregate mode"
         )
         # No individual film row (identified by data-slug) should be active.
-        assert not re.search(
-            r'class="ch-film[^"]*\bactive\b[^"]*"[^>]*data-slug=', r.text
-        ), "no per-film row should carry .active when no slug is selected"
+        assert not re.search(r'class="ch-film[^"]*\bactive\b[^"]*"[^>]*data-slug=', r.text), (
+            "no per-film row should carry .active when no slug is selected"
+        )
 
     def test_film_a_slug_marks_film_a_active(self, two_film_client):
         """?film=film_a → only the film_a row carries .active."""
@@ -336,9 +336,9 @@ class TestFilmSelectorEmpty:
         assert r.status_code == 200
         # The permanent "All films" entry is always present.
         assert 'class="ch-film' in r.text
-        assert 'ch-film--all' in r.text
+        assert "ch-film--all" in r.text
         # No per-film row (identified by data-slug) should appear.
-        assert 'data-slug=' not in r.text
+        assert "data-slug=" not in r.text
         # Empty-state copy is rendered as a fallback.
         assert "No films in library" in r.text or "Sem filmes" in r.text
 

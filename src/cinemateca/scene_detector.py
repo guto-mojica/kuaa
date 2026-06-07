@@ -83,7 +83,7 @@ class SceneDetector:
         """
         if not _SCENEDETECT_AVAILABLE:
             raise RuntimeError(
-                "PySceneDetect não instalado. " "Execute: pip install scenedetect[opencv]"
+                "PySceneDetect não instalado. Execute: pip install scenedetect[opencv]"
             )
 
         video_path = Path(video_path)

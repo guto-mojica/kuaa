@@ -377,8 +377,7 @@ def _primary_film_slug(library_dir: Path, queries: list[ModalQuery]) -> str:
             candidates.append((n, child.name))
     if not candidates:
         raise EvalError(
-            f"no per-film CLIP index found under {library_dir} — cannot run the "
-            "ablation text rows"
+            f"no per-film CLIP index found under {library_dir} — cannot run the ablation text rows"
         )
     candidates.sort(reverse=True)
     return candidates[0][1]

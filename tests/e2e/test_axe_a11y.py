@@ -66,9 +66,9 @@ def _assert_axe_clean(page: Any, axe_source: str, *, surface: str) -> None:
     """Run axe on the current page state and assert zero serious/critical."""
     violations = run_axe(page, axe_source)
     blocking = _blocking(violations)
-    assert (
-        not blocking
-    ), f"{surface}: {len(blocking)} serious/critical axe violation(s):\n" + _explain(blocking)
+    assert not blocking, (
+        f"{surface}: {len(blocking)} serious/critical axe violation(s):\n" + _explain(blocking)
+    )
 
 
 # ── Main tabs + standalone About page ──────────────────────────────────────

@@ -126,9 +126,9 @@ def test_every_shipped_backend_references_a_real_card():
         assert card.backend in CARDS, f"{label}.CARD.backend {card.backend!r} not in CARDS"
         # Identity, not just equality: the backend must point at the canonical
         # manifest object, so docs/provenance renderers and the backend agree.
-        assert (
-            CARDS[card.backend] is card
-        ), f"{label}.CARD is not the canonical CARDS[{card.backend!r}] object"
+        assert CARDS[card.backend] is card, (
+            f"{label}.CARD is not the canonical CARDS[{card.backend!r}] object"
+        )
 
 
 def test_shipped_backends_cover_every_card_exactly_once():
@@ -140,9 +140,9 @@ def test_shipped_backends_cover_every_card_exactly_once():
     referenced = [card.backend for card in _shipped_backend_cards().values()]
     # No backend id is claimed twice (each card maps to exactly one backend).
     assert len(referenced) == len(set(referenced)), f"duplicate backend links: {referenced}"
-    assert set(referenced) == set(
-        CARDS
-    ), f"backend↔manifest mismatch (symmetric diff): {set(referenced) ^ set(CARDS)}"
+    assert set(referenced) == set(CARDS), (
+        f"backend↔manifest mismatch (symmetric diff): {set(referenced) ^ set(CARDS)}"
+    )
 
 
 def test_mclip_has_no_card_does_not_inherit_openclip():

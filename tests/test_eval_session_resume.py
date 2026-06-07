@@ -73,16 +73,16 @@ def test_resume_picks_first_ungraded_for_grader(
     # Grader "rg" has graded query 1 — should resume to query 2.
     ctx_rg = eval_service.build_eval_context(cfg, request=_fake_request("rg"))
     assert ctx_rg["current_query"] is not None
-    assert (
-        str(ctx_rg["current_query"]["id"]) == "2"
-    ), f"expected resume to query 2, got {ctx_rg['current_query']['id']!r}"
+    assert str(ctx_rg["current_query"]["id"]) == "2", (
+        f"expected resume to query 2, got {ctx_rg['current_query']['id']!r}"
+    )
 
     # Grader "fresh" has no grades — should start at query 1 (back-compat).
     ctx_fresh = eval_service.build_eval_context(cfg, request=_fake_request("fresh"))
     assert ctx_fresh["current_query"] is not None
-    assert (
-        str(ctx_fresh["current_query"]["id"]) == "1"
-    ), f"expected fresh grader at query 1, got {ctx_fresh['current_query']['id']!r}"
+    assert str(ctx_fresh["current_query"]["id"]) == "1", (
+        f"expected fresh grader at query 1, got {ctx_fresh['current_query']['id']!r}"
+    )
 
 
 def test_resume_all_graded_falls_back_to_first(

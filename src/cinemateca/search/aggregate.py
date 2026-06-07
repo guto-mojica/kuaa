@@ -230,7 +230,7 @@ def _film_bm25_hits(
         bm25 = None
     if bm25 is None or bm25.model is None:
         logger.info(
-            "aggregate_search: film=%s bm25 empty; no BM25 entries " "(mode=%s requested)",
+            "aggregate_search: film=%s bm25 empty; no BM25 entries (mode=%s requested)",
             film.slug,
             sctx.retriever_mode,
         )

@@ -167,7 +167,7 @@ uv venv                       # creates .venv using the .python-version pin
 uv sync --extra full --group dev   # full extra + dev tooling group
 # Fallback without uv (no lockfile, so this still works identically):
 #   python3 -m venv .venv && source .venv/bin/activate
-#   pip install -e ".[full]" && pip install pytest pytest-cov black ruff mypy
+#   pip install -e ".[full]" && pip install pytest pytest-cov ruff mypy
 
 # Unified CLI (Typer) — discoverable via --help at every level.
 uv run cinemateca --help                       # command tree
@@ -208,7 +208,7 @@ uv run pybabel compile -d web/locales/
 # header-only (identical msgstrs) is noise — discard it, don't commit it.
 
 # Lint / format / typecheck (run before committing)
-uv run black .
+uv run ruff format .
 uv run ruff check .
 uv run mypy src
 ```

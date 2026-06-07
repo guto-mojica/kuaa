@@ -131,9 +131,9 @@ CARDS: dict[str, ModelCard] = {
 }
 
 # Invariant: every card's .backend must equal its CARDS key.
-assert all(
-    card.backend == key for key, card in CARDS.items()
-), "CARDS invariant violated: card.backend must equal its key"
+assert all(card.backend == key for key, card in CARDS.items()), (
+    "CARDS invariant violated: card.backend must equal its key"
+)
 
 
 def get_card(backend: str) -> ModelCard:

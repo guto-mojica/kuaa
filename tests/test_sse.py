@@ -147,7 +147,7 @@ def test_stream_emits_typed_update_then_single_done(sse_client):
     assert events.count("done") == 1, f"expected exactly one done: {events}"
     assert "error" not in events, f"unexpected error frame: {events}"
     assert "message" not in events, (
-        f"generic untyped 'message' frame emitted — server must type " f"every frame: {events}"
+        f"generic untyped 'message' frame emitted — server must type every frame: {events}"
     )
     # The terminal frame is the LAST frame (generator stops after it).
     assert events[-1] == "done", f"done must be the final frame: {events}"

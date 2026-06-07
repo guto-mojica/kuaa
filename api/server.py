@@ -102,8 +102,7 @@ _OPENAPI_TAGS = [
     {
         "name": "eval",
         "description": (
-            "Eval-set grading and retrieval-quality metrics (admin-gated by "
-            "``EVAL_ADMIN_TOKEN``)."
+            "Eval-set grading and retrieval-quality metrics (admin-gated by ``EVAL_ADMIN_TOKEN``)."
         ),
     },
     {

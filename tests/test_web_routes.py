@@ -1878,9 +1878,9 @@ def test_add_film_success_redirects_to_processing(tmp_config, client):
     )
     assert r.status_code == 200, r.text[:300]
     redirect = r.headers.get("HX-Redirect", "")
-    assert redirect.startswith(
-        "/processing"
-    ), f"add-film success must HX-Redirect to /processing, got: {redirect!r}"
+    assert redirect.startswith("/processing"), (
+        f"add-film success must HX-Redirect to /processing, got: {redirect!r}"
+    )
     assert "novo_filme" in redirect, "redirect URL should contain the film slug"
 
 

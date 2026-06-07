@@ -171,7 +171,7 @@ def _load_and_validate(emb_path: Path, map_path: Path) -> SearchIndex:
     declared = mapping.get("total_vectors")
     if n_emb != n_map:
         logger.warning(
-            "Corrupt search index: %d embedding rows vs %d keyframe-map " "rows (%s)",
+            "Corrupt search index: %d embedding rows vs %d keyframe-map rows (%s)",
             n_emb,
             n_map,
             emb_path.parent,
@@ -182,8 +182,7 @@ def _load_and_validate(emb_path: Path, map_path: Path) -> SearchIndex:
         )
     if declared is not None and declared != n_map:
         logger.warning(
-            "Corrupt search index: mapping declares total_vectors=%s but "
-            "has %d keyframe rows (%s)",
+            "Corrupt search index: mapping declares total_vectors=%s but has %d keyframe rows (%s)",
             declared,
             n_map,
             emb_path.parent,

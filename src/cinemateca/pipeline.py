@@ -179,9 +179,9 @@ class PipelineResult:
 
     def summary(self) -> str:
         lines = [
-            f"\n{'='*60}",
+            f"\n{'=' * 60}",
             f"PIPELINE — {Path(self.video_path).name}",
-            f"{'='*60}",
+            f"{'=' * 60}",
         ]
         for step in self.steps:
             if step.skipped:
@@ -193,7 +193,7 @@ class PipelineResult:
             lines.append(f"  {step.name:<25} {status}")
             if step.error:
                 lines.append(f"    → {step.error}")
-        lines.append(f"{'='*60}")
+        lines.append(f"{'=' * 60}")
         lines.append(f"  Total: {self.total_duration_s:.1f}s")
         lines.append(f"  Status: {'✓ OK' if self.success else '✗ COM ERROS'}")
         return "\n".join(lines)
@@ -759,9 +759,7 @@ class CatalogPipeline:
             blocked_reason: str | None = None
             for dep in STEP_DEPS[name]:
                 if dep in outcome and outcome[dep] not in ("done", "skipped"):
-                    blocked_reason = (
-                        f"prerequisite '{dep}' did not succeed " f"(state: {outcome[dep]})"
-                    )
+                    blocked_reason = f"prerequisite '{dep}' did not succeed (state: {outcome[dep]})"
                     break
             if blocked_reason is None and not self._inputs_available(name, keyframes_dir):
                 blocked_reason = f"required input artefacts for '{name}' are missing"

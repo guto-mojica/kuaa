@@ -31,8 +31,7 @@ def info(
         print(f"  Resolução : {props['width']}x{props['height']}")
         print(f"  FPS       : {props['fps']:.2f}")
         print(
-            f"  Duração   : {props['duration_minutes']:.1f} min "
-            f"({props['duration_seconds']:.1f}s)"
+            f"  Duração   : {props['duration_minutes']:.1f} min ({props['duration_seconds']:.1f}s)"
         )
         print(f"  Frames    : {props['total_frames']:,}")
         print(f"  Codec     : {props['codec']}")

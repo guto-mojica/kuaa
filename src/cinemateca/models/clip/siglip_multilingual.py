@@ -100,8 +100,7 @@ class SiglipMultilingualEmbedder:
                     from transformers import AutoProcessor as _AP
                 except ImportError as exc:  # pragma: no cover - dep guard
                     raise RuntimeError(
-                        "SigLIP backend requires 'transformers'. "
-                        "Install via: uv sync --extra full"
+                        "SigLIP backend requires 'transformers'. Install via: uv sync --extra full"
                     ) from exc
                 AutoModel = _AM
                 AutoProcessor = _AP

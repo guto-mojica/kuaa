@@ -51,9 +51,9 @@ def test_error_maps_to_status_and_envelope(client, exc, expected) -> None:
     app.include_router(router)
     try:
         r = client.get(path, headers={"accept": "application/json"})
-        assert (
-            r.status_code == expected
-        ), f"{type(exc).__name__}: got {r.status_code}, want {expected}"
+        assert r.status_code == expected, (
+            f"{type(exc).__name__}: got {r.status_code}, want {expected}"
+        )
         body = r.json()
         assert set(body) >= {"error", "code", "status"}, f"missing envelope keys: {set(body)}"
         assert body["status"] == expected
@@ -122,9 +122,9 @@ def test_htmx_request_gets_error_partial_not_json(client) -> None:
     try:
         r = client.get("/__test_raise_htmx", headers={"HX-Request": "true"})
         assert r.status_code == 400, f"got {r.status_code}"
-        assert (
-            "text/html" in r.headers["content-type"]
-        ), f"expected text/html, got {r.headers['content-type']}"
+        assert "text/html" in r.headers["content-type"], (
+            f"expected text/html, got {r.headers['content-type']}"
+        )
     finally:
         app.router.routes[:] = [
             rt for rt in app.router.routes if getattr(rt, "path", "") != "/__test_raise_htmx"

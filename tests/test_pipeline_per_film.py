@@ -190,15 +190,15 @@ def test_pipeline_per_film_does_not_write_to_flat_paths(tmp_path):
     p.run("video.mp4")
 
     # Legacy flat dirs must NOT have been created by this run.
-    assert not (
-        tmp_path / "legacy_frames"
-    ).exists(), "Pipeline should not write to flat legacy frames_dir when slug is set"
-    assert not (
-        tmp_path / "legacy_meta"
-    ).exists(), "Pipeline should not write to flat legacy metadata_dir when slug is set"
-    assert not (
-        tmp_path / "legacy_embeddings"
-    ).exists(), "Pipeline should not write to flat legacy embeddings_dir when slug is set"
+    assert not (tmp_path / "legacy_frames").exists(), (
+        "Pipeline should not write to flat legacy frames_dir when slug is set"
+    )
+    assert not (tmp_path / "legacy_meta").exists(), (
+        "Pipeline should not write to flat legacy metadata_dir when slug is set"
+    )
+    assert not (tmp_path / "legacy_embeddings").exists(), (
+        "Pipeline should not write to flat legacy embeddings_dir when slug is set"
+    )
 
 
 def test_pipeline_registers_film_in_films_json(tmp_path):
@@ -310,9 +310,9 @@ def test_cli_slug_default_is_slugified_stem(tmp_path, monkeypatch):
     with pytest.raises(SystemExit):
         main_mod.main()
 
-    assert (
-        captured.get("slug") == "my_film_2001"
-    ), f"Expected slug 'my_film_2001', got {captured.get('slug')!r}"
+    assert captured.get("slug") == "my_film_2001", (
+        f"Expected slug 'my_film_2001', got {captured.get('slug')!r}"
+    )
 
 
 def test_cli_explicit_slug_is_forwarded(tmp_path, monkeypatch):

@@ -47,9 +47,9 @@ def test_api_search_reranker_enabled_logged(client, caplog) -> None:
             params={"q": "menina", "reranker_enabled": "true"},
         )
     assert resp.status_code in (200, 204)
-    assert any(
-        "reranker_enabled=True" in r.getMessage() for r in caplog.records
-    ), "expected api_search INFO log to echo reranker_enabled=True"
+    assert any("reranker_enabled=True" in r.getMessage() for r in caplog.records), (
+        "expected api_search INFO log to echo reranker_enabled=True"
+    )
 
 
 def test_api_search_threads_reranker_toggle_into_result_adapter(client, monkeypatch) -> None:

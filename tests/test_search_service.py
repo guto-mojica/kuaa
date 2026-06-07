@@ -753,6 +753,6 @@ class TestAggregateSearchDedup:
 
         hits = csa.aggregate_search(cfg, query="x", modality="text", top_k=10)
         assert len(hits) == 1
-        assert (
-            hits[0]["keyframe_path"] == "kf_02.jpg"
-        ), f"expected best-matching keyframe (kf_02), got {hits[0]['keyframe_path']}"
+        assert hits[0]["keyframe_path"] == "kf_02.jpg", (
+            f"expected best-matching keyframe (kf_02), got {hits[0]['keyframe_path']}"
+        )
