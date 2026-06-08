@@ -124,10 +124,27 @@ data/raw/_upload_*
 
 # ─── Private working docs ─────────────────────────────────────────────────────
 # Internal planning notes, design drafts, and per-run working checklists. Kept
-# locally for the author; not part of the public portfolio surface.
+# locally for the author; not part of the public surface.
 .notes/
 PORTFOLIO_FIXES.md
 FEATURE_PROOF.md
+preparation_to_presentation.md
+
+# Internal developer docs — agent plans, conversation logs, resume material, etc.
+docs/superpowers/
+docs/conversations/
+docs/plans/
+docs/archive/
+docs/launch/
+docs/INTERVIEW_PREP.md
+docs/RESUME_BULLETS.md
+docs/PUBLIC_REPO_CURATION.md
+docs/UI_WIRING_AUDIT.md
+
+# One-off internal analysis scripts
+scripts/analyze_failures.py
+scripts/analyze_pt_gap.py
+scripts/analyze_pt_gap_evaluable.py
 
 # ─── Sistema operacional ──────────────────────────────────────────────────────
 .DS_Store
@@ -157,8 +174,3 @@ mojica_design_handoff.zip
 docs/engine-api-analysis.html
 docs/screenshots_old_interface/
 
-# ─── Private worktree-local reports ───────────────────────────────────────────
-# Working checklists / internal verification notes. Live next to the worktree
-# root for quick reference; intentionally not part of the public history.
-PORTFOLIO_FIXES.md
-FEATURE_PROOF.md
