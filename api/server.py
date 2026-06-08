@@ -244,9 +244,15 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     # and validate against the library directory so a stale cookie or wrong-
     # cased slug doesn't propagate a ValueError into every service call.
     if _raw_slug:
+        from cinemateca.library import load_registry as _load_registry
+
         _raw_slug = _raw_slug.lower()
         _film_dir = Path(cfg.paths.library_dir) / _raw_slug
-        current_slug: str | None = _raw_slug if _film_dir.is_dir() else None
+        # Disk presence alone is insufficient: orphaned directories (film removed
+        # from registry but directory left on disk) pass is_dir() but crash
+        # downstream at FilmContext.for_film which gates on the registry.
+        _registry = _load_registry(Path(cfg.paths.library_dir))
+        current_slug: str | None = _raw_slug if (_film_dir.is_dir() and _raw_slug in _registry) else None
     else:
         current_slug = None
 

@@ -94,10 +94,18 @@ def film_slug_query(
         return None
     from pathlib import Path
 
+    from cinemateca.library import load_registry
+
     slug = film.lower()
     cfg = get_config()
     film_dir = Path(cfg.paths.library_dir) / slug
-    return slug if film_dir.is_dir() else None
+    if not film_dir.is_dir():
+        return None
+    # Disk presence alone is insufficient: orphaned directories (film removed
+    # from registry but directory left on disk) would pass is_dir() and then
+    # crash downstream at FilmContext.for_film which gates on the registry.
+    registry = load_registry(Path(cfg.paths.library_dir))
+    return slug if slug in registry else None
 
 
 def request_gettext(request: Request):
