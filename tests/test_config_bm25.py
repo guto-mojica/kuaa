@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from cinemateca.config import load_config
+from kuaa.config import load_config
 
 
 def test_bm25_defaults_loaded() -> None:

@@ -4,7 +4,7 @@ Provides the data the redesigned About modal/page renders (Task 29 of the
 Mojica frame redesign). The surface has five named blocks:
 
   * **Stats strip** — 4 cells (films, scenes, runtime, year range).
-    Sourced from :func:`cinemateca.library.scan_library` and
+    Sourced from :func:`kuaa.library.scan_library` and
     :func:`library_state`; runtime is best-effort (``Film`` does not carry
     a runtime field yet, so the cell falls back to ``"—"``).
   * **Model attributions** — one card per shipped model (CLIP / Moondream /
@@ -38,7 +38,7 @@ from pathlib import Path
 from typing import Any
 
 from api.services._about_data import credits_list, model_attributions, tech_stack
-from cinemateca import library
+from kuaa import library
 
 __all__ = [
     "model_attributions",
@@ -55,7 +55,7 @@ __all__ = [
 def about_stats(cfg) -> dict[str, Any]:
     """Aggregate library statistics for the 4-cell stats strip.
 
-    Computed lazily from :func:`cinemateca.library.scan_library` —
+    Computed lazily from :func:`kuaa.library.scan_library` —
     cheap (a few JSON reads + a directory scan) but never cached at this
     layer because the library can change between requests (films can be
     added / processed / deleted live).
@@ -123,7 +123,7 @@ def mosaic_keyframes(cfg, *, limit: int = 24) -> list[str]:
 def _read_project_version() -> str:
     """Return the runtime package version, or a sensible fallback."""
     try:
-        from cinemateca import __version__ as v
+        from kuaa import __version__ as v
 
         return v
     except Exception:

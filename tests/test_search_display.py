@@ -1,8 +1,8 @@
-"""Unit tests for cinemateca.search.display — degenerate-tag filtering."""
+"""Unit tests for kuaa.search.display — degenerate-tag filtering."""
 
 from __future__ import annotations
 
-from cinemateca.search.display import filter_degenerate_tags, is_degenerate_tag
+from kuaa.search.display import filter_degenerate_tags, is_degenerate_tag
 
 
 def test_keeps_curated_tags():

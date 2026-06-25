@@ -1,4 +1,4 @@
-"""Unit tests for cinemateca.search._results + cinemateca.search._lookup.
+"""Unit tests for kuaa.search._results + kuaa.search._lookup.
 
 The plan-mandated tests for T8. ``TestResultsToDicts`` in
 ``tests/test_search_service.py`` and
@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from cinemateca.search._lookup import mojica_search_defaults
-from cinemateca.search._results import results_to_dicts
+from kuaa.search._lookup import mojica_search_defaults
+from kuaa.search._results import results_to_dicts
 
 
 def test_results_to_dicts_without_meta(tmp_path):

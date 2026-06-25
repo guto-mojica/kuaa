@@ -7,16 +7,16 @@ import sys
 import numpy as np
 import pytest
 
-import cinemateca.search  # noqa: F401 — ensures the package is imported so sys.modules is populated
-import cinemateca.search._dispatch as dispatch_mod
-from cinemateca.search._dispatch import find
-from cinemateca.search.cache import IndexStatus, SearchIndex
-from cinemateca.search.types import Query, SearchResult
+import kuaa.search  # noqa: F401 — ensures the package is imported so sys.modules is populated
+import kuaa.search._dispatch as dispatch_mod
+from kuaa.search._dispatch import find
+from kuaa.search.cache import IndexStatus, SearchIndex
+from kuaa.search.types import Query, SearchResult
 
-# NOTE: cinemateca.search.__init__ re-exports `rerank` (the function),
+# NOTE: kuaa.search.__init__ re-exports `rerank` (the function),
 # which shadows the submodule attribute. Fetch the module via sys.modules
 # so monkeypatch.setattr targets the real module object's _load_reranker symbol.
-rerank_mod = sys.modules["cinemateca.search.rerank"]
+rerank_mod = sys.modules["kuaa.search.rerank"]
 
 
 @pytest.fixture()

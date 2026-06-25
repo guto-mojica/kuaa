@@ -8,16 +8,16 @@ from __future__ import annotations
 
 
 def test_config_public_surface():
-    from cinemateca.config import Settings, load_config  # noqa: F401
+    from kuaa.config import Settings, load_config  # noqa: F401
 
     cfg = load_config(ensure_dirs=False)
     assert isinstance(cfg, Settings)
 
 
 def test_errors_public_surface():
-    from cinemateca.errors import (  # noqa: F401
+    from kuaa.errors import (  # noqa: F401
         ArtefactError,
-        CinematecaError,
+        KuaaError,
         ConfigError,
         IndexMissing,
         ModelError,
@@ -26,11 +26,11 @@ def test_errors_public_surface():
         UserInputError,
     )
 
-    assert issubclass(ConfigError, CinematecaError)
+    assert issubclass(ConfigError, KuaaError)
 
 
 def test_reproducibility_public_surface():
-    from cinemateca.reproducibility import seed_everything
+    from kuaa.reproducibility import seed_everything
 
     seed_everything(0)  # callable, no raise
 
@@ -42,7 +42,7 @@ def test_snapshot_public_surface():
 
 
 def test_timing_public_surface():
-    from cinemateca.timing import timed
+    from kuaa.timing import timed
 
     with timed("x") as t:
         pass
@@ -50,9 +50,9 @@ def test_timing_public_surface():
 
 
 def test_manifest_and_registry_card_surface():
-    from cinemateca.config import load_config
-    from cinemateca.models.manifest import ModelCard  # noqa: F401
-    from cinemateca.models.registry import model_card
+    from kuaa.config import load_config
+    from kuaa.models.manifest import ModelCard  # noqa: F401
+    from kuaa.models.registry import model_card
 
     cfg = load_config(ensure_dirs=False)
     assert model_card(cfg, "image_embedder").role == "image_embedder"

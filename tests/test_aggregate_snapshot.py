@@ -1,7 +1,7 @@
 """C1 — golden snapshot of aggregate_search. Byte-identical across the decomposition.
 
 Drives the cross-film ``aggregate_search`` (the global-RRF function in
-``cinemateca.search.aggregate``) over a hermetic 2-film fixture across all
+``kuaa.search.aggregate``) over a hermetic 2-film fixture across all
 three retriever modes and pins the returned hit list to a golden file. The
 snapshot is recorded from the CURRENT (pre-C1) code and MUST stay
 byte-identical through every extraction step — any drift means a unit's
@@ -23,12 +23,12 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-import cinemateca.search.aggregate as _agg  # noqa: F401 — ensure loaded
-from cinemateca.library import register_film
-from cinemateca.search.aggregate import aggregate_search
+import kuaa.search.aggregate as _agg  # noqa: F401 — ensure loaded
+from kuaa.library import register_film
+from kuaa.search.aggregate import aggregate_search
 from tests._snapshot import assert_snapshot
 
-_AGG_MOD = sys.modules["cinemateca.search.aggregate"]
+_AGG_MOD = sys.modules["kuaa.search.aggregate"]
 
 
 def _make_film(library_dir: Path, slug: str, vectors: list[list[float]]) -> None:

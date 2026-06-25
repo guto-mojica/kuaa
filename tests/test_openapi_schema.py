@@ -24,7 +24,7 @@ def test_openapi_declares_response_models(client) -> None:
 def test_docs_and_redoc_render(client) -> None:
     assert client.get("/docs").status_code == 200
     assert client.get("/redoc").status_code == 200
-    assert "Cinemateca" in client.get("/docs").text
+    assert "KUAA" in client.get("/docs").text
 
 
 def test_metrics_response_validates_against_model(client, monkeypatch) -> None:

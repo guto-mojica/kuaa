@@ -371,7 +371,7 @@ def test_vendored_phosphor_assets_present():
 # step, so only genuinely-bare prose survives to be flagged.
 #
 # WHAT IS ALLOWLISTED (and why it is legitimately non-translatable):
-#   * Brand / product names — "Cinemateca", "Mojica", "EVAL" (mode badge
+#   * Brand / product names — "KUAA", "EVAL" (mode badge
 #     on the internal eval shell). Fixed by the project vocabulary.
 #   * Language-switcher codes — "PT", "EN" (universal language abbrevs;
 #     the switcher's own aria-label *is* translated via _('Language')).
@@ -417,8 +417,7 @@ _USER_FACING_ATTRS = (
 _ALLOWED_TOKENS = frozenset(
     {
         # Brand / product
-        "Cinemateca",
-        "Mojica",
+        "KUAA",
         "EVAL",
         # Language-switcher codes
         "PT",
@@ -542,7 +541,7 @@ def test_bare_string_guard_has_teeth():
     assert _is_bare_prose("dir. Watson")  # abbrev + name reads as prose
     # Legitimately non-translatable → not flagged.
     assert not _is_bare_prose("cosine")
-    assert not _is_bare_prose("Cinemateca Mojica")
+    assert not _is_bare_prose("KUAA")
     assert not _is_bare_prose("PT")
     assert not _is_bare_prose("sem⊕bm25⊕rk")
     assert not _is_bare_prose("k=  · MMR λ")  # k={n} · MMR λ readout

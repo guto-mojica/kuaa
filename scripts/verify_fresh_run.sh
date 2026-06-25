@@ -6,7 +6,7 @@
 # What it does:
 #   1. Export the current HEAD to a scratch dir (a pristine "fresh clone").
 #   2. `uv sync --extra <extra> --group dev` in that dir (isolated .venv).
-#   3. Boot `uv run cinemateca serve` on a free port.
+#   3. Boot `uv run kuaa serve` on a free port.
 #   4. Poll GET /health until 200 (or fail after a timeout).
 #   5. Tear the server down; clean up; report PASS/FAIL.
 #
@@ -54,7 +54,7 @@ command -v uv >/dev/null 2>&1 || {
   exit 1
 }
 
-WORK="$(mktemp -d -t cinemateca-fresh-XXXXXX)"
+WORK="$(mktemp -d -t kuaa-fresh-XXXXXX)"
 SERVER_PID=""
 
 cleanup() {
@@ -75,8 +75,8 @@ git -C "$REPO_ROOT" archive --format=tar HEAD | tar -x -C "$WORK"
 echo "==> 2/4  uv sync --extra ${EXTRA} --group dev (cold; first run may take a few minutes)"
 ( cd "$WORK" && uv sync --extra "$EXTRA" --group dev )
 
-echo "==> 3/4  booting: uv run cinemateca serve --host 127.0.0.1 --port ${PORT} --no-reload"
-( cd "$WORK" && uv run cinemateca serve --host 127.0.0.1 --port "$PORT" --no-reload ) \
+echo "==> 3/4  booting: uv run kuaa serve --host 127.0.0.1 --port ${PORT} --no-reload"
+( cd "$WORK" && uv run kuaa serve --host 127.0.0.1 --port "$PORT" --no-reload ) \
   > "$WORK/server.log" 2>&1 &
 SERVER_PID=$!
 

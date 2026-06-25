@@ -60,7 +60,7 @@ def test_search_context_has_all_declared_keys(seed_metadata) -> None:
 
     from api.contexts import SearchContext
     from api.deps import get_config
-    from cinemateca.search._lookup import build_search_context_aggregate
+    from kuaa.search._lookup import build_search_context_aggregate
 
     ctx = build_search_context_aggregate(get_config())
     required = _required_keys(SearchContext)

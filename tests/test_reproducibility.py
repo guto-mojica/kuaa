@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from cinemateca.reproducibility import make_generator, seed_everything
+from kuaa.reproducibility import make_generator, seed_everything
 
 
 def test_seed_everything_makes_python_and_numpy_deterministic():

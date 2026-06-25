@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from cinemateca.retrieval.tokenize import tokenize
+from kuaa.retrieval.tokenize import tokenize
 
 
 def test_lowercases_and_strips_punctuation() -> None:

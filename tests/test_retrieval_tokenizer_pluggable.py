@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from cinemateca.retrieval.tokenize import (
+from kuaa.retrieval.tokenize import (
     RegexTokenizer,
     Tokenizer,
     get_tokenizer,

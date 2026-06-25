@@ -7,10 +7,10 @@ name: refactor-guards
 #      Exemptions are listed explicitly in scripts/check_loc_budget.py;
 #      lifting one requires a CHANGELOG entry + reviewer sign-off.
 #   2. Layer contracts (import-linter):
-#        a. cinemateca/* does not import api/* (P2 carve-outs documented
+#        a. kuaa/* does not import api/* (P2 carve-outs documented
 #           in .importlinter; each one deletes when its target relocates).
-#        b. api/routes/search.py does not directly import cinemateca/search,
-#           cinemateca/retrieval, or cinemateca/embeddings — it goes through
+#        b. api/routes/search.py does not directly import kuaa/search,
+#           kuaa/retrieval, or kuaa/embeddings — it goes through
 #           api/services/search.py.
 #
 # Run locally with:
@@ -19,7 +19,7 @@ name: refactor-guards
 on:
   pull_request:
     paths:
-      - "src/cinemateca/**"
+      - "src/kuaa/**"
       - "api/**"
       - "scripts/check_loc_budget.py"
       - ".importlinter"

@@ -29,7 +29,7 @@ import types
 
 import pytest
 
-from cinemateca.pipeline import (
+from kuaa.pipeline import (
     STEP_DEPS,
     STEP_ORDER,
     CatalogPipeline,
@@ -254,7 +254,7 @@ class _StubPipeline:
         self.cfg = cfg
 
     def run_steps(self, video_path, steps, progress_cb=None, cancel_check=None):
-        from cinemateca.pipeline import StepCancelled, StepResults, StepRun
+        from kuaa.pipeline import StepCancelled, StepResults, StepRun
 
         res = StepResults(video_path=str(video_path))
         for name in steps:
@@ -285,8 +285,8 @@ class _StubPipeline:
 
 
 def _patch_pipeline(jobs_mod, monkeypatch, behavior="ok"):
-    import cinemateca.pipeline as pl
-    from cinemateca.library import FilmContext
+    import kuaa.pipeline as pl
+    from kuaa.library import FilmContext
 
     _StubPipeline.behavior = behavior
     monkeypatch.setattr(pl, "CatalogPipeline", _StubPipeline)

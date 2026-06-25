@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from cinemateca.eval.grades import EvalRun, Grade, export_run, save_grade
+from kuaa.eval.grades import EvalRun, Grade, export_run, save_grade
 
 
 def test_export_run_collapses_to_graded_structure(tmp_path: Path) -> None:
@@ -70,8 +70,8 @@ def test_export_run_empty_when_no_file(tmp_path: Path) -> None:
 
 
 def test_export_run_exported_from_package() -> None:
-    """export_run is importable from cinemateca.eval (public surface check)."""
+    """export_run is importable from kuaa.eval (public surface check)."""
 
-    from cinemateca.eval import export_run as _exported  # noqa: F401
+    from kuaa.eval import export_run as _exported  # noqa: F401
 
     assert callable(_exported)

@@ -1,4 +1,4 @@
-# SETUP.md — Cinemateca AI
+# SETUP.md — KUAA AI
 
 Guia de instalação e execução para sistemas Unix (macOS e Linux).  
 Tempo estimado: 15–30 minutos (dependendo da velocidade de download dos modelos).
@@ -50,19 +50,19 @@ brew install python@3.11
 
 **Opção A — clonar do GitHub** (quando o repositório estiver publicado):
 ```bash
-git clone https://github.com/cinemateca-brasileira/cinemateca-ai.git
-cd cinemateca-ai
+git clone https://github.com/kuaa-brasileira/kuaa-ai.git
+cd kuaa-ai
 ```
 
 **Opção B — a partir de um arquivo .zip** (distribuição direta):
 ```bash
-unzip cinemateca-ai.zip
-cd cinemateca-ai
+unzip kuaa-ai.zip
+cd kuaa-ai
 ```
 
 A estrutura que você deve ver:
 ```
-cinemateca-ai/
+kuaa-ai/
 ├── app.py                  ← entrypoint FastAPI (uvicorn api.server:app)
 ├── pyproject.toml          ← definição do pacote
 ├── api/                    ← rotas HTTP (FastAPI)
@@ -70,7 +70,7 @@ cinemateca-ai/
 ├── config/
 │   └── default.yaml        ← parâmetros padrão
 ├── src/
-│   └── cinemateca/         ← núcleo AI (search, library, annotations, rhymes, eval, ...)
+│   └── kuaa/         ← núcleo AI (search, library, annotations, rhymes, eval, ...)
 └── tests/
     └── test_smoke.py
 ```
@@ -98,7 +98,7 @@ source .venv/bin/activate
 comandos com `uv run` (ex.: `uv run python ...`). Se preferir ativar
 manualmente, lembre de reativar a cada novo terminal:
 ```bash
-cd cinemateca-ai
+cd kuaa-ai
 source .venv/bin/activate   # opcional — só se não usar `uv run`
 ```
 
@@ -147,7 +147,7 @@ uv sync --extra web       # só a interface FastAPI + HTMX
 
 **Verificar instalação:**
 ```bash
-uv run python -c "import cinemateca; print(cinemateca.__version__)"
+uv run python -c "import kuaa; print(kuaa.__version__)"
 # Deve imprimir: 0.8.0rc1
 ```
 
@@ -197,7 +197,7 @@ Edite `config/local.yaml` com suas preferências. Exemplo mínimo:
 # config/local.yaml — só inclua o que você quer sobrescrever
 
 paths:
-  data_dir: "/dados/acervo/cinemateca"   # onde ficam os vídeos e frames
+  data_dir: "/dados/acervo/kuaa"   # onde ficam os vídeos e frames
   outputs_dir: "/dados/acervo/outputs"
 
 hardware:
@@ -255,7 +255,7 @@ Para provar que um clone novo sobe com apenas `uv`:
 
 ```bash
 uv sync --extra full --group dev
-uv run cinemateca serve            # http://127.0.0.1:8501
+uv run kuaa serve            # http://127.0.0.1:8501
 # Em outro terminal:
 curl -fsS http://127.0.0.1:8501/health
 ```
@@ -287,7 +287,7 @@ Cada execução do pipeline grava `run_manifest.json` junto dos metadados,
 registrando entrada, hash de config, domínio, modelos, etapas e artefatos.
 Veja `docs/API.md` e `docs/OPERATIONS.md`.
 
-**Para rodar em uma máquina remota** (servidor da cinemateca) e
+**Para rodar em uma máquina remota** (servidor da kuaa) e
 acessar do seu computador:
 ```bash
 # Na máquina remota:
@@ -300,7 +300,7 @@ uv run app.py --host 0.0.0.0 --port 8501
 **Para manter rodando após fechar o terminal** (em servidores):
 ```bash
 # Usando nohup (simples):
-nohup uv run app.py --host 0.0.0.0 --port 8501 > logs/cinemateca-web.log 2>&1 &
+nohup uv run app.py --host 0.0.0.0 --port 8501 > logs/kuaa-web.log 2>&1 &
 
 # O processo continua mesmo após logout. Para parar:
 pkill -f "uv run app.py"
@@ -315,23 +315,23 @@ O pacote também tem uma interface de linha de comando,
 
 **Inspecionar um vídeo:**
 ```bash
-uv run cinemateca info data/raw/jeca_tatu_1959.mp4
+uv run kuaa info data/raw/jeca_tatu_1959.mp4
 ```
 
 **Processar um vídeo completo:**
 ```bash
-uv run cinemateca process data/raw/jeca_tatu_1959.mp4
+uv run kuaa process data/raw/jeca_tatu_1959.mp4
 ```
 
 **Processar com configuração personalizada:**
 ```bash
-uv run cinemateca process data/raw/jeca_tatu_1959.mp4 --config config/local.yaml
+uv run kuaa process data/raw/jeca_tatu_1959.mp4 --config config/local.yaml
 ```
 
 **Executar apenas etapas específicas** (útil para retomar processamento interrompido):
 ```bash
 # Só detecção de cenas e embeddings (pula frames e análise visual)
-uv run cinemateca process data/raw/jeca_tatu_1959.mp4 --steps scenes,embeddings
+uv run kuaa process data/raw/jeca_tatu_1959.mp4 --steps scenes,embeddings
 ```
 
 Nomes válidos para `--steps`:
@@ -372,7 +372,7 @@ com Ctrl+C e executar novamente, ele continua de onde parou.
 
 ## 10. Solução de problemas comuns
 
-**`ModuleNotFoundError: No module named 'cinemateca'`**
+**`ModuleNotFoundError: No module named 'kuaa'`**
 ```bash
 # Ambiente virtual não está ativo:
 source .venv/bin/activate

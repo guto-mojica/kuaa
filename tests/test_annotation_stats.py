@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from cinemateca.eval.annotations import (
+from kuaa.eval.annotations import (
     AnnotationStatsError,
     compute_annotation_stats,
     load_annotation_stats,

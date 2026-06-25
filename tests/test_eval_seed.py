@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from cinemateca.eval.seed import SAMPLE_QUERIES, write_seed
+from kuaa.eval.seed import SAMPLE_QUERIES, write_seed
 
 
 def test_write_seed_creates_well_formed_file(tmp_path: Path):

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from cinemateca.search._cache_core import StatCache, stat_sig
+from kuaa.search._cache_core import StatCache, stat_sig
 
 
 def test_stat_sig_changes_on_write(tmp_path: Path) -> None:

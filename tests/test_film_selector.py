@@ -33,7 +33,7 @@ import pytest
 
 def _seed_film(library_dir: Path, slug: str, title: str, scene_ids: list[int]) -> None:
     """Register a film and create its per-film directory layout."""
-    from cinemateca.library import register_film
+    from kuaa.library import register_film
 
     register_film(
         library_dir,

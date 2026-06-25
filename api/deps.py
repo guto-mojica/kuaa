@@ -10,7 +10,7 @@ from fastapi import Depends, Query, Request, Response
 
 ToastKind = Literal["info", "success", "warn", "error"]
 
-CONFIG_ENV_VAR = "CINEMATECA_CONFIG"
+CONFIG_ENV_VAR = "KUAA_CONFIG"
 
 _LOCALES_DIR = Path(__file__).parent.parent / "web" / "locales"
 _SUPPORTED_LOCALES = {"pt_BR", "en"}
@@ -31,9 +31,9 @@ def selected_config_path() -> Path | None:
 
     Precedence is:
 
-    1. ``CINEMATECA_CONFIG`` environment variable, set by ``app.py --config``.
+    1. ``KUAA_CONFIG`` environment variable, set by ``app.py --config``.
     2. ``config/local.yaml`` when present.
-    3. ``None`` so ``cinemateca.config.load_config`` uses defaults only.
+    3. ``None`` so ``kuaa.config.load_config`` uses defaults only.
     """
     explicit = os.environ.get(CONFIG_ENV_VAR)
     if explicit:
@@ -45,7 +45,7 @@ def selected_config_path() -> Path | None:
 
 @lru_cache(maxsize=1)
 def get_config():
-    from cinemateca.config import load_config
+    from kuaa.config import load_config
 
     selected = selected_config_path()
     return load_config(str(selected) if selected is not None else None)
@@ -94,7 +94,7 @@ def film_slug_query(
         return None
     from pathlib import Path
 
-    from cinemateca.library import load_registry
+    from kuaa.library import load_registry
 
     slug = film.lower()
     cfg = get_config()
@@ -256,7 +256,7 @@ def film_ctx(request: Request, cfg=None):
     """
     from pathlib import Path
 
-    from cinemateca.library import FilmContext
+    from kuaa.library import FilmContext
 
     if cfg is None:
         cfg = get_config()
@@ -278,7 +278,7 @@ def resolve_film_context(cfg, slug: str | None, request):
     Pass ``request=None`` when the caller always supplies a slug (cookie
     fallback skipped).
     """
-    from cinemateca.library import FilmContext
+    from kuaa.library import FilmContext
 
     if slug is not None:
         return FilmContext.for_film(cfg, slug)
@@ -293,7 +293,7 @@ def flat_film_context():
     Intended as a plain helper (not a Depends) for callers that need the
     aggregate context when ``optional_film_context`` returns ``None``.
     """
-    from cinemateca.library import FilmContext
+    from kuaa.library import FilmContext
 
     return FilmContext.from_config(get_config())
 
@@ -305,7 +305,7 @@ def optional_film_context(request: Request, slug: str | None = Depends(film_slug
     None). ``None`` → aggregate across the library; the caller branches
     on it.
     """
-    from cinemateca.library import FilmContext
+    from kuaa.library import FilmContext
 
     cfg = get_config()
     if slug is None:
@@ -315,8 +315,8 @@ def optional_film_context(request: Request, slug: str | None = Depends(film_slug
 
 def required_film_context(slug: str | None = Depends(film_slug_query)):
     """Like ``optional_film_context`` but 404s when no film resolves."""
-    from cinemateca.errors import IndexMissing
-    from cinemateca.library import FilmContext
+    from kuaa.errors import IndexMissing
+    from kuaa.library import FilmContext
 
     cfg = get_config()
     if slug is None:

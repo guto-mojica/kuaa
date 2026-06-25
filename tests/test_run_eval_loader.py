@@ -36,7 +36,7 @@ def test_strict_load_dataset_rejects_multimodal_m3_full() -> None:
     This is why ``_all_modes`` must route through ``_load_text_dataset`` rather
     than calling ``load_dataset`` directly.
     """
-    from cinemateca.eval.datasets import load_dataset
+    from kuaa.eval.datasets import load_dataset
 
     with pytest.raises(Exception):  # noqa: B017,PT011 — any load error documents the regression
         load_dataset(M3_FULL)

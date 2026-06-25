@@ -1,11 +1,11 @@
-"""Unit tests for cinemateca.search.upload — image upload validation."""
+"""Unit tests for kuaa.search.upload — image upload validation."""
 
 from __future__ import annotations
 
 import pytest
 
-from cinemateca.search.types import UploadRejected
-from cinemateca.search.upload import (
+from kuaa.search.types import UploadRejected
+from kuaa.search.upload import (
     ALLOWED_IMAGE_SUFFIXES,
     MAX_UPLOAD_BYTES,
     validate_upload,

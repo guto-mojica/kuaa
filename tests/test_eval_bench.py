@@ -1,4 +1,4 @@
-"""Tests for cinemateca.eval.bench — TDD for E6.
+"""Tests for kuaa.eval.bench — TDD for E6.
 
 Two test cases:
   1. test_summarize_percentiles  — nearest-rank percentile contract.
@@ -27,7 +27,7 @@ def test_summarize_percentiles() -> None:
       max: 4.0
       n: 4
     """
-    from cinemateca.eval.bench import summarize
+    from kuaa.eval.bench import summarize
 
     s = summarize([1.0, 2.0, 3.0, 4.0])
     assert s["n"] == 4
@@ -39,7 +39,7 @@ def test_summarize_percentiles() -> None:
 
 
 def test_summarize_empty() -> None:
-    from cinemateca.eval.bench import summarize
+    from kuaa.eval.bench import summarize
 
     s = summarize([])
     assert s["n"] == 0
@@ -60,7 +60,7 @@ def test_bench_retrievers_uses_timed_hook(monkeypatch: pytest.MonkeyPatch) -> No
         rrf_materialize (the three canonical sub-stage labels that the
         benchmark harness documents).
     """
-    import cinemateca.eval.bench as bench_mod
+    import kuaa.eval.bench as bench_mod
 
     # ── recorded timed labels ─────────────────────────────────────────────
     recorded_labels: list[str] = []
@@ -127,19 +127,19 @@ def test_bench_retrievers_uses_timed_hook(monkeypatch: pytest.MonkeyPatch) -> No
     # empty/trivial values without hitting any model.
     with (
         patch(
-            "cinemateca.search.clip.search_text",
+            "kuaa.search.clip.search_text",
             return_value=_empty_df,
         ),
         patch(
-            "cinemateca.search.hybrid._best_row_by_sid_from_embeddings",
+            "kuaa.search.hybrid._best_row_by_sid_from_embeddings",
             return_value={},
         ),
         patch(
-            "cinemateca.search.hybrid._fused_to_dataframe",
+            "kuaa.search.hybrid._fused_to_dataframe",
             return_value=_empty_df,
         ),
         patch(
-            "cinemateca.retrieval.hybrid.fuse_rrf",
+            "kuaa.retrieval.hybrid.fuse_rrf",
             return_value=[],
         ),
     ):

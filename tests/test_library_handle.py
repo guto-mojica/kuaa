@@ -1,10 +1,10 @@
-"""Unit tests for cinemateca.library.Library — the typed handle."""
+"""Unit tests for kuaa.library.Library — the typed handle."""
 
 from __future__ import annotations
 
 import pytest
 
-from cinemateca.library import (
+from kuaa.library import (
     Film,
     FilmContext,
     Library,
@@ -82,7 +82,7 @@ def test_context_unregistered_raises_keyerror(tmp_path):
 
 def test_filmcontext_from_paths_constructor(tmp_path):
     """FilmContext.from_paths builds a context without a cfg shim."""
-    from cinemateca.library.context import FilmContext
+    from kuaa.library.context import FilmContext
 
     register_film(tmp_path, slug="alpha", title="Alpha", year=2026, raw_filename="alpha.mp4")
     ctx = FilmContext.from_paths(library_dir=tmp_path, slug="alpha", data_dir=tmp_path)

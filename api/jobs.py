@@ -19,7 +19,7 @@ WS-2 A9 — explicit guarded state machine
 -----------------------------------------
 Job status is now :class:`JobStatus` (a ``str`` enum) with an explicit
 transition table :data:`_TRANSITIONS`. :meth:`JobState.transition_to`
-enforces legality, raising :exc:`cinemateca.errors.PipelineError` on
+enforces legality, raising :exc:`kuaa.errors.PipelineError` on
 an illegal flip.  The module-level ``STATUS_*`` names are kept as enum
 aliases so every existing import site (``api/routes/processing.py``,
 tests, the runner itself) continues to work without change.
@@ -210,11 +210,11 @@ class EventBroadcaster:
 
 
 # Logger namespaces whose output we want to surface in the Processing
-# UI. ``cinemateca.*`` is the entire AI core; ``api.jobs`` is this
+# UI. ``kuaa.*`` is the entire AI core; ``api.jobs`` is this
 # module itself (so the runner's "step start / step finish" lines
 # also surface). Tightly scoped so unrelated noise (httpx, uvicorn,
 # asyncio) never lands in the user-visible log pane.
-_PIPELINE_LOGGER_NAMES = ("cinemateca", "api.jobs")
+_PIPELINE_LOGGER_NAMES = ("kuaa", "api.jobs")
 
 # Python logging levelno → template ``lv`` code. The template
 # (processing_log_line.html + proc.css) ships rules for i / d / w / s
@@ -375,7 +375,7 @@ class JobState:
         return self._cancel.is_set()
 
     def transition_to(self, new: JobStatus) -> None:
-        """Move to *new* status, raising :exc:`~cinemateca.errors.PipelineError`
+        """Move to *new* status, raising :exc:`~kuaa.errors.PipelineError`
         if the transition is not in :data:`_TRANSITIONS`.
 
         This is the authoritative write path for job lifecycle changes.
@@ -383,7 +383,7 @@ class JobState:
         valid (they bypass the guard intentionally — fixtures build
         pre-configured job states directly).
         """
-        from cinemateca.errors import PipelineError
+        from kuaa.errors import PipelineError
 
         allowed = _TRANSITIONS.get(self.status, frozenset())
         if new not in allowed:
@@ -763,7 +763,7 @@ def _slug_for_video(video_path: str, cfg) -> str:
     """
     from pathlib import Path, PurePosixPath
 
-    from cinemateca.library import load_registry
+    from kuaa.library import load_registry
 
     filename = PurePosixPath(video_path.replace("\\", "/")).name
     try:
@@ -789,9 +789,9 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
     raises ``StepCancelled`` when the job's cancel flag is set.
     """
 
-    from cinemateca.library import FilmContext
-    from cinemateca.pipeline import CatalogPipeline, StepCancelled, StepResults, StepRun
-    from cinemateca.run_manifest import write_run_manifest
+    from kuaa.library import FilmContext
+    from kuaa.pipeline import CatalogPipeline, StepCancelled, StepResults, StepRun
+    from kuaa.run_manifest import write_run_manifest
 
     t_start = time.time()
     job.transition_to(JobStatus.RUNNING)
@@ -882,7 +882,7 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
         job.publish("update")
 
     # Install the pipeline log handler so every record emitted by
-    # cinemateca.* and api.jobs during this job's lifetime lands in
+    # kuaa.* and api.jobs during this job's lifetime lands in
     # the durable ring buffer + broadcasts to live SSE consumers.
     # The outer try/finally guarantees the handler is removed even on
     # an early-return exception path, so the next job starts with a

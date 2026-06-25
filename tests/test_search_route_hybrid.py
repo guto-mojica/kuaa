@@ -26,7 +26,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from cinemateca.library import register_film
+from kuaa.library import register_film
 
 SEARCH_NO_INDEX = "No search index found. Run the pipeline with the Embeddings step first."
 SLUG = "route_film"
@@ -114,7 +114,7 @@ def indexed_search_client(tmp_config, monkeypatch, client):
     _seed_indexed_film(tmp_config)
 
     import api.services.search as search_service
-    import cinemateca.models.clip.openclip as openclip
+    import kuaa.models.clip.openclip as openclip
 
     real_load = openclip.OpenClipEmbedder.load
 

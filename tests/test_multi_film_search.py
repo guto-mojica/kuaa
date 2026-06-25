@@ -10,14 +10,14 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-import cinemateca.search.aggregate as _csa_module_ref  # noqa: F401 — ensure loaded
+import kuaa.search.aggregate as _csa_module_ref  # noqa: F401 — ensure loaded
 from api.services.catalog import build_scenes_context_aggregate
 from api.services.search import aggregate_search
-from cinemateca.library import register_film
+from kuaa.library import register_film
 
-# The submodule is shadowed in cinemateca.search by the `aggregate` function
+# The submodule is shadowed in kuaa.search by the `aggregate` function
 # re-export; access via sys.modules to reach the module object reliably.
-_AGGREGATE_MODULE = sys.modules["cinemateca.search.aggregate"]
+_AGGREGATE_MODULE = sys.modules["kuaa.search.aggregate"]
 
 
 def _make_film(library_dir: Path, slug: str, scene_ids: list[int]) -> None:

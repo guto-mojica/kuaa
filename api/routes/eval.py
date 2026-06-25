@@ -17,7 +17,7 @@ from api.services.eval_service import (
     require_admin,
 )
 from api.templates import templates
-from cinemateca.eval.grades import EvalRun, Grade, save_grade
+from kuaa.eval.grades import EvalRun, Grade, save_grade
 
 router = APIRouter()
 

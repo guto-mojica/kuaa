@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from cinemateca.search.types import Query
+from kuaa.search.types import Query
 
 
 def test_of_text_builds_text_query() -> None:

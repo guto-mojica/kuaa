@@ -1,4 +1,4 @@
-"""Unit tests for ``cinemateca.search.cache``.
+"""Unit tests for ``kuaa.search.cache``.
 
 These tests pin the relocated index loader + mtime/size cache to its new
 home. They are deliberately decoupled from the legacy
@@ -15,7 +15,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from cinemateca.search.cache import (
+from kuaa.search.cache import (
     IndexStatus,
     SearchIndex,
     clear_index_cache,
@@ -49,7 +49,7 @@ def _write_minimal_index(emb_path: Path, map_path: Path, n_rows: int = 2) -> Non
 
 def _register_alpha(library_dir: Path) -> None:
     """Register a minimal ``alpha`` film so ``FilmContext.for_film`` passes."""
-    from cinemateca.library import register_film
+    from kuaa.library import register_film
 
     register_film(
         library_dir,
@@ -61,7 +61,7 @@ def _register_alpha(library_dir: Path) -> None:
 
 
 def test_missing_files_yield_missing_status(tmp_path: Path) -> None:
-    from cinemateca.library import FilmContext
+    from kuaa.library import FilmContext
 
     _register_alpha(tmp_path)
     cfg = SimpleNamespace(paths=SimpleNamespace(library_dir=str(tmp_path)))
@@ -84,7 +84,7 @@ def test_wellformed_index_loads_ok(tmp_path: Path, monkeypatch) -> None:
     """
     import pandas as pd
 
-    real_open_clip = __import__("cinemateca.models.clip.openclip", fromlist=["OpenClipEmbedder"])
+    real_open_clip = __import__("kuaa.models.clip.openclip", fromlist=["OpenClipEmbedder"])
 
     class FakeEmbedder:
         def __init__(self, *a, **k):
@@ -104,7 +104,7 @@ def test_wellformed_index_loads_ok(tmp_path: Path, monkeypatch) -> None:
 
     monkeypatch.setattr(real_open_clip, "OpenClipEmbedder", FakeEmbedder)
 
-    from cinemateca.library import FilmContext
+    from kuaa.library import FilmContext
 
     _register_alpha(tmp_path)
     cfg = SimpleNamespace(paths=SimpleNamespace(library_dir=str(tmp_path)))
@@ -126,7 +126,7 @@ def test_wellformed_index_loads_ok(tmp_path: Path, monkeypatch) -> None:
 
 def test_clear_cache_drops_entries(tmp_path: Path) -> None:
     """``clear_index_cache()`` empties the module-level cache dict."""
-    from cinemateca.search import cache as cache_mod
+    from kuaa.search import cache as cache_mod
 
     cache_mod._index_cache[("x", "/p/e", "/p/m")] = (
         ((0, 0), (0, 0)),

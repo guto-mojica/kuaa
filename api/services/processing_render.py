@@ -128,7 +128,7 @@ def build_processing_context() -> ProcessingContext:
         build_resource_metrics,
         enrich_jobs,
     )
-    from cinemateca.library import scan_library
+    from kuaa.library import scan_library
 
     library_dir = Path(cfg.paths.library_dir)
     films = [f for f in scan_library(library_dir) if f.raw_path.exists()]
@@ -174,7 +174,7 @@ def _derive_slug(cfg, video_path: Path, fallback: str) -> str:
 
     Returns ``fallback`` (the active_film cookie value) when no match is found.
     """
-    from cinemateca.library import scan_library  # noqa: PLC0415
+    from kuaa.library import scan_library  # noqa: PLC0415
 
     library_dir = Path(cfg.paths.library_dir)
     films = scan_library(library_dir)

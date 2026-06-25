@@ -1,7 +1,7 @@
-"""Search service — thin HTTP adapter over :mod:`cinemateca.search`.
+"""Search service — thin HTTP adapter over :mod:`kuaa.search`.
 
 After P1's deep-modules refactor the search domain logic lives in
-:mod:`cinemateca.search`. This module is the HTTP-adapter surface the
+:mod:`kuaa.search`. This module is the HTTP-adapter surface the
 route layer + tests import through. It re-exports the symbols the app
 and tests pin against, plus wrappers that need the FastAPI config
 (``_get_embedder`` monkeypatched by tests; ``_get_bm25_index_for_ctx``
@@ -21,34 +21,34 @@ from typing import TYPE_CHECKING, Any, cast
 
 from api.contexts import SearchContext
 from api.services.catalog import keyframe_url  # noqa: F401  — used by routes
-from cinemateca.library import FilmContext
+from kuaa.library import FilmContext
 
 # Cross-encoder rerank verb (Task 3.1). Aliased so tests can monkeypatch
 # ``api.services.search.search_rerank`` without bypassing the wrapper.
-from cinemateca.search import rerank as search_rerank  # noqa: F401
-from cinemateca.search._lookup import (
+from kuaa.search import rerank as search_rerank  # noqa: F401
+from kuaa.search._lookup import (
     build_search_context as _build_search_context_core,
 )
-from cinemateca.search._lookup import (
+from kuaa.search._lookup import (
     build_search_context_aggregate as _build_search_context_aggregate_core,
 )
 
 # Result conversion + Mojica context + films-by-id lookup (T8). T15
 # adds ``enrich_hits_with_film_metadata`` re-export so the slim route
-# layer doesn't import ``cinemateca.search._lookup`` directly (keeps
+# layer doesn't import ``kuaa.search._lookup`` directly (keeps
 # the routes-not-direct-core import-linter contract clean).
-from cinemateca.search._lookup import (
+from kuaa.search._lookup import (
     enrich_hits_with_film_metadata,  # noqa: F401
     films_by_id_lookup,  # noqa: F401
 )
-from cinemateca.search._results import results_to_dicts  # noqa: F401
+from kuaa.search._results import results_to_dicts  # noqa: F401
 
 # Aggregate cross-film search (T11) — still reads ``_get_embedder`` and
 # ``_get_search_index`` off this module via lazy attribute access, so the
 # monkeypatches on ``api.services.search._get_*`` keep hitting the call path.
 # T15 adds ``aggregate_hits_to_template_dicts`` re-export (same rationale
 # as the ``enrich_hits_with_film_metadata`` re-export above).
-from cinemateca.search.aggregate import (  # noqa: F401
+from kuaa.search.aggregate import (  # noqa: F401
     _get_embedder,
     _get_search_index,
     aggregate_hits_to_template_dicts,
@@ -58,14 +58,14 @@ from cinemateca.search.aggregate import (  # noqa: F401
 )
 
 # BM25 loader + lru_cache (T7) — module self-registers its cache flusher
-# with cinemateca.search.cache so ``clear_index_cache()`` flushes BM25.
-from cinemateca.search.bm25 import (
+# with kuaa.search.cache so ``clear_index_cache()`` flushes BM25.
+from kuaa.search.bm25 import (
     _cached_bm25_index,  # noqa: F401  — legacy name for tests
     _file_stamp,  # noqa: F401  — legacy name for tests
 )
 
 # CLIP search-index loader + mtime/size cache (T6).
-from cinemateca.search.cache import (
+from kuaa.search.cache import (
     IndexStatus,  # noqa: F401
     SearchIndex,  # noqa: F401
     clear_index_cache,  # noqa: F401  — flushes CLIP + BM25
@@ -73,40 +73,40 @@ from cinemateca.search.cache import (
 )
 
 # CLIP search verbs (T9).
-from cinemateca.search.clip import (
+from kuaa.search.clip import (
     search_image,  # noqa: F401
     search_text,  # noqa: F401
 )
 
 # Degenerate-tag display filter (T4).
-from cinemateca.search.display import (
+from kuaa.search.display import (
     filter_degenerate_tags as _filter_degenerate_tags,  # noqa: F401
 )
 
 # Hybrid dispatch (T10). T15 adds ``resolve_retriever_args`` so the
 # slim route imports HTTP-input normalisation from this layer rather
-# than reaching into ``cinemateca.search.hybrid`` directly.
-from cinemateca.search.hybrid import (  # noqa: F401
+# than reaching into ``kuaa.search.hybrid`` directly.
+from kuaa.search.hybrid import (  # noqa: F401
     resolve_retriever_args,
     search_hybrid,
 )
 
 # Upload validation (T5). UploadRejected re-exported for the legacy
 # ``api.services.search.UploadRejected`` import path used by routes + tests.
-from cinemateca.search.types import (  # noqa: F401
+from kuaa.search.types import (  # noqa: F401
     Hit,
     Query,
     SearchMode,
     SearchResult,
     UploadRejected,
 )
-from cinemateca.search.upload import (
+from kuaa.search.upload import (
     MAX_UPLOAD_BYTES,  # noqa: F401
     validate_upload,  # noqa: F401
 )
 
 if TYPE_CHECKING:
-    from cinemateca.retrieval.bm25 import BM25Index
+    from kuaa.retrieval.bm25 import BM25Index
 
 # ── Re-exports from split sibling modules ────────────────────────────────────
 # Routes import the reranker boundary as ``search_service.apply_reranker`` etc.;
@@ -131,7 +131,7 @@ def _get_bm25_index_for_ctx(ctx: FilmContext) -> BM25Index:
     app wired up.
     """
     from api.deps import get_config
-    from cinemateca.search.bm25 import bm25_index_for_ctx
+    from kuaa.search.bm25 import bm25_index_for_ctx
 
     cfg = get_config()
     bm25_cfg = getattr(cfg.search, "bm25", None)
@@ -231,14 +231,14 @@ def dispatch_text_search(
 
 
 # A10: typed wrappers — ``api.contexts.SearchContext`` can't be imported in
-# ``cinemateca.*`` (deep-modules rule), so we annotate at this api-layer boundary.
+# ``kuaa.*`` (deep-modules rule), so we annotate at this api-layer boundary.
 
 
 def build_search_context(ctx: Any, cfg: Any | None = None) -> SearchContext:
-    """Typed wrapper over ``cinemateca.search._lookup.build_search_context``."""
+    """Typed wrapper over ``kuaa.search._lookup.build_search_context``."""
     return cast(SearchContext, _build_search_context_core(ctx, cfg))
 
 
 def build_search_context_aggregate(cfg: Any) -> SearchContext:
-    """Typed wrapper over ``cinemateca.search._lookup.build_search_context_aggregate``."""
+    """Typed wrapper over ``kuaa.search._lookup.build_search_context_aggregate``."""
     return cast(SearchContext, _build_search_context_aggregate_core(cfg))

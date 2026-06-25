@@ -8,7 +8,7 @@ auto-select (the prior, unchanged behaviour) rather than ``device=None`` noise.
 
 from __future__ import annotations
 
-from cinemateca.models.objects.yolov8 import YOLOv8ObjectDetector
+from kuaa.models.objects.yolov8 import YOLOv8ObjectDetector
 
 
 class _FakeResult:

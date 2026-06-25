@@ -1,10 +1,10 @@
-"""CLI surface for ``cinemateca eval slate`` (E3b).
+"""CLI surface for ``kuaa eval slate`` (E3b).
 
 The command loads an ``m3_full``-shaped query YAML, calls the real
-per-modality slate generator (``cinemateca.eval.slates.generate_slate``)
+per-modality slate generator (``kuaa.eval.slates.generate_slate``)
 for every query of the requested modality, and writes a
 ``<root>/<run_id>.queries.json`` file in the SAME rows-template contract
-``cinemateca.eval.seed.write_seed`` produces — so the ``/eval`` grading
+``kuaa.eval.seed.write_seed`` produces — so the ``/eval`` grading
 page renders generated slates exactly as it renders the seeded ones.
 
 This test is hermetic: ``generate_slate`` is monkeypatched (by the name
@@ -96,8 +96,8 @@ def test_eval_slate_writes_rows_contract(
     monkeypatch: pytest.MonkeyPatch, one_image_yaml: Path, tmp_path: Path
 ) -> None:
     """``eval slate --modality image`` writes <run>.queries.json in the rows contract."""
-    import cinemateca.commands.eval_cmd as eval_cmd
-    from cinemateca.__main__ import app
+    import kuaa.commands.eval_cmd as eval_cmd
+    from kuaa.__main__ import app
 
     # Patch the name as bound in eval_cmd so no real backend runs.
     monkeypatch.setattr(eval_cmd, "generate_slate", _two_row_stub)

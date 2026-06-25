@@ -47,34 +47,34 @@ import pytest
 
 class TestSceneIdKey:
     def test_int(self):
-        from cinemateca.scene_ids import scene_id_key
+        from kuaa.scene_ids import scene_id_key
 
         assert scene_id_key(351) == "351"
 
     def test_str(self):
-        from cinemateca.scene_ids import scene_id_key
+        from kuaa.scene_ids import scene_id_key
 
         assert scene_id_key("351") == "351"
 
     def test_numpy_int(self):
-        from cinemateca.scene_ids import scene_id_key
+        from kuaa.scene_ids import scene_id_key
 
         assert scene_id_key(np.int64(351)) == "351"
 
     def test_integral_float_strips_trailing_zero(self):
-        from cinemateca.scene_ids import scene_id_key
+        from kuaa.scene_ids import scene_id_key
 
         # pandas/JSON can yield 351.0 for an integer column with NaNs.
         assert scene_id_key(351.0) == "351"
         assert scene_id_key(np.float64(351.0)) == "351"
 
     def test_whitespace_stripped(self):
-        from cinemateca.scene_ids import scene_id_key
+        from kuaa.scene_ids import scene_id_key
 
         assert scene_id_key("  351 ") == "351"
 
     def test_normalize_tag_index_mixed(self):
-        from cinemateca.scene_ids import normalize_tag_index
+        from kuaa.scene_ids import normalize_tag_index
 
         # Mixed int (LLM) + str (manual) values, as merge_tag_index yields.
         hybrid = {"exterior": [351, 352, "353"], "dia": ["351"]}
@@ -107,7 +107,7 @@ def seeded_client(client):
     aggregate grid path when no ?film= is given) reads from the library tree.
     """
     import api.deps as deps
-    from cinemateca.library import load_registry, register_film
+    from kuaa.library import load_registry, register_film
 
     cfg = deps.get_config()
     meta_dir = Path(cfg.paths.metadata_dir)
@@ -212,7 +212,7 @@ class _StubEmbedder:
 
 def _make_searcher(scene_ids):
     """Build a SemanticSearch over a tiny df with the given scene_ids."""
-    from cinemateca.embeddings import SemanticSearch
+    from kuaa.embeddings import SemanticSearch
 
     n = len(scene_ids)
     embeddings = np.eye(4, dtype="float32")[:n] if n <= 4 else np.ones((n, 4), "float32")

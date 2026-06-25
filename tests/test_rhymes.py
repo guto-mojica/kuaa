@@ -1,4 +1,4 @@
-"""Tests for cinemateca.rhymes — cross-film cosine kNN over CLIP keyframes."""
+"""Tests for kuaa.rhymes — cross-film cosine kNN over CLIP keyframes."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ from pathlib import Path
 
 import numpy as np
 
-from cinemateca.rhymes import Rhyme, find_rhymes
-from cinemateca.rhymes.algorithm import _extract_scene_ids
+from kuaa.rhymes import Rhyme, find_rhymes
+from kuaa.rhymes.algorithm import _extract_scene_ids
 
 
 def _write_film(

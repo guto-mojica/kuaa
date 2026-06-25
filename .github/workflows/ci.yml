@@ -1,11 +1,11 @@
-# Cinemateca imgsearch — Continuous Integration
+# KUAA — Continuous Integration
 #
 # Seven jobs: lint (strict), test-smoke (fast/model-free), test-heavy (full matrix),
 # typecheck (mypy, blocking), security (bandit + pip-audit), build (sdist/wheel), benchmark (smoke).
 #
 # Install strategy: we use the `full` extra + `dev` group. Why not a lighter
-# extra like `[search]`?  Several tests import `cinemateca.models.describer.*`
-# (transformers + GGUF backends), `cinemateca.models.clap.*`, and the FastAPI
+# extra like `[search]`?  Several tests import `kuaa.models.describer.*`
+# (transformers + GGUF backends), `kuaa.models.clap.*`, and the FastAPI
 # stack directly — none of which live under `[search]`. The hermetic test
 # fixtures mock model weights so no GB-scale weight download happens at test
 # time, but the wheels still need to be present at import time.
@@ -115,7 +115,7 @@ jobs:
         run: uv sync --extra full --group dev
 
       - name: Pytest (heavy + smoke, full extra)
-        run: uv run pytest tests/ -q -m "not e2e" --cov=src/cinemateca --cov=api --cov-report=term-missing
+        run: uv run pytest tests/ -q -m "not e2e" --cov=src/kuaa --cov=api --cov-report=term-missing
 
   typecheck:
     name: Typecheck (mypy, blocking)
@@ -200,13 +200,13 @@ jobs:
       - name: Smoke-import the built wheel in a clean venv
         # Installs the wheel (+ its declared base deps) into a throwaway venv,
         # then imports the package and prints the version.  This proves the
-        # wheel is self-contained and that `import cinemateca` succeeds without
+        # wheel is self-contained and that `import kuaa` succeeds without
         # the `full` or `dev` extras.  Pydantic>=2.0 is now a base dep (needed
-        # at import time by cinemateca.config.loader) so it installs with the wheel.
+        # at import time by kuaa.config.loader) so it installs with the wheel.
         run: |
           python -m venv /tmp/whltest
           /tmp/whltest/bin/pip install --no-cache-dir dist/*.whl
-          /tmp/whltest/bin/python -c "import cinemateca; print('wheel import OK', cinemateca.__version__)"
+          /tmp/whltest/bin/python -c "import kuaa; print('wheel import OK', kuaa.__version__)"
 
       - name: Upload dist artifact
         uses: actions/upload-artifact@v4

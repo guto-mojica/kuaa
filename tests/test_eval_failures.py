@@ -1,6 +1,6 @@
 """Hermetic unit tests for the failure-surfacing tool (E4).
 
-These cover the pure logic of ``cinemateca.eval.failures`` — the
+These cover the pure logic of ``kuaa.eval.failures`` — the
 ``worst_queries`` selector (ordering + FailureCase construction) and the
 ``FailureCase.to_markdown_stub`` renderer (real-description citation +
 metrics/ranks block) — WITHOUT loading any model or real index. The GPU
@@ -16,7 +16,7 @@ with hand-built fakes (no ``RetrievalRun`` needed).
 
 from __future__ import annotations
 
-from cinemateca.eval.failures import FailureCase, worst_queries
+from kuaa.eval.failures import FailureCase, worst_queries
 
 
 def _record(

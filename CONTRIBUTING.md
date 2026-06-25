@@ -1,4 +1,4 @@
-# Contributing to Cinemateca AI
+# Contributing to KUAA AI
 
 Thanks for contributing. This project is `uv`-only — **no Docker, no npm/node,
 no SPA build step** (see `CLAUDE.md` "Canonical stack"). All commands below
@@ -17,7 +17,7 @@ uv run pre-commit install        # ruff + black + bandit on every commit
 Run the app:
 
 ```bash
-uv run cinemateca serve          # http://127.0.0.1:8501 (--reload by default)
+uv run kuaa serve          # http://127.0.0.1:8501 (--reload by default)
 ```
 
 ---
@@ -91,7 +91,7 @@ be marked `heavy` or `acceptance`.
 
 ## Layering rules
 
-`cinemateca.*` packages must not import from `api/*`. This is enforced by
+`kuaa.*` packages must not import from `api/*`. This is enforced by
 `import-linter` (`.importlinter`). The public surface of each package lives
 in its `__init__.py`; everything else is an implementation detail.
 

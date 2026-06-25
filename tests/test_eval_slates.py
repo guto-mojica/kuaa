@@ -26,8 +26,8 @@ from typing import Any
 import numpy as np
 import pytest
 
-from cinemateca.errors import EvalError
-from cinemateca.eval.slates import ModalQuery, generate_slate, load_modal_queries
+from kuaa.errors import EvalError
+from kuaa.eval.slates import ModalQuery, generate_slate, load_modal_queries
 
 # The nine keys every candidate row must carry so the rows template renders.
 _ROWS_KEYS = {
@@ -175,8 +175,8 @@ def _cfg() -> SimpleNamespace:
 
 def test_generate_slate_dispatches_rhyme_to_find_rhymes(tmp_path: Path, monkeypatch):
     """Rhyme query → real find_rhymes (faked) → two 9-key rows."""
-    import cinemateca.eval.slates as slates
-    from cinemateca.rhymes.algorithm import Rhyme
+    import kuaa.eval.slates as slates
+    from kuaa.rhymes.algorithm import Rhyme
 
     captured: dict[str, Any] = {}
 
@@ -230,7 +230,7 @@ def test_generate_slate_dispatches_rhyme_to_find_rhymes(tmp_path: Path, monkeypa
 def test_candidate_row_resolves_real_keyframe_url():
     """Generated slate rows must use the scene's real stored keyframe path,
     not a hardcoded /frames/scene_NNNN.jpg (review #4)."""
-    from cinemateca.eval.slates import _candidate_row, _FilmMeta
+    from kuaa.eval.slates import _candidate_row, _FilmMeta
 
     data_dir = Path("/srv/data").resolve()
     fp = (
@@ -260,7 +260,7 @@ def test_candidate_row_resolves_real_keyframe_url():
 
 def test_candidate_row_missing_keyframe_falls_back_to_empty():
     """A scene with no on-disk keyframe yields keyframe_url='' (contract holds)."""
-    from cinemateca.eval.slates import _candidate_row, _empty_meta
+    from kuaa.eval.slates import _candidate_row, _empty_meta
 
     meta = _empty_meta("jeca", Path("/srv/data").resolve())
     row = _candidate_row(scene_id=99, film_slug="jeca", score=0.5, meta=meta)
@@ -270,8 +270,8 @@ def test_candidate_row_missing_keyframe_falls_back_to_empty():
 def test_generate_slate_text_scopes_search_to_film_slug(tmp_path, monkeypatch):
     """#3: film_slug scopes the search to that film BEFORE top-k truncation, so a
     film that another film would crowd out of the global head still returns rows."""
-    import cinemateca.eval.slates as slates
-    from cinemateca.search.types import Hit, Query, SearchResult
+    import kuaa.eval.slates as slates
+    from kuaa.search.types import Hit, Query, SearchResult
 
     called: list[str] = []
 
@@ -318,13 +318,13 @@ def test_generate_slate_text_scopes_search_to_film_slug(tmp_path, monkeypatch):
 
 def _search_result(hits: list[Any]) -> Any:
     """Build a minimal CLIP-mode :class:`SearchResult` from a list of Hits."""
-    from cinemateca.search.types import Query, SearchResult
+    from kuaa.search.types import Query, SearchResult
 
     return SearchResult(hits=hits, mode="clip", weights=None, query=Query.of_text("q"))
 
 
 def _hit(scene_id: int, score: float, film_slug: str) -> Any:
-    from cinemateca.search.types import Hit
+    from kuaa.search.types import Hit
 
     return Hit(
         scene_id=scene_id,
@@ -342,7 +342,7 @@ def test_generate_slate_dispatches_text_to_find(tmp_path: Path, monkeypatch):
     ``films.json`` still yield rows (the disk-scan fallback in ``_iter_films``
     plus the path-derived ``_ctx_for`` must produce a real ``find`` context).
     """
-    import cinemateca.eval.slates as slates
+    import kuaa.eval.slates as slates
 
     (tmp_path / "film_a" / "embeddings").mkdir(parents=True)
     (tmp_path / "film_b" / "embeddings").mkdir(parents=True)
@@ -392,7 +392,7 @@ def test_generate_slate_dispatches_text_to_find(tmp_path: Path, monkeypatch):
 
 def test_generate_slate_dispatches_image_to_find(tmp_path: Path, monkeypatch):
     """Image query → CLIP ``find(Query.image(...))`` per film, registry-free."""
-    import cinemateca.eval.slates as slates
+    import kuaa.eval.slates as slates
 
     (tmp_path / "film_a" / "embeddings").mkdir(parents=True)
     img = tmp_path / "anchor.jpg"

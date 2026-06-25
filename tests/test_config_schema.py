@@ -21,8 +21,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from cinemateca.config import CONFIG_VERSION, Config, Settings, load_config
-from cinemateca.errors import ConfigError
+from kuaa.config import CONFIG_VERSION, Config, Settings, load_config
+from kuaa.errors import ConfigError
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _DEFAULT_YAML = _REPO_ROOT / "config" / "default.yaml"

@@ -28,7 +28,7 @@ pytestmark = pytest.mark.smoke
 
 def _make_cfg_json_logs(tmp_path):
     """Return a Settings with json_logs=True and file logging disabled."""
-    from cinemateca.config import load_config
+    from kuaa.config import load_config
 
     cfg = load_config(project_root=tmp_path, ensure_dirs=False)
     cfg.logging.json_logs = True
@@ -59,7 +59,7 @@ def test_json_logs_toggle_installs_formatter_and_emits_valid_json(tmp_path):
     """With json_logs=True, setup_logging installs _JsonFormatter on root
     handlers; formatting a record through that formatter yields valid JSON
     with keys ts / level / name / msg / request_id."""
-    from cinemateca.config.loader import _JsonFormatter, setup_logging
+    from kuaa.config.loader import _JsonFormatter, setup_logging
 
     cfg = _make_cfg_json_logs(tmp_path)
 
@@ -81,7 +81,7 @@ def test_json_logs_toggle_installs_formatter_and_emits_valid_json(tmp_path):
     assert isinstance(formatter, _JsonFormatter)
 
     record = logging.LogRecord(
-        name="cinemateca.test_t12",
+        name="kuaa.test_t12",
         level=logging.INFO,
         pathname="test",
         lineno=0,
@@ -168,8 +168,8 @@ def test_access_log_record_carries_f5_fields(client, caplog):
 
 def test_json_logs_false_does_not_install_json_formatter(tmp_path):
     """Regression guard: default json_logs=False leaves plain text formatter."""
-    from cinemateca.config import load_config
-    from cinemateca.config.loader import _JsonFormatter, setup_logging
+    from kuaa.config import load_config
+    from kuaa.config.loader import _JsonFormatter, setup_logging
 
     cfg = load_config(project_root=tmp_path, ensure_dirs=False)
     cfg.logging.json_logs = False

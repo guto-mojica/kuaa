@@ -1,7 +1,7 @@
 """Search tab routes — text + image semantic search via CLIP.
 
 Thin HTTP layer: parse, executor-offload, render. Logic in
-:mod:`cinemateca.search`; render helpers in :mod:`api.services._search_render`.
+:mod:`kuaa.search`; render helpers in :mod:`api.services._search_render`.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from api.services._search_render import enriched_per_film as _enriched_per_film
 from api.services._search_render import no_index_response as _no_index_response
 from api.services._search_render import render_results as _render_results
 from api.templates import templates
-from cinemateca.library import FilmContext
+from kuaa.library import FilmContext
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

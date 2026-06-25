@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any, TypedDict
 
 from api.jobs import active_jobs
-from cinemateca.library import Film, LibraryState, scan_library
+from kuaa.library import Film, LibraryState, scan_library
 
 
 class ChromeContext(TypedDict):
@@ -65,8 +65,8 @@ def _collection_counts(cfg: Any, films: list[Film]) -> Counter[str]:
     """
     from api.services.catalog import load_metadata
     from api.services.scenes import tipo_of
-    from cinemateca.library import FilmContext
-    from cinemateca.scene_ids import scene_id_key
+    from kuaa.library import FilmContext
+    from kuaa.scene_ids import scene_id_key
 
     counts: Counter[str] = Counter()
     for film in films:
@@ -165,7 +165,7 @@ def build_chrome_context(
     through ``render_page`` still render the shell sensibly.
 
     Args:
-      cfg: Loaded config namespace returned by ``cinemateca.config.load_config``.
+      cfg: Loaded config namespace returned by ``kuaa.config.load_config``.
         Typed as ``Any`` to match the existing service-layer convention
         (see ``search_service``, ``film_context``, ``catalog``); the only
         attribute touched here is ``cfg.paths.library_dir``.
@@ -194,7 +194,7 @@ def build_chrome_context(
           compatibility keys for future collaboration chrome. Not rendered by
           the launch topbar.
     """
-    from cinemateca.library import library_state
+    from kuaa.library import library_state
 
     library_dir = Path(cfg.paths.library_dir)
     films = scan_library(library_dir)

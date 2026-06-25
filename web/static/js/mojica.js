@@ -106,7 +106,7 @@
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.href = url;
-      a.download = 'cinemateca-processing-log.txt';
+      a.download = 'kuaa-processing-log.txt';
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -731,7 +731,7 @@ window.downloadSelectionEdl = function () {
     scenes: store._entries.map(function (e) {
       return { film_slug: e.film_slug, scene_id: e.scene_id, scene_slug: e.scene_slug };
     }),
-    title: 'Cinemateca Export',
+    title: 'KUAA Export',
   };
   fetch('/api/export/scenes.edl', {
     method: 'POST',

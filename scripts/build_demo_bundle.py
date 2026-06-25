@@ -60,7 +60,7 @@ def _bundle_filename(manifest: dict[str, Any], override: str | None) -> str:
     configured = manifest.get("artifact_bundle", {}).get("filename")
     if configured:
         return Path(str(configured)).name
-    return "cinemateca-demo.zip"
+    return "kuaa-demo.zip"
 
 
 def _validate_runtime(runtime_root: Path, manifest: dict[str, Any]) -> prepare_demo.CheckResult:

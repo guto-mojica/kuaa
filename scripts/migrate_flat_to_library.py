@@ -23,7 +23,7 @@ import logging
 import shutil
 from pathlib import Path
 
-from cinemateca.library import load_registry, register_film
+from kuaa.library import load_registry, register_film
 
 logger = logging.getLogger(__name__)
 

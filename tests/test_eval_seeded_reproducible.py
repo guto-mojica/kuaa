@@ -21,8 +21,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from cinemateca.eval.datasets import EvaluationDataset, QueryCase
-from cinemateca.eval.retrieval import run_retrieval_eval
+from kuaa.eval.datasets import EvaluationDataset, QueryCase
+from kuaa.eval.retrieval import run_retrieval_eval
 
 # ---------------------------------------------------------------------------
 # Hermetic BM25 fixture helpers — mirror tests/test_eval_retrieval.py

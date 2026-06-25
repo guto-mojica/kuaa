@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-from cinemateca.pipeline import CatalogPipeline, StepResult
+from kuaa.pipeline import CatalogPipeline, StepResult
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -91,7 +91,7 @@ def _stub_steps(pipeline: CatalogPipeline) -> None:
 
 def test_slugify_basic():
     """slugify converts stems to clean slugs."""
-    from cinemateca.pipeline import slugify
+    from kuaa.pipeline import slugify
 
     assert slugify("jeca_tatu") == "jeca_tatu"
     assert slugify("Jeca Tatu") == "jeca_tatu"
@@ -101,7 +101,7 @@ def test_slugify_basic():
 
 
 def test_slugify_strips_non_alnum():
-    from cinemateca.pipeline import slugify
+    from kuaa.pipeline import slugify
 
     assert slugify("hello world!") == "hello_world"
     assert slugify("../secret") == "secret"
@@ -114,7 +114,7 @@ def test_slugify_degenerate_inputs_return_empty():
     means such inputs raise loudly instead of producing a corrupt
     library_dir/'' film entry.
     """
-    from cinemateca.pipeline import slugify
+    from kuaa.pipeline import slugify
 
     assert slugify("") == ""
     assert slugify("!!!") == ""
@@ -130,7 +130,7 @@ def test_pipeline_empty_slug_raises(tmp_path):
 def test_pipeline_does_not_register_on_partial_failure(tmp_path):
     """When a step fails (stop_on_error=False, result.success=False), the
     film is NOT registered — partial runs leave the registry untouched."""
-    from cinemateca.library import load_registry
+    from kuaa.library import load_registry
 
     cfg = _fake_cfg(tmp_path)
     p = CatalogPipeline(cfg, slug="partial")
@@ -203,7 +203,7 @@ def test_pipeline_per_film_does_not_write_to_flat_paths(tmp_path):
 
 def test_pipeline_registers_film_in_films_json(tmp_path):
     """After a successful run the slug appears in ``films.json``."""
-    from cinemateca.library import load_registry
+    from kuaa.library import load_registry
 
     cfg = _fake_cfg(tmp_path)
     p = CatalogPipeline(cfg, slug="my_film")
@@ -234,7 +234,7 @@ def test_pipeline_register_is_idempotent(tmp_path):
 
 def test_pipeline_year_extraction_from_filename(tmp_path):
     """Year is extracted from the video stem when a 4-digit year is present."""
-    from cinemateca.library import load_registry
+    from kuaa.library import load_registry
 
     cfg = _fake_cfg(tmp_path)
     p = CatalogPipeline(cfg, slug="jeca_tatu_1959")
@@ -268,12 +268,12 @@ def test_cli_slug_default_is_slugified_stem(tmp_path, monkeypatch):
     """``--slug`` defaults to slugified ``Path(--video).stem``."""
     import sys
 
-    from cinemateca import __main__ as main_mod
+    from kuaa import __main__ as main_mod
 
     cfg = _fake_cfg(tmp_path)
 
     # Patch load_config where __main__ imports it from at call time.
-    import cinemateca.config as cfg_mod
+    import kuaa.config as cfg_mod
 
     monkeypatch.setattr(cfg_mod, "load_config", lambda *a, **kw: cfg)
 
@@ -302,7 +302,7 @@ def test_cli_slug_default_is_slugified_stem(tmp_path, monkeypatch):
         sys,
         "argv",
         [
-            "cinemateca",
+            "kuaa",
             "process",
             str(test_video),
         ],
@@ -319,11 +319,11 @@ def test_cli_explicit_slug_is_forwarded(tmp_path, monkeypatch):
     """An explicit ``--slug`` is passed through to ``CatalogPipeline``."""
     import sys
 
-    from cinemateca import __main__ as main_mod
+    from kuaa import __main__ as main_mod
 
     cfg = _fake_cfg(tmp_path)
 
-    import cinemateca.config as cfg_mod
+    import kuaa.config as cfg_mod
 
     monkeypatch.setattr(cfg_mod, "load_config", lambda *a, **kw: cfg)
 
@@ -349,7 +349,7 @@ def test_cli_explicit_slug_is_forwarded(tmp_path, monkeypatch):
         sys,
         "argv",
         [
-            "cinemateca",
+            "kuaa",
             "process",
             str(test_video),
             "--slug",

@@ -17,7 +17,7 @@ Design notes
 ------------
 * **Real server, not TestClient.** The point of the e2e gate is to exercise the
   shipped uvicorn + static-asset + JS path end to end, so the harness boots
-  ``cinemateca serve --no-reload`` as a subprocess on a free port (cwd = repo
+  ``kuaa serve --no-reload`` as a subprocess on a free port (cwd = repo
   root, so the default-config ``data/library`` resolves to the real archive)
   and polls ``/health`` until ready. ``--no-reload`` is mandatory: the reloader
   forks a supervised child that a single ``terminate()`` would orphan.
@@ -82,7 +82,7 @@ def _wait_for_health(base_url: str, proc: subprocess.Popen[bytes], log_path: Pat
     while time.monotonic() < deadline:
         if proc.poll() is not None:
             raise RuntimeError(
-                f"cinemateca serve exited early (code {proc.returncode}) before "
+                f"kuaa serve exited early (code {proc.returncode}) before "
                 f"answering /health.\n--- server output ---\n{_read_log(log_path)}"
             )
         try:
@@ -93,7 +93,7 @@ def _wait_for_health(base_url: str, proc: subprocess.Popen[bytes], log_path: Pat
             last_err = exc
         time.sleep(_BOOT_POLL_S)
     raise RuntimeError(
-        f"cinemateca serve did not become healthy within {_BOOT_TIMEOUT_S}s "
+        f"kuaa serve did not become healthy within {_BOOT_TIMEOUT_S}s "
         f"(last error: {last_err}).\n--- server output ---\n{_read_log(log_path)}"
     )
 
@@ -108,7 +108,7 @@ def _read_log(log_path: Path) -> str:
 
 @pytest.fixture(scope="session")
 def live_server(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
-    """Boot ``cinemateca serve --no-reload`` on a free port; yield its base URL.
+    """Boot ``kuaa serve --no-reload`` on a free port; yield its base URL.
 
     Session-scoped so the (slightly slow) cold boot is paid once for the whole
     e2e run. Torn down with SIGTERM → wait, escalating to kill if it ignores
@@ -130,7 +130,7 @@ def live_server(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
         [
             sys.executable,
             "-m",
-            "cinemateca",
+            "kuaa",
             "serve",
             "--no-reload",
             "--host",

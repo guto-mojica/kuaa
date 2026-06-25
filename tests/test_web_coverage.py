@@ -209,7 +209,7 @@ class TestAnnotationSaveClear:
     The on-disk shape (STR scene-id key, lower-kebab tags, empty
     fragments dropped) is produced by the *route*
     (``api/routes/annotate.py``: ``ann[str(scene_id)] = [...]`` with the
-    normalizing list-comp); ``cinemateca.annotations.save`` just
+    normalizing list-comp); ``kuaa.annotations.save`` just
     ``json.dump``s. These tests assert that route-side contract.
 
     Hermetic: the annotations file lives in the temp metadata dir
@@ -370,7 +370,7 @@ def _register_film_in_tmp(library_dir: Path, slug: str, title: str) -> Path:
     Returns the created per-film raw video path.  The video file is
     ``touch``ed (0 bytes) — no route opens it for these sidebar tests.
     """
-    from cinemateca.library import register_film
+    from kuaa.library import register_film
 
     register_film(
         library_dir,
@@ -555,10 +555,10 @@ def stub_search_embedder(monkeypatch):
     there is no ``search._load_index`` seam any more, it was extracted
     into the service in Phase 3c.) Patch ``CLIPEmbedder`` *in the
     embeddings module* (where the service resolves it via ``from
-    cinemateca.embeddings import CLIPEmbedder``) so ``.load`` keeps its
+    kuaa.embeddings import CLIPEmbedder``) so ``.load`` keeps its
     real (defective, no-validation) behaviour but the constructed
     embedder is CLIP-free."""
-    import cinemateca.models.clip.openclip as oc
+    import kuaa.models.clip.openclip as oc
 
     real_load = oc.OpenClipEmbedder.load
 
@@ -605,7 +605,7 @@ def test_corrupt_index_root_defect_still_in_ai_core_but_caught_by_service(
 
     The ROOT defect is unchanged and intentionally so: the AI core
     ``CLIPEmbedder.load`` still performs NO row-count check (Phase 3c
-    deliberately did NOT touch ``src/cinemateca/embeddings.py`` to avoid
+    deliberately did NOT touch ``src/kuaa/embeddings.py`` to avoid
     changing the model/artefact contract), and ``SemanticSearch.by_text``
     over a mismatched index still raises out of pandas. This pins that
     so a future change to the AI core is noticed.
@@ -621,9 +621,9 @@ def test_corrupt_index_root_defect_still_in_ai_core_but_caught_by_service(
     import pandas as pd
 
     from api.services.search import IndexStatus, load_index
-    from cinemateca.embeddings import SemanticSearch
-    from cinemateca.library import FilmContext
-    from cinemateca.models.clip.openclip import OpenClipEmbedder
+    from kuaa.embeddings import SemanticSearch
+    from kuaa.library import FilmContext
+    from kuaa.models.clip.openclip import OpenClipEmbedder
 
     cfg = _cfg_from_client()
     _write_corrupt_index(cfg)

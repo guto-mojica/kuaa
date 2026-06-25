@@ -1,4 +1,4 @@
-"""Unit tests for cinemateca.search.clip — the CLIP-only search verbs.
+"""Unit tests for kuaa.search.clip — the CLIP-only search verbs.
 
 These tests pin the post-extraction contract: ``search_text`` and
 ``search_image`` consume a loaded :class:`SearchIndex` and return a
@@ -6,7 +6,7 @@ scene-deduped, top-K cosine-ranked DataFrame. The legacy tests in
 ``tests/test_search_service.py`` (TestSearchTextMinSimilarity,
 TestSceneDedup) still exercise the same surface via the
 ``api.services.search`` re-export — this file is the targeted unit for
-the new home in :mod:`cinemateca.search.clip`.
+the new home in :mod:`kuaa.search.clip`.
 """
 
 from __future__ import annotations
@@ -14,8 +14,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from cinemateca.search.cache import IndexStatus, SearchIndex
-from cinemateca.search.clip import search_image, search_text
+from kuaa.search.cache import IndexStatus, SearchIndex
+from kuaa.search.clip import search_image, search_text
 
 
 class _FakeEmbedder:

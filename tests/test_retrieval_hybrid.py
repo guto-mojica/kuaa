@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from cinemateca.retrieval.hybrid import (
+from kuaa.retrieval.hybrid import (
     DEFAULT_RRF_K,
     fuse_rrf,
     resolve_weights,

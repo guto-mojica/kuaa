@@ -1,19 +1,19 @@
-"""Tests for the unified Typer CLI in ``cinemateca/__main__.py``.
+"""Tests for the unified Typer CLI in ``kuaa/__main__.py``.
 
 Covers the user-facing command tree:
 
-  * ``cinemateca serve``            — delegates to uvicorn.run
-  * ``cinemateca info``             — prints video properties / exit 1 on error
-  * ``cinemateca process``          — pipeline with explicit slug
-  * ``cinemateca library list``     — table of registered films
-  * ``cinemateca library reembed``  — registry-driven re-embed (regression-locked
+  * ``kuaa serve``            — delegates to uvicorn.run
+  * ``kuaa info``             — prints video properties / exit 1 on error
+  * ``kuaa process``          — pipeline with explicit slug
+  * ``kuaa library list``     — table of registered films
+  * ``kuaa library reembed``  — registry-driven re-embed (regression-locked
                                        slug-from-registry, --only filter,
                                        empty-registry error, stale-cleanup)
-  * ``cinemateca library delete``   — destructive op with --yes confirmation
-  * ``cinemateca config show``      — YAML dump of merged config
+  * ``kuaa library delete``   — destructive op with --yes confirmation
+  * ``kuaa config show``      — YAML dump of merged config
 
 Tests use ``typer.testing.CliRunner`` to invoke the actual Typer app
-(``cinemateca.__main__.app``) so help-text generation, option parsing,
+(``kuaa.__main__.app``) so help-text generation, option parsing,
 exit codes, and subcommand wiring are all exercised end-to-end.
 """
 
@@ -38,7 +38,7 @@ def runner() -> CliRunner:
 
 def _seed_film(library_dir: Path, slug: str, raw_filename: str) -> Path:
     """Register a film and create the per-film layout the CLI expects."""
-    from cinemateca.library import register_film
+    from kuaa.library import register_film
 
     register_film(
         library_dir,
@@ -101,9 +101,9 @@ def reembed_env(tmp_path, monkeypatch):
             invocations.append({"slug": self.slug, "video": str(video_path)})
             return SimpleNamespace(success=True, total_duration_s=0.5)
 
-    monkeypatch.setattr("cinemateca.config.load_config", lambda _path=None: cfg)
-    monkeypatch.setattr("cinemateca.config.setup_logging", lambda _c: None)
-    monkeypatch.setattr("cinemateca.pipeline.CatalogPipeline", FakePipeline)
+    monkeypatch.setattr("kuaa.config.load_config", lambda _path=None: cfg)
+    monkeypatch.setattr("kuaa.config.setup_logging", lambda _c: None)
+    monkeypatch.setattr("kuaa.pipeline.CatalogPipeline", FakePipeline)
     return SimpleNamespace(cfg=cfg, library_dir=library_dir, invocations=invocations)
 
 
@@ -111,20 +111,20 @@ def reembed_env(tmp_path, monkeypatch):
 
 
 class TestRootHelp:
-    """Calling ``cinemateca`` with no args (or --help) must print the
+    """Calling ``kuaa`` with no args (or --help) must print the
     full command tree without crashing — the discoverability test."""
 
     def test_no_args_prints_help(self, runner):
-        from cinemateca.__main__ import app
+        from kuaa.__main__ import app
 
         result = runner.invoke(app, [])
         # Typer prints help to stdout and exits non-zero for no_args_is_help.
-        assert "Cinemateca AI" in (result.stdout + result.stderr)
+        assert "KUAA" in (result.stdout + result.stderr)
         assert "library" in (result.stdout + result.stderr)
         assert "serve" in (result.stdout + result.stderr)
 
     def test_help_lists_all_command_groups(self, runner):
-        from cinemateca.__main__ import app
+        from kuaa.__main__ import app
 
         result = runner.invoke(app, ["--help"])
         out = result.stdout + result.stderr
@@ -132,7 +132,7 @@ class TestRootHelp:
             assert cmd in out, f"top-level command {cmd!r} missing from --help"
 
     def test_library_subcommands_listed(self, runner):
-        from cinemateca.__main__ import app
+        from kuaa.__main__ import app
 
         result = runner.invoke(app, ["library", "--help"])
         out = result.stdout + result.stderr
@@ -145,7 +145,7 @@ class TestRootHelp:
 
 class TestReembedUsesRegisteredSlug:
     def test_calls_pipeline_once_per_registered_film(self, runner, reembed_env):
-        from cinemateca.__main__ import app
+        from kuaa.__main__ import app
 
         result = runner.invoke(app, ["library", "reembed"])
         assert result.exit_code == 0, result.stdout + result.stderr
@@ -174,11 +174,11 @@ class TestReembedUsesRegisteredSlug:
                 invocations.append({"slug": self.slug})
                 return SimpleNamespace(success=True, total_duration_s=0.0)
 
-        monkeypatch.setattr("cinemateca.config.load_config", lambda _path=None: cfg)
-        monkeypatch.setattr("cinemateca.config.setup_logging", lambda _c: None)
-        monkeypatch.setattr("cinemateca.pipeline.CatalogPipeline", FakePipeline)
+        monkeypatch.setattr("kuaa.config.load_config", lambda _path=None: cfg)
+        monkeypatch.setattr("kuaa.config.setup_logging", lambda _c: None)
+        monkeypatch.setattr("kuaa.pipeline.CatalogPipeline", FakePipeline)
 
-        from cinemateca.__main__ import app
+        from kuaa.__main__ import app
 
         result = runner.invoke(app, ["library", "reembed"])
         assert result.exit_code == 0, result.stdout + result.stderr
@@ -190,14 +190,14 @@ class TestReembedUsesRegisteredSlug:
 
 class TestReembedFilters:
     def test_only_filters_to_specified_slug(self, runner, reembed_env):
-        from cinemateca.__main__ import app
+        from kuaa.__main__ import app
 
         result = runner.invoke(app, ["library", "reembed", "--only", "film_a"])
         assert result.exit_code == 0
         assert [inv["slug"] for inv in reembed_env.invocations] == ["film_a"]
 
     def test_only_unknown_slug_returns_error(self, runner, reembed_env):
-        from cinemateca.__main__ import app
+        from kuaa.__main__ import app
 
         result = runner.invoke(app, ["library", "reembed", "--only", "does_not_exist"])
         assert result.exit_code != 0
@@ -207,10 +207,10 @@ class TestReembedFilters:
     def test_empty_registry_returns_error(self, tmp_path, monkeypatch, runner):
         cfg = _stub_cfg(tmp_path)
         (Path(cfg.paths.library_dir) / "films.json").write_text("{}")
-        monkeypatch.setattr("cinemateca.config.load_config", lambda _path=None: cfg)
-        monkeypatch.setattr("cinemateca.config.setup_logging", lambda _c: None)
+        monkeypatch.setattr("kuaa.config.load_config", lambda _path=None: cfg)
+        monkeypatch.setattr("kuaa.config.setup_logging", lambda _c: None)
 
-        from cinemateca.__main__ import app
+        from kuaa.__main__ import app
 
         result = runner.invoke(app, ["library", "reembed"])
         assert result.exit_code != 0
@@ -242,11 +242,11 @@ class TestReembedStaleCleanup:
             def run(self, _v):
                 return SimpleNamespace(success=True, total_duration_s=0.0)
 
-        monkeypatch.setattr("cinemateca.config.load_config", lambda _path=None: cfg)
-        monkeypatch.setattr("cinemateca.config.setup_logging", lambda _c: None)
-        monkeypatch.setattr("cinemateca.pipeline.CatalogPipeline", FakePipeline)
+        monkeypatch.setattr("kuaa.config.load_config", lambda _path=None: cfg)
+        monkeypatch.setattr("kuaa.config.setup_logging", lambda _c: None)
+        monkeypatch.setattr("kuaa.pipeline.CatalogPipeline", FakePipeline)
 
-        from cinemateca.__main__ import app
+        from kuaa.__main__ import app
 
         argv = ["library", "reembed"]
         if keep_existing:
@@ -279,10 +279,10 @@ class TestLibraryList:
         cfg = _stub_cfg(tmp_path)
         _seed_film(Path(cfg.paths.library_dir), "film_a", "film_a.mp4")
         _seed_film(Path(cfg.paths.library_dir), "film_b", "film_b.mp4")
-        monkeypatch.setattr("cinemateca.config.load_config", lambda _path=None: cfg)
-        monkeypatch.setattr("cinemateca.config.setup_logging", lambda _c: None)
+        monkeypatch.setattr("kuaa.config.load_config", lambda _path=None: cfg)
+        monkeypatch.setattr("kuaa.config.setup_logging", lambda _c: None)
 
-        from cinemateca.__main__ import app
+        from kuaa.__main__ import app
 
         result = runner.invoke(app, ["library", "list"])
         assert result.exit_code == 0, result.stdout + result.stderr
@@ -293,10 +293,10 @@ class TestLibraryList:
     def test_empty_library_does_not_crash(self, tmp_path, monkeypatch, runner):
         cfg = _stub_cfg(tmp_path)
         (Path(cfg.paths.library_dir) / "films.json").write_text("{}")
-        monkeypatch.setattr("cinemateca.config.load_config", lambda _path=None: cfg)
-        monkeypatch.setattr("cinemateca.config.setup_logging", lambda _c: None)
+        monkeypatch.setattr("kuaa.config.load_config", lambda _path=None: cfg)
+        monkeypatch.setattr("kuaa.config.setup_logging", lambda _c: None)
 
-        from cinemateca.__main__ import app
+        from kuaa.__main__ import app
 
         result = runner.invoke(app, ["library", "list"])
         assert result.exit_code == 0
@@ -311,11 +311,11 @@ class TestLibraryDelete:
         cfg = _stub_cfg(tmp_path)
         library_dir = Path(cfg.paths.library_dir)
         _seed_film(library_dir, "film_a", "film_a.mp4")
-        monkeypatch.setattr("cinemateca.config.load_config", lambda _path=None: cfg)
-        monkeypatch.setattr("cinemateca.config.setup_logging", lambda _c: None)
+        monkeypatch.setattr("kuaa.config.load_config", lambda _path=None: cfg)
+        monkeypatch.setattr("kuaa.config.setup_logging", lambda _c: None)
 
-        from cinemateca.__main__ import app
-        from cinemateca.library import load_registry
+        from kuaa.__main__ import app
+        from kuaa.library import load_registry
 
         assert "film_a" in load_registry(library_dir)
         result = runner.invoke(app, ["library", "delete", "film_a", "--yes"])
@@ -332,10 +332,10 @@ class TestLibraryDelete:
     ):
         cfg = _stub_cfg(tmp_path)
         (Path(cfg.paths.library_dir) / "films.json").write_text("{}")
-        monkeypatch.setattr("cinemateca.config.load_config", lambda _path=None: cfg)
-        monkeypatch.setattr("cinemateca.config.setup_logging", lambda _c: None)
+        monkeypatch.setattr("kuaa.config.load_config", lambda _path=None: cfg)
+        monkeypatch.setattr("kuaa.config.setup_logging", lambda _c: None)
 
-        from cinemateca.__main__ import app
+        from kuaa.__main__ import app
 
         result = runner.invoke(app, ["library", "delete", "ghost", "--yes"])
         assert result.exit_code != 0
@@ -352,11 +352,11 @@ class TestLibraryDelete:
         cfg = _stub_cfg(tmp_path)
         library_dir = Path(cfg.paths.library_dir)
         _seed_film(library_dir, "film_a", "film_a.mp4")
-        monkeypatch.setattr("cinemateca.config.load_config", lambda _path=None: cfg)
-        monkeypatch.setattr("cinemateca.config.setup_logging", lambda _c: None)
+        monkeypatch.setattr("kuaa.config.load_config", lambda _path=None: cfg)
+        monkeypatch.setattr("kuaa.config.setup_logging", lambda _c: None)
 
-        from cinemateca.__main__ import app
-        from cinemateca.library import load_registry
+        from kuaa.__main__ import app
+        from kuaa.library import load_registry
 
         result = runner.invoke(app, ["library", "delete", "film_a"], input="n\n")
         assert result.exit_code == 0
@@ -373,7 +373,7 @@ class TestConfigShow:
         parseable YAML dump that includes the expected sections."""
         import yaml
 
-        from cinemateca.__main__ import app
+        from kuaa.__main__ import app
 
         result = runner.invoke(app, ["config", "show"])
         assert result.exit_code == 0, result.stdout + result.stderr
@@ -402,7 +402,7 @@ class TestServe:
 
         monkeypatch.setattr("uvicorn.run", fake_run)
 
-        from cinemateca.__main__ import app
+        from kuaa.__main__ import app
 
         result = runner.invoke(app, ["serve", "--port", "9999", "--no-reload"])
         assert result.exit_code == 0, result.stdout + result.stderr

@@ -21,10 +21,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 def test_config_loads_defaults(tmp_path):
     """Config padrão carrega sem erro."""
-    from cinemateca.config import load_config
+    from kuaa.config import load_config
 
     cfg = load_config(project_root=tmp_path)
-    assert cfg.project.name == "Cinemateca AI"
+    assert cfg.project.name == "KUAA"
     assert hasattr(cfg, "paths")
     assert hasattr(cfg, "hardware")
     assert hasattr(cfg, "pipeline")
@@ -32,7 +32,7 @@ def test_config_loads_defaults(tmp_path):
 
 def test_config_resolves_paths(tmp_path):
     """Caminhos relativos são convertidos para absolutos."""
-    from cinemateca.config import load_config
+    from kuaa.config import load_config
 
     cfg = load_config(project_root=tmp_path)
     # Todos os paths devem ser Path absolutos
@@ -44,7 +44,7 @@ def test_config_user_override(tmp_path):
     """Config do usuário sobrescreve valores específicos."""
     import yaml
 
-    from cinemateca.config import load_config
+    from kuaa.config import load_config
 
     user_cfg = tmp_path / "local.yaml"
     user_cfg.write_text(yaml.dump({"scene_detection": {"content_threshold": 42.0}}))
@@ -57,7 +57,7 @@ def test_config_user_override(tmp_path):
 
 def test_config_setup_logging(tmp_path):
     """setup_logging não levanta exceção."""
-    from cinemateca.config import load_config, setup_logging
+    from kuaa.config import load_config, setup_logging
 
     cfg = load_config(project_root=tmp_path)
     setup_logging(cfg)  # não deve levantar exceção
@@ -69,7 +69,7 @@ def test_config_setup_logging(tmp_path):
 def test_device_cpu_forced():
     """get_device('cpu') sempre retorna CPU."""
     pytest.importorskip("torch")
-    from cinemateca.device import get_device
+    from kuaa.device import get_device
 
     device = get_device("cpu")
     assert str(device) == "cpu"
@@ -78,8 +78,8 @@ def test_device_cpu_forced():
 def test_device_from_config(tmp_path):
     """device_from_config usa a config corretamente."""
     pytest.importorskip("torch")
-    from cinemateca.config import load_config
-    from cinemateca.device import device_from_config
+    from kuaa.config import load_config
+    from kuaa.device import device_from_config
 
     cfg = load_config(project_root=tmp_path)
     device = device_from_config(cfg)
@@ -91,39 +91,39 @@ def test_device_from_config(tmp_path):
 
 
 def test_import_data_prep():
-    from cinemateca.data_prep import VideoInspector
+    from kuaa.data_prep import VideoInspector
 
     assert VideoInspector is not None
 
 
 def test_import_scene_detector():
-    from cinemateca.scene_detector import SceneDetector
+    from kuaa.scene_detector import SceneDetector
 
     assert SceneDetector is not None
 
 
 def test_import_visual_analyzer():
-    from cinemateca.visual_analyzer import VisualAnalyzer
+    from kuaa.visual_analyzer import VisualAnalyzer
 
     assert VisualAnalyzer is not None
 
 
 def test_import_embeddings():
-    from cinemateca.embeddings import SemanticSearch
-    from cinemateca.models.clip.openclip import OpenClipEmbedder
+    from kuaa.embeddings import SemanticSearch
+    from kuaa.models.clip.openclip import OpenClipEmbedder
 
     assert SemanticSearch is not None
     assert OpenClipEmbedder is not None
 
 
 def test_import_describer():
-    from cinemateca.models.describer.gguf import MoondreamGGUFDescriber
+    from kuaa.models.describer.gguf import MoondreamGGUFDescriber
 
     assert MoondreamGGUFDescriber is not None
 
 
 def test_import_describer_transformers():
-    from cinemateca.models.describer.transformers_hf import (
+    from kuaa.models.describer.transformers_hf import (
         MoondreamTransformersDescriber,
     )
 
@@ -131,7 +131,7 @@ def test_import_describer_transformers():
 
 
 def test_import_pipeline():
-    from cinemateca.pipeline import CatalogPipeline
+    from kuaa.pipeline import CatalogPipeline
 
     assert CatalogPipeline is not None
 
@@ -140,7 +140,7 @@ def test_import_pipeline():
 
 
 def test_parse_num_people():
-    from cinemateca.models.describer._common import _parse_num_people
+    from kuaa.models.describer._common import _parse_num_people
 
     assert _parse_num_people("no people visible") == 0
     assert _parse_num_people("two people talking") == 2
@@ -150,7 +150,7 @@ def test_parse_num_people():
 
 
 def test_parse_objects():
-    from cinemateca.models.describer._common import _parse_objects
+    from kuaa.models.describer._common import _parse_objects
 
     result = _parse_objects("tree, wooden fence, hat, dirt road")
     assert "tree" in result
@@ -159,7 +159,7 @@ def test_parse_objects():
 
 
 def test_generate_tags():
-    from cinemateca.models.describer._common import _generate_tags
+    from kuaa.models.describer._common import _generate_tags
 
     tags = _generate_tags(
         {
@@ -181,7 +181,7 @@ def test_generate_tags():
 
 def test_quality_analyzer_missing_file(tmp_path):
     """Arquivo ausente não levanta exceção — retorna zeros."""
-    from cinemateca.data_prep import FrameQualityAnalyzer
+    from kuaa.data_prep import FrameQualityAnalyzer
 
     analyzer = FrameQualityAnalyzer()
     result = analyzer.analyze(tmp_path / "nonexistent.jpg")
@@ -192,8 +192,8 @@ def test_quality_analyzer_missing_file(tmp_path):
 
 
 def test_pipeline_instantiation(tmp_path):
-    from cinemateca.config import load_config
-    from cinemateca.pipeline import CatalogPipeline
+    from kuaa.config import load_config
+    from kuaa.pipeline import CatalogPipeline
 
     cfg = load_config(project_root=tmp_path)
     pipeline = CatalogPipeline(cfg)
@@ -201,7 +201,7 @@ def test_pipeline_instantiation(tmp_path):
 
 
 def test_pipeline_result_summary():
-    from cinemateca.pipeline import PipelineResult, StepResult
+    from kuaa.pipeline import PipelineResult, StepResult
 
     result = PipelineResult(video_path="test.mp4")
     result.steps.append(StepResult(name="frame_extraction", success=True, duration_s=1.5))
@@ -215,7 +215,7 @@ def test_pipeline_result_summary():
 def test_steps_alias_maps_to_full_names():
     import click
 
-    from cinemateca.__main__ import _resolve_steps
+    from kuaa.__main__ import _resolve_steps
 
     assert _resolve_steps("llm") == {"llm_description"}
     assert _resolve_steps("frames,scenes") == {

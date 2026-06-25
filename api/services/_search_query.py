@@ -20,7 +20,7 @@ from api.services._field_errors import (
     submit_triggered,
 )
 from api.services._search_render import run_text_search
-from cinemateca.library import FilmContext
+from kuaa.library import FilmContext
 
 _QUERY_ERROR_SLOT = "search-query-error"
 

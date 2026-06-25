@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 
-from cinemateca.rhymes import find_rhymes
+from kuaa.rhymes import find_rhymes
 
 
 def _make_library(tmp_path: Path) -> Path:

@@ -6,7 +6,7 @@ mutate the annotations file (or the ``tag_overrides.json`` override layer) and
 are re-exported on ``api.services.annotations`` so caller import paths are
 unchanged; they live here to keep ``annotations.py`` within its LOC cap.
 
-Data-access primitives come from ``cinemateca.annotations.*`` (io + overrides);
+Data-access primitives come from ``kuaa.annotations.*`` (io + overrides);
 this module is the thin curation-orchestration layer.
 """
 
@@ -14,14 +14,14 @@ from __future__ import annotations
 
 import logging
 
-from cinemateca.annotations.io import load_annotations, normalize_tags, save_annotations
-from cinemateca.annotations.overrides import (
+from kuaa.annotations.io import load_annotations, normalize_tags, save_annotations
+from kuaa.annotations.overrides import (
     load_overrides,
     normalize_override_tag,
     save_overrides,
     set_suppressed,
 )
-from cinemateca.library import FilmContext
+from kuaa.library import FilmContext
 
 logger = logging.getLogger(__name__)
 

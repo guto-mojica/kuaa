@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from cinemateca.models.base import SceneDescriber
-from cinemateca.models.describer._common import PROMPTS
+from kuaa.models.base import SceneDescriber
+from kuaa.models.describer._common import PROMPTS
 
 
 def _answer_for(prompt: str) -> str:
@@ -38,7 +38,7 @@ class _FakeAnswerer:
 
 
 def _backend_with_fake(monkeypatch):
-    from cinemateca.models.describer import transformers_hf
+    from kuaa.models.describer import transformers_hf
 
     fake = _FakeAnswerer()
     monkeypatch.setattr(
@@ -117,7 +117,7 @@ def _patch_cuda(monkeypatch, available: bool):
 
 def test_warn_if_cpu_torch_warns_when_gpu_present_but_cpu_build(monkeypatch, caplog):
     """NVIDIA GPU present + CPU-only torch → loud WARNING."""
-    from cinemateca.models.describer import transformers_hf
+    from kuaa.models.describer import transformers_hf
 
     backend = transformers_hf.MoondreamTransformersDescriber()
     monkeypatch.setattr(transformers_hf.shutil, "which", lambda _n: "/usr/bin/nvidia-smi")
@@ -129,7 +129,7 @@ def test_warn_if_cpu_torch_warns_when_gpu_present_but_cpu_build(monkeypatch, cap
 
 def test_warn_if_cpu_torch_silent_when_cuda_available(monkeypatch, caplog):
     """A genuine CUDA torch build must NOT warn."""
-    from cinemateca.models.describer import transformers_hf
+    from kuaa.models.describer import transformers_hf
 
     backend = transformers_hf.MoondreamTransformersDescriber()
     monkeypatch.setattr(transformers_hf.shutil, "which", lambda _n: "/usr/bin/nvidia-smi")
@@ -141,7 +141,7 @@ def test_warn_if_cpu_torch_silent_when_cuda_available(monkeypatch, caplog):
 
 def test_warn_if_cpu_torch_silent_without_nvidia_gpu(monkeypatch, caplog):
     """No nvidia-smi → CPU is expected, stay silent."""
-    from cinemateca.models.describer import transformers_hf
+    from kuaa.models.describer import transformers_hf
 
     backend = transformers_hf.MoondreamTransformersDescriber()
     monkeypatch.setattr(transformers_hf.shutil, "which", lambda _n: None)
@@ -153,7 +153,7 @@ def test_warn_if_cpu_torch_silent_without_nvidia_gpu(monkeypatch, caplog):
 
 def test_encode_called_once_per_frame(monkeypatch):
     """describe() runs len(PROMPTS) prompts but encodes the image once."""
-    from cinemateca.models.describer import transformers_hf
+    from kuaa.models.describer import transformers_hf
 
     backend = transformers_hf.MoondreamTransformersDescriber()
 
@@ -191,7 +191,7 @@ def test_encode_called_once_per_frame(monkeypatch):
 
 def test_encode_called_once_per_frame_via_describe_batch(monkeypatch):
     """describe_batch encodes each frame once across all prompts (cache hit)."""
-    from cinemateca.models.describer import transformers_hf
+    from kuaa.models.describer import transformers_hf
 
     backend = transformers_hf.MoondreamTransformersDescriber()
     calls = {"encode": 0}
@@ -228,8 +228,8 @@ def test_encode_called_once_per_frame_via_describe_batch(monkeypatch):
 
 def test_registry_returns_transformers_backend(monkeypatch):
     """registry.get_scene_describer resolves 'moondream_transformers'."""
-    from cinemateca.models import registry
-    from cinemateca.models.describer import transformers_hf
+    from kuaa.models import registry
+    from kuaa.models.describer import transformers_hf
 
     monkeypatch.setattr(
         transformers_hf.MoondreamTransformersDescriber,
@@ -251,7 +251,7 @@ def test_registry_returns_transformers_backend(monkeypatch):
 def test_registry_rejects_unknown_describer():
     import pytest
 
-    from cinemateca.models import registry
+    from kuaa.models import registry
 
     class _Models:
         scene_describer = "nope"
@@ -265,9 +265,9 @@ def test_registry_rejects_unknown_describer():
 
 def test_default_config_selects_transformers_backend(tmp_path, monkeypatch):
     """The shipped default config must resolve to the transformers backend."""
-    from cinemateca.config import load_config
-    from cinemateca.models import registry
-    from cinemateca.models.describer import transformers_hf
+    from kuaa.config import load_config
+    from kuaa.models import registry
+    from kuaa.models.describer import transformers_hf
 
     monkeypatch.setattr(
         transformers_hf.MoondreamTransformersDescriber,

@@ -1,4 +1,4 @@
-"""Tests the cinemateca.search public surface — what callers see.
+"""Tests the kuaa.search public surface — what callers see.
 
 The 4 public verbs (``find``, ``aggregate``, ``reindex_bm25``, ``rerank``)
 and the 7 public types (``Filters``, ``Hit``, ``HybridWeights``, ``Query``,
@@ -20,8 +20,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from cinemateca import search
-from cinemateca.search.cache import IndexStatus, SearchIndex
+from kuaa import search
+from kuaa.search.cache import IndexStatus, SearchIndex
 
 
 class _FakeEmbedder:
@@ -43,7 +43,7 @@ def fake_film(tmp_path, monkeypatch):
     embedder echoes a constant unit vector so cosine matches all stored
     rows perfectly — ``find()`` returns the one scene.
     """
-    from cinemateca.library import FilmContext, register_film
+    from kuaa.library import FilmContext, register_film
 
     register_film(tmp_path, slug="alpha", title="Alpha", year=2026, raw_filename="alpha.mp4")
     cfg = SimpleNamespace(paths=SimpleNamespace(library_dir=str(tmp_path), data_dir=str(tmp_path)))
@@ -69,7 +69,7 @@ def fake_film(tmp_path, monkeypatch):
         )
     )
 
-    from cinemateca.search import cache as cache_mod
+    from kuaa.search import cache as cache_mod
 
     # Drop any leaked cache entries from prior tests (the module-level dict
     # is shared) before monkeypatching the loader.
@@ -109,13 +109,13 @@ def test_find_text_query_runs(fake_film):
 
 def test_find_returns_no_index_for_missing(tmp_path):
     """Unwritten embeddings → no_index=True, hits=[]; not an exception."""
-    from cinemateca.library import FilmContext, register_film
+    from kuaa.library import FilmContext, register_film
 
     register_film(tmp_path, slug="alpha", title="Alpha", year=2026, raw_filename="alpha.mp4")
     cfg = SimpleNamespace(paths=SimpleNamespace(library_dir=str(tmp_path)))
     ctx = FilmContext.for_film(cfg, "alpha")
 
-    from cinemateca.search import cache as cache_mod
+    from kuaa.search import cache as cache_mod
 
     cache_mod.clear_index_cache()
 

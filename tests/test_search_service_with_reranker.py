@@ -3,7 +3,7 @@
 Covers Task 3.2 of the M3 pre-flight plan: ``api.services.search.apply_reranker``
 reads ``cfg.retrieval.reranker.{enabled,model,top_k_in}`` (with defaults when
 the block is absent) and either short-circuits (``enabled=False``) or forwards
-to :func:`cinemateca.search.rerank` via the patchable ``search_rerank`` symbol.
+to :func:`kuaa.search.rerank` via the patchable ``search_rerank`` symbol.
 No real HF download is triggered — tests use ``model='noop'`` (rerank's
 documented passthrough escape hatch) or monkeypatch ``search_rerank``.
 """
@@ -28,7 +28,7 @@ def fake_cfg():
 
 def _make_result(n: int = 8):
     """Build a SearchResult with ``n`` synthetic Hits + a text Query."""
-    from cinemateca.search.types import Hit, Query, SearchResult
+    from kuaa.search.types import Hit, Query, SearchResult
 
     hits = [
         Hit(scene_id=i, score=1.0 / (i + 1), keyframe_path="", description=f"d{i}")

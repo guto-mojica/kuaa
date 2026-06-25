@@ -10,7 +10,7 @@ the retrieval package stays pure.
 
 from __future__ import annotations
 
-from cinemateca.retrieval.bm25 import BM25Index
+from kuaa.retrieval.bm25 import BM25Index
 
 
 def test_index_builds_and_returns_top_k() -> None:

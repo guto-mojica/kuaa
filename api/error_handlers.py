@@ -1,10 +1,10 @@
-"""A4: map cinemateca.errors -> HTTP envelope (JSON) or HTMX error partial.
+"""A4: map kuaa.errors -> HTTP envelope (JSON) or HTMX error partial.
 
 The HTTP status for each exception subclass is determined by the F2
-single source of truth: :func:`cinemateca.errors.http_status_for`.
+single source of truth: :func:`kuaa.errors.http_status_for`.
 This module intentionally does NOT duplicate the status table — it
 delegates to ``http_status_for`` so the mapping stays canonical in
-``cinemateca/errors.py``.
+``kuaa/errors.py``.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from api.templates import templates
-from cinemateca.errors import CinematecaError, http_status_for
+from kuaa.errors import KuaaError, http_status_for
 
 
 def _is_htmx(request: Request) -> bool:
@@ -21,7 +21,7 @@ def _is_htmx(request: Request) -> bool:
 
 
 def install_error_handlers(app: FastAPI) -> None:
-    """Register the CinematecaError exception handler on *app*.
+    """Register the KuaaError exception handler on *app*.
 
     JSON path: returns the ``{error, code, details, status}`` envelope
     (matching the :class:`api.schemas.ErrorEnvelope` shape).
@@ -31,9 +31,9 @@ def install_error_handlers(app: FastAPI) -> None:
     htmx can swap the fragment and swap it in without a JS-level check.
     """
 
-    @app.exception_handler(CinematecaError)
-    async def _handle_cinemateca_error(
-        request: Request, exc: CinematecaError
+    @app.exception_handler(KuaaError)
+    async def _handle_kuaa_error(
+        request: Request, exc: KuaaError
     ) -> HTMLResponse | JSONResponse:
         status = http_status_for(exc)
         if _is_htmx(request):

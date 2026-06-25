@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from cinemateca.search._aggregate.fusion import fuse_global_rrf
+from kuaa.search._aggregate.fusion import fuse_global_rrf
 
 
 def test_fuse_global_rrf_weights_and_ranks() -> None:
@@ -23,7 +23,7 @@ def test_fuse_global_rrf_skips_zero_weight_lists() -> None:
 
 
 def test_metadata_scorer_scores_exact_tag_and_object_matches() -> None:
-    from cinemateca.search._aggregate.scorers import MetadataScorer
+    from kuaa.search._aggregate.scorers import MetadataScorer
 
     scorer = MetadataScorer()
     scores = scorer.score(
@@ -44,7 +44,7 @@ def test_metadata_scorer_scores_exact_tag_and_object_matches() -> None:
 
 
 def test_metadata_scorer_ignores_long_queries() -> None:
-    from cinemateca.search._aggregate.scorers import MetadataScorer
+    from kuaa.search._aggregate.scorers import MetadataScorer
 
     scorer = MetadataScorer()
     # >4 tokens → lexical signal disabled (matches legacy guard).
@@ -55,7 +55,7 @@ def test_clip_scorer_best_keyframe_per_scene() -> None:
     import numpy as np
     import pandas as pd
 
-    from cinemateca.search._aggregate.scorers import CLIPScorer
+    from kuaa.search._aggregate.scorers import CLIPScorer
 
     # Two keyframes for scene 1 (rows 0,1), one for scene 2 (row 2).
     embeddings = np.array([[1.0, 0.0], [0.9, 0.1], [0.0, 1.0]], dtype=np.float32)
@@ -78,7 +78,7 @@ def test_clip_scorer_applies_min_similarity_floor() -> None:
     import numpy as np
     import pandas as pd
 
-    from cinemateca.search._aggregate.scorers import CLIPScorer
+    from kuaa.search._aggregate.scorers import CLIPScorer
 
     embeddings = np.array([[1.0, 0.0], [0.0, 1.0]], dtype=np.float32)
     kf_df = pd.DataFrame({"scene_id": [1, 2], "filepath": ["a", "b"]})
@@ -97,14 +97,14 @@ def test_clip_scorer_applies_min_similarity_floor() -> None:
 
 
 def test_bm25_scorer_none_index_returns_empty() -> None:
-    from cinemateca.search._aggregate.scorers import BM25Scorer
+    from kuaa.search._aggregate.scorers import BM25Scorer
 
     assert BM25Scorer().score(bm25=None, query="dog", raw_k=10, allowed_scene_keys=None) == []
 
 
 def test_bm25_scorer_queries_and_filters_by_allowed_keys() -> None:
-    from cinemateca.scene_ids import scene_id_key
-    from cinemateca.search._aggregate.scorers import BM25Scorer
+    from kuaa.scene_ids import scene_id_key
+    from kuaa.search._aggregate.scorers import BM25Scorer
 
     class _StubBM25:
         model = object()
@@ -124,8 +124,8 @@ def test_bm25_scorer_queries_and_filters_by_allowed_keys() -> None:
 
 def test_film_filter_loads_each_index_once(monkeypatch) -> None:
     """C1 acceptance: the index is loaded ONCE per film, not twice."""
-    import cinemateca.search._aggregate.film_filter as ff_mod
-    from cinemateca.search.cache import IndexStatus, SearchIndex
+    import kuaa.search._aggregate.film_filter as ff_mod
+    from kuaa.search.cache import IndexStatus, SearchIndex
 
     calls: dict[str, int] = {}
 
@@ -141,8 +141,8 @@ def test_film_filter_loads_each_index_once(monkeypatch) -> None:
 
 def test_film_filter_skips_non_ok_and_unregistered() -> None:
     """A non-OK index and a ValueError-raising slug are both dropped."""
-    from cinemateca.search._aggregate.film_filter import FilmFilter
-    from cinemateca.search.cache import IndexStatus, SearchIndex
+    from kuaa.search._aggregate.film_filter import FilmFilter
+    from kuaa.search.cache import IndexStatus, SearchIndex
 
     def _loader(cfg, slug):
         if slug == "missing":
@@ -161,7 +161,7 @@ def test_materialize_hits_clip_and_bm25_fallback_rows() -> None:
     """Best-row when present; first-matching kf_df row as BM25-only fallback."""
     import pandas as pd
 
-    from cinemateca.search._aggregate.materialize import materialize_hits
+    from kuaa.search._aggregate.materialize import materialize_hits
 
     class _Film:
         title = "A"

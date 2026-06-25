@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from cinemateca.errors import (
+from kuaa.errors import (
     ArtefactError,
-    CinematecaError,
+    KuaaError,
     ConfigError,
     IndexMissing,
     ModelError,
@@ -30,7 +30,7 @@ ALL_SUBCLASSES = [
 @pytest.mark.parametrize("cls", ALL_SUBCLASSES)
 def test_every_subclass_inherits_base_and_carries_code(cls):
     err = cls("boom")
-    assert isinstance(err, CinematecaError)
+    assert isinstance(err, KuaaError)
     assert isinstance(err.code, str) and err.code  # non-empty stable code
     assert str(err) == "boom"
 

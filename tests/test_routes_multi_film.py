@@ -33,7 +33,7 @@ def _seed_film(library_dir: Path, slug: str, title: str, scene_ids: list[int]) -
     Writes ``keyframes_metadata.json`` with *scene_ids* scenes and
     ``scene_tags.json`` with a single ``"outdoor"`` tag on all scenes.
     """
-    from cinemateca.library import register_film
+    from kuaa.library import register_film
 
     register_film(
         library_dir,

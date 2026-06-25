@@ -2,7 +2,7 @@
 
 HTTP concerns (Content-Type, Content-Disposition headers) live here, in
 the route layer — intentionally NOT in the exporter helpers. The
-exporters in ``cinemateca.exporters`` return plain strings/bytes only.
+exporters in ``kuaa.exporters`` return plain strings/bytes only.
 This separation means the exporter functions can be called from non-HTTP
 contexts (CLI, tests) without dragging in FastAPI types.
 """
@@ -17,7 +17,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 
 from api.deps import get_config
-from cinemateca.exporters import (
+from kuaa.exporters import (
     ExportError,
     SceneSlice,
     build_catalog_export,
@@ -25,7 +25,7 @@ from cinemateca.exporters import (
     catalog_export_to_json,
     scenes_to_edl,
 )
-from cinemateca.library import derive_fps, load_json
+from kuaa.library import derive_fps, load_json
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ class _SceneRef(BaseModel):
 
 class _EdlExportRequest(BaseModel):
     scenes: list[_SceneRef]
-    title: str = "Cinemateca Export"
+    title: str = "KUAA Export"
 
 
 @router.post(

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run retrieval evaluation against a configured Cinemateca index.
+"""Run retrieval evaluation against a configured KUAA index.
 
 Supports three retriever modes (``--retriever {clip,bm25,hybrid}``) and a
 batch sweep (``--all-modes``) that runs all three back-to-back and writes a
@@ -36,7 +36,7 @@ def project_path(value: str | Path) -> Path:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Evaluate text retrieval over a Cinemateca index (CLIP / BM25 / hybrid)."
+        description="Evaluate text retrieval over a KUAA index (CLIP / BM25 / hybrid)."
     )
     parser.add_argument(
         "--config",
@@ -159,9 +159,9 @@ def _text_dataset_from_multimodal(queries_path: Path):
     ``relevant_scene_ids`` / ``relevance`` hypotheses — become ``QueryCase``
     rows. Non-text entries are ignored. Raises if there are no text queries.
     """
-    from cinemateca.eval.datasets import DatasetError, EvaluationDataset, QueryCase
-    from cinemateca.eval.slates import load_modal_queries
-    from cinemateca.scene_ids import scene_id_key
+    from kuaa.eval.datasets import DatasetError, EvaluationDataset, QueryCase
+    from kuaa.eval.slates import load_modal_queries
+    from kuaa.scene_ids import scene_id_key
 
     modal = load_modal_queries(queries_path, only_types={"text"})
     cases = []
@@ -199,7 +199,7 @@ def _load_text_dataset(queries_path: Path):
     """Load a text EvaluationDataset, auto-detecting legacy vs m3_full shape."""
     if _is_multimodal_yaml(queries_path):
         return _text_dataset_from_multimodal(queries_path)
-    from cinemateca.eval.datasets import load_dataset
+    from kuaa.eval.datasets import load_dataset
 
     return load_dataset(queries_path)
 
@@ -332,11 +332,11 @@ def _krrf_sweep_table(sweep_rows: list[dict[str, Any]]) -> str:
 
 
 def _single_mode(args: argparse.Namespace) -> int:
-    from cinemateca.config import load_config
-    from cinemateca.eval.annotations import AnnotationStatsError, load_annotation_stats
-    from cinemateca.eval.datasets import DatasetError
-    from cinemateca.eval.report import write_reports
-    from cinemateca.eval.retrieval import EvalError, run_retrieval_eval
+    from kuaa.config import load_config
+    from kuaa.eval.annotations import AnnotationStatsError, load_annotation_stats
+    from kuaa.eval.datasets import DatasetError
+    from kuaa.eval.report import write_reports
+    from kuaa.eval.retrieval import EvalError, run_retrieval_eval
 
     config_path = project_path(args.config)
     queries_path = project_path(args.queries)
@@ -345,7 +345,7 @@ def _single_mode(args: argparse.Namespace) -> int:
     try:
         dataset = _load_text_dataset(queries_path)
         cfg = load_config(config_path, project_root=REPO_ROOT)
-        from cinemateca.reproducibility import seed_everything
+        from kuaa.reproducibility import seed_everything
 
         seed_everything(cfg.seed)
         _override_film_paths(cfg, args.film_slug)
@@ -382,10 +382,10 @@ def _single_mode(args: argparse.Namespace) -> int:
 
 
 def _all_modes(args: argparse.Namespace) -> int:
-    from cinemateca.config import load_config
-    from cinemateca.eval.datasets import DatasetError
-    from cinemateca.eval.report import build_payload
-    from cinemateca.eval.retrieval import EvalError, run_retrieval_eval
+    from kuaa.config import load_config
+    from kuaa.eval.datasets import DatasetError
+    from kuaa.eval.report import build_payload
+    from kuaa.eval.retrieval import EvalError, run_retrieval_eval
 
     config_path = project_path(args.config)
     queries_path = project_path(args.queries)
@@ -398,7 +398,7 @@ def _all_modes(args: argparse.Namespace) -> int:
         # rows that legitimately carry no relevant_scene_ids (review #2).
         dataset = _load_text_dataset(queries_path)
         cfg = load_config(config_path, project_root=REPO_ROOT)
-        from cinemateca.reproducibility import seed_everything
+        from kuaa.reproducibility import seed_everything
 
         seed_everything(cfg.seed)
         _override_film_paths(cfg, args.film_slug)
@@ -535,9 +535,9 @@ def _all_modes(args: argparse.Namespace) -> int:
 # ─────────────────────────────────────────────────────────────────────────────
 # Non-text modality routing (E3b): image / rhyme.
 #
-# These dispatch to the per-modality scorers in cinemateca.eval.retrieval, which
+# These dispatch to the per-modality scorers in kuaa.eval.retrieval, which
 # call the REAL retrieval backend (CLIP find / find_rhymes) via
-# cinemateca.eval.slates.generate_slate and return the same RetrievalRun the text
+# kuaa.eval.slates.generate_slate and return the same RetrievalRun the text
 # path produces — so the existing report writer serialises them unchanged. The
 # text path (_single_mode / _all_modes) is left untouched.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -547,7 +547,7 @@ _MODAL_SCORERS = ("image", "rhyme")
 
 def _run_one_modality(cfg, queries, modality: str, args: argparse.Namespace, config_path: Path):
     """Run one non-text modality scorer and return its RetrievalRun."""
-    from cinemateca.eval import retrieval as _retr
+    from kuaa.eval import retrieval as _retr
 
     scorers = {
         "image": _retr.run_image_eval,
@@ -570,10 +570,10 @@ def _run_one_modality(cfg, queries, modality: str, args: argparse.Namespace, con
 
 def _modal_mode(args: argparse.Namespace) -> int:
     """Score a single non-text modality; write summary.json + report.md."""
-    from cinemateca.config import load_config
-    from cinemateca.errors import EvalError
-    from cinemateca.eval.report import write_reports
-    from cinemateca.eval.slates import load_modal_queries
+    from kuaa.config import load_config
+    from kuaa.errors import EvalError
+    from kuaa.eval.report import write_reports
+    from kuaa.eval.slates import load_modal_queries
 
     config_path = project_path(args.config)
     queries_path = project_path(args.queries)
@@ -581,7 +581,7 @@ def _modal_mode(args: argparse.Namespace) -> int:
 
     try:
         cfg = load_config(config_path, project_root=REPO_ROOT)
-        from cinemateca.reproducibility import seed_everything
+        from kuaa.reproducibility import seed_everything
 
         seed_everything(cfg.seed)
         queries = load_modal_queries(queries_path)
@@ -612,11 +612,11 @@ def _all_modalities(args: argparse.Namespace) -> int:
     A non-text modality that cannot be scored (e.g. its slate is empty) is
     reported as a warning and skipped rather than aborting the whole sweep.
     """
-    from cinemateca.config import load_config
-    from cinemateca.eval.datasets import DatasetError
-    from cinemateca.eval.report import build_payload
-    from cinemateca.eval.retrieval import EvalError, run_retrieval_eval
-    from cinemateca.eval.slates import load_modal_queries
+    from kuaa.config import load_config
+    from kuaa.eval.datasets import DatasetError
+    from kuaa.eval.report import build_payload
+    from kuaa.eval.retrieval import EvalError, run_retrieval_eval
+    from kuaa.eval.slates import load_modal_queries
 
     config_path = project_path(args.config)
     queries_path = project_path(args.queries)
@@ -625,7 +625,7 @@ def _all_modalities(args: argparse.Namespace) -> int:
 
     try:
         cfg = load_config(config_path, project_root=REPO_ROOT)
-        from cinemateca.reproducibility import seed_everything
+        from kuaa.reproducibility import seed_everything
 
         seed_everything(cfg.seed)
     except (EvalError, FileNotFoundError) as exc:

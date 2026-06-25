@@ -8,12 +8,12 @@ For installation, see `SETUP.md`. For design and architecture decisions, see `do
 
 ## 30-second summary
 
-Cinemateca imgsearch is an offline audiovisual cataloguing system for film archives.
+KUAA imgsearch is an offline audiovisual cataloguing system for film archives.
 It takes video files and produces searchable metadata (scenes, faces, objects,
 natural-language descriptions, semantic embeddings).
 
 The interface is **FastAPI + HTMX + Jinja2**. The AI core is HTTP-agnostic and
-lives entirely in `src/cinemateca/`.
+lives entirely in `src/kuaa/`.
 
 ---
 
@@ -21,7 +21,7 @@ lives entirely in `src/cinemateca/`.
 
 | Layer | Technology | Location |
 |---|---|---|
-| AI core | Python 3.10+, PyTorch (CPU/MPS/CUDA), SigLIP2, Moondream 2, YOLOv8, MTCNN, PySceneDetect | `src/cinemateca/` |
+| AI core | Python 3.10+, PyTorch (CPU/MPS/CUDA), SigLIP2, Moondream 2, YOLOv8, MTCNN, PySceneDetect | `src/kuaa/` |
 | API | FastAPI + Pydantic | `api/` |
 | Frontend | HTMX + Jinja2 + custom CSS (no build step) | `web/` |
 | i18n | Babel + `.po` files | `web/locales/` |
@@ -71,7 +71,7 @@ Terms to avoid:
 ## Repository layout
 
 ```
-src/cinemateca/      AI core. HTTP-agnostic logic. Cleanly importable.
+src/kuaa/      AI core. HTTP-agnostic logic. Cleanly importable.
   search/              4-verb / 7-type retrieval API (find / aggregate / reindex_bm25 / rerank).
   library/             Registry + scan + FilmContext + per-film metadata loaders.
   annotations/         Manual tags + descriptions + annotate-tab scene builders.
@@ -79,7 +79,7 @@ src/cinemateca/      AI core. HTTP-agnostic logic. Cleanly importable.
   eval/                Eval-set datasets + grades + IAA / κ metrics.
   retrieval/           BM25Index + RRF fusion primitives.
   models/              Protocol-typed model backends + registry.
-api/                 Thin HTTP layer. Each route calls src/cinemateca/ and returns JSON or HTML.
+api/                 Thin HTTP layer. Each route calls src/kuaa/ and returns JSON or HTML.
 web/templates/       Jinja2. base.html + partials/ for HTMX fragments.
 web/static/          CSS, vendored htmx.min.js, icons.
 web/locales/         pt_BR and en, managed by Babel.
@@ -89,11 +89,11 @@ docs/                Design, architecture, eval, and ops docs.
 app.py               FastAPI entrypoint (uvicorn api.server:app).
 ```
 
-**Rule:** AI logic lives in `src/cinemateca/`. If you're about to write model inference,
+**Rule:** AI logic lives in `src/kuaa/`. If you're about to write model inference,
 video parsing, or embedding computation inside `api/` or `web/`, stop and move it to
-`src/cinemateca/`.
+`src/kuaa/`.
 
-**Deep-modules invariant:** the `cinemateca.*` packages must not import from `api/*`.
+**Deep-modules invariant:** the `kuaa.*` packages must not import from `api/*`.
 Enforced by `import-linter` (`.importlinter`) and per-module LOC budgets
 (`scripts/check_loc_budget.py`), both run in CI.
 
@@ -110,7 +110,7 @@ Enforced by `import-linter` (`.importlinter`) and per-module LOC budgets
 
 **During the session:**
 
-- For changes in `src/cinemateca/`, run `pytest tests/test_smoke.py` before and after.
+- For changes in `src/kuaa/`, run `pytest tests/test_smoke.py` before and after.
 - For changes that touch the AI pipeline (model download, dependency version bump,
   Moondream prompt alteration), **ask the maintainer before applying** — these
   changes may invalidate already-generated artefacts.
@@ -128,24 +128,24 @@ uv venv
 uv sync --extra full --group dev
 
 # Run the app
-uv run cinemateca serve                        # http://127.0.0.1:8501
-uv run cinemateca serve --port 9000 --no-reload
+uv run kuaa serve                        # http://127.0.0.1:8501
+uv run kuaa serve --port 9000 --no-reload
 
 # Tests
 uv run pytest tests/ -q
 uv run pytest tests/test_smoke.py -v
 
 # Single-film pipeline
-uv run cinemateca process data/raw/myvideo.mp4
-uv run cinemateca process data/raw/myvideo.mp4 --steps scenes,embeddings
+uv run kuaa process data/raw/myvideo.mp4
+uv run kuaa process data/raw/myvideo.mp4 --steps scenes,embeddings
 
 # Library operations
-uv run cinemateca library list
-uv run cinemateca library reembed --only <slug> --steps embeddings
-uv run cinemateca library delete <slug> [--yes]
+uv run kuaa library list
+uv run kuaa library reembed --only <slug> --steps embeddings
+uv run kuaa library delete <slug> [--yes]
 
 # Config
-uv run cinemateca config show
+uv run kuaa config show
 
 # i18n
 uv run pybabel extract -F web/babel.cfg -o web/locales/messages.pot web/
@@ -166,8 +166,8 @@ uv run mypy src
 
 **Expensive operations — confirm with the user before running:**
 
-- `cinemateca process <video>` on any new video (~60–120 min on CPU).
-- `cinemateca library reembed` for the full library.
+- `kuaa process <video>` on any new video (~60–120 min on CPU).
+- `kuaa library reembed` for the full library.
 - `--steps llm` — slowest pipeline step.
 - First-time model downloads (~2 GB for Moondream).
 
@@ -184,7 +184,7 @@ uv run mypy src
 
 ## Coding conventions
 
-- **Type hints required** on public signatures in `src/cinemateca/` and `api/`.
+- **Type hints required** on public signatures in `src/kuaa/` and `api/`.
 - **Docstrings in English** for public functions.
 - **Ruff** for formatting and linting (covers isort). Run before committing.
 - **mypy** for type checking.

@@ -117,9 +117,9 @@ def _torch_device_info() -> dict:
 
 
 # ─── Stats helpers ────────────────────────────────────────────────────────────
-# Implementations live in cinemateca.eval.bench (E6).
+# Implementations live in kuaa.eval.bench (E6).
 # _summary alias kept for any future direct callers in this script.
-from cinemateca.eval.bench import summarize as _summary  # noqa: E402,F401
+from kuaa.eval.bench import summarize as _summary  # noqa: E402,F401
 
 # ─── Query pool ───────────────────────────────────────────────────────────────
 
@@ -225,9 +225,9 @@ class BenchFixture:
     n_scenes: int
     n_vectors: int
     n_bm25_docs: int
-    embedder: object  # cinemateca.models.base.ImageEmbedder
+    embedder: object  # kuaa.models.base.ImageEmbedder
     index: object  # api.services.search.SearchIndex
-    bm25: object  # cinemateca.retrieval.bm25.BM25Index
+    bm25: object  # kuaa.retrieval.bm25.BM25Index
     device: str
     min_similarity: float
     library_dir: Path = field(repr=False)
@@ -243,7 +243,7 @@ def _pick_film(cfg, *, requested: str | None) -> str:
       * otherwise pick the registered film with the LARGEST scene count
         (largest corpus = most interesting BM25 stats).
     """
-    from cinemateca.library import scan_library
+    from kuaa.library import scan_library
 
     library_dir = Path(cfg.paths.library_dir)
     films = list(scan_library(library_dir))
@@ -271,10 +271,10 @@ def _build_fixture(cfg, *, slug: str) -> BenchFixture:
         the same device the production server would.
     """
     from api.services.search import IndexStatus, _get_bm25_index_for_ctx, _get_search_index
-    from cinemateca.device import device_from_config
-    from cinemateca.library import FilmContext
-    from cinemateca.models.registry import get_image_embedder
-    from cinemateca.search.cache import SearchIndex
+    from kuaa.device import device_from_config
+    from kuaa.library import FilmContext
+    from kuaa.models.registry import get_image_embedder
+    from kuaa.search.cache import SearchIndex
 
     device = device_from_config(cfg)
     device_str = str(device)
@@ -338,12 +338,12 @@ def _build_fixture(cfg, *, slug: str) -> BenchFixture:
 
 
 # ─── Per-query timed measurements ─────────────────────────────────────────────
-# Implementations live in cinemateca.eval.bench (E6).
+# Implementations live in kuaa.eval.bench (E6).
 
 # ─── Warm-up ──────────────────────────────────────────────────────────────────
-# _warmup imported above from cinemateca.eval.bench.
+# _warmup imported above from kuaa.eval.bench.
 # ─── Main bench loop ──────────────────────────────────────────────────────────
-from cinemateca.eval.bench import (  # noqa: E402
+from kuaa.eval.bench import (  # noqa: E402
     bench_retrievers,  # noqa: E402
 )
 
@@ -351,7 +351,7 @@ from cinemateca.eval.bench import (  # noqa: E402
 def run_bench(fx: BenchFixture, queries: list[str], *, top_k: int) -> dict:
     """Run the full timed loop and return a results dict ready for JSON dump.
 
-    Delegates to ``cinemateca.eval.bench.bench_retrievers`` (E6) and calls
+    Delegates to ``kuaa.eval.bench.bench_retrievers`` (E6) and calls
     ``.as_dict()`` on the result so writers receive the identical payload
     structure the old inline implementation produced.
     """
@@ -461,7 +461,7 @@ def write_markdown(payload: dict, out_path: Path) -> None:
         )
     lines.append("")
     lines.append(
-        "The four sub-stages mirror `cinemateca.search.hybrid.search_hybrid`: "
+        "The four sub-stages mirror `kuaa.search.hybrid.search_hybrid`: "
         "best-keyframe backfill, CLIP `search_text`, BM25 query, then RRF "
         "fusion plus DataFrame materialization. The first two stages each "
         "perform a text encode, matching the current dispatcher."
@@ -557,7 +557,7 @@ def _check_index_exists(cfg, *, film: str | None, smoke: bool) -> bool:
     can exit 0 gracefully — this is the CI no-op path.
     """
     try:
-        from cinemateca.library import scan_library
+        from kuaa.library import scan_library
 
         library_dir = Path(cfg.paths.library_dir)
         films = list(scan_library(library_dir))
@@ -598,7 +598,7 @@ def main(argv: list[str] | None = None) -> int:
     if not out_md.is_absolute():
         out_md = REPO_ROOT / out_md
 
-    from cinemateca.config import load_config
+    from kuaa.config import load_config
 
     print("Loading config + picking film…", flush=True)
     try:
@@ -629,7 +629,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             print(
                 f"SKIP: {msg}. "
-                "Run `uv run cinemateca process <video>` to build an index, "
+                "Run `uv run kuaa process <video>` to build an index, "
                 "then re-run this benchmark.",
                 flush=True,
             )
@@ -638,7 +638,7 @@ def main(argv: list[str] | None = None) -> int:
         # confusing traceback; _pick_film will produce a similar message but
         # this guard fires earlier and is more explicit.
         print(
-            f"SKIP: {msg}. Run `uv run cinemateca process <video>` to build an index.",
+            f"SKIP: {msg}. Run `uv run kuaa process <video>` to build an index.",
             flush=True,
         )
         return 0

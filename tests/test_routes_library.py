@@ -21,7 +21,7 @@ def test_remove_film_route_passes_slug_as_kwarg(tmp_config, client) -> None:
     slug: str)``. A positional call raises ``TypeError`` at runtime — the
     server returned 500 and the film was never removed from the registry.
     """
-    from cinemateca.library import load_registry, register_film
+    from kuaa.library import load_registry, register_film
 
     library_dir = Path(tmp_config.paths.library_dir)
     register_film(
@@ -41,7 +41,7 @@ def test_remove_film_route_passes_slug_as_kwarg(tmp_config, client) -> None:
 
 def test_remove_film_route_wipe_deletes_film_dir(tmp_config, client) -> None:
     """``?wipe=`` non-empty triggers ``shutil.rmtree`` on the per-film dir."""
-    from cinemateca.library import register_film
+    from kuaa.library import register_film
 
     library_dir = Path(tmp_config.paths.library_dir)
     register_film(

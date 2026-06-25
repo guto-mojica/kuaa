@@ -26,7 +26,7 @@ async def ready() -> JSONResponse:
     checks["data_dir_readable"] = data_dir.is_dir()
     library_dir = Path(cfg.paths.library_dir)
     try:
-        from cinemateca.library import load_registry
+        from kuaa.library import load_registry
 
         load_registry(library_dir)
         checks["registry_parseable"] = True

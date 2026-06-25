@@ -72,8 +72,8 @@ class CenasContext(_CenasContextRequired, total=False):
 
 # ---------------------------------------------------------------------------
 # SearchContext
-# Builder: cinemateca.search._lookup.build_search_context
-#          cinemateca.search._lookup.build_search_context_aggregate
+# Builder: kuaa.search._lookup.build_search_context
+#          kuaa.search._lookup.build_search_context_aggregate
 #          (both merge mojica_search_defaults() + available_tags + films_by_id)
 # ---------------------------------------------------------------------------
 
@@ -111,7 +111,7 @@ class InspectorContext(TypedDict, total=False):
     """
 
     selected_scene: dict[str, Any]
-    selected_film: Any  # cinemateca.library.Film or None when unregistered
+    selected_film: Any  # kuaa.library.Film or None when unregistered
     inspector_tab: str
     rhymes: list[dict[str, Any]]
     inspector_kind: str
@@ -142,7 +142,7 @@ class TimelineContext(TypedDict):
 class ProcessingContext(TypedDict):
     """Template context for the Processing tab (``partials/processing.html``)."""
 
-    films: list[Any]  # list[cinemateca.library.Film]
+    films: list[Any]  # list[kuaa.library.Film]
     step_defs: Any  # STEP_DEFS constant from api.jobs
     jobs: list[Any]  # list of enriched JobState
     initial_log_lines: list[dict[str, Any]]
@@ -162,7 +162,7 @@ class ProcessingContext(TypedDict):
 class RimasContext(TypedDict):
     """Template context for the Rimas Visuais tab (``partials/rimas.html``)."""
 
-    anchor_film: Any | None  # cinemateca.library.Film or None
+    anchor_film: Any | None  # kuaa.library.Film or None
     anchor_scene: Any | None  # scene metadata dict or None (empty-state trigger)
     echoes: list[dict[str, Any]]
     selected_echo: dict[str, Any] | None

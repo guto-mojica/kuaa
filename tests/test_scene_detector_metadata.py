@@ -81,7 +81,7 @@ class TestExportMetadataOneToMany:
     def test_six_keyframes_two_scenes_yields_six_rows(
         self, fake_scene_list, fake_keyframe_paths, tmp_path
     ):
-        from cinemateca.scene_detector import SceneDetector
+        from kuaa.scene_detector import SceneDetector
 
         det = SceneDetector()
         det.keyframes_per_scene = 3
@@ -94,7 +94,7 @@ class TestExportMetadataOneToMany:
     def test_rows_for_same_scene_share_scene_id_and_times(
         self, fake_scene_list, fake_keyframe_paths, tmp_path
     ):
-        from cinemateca.scene_detector import SceneDetector
+        from kuaa.scene_detector import SceneDetector
 
         det = SceneDetector()
         det.keyframes_per_scene = 3
@@ -114,7 +114,7 @@ class TestExportMetadataOneToMany:
     def test_rows_for_same_scene_differ_in_keyframe_id_and_filepath(
         self, fake_scene_list, fake_keyframe_paths, tmp_path
     ):
-        from cinemateca.scene_detector import SceneDetector
+        from kuaa.scene_detector import SceneDetector
 
         det = SceneDetector()
         det.keyframes_per_scene = 3
@@ -137,7 +137,7 @@ class TestExportMetadataOneToMany:
     def test_kf_per_scene_one_is_backward_compatible(self, fake_scene_list, tmp_path):
         """With keyframes_per_scene=1, the output is 1 row per scene —
         same as the legacy behavior (only keyframe_id naming changed)."""
-        from cinemateca.scene_detector import SceneDetector
+        from kuaa.scene_detector import SceneDetector
 
         paths = []
         for scene in (1, 2):

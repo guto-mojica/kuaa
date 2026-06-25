@@ -4,7 +4,7 @@ This module owns what used to live inline in ``api/routes/annotate.py``:
 
   * loading/saving the manual-annotations dict (``load_annotations`` /
     ``save_annotations``) — ``save_annotations`` is the persist seam and
-    is crash-safe because the underlying ``cinemateca.annotations.io.save``
+    is crash-safe because the underlying ``kuaa.annotations.io.save``
     now writes atomically (same-dir temp file + ``os.replace``);
   * the route-side tag-normalization list-comp, centralized as the
     documented :func:`normalize_tags` helper so the save path and any
@@ -13,7 +13,7 @@ This module owns what used to live inline in ``api/routes/annotate.py``:
     (``_build_scene_list`` / ``_scene_context``) and the annotate-tab
     context builder (``build_annotate_context``).
 
-Data-access and business logic live in ``cinemateca.annotations.*``
+Data-access and business logic live in ``kuaa.annotations.*``
 (``scenes.py``, ``io.py``). This module is a thin template-layer adapter:
 it calls those pure helpers and composes the Jinja template context for
 the annotate route. Path resolution flows through :class:`FilmContext`.
@@ -41,23 +41,23 @@ from api.services._annotate_curation import (  # noqa: F401
     rename_manual_tag,
     toggle_ai_tag,
 )
-from cinemateca.annotations.descriptions import save_description  # noqa: F401
-from cinemateca.annotations.io import (  # noqa: F401
+from kuaa.annotations.descriptions import save_description  # noqa: F401
+from kuaa.annotations.io import (  # noqa: F401
     load_annotations,
     normalize_tags,
     save_annotations,
 )
-from cinemateca.annotations.scenes import (  # noqa: F401
+from kuaa.annotations.scenes import (  # noqa: F401
     build_scene_list,
     scene_context,
 )
-from cinemateca.annotations.scenes import (
+from kuaa.annotations.scenes import (
     resolve_selected_film as _resolve_selected_film,
 )
-from cinemateca.annotations.scenes import (
+from kuaa.annotations.scenes import (
     scene_list_with_fallback as _scene_list_with_fallback,
 )
-from cinemateca.library import FilmContext
+from kuaa.library import FilmContext
 
 logger = logging.getLogger(__name__)
 

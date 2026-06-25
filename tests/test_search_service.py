@@ -43,7 +43,7 @@ from api.services.search import (
     results_to_dicts,
     validate_upload,
 )
-from cinemateca.library import FilmContext
+from kuaa.library import FilmContext
 
 
 @pytest.fixture(autouse=True)
@@ -57,7 +57,7 @@ def _isolate_cache():
 @pytest.fixture()
 def clipfree(monkeypatch):
     """Patch OpenClipEmbedder so construction is CLIP-free; .load stays real."""
-    import cinemateca.models.clip.openclip as oc
+    import kuaa.models.clip.openclip as oc
 
     real_load = oc.OpenClipEmbedder.load
 
@@ -561,12 +561,12 @@ class TestSceneDedup:
                 return rows.reset_index(drop=True)
 
         # Monkeypatch SemanticSearch at its post-T9 home in
-        # ``cinemateca.search.clip``. The verb hoisted the
-        # ``from cinemateca.embeddings import SemanticSearch`` to module
-        # scope, so patching the source module ``cinemateca.embeddings``
+        # ``kuaa.search.clip``. The verb hoisted the
+        # ``from kuaa.embeddings import SemanticSearch`` to module
+        # scope, so patching the source module ``kuaa.embeddings``
         # no longer reaches the already-bound name inside ``clip``;
         # patch the module where the verb actually looks up the symbol.
-        import cinemateca.search.clip as _clip_mod
+        import kuaa.search.clip as _clip_mod
 
         _orig = _clip_mod.SemanticSearch
         _clip_mod.SemanticSearch = _Searcher
@@ -595,10 +595,10 @@ class TestAggregateSearchDedup:
         import sys
         from types import SimpleNamespace
 
-        import cinemateca.search.aggregate as _csa_ref  # noqa: F401 — ensure loaded
-        from cinemateca.library import register_film
+        import kuaa.search.aggregate as _csa_ref  # noqa: F401 — ensure loaded
+        from kuaa.library import register_film
 
-        csa = sys.modules["cinemateca.search.aggregate"]
+        csa = sys.modules["kuaa.search.aggregate"]
 
         # ── Two-film library with 3 keyframes per scene each ──
         library_dir = tmp_path / "library"
@@ -689,11 +689,11 @@ class TestAggregateSearchDedup:
         import sys
         from types import SimpleNamespace
 
-        import cinemateca.search.aggregate as _csa_ref  # noqa: F401 — ensure loaded
+        import kuaa.search.aggregate as _csa_ref  # noqa: F401 — ensure loaded
         from api.services.search import IndexStatus, SearchIndex
-        from cinemateca.library import register_film
+        from kuaa.library import register_film
 
-        csa = sys.modules["cinemateca.search.aggregate"]
+        csa = sys.modules["kuaa.search.aggregate"]
 
         library_dir = tmp_path / "library"
         register_film(

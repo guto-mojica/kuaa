@@ -1,11 +1,11 @@
-"""Unit tests for cinemateca.library.scan."""
+"""Unit tests for kuaa.library.scan."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
-from cinemateca.library import (
+from kuaa.library import (
     Film,
     LibraryState,
     library_state,

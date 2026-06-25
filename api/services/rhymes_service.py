@@ -7,7 +7,7 @@ Mojica tab service:
   * the route is a thin HTTP wrapper that does parameter parsing +
     template dispatch only;
   * this service walks the library, resolves the anchor scene's
-    metadata, calls :func:`cinemateca.rhymes.find_rhymes` for the
+    metadata, calls :func:`kuaa.rhymes.find_rhymes` for the
     cross-film kNN, and enriches each neighbour into the shape the
     template iterates on.
 
@@ -38,29 +38,29 @@ from pathlib import Path
 from typing import Any
 
 from api.contexts import RimasContext
-from cinemateca import library
-from cinemateca.library import FilmContext
-from cinemateca.rhymes import Rhyme, find_rhymes
-from cinemateca.rhymes.anchor import (
+from kuaa import library
+from kuaa.library import FilmContext
+from kuaa.rhymes import Rhyme, find_rhymes
+from kuaa.rhymes.anchor import (
     parse_anchor as _parse_anchor,
 )
-from cinemateca.rhymes.config import rimas_cfg as _rimas_cfg  # noqa: F401
-from cinemateca.rhymes.enrich import (  # noqa: F401
+from kuaa.rhymes.config import rimas_cfg as _rimas_cfg  # noqa: F401
+from kuaa.rhymes.enrich import (  # noqa: F401
     enrich_rhyme as _enrich_rhyme,
 )
-from cinemateca.rhymes.enrich import (
+from kuaa.rhymes.enrich import (
     select_echo as _select_echo,
 )
-from cinemateca.rhymes.enrich import (
+from kuaa.rhymes.enrich import (
     shared_tags as _shared_tags,
 )
-from cinemateca.rhymes.enrich import (
+from kuaa.rhymes.enrich import (
     signals_for_pair as _signals_for_pair,
 )
-from cinemateca.rhymes.metadata import (  # noqa: F401
+from kuaa.rhymes.metadata import (  # noqa: F401
     description_for as _description_for,
 )
-from cinemateca.rhymes.metadata import (
+from kuaa.rhymes.metadata import (
     load_scene_meta as _load_scene_meta,
 )
 
@@ -81,7 +81,7 @@ def build_rimas_context(
     ``partials/rimas_echoes.html`` / ``partials/rimas_inspector.html``
     (Task 22) consume:
 
-      * ``anchor_film`` — the :class:`cinemateca.library.Film` carrying
+      * ``anchor_film`` — the :class:`kuaa.library.Film` carrying
         the anchor scene, or ``None`` when no anchor resolves.
       * ``anchor_scene`` — dict shape mirrored on
         :func:`api.services.scenes_service.build_inspector_context`'s

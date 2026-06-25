@@ -19,7 +19,7 @@ from api.services.catalog import (
     to_smpte,
 )
 from api.services.scenes._inspector import build_inspector_context
-from cinemateca.library import FilmContext
+from kuaa.library import FilmContext
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +128,7 @@ def build_timeline_context(
     The returned dict carries:
 
       * ``selected_film`` — a :class:`types.SimpleNamespace` exposing
-        the :class:`cinemateca.library.Film` fields PLUS the timeline-
+        the :class:`kuaa.library.Film` fields PLUS the timeline-
         only attributes (``scenes_for_timeline``, ``timeline_ticks``,
         ``runtime_tc``). The inspector partial reads ``.title``,
         ``.year``, ``.director`` and falls back gracefully when an attr

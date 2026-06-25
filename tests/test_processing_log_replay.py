@@ -42,7 +42,7 @@ def test_initial_log_lines_seeded_from_active_job_buffer(reset_registry, monkeyp
 
     # build_processing_context calls into config + scan_library; stub
     # the library scan so this test stays hermetic.
-    monkeypatch.setattr("cinemateca.library.scan_library", lambda library_dir: [])
+    monkeypatch.setattr("kuaa.library.scan_library", lambda library_dir: [])
     monkeypatch.setattr("api.services.processing_service.aggregate_stats", lambda lib: {})
     monkeypatch.setattr("api.services.processing_service.build_job_queue", lambda *a, **kw: [])
     monkeypatch.setattr("api.services.processing_service.build_active_step", lambda jobs_: None)
@@ -61,7 +61,7 @@ def test_initial_log_lines_empty_when_no_active_job(reset_registry, monkeypatch)
     """
     from api.routes.processing import build_processing_context
 
-    monkeypatch.setattr("cinemateca.library.scan_library", lambda library_dir: [])
+    monkeypatch.setattr("kuaa.library.scan_library", lambda library_dir: [])
     monkeypatch.setattr("api.services.processing_service.aggregate_stats", lambda lib: {})
     monkeypatch.setattr("api.services.processing_service.build_job_queue", lambda *a, **kw: [])
     monkeypatch.setattr("api.services.processing_service.build_active_step", lambda jobs_: None)

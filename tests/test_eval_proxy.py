@@ -1,6 +1,6 @@
 """Hermetic unit tests for the proxy-relevance labeller (E2a).
 
-These cover ``cinemateca.eval.proxy.proxy_labels`` — the per-query labeller that
+These cover ``kuaa.eval.proxy.proxy_labels`` — the per-query labeller that
 supplies ``(relevant_scene_ids, relevance, proxy_method)`` to the eval scorers so
 the WS-4 ablation table is producible with ZERO human grades, each row tagged with
 which proxy signal produced it (KI / PR / HY).
@@ -16,9 +16,9 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
-from cinemateca.eval import proxy_labels
-from cinemateca.eval.slates import ModalQuery
-from cinemateca.scene_ids import scene_id_key
+from kuaa.eval import proxy_labels
+from kuaa.eval.slates import ModalQuery
+from kuaa.scene_ids import scene_id_key
 
 # Real keyframe basename for the m3_full image-09 entry (Jeca scene 89). The
 # anchor scene is encoded in the basename — KI must parse 89 out of it.

@@ -3,7 +3,7 @@
 Two tiers:
 
   * **Hermetic render** (``test_table_marks_proxy_method_and_pending_rows``) —
-    builds an :class:`~cinemateca.eval.ablation.AblationTable` from hand-built
+    builds an :class:`~kuaa.eval.ablation.AblationTable` from hand-built
     per-row metric dicts (one row ``pending``) and asserts the rendered
     markdown carries the KI/PR/HY methodology banner, a ``Proxy`` column, the
     four metric column headers, and the literal ``pending (`` cell for the
@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pytest
 
-from cinemateca.eval.ablation import (
+from kuaa.eval.ablation import (
     AblationRowConfig,
     AblationTable,
 )
@@ -145,11 +145,11 @@ def test_run_ablation_produces_real_proxy_numbers() -> None:
 
     Any row not wired in the no-rerank config (the rerank row) renders pending.
     """
-    from cinemateca.config import load_config
-    from cinemateca.errors import EvalError
-    from cinemateca.eval import run_ablation
-    from cinemateca.eval.ablation import DEFAULT_ABLATION_CONFIGS_NO_RERANK
-    from cinemateca.eval.slates import load_modal_queries
+    from kuaa.config import load_config
+    from kuaa.errors import EvalError
+    from kuaa.eval import run_ablation
+    from kuaa.eval.ablation import DEFAULT_ABLATION_CONFIGS_NO_RERANK
+    from kuaa.eval.slates import load_modal_queries
 
     cfg = load_config(Path("config/default.yaml"), project_root=_REPO_ROOT, ensure_dirs=False)
     # The audio feature (incl. its eval modalities) was removed; the on-disk

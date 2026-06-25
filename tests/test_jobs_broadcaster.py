@@ -116,7 +116,7 @@ def test_broadcaster_is_thread_safe_under_concurrent_publish():
 
     The pipeline runner is single-threaded today, but the log handler
     can be invoked from any logger — including background threads
-    inside cinemateca.* modules — so the broadcaster's subscriber
+    inside kuaa.* modules — so the broadcaster's subscriber
     list must be safe to iterate under concurrent publish().
     """
     from api.jobs import EventBroadcaster

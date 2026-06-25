@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from cinemateca.eval.grades import (
+from kuaa.eval.grades import (
     EvalRun,
     Grade,
     GradeEntry,
@@ -147,7 +147,7 @@ def test_load_run_per_annotator_keeps_each_grader(tmp_path: Path):
     in the right pane can compare them.
     """
 
-    from cinemateca.eval.grades import load_run_per_annotator
+    from kuaa.eval.grades import load_run_per_annotator
 
     run = EvalRun(run_id="r1", root=tmp_path)
     save_grade(run, query_id="q1", scene_id="s1", grader="rg", grade=Grade.RELEVANT)
@@ -164,7 +164,7 @@ def test_load_run_per_annotator_keeps_each_grader(tmp_path: Path):
 def test_load_run_per_annotator_regrade_supersedes_self(tmp_path: Path):
     """A regrade by the same grader overwrites their earlier vote only."""
 
-    from cinemateca.eval.grades import load_run_per_annotator
+    from kuaa.eval.grades import load_run_per_annotator
 
     run = EvalRun(run_id="r1", root=tmp_path)
     save_grade(run, query_id="q1", scene_id="s1", grader="rg", grade=Grade.WEAKLY)
@@ -182,7 +182,7 @@ def test_load_run_per_annotator_regrade_supersedes_self(tmp_path: Path):
 def test_load_run_per_annotator_missing_file(tmp_path: Path):
     """Missing JSONL → empty dict, mirroring ``load_run``."""
 
-    from cinemateca.eval.grades import load_run_per_annotator
+    from kuaa.eval.grades import load_run_per_annotator
 
     run = EvalRun(run_id="never_written", root=tmp_path)
     assert load_run_per_annotator(run) == {}

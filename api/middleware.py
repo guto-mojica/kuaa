@@ -2,7 +2,7 @@
 
 Generates (or echoes an inbound) ``X-Request-ID`` per request, stashes it
 on ``request.state.request_id`` for downstream handlers/SSE (WS-2 A8),
-times the request via :func:`cinemateca.timing.timed`, and emits exactly
+times the request via :func:`kuaa.timing.timed`, and emits exactly
 one structured access-log line on the ``api.access`` logger.
 """
 
@@ -15,7 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-from cinemateca.timing import timed
+from kuaa.timing import timed
 
 access_logger = logging.getLogger("api.access")
 REQUEST_ID_HEADER = "X-Request-ID"

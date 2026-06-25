@@ -2,7 +2,7 @@ id: archive
 label: Film archive
 description: >
   Catalog historical and archival film scenes for search, review, and
-  preservation workflows. This pack mirrors the current Cinemateca metadata
+  preservation workflows. This pack mirrors the current KUAA metadata
   behavior.
 
 metadata_fields:

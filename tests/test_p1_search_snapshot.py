@@ -38,7 +38,7 @@ def small_library(tmp_config, monkeypatch):
 
       * ``api.services.search._get_embedder`` — used by ``aggregate_search``
         (cross-film path) to encode the query text once.
-      * ``cinemateca.models.clip.openclip.OpenClipEmbedder`` — replaced with
+      * ``kuaa.models.clip.openclip.OpenClipEmbedder`` — replaced with
         a fake that keeps the real ``.load`` staticmethod (the on-disk
         mapping is well-formed) but stubs the constructor + ``encode_*``
         instance methods so ``_load_and_validate`` builds a SearchIndex
@@ -47,14 +47,14 @@ def small_library(tmp_config, monkeypatch):
     cfg = tmp_config
     import sys
 
-    import cinemateca.search.aggregate as _csa_ref  # noqa: F401 — ensure module is loaded
-    from cinemateca.library import register_film
-    from cinemateca.models.clip import openclip as openclip_mod
+    import kuaa.search.aggregate as _csa_ref  # noqa: F401 — ensure module is loaded
+    from kuaa.library import register_film
+    from kuaa.models.clip import openclip as openclip_mod
 
-    # Access the MODULE object via sys.modules — `cinemateca.search.aggregate`
+    # Access the MODULE object via sys.modules — `kuaa.search.aggregate`
     # as an attribute resolves to the `aggregate` function re-exported by the
     # package __init__, not the submodule.
-    _csa_mod = sys.modules["cinemateca.search.aggregate"]
+    _csa_mod = sys.modules["kuaa.search.aggregate"]
 
     real_load = openclip_mod.OpenClipEmbedder.load
 

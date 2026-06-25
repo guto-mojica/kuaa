@@ -1,4 +1,4 @@
-# Pre-commit hooks for cinemateca-imgsearch.
+# Pre-commit hooks for kuaa-imgsearch.
 #
 # Install once with:  uv run pre-commit install
 # Run on all files:   uv run pre-commit run --all-files

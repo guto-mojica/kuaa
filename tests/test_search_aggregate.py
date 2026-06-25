@@ -1,6 +1,6 @@
-"""Unit tests for :mod:`cinemateca.search.aggregate` — cross-film search.
+"""Unit tests for :mod:`kuaa.search.aggregate` — cross-film search.
 
-Targets the new module surface directly (``from cinemateca.search.aggregate
+Targets the new module surface directly (``from kuaa.search.aggregate
 import aggregate_search``) so the public entry point of the relocated
 function is exercised. The existing per-film and hybrid behaviours are
 covered exhaustively by ``test_multi_film_search.py`` (11) and
@@ -14,7 +14,7 @@ T11-extracted module's *callable shape*:
      CLIP embedder factory.
 
 Fixture style mirrors ``test_multi_film_search.py`` — inline per-film
-JSON + .npy + monkeypatched ``_get_embedder`` on ``cinemateca.search.aggregate``
+JSON + .npy + monkeypatched ``_get_embedder`` on ``kuaa.search.aggregate``
 (the canonical home after T13; ``api.services.search`` re-exports the name
 but tests must patch the module where the function is actually called).
 """
@@ -29,13 +29,13 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-import cinemateca.search.aggregate as _csa_module_ref  # noqa: F401 — ensure loaded
-from cinemateca.library import register_film
-from cinemateca.search.aggregate import aggregate_search
+import kuaa.search.aggregate as _csa_module_ref  # noqa: F401 — ensure loaded
+from kuaa.library import register_film
+from kuaa.search.aggregate import aggregate_search
 
-# The submodule is shadowed in cinemateca.search by the `aggregate` function
+# The submodule is shadowed in kuaa.search by the `aggregate` function
 # re-export; access via sys.modules to reach the module object reliably.
-_AGGREGATE_MODULE = sys.modules["cinemateca.search.aggregate"]
+_AGGREGATE_MODULE = sys.modules["kuaa.search.aggregate"]
 
 
 def _make_film_with_embeddings(library_dir: Path, slug: str, vectors: list[list[float]]) -> None:

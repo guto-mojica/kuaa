@@ -1,4 +1,4 @@
-# Cinemateca imgsearch — M1 reproducible public demo config.
+# KUAA — M1 reproducible public demo config.
 #
 # This file is intentionally separate from config/local.yaml. Launch with:
 #
@@ -8,7 +8,7 @@
 # running scripts/prepare_demo.py.
 
 project:
-  name: "Cinemateca imgsearch demo"
+  name: "KUAA demo"
   version: "0.3.0-demo-m1"
 
 domain:
@@ -69,4 +69,4 @@ pipeline:
 logging:
   level: "INFO"
   to_file: true
-  filename: "cinemateca-demo.log"
+  filename: "kuaa-demo.log"

@@ -31,7 +31,7 @@ from api.services.annotations import (
     toggle_ai_tag,
 )
 from api.templates import templates
-from cinemateca.library import FilmContext
+from kuaa.library import FilmContext
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

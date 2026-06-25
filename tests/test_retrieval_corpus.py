@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from cinemateca.retrieval.corpus import build_corpus
+from kuaa.retrieval.corpus import build_corpus
 
 
 def _descriptions(items: list[tuple[int, str]]) -> list[dict]:

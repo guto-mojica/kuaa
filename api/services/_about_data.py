@@ -104,7 +104,7 @@ def credits_list() -> list[dict[str, Any]]:
     credits like model authors and acknowledgements).
     """
     return [
-        {"role": "Concept", "name": "Cinemateca Mojica · Curatorial team", "dim": False},
+        {"role": "Concept", "name": "KUAA · Curatorial team", "dim": False},
         {"role": "Engineering", "name": "Rafael Perez", "dim": False},
         {
             "role": "AI integration",

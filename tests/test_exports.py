@@ -7,7 +7,7 @@ from io import StringIO
 
 import pytest
 
-from cinemateca.exporters import (
+from kuaa.exporters import (
     ExportError,
     build_catalog_export,
     catalog_export_to_csv,

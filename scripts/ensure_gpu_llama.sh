@@ -63,7 +63,7 @@ if ! grep -q 'rsqrt(double x) noexcept' "$CUDA_HEADER" 2>/dev/null; then
   echo "  This needs sudo — run exactly this, then re-run the script:"
   echo
   echo "    F=$CUDA_HEADER"
-  echo '    sudo test -e "$F.bak-cinemateca" || sudo cp "$F" "$F.bak-cinemateca"'
+  echo '    sudo test -e "$F.bak-kuaa" || sudo cp "$F" "$F.bak-kuaa"'
   echo "    sudo sed -i -e 's/rsqrt(double x);\$/rsqrt(double x) noexcept (true);/' \\"
   echo "                -e 's/rsqrtf(float x);\$/rsqrtf(float x) noexcept (true);/' \"\$F\""
   echo

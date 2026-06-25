@@ -1,0 +1,91 @@
+"""YOLOv8 object-detection backend (moved from visual_analyzer.py, unchanged)."""
+
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+from typing import Any
+
+from kuaa.config import Settings
+from kuaa.models.manifest import ModelCard, get_card
+
+logger = logging.getLogger(__name__)
+
+
+class YOLOv8ObjectDetector:
+    """Detects objects using YOLOv8 (Ultralytics)."""
+
+    #: Provenance for this backend (manifest single source of truth, C10/F6).
+    CARD: ModelCard = get_card("yolov8")
+
+    def __init__(self, cfg: Settings | None = None, device=None):
+        # Lazy-loaded YOLO model (populated by ``_load_model``); typed ``Any``
+        # so the lazy-``None`` initial value doesn't poison call sites.
+        self._model: Any = None
+        self._device = device
+
+        if cfg is not None:
+            od_cfg = cfg.visual_analysis.object_detection
+            self.enabled = od_cfg.enabled
+            self.model_name = od_cfg.model
+            self.confidence = od_cfg.confidence
+        else:
+            self.enabled = True
+            self.model_name = "yolov8n.pt"
+            self.confidence = 0.30
+
+    def _load_model(self):
+        if self._model is not None:
+            return
+        try:
+            from ultralytics import YOLO
+        except ImportError:
+            raise RuntimeError("ultralytics não instalado. Execute: pip install ultralytics")
+        self._model = YOLO(self.model_name)
+        logger.info("YOLOv8 carregado: %s", self.model_name)
+
+    def detect(self, image_path: str | Path) -> dict:
+        """Return {"num_objects": int, "objects": [...], "class_counts": {...}} for one frame."""
+        if not self.enabled:
+            return {"num_objects": 0, "objects": [], "class_counts": {}}
+
+        self._load_model()
+        # Honour the configured device (cuda / mps / cpu) the registry resolves
+        # from ``device_from_config`` and passes to the constructor. ultralytics
+        # treats ``device=None`` as auto-select, so forward the device only when
+        # one was set — leaving the prior auto behaviour intact when it wasn't.
+        detect_kwargs: dict[str, Any] = {"conf": self.confidence, "verbose": False}
+        if self._device is not None:
+            detect_kwargs["device"] = self._device
+        results = self._model(str(image_path), **detect_kwargs)
+
+        objects = []
+        class_counts: dict[str, int] = {}
+
+        for result in results:
+            for box in result.boxes:
+                cls_name = self._model.names[int(box.cls[0])]
+                obj = {
+                    "class": cls_name,
+                    "class_id": int(box.cls[0]),
+                    "confidence": float(box.conf[0]),
+                    "bbox": box.xyxy[0].tolist(),
+                }
+                objects.append(obj)
+                class_counts[cls_name] = class_counts.get(cls_name, 0) + 1
+
+        return {
+            "num_objects": len(objects),
+            "objects": objects,
+            "class_counts": class_counts,
+        }
+
+    def detect_batch(self, image_paths: list[Path]) -> list[dict]:
+        """Return one detection dict per path, same order as input."""
+        results = []
+        for p in image_paths:
+            r = self.detect(p)
+            r["frame_path"] = str(p.name)
+            results.append(r)
+        logger.info("Detecção de objetos: %d frames processados", len(results))
+        return results

@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from cinemateca.rhymes import Rhyme, mmr_rerank
+from kuaa.rhymes import Rhyme, mmr_rerank
 
 
 def _unit(v: np.ndarray) -> np.ndarray:

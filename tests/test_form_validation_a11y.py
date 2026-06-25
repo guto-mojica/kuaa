@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from cinemateca.library import register_film
+from kuaa.library import register_film
 
 # ── helpers ────────────────────────────────────────────────────────────
 

@@ -23,7 +23,7 @@ from api.deps import get_config, make_ctx, resolve_film_context
 from api.services import search as search_service
 from api.services.catalog import derive_fps, load_json
 from api.templates import templates
-from cinemateca.library import FilmContext
+from kuaa.library import FilmContext
 
 logger = logging.getLogger(__name__)
 

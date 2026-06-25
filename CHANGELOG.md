@@ -13,7 +13,7 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 ### Adicionado
 
 - **Tabela de ablação proxy-first (WS-4 E2b).** Novo módulo
-  `cinemateca.eval.ablation` (`run_ablation`, `AblationTable`,
+  `kuaa.eval.ablation` (`run_ablation`, `AblationTable`,
   `AblationRowConfig`) + CLI `scripts/run_ablation.py`. Compara variantes de
   retrieval (CLIP SigLIP2 · BM25 · híbrido · híbrido+rerank C5 · baseline
   multilíngue OpenCLIP/C8) sobre um conjunto comum de 15
@@ -55,9 +55,9 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 - **Busca por áudio CLAP + fusão cross-modal CLIP×CLAP (R1–R4).** Toda a
   modalidade de áudio foi removida do escopo do v1.0 (decisão do mantenedor,
   2026-05-31), focando a superfície de lançamento na história de retrieval
-  visual/texto. Removidos: os módulos `cinemateca.search.audio` /
-  `cinemateca.search.fusion`, `src/cinemateca/audio_extractor.py` e o backend
-  CLAP (`src/cinemateca/models/audio/`); o Protocol `AudioEmbedder`,
+  visual/texto. Removidos: os módulos `kuaa.search.audio` /
+  `kuaa.search.fusion`, `src/kuaa/audio_extractor.py` e o backend
+  CLAP (`src/kuaa/models/audio/`); o Protocol `AudioEmbedder`,
   `get_audio_embedder` e o model card `clap_hf` do manifesto (backends
   embarcados 9 → 8); as etapas de pipeline `audio_extract` / `audio_embed`; a
   config `audio_embeddings` + `FusionCfg`/`retrieval.fusion` +
@@ -66,7 +66,7 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
   dispatchers `dispatch_audio_search` / `dispatch_fusion_search`; os chips
   Áudio/Fusão + o popover de peso `visual ↔ áudio` na UI + 7 msgids; os
   geradores de slate de áudio/fusão, a linha de ablação `fusion` e o comando
-  CLI `cinemateca eval clap-sanity`. A cadeia de retrieval colapsa de forma
+  CLI `kuaa eval clap-sanity`. A cadeia de retrieval colapsa de forma
   limpa para **CLIP → BM25 híbrido → SigLIP2 multilíngue → rimas visuais
   cross-film (MMR) → reranker cross-encoder**. **Mantidos (não são áudio):** a
   RRF rank-fusion do híbrido CLIP⊕BM25 (`SearchResult.fusion_used`), o
@@ -105,8 +105,8 @@ aplicação sobre velocidade.
 
 - **Fallback Streamlit (`app_streamlit.py`) excluído.** A interface
   FastAPI + HTMX é agora a única superfície suportada. Após o refactor
-  P3 retirar `cinemateca.annotator`, o `app_streamlit.py` ficou com
-  imports quebrados (`ModuleNotFoundError: cinemateca.annotator`) e
+  P3 retirar `kuaa.annotator`, o `app_streamlit.py` ficou com
+  imports quebrados (`ModuleNotFoundError: kuaa.annotator`) e
   passou a ser dead code com risco de uso acidental. Dependências
   `streamlit>=1.28` removidas do extra `full` e o extra `gui` (que
   empacotava apenas Streamlit + rich) foi excluído do `pyproject.toml`.
@@ -158,7 +158,7 @@ aplicação sobre velocidade.
   de PR e issue em `.github/`; `scripts/README.md` categorizando os scripts críticos
   vs. exploratórios; `scripts/verify_fresh_run.sh` — verificador reprodutível
   checkout-limpo → `uv sync` → `/health` (substituto do Docker); job de benchmark CI
-  de latência de recuperação; log estruturado JSON (`cinemateca.config.loader._JsonFormatter`,
+  de latência de recuperação; log estruturado JSON (`kuaa.config.loader._JsonFormatter`,
   opt-in via `json_logs: true`). Testes de regressão de configuração digitada e de
   logging em `test_config_schema.py` / `test_structured_logging.py`.
 
@@ -179,7 +179,7 @@ aplicação sobre velocidade.
   de comparação de backends — pertence a WS-4 E2, evita duplicação) e C12
   (batching — sem ganho de perfil mensurável na escala demo).
 
-- **Tokenizador BM25 plugável (C6 / WS-1).** `cinemateca.retrieval.tokenize`
+- **Tokenizador BM25 plugável (C6 / WS-1).** `kuaa.retrieval.tokenize`
   agora exporta um `Tokenizer` Protocol (runtime-checkable), `RegexTokenizer`
   (comportamento padrão — identico ao código anterior), `MultilingualTokenizer`
   (PT-aware: remove stopwords portuguesas via nltk, opt-in) e `get_tokenizer(name)`.
@@ -191,7 +191,7 @@ aplicação sobre velocidade.
   `search.bm25.tokenizer: multilingual` (requer `nltk` instalado).
 
 - **Reproducibilidade determinística (F3 / Phase 0).** Novo módulo
-  `cinemateca.reproducibility` com `seed_everything(seed)` (fixa `random`,
+  `kuaa.reproducibility` com `seed_everything(seed)` (fixa `random`,
   `numpy` global e `torch` CPU+CUDA) e `make_generator(seed, *salt)` (retorna
   um `numpy.random.Generator` salteado via CRC32, independente do PRNG
   global). Campo `seed: int = 42` adicionado à raiz de `Settings`
@@ -218,7 +218,7 @@ aplicação sobre velocidade.
   rimas. Subset texto-only `data/eval/m3_text_queries.yaml` (15 entradas)
   roda end-to-end via `scripts/run_eval.py` contra o índice CLIP do Jeca
   Tatu (R@5=0.189, MRR=0.254 sobre hipóteses pré-curadoria). Candidate
-  slates do `/eval` gerados por `cinemateca eval seed --run m3-run-1`
+  slates do `/eval` gerados por `kuaa eval seed --run m3-run-1`
   em `data/eval/m3-run-1.queries.json` (gitignored). Protocolo completo
   em `docs/EVAL_PROTOCOL.md` (~440 linhas: rubrica 0/1/2/3/S, keybindings
   do `/eval`, edge cases bilíngues, fluxo curador, política de freeze).
@@ -259,7 +259,7 @@ aplicação sobre velocidade.
   em `tests/fixtures/fusion_search_regression.json`.
 - **M3 pre-flight · Busca por áudio end-to-end (CLAP)** — `/api/search`
   agora aceita `?modality=audio`, despachando para o novo módulo
-  `cinemateca.search.audio` (`AudioIndex` + `load_audio_index` +
+  `kuaa.search.audio` (`AudioIndex` + `load_audio_index` +
   `search_audio`) com cache por `mtime+size` por `FilmContext` (M3
   pre-flight 1.1, 1.2, 1.3). Snapshot de regressão Jeca Tatu fixado em
   `tests/fixtures/audio_search_regression.json` (1.4).
@@ -269,7 +269,7 @@ aplicação sobre velocidade.
   endpoint correto; strings PT/EN extraídas (Áudio/Soundtrack) e ARIA
   labels para tipo de input (M3 pre-flight 2.1, 2.2, 2.3).
 - **M3 pre-flight · Cross-encoder reranker (stub preenchido)** — implementação
-  real em `cinemateca.search.rerank` (default `BAAI/bge-reranker-v2-m3`;
+  real em `kuaa.search.rerank` (default `BAAI/bge-reranker-v2-m3`;
   escape hatch `model="noop"` para hermeticidade de testes); novo wrapper
   de serviço `apply_reranker(result, *, cfg)` honra
   `cfg.retrieval.reranker.{enabled,model,top_k_in}` (M3 pre-flight 3.1,
@@ -277,7 +277,7 @@ aplicação sobre velocidade.
   `retrieval.reranker.enabled: false` — sem regressão comportamental;
   fiação nos dispatchers de produção fica como follow-up Task 3.2b.
 - **M3 pre-flight · Backend visual SigLIP2-multilingual** — novo embedder
-  em `cinemateca.models.clip.siglip_multilingual` (`SiglipMultilingualEmbedder`)
+  em `kuaa.models.clip.siglip_multilingual` (`SiglipMultilingualEmbedder`)
   registrado via `cfg.models.image_embedder` (M3 pre-flight 4.1). Acervo
   re-embeddado com `google/siglip2-large-patch16-256` (1024 dim, multilíngue,
   visão+texto) — Jeca Tatu 1236×1024 e Edwin Porter 21×1024 (4.2, 4.3).
@@ -285,7 +285,7 @@ aplicação sobre velocidade.
   por filme para rollback rápido. SigLIP2-large-256 substituído pelo id
   inventado pelo plano (`siglip-large-multilingual` não existe na HF).
 - **M3 pre-flight · CLAP archival sanity gate** — novo comando
-  `cinemateca eval clap-sanity` aplica um piso P@5 sobre 5 queries
+  `kuaa eval clap-sanity` aplica um piso P@5 sobre 5 queries
   curadas em `tests/fixtures/clap_sanity_jeca_tatu.json`; sai com código
   não-zero em FAIL para uso em pre-commit / CI; baseline atual P@5=0.60
   por query (M3 pre-flight 5.1, 5.2, 5.3).
@@ -293,7 +293,7 @@ aplicação sobre velocidade.
   `?retriever=clip|bm25|hybrid` + pesos `sem_w` / `bm25_w`. Padrão flipado
   para `hybrid`; `?retriever=clip` reproduz a ordenação pré-M2 byte-a-byte
   (regression pin, snapshot committed em `tests/fixtures/hybrid_search_regression.json`).
-  Novo pacote `src/cinemateca/retrieval/` (tokenize + corpus + bm25 + hybrid)
+  Novo pacote `src/kuaa/retrieval/` (tokenize + corpus + bm25 + hybrid)
   alimenta o serviço `search_hybrid()` orquestrador. Aggregate cross-film
   honra o mesmo modo de retriever. Bring-forward de Alpine.js (3.14.9) para
   popovers interativos (botões Híbrido + k); Rerank/MMR ficam como chips
@@ -303,7 +303,7 @@ aplicação sobre velocidade.
   roxo), chrome de 5 abas (adiciona **Rimas Visuais** para rimas visuais
   cross-film), abas Buscar/Cenas/Anotar/Proc redesenhadas, nova superfície
   About e novo Eval set builder atrás de flag admin. UI espelha o protótipo
-  entregue em `claude_design/mojica-cinemateca/`.
+  entregue em `claude_design/mojica-kuaa/`.
 - **Serviço Rimas** — kNN por cosseno cross-film sobre as embeddings CLIP de
   keyframe já existentes (MVP stub; controles de MMR/diversidade ficam para M3).
 - **Eval set builder** — persistência de notas em JSONL + métricas
@@ -316,11 +316,11 @@ aplicação sobre velocidade.
 ### Mudado
 
 - **M3 pre-flight · `Hit.rerank_score: float | None = None`** adicionado
-  a `cinemateca.search.types` (campo aditivo, back-compat para callers
+  a `kuaa.search.types` (campo aditivo, back-compat para callers
   existentes).
-- **M3 pre-flight · `cinemateca.search.cache` + `aggregate`** agora
+- **M3 pre-flight · `kuaa.search.cache` + `aggregate`** agora
   despacham o embedder de imagem em query-time via
-  `cinemateca.models.registry` em vez de hard-coded `OpenClipEmbedder()`;
+  `kuaa.models.registry` em vez de hard-coded `OpenClipEmbedder()`;
   resolve o mismatch CLIP→SigLIP2 no caminho de busca após o re-embed
   (M3 pre-flight 4.2).
 - **M3 pre-flight · `models.image_embedder` default** agora
@@ -335,10 +335,10 @@ aplicação sobre velocidade.
 - **base.html** — novo layout de shell (TopBar de 52px + IconRail de 56px +
   LeftPane de 248px + área principal + painel direito opcional).
 - **i18n** — ~280 novos msgids extraídos e traduzidos PT/EN.
-- **Refactor P1 · pacote `cinemateca.search` extraído** — toda a lógica de
+- **Refactor P1 · pacote `kuaa.search` extraído** — toda a lógica de
   busca saiu de `api/services/search.py` (1388 → **235 LOC**, teto 250) e
   `api/routes/search.py` (471 → **148 LOC**, teto 150) para um pacote novo
-  em `src/cinemateca/search/` (14 arquivos: `__init__`, `types`,
+  em `src/kuaa/search/` (14 arquivos: `__init__`, `types`,
   `_dispatch`, `_lookup`, `_results`, `_tag_index`, `display`, `upload`,
   `cache`, `bm25`, `clip`, `hybrid`, `aggregate`, `rerank`). API pública
   pequena e tipada: 4 verbos (`find`, `aggregate`, `reindex_bm25`,
@@ -350,16 +350,16 @@ aplicação sobre velocidade.
   filter, min-sim, retriever=clip pin). ~36 novos testes unitários nos
   módulos extraídos. Spec em
   (internal design notes).
-- **Refactor P2 · pacote `cinemateca.library` extraído** — fold de
-  `src/cinemateca/library.py` (217 LOC) + `api/services/film_context.py`
+- **Refactor P2 · pacote `kuaa.library` extraído** — fold de
+  `src/kuaa/library.py` (217 LOC) + `api/services/film_context.py`
   (138 LOC, **deletado**) + a metade data-access de `api/services/catalog.py`
   em um pacote de 6 arquivos (~620 LOC totais): `registry.py` + `scan.py` +
   `context.py` + `paths.py` + `metadata.py` + `__init__.py` (este último
   expõe o novo handle tipado `Library`). `api/services/catalog.py`:
   403 → **250 LOC** (exatamente no cap, sem mais exemption). Seis
-  carve-outs `cinemateca → api.services.*` apagados de `.importlinter`
+  carve-outs `kuaa → api.services.*` apagados de `.importlinter`
   (sobram 2, ambos P5 follow-ups: `aggregate -> services.search` e
-  `_dispatch -> api.deps`). Surface pública: `from cinemateca.library
+  `_dispatch -> api.deps`). Surface pública: `from kuaa.library
   import Library, Film, FilmContext, list_films, get_film, register_film,
   remove_film, scan_library, library_state, load_registry, save_registry,
   load_json, keyframe_url, to_smpte, derive_fps, load_tag_index,
@@ -369,19 +369,19 @@ aplicação sobre velocidade.
   **774 passando**. Spec em
   (internal design notes).
 - **Refactor P3 · extração de services** — três subsistemas extraídos de
-  `api/services/` para pacotes em `src/cinemateca/`:
+  `api/services/` para pacotes em `src/kuaa/`:
 
-  - **`cinemateca.annotations`** (P3.A) — promove `cinemateca.annotator`
+  - **`kuaa.annotations`** (P3.A) — promove `kuaa.annotator`
     em pacote de 4 arquivos: `io.py` + `descriptions.py` + `scenes.py` +
     `__init__.py`. Absorve a metade data-access + lógica de negócio de
     `api/services/annotations.py`. Service: 577 → **129 LOC**. Removido
     de `EXEMPTIONS`.
-  - **`cinemateca.rhymes`** (P3.B) — promove `cinemateca/rhymes.py` em
+  - **`kuaa.rhymes`** (P3.B) — promove `kuaa/rhymes.py` em
     pacote de 5 arquivos: `algorithm.py` + `metadata.py` + `enrich.py` +
     `config.py` + `anchor.py`. Absorve lógica de enriquecimento +
     per-scene metadata loaders. Service: 470 → **194 LOC**. Removido de
     `EXEMPTIONS`.
-  - **`cinemateca.eval` estendido** (P3.C) — adiciona `paths.py` ao
+  - **`kuaa.eval` estendido** (P3.C) — adiciona `paths.py` ao
     pacote existente; estende `datasets.py` + `grades.py` +
     `grader_metrics.py` com config/data-access/IAA helpers. Service:
     564 → **244 LOC**. Removido de `EXEMPTIONS`.
@@ -391,12 +391,12 @@ aplicação sobre velocidade.
   `Library.get_film`; elimina workaround SimpleNamespace flagado no P2
   review) (P3.0). `.importlinter` zerado: os 2 follow-ups P5 de P1/P2
   (`aggregate -> services.search` e `_dispatch -> api.deps`) resolvidos
-  movendo helpers para `cinemateca.search.aggregate` e parametrizando
+  movendo helpers para `kuaa.search.aggregate` e parametrizando
   BM25 tunables como kwargs em `_dispatch.find()` (P3.D). Suite:
   **774 → 777 passando** (+3 testes). Spec:
   (internal design notes).
 - **Camadas arquiteturais policiadas em CI** — `.importlinter` proíbe
-  `src/cinemateca/*` de importar `api/*` (camada de núcleo HTTP-agnóstica);
+  `src/kuaa/*` de importar `api/*` (camada de núcleo HTTP-agnóstica);
   novo `scripts/check_loc_budget.py` enforça `api/services/*.py ≤ 250 LOC`
   e `api/routes/*.py ≤ 150 LOC` (com 2 exemptions documentadas para
   arquivos cujo refactor cai em P3). Ambos rodam no workflow GH Actions
@@ -416,8 +416,8 @@ aplicação sobre velocidade.
 
 - Suite de testes: **425 → 546 passando** (baseline → pós-redesign);
   **~625 → ~738 passando** após o refactor P1 (~110 testes novos no
-  pacote `cinemateca.search`); **758 → 774 passando** após o refactor P2
-  (+17 testes novos no pacote `cinemateca.library` — 7 em
+  pacote `kuaa.search`); **758 → 774 passando** após o refactor P2
+  (+17 testes novos no pacote `kuaa.library` — 7 em
   `test_library_scan.py` + 10 em `test_library_handle.py`).
 - **32 novos commits** distribuídos em **10 fases** (Tasks 1–36) na branch
   `worktree-mojica-redesign`.
@@ -467,7 +467,7 @@ domain packs, framework de avaliação e demo scaffold.
   seletor de filme no sidebar (HTMX), script de migração idempotente
   (`scripts/migrate_flat_to_library.py`), pipeline com `--slug`.
 - **CLI unificada** — todos os pontos de entrada sob um único app Typer
-  (`cinemateca serve / process / info / library / reembed-all / config`).
+  (`kuaa serve / process / info / library / reembed-all / config`).
 - **Domain packs** — `archive` e `media_broadcast` com prompts específicos
   por domínio para os describers transformers e GGUF.
 - **Framework de avaliação** — métricas de retrieval (`Recall@k`, `MRR`,
@@ -616,7 +616,7 @@ Checklist de verificação manual pré-lançamento em
   rodarem sobre um `keyframes_metadata.json` obsoleto. O comportamento
   padrão não muda (`stop_on_error: false`); a chave
   `pipeline.stop_on_error` continua valendo para o CLI
-  `python -m cinemateca process`, que mantém a parada no primeiro erro
+  `python -m kuaa process`, que mantém a parada no primeiro erro
   quando habilitada.
 
 ### Backends de modelo plugáveis (PROTOCOL_OPTION Passos 1–2)
@@ -629,7 +629,7 @@ configuração. Ver `docs/PROTOCOL_OPTION.md` e
 
 - **5 `Protocol`s tipados** (`ImageEmbedder`, `FaceDetector`,
   `ObjectDetector`, `SceneDescriber`, `EnvironmentClassifier`) com um
-  **registry orientado por configuração** em `src/cinemateca/models/`.
+  **registry orientado por configuração** em `src/kuaa/models/`.
   O pipeline importa apenas dos Protocols / do registry, nunca de um
   backend concreto.
 - **`by_image`** desacoplado dos internos do embedder via
@@ -674,7 +674,7 @@ para uma aplicação estruturada com módulos reutilizáveis e interface gráfic
 
 #### Adicionado
 
-**Módulos Python (`src/cinemateca/`)**
+**Módulos Python (`src/kuaa/`)**
 - `config.py` — carregamento de configuração via YAML com merge de defaults
 - `device.py` — detecção automática de hardware (CPU / CUDA / Apple Silicon MPS)
 - `data_prep.py` — inspeção de vídeo via FFprobe e extração de frames via FFmpeg
@@ -689,7 +689,7 @@ para uma aplicação estruturada com módulos reutilizáveis e interface gráfic
 - Tab **Pesquisar**: busca semântica por texto e por imagem de referência, filtro por tags LLM, grid de resultados com metadados
 - Tab **Catálogo**: navegação paginada de todas as cenas, filtros por localização, período do dia e número de pessoas
 
-**CLI (`python -m cinemateca`)**
+**CLI (`python -m kuaa`)**
 - `process --video <path>` — pipeline completo ou etapas selecionadas
 - `info --video <path>` — propriedades técnicas do vídeo
 

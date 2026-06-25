@@ -19,7 +19,7 @@ from api.services.catalog import (
     to_smpte,
 )
 from api.services.scenes._tipo import tipo_of
-from cinemateca.library import FilmContext
+from kuaa.library import FilmContext
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ def _films_by_slug(cfg: Any) -> dict:
     into the search service (which would couple two layers that should
     stay independent).
     """
-    from cinemateca.library import scan_library
+    from kuaa.library import scan_library
 
     library_dir = Path(cfg.paths.library_dir)
     return {film.slug: film for film in scan_library(library_dir)}

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import inspect
 
-from cinemateca.models import base as base_mod
+from kuaa.models import base as base_mod
 
 
 def test_describe_batch_checkpoint_is_typed_not_list_dict() -> None:
@@ -21,8 +21,8 @@ def test_scene_description_record_has_core_keys() -> None:
 
 
 def test_registry_returns_model_card_for_active_roles() -> None:
-    from cinemateca.config import load_config
-    from cinemateca.models.registry import model_card
+    from kuaa.config import load_config
+    from kuaa.models.registry import model_card
 
     cfg = load_config(ensure_dirs=False)
     card = model_card(cfg, "image_embedder")

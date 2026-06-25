@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 from api.services.search import _get_bm25_index_for_ctx
-from cinemateca.library import FilmContext
+from kuaa.library import FilmContext
 
 
 def _make_ctx(tmp_path: Path) -> FilmContext:
@@ -145,7 +145,7 @@ def test_loader_cache_invalidates_on_manual_annotations_change(tmp_path: Path) -
     assert b is not a, "manual_annotations.json write must invalidate the BM25 cache"
 
 
-# ── T7: new tests for the core ``cinemateca.search.bm25`` module ─────────────
+# ── T7: new tests for the core ``kuaa.search.bm25`` module ─────────────
 #
 # These exercise the relocated module directly (rather than via the
 # ``api.services.search`` re-export shim) so the boundary holds even if
@@ -177,7 +177,7 @@ def _write_three_doc_metadata(metadata_dir: Path) -> None:
 
 def test_bm25_index_for_dir_builds_corpus(tmp_path: Path) -> None:
     """``bm25_index_for_dir`` (the pure-Path loader) builds a queryable index."""
-    from cinemateca.search.bm25 import bm25_index_for_dir, clear_bm25_cache
+    from kuaa.search.bm25 import bm25_index_for_dir, clear_bm25_cache
 
     clear_bm25_cache()
     _write_three_doc_metadata(tmp_path)
@@ -195,7 +195,7 @@ def test_bm25_index_for_dir_builds_corpus(tmp_path: Path) -> None:
 
 def test_bm25_index_for_dir_empty_corpus_returns_no_hits(tmp_path: Path) -> None:
     """An empty descriptions + empty tags corpus yields a no-match index."""
-    from cinemateca.search.bm25 import bm25_index_for_dir, clear_bm25_cache
+    from kuaa.search.bm25 import bm25_index_for_dir, clear_bm25_cache
 
     clear_bm25_cache()
     (tmp_path / "scene_descriptions.json").write_text("[]")
@@ -219,7 +219,7 @@ def test_reindex_bm25_clears_slot(tmp_path: Path) -> None:
     """
     from types import SimpleNamespace
 
-    from cinemateca.search.bm25 import (
+    from kuaa.search.bm25 import (
         bm25_index_for_dir,
         clear_bm25_cache,
         reindex_bm25,

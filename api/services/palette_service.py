@@ -22,8 +22,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from cinemateca import library
-from cinemateca.scene_ids import scene_id_key
+from kuaa import library
+from kuaa.scene_ids import scene_id_key
 
 # Static catalogues. Defined at module scope so they are NOT rebuilt per
 # request; the client filters them locally after one fetch, so payload size
@@ -40,7 +40,7 @@ NAVIGATE: list[dict[str, Any]] = [
 ACTIONS: list[dict[str, Any]] = [
     {"key": "switch-pt", "label": "Switch to PT-BR", "icon": "globe", "url": "/api/locale/pt_BR"},
     {"key": "switch-en", "label": "Switch to English", "icon": "globe", "url": "/api/locale/en"},
-    {"key": "about", "label": "About Cinemateca", "icon": "doc", "url": "/about"},
+    {"key": "about", "label": "About KUAA", "icon": "doc", "url": "/about"},
 ]
 
 

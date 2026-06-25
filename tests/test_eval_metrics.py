@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from cinemateca.eval.datasets import DatasetError, load_dataset
-from cinemateca.eval.metrics import (
+from kuaa.eval.datasets import DatasetError, load_dataset
+from kuaa.eval.metrics import (
     evaluate_query,
     ndcg_at_k,
     recall_at_k,

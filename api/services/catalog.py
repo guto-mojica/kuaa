@@ -1,7 +1,7 @@
 """Catalog service — scene-card and scenes-tab template builders.
 
 Path/URL/timecode utilities and per-film metadata loaders live in
-``cinemateca.library.{paths,metadata}`` and are re-exported below so
+``kuaa.library.{paths,metadata}`` and are re-exported below so
 existing call sites (``scenes_service``, ``annotations``, ``rhymes_service``,
 etc.) keep importing them from ``api.services.catalog``.
 """
@@ -12,18 +12,18 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from cinemateca.library import FilmContext, scan_library
-from cinemateca.library.metadata import (  # noqa: F401
+from kuaa.library import FilmContext, scan_library
+from kuaa.library.metadata import (  # noqa: F401
     load_metadata,
     load_tag_index,
 )
-from cinemateca.library.paths import (  # noqa: F401
+from kuaa.library.paths import (  # noqa: F401
     derive_fps,
     keyframe_url,
     load_json,
     to_smpte,
 )
-from cinemateca.scene_ids import scene_id_key
+from kuaa.scene_ids import scene_id_key
 
 logger = logging.getLogger(__name__)
 

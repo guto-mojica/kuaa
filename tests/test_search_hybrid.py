@@ -1,7 +1,7 @@
-"""Unit tests for cinemateca.search.hybrid — dispatch + RRF fusion.
+"""Unit tests for kuaa.search.hybrid — dispatch + RRF fusion.
 
 These tests target the relocated dispatcher directly via its new home
-in ``cinemateca.search.hybrid`` (T10). They are deliberately thin —
+in ``kuaa.search.hybrid`` (T10). They are deliberately thin —
 the 12 service-layer tests in ``tests/test_search_hybrid_service.py``
 already cover every retriever_mode + tag-filter + min_similarity
 permutation; this file's job is to pin the new import path and prove
@@ -19,9 +19,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from cinemateca.retrieval.bm25 import BM25Index
-from cinemateca.search.cache import IndexStatus, SearchIndex
-from cinemateca.search.hybrid import search_hybrid
+from kuaa.retrieval.bm25 import BM25Index
+from kuaa.search.cache import IndexStatus, SearchIndex
+from kuaa.search.hybrid import search_hybrid
 
 
 class _FakeEmbedder:

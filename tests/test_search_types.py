@@ -1,4 +1,4 @@
-"""Unit tests for cinemateca.search.types — pure dataclass / enum behavior."""
+"""Unit tests for kuaa.search.types — pure dataclass / enum behavior."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from cinemateca.search.types import (
+from kuaa.search.types import (
     Filters,
     Hit,
     HybridWeights,

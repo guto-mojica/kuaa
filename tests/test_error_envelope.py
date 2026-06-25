@@ -1,4 +1,4 @@
-"""A4: uniform CinematecaError->HTTP envelope + status-code fixes.
+"""A4: uniform KuaaError->HTTP envelope + status-code fixes.
 
 Tests cover:
   - The http_status_for mapping table (uses the F2 SoT, not the plan's 422
@@ -14,7 +14,7 @@ from __future__ import annotations
 import pytest
 from fastapi import APIRouter
 
-from cinemateca.errors import (
+from kuaa.errors import (
     ConfigError,
     IndexMissing,
     RetrievalError,
@@ -38,7 +38,7 @@ from cinemateca.errors import (
     ],
 )
 def test_error_maps_to_status_and_envelope(client, exc, expected) -> None:
-    """Exception handler converts CinematecaError to a JSON envelope."""
+    """Exception handler converts KuaaError to a JSON envelope."""
     from api.server import app
 
     router = APIRouter()

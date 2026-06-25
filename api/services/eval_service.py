@@ -11,54 +11,54 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from cinemateca.eval.datasets import load_queries as _load_queries  # noqa: F401
-from cinemateca.eval.grader_metrics import (
+from kuaa.eval.datasets import load_queries as _load_queries  # noqa: F401
+from kuaa.eval.grader_metrics import (
     annotator_summary as _annotator_summary,
 )
-from cinemateca.eval.grader_metrics import (
+from kuaa.eval.grader_metrics import (
     build_iaa as _build_iaa,
 )
-from cinemateca.eval.grader_metrics import (
+from kuaa.eval.grader_metrics import (
     grader_initials as _grader_initials,  # noqa: F401
 )
-from cinemateca.eval.grader_metrics import (
+from kuaa.eval.grader_metrics import (
     grades_for_current_grader,
     histogram,
     inversions,
     ndcg_at_k,
     precision_at_k,
 )
-from cinemateca.eval.grader_metrics import (
+from kuaa.eval.grader_metrics import (
     initials as _initials,
 )
-from cinemateca.eval.grader_metrics import (
+from kuaa.eval.grader_metrics import (
     kappa_quality_label as _kappa_quality_label,  # noqa: F401
 )
-from cinemateca.eval.grader_metrics import (
+from kuaa.eval.grader_metrics import (
     other_grades_for_current as _other_grades_for_current,
 )
-from cinemateca.eval.grader_metrics import (
+from kuaa.eval.grader_metrics import (
     query_conflict_set as _query_conflict_set,
 )
-from cinemateca.eval.grades import (
+from kuaa.eval.grades import (
     EvalRun,
     Grade,
     load_run,
     load_run_per_annotator,
 )
-from cinemateca.eval.grades import (
+from kuaa.eval.grades import (
     first_ungraded as _first_ungraded,
 )
-from cinemateca.eval.grades import (
+from kuaa.eval.grades import (
     grades_by_query as _grades_by_query,  # noqa: F401
 )
-from cinemateca.eval.grades import (
+from kuaa.eval.grades import (
     grades_for_query as _grades_for_query,  # noqa: F401
 )
-from cinemateca.eval.paths import (  # noqa: F401
+from kuaa.eval.paths import (  # noqa: F401
     eval_root as _eval_root,
 )
-from cinemateca.eval.paths import (
+from kuaa.eval.paths import (
     eval_run_id as _eval_run_id,
 )
 
@@ -217,7 +217,7 @@ def compute_query_metrics(cfg, *, query_id: str | None = None) -> dict[str, Any]
     }
 
 
-# ``_underscored`` helpers above are re-exported from cinemateca.eval.* at the top.
+# ``_underscored`` helpers above are re-exported from kuaa.eval.* at the top.
 # The ``as _underscored`` aliases preserve names that test fixtures monkeypatch.
 
 

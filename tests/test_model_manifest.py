@@ -14,7 +14,7 @@ import importlib
 
 import pytest
 
-from cinemateca.models.manifest import CARDS, ModelCard
+from kuaa.models.manifest import CARDS, ModelCard
 
 EXPECTED_BACKENDS = {
     "siglip_multilingual",
@@ -31,26 +31,26 @@ EXPECTED_BACKENDS = {
 def _shipped_backend_cards() -> dict[str, ModelCard]:
     """Collect the ``CARD`` reference declared by every shipped backend.
 
-    Each concrete backend under ``cinemateca.models.**`` (plus the reranker,
-    which lives in ``cinemateca.search.rerank`` because it has no
+    Each concrete backend under ``kuaa.models.**`` (plus the reranker,
+    which lives in ``kuaa.search.rerank`` because it has no
     ``models.*`` selector) declares a ``CARD`` link to its manifest entry.
     Returns a ``{label: ModelCard}`` map. The label is the backend's import
     site, used only for assertion messages.
 
-    Note: ``cinemateca.search.rerank`` is loaded via :func:`importlib.import_module`
-    because the ``cinemateca.search`` package re-exports the ``rerank``
+    Note: ``kuaa.search.rerank`` is loaded via :func:`importlib.import_module`
+    because the ``kuaa.search`` package re-exports the ``rerank``
     *function* under that same name, which shadows the submodule on a plain
-    ``import cinemateca.search.rerank as ...``.
+    ``import kuaa.search.rerank as ...``.
     """
-    from cinemateca.models.clip.openclip import OpenClipEmbedder
-    from cinemateca.models.clip.siglip_multilingual import SiglipMultilingualEmbedder
-    from cinemateca.models.describer.gguf import MoondreamGGUFDescriber
-    from cinemateca.models.describer.transformers_hf import MoondreamTransformersDescriber
-    from cinemateca.models.environment.opencv_heuristic import OpenCVEnvironmentClassifier
-    from cinemateca.models.face.mtcnn import MTCNNFaceDetector
-    from cinemateca.models.objects.yolov8 import YOLOv8ObjectDetector
+    from kuaa.models.clip.openclip import OpenClipEmbedder
+    from kuaa.models.clip.siglip_multilingual import SiglipMultilingualEmbedder
+    from kuaa.models.describer.gguf import MoondreamGGUFDescriber
+    from kuaa.models.describer.transformers_hf import MoondreamTransformersDescriber
+    from kuaa.models.environment.opencv_heuristic import OpenCVEnvironmentClassifier
+    from kuaa.models.face.mtcnn import MTCNNFaceDetector
+    from kuaa.models.objects.yolov8 import YOLOv8ObjectDetector
 
-    rerank_mod = importlib.import_module("cinemateca.search.rerank")
+    rerank_mod = importlib.import_module("kuaa.search.rerank")
 
     return {
         "OpenClipEmbedder": OpenClipEmbedder.CARD,
@@ -152,6 +152,6 @@ def test_mclip_has_no_card_does_not_inherit_openclip():
     would inherit ``clip_openclip`` and be mislabeled (it swaps in a different
     text encoder). The explicit ``None`` is the guard; this test pins it.
     """
-    from cinemateca.models.clip.mclip import MClipEmbedder
+    from kuaa.models.clip.mclip import MClipEmbedder
 
     assert MClipEmbedder.CARD is None

@@ -1,8 +1,8 @@
 """Cross-film hybrid dispatch in ``aggregate_search``.
 
-Note: ``_get_embedder`` monkeypatches target ``cinemateca.search.aggregate``
+Note: ``_get_embedder`` monkeypatches target ``kuaa.search.aggregate``
 (the module), accessed via ``sys.modules`` because the ``aggregate`` function
-name shadows the submodule in the ``cinemateca.search`` package namespace.
+name shadows the submodule in the ``kuaa.search`` package namespace.
 
 Task D2 — the per-film fan-out branches on ``retriever_mode``:
 
@@ -38,13 +38,13 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-import cinemateca.search.aggregate as _csa_module_ref  # noqa: F401 — ensure loaded
+import kuaa.search.aggregate as _csa_module_ref  # noqa: F401 — ensure loaded
 from api.services.search import aggregate_search
-from cinemateca.library import register_film
+from kuaa.library import register_film
 
-# The submodule is shadowed in cinemateca.search by the `aggregate` function
+# The submodule is shadowed in kuaa.search by the `aggregate` function
 # re-export; access via sys.modules to reach the module object reliably.
-_AGGREGATE_MODULE = sys.modules["cinemateca.search.aggregate"]
+_AGGREGATE_MODULE = sys.modules["kuaa.search.aggregate"]
 
 # ── Inline two-film fixture helpers (mirrors test_multi_film_search.py) ──────
 

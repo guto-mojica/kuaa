@@ -1,6 +1,6 @@
 """Cross-encoder reranker tests.
 
-Fills in the M2 stub at :func:`cinemateca.search.rerank.rerank`.
+Fills in the M2 stub at :func:`kuaa.search.rerank.rerank`.
 Tests use the documented ``model='noop'`` escape hatch + an injected
 stub model (via ``_load_reranker`` monkeypatch) to avoid HF downloads.
 """
@@ -9,19 +9,19 @@ from __future__ import annotations
 
 import sys
 
-# NOTE: ``cinemateca.search.__init__`` re-exports ``rerank`` (the function),
-# which shadows the submodule attribute at ``cinemateca.search.rerank``.
+# NOTE: ``kuaa.search.__init__`` re-exports ``rerank`` (the function),
+# which shadows the submodule attribute at ``kuaa.search.rerank``.
 # Fetch the module via ``sys.modules`` so ``monkeypatch.setattr`` targets
 # the real module object's ``_load_reranker`` symbol.
-import cinemateca.search  # noqa: F401  -- ensures the package is imported
-from cinemateca.search.rerank import rerank
-from cinemateca.search.types import Hit, Query, SearchResult
+import kuaa.search  # noqa: F401  -- ensures the package is imported
+from kuaa.search.rerank import rerank
+from kuaa.search.types import Hit, Query, SearchResult
 
-rerank_mod = sys.modules["cinemateca.search.rerank"]
+rerank_mod = sys.modules["kuaa.search.rerank"]
 
 
 def _make_result(hits: list[Hit], query_text: str = "anything") -> SearchResult:
-    """Build a SearchResult with the M3 typed shape used by ``cinemateca.search``."""
+    """Build a SearchResult with the M3 typed shape used by ``kuaa.search``."""
     return SearchResult(
         hits=hits,
         mode="clip",

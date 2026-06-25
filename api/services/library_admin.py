@@ -6,7 +6,7 @@ creation, registry write) and film removal. The route retains all
 
 Raises ``ValueError`` on invalid input; ``HTTPException(400)`` when the video
 path constraint is violated. A4 (Task 8) will map these to the
-``CinematecaError`` envelope once F2 is available.
+``KuaaError`` envelope once F2 is available.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ def register_and_symlink(
 
     Raises ``ValueError`` when the slug is already registered.
     """
-    from cinemateca.library import register_film
+    from kuaa.library import register_film
 
     register_film(
         library_dir,
@@ -68,7 +68,7 @@ def remove_film_and_wipe(library_dir: Path, slug: str, *, wipe: bool) -> None:
     """
     import shutil
 
-    from cinemateca.library import delete_film, load_registry
+    from kuaa.library import delete_film, load_registry
 
     registry = load_registry(library_dir)
     if slug in registry:

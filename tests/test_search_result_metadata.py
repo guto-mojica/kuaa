@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from cinemateca.search.types import Hit, Query, SearchResult
+from kuaa.search.types import Hit, Query, SearchResult
 
 
 def test_search_result_metadata_defaults() -> None:

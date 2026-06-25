@@ -6,7 +6,7 @@
 # docs/eval_session_log.md so future runs of the M4 ablation can prove which
 # grades fed which results.
 #
-# Grade store layout (cinemateca/eval/grades.py::EvalRun.jsonl_path):
+# Grade store layout (kuaa/eval/grades.py::EvalRun.jsonl_path):
 #     data/eval/<run_id>.jsonl     (append-only JSONL written by /api/eval/grade)
 # Optional per-run directory (candidate slates, summaries):
 #     data/eval/<run_id>/          (gitignored runtime artefacts)

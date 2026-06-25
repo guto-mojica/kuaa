@@ -23,7 +23,7 @@ msgstr ""
 
 #: web/templates/base.html:13 web/templates/base.html:120
 #: web/templates/base.html:127
-msgid "Mojica · Cinemateca Digital"
+msgid "KUAA"
 msgstr ""
 
 #: web/templates/base.html:121 web/templates/partials/_help_overlay.html:75
@@ -61,7 +61,7 @@ msgid "Visual rhymes"
 msgstr ""
 
 #: web/templates/eval/layout.html:21
-msgid "Mojica · Eval set builder"
+msgid "KUAA · Eval set builder"
 msgstr ""
 
 #: web/templates/eval/layout.html:70
@@ -528,7 +528,7 @@ msgid "stable"
 msgstr ""
 
 #: web/templates/partials/about_modal.html:75
-msgid "Cinemateca Mojica"
+msgid "KUAA"
 msgstr ""
 
 #: web/templates/partials/about_modal.html:78
@@ -541,8 +541,8 @@ msgstr ""
 
 #: web/templates/partials/about_modal.html:92
 msgid ""
-"Internal cataloguing and semantic search system for the Cinemateca Mojica"
-" archive."
+"Knowledge from unstructured audiovisual archives. Cataloguing and semantic"
+" search for film archives."
 msgstr ""
 
 #: web/templates/partials/about_modal.html:93

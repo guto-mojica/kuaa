@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 
 from api.services import search as search_service
-from cinemateca.retrieval.bm25 import BM25Index
+from kuaa.retrieval.bm25 import BM25Index
 
 # ───────────────────────────────────────────────────────────────────────
 # Fixture helper: hand-built SearchIndex for unit tests.

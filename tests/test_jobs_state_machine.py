@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from api.jobs import JobState, JobStatus
-from cinemateca.errors import PipelineError
+from kuaa.errors import PipelineError
 
 
 def test_legal_transition_created_to_running() -> None:

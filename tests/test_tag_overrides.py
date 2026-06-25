@@ -11,19 +11,19 @@ import json
 import time
 from pathlib import Path
 
-from cinemateca.annotations import merge_tag_index
-from cinemateca.annotations.overrides import (
+from kuaa.annotations import merge_tag_index
+from kuaa.annotations.overrides import (
     load as load_overrides,
 )
-from cinemateca.annotations.overrides import (
+from kuaa.annotations.overrides import (
     save as save_overrides,
 )
-from cinemateca.annotations.overrides import (
+from kuaa.annotations.overrides import (
     set_suppressed,
     suppressed_for_scene,
 )
-from cinemateca.library import FilmContext
-from cinemateca.library.metadata import load_tag_index
+from kuaa.library import FilmContext
+from kuaa.library.metadata import load_tag_index
 
 
 def _make_ctx(tmp_path: Path) -> FilmContext:
@@ -102,7 +102,7 @@ def test_load_tag_index_honors_overrides(tmp_path: Path) -> None:
 
 
 def test_bm25_cache_invalidates_on_override_write(tmp_path: Path) -> None:
-    from cinemateca.search.bm25 import bm25_index_for_dir
+    from kuaa.search.bm25 import bm25_index_for_dir
 
     md = tmp_path / "metadata"
     md.mkdir()
@@ -190,7 +190,7 @@ def test_toggle_ai_tag_writes_override_not_scene_tags(tmp_path: Path) -> None:
 def test_ai_tags_for_scene_reports_suppressed_state(tmp_path: Path) -> None:
     import json
 
-    from cinemateca.annotations.scenes import ai_tags_for_scene
+    from kuaa.annotations.scenes import ai_tags_for_scene
 
     ctx = _make_ctx(tmp_path)
     (ctx.metadata_dir / "scene_tags.json").write_text(

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate the proxy-first multi-modal ablation table (WS-4 E2b).
 
-Runs :func:`cinemateca.eval.ablation.run_ablation` over the 15 text queries in
+Runs :func:`kuaa.eval.ablation.run_ablation` over the 15 text queries in
 ``data/eval/m3_full_queries.yaml`` (the common HY-labelled set) and writes the
 result as an **M4 section** of ``docs/EVALUATION_RESULTS.md``, preserving the
 existing M2 section. The M4 block is delimited by HTML comment markers
@@ -184,7 +184,7 @@ def _load_graded_labels(
 
     from pathlib import Path as _Path
 
-    from cinemateca.eval.grades import EvalRun, export_run
+    from kuaa.eval.grades import EvalRun, export_run
 
     path = _Path(grades_arg)
     if path.is_absolute() and path.exists():
@@ -208,14 +208,14 @@ def _load_graded_labels(
 
 
 def main(argv: list[str] | None = None) -> int:
-    from cinemateca.config import load_config
-    from cinemateca.errors import EvalError
-    from cinemateca.eval.ablation import (
+    from kuaa.config import load_config
+    from kuaa.errors import EvalError
+    from kuaa.eval.ablation import (
         DEFAULT_ABLATION_CONFIGS,
         DEFAULT_ABLATION_CONFIGS_NO_RERANK,
         run_ablation,
     )
-    from cinemateca.eval.slates import load_modal_queries
+    from kuaa.eval.slates import load_modal_queries
 
     args = parse_args(argv)
     queries_path = project_path(args.queries)

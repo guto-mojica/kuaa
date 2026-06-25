@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Cinemateca AI — Configuração padrão
+# KUAA — Configuração padrão
 # Copie este arquivo para 'config/local.yaml' e ajuste conforme necessário.
 # Os valores aqui são os defaults conservadores (CPU, qualidade vs velocidade).
 # ─────────────────────────────────────────────────────────────────────────────
@@ -7,8 +7,8 @@
 config_version: 1
 
 project:
-  name: "Cinemateca AI"
-  version: "0.8.0rc1"   # keep in sync with pyproject.toml / cinemateca.__version__
+  name: "KUAA"
+  version: "0.8.0rc1"   # keep in sync with pyproject.toml / kuaa.__version__
 
 # ── Domain pack ───────────────────────────────────────────────────────────────
 # Domain packs define prompts, metadata fields, filters, taxonomy, and export
@@ -265,5 +265,5 @@ eval:
 logging:
   level: "INFO"             # DEBUG | INFO | WARNING | ERROR
   to_file: true
-  filename: "cinemateca.log"
+  filename: "kuaa.log"
   json_logs: false          # when true, emit JSON-structured log lines

@@ -12,7 +12,7 @@ This makes the tests *genuinely* verify that ``cfg`` is annotated as
 ``Settings`` (or ``Settings | None``), not vacuously pass because strings
 are always != types.
 
-Additional gotcha: ``from cinemateca.search import aggregate`` imports the
+Additional gotcha: ``from kuaa.search import aggregate`` imports the
 *function* ``aggregate`` via the package ``__init__.py``, not the submodule.
 We use ``importlib.import_module`` to obtain the actual module objects.
 
@@ -26,12 +26,12 @@ from __future__ import annotations
 import importlib
 import typing
 
-from cinemateca.config import Settings
+from kuaa.config import Settings
 
-# Import the submodules directly — ``from cinemateca.search import aggregate``
+# Import the submodules directly — ``from kuaa.search import aggregate``
 # would give the *function*, not the module, because __init__.py re-exports it.
-_agg_mod = importlib.import_module("cinemateca.search.aggregate")
-_dispatch_mod = importlib.import_module("cinemateca.search._dispatch")
+_agg_mod = importlib.import_module("kuaa.search.aggregate")
+_dispatch_mod = importlib.import_module("kuaa.search._dispatch")
 
 
 def _ann(fn: object, param: str) -> object:

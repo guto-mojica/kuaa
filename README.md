@@ -1,16 +1,16 @@
-# Cinemateca imgsearch
+# KUAA imgsearch
 
 **Offline multimodal search and metadata generation for archival video collections.**
 
-Cinemateca imgsearch is a local-first applied AI workbench that turns video files
+KUAA imgsearch is a local-first applied AI workbench that turns video files
 into searchable, human-reviewable scene catalogs. The first domain is film
 archive cataloging: historical footage, sparse metadata, unusual aspect ratios,
 and digitized material with variable quality.
 
 Portuguese context: sistema de catalogação audiovisual com modelos locais para
-cinematecas nacionais e arquivos públicos de filme.
+kuaas nacionais e arquivos públicos de filme.
 
-[![CI](https://github.com/guto-mojica/cinemateca-imgsearch/actions/workflows/ci.yml/badge.svg)](https://github.com/guto-mojica/cinemateca-imgsearch/actions/workflows/ci.yml)
+[![CI](https://github.com/guto-mojica/kuaa-imgsearch/actions/workflows/ci.yml/badge.svg)](https://github.com/guto-mojica/kuaa-imgsearch/actions/workflows/ci.yml)
 <!-- If the GitHub owner/repo slug changes, update the CI badge URL above. -->
 [![Licença: MIT](https://img.shields.io/badge/Licença-MIT-amber.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://python.org)
@@ -65,7 +65,7 @@ see [`docs/EVAL_PROTOCOL.md`](docs/EVAL_PROTOCOL.md).
 
 - **Stream over the public internet.** You can deploy it behind a reverse
   proxy, but the project is built for institutional intranets.
-- **Replace the catalogue of record.** Cinemateca imgsearch sits *next to* the
+- **Replace the catalogue of record.** KUAA imgsearch sits *next to* the
   existing catalogue and feeds curators retrieval candidates; authoritative
   metadata still lives in the institution's system.
 
@@ -141,8 +141,8 @@ portfolio roadmap:
 ### Quick start
 
 ```bash
-git clone https://github.com/guto-mojica/cinemateca-imgsearch.git
-cd cinemateca-imgsearch
+git clone https://github.com/guto-mojica/kuaa-imgsearch.git
+cd kuaa-imgsearch
 uv venv
 uv sync --extra full --group dev
 uv run app.py                 # FastAPI + HTMX, opens at http://localhost:8501
@@ -218,7 +218,7 @@ NVIDIA GPU is recommended for the vision-language model step.
 
 ## O que é
 
-Cinemateca imgsearch é uma ferramenta open-source que processa um arquivo de vídeo e gera
+KUAA imgsearch é uma ferramenta open-source que processa um arquivo de vídeo e gera
 automaticamente um catálogo pesquisável com:
 
 - **Segmentação de cenas** — detecta cortes e extrai um keyframe representativo de cada cena
@@ -237,7 +237,7 @@ ser enviados para APIs externas.
 
 ## Por que este projeto existe
 
-Cinematecas e arquivos públicos ao redor do mundo têm acervos de milhares de filmes
+KUAAs e arquivos públicos ao redor do mundo têm acervos de milhares de filmes
 que só existem como descrições manuais — às vezes apenas o título, o ano, duração e ficha técnica.
 A catalogação detalhada de uma coleção grande é inviável manualmente.
 
@@ -265,8 +265,8 @@ de metadados que:
 
 ```bash
 # 1. Clonar o repositório
-git clone https://github.com/guto-mojica/cinemateca-imgsearch.git
-cd cinemateca-imgsearch
+git clone https://github.com/guto-mojica/kuaa-imgsearch.git
+cd kuaa-imgsearch
 
 # 2. Criar o ambiente (uv usa a versão fixada em .python-version)
 uv venv
@@ -307,23 +307,23 @@ A interface tem as abas:
 
 ```bash
 # Inspecionar um vídeo
-uv run python -m cinemateca info --video caminho/para/filme.mp4
+uv run python -m kuaa info --video caminho/para/filme.mp4
 
 # Processar um vídeo completo
-uv run python -m cinemateca process --video caminho/para/filme.mp4
+uv run python -m kuaa process --video caminho/para/filme.mp4
 
 # Processar com configuração personalizada
-uv run python -m cinemateca process --video caminho/para/filme.mp4 --config config/local.yaml
+uv run python -m kuaa process --video caminho/para/filme.mp4 --config config/local.yaml
 
 # Executar apenas etapas específicas
-uv run python -m cinemateca process --video caminho/para/filme.mp4 --steps scenes,embeddings
+uv run python -m kuaa process --video caminho/para/filme.mp4 --steps scenes,embeddings
 ```
 
 ### Como módulo Python
 
 ```python
-from cinemateca.config import load_config, setup_logging
-from cinemateca.pipeline import CatalogPipeline
+from kuaa.config import load_config, setup_logging
+from kuaa.pipeline import CatalogPipeline
 
 cfg = load_config("config/local.yaml")
 setup_logging(cfg)
@@ -339,7 +339,7 @@ print(result.summary())
 
 O sistema é organizado em módulos independentes que podem ser usados separadamente.
 Os backends de modelo ficam atrás de `Protocol`s tipados e são selecionados por
-configuração em `src/cinemateca/models/registry.py`.
+configuração em `src/kuaa/models/registry.py`.
 
 O pipeline parte de um arquivo de vídeo e produz, por cena: embeddings visuais SigLIP2 (1024-d) e descrições em linguagem natural do Moondream 2. O motor de busca combina esses artefatos em quatro modos — pesquisa texto/imagem por cosseno SigLIP2, busca lexical BM25, fusão híbrida CLIP⊕BM25 com Reciprocal Rank Fusion e rimas visuais cross-film (kNN + MMR). Um reranker cross-encoder existe como opção, mas vem desligado por padrão na v1.0 (efeito não medido — ver `docs/RERANKER_DECISION.md`). Os resultados chegam via exportação estruturada e pela UI FastAPI + HTMX.
 
@@ -485,7 +485,7 @@ detalhes sobre dependências.
 
 ## Contato e contexto institucional
 
-Desenvolvido como ferramenta open-source para a **Cinemateca Brasileira**
+Desenvolvido como ferramenta open-source para a **KUAA Brasileira**
 e instituições parceiras de preservação audiovisual.
 
 *Issues e Pull Requests são a forma preferida de comunicação.*

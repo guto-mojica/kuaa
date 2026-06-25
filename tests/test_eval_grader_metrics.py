@@ -6,12 +6,12 @@ quality indicators surfaced on the /eval page right pane.
 
 Module path note
 ----------------
-The plan calls this module ``cinemateca.eval.metrics``, but that name
+The plan calls this module ``kuaa.eval.metrics``, but that name
 is already taken by the *retrieval* metrics (recall@K, MRR, graded
 nDCG with a relevance-dict signature). Reusing the same module would
 silently shadow `ndcg_at_k` with a list-of-Grade signature that means
 something quite different. The grading-side metrics therefore live in
-``cinemateca.eval.grader_metrics`` (and tests in
+``kuaa.eval.grader_metrics`` (and tests in
 ``tests/test_eval_grader_metrics.py``), keeping both call surfaces
 ergonomic and the retrieval-metrics tests green.
 """
@@ -20,14 +20,14 @@ from __future__ import annotations
 
 import math
 
-from cinemateca.eval.grader_metrics import (
+from kuaa.eval.grader_metrics import (
     cohen_kappa,
     histogram,
     inversions,
     ndcg_at_k,
     precision_at_k,
 )
-from cinemateca.eval.grades import Grade
+from kuaa.eval.grades import Grade
 
 
 def test_precision_at_k_basic():

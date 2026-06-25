@@ -66,7 +66,7 @@ pytestmark = [
 @pytest.mark.parametrize("slug,sid", ANCHORS)
 def test_mmr_runs_on_real_library_without_errors(slug: str, sid: int) -> None:
     """MMR rerank must complete against the real SigLIP2 embeddings."""
-    from cinemateca.rhymes import find_rhymes
+    from kuaa.rhymes import find_rhymes
 
     out = find_rhymes(
         library_dir=LIBRARY,
@@ -117,7 +117,7 @@ def test_mmr_lambda_effect_on_real_library(slug: str, sid: int) -> None:
          regression that breaks MMR's similarity penalty would collapse
          MMR's scene count back to kNN's level.
     """
-    from cinemateca.rhymes import find_rhymes
+    from kuaa.rhymes import find_rhymes
 
     knn = find_rhymes(
         library_dir=LIBRARY,

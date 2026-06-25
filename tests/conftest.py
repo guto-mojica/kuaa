@@ -55,7 +55,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 # Mirror the sys.path bootstrap the legacy test modules each did inline,
-# so `import cinemateca...` / `import api...` work without an editable
+# so `import kuaa...` / `import api...` work without an editable
 # install under pytest's rootdir-based collection.
 _REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
@@ -130,7 +130,7 @@ def tmp_config(tmp_path, monkeypatch):
     Returns the rebased ``Config`` object; tests rarely need it
     directly but ``seed_metadata`` and ``client`` build on it.
     """
-    from cinemateca.config import load_config
+    from kuaa.config import load_config
 
     # Real project root so default.yaml resolves; paths rebased to tmp.
     cfg = load_config(project_root=tmp_path)
@@ -153,7 +153,7 @@ def tmp_config(tmp_path, monkeypatch):
     # tests. Default.yaml flipped to ``siglip_multilingual`` in M3
     # pre-flight Task 4.2; that backend lazily loads ~2 GB of SigLIP2
     # weights via HuggingFace on first call. Every existing test fixture
-    # monkeypatches ``cinemateca.models.clip.openclip.OpenClipEmbedder``
+    # monkeypatches ``kuaa.models.clip.openclip.OpenClipEmbedder``
     # (the registry's ``clip_openclip`` branch resolves to that same
     # class), so pinning ``clip_openclip`` here keeps the existing seam
     # working without touching every test fixture. SigLIP-specific tests
@@ -235,7 +235,7 @@ def tmp_config(tmp_path, monkeypatch):
     # eval_root() resolves cfg.eval.root, which is NOT in _PATH_NAMES — validate
     # it too, so a future config change that un-rebases the eval root fails here
     # instead of silently writing into the tracked data/eval/.
-    from cinemateca.eval.paths import eval_root as _eval_root
+    from kuaa.eval.paths import eval_root as _eval_root
 
     er = _eval_root(cfg).resolve()
     assert repo not in er.parents and er != repo, (
@@ -430,7 +430,7 @@ def seed_metadata(tmp_config):
 
         # ── T9: also populate library_dir so aggregate routes see the data ──
         # Register slug "default" (idempotent: skip if already registered).
-        from cinemateca.library import load_registry, register_film
+        from kuaa.library import load_registry, register_film
 
         registry = load_registry(library_dir)
         if "default" not in registry:

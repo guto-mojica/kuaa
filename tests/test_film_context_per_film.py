@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from cinemateca.library import FilmContext
+from kuaa.library import FilmContext
 
 
 def _cfg(library_dir: Path, data_dir: Path | None = None) -> object:
@@ -29,7 +29,7 @@ def test_for_film_resolves_per_film_paths(tmp_path: Path) -> None:
     ``data_dir`` is the media-mount root (``cfg.paths.data_dir``), NOT
     the library root — keyframe URLs must resolve against the directory
     mounted at ``/media`` in :mod:`api.server`."""
-    from cinemateca.library import register_film
+    from kuaa.library import register_film
 
     data_dir = tmp_path / "data"
     library_dir = data_dir / "library"

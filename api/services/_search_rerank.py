@@ -2,7 +2,7 @@
 
 ``apply_reranker`` is the typed verb wrapper: it reads
 ``retrieval.reranker.*`` off ``cfg`` and forwards a :class:`SearchResult`
-to :func:`cinemateca.search.rerank`. It is re-exported on
+to :func:`kuaa.search.rerank`. It is re-exported on
 ``api.services.search`` so caller import paths are unchanged.
 
 C5: the production text-search path now carries a typed :class:`SearchResult`
@@ -15,7 +15,7 @@ make the typed result the through-line rather than something rerank
 reconstructs and discards on every call.
 
 Monkeypatch note: tests patch ``api.services.search.search_rerank`` (the
-aliased :func:`cinemateca.search.rerank` verb).  ``apply_reranker`` performs a
+aliased :func:`kuaa.search.rerank` verb).  ``apply_reranker`` performs a
 *lazy module-level attribute lookup* — ``import api.services.search as _svc``
 inside the call body — so the patched name is always read from the live module
 object and the monkeypatch is effective even though the function body lives here.
@@ -26,7 +26,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any, cast
 
-from cinemateca.search.types import Hit, Query, SearchMode, SearchResult
+from kuaa.search.types import Hit, Query, SearchMode, SearchResult
 
 if TYPE_CHECKING:
     pass
@@ -44,7 +44,7 @@ def _gpu_available(cfg: Any) -> bool:
     CPU → reranker off, the safe/fast default.
     """
     try:
-        from cinemateca.device import device_from_config
+        from kuaa.device import device_from_config
 
         return device_from_config(cfg).type in {"cuda", "mps"}
     except Exception:  # noqa: BLE001 — defensive: any probe failure → off

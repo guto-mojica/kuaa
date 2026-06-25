@@ -77,7 +77,7 @@ def test_about_modal_responds(client):
 
     The 0.3.0 version assertion the pre-Mojica test carried is replaced
     by a structural check: the modal now reads the runtime
-    ``cinemateca.__version__``, and the surface is identified by its
+    ``kuaa.__version__``, and the surface is identified by its
     ``.ab-modal`` panel rather than a literal version string.
     """
     r = client.get("/api/about")
@@ -230,7 +230,7 @@ def test_base_shell_renders_chrome(client):
     html = r.text
     # TopBar present + brand name.
     assert 'class="ch-top"' in html
-    assert "Mojica" in html
+    assert "KUAA" in html
     # The icon rail was removed — the top tabs are the sole nav surface.
     assert 'class="ch-rail"' not in html
     # LeftPane (not compact on Buscar).
@@ -1426,7 +1426,7 @@ def test_scene_dict_carries_start_s_and_duration_s(client, seed_metadata):
 # Task 21 wires ``/tab/rimas`` + ``/api/rimas/echoes`` to the new
 # ``api.services.rhymes_service.build_rimas_context`` builder which walks
 # the library, resolves the anchor scene, and calls
-# :func:`cinemateca.rhymes.find_rhymes` for the cross-film kNN. These tests
+# :func:`kuaa.rhymes.find_rhymes` for the cross-film kNN. These tests
 # pin (1) the full-page route stays 200 on an empty library (empty-state
 # branch), (2) the HTMX tab fragment returns the ``.r-cp`` shell, (3) the
 # echoes endpoint returns a partial without crashing, and (4) the

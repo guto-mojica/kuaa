@@ -5,8 +5,8 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from cinemateca.models.base import SceneDescriber
-from cinemateca.models.describer._common import PROMPTS
+from kuaa.models.base import SceneDescriber
+from kuaa.models.describer._common import PROMPTS
 
 
 class _FakeLlama:
@@ -31,7 +31,7 @@ class _FakeLlama:
 
 
 def _backend_with_fake(monkeypatch):
-    from cinemateca.models.describer import gguf
+    from kuaa.models.describer import gguf
 
     fake = _FakeLlama()
     monkeypatch.setattr(
@@ -111,7 +111,7 @@ def _force_offload(monkeypatch, value: bool):
 
 def test_warn_if_cpu_build_warns_when_gpu_present_but_cpu_only(monkeypatch, caplog):
     """GPU requested + NVIDIA GPU present + CPU-only build → loud WARNING."""
-    from cinemateca.models.describer import gguf
+    from kuaa.models.describer import gguf
 
     backend = gguf.MoondreamGGUFDescriber()
     backend.n_gpu_layers = -1
@@ -129,7 +129,7 @@ def test_warn_if_cpu_build_warns_when_gpu_present_but_cpu_only(monkeypatch, capl
 
 def test_warn_if_cpu_build_silent_when_gpu_offload_available(monkeypatch, caplog):
     """A genuine CUDA build (offload available) must NOT warn."""
-    from cinemateca.models.describer import gguf
+    from kuaa.models.describer import gguf
 
     backend = gguf.MoondreamGGUFDescriber()
     backend.n_gpu_layers = -1
@@ -144,7 +144,7 @@ def test_warn_if_cpu_build_silent_when_gpu_offload_available(monkeypatch, caplog
 
 def test_warn_if_cpu_build_silent_without_nvidia_gpu(monkeypatch, caplog):
     """No nvidia-smi → CPU-only build is expected, stay silent."""
-    from cinemateca.models.describer import gguf
+    from kuaa.models.describer import gguf
 
     backend = gguf.MoondreamGGUFDescriber()
     backend.n_gpu_layers = -1
@@ -159,7 +159,7 @@ def test_warn_if_cpu_build_silent_without_nvidia_gpu(monkeypatch, caplog):
 
 def test_warn_if_cpu_build_silent_when_gpu_layers_zero(monkeypatch, caplog):
     """gpu_layers=0 means CPU was explicitly chosen → no warning."""
-    from cinemateca.models.describer import gguf
+    from kuaa.models.describer import gguf
 
     backend = gguf.MoondreamGGUFDescriber()
     backend.n_gpu_layers = 0
@@ -174,7 +174,7 @@ def test_warn_if_cpu_build_silent_when_gpu_layers_zero(monkeypatch, caplog):
 
 def test_gguf_init_defaults_when_llm_is_none():
     """Guard: cfg present but cfg.llm is None → hardcoded defaults, no AttributeError."""
-    from cinemateca.models.describer.gguf import MoondreamGGUFDescriber
+    from kuaa.models.describer.gguf import MoondreamGGUFDescriber
 
     class _Cfg:
         llm = None

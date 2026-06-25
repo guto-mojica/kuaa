@@ -8,7 +8,7 @@ import numpy as np
 
 
 def test_base_protocols_exist_and_are_runtime_checkable():
-    from cinemateca.models.base import (
+    from kuaa.models.base import (
         EnvironmentClassifier,
         FaceDetector,
         ImageEmbedder,
@@ -28,7 +28,7 @@ def test_base_protocols_exist_and_are_runtime_checkable():
 
 def test_protocols_isinstance_structural():
     """Structural isinstance checks — no real models, no GPU, numpy only."""
-    from cinemateca.models.base import (
+    from kuaa.models.base import (
         EnvironmentClassifier,
         FaceDetector,
         ImageEmbedder,
@@ -175,16 +175,16 @@ def test_protocols_isinstance_structural():
 
 
 def test_detector_backends_conform():
-    from cinemateca.models.base import (
+    from kuaa.models.base import (
         EnvironmentClassifier,
         FaceDetector,
         ObjectDetector,
     )
-    from cinemateca.models.environment.opencv_heuristic import (
+    from kuaa.models.environment.opencv_heuristic import (
         OpenCVEnvironmentClassifier,
     )
-    from cinemateca.models.face.mtcnn import MTCNNFaceDetector
-    from cinemateca.models.objects.yolov8 import YOLOv8ObjectDetector
+    from kuaa.models.face.mtcnn import MTCNNFaceDetector
+    from kuaa.models.objects.yolov8 import YOLOv8ObjectDetector
 
     assert isinstance(MTCNNFaceDetector(), FaceDetector)
     assert isinstance(YOLOv8ObjectDetector(), ObjectDetector)
@@ -193,12 +193,12 @@ def test_detector_backends_conform():
 
 def test_visual_analyzer_injection():
     """VisualAnalyzer accepts injected backends and exposes them."""
-    from cinemateca.models.environment.opencv_heuristic import (
+    from kuaa.models.environment.opencv_heuristic import (
         OpenCVEnvironmentClassifier,
     )
-    from cinemateca.models.face.mtcnn import MTCNNFaceDetector
-    from cinemateca.models.objects.yolov8 import YOLOv8ObjectDetector
-    from cinemateca.visual_analyzer import VisualAnalyzer
+    from kuaa.models.face.mtcnn import MTCNNFaceDetector
+    from kuaa.models.objects.yolov8 import YOLOv8ObjectDetector
+    from kuaa.visual_analyzer import VisualAnalyzer
 
     fd, od, ec = (
         MTCNNFaceDetector(),
@@ -212,8 +212,8 @@ def test_visual_analyzer_injection():
 
 
 def test_openclip_embedder_conforms():
-    from cinemateca.models.base import ImageEmbedder
-    from cinemateca.models.clip.openclip import OpenClipEmbedder
+    from kuaa.models.base import ImageEmbedder
+    from kuaa.models.clip.openclip import OpenClipEmbedder
 
     assert isinstance(OpenClipEmbedder(), ImageEmbedder)
 
@@ -223,7 +223,7 @@ def test_by_image_uses_encode_image_single(monkeypatch, tmp_path):
     import numpy as np
     import pandas as pd
 
-    from cinemateca.embeddings import SemanticSearch
+    from kuaa.embeddings import SemanticSearch
 
     calls = {}
 
@@ -272,8 +272,8 @@ def _full_cfg(**model_overrides):
 
 
 def test_registry_returns_correct_types(monkeypatch):
-    from cinemateca.models import registry
-    from cinemateca.models.base import (
+    from kuaa.models import registry
+    from kuaa.models.base import (
         EnvironmentClassifier,
         FaceDetector,
         ImageEmbedder,
@@ -292,7 +292,7 @@ def test_registry_returns_correct_types(monkeypatch):
 def test_registry_unknown_name_raises():
     import pytest
 
-    from cinemateca.models import registry
+    from kuaa.models import registry
 
     cfg = _full_cfg(image_embedder="nope")
     with pytest.raises(ValueError):

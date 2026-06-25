@@ -29,7 +29,7 @@ from api.services.scenes._tipo import (
     _VALID_BUCKETS,
     tipo_of,
 )
-from cinemateca.library import FilmContext, scan_library
+from kuaa.library import FilmContext, scan_library
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ def _film_for_grid(film: Any, kf_meta: list) -> SimpleNamespace:
     """Wrap a ``Film`` in a namespace exposing the grid template's attrs.
 
     The ``Film`` dataclass has no ``director`` / ``runtime_tc`` /
-    ``director_last`` fields (see ``cinemateca.library.Film``), but the
+    ``director_last`` fields (see ``kuaa.library.Film``), but the
     grid template reads all three. Rather than widen the dataclass for
     presentational concerns, this returns a ``SimpleNamespace`` that:
 

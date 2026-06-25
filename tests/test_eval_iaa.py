@@ -2,7 +2,7 @@
 service ships to the right-pane metrics panel + the queue's Conflict
 filter tab.
 
-Backed by ``cinemateca.eval.grades.load_run_per_annotator`` (the
+Backed by ``kuaa.eval.grades.load_run_per_annotator`` (the
 non-collapsing loader) and exercised through
 ``api.services.eval_service._build_iaa`` /
 ``_query_conflict_set`` / ``_other_grades_for_current``.
@@ -29,7 +29,7 @@ from api.services.eval_service import (
     _other_grades_for_current,
     _query_conflict_set,
 )
-from cinemateca.eval.grades import EvalRun, Grade, load_run_per_annotator, save_grade
+from kuaa.eval.grades import EvalRun, Grade, load_run_per_annotator, save_grade
 
 # ── Fixture: a two-grader run with a curated mix of agreement,
 #    near-miss, and full conflict pairs ────────────────────────────────

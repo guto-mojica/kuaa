@@ -10,7 +10,7 @@
        ``width=1440`` lock was a Phase-9 placeholder; this version honours
        the actual breakpoints. #}
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ page_title or _("Mojica · Cinemateca Digital") }}</title>
+    <title>{{ page_title or _("KUAA") }}</title>
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/fonts.css') }}">
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/main.css') }}">
     {# fx.css + chrome.css landed in d045b9c / ced01e6 and were dormant until
@@ -117,14 +117,14 @@
            visual design is unchanged. Keyed on ``legacy_active_tab`` (the same
            switch the tab include below uses) so the two never drift. #}
         {% set _page_headings = {
-            'home': _('Mojica · Cinemateca Digital'),
+            'home': _('KUAA'),
             'search': _('Search'),
             'scenes': _('Scenes'),
             'annotate': _('Annotate'),
             'processing': _('Processing'),
             'rimas': _('Visual rhymes'),
         } %}
-        <h1 class="vh">{{ _page_headings.get(legacy_active_tab, _('Mojica · Cinemateca Digital')) }}</h1>
+        <h1 class="vh">{{ _page_headings.get(legacy_active_tab, _('KUAA')) }}</h1>
         {# Phase-2 cleanup: the legacy ``.shell > .sidebar + .main > .tab-bar``
            wrapper was deleted here. Its three roles were already carried by
            the new chrome partials: the film tree moved to ``_left_pane.html``

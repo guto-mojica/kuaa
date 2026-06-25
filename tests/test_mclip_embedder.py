@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from cinemateca.models.clip.mclip import _ST_MODEL_NAME, MClipEmbedder
+from kuaa.models.clip.mclip import _ST_MODEL_NAME, MClipEmbedder
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -99,7 +99,7 @@ def test_encode_images_delegates_to_parent():
     emb = _embedder_with_st()
     fake_result = np.ones((2, 512), dtype="float32")
     with patch(
-        "cinemateca.models.clip.openclip.OpenClipEmbedder.encode_images",
+        "kuaa.models.clip.openclip.OpenClipEmbedder.encode_images",
         return_value=fake_result,
     ) as mock_enc:
         result = emb.encode_images([Path("a.jpg"), Path("b.jpg")])
@@ -112,7 +112,7 @@ def test_no_st_model_loaded_for_image_only_usage():
     emb = MClipEmbedder(cfg=None, device=None)
     fake_vec = np.ones(512, dtype="float32")
     with patch(
-        "cinemateca.models.clip.openclip.OpenClipEmbedder.encode_image_single",
+        "kuaa.models.clip.openclip.OpenClipEmbedder.encode_image_single",
         return_value=fake_vec,
     ):
         emb.encode_image_single("img.jpg")
@@ -130,15 +130,15 @@ def _minimal_cfg(embedder_name: str) -> SimpleNamespace:
 
 
 def test_registry_returns_mclip_embedder():
-    from cinemateca.models.registry import get_image_embedder
+    from kuaa.models.registry import get_image_embedder
 
     embedder = get_image_embedder(_minimal_cfg("clip_mclip"))
     assert isinstance(embedder, MClipEmbedder)
 
 
 def test_registry_clip_openclip_unchanged():
-    from cinemateca.models.clip.openclip import OpenClipEmbedder
-    from cinemateca.models.registry import get_image_embedder
+    from kuaa.models.clip.openclip import OpenClipEmbedder
+    from kuaa.models.registry import get_image_embedder
 
     embedder = get_image_embedder(_minimal_cfg("clip_openclip"))
     assert isinstance(embedder, OpenClipEmbedder)
@@ -146,7 +146,7 @@ def test_registry_clip_openclip_unchanged():
 
 
 def test_registry_unknown_name_raises():
-    from cinemateca.models.registry import get_image_embedder
+    from kuaa.models.registry import get_image_embedder
 
     with pytest.raises(ValueError, match="Unknown image_embedder"):
         get_image_embedder(_minimal_cfg("does_not_exist"))

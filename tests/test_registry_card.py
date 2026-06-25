@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import pytest
 
-from cinemateca.config import load_config
-from cinemateca.models.manifest import ModelCard
-from cinemateca.models.registry import model_card
+from kuaa.config import load_config
+from kuaa.models.manifest import ModelCard
+from kuaa.models.registry import model_card
 
 _ALL_ROLES = (
     "image_embedder",

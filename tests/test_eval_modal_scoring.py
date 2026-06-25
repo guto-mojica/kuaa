@@ -1,12 +1,12 @@
 """Hermetic unit tests for the per-modality scorer logic (E3b).
 
-These cover the pure scoring core of ``cinemateca.eval.retrieval`` — the
+These cover the pure scoring core of ``kuaa.eval.retrieval`` — the
 ``_default_relevance`` resolver, the shared ``_run_modal_eval`` loop, the
 ``relevance_resolver`` injection hook E2 depends on, the ``film_slug`` scope
 filter, and the "no scorable slate" error path — WITHOUT loading any model or
 real index. ``generate_slate`` (the only heavy collaborator) is monkeypatched
 at the name it is bound to inside ``retrieval`` (the module imports it as a
-top-level symbol, so ``cinemateca.eval.retrieval.generate_slate`` is the patch
+top-level symbol, so ``kuaa.eval.retrieval.generate_slate`` is the patch
 target). The GPU end-to-end coverage lives in the ``@pytest.mark.acceptance``
 ``test_eval_multimodal_scoring`` GATE; this file is the CI-without-index half.
 """
@@ -18,15 +18,15 @@ from types import SimpleNamespace
 
 import pytest
 
-import cinemateca.eval.retrieval as retr
-from cinemateca.errors import EvalError
-from cinemateca.eval.metrics import RetrievalResult
-from cinemateca.eval.retrieval import (
+import kuaa.eval.retrieval as retr
+from kuaa.errors import EvalError
+from kuaa.eval.metrics import RetrievalResult
+from kuaa.eval.retrieval import (
     RetrievalRun,
     _default_relevance,
     _run_modal_eval,
 )
-from cinemateca.eval.slates import ModalQuery
+from kuaa.eval.slates import ModalQuery
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Builders
@@ -149,7 +149,7 @@ def test_default_relevance_hypothesis_drops_nonpositive_grades(monkeypatch):
     # Non-positive grades dropped; flat 1.0 fallback keeps the query scorable.
     assert rmap == {"12": 1.0, "30": 1.0}
     # And the resulting map is safe for ndcg_at_k (no bare ValueError).
-    from cinemateca.eval.metrics import ndcg_at_k
+    from kuaa.eval.metrics import ndcg_at_k
 
     assert ndcg_at_k(("12",), rmap, 10) > 0
 

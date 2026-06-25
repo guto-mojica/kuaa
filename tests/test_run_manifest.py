@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 
-from cinemateca.pipeline import PipelineResult, StepResult, StepResults, StepRun
-from cinemateca.run_manifest import (
+from kuaa.pipeline import PipelineResult, StepResult, StepResults, StepRun
+from kuaa.run_manifest import (
     MANIFEST_FILENAME,
     build_run_manifest,
     config_hash,

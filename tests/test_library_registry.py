@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from cinemateca.library import (
+from kuaa.library import (
     delete_film,
     library_state,
     load_registry,
@@ -131,7 +131,7 @@ def test_library_state_empty_library_returns_zero_state(tmp_path: Path) -> None:
     """Empty registry returns LibraryState(False, False, 0) without scanning."""
     library_dir = tmp_path / "library"
     library_dir.mkdir()
-    from cinemateca.library import LibraryState
+    from kuaa.library import LibraryState
 
     state = library_state(library_dir)
     assert state == LibraryState(raw_present=False, index_present=False, scene_count=0)

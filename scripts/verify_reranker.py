@@ -136,15 +136,15 @@ def verify_reranker(cfg: Any, fast: bool) -> SectionResult:
         rerank_search_result,
         result_to_cards,
     )
-    from cinemateca.library import FilmContext
+    from kuaa.library import FilmContext
 
     section = SectionResult(name="Cross-encoder reranker (hybrid baseline → rerank)")
     ctx = FilmContext.for_film(cfg, JECA_SLUG)
 
     if fast:
-        import cinemateca.search  # noqa: F401
+        import kuaa.search  # noqa: F401
 
-        rerank_mod = _sys.modules["cinemateca.search.rerank"]
+        rerank_mod = _sys.modules["kuaa.search.rerank"]
         _stub_reranker(rerank_mod)
 
     # Baseline: hybrid top-50.
@@ -236,7 +236,7 @@ def verify_reranker(cfg: Any, fast: bool) -> SectionResult:
 def verify_graceful_degradation(cfg: Any) -> SectionResult:
     """Reranker noop escape-hatch short-circuit."""
     from api.services.search import apply_reranker
-    from cinemateca.search.types import Hit, Query, SearchResult
+    from kuaa.search.types import Hit, Query, SearchResult
 
     section = SectionResult(name="Graceful degradation")
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 
-from cinemateca.timing import Timer, timed
+from kuaa.timing import Timer, timed
 
 
 def test_timed_context_manager_measures_elapsed():
@@ -18,7 +18,7 @@ def test_timed_context_manager_measures_elapsed():
 def test_timed_context_records_label_and_logs(caplog):
     import logging
 
-    with caplog.at_level(logging.DEBUG, logger="cinemateca.timing"):
+    with caplog.at_level(logging.DEBUG, logger="kuaa.timing"):
         with timed("search.encode") as t:
             time.sleep(0.001)
     assert t.label == "search.encode"

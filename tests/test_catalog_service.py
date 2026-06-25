@@ -10,7 +10,7 @@ they do not replace it. They pin the service's public surface
 directly (no HTTP round-trip): ``FilmContext`` path resolution, the
 shared ``load_json`` / ``keyframe_url`` primitives, metadata loading
 on empty vs seeded dirs (incl. the int/str scene-id canonicalization
-the catalog inherits from ``cinemateca.scene_ids``), card
+the catalog inherits from ``kuaa.scene_ids``), card
 construction + tag/keyword filtering, and the tab context builders.
 
 Hermetic: built on the shared ``tmp_config`` / ``seed_metadata``
@@ -34,7 +34,7 @@ from api.services.catalog import (
     load_tag_index,
     to_smpte,
 )
-from cinemateca.library import FilmContext
+from kuaa.library import FilmContext
 
 # ── FilmContext ───────────────────────────────────────────────────────────────
 

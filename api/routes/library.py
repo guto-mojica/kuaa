@@ -12,7 +12,7 @@ from api.services.library_admin import register_and_symlink, resolve_video_path
 from api.services.library_render import chrome_filter_ctx, library_ctx
 from api.services.processing_render import processing_tab_response
 from api.templates import templates
-from cinemateca.errors import IndexMissing
+from kuaa.errors import IndexMissing
 
 router = APIRouter()
 
@@ -39,7 +39,7 @@ async def api_library_tree(
 async def api_library_select(
     slug: str,
 ) -> Response:  # HX-Redirect → /scenes?film=; IndexMissing on unknown slug
-    from cinemateca.library import load_registry
+    from kuaa.library import load_registry
 
     cfg = get_config()
     registry = load_registry(cfg.paths.library_dir)
@@ -62,7 +62,7 @@ async def api_library_add(
     title: str = Form(default=""),
     source: str = Form(default=""),
 ) -> HTMLResponse | Response:
-    from cinemateca.pipeline import slugify
+    from kuaa.pipeline import slugify
 
     cfg = get_config()
     library_dir = Path(cfg.paths.library_dir)
@@ -96,7 +96,7 @@ async def api_library_add(
     except (
         ValueError
     ):  # slug duplicate — block only if raw symlink is healthy; repair orphans silently
-        from cinemateca.library import scan_library
+        from kuaa.library import scan_library
 
         existing = next((f for f in scan_library(library_dir) if f.slug == slug), None)
         if existing and existing.raw_path.exists():
@@ -122,7 +122,7 @@ async def api_library_add(
 
 @router.get("/api/library/remove-confirm/{slug}", response_class=HTMLResponse)
 async def api_library_remove_confirm(request: Request, slug: str) -> HTMLResponse:
-    from cinemateca.library import load_registry
+    from kuaa.library import load_registry
 
     cfg = get_config()
     registry = load_registry(cfg.paths.library_dir)

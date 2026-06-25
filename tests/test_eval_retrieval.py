@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-from cinemateca.eval.datasets import EvaluationDataset, QueryCase
-from cinemateca.eval.retrieval import run_retrieval_eval
+from kuaa.eval.datasets import EvaluationDataset, QueryCase
+from kuaa.eval.retrieval import run_retrieval_eval
 
 
 def test_bm25_retrieval_eval_does_not_require_clip_index(tmp_path: Path) -> None:

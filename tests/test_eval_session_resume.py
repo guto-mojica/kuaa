@@ -14,8 +14,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from cinemateca.eval.grades import EvalRun, Grade, save_grade
-from cinemateca.eval.seed import SAMPLE_QUERIES, write_seed
+from kuaa.eval.grades import EvalRun, Grade, save_grade
+from kuaa.eval.seed import SAMPLE_QUERIES, write_seed
 
 # ── helpers ─────────────────────────────────────────────────────────────────
 

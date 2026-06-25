@@ -8,8 +8,8 @@ legacy two-resolver path (first-row-wins per scene).
 
 from __future__ import annotations
 
-import cinemateca.rhymes.enrich as enrich_mod
-from cinemateca.rhymes.algorithm import Rhyme
+import kuaa.rhymes.enrich as enrich_mod
+from kuaa.rhymes.algorithm import Rhyme
 
 
 def test_enrich_shares_keyframe_index_across_echoes(monkeypatch, tmp_path):

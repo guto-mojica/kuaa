@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from cinemateca.config import load_config
-from cinemateca.domain import (
+from kuaa.config import load_config
+from kuaa.domain import (
     DomainError,
     export_record,
     load_domain_from_config,
@@ -13,9 +13,9 @@ from cinemateca.domain import (
     prompt_dict,
     resolve_domain_pack_path,
 )
-from cinemateca.eval.datasets import load_dataset
-from cinemateca.models.describer._common import PROMPTS
-from cinemateca.models.describer.domain_prompts import prompts_from_config
+from kuaa.eval.datasets import load_dataset
+from kuaa.models.describer._common import PROMPTS
+from kuaa.models.describer.domain_prompts import prompts_from_config
 
 
 def test_archive_domain_loads_and_matches_current_prompt_keys():
@@ -146,7 +146,7 @@ domain:
 
 
 def test_transformers_describer_uses_domain_prompts(monkeypatch, tmp_path):
-    from cinemateca.models.describer import transformers_hf
+    from kuaa.models.describer import transformers_hf
 
     media_pack = Path("config/domains/media_broadcast.yaml").resolve()
     cfg_path = tmp_path / "config.yaml"
@@ -177,7 +177,7 @@ domain:
 
 
 def test_gguf_describer_uses_domain_prompts(monkeypatch, tmp_path):
-    from cinemateca.models.describer import gguf
+    from kuaa.models.describer import gguf
 
     media_pack = Path("config/domains/media_broadcast.yaml").resolve()
     cfg_path = tmp_path / "config.yaml"

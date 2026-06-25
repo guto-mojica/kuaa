@@ -22,7 +22,7 @@ import pytest
 
 def test_siglip_backend_has_expected_protocol_methods():
     """Class surface mirrors OpenClipEmbedder's public methods."""
-    from cinemateca.models.clip.siglip_multilingual import (
+    from kuaa.models.clip.siglip_multilingual import (
         SiglipMultilingualEmbedder,
     )
 
@@ -41,7 +41,7 @@ def test_siglip_backend_text_encoding_l2_normalised(monkeypatch):
     pytest.importorskip("torch")
     import torch
 
-    from cinemateca.models.clip import siglip_multilingual as mod
+    from kuaa.models.clip import siglip_multilingual as mod
 
     class _StubModel:
         config = type("Cfg", (), {"projection_dim": 768})
@@ -92,7 +92,7 @@ def test_siglip_encode_text_uses_fixed_length_padding(monkeypatch):
     pytest.importorskip("torch")
     import torch
 
-    from cinemateca.models.clip import siglip_multilingual as mod
+    from kuaa.models.clip import siglip_multilingual as mod
 
     captured: dict = {}
 
@@ -149,7 +149,7 @@ def test_siglip_load_model_serialises_concurrent_calls(monkeypatch):
     import threading
     import time as _time
 
-    from cinemateca.models.clip import siglip_multilingual as mod
+    from kuaa.models.clip import siglip_multilingual as mod
 
     call_count = {"model": 0, "proc": 0}
 

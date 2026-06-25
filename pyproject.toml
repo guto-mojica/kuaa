@@ -3,14 +3,14 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cinemateca-ai"
+name = "kuaa-ai"
 version = "0.8.0rc1"
 description = "Sistema de catalogação audiovisual com IA para acervos cinematográficos"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "Cinemateca AI Team" }]
-keywords = ["computer-vision", "cinemateca", "film-archive", "AI", "catalogação"]
+authors = [{ name = "KUAA Team" }]
+keywords = ["computer-vision", "kuaa", "film-archive", "AI", "catalogação"]
 
 # Dependências mínimas — modelos ML são opcionais para não forçar download
 dependencies = [
@@ -35,14 +35,14 @@ dependencies = [
     "rank-bm25>=0.2.2",
     "tqdm>=4.65",
     # Typer 0.12+ bundles rich for colored, auto-generated help and ships
-    # the `cinemateca` CLI tree (`serve`, `process`, `info`, `library *`,
+    # the `kuaa` CLI tree (`serve`, `process`, `info`, `library *`,
     # `config show`). Kept in BASE deps (not `full`) so the CLI is
-    # always available — `cinemateca info <video>` works even without
+    # always available — `kuaa info <video>` works even without
     # the AI-model extras installed.
     "typer>=0.12,<0.18",
-    # Pydantic v2 is required at import time: cinemateca.config.loader imports
+    # Pydantic v2 is required at import time: kuaa.config.loader imports
     # ValidationError from pydantic to back the typed Settings model (F1).
-    # Without this, `import cinemateca` fails in any clean environment.
+    # Without this, `import kuaa` fails in any clean environment.
     "pydantic>=2.0",
 ]
 
@@ -78,7 +78,7 @@ full = [
     "accelerate>=0.26",
     # Cross-encoder reranker (M3 Task 3.1/3.2). FlagEmbedding wraps BGE
     # rerankers including bge-reranker-v2-m3, the default model. Optional at
-    # runtime — ``cinemateca.search.rerank`` lazy-imports it and raises a
+    # runtime — ``kuaa.search.rerank`` lazy-imports it and raises a
     # single actionable RuntimeError when missing, so noop / disabled paths
     # never touch this dep.
     "FlagEmbedding>=1.2.0,<2",
@@ -107,14 +107,14 @@ search = [
 ]
 
 [project.scripts]
-# Após instalação: cinemateca process --video meu_filme.mp4
-cinemateca = "cinemateca.__main__:main"
+# Após instalação: kuaa process --video meu_filme.mp4
+kuaa = "kuaa.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-"cinemateca" = ["py.typed"]
+"kuaa" = ["py.typed"]
 
 # ── Dependency groups (PEP 735) ───────────────────────────────────────────────
 # Dev tooling. `uv sync` installs it (it is the only group); excluded from the
@@ -132,9 +132,9 @@ dev = [
     # previously satisfied by system-Python leak; made explicit when uv.lock
     # enforces a clean isolated venv.
     "httpx>=0.25",
-    # import-linter enforces the P1 deep-modules invariant: cinemateca.*
+    # import-linter enforces the P1 deep-modules invariant: kuaa.*
     # must not import api.*; api.routes.search must go through services,
-    # not directly into cinemateca.search. See .importlinter.
+    # not directly into kuaa.search. See .importlinter.
     "import-linter>=2.0",
 ]
 # Browser-driven a11y + UI-render + interaction tests (marker `e2e`). OPTIONAL
@@ -202,11 +202,11 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["src/cinemateca", "api"]
+source = ["src/kuaa", "api"]
 branch = true
 omit = [
     "*/tests/*",
-    "src/cinemateca/__main__.py",   # thin Typer entrypoint
+    "src/kuaa/__main__.py",   # thin Typer entrypoint
     "api/server.py",               # uvicorn glue
 ]
 

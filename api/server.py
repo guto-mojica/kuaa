@@ -41,7 +41,7 @@ from api.services.processing_render import build_processing_context
 from api.services.rhymes_service import build_rimas_context
 from api.services.scenes import build_cenas_context, build_timeline_context
 from api.templates import templates
-from cinemateca.library import keyframe_url, load_json, scan_library
+from kuaa.library import keyframe_url, load_json, scan_library
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +52,8 @@ async def lifespan(app: FastAPI):
     # CLI paths call setup_logging in their entrypoints; the FastAPI app
     # never did, so config.logging.* (level + to_file + filename) was
     # silently ignored under uvicorn and only the default stream handler
-    # ran. Wire it here so /logs/cinemateca.log gets web-app events too.
-    from cinemateca.config import setup_logging
+    # ran. Wire it here so /logs/kuaa.log gets web-app events too.
+    from kuaa.config import setup_logging
 
     setup_logging(cfg)
     data_dir = Path(cfg.paths.data_dir).resolve()
@@ -112,7 +112,7 @@ _OPENAPI_TAGS = [
 ]
 
 app = FastAPI(
-    title="Cinemateca AI",
+    title="KUAA",
     version="0.3.0",
     description=(
         "Offline audiovisual cataloguing API for film archives. "
@@ -193,7 +193,7 @@ def build_home_context(cfg: Any) -> dict:
     for film in films:
         thumbnail_url = None
         try:
-            from cinemateca.library import FilmContext as _FC
+            from kuaa.library import FilmContext as _FC
 
             ctx = _FC.for_film(cfg, film.slug)
             kf_meta = load_json(ctx.metadata_dir / "keyframes_metadata.json") or []
@@ -244,7 +244,7 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     # and validate against the library directory so a stale cookie or wrong-
     # cased slug doesn't propagate a ValueError into every service call.
     if _raw_slug:
-        from cinemateca.library import load_registry as _load_registry
+        from kuaa.library import load_registry as _load_registry
 
         _raw_slug = _raw_slug.lower()
         _film_dir = Path(cfg.paths.library_dir) / _raw_slug

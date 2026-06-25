@@ -354,7 +354,7 @@ def test_eval_grade_then_metrics_round_trip(client, monkeypatch, tmp_path):
 
 
 def test_eval_page_shows_seeded_queries(client, monkeypatch, tmp_path):
-    """After running ``cinemateca eval seed``, the /eval page renders the
+    """After running ``kuaa eval seed``, the /eval page renders the
     seeded queries in the left-pane queue. We assert on the row count by
     counting the ``ev-q`` queue-row class (one per query — current and
     pending entries both carry it)."""
@@ -365,7 +365,7 @@ def test_eval_page_shows_seeded_queries(client, monkeypatch, tmp_path):
     monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
     monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
 
-    from cinemateca.eval.seed import write_seed
+    from kuaa.eval.seed import write_seed
 
     write_seed(tmp_path, "default", count=3)
 

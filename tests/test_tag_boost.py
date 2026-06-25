@@ -11,8 +11,8 @@ import json
 import time
 from pathlib import Path
 
-from cinemateca.retrieval.corpus import build_corpus
-from cinemateca.retrieval.tokenize import tokenize
+from kuaa.retrieval.corpus import build_corpus
+from kuaa.retrieval.tokenize import tokenize
 
 
 def test_tag_boost_default_is_byte_identical() -> None:
@@ -48,7 +48,7 @@ def test_tag_boost_clamps_below_one() -> None:
 def test_tag_boost_lifts_tag_match_ranking() -> None:
     """A scene that matches the query only via a tag should out-rank a scene
     that matches only via description once the tag surface is boosted."""
-    from cinemateca.retrieval.bm25 import BM25Index
+    from kuaa.retrieval.bm25 import BM25Index
 
     # Scene 1 mentions "boat" in its description; scene 2 carries it as a tag.
     descriptions = [
@@ -69,7 +69,7 @@ def test_tag_boost_lifts_tag_match_ranking() -> None:
 
 
 def test_loader_cache_keys_on_tag_boost(tmp_path: Path) -> None:
-    from cinemateca.search.bm25 import bm25_index_for_dir
+    from kuaa.search.bm25 import bm25_index_for_dir
 
     md = tmp_path / "metadata"
     md.mkdir()
