@@ -118,6 +118,8 @@ Enforced by `import-linter` (`.importlinter`) and per-module LOC budgets
 **Commit format:** `type(scope): short description`
 Types: `feat`, `fix`, `refactor`, `docs`, `chore`, `test`.
 
+**Never add `Co-Authored-By` trailers to commits.** The maintainer is the sole author.
+
 ---
 
 ## Common commands
