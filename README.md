@@ -10,7 +10,7 @@ and digitized material with variable quality.
 Portuguese context: sistema de catalogação audiovisual com modelos locais para
 kuaas nacionais e arquivos públicos de filme.
 
-[![CI](https://github.com/guto-mojica/kuaa-imgsearch/actions/workflows/ci.yml/badge.svg)](https://github.com/guto-mojica/kuaa-imgsearch/actions/workflows/ci.yml)
+[![CI](https://github.com/guto-mojica/kuaa/actions/workflows/ci.yml/badge.svg)](https://github.com/guto-mojica/kuaa/actions/workflows/ci.yml)
 <!-- If the GitHub owner/repo slug changes, update the CI badge URL above. -->
 [![Licença: MIT](https://img.shields.io/badge/Licença-MIT-amber.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://python.org)
@@ -112,40 +112,14 @@ Planned next:
   excerpt.
 - Complete per-modality eval slate scoring.
 
-### Project docs
-
-These documents explain the public positioning, architecture, model stack, and
-portfolio roadmap:
-
-| Document | Purpose |
-|---|---|
-| [Project brief](docs/PROJECT_BRIEF.md) | Problem framing, users, positioning, and portfolio value |
-| [Architecture](docs/ARCHITECTURE.md) | Pipeline, web app, model registry, artifacts, and constraints |
-| [Model inventory](docs/MODEL_INVENTORY.md) | Model roles, backends, licenses, download behavior, and risks |
-| [Offline and privacy notes](docs/PRIVACY_OFFLINE.md) | What stays local, when network access may happen, and safe public claims |
-| [Reproducible demo](docs/DEMO.md) | Public demo quickstart using precomputed artifacts |
-| [Demo data](docs/DEMO_DATA.md) | Provenance, rights notes, artifact policy, and regional context |
-| [Demo verification](docs/DEMO_VERIFICATION.md) | Release-bundle and browser verification checklist |
-| [Evaluation](docs/EVALUATION.md) | Query schema, retrieval metrics, and annotation-correction stats |
-| [Domain packs](docs/DOMAIN_PACKS.md) | Domain schema, archive and media-broadcast packs, prompt/export mapping |
-| [API reference](docs/API.md) | Local FastAPI/HTMX routes plus JSON/CSV export endpoints |
-| [UI wiring audit](docs/UI_WIRING_AUDIT.md) | Current UI routes, wired flows, and remaining UI constraints |
-| [Operations](docs/OPERATIONS.md) | Run manifests, exports, failure behavior, release gates, and constraints |
-| [Case study](docs/CASE_STUDY.md) | Recruiter-readable project narrative and evidence map |
-| [Launch plan](docs/LAUNCH_PLAN.md) | Public post sequence, asset map, and launch checklist |
-| [Demo video scripts](docs/DEMO_VIDEO_SCRIPT.md) | Two-minute demo and technical walkthrough scripts |
-| [Release notes draft](docs/RELEASE_NOTES_DRAFT.md) | GitHub release copy, demo artifact slots, and verification notes |
-| [Resume bullets](docs/RESUME_BULLETS.md) | Role-specific hiring copy and interview talking points |
-| [Roadmap](docs/ROADMAP.md) | Short public roadmap snapshot |
-
 ### Quick start
 
 ```bash
-git clone https://github.com/guto-mojica/kuaa-imgsearch.git
-cd kuaa-imgsearch
+git clone https://github.com/guto-mojica/kuaa.git
+cd kuaa
 uv venv
 uv sync --extra full --group dev
-uv run app.py                 # FastAPI + HTMX, opens at http://localhost:8501
+uv run kuaa serve                 # FastAPI + HTMX, opens at http://localhost:8501
 ```
 
 To prove a fresh checkout boots via `uv` alone (no Docker required):
@@ -163,7 +137,7 @@ bundle so reviewers can open a populated UI quickly:
 
 ```bash
 uv run python scripts/prepare_demo.py --download
-uv run app.py --config config/demo.yaml
+uv run kuaa serve --config config/demo.yaml
 ```
 
 See [docs/DEMO.md](docs/DEMO.md) for the artifact layout, validation command,
@@ -265,8 +239,8 @@ de metadados que:
 
 ```bash
 # 1. Clonar o repositório
-git clone https://github.com/guto-mojica/kuaa-imgsearch.git
-cd kuaa-imgsearch
+git clone https://github.com/guto-mojica/kuaa.git
+cd kuaa
 
 # 2. Criar o ambiente (uv usa a versão fixada em .python-version)
 uv venv
@@ -277,7 +251,7 @@ uv sync --extra full --group dev
 #         && pip install -e ".[full]" && pip install pytest pytest-cov black ruff mypy
 
 # 4. Iniciar a interface (FastAPI + HTMX)
-uv run app.py
+uv run kuaa serve
 ```
 
 Para instruções detalhadas, incluindo instalação do FFmpeg e configuração para
@@ -290,7 +264,7 @@ servidores remotos, veja [SETUP.md](SETUP.md).
 ### Interface web
 
 ```bash
-uv run app.py
+uv run kuaa serve
 # Abre em http://localhost:8501 (FastAPI + HTMX)
 ```
 

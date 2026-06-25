@@ -1,4 +1,4 @@
-# Pre-commit hooks for kuaa-imgsearch.
+# Pre-commit hooks for kuaa.
 #
 # Install once with:  uv run pre-commit install
 # Run on all files:   uv run pre-commit run --all-files

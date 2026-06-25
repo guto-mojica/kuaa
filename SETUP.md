@@ -1,4 +1,4 @@
-# SETUP.md — KUAA AI
+# SETUP.md — KUAA
 
 Guia de instalação e execução para sistemas Unix (macOS e Linux).  
 Tempo estimado: 15–30 minutos (dependendo da velocidade de download dos modelos).
@@ -50,19 +50,19 @@ brew install python@3.11
 
 **Opção A — clonar do GitHub** (quando o repositório estiver publicado):
 ```bash
-git clone https://github.com/kuaa-brasileira/kuaa-ai.git
-cd kuaa-ai
+git clone https://github.com/guto-mojica/kuaa.git
+cd kuaa
 ```
 
 **Opção B — a partir de um arquivo .zip** (distribuição direta):
 ```bash
-unzip kuaa-ai.zip
-cd kuaa-ai
+unzip kuaa.zip
+cd kuaa
 ```
 
 A estrutura que você deve ver:
 ```
-kuaa-ai/
+kuaa/
 ├── app.py                  ← entrypoint FastAPI (uvicorn api.server:app)
 ├── pyproject.toml          ← definição do pacote
 ├── api/                    ← rotas HTTP (FastAPI)
@@ -98,7 +98,7 @@ source .venv/bin/activate
 comandos com `uv run` (ex.: `uv run python ...`). Se preferir ativar
 manualmente, lembre de reativar a cada novo terminal:
 ```bash
-cd kuaa-ai
+cd kuaa
 source .venv/bin/activate   # opcional — só se não usar `uv run`
 ```
 
@@ -216,7 +216,7 @@ Com o ambiente virtual ativado e dependências instaladas:
 ```bash
 # Demo público M1 com artefatos pré-computados
 uv run python scripts/prepare_demo.py --download
-uv run app.py --config config/demo.yaml
+uv run kuaa serve --config config/demo.yaml
 
 # Avaliação M2 do índice demo preparado
 uv run python scripts/run_eval.py --config config/demo.yaml \
@@ -224,10 +224,10 @@ uv run python scripts/run_eval.py --config config/demo.yaml \
   --output-dir data/eval/reports
 
 # Interface principal FastAPI + HTMX
-uv run app.py
+uv run kuaa serve
 
 # Ou com seu arquivo de configuração local:
-uv run app.py --config config/local.yaml
+uv run kuaa serve --config config/local.yaml
 ```
 
 Acesse manualmente: **http://localhost:8501**
@@ -291,7 +291,7 @@ Veja `docs/API.md` e `docs/OPERATIONS.md`.
 acessar do seu computador:
 ```bash
 # Na máquina remota:
-uv run app.py --host 0.0.0.0 --port 8501
+uv run kuaa serve --host 0.0.0.0 --port 8501
 
 # No seu navegador local:
 # http://IP-DA-MAQUINA-REMOTA:8501
@@ -300,10 +300,10 @@ uv run app.py --host 0.0.0.0 --port 8501
 **Para manter rodando após fechar o terminal** (em servidores):
 ```bash
 # Usando nohup (simples):
-nohup uv run app.py --host 0.0.0.0 --port 8501 > logs/kuaa-web.log 2>&1 &
+nohup uv run kuaa serve --host 0.0.0.0 --port 8501 > logs/kuaa-web.log 2>&1 &
 
 # O processo continua mesmo após logout. Para parar:
-pkill -f "uv run app.py"
+pkill -f "kuaa serve"
 ```
 
 ---

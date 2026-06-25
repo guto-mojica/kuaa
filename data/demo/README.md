@@ -17,7 +17,7 @@ Prepare the populated demo:
 
 ```bash
 uv run python scripts/prepare_demo.py --download
-uv run app.py --config config/demo.yaml
+uv run kuaa serve --config config/demo.yaml
 ```
 
 Validate an already prepared demo without network access:

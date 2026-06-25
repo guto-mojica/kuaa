@@ -2,7 +2,7 @@
 #
 # This file is intentionally separate from config/local.yaml. Launch with:
 #
-#   uv run app.py --config config/demo.yaml
+#   uv run kuaa serve --config config/demo.yaml
 #
 # The precomputed artifact bundle is expected under data/demo/runtime/ after
 # running scripts/prepare_demo.py.
