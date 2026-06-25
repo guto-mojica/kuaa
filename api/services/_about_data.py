@@ -105,7 +105,7 @@ def credits_list() -> list[dict[str, Any]]:
     """
     return [
         {"role": "Concept", "name": "KUAA · Curatorial team", "dim": False},
-        {"role": "Engineering", "name": "Rafael Perez", "dim": False},
+        {"role": "Engineering", "name": "Augusto mojica Santos", "dim": False},
         {
             "role": "AI integration",
             "name": "moondream, openai, ultralytics (model authors)",

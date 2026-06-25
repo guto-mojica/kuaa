@@ -16,7 +16,7 @@
 <header class="ch-top">
   <div class="l">
     <a href="/" class="brand" data-tip="{{ _('Home') }}">
-      {{ icon('mark', 22) }}
+      {{ icon('mark', 42) }}
       <span class="n">KUAA</span>
     </a>
     {# Only emit the divider + breadcrumb when the route actually supplies
@@ -80,7 +80,7 @@
       <a class="tab{% if active_tab == key %} on{% endif %}"
          href="/{{ tab_routes[key] }}{{ tab_film_qs }}"
          data-tab="{{ key }}">
-        <span class="ico">{{ icon(ic, 18) }}</span>
+        <span class="ico">{{ icon(ic, 20) }}</span>
         <span>{{ label }}</span>
         {% if key == 'proc' and active_job_count > 0 %}
           <span class="pip">{{ active_job_count }}</span>
