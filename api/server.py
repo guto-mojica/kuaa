@@ -252,7 +252,9 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
         # from registry but directory left on disk) pass is_dir() but crash
         # downstream at FilmContext.for_film which gates on the registry.
         _registry = _load_registry(Path(cfg.paths.library_dir))
-        current_slug: str | None = _raw_slug if (_film_dir.is_dir() and _raw_slug in _registry) else None
+        current_slug: str | None = (
+            _raw_slug if (_film_dir.is_dir() and _raw_slug in _registry) else None
+        )
     else:
         current_slug = None
 
