@@ -10,7 +10,7 @@ from __future__ import annotations
 
 
 def test_eval_error_is_kuaa_error() -> None:
-    from kuaa.errors import KuaaError, EvalError, RetrievalError
+    from kuaa.errors import EvalError, KuaaError, RetrievalError
 
     assert issubclass(EvalError, KuaaError)
     assert issubclass(EvalError, RetrievalError)

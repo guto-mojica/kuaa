@@ -17,9 +17,9 @@ def test_config_public_surface():
 def test_errors_public_surface():
     from kuaa.errors import (  # noqa: F401
         ArtefactError,
-        KuaaError,
         ConfigError,
         IndexMissing,
+        KuaaError,
         ModelError,
         PipelineError,
         RetrievalError,

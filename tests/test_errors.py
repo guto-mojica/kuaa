@@ -6,9 +6,9 @@ import pytest
 
 from kuaa.errors import (
     ArtefactError,
-    KuaaError,
     ConfigError,
     IndexMissing,
+    KuaaError,
     ModelError,
     PipelineError,
     RetrievalError,
