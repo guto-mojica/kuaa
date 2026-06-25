@@ -32,9 +32,7 @@ def install_error_handlers(app: FastAPI) -> None:
     """
 
     @app.exception_handler(KuaaError)
-    async def _handle_kuaa_error(
-        request: Request, exc: KuaaError
-    ) -> HTMLResponse | JSONResponse:
+    async def _handle_kuaa_error(request: Request, exc: KuaaError) -> HTMLResponse | JSONResponse:
         status = http_status_for(exc)
         if _is_htmx(request):
             html = templates.env.get_template("partials/error.html").render(
