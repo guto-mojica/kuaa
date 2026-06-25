@@ -285,7 +285,7 @@ def check_demo(
 def _request(url: str):
     req = urllib.request.Request(
         url,
-        headers={"User-Agent": "kuaa-imgsearch-demo/0.3"},
+        headers={"User-Agent": "kuaa-demo/0.3"},
     )
     return urllib.request.urlopen(req, timeout=60)
 

@@ -1,8 +1,8 @@
-# KUAA imgsearch
+# KUAA
 
 **Offline multimodal search and metadata generation for archival video collections.**
 
-KUAA imgsearch is a local-first applied AI workbench that turns video files
+KUAA is a local-first applied AI workbench that turns video files
 into searchable, human-reviewable scene catalogs. The first domain is film
 archive cataloging: historical footage, sparse metadata, unusual aspect ratios,
 and digitized material with variable quality.
@@ -65,7 +65,7 @@ see [`docs/EVAL_PROTOCOL.md`](docs/EVAL_PROTOCOL.md).
 
 - **Stream over the public internet.** You can deploy it behind a reverse
   proxy, but the project is built for institutional intranets.
-- **Replace the catalogue of record.** KUAA imgsearch sits *next to* the
+- **Replace the catalogue of record.** KUAA sits *next to* the
   existing catalogue and feeds curators retrieval candidates; authoritative
   metadata still lives in the institution's system.
 
@@ -192,7 +192,7 @@ NVIDIA GPU is recommended for the vision-language model step.
 
 ## O que é
 
-KUAA imgsearch é uma ferramenta open-source que processa um arquivo de vídeo e gera
+KUAA é uma ferramenta open-source que processa um arquivo de vídeo e gera
 automaticamente um catálogo pesquisável com:
 
 - **Segmentação de cenas** — detecta cortes e extrai um keyframe representativo de cada cena

@@ -8,7 +8,7 @@ For installation, see `SETUP.md`. For design and architecture decisions, see `do
 
 ## 30-second summary
 
-KUAA imgsearch is an offline audiovisual cataloguing system for film archives.
+KUAA is an offline audiovisual cataloguing system for film archives.
 It takes video files and produces searchable metadata (scenes, faces, objects,
 natural-language descriptions, semantic embeddings).
 

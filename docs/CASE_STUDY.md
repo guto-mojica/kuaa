@@ -2,7 +2,7 @@
 
 ## Summary
 
-Cinemateca imgsearch is a local-first applied AI workbench for turning private
+KUAA is a local-first applied AI workbench for turning private
 video collections into searchable, human-reviewable scene catalogs. The flagship
 domain is film archives: historical footage, sparse metadata, digitized material
 with variable quality, and institutional constraints around privacy and
