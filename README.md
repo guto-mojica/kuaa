@@ -1,3 +1,5 @@
+<img width="256" height="256" alt="icon_K_strip_rhyme_lens" src="https://github.com/user-attachments/assets/15f4fdef-8ade-4aa8-bf0e-48e558de49dd" />
+
 # KUAA - Knowledge from Unstructured Audiovisual Archives
 
 **Offline multimodal search and metadata generation for archival video collections.**
