@@ -14,7 +14,7 @@
 ## 🎯 Overview
 
 **Privacy-first, multimodal retrieval for film archives.**  
-KUAA allows users to search hours of audiovisual material by visual content and descriptive attributes—without ever sending a single frame to the cloud. By prioritizing local execution, KUAA ensures that sensitive archival data remains on-premises while providing high-quality results through a sophisticated multi-layered pipeline.
+KUAA allows users to search hours of audiovisual material by visual content and descriptive attributes — without ever sending a single frame to the cloud. By prioritizing local execution, KUAA ensures that sensitive archival data remains on-premises while providing high-quality results through a sophisticated multi-layered pipeline.
 
 ### Core Capabilities
 The system features a modular retrieval stack where every component runs locally (no API keys required):
@@ -53,7 +53,7 @@ Beyond search, the core pipeline automates the heavy lifting of archival metadat
 2.  **Visual Analysis:** Detects faces/objects and classifies environments (e.g., "indoor," "night").
 3.  **Natural Language Descriptions:** Moondream 2 generates descriptive text for every scene.
 4.  **Manual Overrides:** A dedicated UI allows curators to correct AI-generated tags, merging human expertise with machine scale.
-5.  **Structured Export:** Generate clean JSON/CSV files ready for ingestion into existing archival databases.
+5.  **Structured Export:** Generates clean JSON/CSV files ready for ingestion into existing archival databases.
 
 ---
 
@@ -130,7 +130,7 @@ flowchart TD
 ## 🤝 Ferramentas & Créditos
 Desenvolvido com o auxílio de **Claude Code** como parceiro de programação, mas com todas as decisões de arquitetura, seleção de modelos e lógica de busca (RRF, MMR, etc.) definidas pelo autor.
 
-*Para mais detalhes sobre as métricas de avaliação, veja:* `docs/EVALUATION_RESULTS.md`.
+*Para mais detalhes sobre o contexto do projeto, veja:* [docs/CASE_STUDY.md](docs/CASE_STUDY.md).
 
 ---
 
