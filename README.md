@@ -38,7 +38,7 @@ The system features a modular retrieval stack where every component runs locally
 ### What makes it "Production-Ready"?
 *   **Privacy by Design:** Designed for institutional use where data sovereignty is non-negotiable.
 *   **Scalable Architecture:** Uses typed `Protocols` to swap model backends easily, and **Domain Packs** to switch between different metadata requirements (e.g., transitioning from "Archive" logic to "Broadcast" logic).
-*   **Data provenance:** Every run generates a `run_manifest.json`, tracking the exact configuration and models used for every piece of metadata produced.
+*   **Data Provenance:** Every run generates a `run_manifest.json`, tracking the exact configuration and models used for every piece of metadata produced.
 
 ### Who is this for?
 *   **Archivists & Curators:** To create an initial searchable layer over vast, uncatalogued collections.
@@ -56,12 +56,15 @@ Beyond search, the core pipeline automates the heavy lifting of archival metadat
 3.  **Natural Language Descriptions:** Moondream 2 generates descriptive text for every scene.
 4.  **Manual Overrides:** A dedicated UI allows curators to correct AI-generated tags, merging human expertise with machine scale.
 5.  **Structured Export:** Generates clean JSON/CSV files ready for ingestion into existing archival databases.
+6.  **EDL Export:** Any scene selection can be exported as a CMX 3600 EDL file — drop it into an NLE to start a rough cut directly from search results.
 
 ---
 
 ## 🚀 Quick Start
 
 The project is optimized for development and deployment using `uv`.
+
+**Prerequisites:** [uv](https://docs.astral.sh/uv/getting-started/installation/) and [FFmpeg](https://ffmpeg.org/download.html) must be installed on your system.
 
 ### Local Installation
 ```bash
