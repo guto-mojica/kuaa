@@ -132,8 +132,6 @@ flowchart TD
 
 ---
 
-## 🤝 Ferramentas & Créditos
-Desenvolvido com o auxílio de **Claude Code** como parceiro de programação, mas com todas as decisões de arquitetura, seleção de modelos e lógica de busca (RRF, MMR, etc.) definidas pelo autor.
 
 *Para mais detalhes sobre o contexto do projeto, veja:* [docs/CASE_STUDY.md](docs/CASE_STUDY.md).
 
