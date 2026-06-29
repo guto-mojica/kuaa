@@ -22,6 +22,7 @@ DEFAULT_MANIFEST = REPO_ROOT / "data" / "demo" / "manifest.json"
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "dist" / "demo"
 ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 BUNDLE_ROOTS = ("metadata", "frames", "embeddings")
+BUNDLE_ROOT_FILES = ("films.json",)  # root-level files included alongside subdirs
 
 
 class BundleBuildError(RuntimeError):
@@ -83,6 +84,10 @@ def _iter_bundle_files(runtime_root: Path, *, include_raw: bool) -> list[Path]:
         if not root.exists():
             continue
         files.extend(path for path in root.rglob("*") if path.is_file())
+    for name in BUNDLE_ROOT_FILES:
+        p = runtime_root / name
+        if p.exists():
+            files.append(p)
     return sorted(files, key=lambda path: path.relative_to(runtime_root).as_posix())
 
 

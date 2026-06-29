@@ -16,6 +16,7 @@ domain:
   packs_dir: "config/domains"
 
 paths:
+  library_dir: "data/demo/runtime"
   data_dir: "data/demo/runtime"
   raw_dir: "data/demo/runtime/raw"
   frames_dir: "data/demo/runtime/frames"
@@ -36,8 +37,8 @@ frame_extraction:
   sample_duration: 180
 
 scene_detection:
-  detector: "content"
-  content_threshold: 24.0
+  detector: "adaptive"
+  adaptive_threshold: 3.0
   min_scene_len: 12
   keyframes_per_scene: 1
   keyframe_height: 360

@@ -100,8 +100,8 @@ The pipeline is intentionally modular:
 
 1. **Ingest and inspect**: FFprobe records basic video properties and FFmpeg
    extracts frames.
-2. **Segment**: PySceneDetect identifies scene boundaries and stores one
-   representative keyframe per scene.
+2. **Segment**: PySceneDetect identifies scene boundaries and stores up to three
+   representative keyframes per scene (configurable via `keyframes_per_scene`).
 3. **Analyze**: visual-analysis backends detect faces, objects, and coarse
    environment labels.
 4. **Describe**: the selected local vision-language backend writes scene
@@ -207,12 +207,12 @@ manual browser checks are documented in
 | Claim | Evidence |
 |---|---|
 | Local-first visual-search workflow | [Privacy/offline notes](PRIVACY_OFFLINE.md), [Architecture](ARCHITECTURE.md) |
-| Searchable scene catalog | `src/cinemateca/pipeline.py`, `src/cinemateca/embeddings.py`, FastAPI Search/Scenes routes |
+| Searchable scene catalog | `src/kuaa/pipeline.py`, `src/kuaa/embeddings.py`, FastAPI Search/Scenes routes |
 | Human-in-the-loop correction | `api/services/annotations.py`, annotation tests, [Evaluation](EVALUATION.md) |
-| Measured retrieval behavior | `src/cinemateca/eval/`, `scripts/run_eval.py`, `tests/test_eval_metrics.py` |
-| Domain adaptability | `config/domains/`, `src/cinemateca/domain.py`, [Domain packs](DOMAIN_PACKS.md) |
-| Exportable catalog | `src/cinemateca/exporters/`, `api/routes/export.py`, `tests/test_exports.py` |
-| Run provenance | `src/cinemateca/run_manifest.py`, `tests/test_run_manifest.py` |
+| Measured retrieval behavior | `src/kuaa/eval/`, `scripts/run_eval.py`, `tests/test_eval_metrics.py` |
+| Domain adaptability | `config/domains/`, `src/kuaa/domain.py`, [Domain packs](DOMAIN_PACKS.md) |
+| Exportable catalog | `src/kuaa/exporters/`, `api/routes/export.py`, `tests/test_exports.py` |
+| Run provenance | `src/kuaa/run_manifest.py`, `tests/test_run_manifest.py` |
 | Release discipline | [Release verification](RELEASE_VERIFICATION.md), test/lint/type gates |
 
 ## What changed after measurement
