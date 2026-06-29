@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>KUAA — Offline multimodal search for archival video</title>
+<meta name="description" content="KUAA is a local-first applied-AI workbench that turns raw film archives into searchable, human-reviewable scene catalogs. Hybrid retrieval, cross-film visual rhymes, no cloud." />
+
+<!-- Open Graph / social -->
+<meta property="og:title" content="KUAA — Offline multimodal search for archival video" />
+<meta property="og:description" content="Turn raw film archives into searchable, human-reviewable scene catalogs. Hybrid text + image retrieval, cross-film visual rhymes — all running locally." />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="assets/scene-detail.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<link rel="icon" type="image/svg+xml" href="assets/icon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#0c0c11;
+    --bg-soft:#131320;
+    --panel:#161624;
+    --line:#262638;
+    --violet:#a78bfa;
+    --violet-deep:#7c5cff;
+    --yellow:#ffd60a;
+    --orange:#ff9500;
+    --ink:#ecebf5;
+    --ink-dim:#9b9ab2;
+    --ink-faint:#6b6a82;
+    --maxw:1080px;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+    --display:'Space Grotesk',system-ui,sans-serif;
+    --body:'Inter',system-ui,sans-serif;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:var(--body);font-size:17px;line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  a{color:var(--violet);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 1.5rem}
+
+  /* ---- shared type ---- */
+  .eyebrow{
+    font-family:var(--mono);font-size:.72rem;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--ink-faint);
+    display:flex;align-items:center;gap:.6rem;margin:0 0 1.1rem;
+  }
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--violet-deep)}
+  h2{
+    font-family:var(--display);font-weight:600;font-size:clamp(1.7rem,3.4vw,2.4rem);
+    line-height:1.1;letter-spacing:-.02em;margin:0 0 1rem;color:var(--ink);
+  }
+  section{padding:5.5rem 0;border-top:1px solid var(--line)}
+
+  /* ---- top nav ---- */
+  header.nav{
+    position:sticky;top:0;z-index:50;
+    backdrop-filter:blur(12px);background:rgba(12,12,17,.72);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-inner{display:flex;align-items:center;justify-content:space-between;
+    height:62px;max-width:var(--maxw);margin:0 auto;padding:0 1.5rem}
+  .brand{display:flex;align-items:center;gap:.6rem;font-family:var(--display);
+    font-weight:700;font-size:1.15rem;letter-spacing:.04em;color:var(--ink)}
+  .brand img{width:30px;height:30px;display:block}
+  .nav-links{display:flex;gap:1.6rem;font-size:.9rem}
+  .nav-links a{color:var(--ink-dim)}
+  .nav-links a:hover{color:var(--ink);text-decoration:none}
+  .nav .ghost{
+    font-family:var(--mono);font-size:.8rem;border:1px solid var(--line);
+    padding:.4rem .85rem;border-radius:7px;color:var(--ink);
+  }
+  .nav .ghost:hover{border-color:var(--violet-deep);text-decoration:none}
+  @media(max-width:680px){.nav-links{display:none}}
+
+  /* ---- hero ---- */
+  .hero{position:relative;padding:6rem 0 5rem;border-top:none;overflow:hidden}
+  .hero-graph{position:absolute;inset:0;width:100%;height:100%;opacity:.55;
+    pointer-events:none;z-index:0}
+  .hero .wrap{position:relative;z-index:1}
+  .hero h1{
+    font-family:var(--display);font-weight:700;
+    font-size:clamp(2.5rem,6.4vw,4.6rem);line-height:1.02;letter-spacing:-.03em;
+    margin:0 0 1.4rem;max-width:14ch;
+  }
+  .hero h1 .accent{
+    background:linear-gradient(100deg,var(--violet) 0%,var(--yellow) 70%,var(--orange) 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .hero .lede{font-size:1.22rem;color:var(--ink-dim);max-width:46ch;margin:0 0 2.2rem}
+  .hero .guarani{font-family:var(--mono);font-size:.8rem;color:var(--ink-faint);
+    letter-spacing:.04em;margin-bottom:1.6rem}
+  .hero .guarani b{color:var(--yellow);font-weight:500}
+  .cta-row{display:flex;gap:.9rem;flex-wrap:wrap;align-items:center}
+  .btn{
+    font-family:var(--mono);font-size:.85rem;font-weight:500;
+    padding:.78rem 1.4rem;border-radius:9px;display:inline-flex;align-items:center;gap:.5rem;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .btn:hover{text-decoration:none;transform:translateY(-1px)}
+  .btn-primary{background:var(--violet-deep);color:#fff;
+    box-shadow:0 8px 24px -10px var(--violet-deep)}
+  .btn-primary:hover{box-shadow:0 12px 30px -10px var(--violet-deep)}
+  .btn-ghost{border:1px solid var(--line);color:var(--ink)}
+  .btn-ghost:hover{border-color:var(--violet)}
+
+  .hero-meta{display:flex;gap:2rem;flex-wrap:wrap;margin-top:3rem;
+    font-family:var(--mono);font-size:.78rem;color:var(--ink-faint)}
+  .hero-meta b{display:block;font-size:1.45rem;color:var(--ink);font-weight:500;
+    font-family:var(--display);letter-spacing:-.01em}
+
+  /* ---- intro statement ---- */
+  .statement p{font-size:clamp(1.25rem,2.6vw,1.6rem);line-height:1.5;
+    max-width:32ch;font-family:var(--display);font-weight:400;color:var(--ink);}
+  .statement .grid{display:grid;grid-template-columns:1.2fr 1fr;gap:3rem;align-items:start}
+  .statement .side{font-size:.98rem;color:var(--ink-dim)}
+  .statement .side p{font-family:var(--body);font-size:.98rem;max-width:none;color:var(--ink-dim)}
+  @media(max-width:760px){.statement .grid{grid-template-columns:1fr;gap:1.5rem}}
+
+  /* ---- pillars ---- */
+  .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;margin-top:2.5rem}
+  .pillar{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:1.6rem 1.5rem;transition:border-color .2s ease}
+  .pillar:hover{border-color:var(--violet-deep)}
+  .pillar .pi{width:34px;height:34px;margin-bottom:1rem}
+  .pillar h3{font-family:var(--display);font-size:1.1rem;font-weight:600;margin:0 0 .5rem}
+  .pillar p{font-size:.92rem;color:var(--ink-dim);margin:0}
+  @media(max-width:760px){.pillars{grid-template-columns:1fr}}
+
+  /* ---- pipeline ---- */
+  .pipe{display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;margin-top:2.5rem}
+  .step{background:var(--bg-soft);border:1px solid var(--line);border-radius:11px;
+    padding:1.2rem 1rem;position:relative}
+  .step .n{font-family:var(--mono);font-size:.72rem;color:var(--orange);
+    letter-spacing:.1em}
+  .step .bar{height:3px;border-radius:2px;background:linear-gradient(90deg,var(--violet-deep),var(--violet));
+    margin:.7rem 0 .9rem;width:100%}
+  .step h4{font-family:var(--display);font-size:.98rem;font-weight:600;margin:0 0 .4rem}
+  .step p{font-size:.8rem;color:var(--ink-dim);margin:0;line-height:1.45}
+  @media(max-width:880px){.pipe{grid-template-columns:1fr 1fr}}
+  @media(max-width:480px){.pipe{grid-template-columns:1fr}}
+
+  /* ---- showcase ---- */
+  .shot{display:grid;grid-template-columns:1fr 1fr;gap:2.5rem;align-items:center;
+    margin-bottom:4.5rem}
+  .shot:last-child{margin-bottom:0}
+  .shot.flip .shot-text{order:2}
+  .shot-text .tag{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--orange);margin-bottom:.7rem;display:block}
+  .shot-text h3{font-family:var(--display);font-size:1.5rem;font-weight:600;
+    margin:0 0 .8rem;letter-spacing:-.01em}
+  .shot-text p{color:var(--ink-dim);font-size:.98rem;margin:0 0 .8rem}
+  .shot-text .mono{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint);
+    background:var(--bg-soft);border:1px solid var(--line);border-radius:7px;
+    padding:.35rem .6rem;display:inline-block}
+  .shot figure{margin:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;
+    background:#000;box-shadow:0 24px 60px -30px rgba(0,0,0,.9)}
+  .shot figure img{width:100%;display:block}
+  @media(max-width:820px){
+    .shot{grid-template-columns:1fr;gap:1.2rem;margin-bottom:3.5rem}
+    .shot.flip .shot-text{order:0}
+  }
+
+  /* ---- stack table ---- */
+  .stack{width:100%;border-collapse:collapse;margin-top:2rem;font-size:.92rem}
+  .stack th,.stack td{text-align:left;padding:.95rem 1rem;border-bottom:1px solid var(--line)}
+  .stack th{font-family:var(--mono);font-size:.7rem;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--ink-faint);font-weight:500}
+  .stack td.model{font-family:var(--mono);font-size:.85rem;color:var(--violet)}
+  .stack td.role{color:var(--ink-dim)}
+  .stack tr:hover td{background:var(--bg-soft)}
+  @media(max-width:620px){.stack .hide-sm{display:none}}
+
+  /* ---- status / honesty note ---- */
+  .status{background:linear-gradient(160deg,var(--panel),var(--bg-soft));
+    border:1px solid var(--line);border-radius:16px;padding:2.2rem;
+    display:grid;grid-template-columns:auto 1fr;gap:1.6rem;align-items:start}
+  .status .dot{width:11px;height:11px;border-radius:50%;background:var(--yellow);
+    margin-top:.55rem;box-shadow:0 0 0 4px rgba(255,214,10,.15)}
+  .status h3{font-family:var(--display);font-size:1.25rem;margin:0 0 .6rem;font-weight:600}
+  .status p{color:var(--ink-dim);font-size:.95rem;margin:0 0 .8rem}
+  .status .ver{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint)}
+  @media(max-width:560px){.status{grid-template-columns:1fr;padding:1.6rem}}
+
+  /* ---- footer ---- */
+  footer{border-top:1px solid var(--line);padding:3rem 0 4rem;color:var(--ink-faint);
+    font-size:.85rem}
+  footer .frow{display:flex;justify-content:space-between;gap:1.5rem;flex-wrap:wrap;align-items:center}
+  footer .brand-sm{display:flex;align-items:center;gap:.55rem;font-family:var(--display);
+    color:var(--ink-dim);font-weight:600}
+  footer .brand-sm img{width:22px;height:22px}
+  footer a{color:var(--ink-dim)}
+  .lic{font-family:var(--mono);font-size:.74rem}
+
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+    html{scroll-behavior:auto}
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="#top"><img src="assets/icon.svg" alt="">KUAA</a>
+    <nav class="nav-links">
+      <a href="#what">What it is</a>
+      <a href="#pipeline">Pipeline</a>
+      <a href="#tour">Tour</a>
+      <a href="#stack">Stack</a>
+    </nav>
+    <a class="ghost" href="https://github.com/guto-mojica/kuaa" target="_blank" rel="noopener">View on GitHub →</a>
+  </div>
+</header>
+
+<a id="top"></a>
+<section class="hero">
+  <!-- signature: cross-film "visual rhyme" graph, the icon motif -->
+  <svg class="hero-graph" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs>
+      <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#ffd60a"/><stop offset="1" stop-color="#ff9500"/>
+      </linearGradient>
+    </defs>
+    <g stroke="url(#edge)" stroke-width="1.4" opacity=".5" fill="none">
+      <line x1="220" y1="180" x2="520" y2="300"/>
+      <line x1="520" y1="300" x2="430" y2="520"/>
+      <line x1="520" y1="300" x2="820" y2="210"/>
+      <line x1="820" y1="210" x2="1010" y2="360"/>
+      <line x1="430" y1="520" x2="730" y2="560"/>
+      <line x1="730" y1="560" x2="1010" y2="360"/>
+      <line x1="220" y1="180" x2="120" y2="420"/>
+    </g>
+    <g fill="#ffd60a">
+      <circle cx="520" cy="300" r="7"><animate attributeName="r" values="7;9;7" dur="4s" repeatCount="indefinite"/></circle>
+      <circle cx="220" cy="180" r="5"/>
+      <circle cx="430" cy="520" r="6"/>
+      <circle cx="820" cy="210" r="5"/>
+      <circle cx="730" cy="560" r="5"/>
+      <circle cx="120" cy="420" r="4"/>
+    </g>
+    <g fill="#ff9500">
+      <circle cx="1010" cy="360" r="6"><animate attributeName="opacity" values=".6;1;.6" dur="3.5s" repeatCount="indefinite"/></circle>
+    </g>
+  </svg>
+
+  <div class="wrap">
+    <p class="guarani">kuaa · <b>"to know"</b> in Guaraní</p>
+    <h1>Search the <span class="accent">moments</span> buried in a film archive.</h1>
+    <p class="lede">A local-first applied-AI workbench that turns raw video into a searchable, human-reviewable scene catalog — without sending a single frame to the cloud.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/guto-mojica/kuaa" target="_blank" rel="noopener">Read the code</a>
+      <a class="btn btn-ghost" href="#tour">See it running</a>
+    </div>
+    <div class="hero-meta">
+      <div><b>405</b>scenes from one film</div>
+      <div><b>5-step</b>local pipeline</div>
+      <div><b>0</b>frames sent to the cloud</div>
+    </div>
+  </div>
+</section>
+
+<section id="what" class="statement">
+  <div class="wrap">
+    <p class="eyebrow">The problem</p>
+    <div class="grid">
+      <p>A film has a title and a date. The thing a researcher actually wants — a crowd, a train station, a night interior — is buried inside the footage.</p>
+      <div class="side">
+        <p>Manual scene cataloging is slow and expensive. Fully automated cataloging isn't reliable enough to trust. KUAA takes the useful middle path: a fast AI first pass that makes visual material discoverable, with curators kept in the loop to correct and confirm.</p>
+        <p>Built around the constraints real archives live with — privacy, degraded black-and-white footage, sparse metadata, and the need to trace every result back to the config and models that produced it.</p>
+      </div>
+    </div>
+
+    <div class="pillars">
+      <div class="pillar">
+        <svg class="pi" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><line x1="16" y1="16" x2="21" y2="21"/></svg>
+        <h3>Multimodal &amp; hybrid</h3>
+        <p>Query by text or by image. Dense SigLIP2 embeddings fused with BM25 lexical search through Reciprocal Rank Fusion.</p>
+      </div>
+      <div class="pillar">
+        <svg class="pi" viewBox="0 0 24 24" fill="none" stroke="#ffd60a" stroke-width="1.6"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h6v6H9z"/></svg>
+        <h3>Local-first</h3>
+        <p>Everything runs on one machine. Data sovereignty for institutions that can't expose sensitive material — no API keys required.</p>
+      </div>
+      <div class="pillar">
+        <svg class="pi" viewBox="0 0 24 24" fill="none" stroke="#ff9500" stroke-width="1.6"><path d="M12 3v6"/><circle cx="12" cy="13" r="4"/><path d="M5 21c1.5-3 4-4 7-4s5.5 1 7 4"/></svg>
+        <h3>Human-in-the-loop</h3>
+        <p>The model writes a searchable first pass; curators correct it. Manual edits are stored apart and measured as a quality signal.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="pipeline">
+  <div class="wrap">
+    <p class="eyebrow">The pipeline · five steps</p>
+    <h2>From a raw <code style="font-family:var(--mono);font-size:.85em;color:var(--violet)">.mp4</code> to an indexed catalog.</h2>
+    <p style="color:var(--ink-dim);max-width:52ch;margin:0">Each run is sequential and traceable. A <span style="font-family:var(--mono);font-size:.85em;color:var(--ink)">run_manifest.json</span> records the input, config hash, and model backends behind every piece of metadata.</p>
+    <div class="pipe">
+      <div class="step"><span class="n">01</span><div class="bar"></div><h4>Frame extraction</h4><p>FFmpeg decodes the source and emits one downscaled keyframe per second.</p></div>
+      <div class="step"><span class="n">02</span><div class="bar"></div><h4>Scene detection</h4><p>PySceneDetect finds cut boundaries and stores a representative keyframe per scene.</p></div>
+      <div class="step"><span class="n">03</span><div class="bar"></div><h4>Visual analysis</h4><p>YOLOv8 and MTCNN detect objects, faces, and coarse environment labels.</p></div>
+      <div class="step"><span class="n">04</span><div class="bar"></div><h4>Embeddings</h4><p>SigLIP2 image embeddings are indexed with scene and keyframe mapping.</p></div>
+      <div class="step"><span class="n">05</span><div class="bar"></div><h4>LLM descriptions</h4><p>Moondream 2 writes a local scene description and tags for each keyframe.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="tour">
+  <div class="wrap">
+    <p class="eyebrow">A walk through the app</p>
+    <h2>What it actually looks like.</h2>
+    <p style="color:var(--ink-dim);max-width:50ch;margin:0 0 3.5rem">Screenshots from a real run over <em>Jeca Tatu</em> (1959), a public-domain Brazilian film — 405 detected scenes across a 90-minute runtime.</p>
+
+    <div class="shot">
+      <div class="shot-text">
+        <span class="tag">Hybrid search</span>
+        <h3>Describe a scene, or paste an image.</h3>
+        <p>One search box spans text and reference-image queries. The weighting between semantic and lexical scores is tunable, and the reranker is opt-in.</p>
+        <span class="mono">HYBRID · sem 0.70 / bm25 0.30 · rerank off</span>
+      </div>
+      <figure><img src="assets/search.jpg" alt="KUAA search interface with hybrid retrieval controls" loading="lazy"></figure>
+    </div>
+
+    <div class="shot flip">
+      <div class="shot-text">
+        <span class="tag">Scene catalog</span>
+        <h3>Every cut, typed and browsable.</h3>
+        <p>Detected scenes land in a grid with timecodes and a coarse type — exterior, interior, title card, transition. Collections group them for fast review.</p>
+        <span class="mono">405 scenes · 1 film · 1h 30m runtime</span>
+      </div>
+      <figure><img src="assets/scenes.jpg" alt="KUAA scene grid showing 405 detected scenes from Jeca Tatu 1959" loading="lazy"></figure>
+    </div>
+
+    <div class="shot">
+      <div class="shot-text">
+        <span class="tag">Scene inspector · visual rhymes</span>
+        <h3>Find the same shot, across films.</h3>
+        <p>Open any scene to see its keyframe, tags, and description — then jump to <em>Find visual rhymes</em>: a kNN search over keyframe embeddings, diversified with Maximal Marginal Relevance. This is the motif in the logo.</p>
+        <span class="mono">scene 004 · indexed · exterior</span>
+      </div>
+      <figure><img src="assets/scene-detail.jpg" alt="KUAA scene detail panel with tags, description and Find visual rhymes action" loading="lazy"></figure>
+    </div>
+
+    <div class="shot flip">
+      <div class="shot-text">
+        <span class="tag">Human-in-the-loop</span>
+        <h3>Correct the AI without erasing it.</h3>
+        <p>Curators add normalized manual tags and prune wrong AI tags from search — while the original model output is always kept. The two layers merge at read time.</p>
+        <span class="mono">description · moondream-2</span>
+      </div>
+      <figure><img src="assets/annotate.jpg" alt="KUAA annotation view with manual tags and AI tags side by side" loading="lazy"></figure>
+    </div>
+
+    <div class="shot">
+      <div class="shot-text">
+        <span class="tag">Processing</span>
+        <h3>Watch the run, step by step.</h3>
+        <p>A live SSE log streams each stage with resource use and running counts — frames, scenes, embeddings, descriptions, faces, objects — so a long local job stays legible.</p>
+        <span class="mono">step 1 / 5 · frame_extraction — start</span>
+      </div>
+      <figure><img src="assets/processing.jpg" alt="KUAA processing view with live log and per-step progress" loading="lazy"></figure>
+    </div>
+  </div>
+</section>
+
+<section id="stack">
+  <div class="wrap">
+    <p class="eyebrow">Under the hood</p>
+    <h2>The model stack.</h2>
+    <p style="color:var(--ink-dim);max-width:50ch;margin:0">Backends are swapped through typed Protocols, so a model role can change without rewriting the pipeline.</p>
+    <table class="stack">
+      <thead><tr><th>Component</th><th>Model</th><th class="hide-sm">Role</th></tr></thead>
+      <tbody>
+        <tr><td>Image embedding</td><td class="model">google/siglip2-large-patch16-256</td><td class="role hide-sm">Multilingual vision-language search</td></tr>
+        <tr><td>Reranker</td><td class="model">BAAI/bge-reranker-v2-m3</td><td class="role hide-sm">High-precision re-ranking (opt-in)</td></tr>
+        <tr><td>Scene description</td><td class="model">Moondream 2</td><td class="role hide-sm">Local vision-language descriptions</td></tr>
+        <tr><td>Object detection</td><td class="model">YOLOv8</td><td class="role hide-sm">Objects &amp; scene elements (AGPL-3.0)</td></tr>
+        <tr><td>Face detection</td><td class="model">MTCNN</td><td class="role hide-sm">Presence counting — no identity recognition</td></tr>
+      </tbody>
+    </table>
+    <p style="color:var(--ink-dim);font-size:.92rem;margin-top:1.6rem">
+      Retrieval is measured, not asserted — the eval path reports Recall@5, Recall@10, MRR and nDCG@10 over a fixed query set, plus manual-correction stats. Selections export as JSON, CSV, or a CMX&nbsp;3600 EDL you can drop straight into an NLE.
+    </p>
+  </div>
+</section>
+
+<section id="status">
+  <div class="wrap">
+    <div class="status">
+      <div class="dot"></div>
+      <div>
+        <h3>Honest status</h3>
+        <p>KUAA is local-first and single-user by design. The public demo runs on Library of Congress footage, not private institutional data. Generated descriptions are treated as reviewable first-pass metadata — useful, but not authoritative catalog records.</p>
+        <p>The processing pipeline, retrieval engine, annotation, evaluation runner, exports, and run manifests are implemented and tested. Final published metrics and the demo artifact bundle are a release step in progress.</p>
+        <span class="ver">v0.8.0rc1 · MIT (YOLOv8 component AGPL-3.0) · model licenses need review before institutional deployment</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap frow">
+    <span class="brand-sm"><img src="assets/icon.svg" alt="">KUAA — Knowledge from Unstructured Audiovisual Archives</span>
+    <span class="lic"><a href="https://github.com/guto-mojica/kuaa" target="_blank" rel="noopener">github.com/guto-mojica/kuaa</a></span>
+  </div>
+</footer>
+
+</body>
+</html>
