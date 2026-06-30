@@ -469,7 +469,7 @@
 
 /* Scene-detection param panel */
 .sd-params {
-  background: hsl(0, 0%, 17%);
+  background: var(--c-raised);
   border-radius: 6px;
 }
 .sd-label-row {
@@ -492,33 +492,33 @@
   line-height: 1;
   cursor: help;
   flex-shrink: 0;
-  position: relative;
 }
+/* position: fixed escapes all overflow:hidden ancestors; coordinates are
+   written as CSS variables by Alpine's @mouseenter on the .sd-tip span. */
 .sd-tip::after {
   content: attr(data-tip);
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  transform: none;
-  background: var(--c-panel);
-  border: 1px solid var(--c-border);
+  position: fixed;
+  top: var(--tip-y, -9999px);
+  left: var(--tip-x, -9999px);
+  background: #171B22;
+  border: 1px solid #262C36;
   border-radius: 5px;
   padding: 7px 10px;
   font-size: 11px;
   line-height: 1.5;
-  color: var(--c-text-2);
+  color: #B8BCC7;
   width: 230px;
   white-space: normal;
   text-align: left;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s;
-  z-index: 20;
+  z-index: 200;
   font-family: var(--font-sans);
   font-weight: 400;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
 }
-.sd-tip:hover::after {
+.sd-tip.on::after {
   opacity: 1;
 }
 

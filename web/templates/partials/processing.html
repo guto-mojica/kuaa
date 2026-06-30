@@ -115,7 +115,10 @@
             </div>
 
             <label class="sd-field" style="display:flex; flex-direction:column; gap:2px; font-size:0.75rem; color:var(--c-muted);">
-              <span class="sd-label-row">{{ _("Detector") }}<span class="sd-tip" data-tip="{{ tip_detector }}">?</span></span>
+              <span class="sd-label-row">{{ _("Detector") }}<span class="sd-tip" data-tip="{{ tip_detector }}"
+                x-data="{on:false}"
+                @mouseenter="on=true; let b=$el.getBoundingClientRect(); $el.style.setProperty('--tip-x',b.left+'px'); $el.style.setProperty('--tip-y',(b.bottom+4)+'px')"
+                @mouseleave="on=false" :class="{on}">?</span></span>
               <select name="sd_detector" x-model="sdDetector"
                       style="font-size:0.8125rem;">
                 <option value="adaptive">{{ _("adaptive") }}</option>
@@ -125,7 +128,10 @@
 
             <label class="sd-field" x-show="sdDetector === 'adaptive'"
                    style="display:flex; flex-direction:column; gap:2px; font-size:0.75rem; color:var(--c-muted);">
-              <span class="sd-label-row">{{ _("Adaptive threshold") }}<span class="sd-tip" data-tip="{{ tip_adaptive }}">?</span></span>
+              <span class="sd-label-row">{{ _("Adaptive threshold") }}<span class="sd-tip" data-tip="{{ tip_adaptive }}"
+                x-data="{on:false}"
+                @mouseenter="on=true; let b=$el.getBoundingClientRect(); $el.style.setProperty('--tip-x',b.left+'px'); $el.style.setProperty('--tip-y',(b.bottom+4)+'px')"
+                @mouseleave="on=false" :class="{on}">?</span></span>
               <input type="number" name="sd_adaptive_threshold" step="0.1" min="0.1" max="100"
                      value="{{ cfg.scene_detection.adaptive_threshold }}"
                      style="width:6rem; font-size:0.8125rem;">
@@ -133,7 +139,10 @@
 
             <label class="sd-field" x-show="sdDetector === 'content'"
                    style="display:flex; flex-direction:column; gap:2px; font-size:0.75rem; color:var(--c-muted);">
-              <span class="sd-label-row">{{ _("Content threshold") }}<span class="sd-tip" data-tip="{{ tip_content }}">?</span></span>
+              <span class="sd-label-row">{{ _("Content threshold") }}<span class="sd-tip" data-tip="{{ tip_content }}"
+                x-data="{on:false}"
+                @mouseenter="on=true; let b=$el.getBoundingClientRect(); $el.style.setProperty('--tip-x',b.left+'px'); $el.style.setProperty('--tip-y',(b.bottom+4)+'px')"
+                @mouseleave="on=false" :class="{on}">?</span></span>
               <input type="number" name="sd_content_threshold" step="0.5" min="1" max="100"
                      value="{{ cfg.scene_detection.content_threshold }}"
                      style="width:6rem; font-size:0.8125rem;">
