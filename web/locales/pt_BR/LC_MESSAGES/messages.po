@@ -1051,9 +1051,8 @@ msgid "No video files found in the raw directory."
 msgstr "Nenhum arquivo de vídeo encontrado no diretório raw."
 
 #: web/templates/partials/processing.html:96
-#, fuzzy
 msgid "All steps"
-msgstr "Etapa"
+msgstr "Todas as etapas"
 
 #: web/templates/partials/processing.html:110
 msgid ""
@@ -1061,18 +1060,26 @@ msgid ""
 "gradual lighting changes and subtle cuts. 'content' measures raw frame-"
 "to-frame pixel difference — faster but may miss soft transitions."
 msgstr ""
+"'adaptativo' compara cada quadro com a média de uma janela deslizante — "
+"melhor para mudanças graduais de iluminação e cortes sutis. 'conteúdo' mede "
+"a diferença bruta de pixel entre quadros — mais rápido, mas pode perder "
+"transições suaves."
 
 #: web/templates/partials/processing.html:111
 msgid ""
 "How different a frame must be from its local average to count as a cut. "
 "Lower values detect more scenes. Typical range: 2–6."
 msgstr ""
+"O quanto um quadro deve diferir de sua média local para ser contado como um "
+"corte. Valores menores detectam mais cenas. Faixa típica: 2–6."
 
 #: web/templates/partials/processing.html:112
 msgid ""
 "Pixel-difference score that triggers a cut. Lower values produce more "
 "scenes. Typical range: 15–40."
 msgstr ""
+"Pontuação de diferença de pixel que dispara um corte. Valores menores "
+"produzem mais cenas. Faixa típica: 15–40."
 
 #: web/templates/partials/processing.html:117
 msgid ""
@@ -1080,6 +1087,9 @@ msgid ""
 "analysis, embeddings, LLM descriptions). Check all steps, or run them "
 "separately after."
 msgstr ""
+"Executar a detecção de cenas novamente apagará todas as saídas posteriores "
+"(análise visual, embeddings, descrições LLM). Marque todas as etapas ou "
+"execute-as separadamente depois."
 
 #: web/templates/partials/processing.html:121
 msgid "Detector"
@@ -1103,17 +1113,15 @@ msgstr "Limiar de conteúdo"
 
 #: web/templates/partials/processing.html:149
 msgid "Min scene length (frames)"
-msgstr ""
+msgstr "Duração mínima da cena (quadros)"
 
 #: web/templates/partials/processing.html:156
-#, fuzzy
 msgid "Keyframes / scene"
-msgstr "keyframes"
+msgstr "Keyframes / cena"
 
 #: web/templates/partials/processing.html:165
-#, fuzzy
 msgid "Keyframe height"
-msgstr "Keyframe"
+msgstr "Altura do keyframe"
 
 #: web/templates/partials/processing.html:173
 msgid "Start processing"
