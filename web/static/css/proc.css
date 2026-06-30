@@ -467,6 +467,61 @@
   width: var(--p); background: var(--c-accent); border-radius: 2px;
 }
 
+/* Scene-detection param panel */
+.sd-params {
+  background: hsl(0, 0%, 17%);
+  border-radius: 6px;
+}
+.sd-label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.sd-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--c-border-2);
+  color: var(--c-muted);
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  line-height: 1;
+  cursor: help;
+  flex-shrink: 0;
+  position: relative;
+}
+.sd-tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  transform: none;
+  background: var(--c-panel);
+  border: 1px solid var(--c-border);
+  border-radius: 5px;
+  padding: 7px 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--c-text-2);
+  width: 230px;
+  white-space: normal;
+  text-align: left;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 20;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+.sd-tip:hover::after {
+  opacity: 1;
+}
+
 /* ─── Responsive ─────────────────────────────────────────────────────────
    The Processing tab has two big content blocks: the active-job card at
    the top and the 2-col body (live log on the left, stats/queue on the
