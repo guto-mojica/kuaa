@@ -10,10 +10,10 @@
 <meta property="og:title" content="KUAA — Offline multimodal search for archival video" />
 <meta property="og:description" content="Turn raw film archives into searchable, human-reviewable scene catalogs. Hybrid text + image retrieval, cross-film visual rhymes — all running locally." />
 <meta property="og:type" content="website" />
-<meta property="og:image" content="assets/scene-detail.jpg" />
+<meta property="og:image" content="scene-detail.jpg" />
 <meta name="twitter:card" content="summary_large_image" />
 
-<link rel="icon" type="image/svg+xml" href="assets/icon.svg" />
+<link rel="icon" type="image/svg+xml" href="icon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -94,13 +94,13 @@
     margin:0 0 1.4rem;max-width:14ch;
   }
   .hero h1 .accent{
-    background:linear-gradient(100deg,var(--violet) 0%,var(--yellow) 70%,var(--orange) 100%);
+    background:linear-gradient(100deg,var(--violet) 0%,var(--violet-deep) 100%);
     -webkit-background-clip:text;background-clip:text;color:transparent;
   }
   .hero .lede{font-size:1.22rem;color:var(--ink-dim);max-width:46ch;margin:0 0 2.2rem}
   .hero .guarani{font-family:var(--mono);font-size:.8rem;color:var(--ink-faint);
     letter-spacing:.04em;margin-bottom:1.6rem}
-  .hero .guarani b{color:var(--yellow);font-weight:500}
+  .hero .guarani b{color:var(--violet);font-weight:500}
   .cta-row{display:flex;gap:.9rem;flex-wrap:wrap;align-items:center}
   .btn{
     font-family:var(--mono);font-size:.85rem;font-weight:500;
@@ -141,7 +141,7 @@
   .pipe{display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;margin-top:2.5rem}
   .step{background:var(--bg-soft);border:1px solid var(--line);border-radius:11px;
     padding:1.2rem 1rem;position:relative}
-  .step .n{font-family:var(--mono);font-size:.72rem;color:var(--orange);
+  .step .n{font-family:var(--mono);font-size:.72rem;color:var(--ink-faint);
     letter-spacing:.1em}
   .step .bar{height:3px;border-radius:2px;background:linear-gradient(90deg,var(--violet-deep),var(--violet));
     margin:.7rem 0 .9rem;width:100%}
@@ -156,11 +156,11 @@
   .shot:last-child{margin-bottom:0}
   .shot.flip .shot-text{order:2}
   .shot-text .tag{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;
-    text-transform:uppercase;color:var(--orange);margin-bottom:.7rem;display:block}
+    text-transform:uppercase;color:var(--violet);margin-bottom:.7rem;display:block}
   .shot-text h3{font-family:var(--display);font-size:1.5rem;font-weight:600;
     margin:0 0 .8rem;letter-spacing:-.01em}
   .shot-text p{color:var(--ink-dim);font-size:.98rem;margin:0 0 .8rem}
-  .shot-text .mono{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint);
+  .mono{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint);
     background:var(--bg-soft);border:1px solid var(--line);border-radius:7px;
     padding:.35rem .6rem;display:inline-block}
   .shot figure{margin:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;
@@ -212,7 +212,7 @@
 
 <header class="nav">
   <div class="nav-inner">
-    <a class="brand" href="#top"><img src="assets/icon.svg" alt="">KUAA</a>
+    <a class="brand" href="#top"><img src="icon_Ks.png" alt="">KUAA</a>
     <nav class="nav-links">
       <a href="#what">What it is</a>
       <a href="#pipeline">Pipeline</a>
@@ -257,16 +257,12 @@
   <div class="wrap">
     <p class="guarani">kuaa · <b>"to know"</b> in Guaraní</p>
     <h1>Search the <span class="accent">moments</span> buried in a film archive.</h1>
-    <p class="lede">A local-first applied-AI workbench that turns raw video into a searchable, human-reviewable scene catalog — without sending a single frame to the cloud.</p>
+    <p class="lede">Turns raw video files into a searchable, human-reviewable scene catalog. Runs on one machine — models, processing, and storage all local.</p>
     <div class="cta-row">
       <a class="btn btn-primary" href="https://github.com/guto-mojica/kuaa" target="_blank" rel="noopener">Read the code</a>
       <a class="btn btn-ghost" href="#tour">See it running</a>
     </div>
-    <div class="hero-meta">
-      <div><b>405</b>scenes from one film</div>
-      <div><b>5-step</b>local pipeline</div>
-      <div><b>0</b>frames sent to the cloud</div>
-    </div>
+    <p style="margin-top:1.8rem"><span class="mono">offline · cpu / mps / cuda · no api keys · no sent frames</span></p>
   </div>
 </section>
 
@@ -276,28 +272,51 @@
     <div class="grid">
       <p>A film has a title and a date. The thing a researcher actually wants — a crowd, a train station, a night interior — is buried inside the footage.</p>
       <div class="side">
-        <p>Manual scene cataloging is slow and expensive. Fully automated cataloging isn't reliable enough to trust. KUAA takes the useful middle path: a fast AI first pass that makes visual material discoverable, with curators kept in the loop to correct and confirm.</p>
+        <p>Manual scene cataloging is slow. Fully automated cataloging isn't reliable enough to trust. KUAA runs a fast AI first pass to make material discoverable, then keeps curators in the loop to correct and confirm.</p>
         <p>Built around the constraints real archives live with — privacy, degraded black-and-white footage, sparse metadata, and the need to trace every result back to the config and models that produced it.</p>
       </div>
     </div>
 
     <div class="pillars">
       <div class="pillar">
-        <svg class="pi" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><line x1="16" y1="16" x2="21" y2="21"/></svg>
+        <!-- three connected nodes: the visual-rhyme graph motif -->
+        <svg class="pi" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.6">
+          <circle cx="12" cy="5" r="2.5"/>
+          <circle cx="4" cy="19" r="2.5"/>
+          <circle cx="20" cy="19" r="2.5"/>
+          <line x1="10.2" y1="7.2" x2="5.8" y2="17"/>
+          <line x1="13.8" y1="7.2" x2="18.2" y2="17"/>
+          <line x1="6.5" y1="19" x2="17.5" y2="19"/>
+        </svg>
         <h3>Multimodal &amp; hybrid</h3>
         <p>Query by text or by image. Dense SigLIP2 embeddings fused with BM25 lexical search through Reciprocal Rank Fusion.</p>
       </div>
       <div class="pillar">
-        <svg class="pi" viewBox="0 0 24 24" fill="none" stroke="#ffd60a" stroke-width="1.6"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h6v6H9z"/></svg>
+        <!-- filmstrip segment: the product's own icon motif -->
+        <svg class="pi" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.6">
+          <rect x="7" y="2" width="10" height="20" rx="2"/>
+          <rect x="9.5" y="6" width="5" height="3.5" rx="1"/>
+          <rect x="9.5" y="14.5" width="5" height="3.5" rx="1"/>
+          <circle cx="8.5" cy="7.75" r="0.7" fill="#a78bfa" stroke="none"/>
+          <circle cx="15.5" cy="7.75" r="0.7" fill="#a78bfa" stroke="none"/>
+          <circle cx="8.5" cy="16.25" r="0.7" fill="#a78bfa" stroke="none"/>
+          <circle cx="15.5" cy="16.25" r="0.7" fill="#a78bfa" stroke="none"/>
+        </svg>
         <h3>Local-first</h3>
         <p>Everything runs on one machine. Data sovereignty for institutions that can't expose sensitive material — no API keys required.</p>
       </div>
       <div class="pillar">
-        <svg class="pi" viewBox="0 0 24 24" fill="none" stroke="#ff9500" stroke-width="1.6"><path d="M12 3v6"/><circle cx="12" cy="13" r="4"/><path d="M5 21c1.5-3 4-4 7-4s5.5 1 7 4"/></svg>
+        <!-- keyframe with checkmark: curator annotating a scene -->
+        <svg class="pi" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.6">
+          <rect x="2" y="5" width="18" height="12" rx="2"/>
+          <polyline points="6,11 9,14 14.5,8.5"/>
+          <line x1="2" y1="21" x2="22" y2="21"/>
+        </svg>
         <h3>Human-in-the-loop</h3>
         <p>The model writes a searchable first pass; curators correct it. Manual edits are stored apart and measured as a quality signal.</p>
       </div>
     </div>
+    <p style="margin-top:2rem"><span class="mono">hybrid text + image · bm25 + dense · rrf fusion · manual edits stored separately</span></p>
   </div>
 </section>
 
@@ -313,6 +332,7 @@
       <div class="step"><span class="n">04</span><div class="bar"></div><h4>Embeddings</h4><p>SigLIP2 image embeddings are indexed with scene and keyframe mapping.</p></div>
       <div class="step"><span class="n">05</span><div class="bar"></div><h4>LLM descriptions</h4><p>Moondream 2 writes a local scene description and tags for each keyframe.</p></div>
     </div>
+    <p style="margin-top:2rem"><span class="mono">run_manifest.json · config hash + model backend recorded per run</span></p>
   </div>
 </section>
 
@@ -329,7 +349,7 @@
         <p>One search box spans text and reference-image queries. The weighting between semantic and lexical scores is tunable, and the reranker is opt-in.</p>
         <span class="mono">HYBRID · sem 0.70 / bm25 0.30 · rerank off</span>
       </div>
-      <figure><img src="assets/search.jpg" alt="KUAA search interface with hybrid retrieval controls" loading="lazy"></figure>
+      <figure><img src="search.jpg" alt="KUAA search interface with hybrid retrieval controls" loading="lazy"></figure>
     </div>
 
     <div class="shot flip">
@@ -339,7 +359,7 @@
         <p>Detected scenes land in a grid with timecodes and a coarse type — exterior, interior, title card, transition. Collections group them for fast review.</p>
         <span class="mono">405 scenes · 1 film · 1h 30m runtime</span>
       </div>
-      <figure><img src="assets/scenes.jpg" alt="KUAA scene grid showing 405 detected scenes from Jeca Tatu 1959" loading="lazy"></figure>
+      <figure><img src="scenes.jpg" alt="KUAA scene grid showing 405 detected scenes from Jeca Tatu 1959" loading="lazy"></figure>
     </div>
 
     <div class="shot">
@@ -349,7 +369,7 @@
         <p>Open any scene to see its keyframe, tags, and description — then jump to <em>Find visual rhymes</em>: a kNN search over keyframe embeddings, diversified with Maximal Marginal Relevance. This is the motif in the logo.</p>
         <span class="mono">scene 004 · indexed · exterior</span>
       </div>
-      <figure><img src="assets/scene-detail.jpg" alt="KUAA scene detail panel with tags, description and Find visual rhymes action" loading="lazy"></figure>
+      <figure><img src="scene-detail.jpg" alt="KUAA scene detail panel with tags, description and Find visual rhymes action" loading="lazy"></figure>
     </div>
 
     <div class="shot flip">
@@ -359,7 +379,7 @@
         <p>Curators add normalized manual tags and prune wrong AI tags from search — while the original model output is always kept. The two layers merge at read time.</p>
         <span class="mono">description · moondream-2</span>
       </div>
-      <figure><img src="assets/annotate.jpg" alt="KUAA annotation view with manual tags and AI tags side by side" loading="lazy"></figure>
+      <figure><img src="annotate.jpg" alt="KUAA annotation view with manual tags and AI tags side by side" loading="lazy"></figure>
     </div>
 
     <div class="shot">
@@ -369,7 +389,7 @@
         <p>A live SSE log streams each stage with resource use and running counts — frames, scenes, embeddings, descriptions, faces, objects — so a long local job stays legible.</p>
         <span class="mono">step 1 / 5 · frame_extraction — start</span>
       </div>
-      <figure><img src="assets/processing.jpg" alt="KUAA processing view with live log and per-step progress" loading="lazy"></figure>
+      <figure><img src="processing.jpg" alt="KUAA processing view with live log and per-step progress" loading="lazy"></figure>
     </div>
   </div>
 </section>
@@ -392,6 +412,7 @@
     <p style="color:var(--ink-dim);font-size:.92rem;margin-top:1.6rem">
       Retrieval is measured, not asserted — the eval path reports Recall@5, Recall@10, MRR and nDCG@10 over a fixed query set, plus manual-correction stats. Selections export as JSON, CSV, or a CMX&nbsp;3600 EDL you can drop straight into an NLE.
     </p>
+    <p style="margin-top:1rem"><span class="mono">recall@5 · recall@10 · mrr · ndcg@10 · export: json / csv / cmx 3600 edl</span></p>
   </div>
 </section>
 
@@ -411,7 +432,7 @@
 
 <footer>
   <div class="wrap frow">
-    <span class="brand-sm"><img src="assets/icon.svg" alt="">KUAA — Knowledge from Unstructured Audiovisual Archives</span>
+    <span class="brand-sm"><img src="icon_Ks.png" alt="">KUAA — Knowledge from Unstructured Audiovisual Archives</span>
     <span class="lic"><a href="https://github.com/guto-mojica/kuaa" target="_blank" rel="noopener">github.com/guto-mojica/kuaa</a></span>
   </div>
 </footer>
