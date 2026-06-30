@@ -1662,7 +1662,7 @@ def test_pipeline_start_response_refreshes_full_processing_tab(client, seed_meta
     seeded = seed_metadata()
     raw = seeded["cfg"].paths.library_dir / "default" / "raw" / "default.mp4"
 
-    def fake_start_job(video_path: str, enabled_steps: set[str], cfg) -> str:
+    def fake_start_job(video_path: str, enabled_steps: set[str], cfg, sd_override=None) -> str:
         job = jobs.JobState(
             id="started1",
             video_path=video_path,

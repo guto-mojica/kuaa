@@ -416,6 +416,7 @@ class PendingEntry:
     video_path: str
     steps: frozenset
     cfg: Any = field(default=None, repr=False)
+    scene_detection_override: Any | None = field(default=None, repr=False)
     created_at: float = field(default_factory=time.time)
 
     @property
@@ -480,7 +481,13 @@ class JobRegistry:
             self._jobs.pop(j.id, None)
             logger.debug("Evicted retained job %s", j.id)
 
-    def start(self, video_path: str, enabled_steps: set[str], cfg) -> str:
+    def start(
+        self,
+        video_path: str,
+        enabled_steps: set[str],
+        cfg,
+        scene_detection_override=None,
+    ) -> str:
         """Register a job and launch its worker thread.
 
         Enforces the single-global-active-job policy: raises
@@ -503,7 +510,7 @@ class JobRegistry:
 
         threading.Thread(
             target=_run_pipeline,
-            args=(job, cfg, enabled_steps),
+            args=(job, cfg, enabled_steps, scene_detection_override),
             daemon=True,
             name=f"pipeline-{job_id}",
         ).start()
@@ -563,7 +570,7 @@ class JobRegistry:
 
     # ── Batch queue ───────────────────────────────────────────────────────
 
-    def enqueue(self, video_path: str, steps: set[str], cfg) -> str:
+    def enqueue(self, video_path: str, steps: set[str], cfg, scene_detection_override=None) -> str:
         """Start immediately if idle, otherwise add to the pending queue.
 
         Returns the job_id (if started) or pending entry id (if queued).
@@ -577,6 +584,7 @@ class JobRegistry:
                     video_path=video_path,
                     steps=frozenset(steps),
                     cfg=cfg,
+                    scene_detection_override=scene_detection_override,
                 )
                 self._pending.append(entry)
                 logger.info(
@@ -587,9 +595,9 @@ class JobRegistry:
                 )
                 return entry_id
         # No active job — start immediately (takes its own lock).
-        return self.start(video_path, steps, cfg)
+        return self.start(video_path, steps, cfg, scene_detection_override)
 
-    def queue_only(self, video_path: str, steps: set[str], cfg) -> str:
+    def queue_only(self, video_path: str, steps: set[str], cfg, scene_detection_override=None) -> str:
         """Always add to the pending queue, even when the registry is idle.
 
         Use this to pre-populate the queue before explicitly starting it
@@ -602,6 +610,7 @@ class JobRegistry:
                 video_path=video_path,
                 steps=frozenset(steps),
                 cfg=cfg,
+                scene_detection_override=scene_detection_override,
             )
             self._pending.append(entry)
             logger.info(
@@ -625,7 +634,12 @@ class JobRegistry:
 
         logger.info("Starting queued job %s for %s", entry.id, entry.video_path)
         try:
-            return self.start(entry.video_path, set(entry.steps), entry.cfg)
+            return self.start(
+                entry.video_path,
+                set(entry.steps),
+                entry.cfg,
+                entry.scene_detection_override,
+            )
         except ConcurrencyRejected:
             with self._lock:
                 self._pending.insert(0, entry)
@@ -660,7 +674,12 @@ class JobRegistry:
 
         logger.info("Draining queue — starting %s for %s", entry.id, entry.video_path)
         try:
-            self.start(entry.video_path, set(entry.steps), entry.cfg)
+            self.start(
+                entry.video_path,
+                set(entry.steps),
+                entry.cfg,
+                entry.scene_detection_override,
+            )
         except ConcurrencyRejected:
             # Another thread beat us; put it back at the front.
             with self._lock:
@@ -705,31 +724,41 @@ def _prune_registry() -> None:
     _registry.prune()
 
 
-def start_job(video_path: str, enabled_steps: set[str], cfg) -> str:
+def start_job(
+    video_path: str,
+    enabled_steps: set[str],
+    cfg,
+    scene_detection_override=None,
+) -> str:
     """Create a job and start the pipeline in a background thread.
 
     Raises :class:`ConcurrencyRejected` if a job is already running
     (single-global-active-job policy).
     """
-    return _registry.start(video_path, enabled_steps, cfg)
+    return _registry.start(video_path, enabled_steps, cfg, scene_detection_override)
 
 
-def enqueue_job(video_path: str, enabled_steps: set[str], cfg) -> str:
+def enqueue_job(video_path: str, enabled_steps: set[str], cfg, scene_detection_override=None) -> str:
     """Start immediately if idle, or add to the pending batch queue.
 
     Unlike :func:`start_job`, never raises :class:`ConcurrencyRejected`.
     Returns the job id (started) or pending entry id (queued).
     """
-    return _registry.enqueue(video_path, enabled_steps, cfg)
+    return _registry.enqueue(video_path, enabled_steps, cfg, scene_detection_override)
 
 
-def queue_job(video_path: str, enabled_steps: set[str], cfg) -> str:
+def queue_job(
+    video_path: str,
+    enabled_steps: set[str],
+    cfg,
+    scene_detection_override=None,
+) -> str:
     """Always add to the pending queue without starting (Option B gesture).
 
     Lets the user pre-populate the queue before explicitly starting it
     with :func:`start_queued_jobs`.
     """
-    return _registry.queue_only(video_path, enabled_steps, cfg)
+    return _registry.queue_only(video_path, enabled_steps, cfg, scene_detection_override)
 
 
 def start_queued_jobs() -> str | None:
@@ -751,6 +780,41 @@ def remove_pending_job(entry_id: str) -> bool:
 
 
 # ── Pipeline runner (runs in a daemon thread) ─────────────────────────────────
+
+
+def _clear_scene_detection_cascade(ctx, cfg) -> None:
+    """Delete scene-detection artifacts and all downstream outputs.
+
+    Called when scene_detection is re-run so skip_existing doesn't silently
+    no-op the step and leave stale downstream data in visual/embeddings/llm.
+    frame_extraction (frames/sample/) is NOT touched — it's independent.
+    """
+    import shutil
+
+    for name in (
+        "keyframes_metadata.json",
+        "visual_analysis.json",
+        "scene_descriptions.json",
+        "scene_tags.json",
+    ):
+        p = ctx.metadata_dir / name
+        if p.exists():
+            p.unlink()
+            logger.info("cascade-clear: removed %s", p.name)
+
+    kf_dir = ctx.frames_dir / "scenes" / "keyframes_content"
+    if kf_dir.is_dir():
+        shutil.rmtree(kf_dir)
+        logger.info("cascade-clear: removed keyframes_content/")
+
+    emb_cfg = getattr(cfg, "embeddings", None)
+    emb_filename = getattr(emb_cfg, "filename", "keyframe_embeddings.npy")
+    mapping_filename = getattr(emb_cfg, "mapping_filename", "index_mapping.json")
+    for name in (emb_filename, mapping_filename):
+        p = ctx.embeddings_dir / name
+        if p.exists():
+            p.unlink()
+            logger.info("cascade-clear: removed %s", p.name)
 
 
 def _slug_for_video(video_path: str, cfg) -> str:
@@ -779,7 +843,12 @@ def _slug_for_video(video_path: str, cfg) -> str:
     return stem.lower().replace(" ", "_")
 
 
-def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
+def _run_pipeline(
+    job: JobState,
+    cfg,
+    enabled_steps: set[str],
+    scene_detection_override=None,
+) -> None:
     """Drive :meth:`CatalogPipeline.run_steps` and mirror state onto the job.
 
     The runner no longer knows the dependency graph or calls private
@@ -804,10 +873,19 @@ def _run_pipeline(job: JobState, cfg, enabled_steps: set[str]) -> None:
         slug,
         sorted(enabled_steps),
     )
+
+    if scene_detection_override is not None:
+        cfg = cfg.model_copy(update={"scene_detection": scene_detection_override})
+        logger.info("[job=%s] scene_detection config overridden from form params", job.id)
+
     ctx = FilmContext.for_film(cfg, slug)
     ctx.metadata_dir.mkdir(parents=True, exist_ok=True)
     ctx.frames_dir.mkdir(parents=True, exist_ok=True)
     ctx.embeddings_dir.mkdir(parents=True, exist_ok=True)
+
+    if "scene_detection" in enabled_steps and (ctx.metadata_dir / "keyframes_metadata.json").exists():
+        logger.info("[job=%s] cascade-clearing stale scene-detection artifacts", job.id)
+        _clear_scene_detection_cascade(ctx, cfg)
 
     pipeline = CatalogPipeline(cfg, slug=slug)
 

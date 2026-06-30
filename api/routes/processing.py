@@ -44,9 +44,43 @@ async def tab_processing(
     )
 
 
+def _build_sd_override(
+    cfg,
+    sd_detector: str,
+    sd_adaptive_threshold: float,
+    sd_content_threshold: float,
+    sd_min_scene_len: int,
+    sd_keyframes_per_scene: int,
+    sd_keyframe_height: int,
+):
+    """Return a SceneDetectionCfg override only when values differ from cfg."""
+    from kuaa.config.schema import SceneDetectionCfg
+
+    current = cfg.scene_detection
+    override = SceneDetectionCfg(
+        detector=sd_detector,
+        adaptive_threshold=sd_adaptive_threshold,
+        content_threshold=sd_content_threshold,
+        min_scene_len=sd_min_scene_len,
+        keyframes_per_scene=sd_keyframes_per_scene,
+        keyframe_height=sd_keyframe_height,
+    )
+    if override == current:
+        return None
+    return override
+
+
 @router.post("/api/pipeline/start", response_class=HTMLResponse)
 async def api_pipeline_start(
-    request: Request, video_path: str = Form(...), steps: list[str] = Form(default=[])
+    request: Request,
+    video_path: str = Form(...),
+    steps: list[str] = Form(default=[]),
+    sd_detector: str = Form(default="adaptive"),
+    sd_adaptive_threshold: float = Form(default=3.0),
+    sd_content_threshold: float = Form(default=27.0),
+    sd_min_scene_len: int = Form(default=15),
+    sd_keyframes_per_scene: int = Form(default=3),
+    sd_keyframe_height: int = Form(default=480),
 ) -> HTMLResponse:
     if not steps:
         steps = [name for name, _ in STEP_DEFS]
@@ -57,8 +91,17 @@ async def api_pipeline_start(
     if not vp.exists():
         logger.warning("/api/pipeline/start rejected — file not found: %s", vp)
         return processing_tab_response(request, error_message=file_not_found)
+    sd_override = _build_sd_override(
+        cfg,
+        sd_detector,
+        sd_adaptive_threshold,
+        sd_content_threshold,
+        sd_min_scene_len,
+        sd_keyframes_per_scene,
+        sd_keyframe_height,
+    )
     try:
-        job_id = start_job(str(vp), set(steps), cfg)
+        job_id = start_job(str(vp), set(steps), cfg, sd_override)
     except ConcurrencyRejected as exc:
         return HTMLResponse(f'<p class="text-error">{exc}</p>', status_code=409)
     logger.info("/api/pipeline/start — accepted job_id=%s", job_id)
@@ -69,7 +112,15 @@ async def api_pipeline_start(
     "/api/pipeline/enqueue", response_class=HTMLResponse
 )  # queue only, never auto-starts; use /queue/start
 async def api_pipeline_enqueue(
-    request: Request, video_path: str = Form(...), steps: list[str] = Form(default=[])
+    request: Request,
+    video_path: str = Form(...),
+    steps: list[str] = Form(default=[]),
+    sd_detector: str = Form(default="adaptive"),
+    sd_adaptive_threshold: float = Form(default=3.0),
+    sd_content_threshold: float = Form(default=27.0),
+    sd_min_scene_len: int = Form(default=15),
+    sd_keyframes_per_scene: int = Form(default=3),
+    sd_keyframe_height: int = Form(default=480),
 ) -> HTMLResponse:
     if not steps:
         steps = [name for name, _ in STEP_DEFS]
@@ -80,7 +131,16 @@ async def api_pipeline_enqueue(
     if not vp.exists():
         logger.warning("/api/pipeline/enqueue rejected — file not found: %s", vp)
         return processing_tab_response(request, error_message=file_not_found)
-    queue_job(str(vp), set(steps), cfg)
+    sd_override = _build_sd_override(
+        cfg,
+        sd_detector,
+        sd_adaptive_threshold,
+        sd_content_threshold,
+        sd_min_scene_len,
+        sd_keyframes_per_scene,
+        sd_keyframe_height,
+    )
+    queue_job(str(vp), set(steps), cfg, sd_override)
     logger.info("/api/pipeline/enqueue — queued %s", vp)
     return build_start_response(request, cfg, vp, request.cookies.get("active_film", ""))
 
