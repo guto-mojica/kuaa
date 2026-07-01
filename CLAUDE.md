@@ -85,7 +85,9 @@ web/static/          CSS, vendored htmx.min.js, icons.
 web/locales/         pt_BR and en, managed by Babel.
 config/              default.yaml (versioned) + local.yaml (gitignored).
 tests/               pytest, no heavy-model dependencies in test_smoke.
-docs/                Design, architecture, eval, and ops docs.
+docs/                Design, architecture, eval, and ops docs (markdown only).
+site/                Public GitHub Pages site (HTML/CSS/images), deployed via
+                     .github/workflows/pages.yml. Not app code — keep app UI in web/.
 app.py               FastAPI entrypoint (uvicorn api.server:app).
 ```
 

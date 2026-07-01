@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Evaluation — KUAA</title>
+<meta name="description" content="How KUAA measures retrieval quality: a fixed public-demo query set, Recall@5/Recall@10/MRR/nDCG@10 over an existing index, and correction statistics that quantify what human review adds." />
+
+<!-- Open Graph / social -->
+<meta property="og:title" content="Evaluation — KUAA" />
+<meta property="og:description" content="Beyond 'does it work?' — a repeatable measurement harness with a reviewed query set, standard IR metrics, and human-curator correction stats." />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="scene-detail.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<link rel="icon" type="image/svg+xml" href="icon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#0c0c11;
+    --bg-soft:#131320;
+    --panel:#161624;
+    --line:#262638;
+    --violet:#a78bfa;
+    --violet-deep:#7c5cff;
+    --yellow:#ffd60a;
+    --orange:#ff9500;
+    --ink:#ecebf5;
+    --ink-dim:#9b9ab2;
+    --ink-faint:#6b6a82;
+    --maxw:1080px;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+    --display:'Space Grotesk',system-ui,sans-serif;
+    --body:'Inter',system-ui,sans-serif;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:var(--body);font-size:17px;line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  a{color:var(--violet);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 1.5rem}
+
+  /* ---- shared type ---- */
+  .eyebrow{
+    font-family:var(--mono);font-size:.72rem;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--ink-faint);
+    display:flex;align-items:center;gap:.6rem;margin:0 0 1.1rem;
+  }
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--violet-deep)}
+  h2{
+    font-family:var(--display);font-weight:600;font-size:clamp(1.7rem,3.4vw,2.4rem);
+    line-height:1.1;letter-spacing:-.02em;margin:0 0 1rem;color:var(--ink);
+  }
+  section{padding:5.5rem 0;border-top:1px solid var(--line)}
+
+  /* ---- top nav ---- */
+  header.nav{
+    position:sticky;top:0;z-index:50;
+    backdrop-filter:blur(12px);background:rgba(12,12,17,.72);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-inner{display:flex;align-items:center;justify-content:space-between;
+    height:62px;max-width:var(--maxw);margin:0 auto;padding:0 1.5rem}
+  .brand{display:flex;align-items:center;gap:.6rem;font-family:var(--display);
+    font-weight:700;font-size:1.15rem;letter-spacing:.04em;color:var(--ink)}
+  .brand img{width:30px;height:30px;display:block}
+  .nav-links{display:flex;gap:1.6rem;font-size:.9rem}
+  .nav-links a{color:var(--ink-dim)}
+  .nav-links a:hover{color:var(--ink);text-decoration:none}
+  .nav .ghost{
+    font-family:var(--mono);font-size:.8rem;border:1px solid var(--line);
+    padding:.4rem .85rem;border-radius:7px;color:var(--ink);
+  }
+  .nav .ghost:hover{border-color:var(--violet-deep);text-decoration:none}
+  @media(max-width:680px){.nav-links{display:none}}
+
+  /* ---- intro statement ---- */
+  .statement p{font-size:clamp(1.25rem,2.6vw,1.6rem);line-height:1.5;
+    max-width:32ch;font-family:var(--display);font-weight:400;color:var(--ink);}
+  .statement .grid{display:grid;grid-template-columns:1.2fr 1fr;gap:3rem;align-items:start}
+  .statement .side{font-size:.98rem;color:var(--ink-dim)}
+  .statement .side p{font-family:var(--body);font-size:.98rem;max-width:none;color:var(--ink-dim)}
+  @media(max-width:760px){.statement .grid{grid-template-columns:1fr;gap:1.5rem}}
+
+  /* ---- pillars ---- */
+  .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;margin-top:2.5rem}
+  .pillar{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:1.6rem 1.5rem;transition:border-color .2s ease}
+  .pillar:hover{border-color:var(--violet-deep)}
+  .pillar .pi{width:34px;height:34px;margin-bottom:1rem}
+  .pillar h3{font-family:var(--display);font-size:1.1rem;font-weight:600;margin:0 0 .5rem}
+  .pillar p{font-size:.92rem;color:var(--ink-dim);margin:0}
+  @media(max-width:760px){.pillars{grid-template-columns:1fr}}
+
+  /* ---- stack table ---- */
+  .stack{width:100%;border-collapse:collapse;margin-top:2rem;font-size:.92rem}
+  .stack th,.stack td{text-align:left;padding:.95rem 1rem;border-bottom:1px solid var(--line)}
+  .stack th{font-family:var(--mono);font-size:.7rem;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--ink-faint);font-weight:500}
+  .stack td.model{font-family:var(--mono);font-size:.85rem;color:var(--violet)}
+  .stack td.role{color:var(--ink-dim)}
+  .stack tr:hover td{background:var(--bg-soft)}
+  @media(max-width:620px){.stack .hide-sm{display:none}}
+
+  /* ---- status / honesty note ---- */
+  .status{background:linear-gradient(160deg,var(--panel),var(--bg-soft));
+    border:1px solid var(--line);border-radius:16px;padding:2.2rem;
+    display:grid;grid-template-columns:auto 1fr;gap:1.6rem;align-items:start}
+  .status .dot{width:11px;height:11px;border-radius:50%;background:var(--yellow);
+    margin-top:.55rem;box-shadow:0 0 0 4px rgba(255,214,10,.15)}
+  .status h3{font-family:var(--display);font-size:1.25rem;margin:0 0 .6rem;font-weight:600}
+  .status p{color:var(--ink-dim);font-size:.95rem;margin:0 0 .8rem}
+  .status .ver{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint)}
+  @media(max-width:560px){.status{grid-template-columns:1fr;padding:1.6rem}}
+
+  .mono{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint);
+    background:var(--bg-soft);border:1px solid var(--line);border-radius:7px;
+    padding:.35rem .6rem;display:inline-block}
+
+  /* ---- footer ---- */
+  footer{border-top:1px solid var(--line);padding:3rem 0 4rem;color:var(--ink-faint);
+    font-size:.85rem}
+  footer .frow{display:flex;justify-content:space-between;gap:1.5rem;flex-wrap:wrap;align-items:center}
+  footer .brand-sm{display:flex;align-items:center;gap:.55rem;font-family:var(--display);
+    color:var(--ink-dim);font-weight:600}
+  footer .brand-sm img{width:22px;height:22px}
+  footer a{color:var(--ink-dim)}
+  .lic{font-family:var(--mono);font-size:.74rem}
+
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+    html{scroll-behavior:auto}
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="index.html"><img src="icon_Ks.png" alt="">KUAA</a>
+    <nav class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="constraints.html">Constraints</a>
+      <a href="domain_packs.html">Domain packs</a>
+      <a href="run_provenance.html">Run provenance</a>
+    </nav>
+    <a class="ghost" href="https://github.com/guto-mojica/kuaa" target="_blank" rel="noopener">View on GitHub →</a>
+    <a class="ghost" href="pt-br/evaluation.html">PT-BR</a>
+  </div>
+</header>
+
+<section class="statement" style="padding-top:4.5rem">
+  <div class="wrap">
+    <p class="eyebrow">Go deeper · Evaluation</p>
+    <h1 style="font-family:var(--display);font-weight:700;font-size:clamp(2.1rem,4.4vw,3.2rem);line-height:1.08;letter-spacing:-.02em;margin:0 0 1.2rem;max-width:22ch">Measuring retrieval quality, not asserting it.</h1>
+    <p class="lede" style="font-size:1.1rem;color:var(--ink-dim);max-width:56ch;font-family:var(--body)">KUAA moves beyond "does it work?" with a repeatable measurement harness: a reviewed query dataset for the public archive demo, deterministic retrieval metrics over an existing index, and correction statistics that compare generated tags with manual annotations.</p>
+  </div>
+</section>
+
+<section id="testbed">
+  <div class="wrap">
+    <p class="eyebrow">Fixed test bed</p>
+    <h2>Same queries, same index, every run.</h2>
+    <div class="status" style="grid-template-columns:auto 1fr">
+      <div class="dot"></div>
+      <div>
+        <h3>Controlled evaluation</h3>
+        <p>Query sets are versioned YAML files with required <code style="font-family:var(--mono);font-size:.85em">id</code>, <code style="font-family:var(--mono);font-size:.85em">text</code>, and <code style="font-family:var(--mono);font-size:.85em">relevant_scene_ids</code> fields per query, plus optional intent notes, graded relevance, and negative examples. The public archive demo set lives at <span class="mono" style="font-size:.75rem">data/eval/archive_demo_queries.yaml</span>.</p>
+        <p>The harness scores an existing retrieval index — it does not upload video, frames, metadata, or embeddings anywhere. It runs the same way against the public demo bundle or a private local collection.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="metrics">
+  <div class="wrap">
+    <p class="eyebrow">Implemented metrics</p>
+    <h2>Standard information-retrieval metrics.</h2>
+    <table class="stack">
+      <thead><tr><th>Metric</th><th>Definition</th><th class="hide-sm">What it measures</th></tr></thead>
+      <tbody>
+        <tr><td>Recall@5</td><td class="model">Mean per-query fraction of expected scenes found in the top 5</td><td class="role hide-sm">Breadth — did we find most of what was relevant?</td></tr>
+        <tr><td>Recall@10</td><td class="model">Mean per-query fraction of expected scenes found in the top 10</td><td class="role hide-sm">Same, at a wider cutoff</td></tr>
+        <tr><td>MRR</td><td class="model">Mean reciprocal rank of the first relevant result</td><td class="role hide-sm">How quickly a relevant item is found</td></tr>
+        <tr><td>nDCG@10</td><td class="model">Normalized discounted cumulative gain at 10</td><td class="role hide-sm">Whether the best results rank highest, not just whether they appear</td></tr>
+      </tbody>
+    </table>
+    <p style="color:var(--ink-dim);font-size:.92rem;margin-top:1.6rem;max-width:60ch">Retrieval can be scored across text, image, and cross-film-rhyme modalities. For ungraded queries, all relevant scenes receive the same grade; queries without any relevant scenes are rejected by validation rather than silently skipped.</p>
+  </div>
+</section>
+
+<section id="human-signal">
+  <div class="wrap">
+    <p class="eyebrow">Human-curator signal</p>
+    <h2>What did manual review actually improve?</h2>
+    <p style="color:var(--ink-dim);max-width:60ch;margin:0 0 1.6rem">Generated tags and manual annotations are stored separately, then compared after normalization. The correction-stats report is a proxy signal — it measures agreement and additions, not whether every unaccepted generated tag was actually wrong — but it gives a concrete, countable answer to "what did human review change?" instead of a vague claim that review "helps."</p>
+    <div class="status">
+      <div class="dot" style="background:var(--violet)"></div>
+      <div>
+        <h3>Correction statistics</h3>
+        <p>The comparison reports scenes with manual annotations, generated tags accepted by manual annotation, human-added tags absent from generated metadata, generated tags the curator dropped, and an overall correction rate.</p>
+        <p class="ver">Numeric results are only published once they're run against the final, verified demo artifact bundle — see docs/EVALUATION.md for the full harness and CLI commands.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap frow">
+    <span class="brand-sm"><img src="icon_Ks.png" alt="">KUAA — Knowledge from Unstructured Audiovisual Archives</span>
+    <span class="lic"><a href="https://github.com/guto-mojica/kuaa" target="_blank" rel="noopener">github.com/guto-mojica/kuaa</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

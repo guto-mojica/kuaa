@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Restrições — KUAA</title>
+<meta name="description" content="As restrições inegociáveis em torno das quais o KUAA é projetado: privacidade e operação offline, rastreabilidade em nível de execução, e tratar a saída da IA como revisável, não como autoridade." />
+
+<!-- Open Graph / social -->
+<meta property="og:title" content="Restrições — KUAA" />
+<meta property="og:description" content="Privacidade e operação offline, rastreabilidade e proveniência, incerteza do modelo e ciclo de revisão — os princípios operacionais por trás de toda decisão técnica do KUAA." />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="../scene-detail.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<link rel="icon" type="image/svg+xml" href="../icon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#0c0c11;
+    --bg-soft:#131320;
+    --panel:#161624;
+    --line:#262638;
+    --violet:#a78bfa;
+    --violet-deep:#7c5cff;
+    --yellow:#ffd60a;
+    --orange:#ff9500;
+    --ink:#ecebf5;
+    --ink-dim:#9b9ab2;
+    --ink-faint:#6b6a82;
+    --maxw:1080px;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+    --display:'Space Grotesk',system-ui,sans-serif;
+    --body:'Inter',system-ui,sans-serif;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:var(--body);font-size:17px;line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  a{color:var(--violet);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 1.5rem}
+
+  /* ---- shared type ---- */
+  .eyebrow{
+    font-family:var(--mono);font-size:.72rem;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--ink-faint);
+    display:flex;align-items:center;gap:.6rem;margin:0 0 1.1rem;
+  }
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--violet-deep)}
+  h2{
+    font-family:var(--display);font-weight:600;font-size:clamp(1.7rem,3.4vw,2.4rem);
+    line-height:1.1;letter-spacing:-.02em;margin:0 0 1rem;color:var(--ink);
+  }
+  section{padding:5.5rem 0;border-top:1px solid var(--line)}
+
+  /* ---- top nav ---- */
+  header.nav{
+    position:sticky;top:0;z-index:50;
+    backdrop-filter:blur(12px);background:rgba(12,12,17,.72);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-inner{display:flex;align-items:center;justify-content:space-between;
+    height:62px;max-width:var(--maxw);margin:0 auto;padding:0 1.5rem}
+  .brand{display:flex;align-items:center;gap:.6rem;font-family:var(--display);
+    font-weight:700;font-size:1.15rem;letter-spacing:.04em;color:var(--ink)}
+  .brand img{width:30px;height:30px;display:block}
+  .nav-links{display:flex;gap:1.6rem;font-size:.9rem}
+  .nav-links a{color:var(--ink-dim)}
+  .nav-links a:hover{color:var(--ink);text-decoration:none}
+  .nav .ghost{
+    font-family:var(--mono);font-size:.8rem;border:1px solid var(--line);
+    padding:.4rem .85rem;border-radius:7px;color:var(--ink);
+  }
+  .nav .ghost:hover{border-color:var(--violet-deep);text-decoration:none}
+  @media(max-width:680px){.nav-links{display:none}}
+
+  /* ---- hero ---- */
+  .hero{position:relative;padding:6rem 0 5rem;border-top:none;overflow:hidden}
+  .hero-graph{position:absolute;inset:0;width:100%;height:100%;opacity:.55;
+    pointer-events:none;z-index:0}
+  .hero .wrap{position:relative;z-index:1}
+  .hero h1{
+    font-family:var(--display);font-weight:700;
+    font-size:clamp(2.5rem,6.4vw,4.6rem);line-height:1.02;letter-spacing:-.03em;
+    margin:0 0 1.4rem;max-width:14ch;
+  }
+  .hero h1 .accent{
+    background:linear-gradient(100deg,var(--violet) 0%,var(--violet-deep) 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .hero .lede{font-size:1.22rem;color:var(--ink-dim);max-width:46ch;margin:0 0 2.2rem}
+  .hero .guarani{font-family:var(--mono);font-size:.8rem;color:var(--ink-faint);
+    letter-spacing:.04em;margin-bottom:1.6rem}
+  .hero .guarani b{color:var(--violet);font-weight:500}
+  .cta-row{display:flex;gap:.9rem;flex-wrap:wrap;align-items:center}
+  .btn{
+    font-family:var(--mono);font-size:.85rem;font-weight:500;
+    padding:.78rem 1.4rem;border-radius:9px;display:inline-flex;align-items:center;gap:.5rem;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .btn:hover{text-decoration:none;transform:translateY(-1px)}
+  .btn-primary{background:var(--violet-deep);color:#fff;
+    box-shadow:0 8px 24px -10px var(--violet-deep)}
+  .btn-primary:hover{box-shadow:0 12px 30px -10px var(--violet-deep)}
+  .btn-ghost{border:1px solid var(--line);color:var(--ink)}
+  .btn-ghost:hover{border-color:var(--violet)}
+
+  .hero-meta{display:flex;gap:2rem;flex-wrap:wrap;margin-top:3rem;
+    font-family:var(--mono);font-size:.78rem;color:var(--ink-faint)}
+  .hero-meta b{display:block;font-size:1.45rem;color:var(--ink);font-weight:500;
+    font-family:var(--display);letter-spacing:-.01em}
+
+  /* ---- intro statement ---- */
+  .statement p{font-size:clamp(1.25rem,2.6vw,1.6rem);line-height:1.5;
+    max-width:32ch;font-family:var(--display);font-weight:400;color:var(--ink);}
+  .statement .grid{display:grid;grid-template-columns:1.2fr 1fr;gap:3rem;align-items:start}
+  .statement .side{font-size:.98rem;color:var(--ink-dim)}
+  .statement .side p{font-family:var(--body);font-size:.98rem;max-width:none;color:var(--ink-dim)}
+  @media(max-width:760px){.statement .grid{grid-template-columns:1fr;gap:1.5rem}}
+
+  /* ---- pillars ---- */
+  .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;margin-top:2.5rem}
+  .pillar{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:1.6rem 1.5rem;transition:border-color .2s ease}
+  .pillar:hover{border-color:var(--violet-deep)}
+  .pillar .pi{width:34px;height:34px;margin-bottom:1rem}
+  .pillar h3{font-family:var(--display);font-size:1.1rem;font-weight:600;margin:0 0 .5rem}
+  .pillar p{font-size:.92rem;color:var(--ink-dim);margin:0}
+  @media(max-width:760px){.pillars{grid-template-columns:1fr}}
+
+  /* ---- pipeline ---- */
+  .pipe{display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;margin-top:2.5rem}
+  .step{background:var(--bg-soft);border:1px solid var(--line);border-radius:11px;
+    padding:1.2rem 1rem;position:relative}
+  .step .n{font-family:var(--mono);font-size:.72rem;color:var(--ink-faint);
+    letter-spacing:.1em}
+  .step .bar{height:3px;border-radius:2px;background:linear-gradient(90deg,var(--violet-deep),var(--violet));
+    margin:.7rem 0 .9rem;width:100%}
+  .step h4{font-family:var(--display);font-size:.98rem;font-weight:600;margin:0 0 .4rem}
+  .step p{font-size:.8rem;color:var(--ink-dim);margin:0;line-height:1.45}
+  @media(max-width:880px){.pipe{grid-template-columns:1fr 1fr}}
+  @media(max-width:480px){.pipe{grid-template-columns:1fr}}
+
+  /* ---- showcase ---- */
+  .shot{display:grid;grid-template-columns:1fr 1fr;gap:2.5rem;align-items:center;
+    margin-bottom:4.5rem}
+  .shot:last-child{margin-bottom:0}
+  .shot.flip .shot-text{order:2}
+  .shot-text .tag{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--violet);margin-bottom:.7rem;display:block}
+  .shot-text h3{font-family:var(--display);font-size:1.5rem;font-weight:600;
+    margin:0 0 .8rem;letter-spacing:-.01em}
+  .shot-text p{color:var(--ink-dim);font-size:.98rem;margin:0 0 .8rem}
+  .mono{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint);
+    background:var(--bg-soft);border:1px solid var(--line);border-radius:7px;
+    padding:.35rem .6rem;display:inline-block}
+  .shot figure{margin:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;
+    background:#000;box-shadow:0 24px 60px -30px rgba(0,0,0,.9)}
+  .shot figure img{width:100%;display:block}
+  @media(max-width:820px){
+    .shot{grid-template-columns:1fr;gap:1.2rem;margin-bottom:3.5rem}
+    .shot.flip .shot-text{order:0}
+  }
+
+  /* ---- stack table ---- */
+  .stack{width:100%;border-collapse:collapse;margin-top:2rem;font-size:.92rem}
+  .stack th,.stack td{text-align:left;padding:.95rem 1rem;border-bottom:1px solid var(--line)}
+  .stack th{font-family:var(--mono);font-size:.7rem;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--ink-faint);font-weight:500}
+  .stack td.model{font-family:var(--mono);font-size:.85rem;color:var(--violet)}
+  .stack td.role{color:var(--ink-dim)}
+  .stack tr:hover td{background:var(--bg-soft)}
+  @media(max-width:620px){.stack .hide-sm{display:none}}
+
+  /* ---- status / honesty note ---- */
+  .status{background:linear-gradient(160deg,var(--panel),var(--bg-soft));
+    border:1px solid var(--line);border-radius:16px;padding:2.2rem;
+    display:grid;grid-template-columns:auto 1fr;gap:1.6rem;align-items:start}
+  .status .dot{width:11px;height:11px;border-radius:50%;background:var(--yellow);
+    margin-top:.55rem;box-shadow:0 0 0 4px rgba(255,214,10,.15)}
+  .status h3{font-family:var(--display);font-size:1.25rem;margin:0 0 .6rem;font-weight:600}
+  .status p{color:var(--ink-dim);font-size:.95rem;margin:0 0 .8rem}
+  .status .ver{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint)}
+  @media(max-width:560px){.status{grid-template-columns:1fr;padding:1.6rem}}
+
+  /* ---- footer ---- */
+  footer{border-top:1px solid var(--line);padding:3rem 0 4rem;color:var(--ink-faint);
+    font-size:.85rem}
+  footer .frow{display:flex;justify-content:space-between;gap:1.5rem;flex-wrap:wrap;align-items:center}
+  footer .brand-sm{display:flex;align-items:center;gap:.55rem;font-family:var(--display);
+    color:var(--ink-dim);font-weight:600}
+  footer .brand-sm img{width:22px;height:22px}
+  footer a{color:var(--ink-dim)}
+  .lic{font-family:var(--mono);font-size:.74rem}
+
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+    html{scroll-behavior:auto}
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="index.html"><img src="../icon_Ks.png" alt="">KUAA</a>
+    <nav class="nav-links">
+      <a href="index.html">Início</a>
+      <a href="architecture.html">Arquitetura</a>
+      <a href="domain_packs.html">Pacotes de domínio</a>
+      <a href="evaluation.html">Avaliação</a>
+      <a href="run_provenance.html">Proveniência da execução</a>
+    </nav>
+    <a class="ghost" href="https://github.com/guto-mojica/kuaa" target="_blank" rel="noopener">Ver no GitHub →</a>
+    <a class="ghost" href="../constraints.html">EN</a>
+  </div>
+</header>
+
+<section class="statement" style="padding-top:4.5rem">
+  <div class="wrap">
+    <p class="eyebrow">Aprofunde-se · Restrições</p>
+    <h1 style="font-family:var(--display);font-weight:700;font-size:clamp(2.1rem,4.4vw,3.2rem);line-height:1.08;letter-spacing:-.02em;margin:0 0 1.2rem;max-width:22ch">Projetado em torno das restrições que os acervos realmente enfrentam.</h1>
+    <p class="lede" style="font-size:1.1rem;color:var(--ink-dim);max-width:56ch;font-family:var(--body)">O KUAA foi deliberadamente construído em torno de três restrições inegociáveis para instituições de patrimônio cultural: privacidade e operação offline, rastreabilidade em nível de execução, e tratar a saída da IA como uma primeira passada revisável em vez de verdade absoluta. Esses princípios orientam cada decisão técnica abaixo.</p>
+  </div>
+</section>
+
+<section id="constraints-list">
+  <div class="wrap">
+
+    <div class="status" style="margin-bottom:1.4rem">
+      <div class="dot" style="background:var(--orange)"></div>
+      <div>
+        <h3>Privacidade e operação offline</h3>
+        <p><strong>Restrição:</strong> vídeos, keyframes, consultas de busca, anotações e embeddings devem permanecer na máquina local.</p>
+        <p><strong>Como isso se sustenta:</strong> depois que as dependências e os pesos dos modelos são instalados, o pipeline e a busca rodam inteiramente offline. Consultas em texto são embutidas (embedded) localmente; consultas por imagem são armazenadas temporariamente pelo caminho da requisição web e embutidas localmente; a classificação é um produto escalar NumPy sobre embeddings locais. O FastAPI serve HTML a partir de templates Jinja locais, o HTMX e sua extensão SSE são vendorizados em <code style="font-family:var(--mono);font-size:.85em">web/static/js</code>, as fontes são vendorizadas, e os keyframes são servidos a partir do mount local <code style="font-family:var(--mono);font-size:.85em">/media</code> — nada é buscado em uma CDN no momento da requisição.</p>
+        <p>O único acesso à rede acontece durante a configuração inicial: instalação de pacotes e downloads de pesos de modelo no primeiro carregamento, para SigLIP2/OpenCLIP, YOLOv8, MTCNN e Moondream 2. Depois disso, vídeos, keyframes, descrições e tags geradas, embeddings, anotações e consultas de busca nunca são enviados a uma API de IA hospedada.</p>
+        <p class="ver">A detecção de rostos detecta e conta rostos visíveis para metadados em nível de cena — ela não realiza reconhecimento de identidade, e pode ser desativada para coleções sensíveis.</p>
+      </div>
+    </div>
+
+    <div class="status" style="margin-bottom:1.4rem">
+      <div class="dot"></div>
+      <div>
+        <h3>Rastreabilidade e proveniência</h3>
+        <p><strong>Restrição:</strong> revisores devem conseguir rastrear qualquer registro do catálogo de volta à entrada, configuração e versões de modelo exatas que o produziram.</p>
+        <p><strong>Como isso se sustenta:</strong> toda execução do pipeline escreve um <code style="font-family:var(--mono);font-size:.85em">run_manifest.json</code> registrando o caminho de entrada, existência, tamanho e data de modificação; um hash SHA-256 de configuração mais um snapshot de configuração compatível com JSON; o id, o rótulo e o caminho do pacote de domínio selecionado; os backends de modelo configurados e dicas de revisão; os estados, durações, erros e caminhos de saída por etapa; e os timestamps de início/fim e o status terminal da execução.</p>
+        <p>O manifesto é escrito após sucesso, erro, uma etapa seguinte bloqueada, ou cancelamento — não apenas em uma execução limpa. A escrita é best-effort: uma falha ao escrever o manifesto é registrada em log, mas nunca substitui o resultado real do pipeline.</p>
+      </div>
+    </div>
+
+    <div class="status">
+      <div class="dot" style="background:var(--yellow)"></div>
+      <div>
+        <h3>Incerteza do modelo e ciclo de revisão</h3>
+        <p><strong>Restrição:</strong> descrições e tags geradas são pontos de partida úteis, não registros de catálogo com autoridade final.</p>
+        <p><strong>Como isso se sustenta:</strong> as anotações manuais são armazenadas separadamente das tags geradas — <code style="font-family:var(--mono);font-size:.85em">manual_annotations.json</code> ao lado de <code style="font-family:var(--mono);font-size:.85em">scene_tags.json</code> — e mescladas apenas no momento da leitura, para busca e navegação. A saída original do modelo nunca é sobrescrita pela correção de um curador.</p>
+        <p>A avaliação trata isso como um sinal mensurável, não como um slogan: o pacote de avaliação compara os conjuntos de tags geradas e manuais e reporta quais tags geradas foram aceitas, quais foram adicionadas por um humano, e quais foram removidas — uma resposta concreta a "o que a revisão humana melhorou?"</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<footer>
+  <div class="wrap frow">
+    <span class="brand-sm"><img src="../icon_Ks.png" alt="">KUAA — Knowledge from Unstructured Audiovisual Archives</span>
+    <span class="lic"><a href="https://github.com/guto-mojica/kuaa" target="_blank" rel="noopener">github.com/guto-mojica/kuaa</a></span>
+  </div>
+</footer>
+
+</body>
+</html>
