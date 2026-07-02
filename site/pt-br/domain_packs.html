@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pacotes de Domínio — KUAA</title>
+<meta name="description" content="Como os Pacotes de Domínio do KUAA movem prompts, campos de metadados, taxonomia e o formato de exportação para configuração — para que o mesmo pipeline sirva a acervos de filmes e à triagem de ativos de mídia e radiodifusão sem mudanças de código." />
+
+<!-- Open Graph / social -->
+<meta property="og:title" content="Pacotes de Domínio — KUAA" />
+<meta property="og:description" content="Pacotes de Domínio tornam os metadados específicos de domínio declarativos: o mesmo motor de processamento, redirecionado para catalogação de acervo ou triagem de mídia e radiodifusão através de um arquivo YAML." />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="../scene-detail.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<link rel="icon" type="image/svg+xml" href="../icon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#0c0c11;
+    --bg-soft:#131320;
+    --panel:#161624;
+    --line:#262638;
+    --violet:#a78bfa;
+    --violet-deep:#7c5cff;
+    --yellow:#ffd60a;
+    --orange:#ff9500;
+    --ink:#ecebf5;
+    --ink-dim:#9b9ab2;
+    --ink-faint:#6b6a82;
+    --maxw:1080px;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+    --display:'Space Grotesk',system-ui,sans-serif;
+    --body:'Inter',system-ui,sans-serif;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:var(--body);font-size:17px;line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  a{color:var(--violet);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 1.5rem}
+
+  /* ---- shared type ---- */
+  .eyebrow{
+    font-family:var(--mono);font-size:.72rem;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--ink-faint);
+    display:flex;align-items:center;gap:.6rem;margin:0 0 1.1rem;
+  }
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--violet-deep)}
+  h2{
+    font-family:var(--display);font-weight:600;font-size:clamp(1.7rem,3.4vw,2.4rem);
+    line-height:1.1;letter-spacing:-.02em;margin:0 0 1rem;color:var(--ink);
+  }
+  section{padding:5.5rem 0;border-top:1px solid var(--line)}
+
+  /* ---- top nav ---- */
+  header.nav{
+    position:sticky;top:0;z-index:50;
+    backdrop-filter:blur(12px);background:rgba(12,12,17,.72);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-inner{display:flex;align-items:center;justify-content:space-between;
+    height:62px;max-width:var(--maxw);margin:0 auto;padding:0 1.5rem}
+  .brand{display:flex;align-items:center;gap:.6rem;font-family:var(--display);
+    font-weight:700;font-size:1.15rem;letter-spacing:.04em;color:var(--ink)}
+  .brand img{width:30px;height:30px;display:block}
+  .nav-links{display:flex;gap:1.6rem;font-size:.9rem}
+  .nav-links a{color:var(--ink-dim)}
+  .nav-links a:hover{color:var(--ink);text-decoration:none}
+  .nav .ghost{
+    font-family:var(--mono);font-size:.8rem;border:1px solid var(--line);
+    padding:.4rem .85rem;border-radius:7px;color:var(--ink);
+  }
+  .nav .ghost:hover{border-color:var(--violet-deep);text-decoration:none}
+  @media(max-width:680px){.nav-links{display:none}}
+
+  /* ---- hero ---- */
+  .hero{position:relative;padding:6rem 0 5rem;border-top:none;overflow:hidden}
+  .hero-graph{position:absolute;inset:0;width:100%;height:100%;opacity:.55;
+    pointer-events:none;z-index:0}
+  .hero .wrap{position:relative;z-index:1}
+  .hero h1{
+    font-family:var(--display);font-weight:700;
+    font-size:clamp(2.5rem,6.4vw,4.6rem);line-height:1.02;letter-spacing:-.03em;
+    margin:0 0 1.4rem;max-width:14ch;
+  }
+  .hero h1 .accent{
+    background:linear-gradient(100deg,var(--violet) 0%,var(--violet-deep) 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .hero .lede{font-size:1.22rem;color:var(--ink-dim);max-width:46ch;margin:0 0 2.2rem}
+  .hero .guarani{font-family:var(--mono);font-size:.8rem;color:var(--ink-faint);
+    letter-spacing:.04em;margin-bottom:1.6rem}
+  .hero .guarani b{color:var(--violet);font-weight:500}
+  .cta-row{display:flex;gap:.9rem;flex-wrap:wrap;align-items:center}
+  .btn{
+    font-family:var(--mono);font-size:.85rem;font-weight:500;
+    padding:.78rem 1.4rem;border-radius:9px;display:inline-flex;align-items:center;gap:.5rem;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .btn:hover{text-decoration:none;transform:translateY(-1px)}
+  .btn-primary{background:var(--violet-deep);color:#fff;
+    box-shadow:0 8px 24px -10px var(--violet-deep)}
+  .btn-primary:hover{box-shadow:0 12px 30px -10px var(--violet-deep)}
+  .btn-ghost{border:1px solid var(--line);color:var(--ink)}
+  .btn-ghost:hover{border-color:var(--violet)}
+
+  .hero-meta{display:flex;gap:2rem;flex-wrap:wrap;margin-top:3rem;
+    font-family:var(--mono);font-size:.78rem;color:var(--ink-faint)}
+  .hero-meta b{display:block;font-size:1.45rem;color:var(--ink);font-weight:500;
+    font-family:var(--display);letter-spacing:-.01em}
+
+  /* ---- intro statement ---- */
+  .statement p{font-size:clamp(1.25rem,2.6vw,1.6rem);line-height:1.5;
+    max-width:32ch;font-family:var(--display);font-weight:400;color:var(--ink);}
+  .statement .grid{display:grid;grid-template-columns:1.2fr 1fr;gap:3rem;align-items:start}
+  .statement .side{font-size:.98rem;color:var(--ink-dim)}
+  .statement .side p{font-family:var(--body);font-size:.98rem;max-width:none;color:var(--ink-dim)}
+  @media(max-width:760px){.statement .grid{grid-template-columns:1fr;gap:1.5rem}}
+
+  /* ---- pillars ---- */
+  .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;margin-top:2.5rem}
+  .pillar{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:1.6rem 1.5rem;transition:border-color .2s ease}
+  .pillar:hover{border-color:var(--violet-deep)}
+  .pillar .pi{width:34px;height:34px;margin-bottom:1rem}
+  .pillar h3{font-family:var(--display);font-size:1.1rem;font-weight:600;margin:0 0 .5rem}
+  .pillar p{font-size:.92rem;color:var(--ink-dim);margin:0}
+  @media(max-width:760px){.pillars{grid-template-columns:1fr}}
+
+  /* ---- pipeline ---- */
+  .pipe{display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;margin-top:2.5rem}
+  .step{background:var(--bg-soft);border:1px solid var(--line);border-radius:11px;
+    padding:1.2rem 1rem;position:relative}
+  .step .n{font-family:var(--mono);font-size:.72rem;color:var(--ink-faint);
+    letter-spacing:.1em}
+  .step .bar{height:3px;border-radius:2px;background:linear-gradient(90deg,var(--violet-deep),var(--violet));
+    margin:.7rem 0 .9rem;width:100%}
+  .step h4{font-family:var(--display);font-size:.98rem;font-weight:600;margin:0 0 .4rem}
+  .step p{font-size:.8rem;color:var(--ink-dim);margin:0;line-height:1.45}
+  @media(max-width:880px){.pipe{grid-template-columns:1fr 1fr}}
+  @media(max-width:480px){.pipe{grid-template-columns:1fr}}
+
+  /* ---- showcase ---- */
+  .shot{display:grid;grid-template-columns:1fr 1fr;gap:2.5rem;align-items:center;
+    margin-bottom:4.5rem}
+  .shot:last-child{margin-bottom:0}
+  .shot.flip .shot-text{order:2}
+  .shot-text .tag{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--violet);margin-bottom:.7rem;display:block}
+  .shot-text h3{font-family:var(--display);font-size:1.5rem;font-weight:600;
+    margin:0 0 .8rem;letter-spacing:-.01em}
+  .shot-text p{color:var(--ink-dim);font-size:.98rem;margin:0 0 .8rem}
+  .mono{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint);
+    background:var(--bg-soft);border:1px solid var(--line);border-radius:7px;
+    padding:.35rem .6rem;display:inline-block}
+  .shot figure{margin:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;
+    background:#000;box-shadow:0 24px 60px -30px rgba(0,0,0,.9)}
+  .shot figure img{width:100%;display:block}
+  @media(max-width:820px){
+    .shot{grid-template-columns:1fr;gap:1.2rem;margin-bottom:3.5rem}
+    .shot.flip .shot-text{order:0}
+  }
+
+  /* ---- stack table ---- */
+  .stack{width:100%;border-collapse:collapse;margin-top:2rem;font-size:.92rem}
+  .stack th,.stack td{text-align:left;padding:.95rem 1rem;border-bottom:1px solid var(--line)}
+  .stack th{font-family:var(--mono);font-size:.7rem;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--ink-faint);font-weight:500}
+  .stack td.model{font-family:var(--mono);font-size:.85rem;color:var(--violet)}
+  .stack td.role{color:var(--ink-dim)}
+  .stack tr:hover td{background:var(--bg-soft)}
+  @media(max-width:620px){.stack .hide-sm{display:none}}
+
+  /* ---- status / honesty note ---- */
+  .status{background:linear-gradient(160deg,var(--panel),var(--bg-soft));
+    border:1px solid var(--line);border-radius:16px;padding:2.2rem;
+    display:grid;grid-template-columns:auto 1fr;gap:1.6rem;align-items:start}
+  .status .dot{width:11px;height:11px;border-radius:50%;background:var(--yellow);
+    margin-top:.55rem;box-shadow:0 0 0 4px rgba(255,214,10,.15)}
+  .status h3{font-family:var(--display);font-size:1.25rem;margin:0 0 .6rem;font-weight:600}
+  .status p{color:var(--ink-dim);font-size:.95rem;margin:0 0 .8rem}
+  .status .ver{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint)}
+  @media(max-width:560px){.status{grid-template-columns:1fr;padding:1.6rem}}
+
+  /* ---- footer ---- */
+  footer{border-top:1px solid var(--line);padding:3rem 0 4rem;color:var(--ink-faint);
+    font-size:.85rem}
+  footer .frow{display:flex;justify-content:space-between;gap:1.5rem;flex-wrap:wrap;align-items:center}
+  footer .brand-sm{display:flex;align-items:center;gap:.55rem;font-family:var(--display);
+    color:var(--ink-dim);font-weight:600}
+  footer .brand-sm img{width:22px;height:22px}
+  footer a{color:var(--ink-dim)}
+  .lic{font-family:var(--mono);font-size:.74rem}
+
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+    html{scroll-behavior:auto}
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="index.html"><img src="../icon_Ks.png" alt="">KUAA</a>
+    <nav class="nav-links">
+      <a href="index.html">Início</a>
+      <a href="architecture.html">Arquitetura</a>
+      <a href="constraints.html">Restrições</a>
+      <a href="evaluation.html">Avaliação</a>
+      <a href="run_provenance.html">Proveniência da execução</a>
+    </nav>
+    <a class="ghost" href="https://github.com/guto-mojica/kuaa" target="_blank" rel="noopener">Ver no GitHub →</a>
+    <a class="ghost" href="../domain_packs.html">EN</a>
+  </div>
+</header>
+
+<section class="statement" style="padding-top:4.5rem">
+  <div class="wrap">
+    <p class="eyebrow">Aprofunde-se · Pacotes de domínio</p>
+    <h1 style="font-family:var(--display);font-weight:700;font-size:clamp(2.1rem,4.4vw,3.2rem);line-height:1.08;letter-spacing:-.02em;margin:0 0 1.2rem;max-width:22ch">Configuração em vez de código.</h1>
+    <p class="lede" style="font-size:1.1rem;color:var(--ink-dim);max-width:56ch;font-family:var(--body)">O KUAA não é fixado a um único acervo de filmes. Um pacote de domínio é um arquivo YAML que define o vocabulário específico do domínio — prompts, campos de metadados, taxonomia, filtros e mapeamento de exportação — em torno de um motor de processamento que permanece exatamente o mesmo: detecção de cenas, extração de keyframes, embeddings, e o stack de busca/híbrido/rimas/rerank nunca mudam.</p>
+  </div>
+</section>
+
+<section id="concept">
+  <div class="wrap">
+    <p class="eyebrow">O conceito de pacote de domínio</p>
+    <h2>Um motor, dois vocabulários hoje.</h2>
+    <p style="color:var(--ink-dim);max-width:60ch;margin:0 0 1.2rem">O pipeline continua detectando cenas, gerando metadados de keyframe, criando embeddings, e escrevendo arquivos JSON exatamente como antes. Um pacote de domínio define a linguagem em torno desse motor: quais prompts o descritor de cena envia, quais campos de metadados são extraídos, quais valores de taxonomia populam os filtros, e como o registro final é moldado para exportação.</p>
+    <p style="color:var(--ink-dim);max-width:60ch;margin:0">A seleção é orientada por configuração: <code class="mono">domain.pack: archive</code> carrega <code class="mono">config/domains/archive.yaml</code> por padrão, ou um <code class="mono">domain.path</code> explícito carrega qualquer arquivo de pacote diretamente. Ambos os backends de descrição de cena do Moondream leem o pacote selecionado e iteram seus <code class="mono">prompt_templates</code> — a UI renderiza os campos de metadados compartilhados, enquanto respostas extras de domínio permanecem disponíveis em <code class="mono">_raw_responses</code> e através de <code class="mono">export_mapping</code>.</p>
+  </div>
+</section>
+
+<section id="comparison">
+  <div class="wrap">
+    <p class="eyebrow">Lado a lado</p>
+    <h2>Archive vs. media_broadcast.</h2>
+    <p style="color:var(--ink-dim);max-width:60ch;margin:0 0 1rem">Dois pacotes já existem hoje: <code class="mono">archive</code> (o padrão, comportamento de catalogação de filmes) e <code class="mono">media_broadcast</code> (revisão de b-roll, descoberta de clipes, triagem de licenciamento). O que permanece idêntico entre os dois é a detecção de cenas, a extração de keyframes, os embeddings visuais, o stack de busca/híbrido/rimas/rerank, e a maquinaria de exportação JSON/CSV — apenas prompts, campos, taxonomia, filtros e mapeamento de exportação se movem para o YAML do pacote.</p>
+    <table class="stack">
+      <thead>
+        <tr><th>Aspecto</th><th>Pacote archive (padrão)</th><th class="hide-sm">Pacote media broadcast</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Intenção</td>
+          <td>Catalogar cenas históricas/de acervo para busca, revisão, preservação</td>
+          <td class="role hide-sm">Catalogar filmagens de notícias/documentário/biblioteca de produção para reuso de ativos e licenciamento</td>
+        </tr>
+        <tr>
+          <td>Campos de metadados</td>
+          <td><code class="mono" style="font-size:.72rem">description, location, setting, time_of_day, num_people, people_action, objects, tags</code></td>
+          <td class="role hide-sm"><code class="mono" style="font-size:.72rem">description, shot_type, visible_people, location_type, action, objects, logos_or_text, licensing_notes, reusable_broll_score</code></td>
+        </tr>
+        <tr>
+          <td>Eixos de taxonomia</td>
+          <td>location · time_of_day · common_tags</td>
+          <td class="role hide-sm">shot_type · location_type · rights_flags</td>
+        </tr>
+        <tr>
+          <td>Filtros</td>
+          <td>location (enum) · time_of_day (enum) · tags (seleção múltipla)</td>
+          <td class="role hide-sm">shot_type · location_type · rights_flags (text_contains) · reusable_broll_score (numeric_range)</td>
+        </tr>
+        <tr>
+          <td>Formato de exportação</td>
+          <td>Campos de cena planos — description, location, setting, time_of_day, objects, tags</td>
+          <td class="role hide-sm">Campos editoriais incl. <code class="mono" style="font-size:.72rem">_raw_responses.shot_type</code>, <code class="mono" style="font-size:.72rem">_raw_responses.licensing_notes</code>, <code class="mono" style="font-size:.72rem">_raw_responses.reusable_broll_score</code></td>
+        </tr>
+        <tr>
+          <td>Sinal específico de domínio</td>
+          <td>Heurísticas de dia/noite + interior/exterior para navegação de acervo</td>
+          <td class="role hide-sm">Sinalizações de direitos/licenciamento + pontuação de reuso de b-roll para triagem editorial</td>
+        </tr>
+        <tr>
+          <td>Conjunto de consultas de avaliação</td>
+          <td>data/eval/archive_demo_queries.yaml</td>
+          <td class="role hide-sm">data/eval/media_broadcast_queries.yaml</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <p class="eyebrow">Como funciona</p>
+    <h2>O que um arquivo de pacote precisa definir.</h2>
+    <p style="color:var(--ink-dim);max-width:60ch;margin:0 0 1.4rem">Campos obrigatórios de nível superior: <code class="mono">id</code> (um id estável de máquina, como <code class="mono">archive</code>), <code class="mono">label</code> (nome voltado ao humano), <code class="mono">metadata_fields</code> (uma lista ordenada de definições de campo), <code class="mono">prompt_templates</code> (chave de prompt → texto do prompt e orçamento de tokens), e <code class="mono">export_mapping</code> (nome do campo de exportação → caminho de metadados, usando notação de ponto, para que um pacote possa definir um formato de exportação estruturado independente do código do próprio endpoint de exportação).</p>
+    <p style="color:var(--ink-dim);max-width:60ch;margin:0 0 1.4rem">Campos opcionais: <code class="mono">description</code>, <code class="mono">taxonomy</code>, <code class="mono">filters</code>, <code class="mono">sample_outputs</code>, <code class="mono">evaluation</code>.</p>
+    <p style="color:var(--ink-dim);max-width:60ch;margin:0">Adicionar um novo domínio significa escrever um arquivo YAML, não mexer no código do pipeline: definir os campos de metadados e os templates de prompt, adicionar termos de taxonomia e filtros, adicionar um mapeamento de exportação, adicionar um pequeno arquivo de consultas de avaliação, e rodar a suíte de testes de pacotes de domínio. <code style="font-family:var(--mono);font-size:.9em">tests/test_domain_packs.py</code> comprova que ambos os pacotes existentes carregam e mapeiam exportações sem qualquer alteração no pipeline.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap frow">
+    <span class="brand-sm"><img src="../icon_Ks.png" alt="">KUAA — Knowledge from Unstructured Audiovisual Archives</span>
+    <span class="lic"><a href="https://github.com/guto-mojica/kuaa" target="_blank" rel="noopener">github.com/guto-mojica/kuaa</a></span>
+  </div>
+</footer>
+
+</body>
+</html>
