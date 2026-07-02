@@ -309,17 +309,20 @@
           {{ _('Film') }}
         </span>
       </button>
+      {# No ``id`` here: Alpine 3.14.9's x-show/x-transition never applies
+         its hide style to an id-bearing element inserted via htmx's
+         innerHTML swap, leaving the popover stuck visibly open after any
+         film-selection swap. Confirmed by A/B testing in a browser. #}
       <div class="scenes-filter-popover"
            role="dialog"
            :aria-hidden="open ? 'false' : 'true'"
            x-show="open"
            x-cloak
-           x-transition.opacity.duration.120ms
-           id="scenes-group-popover">
+           x-transition.opacity.duration.120ms>
         <header class="scenes-filter-popover__head">
           <span class="scenes-filter-popover__title">{{ _('Group scenes by') }}</span>
         </header>
-        <div class="scenes-prefs-rows" @change="refreshScenes()">
+        <div class="scenes-prefs-rows" @change="refreshScenes(); open = false">
           <label class="scenes-prefs-row">
             <input type="radio" name="group_choice" value="film"
                    x-model="$store.cenasGroup.by">
@@ -365,17 +368,17 @@
           {{ _('Timecode') }}
         </span>
       </button>
+      {# No ``id`` here — see the matching note on the Group popover above. #}
       <div class="scenes-filter-popover"
            role="dialog"
            :aria-hidden="open ? 'false' : 'true'"
            x-show="open"
            x-cloak
-           x-transition.opacity.duration.120ms
-           id="scenes-sort-popover">
+           x-transition.opacity.duration.120ms>
         <header class="scenes-filter-popover__head">
           <span class="scenes-filter-popover__title">{{ _('Sort scenes by') }}</span>
         </header>
-        <div class="scenes-prefs-rows" @change="refreshScenes()">
+        <div class="scenes-prefs-rows" @change="refreshScenes(); open = false">
           <label class="scenes-prefs-row">
             <input type="radio" name="sort_choice" value="timecode"
                    x-model="$store.cenasSort.by">

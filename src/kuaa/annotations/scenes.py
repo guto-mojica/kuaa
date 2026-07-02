@@ -15,9 +15,12 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
+from kuaa.annotations.descriptions import canonical_description
 from kuaa.annotations.io import load_annotations
 from kuaa.library import FilmContext, derive_fps, keyframe_url, load_json, to_smpte
+from kuaa.scene_ids import scene_id_key
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +145,6 @@ def ai_tags_for_scene(ctx: FilmContext, scene_id: object) -> list[dict]:
     """
     from kuaa.annotations.overrides import load as load_overrides
     from kuaa.annotations.overrides import suppressed_for_scene
-    from kuaa.scene_ids import scene_id_key
 
     llm_tags = load_json(ctx.metadata_dir / "scene_tags.json") or {}
     if not isinstance(llm_tags, dict):
@@ -167,28 +169,55 @@ def build_scene_list(ctx: FilmContext, filter_mode: str) -> tuple[list, dict, di
     ``"no_llm"`` keeps only scenes WITHOUT a valid LLM description (a
     description is "valid" if it has no ``error`` key and does not
     contain the ``_BROKEN_LLM`` placeholder); any other value keeps all
-    scenes. ``desc_by_scene`` is keyed by the raw ``scene_id`` value as
-    stored in ``scene_descriptions.json`` (NOT canonicalized — annotate
-    used direct int keys pre-extraction; preserved to keep the rendered
-    panel byte-identical).
+    scenes. ``desc_by_scene`` is keyed by the canonical ``scene_id_key``
+    string (same convention ``api.services.catalog``/``kuaa.library.metadata``
+    use), one entry per scene via :func:`canonical_description`.
     """
     meta_dir = ctx.metadata_dir
     kf_meta = load_json(meta_dir / "keyframes_metadata.json") or []
-    descriptions = load_json(meta_dir / "scene_descriptions.json") or []
+    raw_descriptions = load_json(meta_dir / "scene_descriptions.json")
+    descriptions: list[Any] = raw_descriptions if isinstance(raw_descriptions, list) else []
     annotations = load_annotations(ctx)
 
-    desc_by_scene = {d["scene_id"]: d for d in descriptions if "scene_id" in d}
+    desc_by_scene = canonical_description(descriptions)
 
     valid_desc_ids = {
-        d["scene_id"]
-        for d in descriptions
+        sid
+        for sid, d in desc_by_scene.items()
         if "error" not in d and _BROKEN_LLM not in d.get("description", "")
     }
 
+    # kuaa.scene_detector.SceneDetector.export_metadata writes N rows per
+    # scene (N=3 by default) — one per extracted keyframe, for embedding
+    # density. The Annotate scene list/navigation needs one row per scene,
+    # same dedup api.services.catalog.build_cards applies to the Cenas
+    # grid. The representative row is the middle keyframe (matches the
+    # pre-N-per-scene convention); the full sibling group is kept on
+    # ``_keyframe_group`` so scene_context can build the 3 frame-picker
+    # thumbnails from the real files instead of guessing filenames.
+    groups: dict[object, list] = {}
+    for entry in kf_meta:
+        if "scene_id" in entry:
+            groups.setdefault(entry["scene_id"], []).append(entry)
+
+    unique_kf_meta = []
+    seen: set = set()
+    for entry in kf_meta:
+        sid = entry.get("scene_id")
+        if sid is None or sid in seen:
+            continue
+        seen.add(sid)
+        group = groups[sid]
+        rep = dict(group[len(group) // 2])
+        rep["_keyframe_group"] = group
+        unique_kf_meta.append(rep)
+
     if filter_mode == "no_llm":
-        scenes = [s for s in kf_meta if s["scene_id"] not in valid_desc_ids]
+        scenes = [
+            s for s in unique_kf_meta if scene_id_key(s["scene_id"]) not in valid_desc_ids
+        ]
     else:
-        scenes = list(kf_meta)
+        scenes = unique_kf_meta
 
     return scenes, desc_by_scene, annotations
 
@@ -243,7 +272,7 @@ def scene_context(
     end_s = float(scene.get("end_time_s", 0))
     duration_s = max(0.0, end_s - start_s)
 
-    llm = desc_by_scene.get(scene_id)
+    llm = desc_by_scene.get(scene_id_key(scene_id))
     has_llm = bool(llm and _BROKEN_LLM not in llm.get("description", ""))
 
     existing_tags = annotations.get(str(scene_id), [])
@@ -252,19 +281,20 @@ def scene_context(
 
     img_url = keyframe_url(fp, ctx.data_dir)
 
-    # Derive the two sibling frames. The pipeline always extracts 3 frames per
-    # scene via PySceneDetect save_images(num_images=3), naming them -01/-02/-03
-    # at ~25/50/75 % of the scene duration. The metadata stores -02 as the
-    # representative; -01 and -03 are derived by substitution.
-    def _sibling(base: str | None, n: int) -> str:
-        if base and "-02.jpg" in base:
-            return base.replace("-02.jpg", f"-{n:02d}.jpg")
-        return base or ""
-
+    # The pipeline extracts N keyframes per scene (kuaa.scene_detector,
+    # N=3 by default) at ~25/50/75 % of the scene duration; build_scene_list
+    # stashes the real sibling rows on ``_keyframe_group`` (see there). Use
+    # the actual files rather than guessing filenames — the prior
+    # string-substitution approach silently broke when the representative
+    # row stopped always being the "-02" file.
+    group = scene.get("_keyframe_group") or [scene]
+    if len(group) >= 3:
+        picks = [group[0], group[len(group) // 2], group[-1]]
+    else:
+        picks = [group[0]] * 3
     keyframe_urls = [
-        {"url": _sibling(img_url, 1), "pct": 25},
-        {"url": img_url or "", "pct": 50},
-        {"url": _sibling(img_url, 3), "pct": 75},
+        {"url": keyframe_url(Path(g.get("filepath", "")), ctx.data_dir) or "", "pct": pct}
+        for g, pct in zip(picks, (25, 50, 75))
     ]
 
     # Mojica .a-stage context: SMPTE for the player TC readouts; short

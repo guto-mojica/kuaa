@@ -89,15 +89,18 @@ def build_cards(
 
     # Deduplicate by scene_id — the detector writes N keyframes per scene
     # (N=3 by default) for embedding density. The scene browser shows one
-    # card per scene; search deduplicates at query time via max(similarity).
-    seen_scene_ids: set = set()
-    unique_scenes: list = []
+    # card per scene, using the middle keyframe as the representative image
+    # (matches the Annotate tab's convention and the canonical record kept
+    # in ``desc_by_scene``, so the shown thumbnail and description agree);
+    # search deduplicates at query time via max(similarity).
+    groups: dict[str, list] = {}
+    order: list[str] = []
     for s in scenes:
         sid = scene_id_key(s.get("scene_id", ""))
-        if sid not in seen_scene_ids:
-            seen_scene_ids.add(sid)
-            unique_scenes.append(s)
-    scenes = unique_scenes
+        if sid not in groups:
+            order.append(sid)
+        groups.setdefault(sid, []).append(s)
+    scenes = [groups[sid][len(groups[sid]) // 2] for sid in order]
 
     cards = []
     for s in scenes:

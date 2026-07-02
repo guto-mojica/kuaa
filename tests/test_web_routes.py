@@ -1277,8 +1277,13 @@ def test_scenes_toolrow_carries_group_and_sort_hidden_inputs(client, seed_metada
     assert 'name="group"' in html
     assert 'name="sort"' in html
     # The two new popovers exist + carry the prototype's radio rows.
-    assert 'id="scenes-group-popover"' in html
-    assert 'id="scenes-sort-popover"' in html
+    #
+    # No ``id`` on the popover elements themselves (Mojica bugfix): Alpine
+    # 3.14.9's ``x-show``/``x-transition`` never applies its hide style to
+    # an ``id``-bearing element inserted via htmx's ``innerHTML`` swap —
+    # confirmed by A/B testing in a real browser — leaving the popover
+    # visibly stuck open after any film-selection swap. The ``id``s were
+    # never referenced by CSS/JS, so dropping them is a pure fix.
     assert 'name="group_choice"' in html
     assert 'name="sort_choice"' in html
     # The toolrow owns the refresh request. Radio changes trigger it only
