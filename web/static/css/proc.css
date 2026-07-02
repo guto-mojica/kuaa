@@ -467,6 +467,40 @@
   width: var(--p); background: var(--c-accent); border-radius: 2px;
 }
 
+/* Scene-detection param panel */
+.sd-params {
+  background: var(--c-raised);
+  border-radius: 6px;
+}
+.sd-label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.sd-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--c-border-2);
+  color: var(--c-muted);
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  line-height: 1;
+  cursor: help;
+  flex-shrink: 0;
+}
+.sd-hint {
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--c-faint);
+  max-width: 200px;
+  padding-top: 2px;
+}
+
 /* ─── Responsive ─────────────────────────────────────────────────────────
    The Processing tab has two big content blocks: the active-job card at
    the top and the 2-col body (live log on the left, stats/queue on the

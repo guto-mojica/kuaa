@@ -127,7 +127,7 @@ Manual tags are stored separately from generated tags, then merged at read time
 for search and browsing. This preserves the distinction between model output and
 human correction while still making curator work immediately useful.
 
-Evaluation also treats manual corrections as a measurable signal. The M2
+Evaluation also treats manual corrections as a measurable signal. The
 evaluation package can compare generated and manual tag sets and report accepted,
 added, removed, and corrected tags. That gives the project a concrete answer to
 "what did human review improve?"
@@ -186,7 +186,7 @@ A field-by-field comparison of the two packs is in [Domain packs](DOMAIN_PACKS.m
 
 ## Production signals
 
-M4 added two important engineering surfaces:
+Production readiness added two important engineering surfaces:
 
 - **Structured exports**: `/api/export/catalog.json` and
   `/api/export/catalog.csv` produce domain-aware scene catalogs that can be
@@ -198,9 +198,8 @@ M4 added two important engineering surfaces:
 These do not turn the project into a hosted platform. They make the local ML
 workflow easier to audit, reproduce, and discuss with technical reviewers.
 
-The API surface is documented in [API reference](API.md). Release gates and
-manual browser checks are documented in
-[Release verification](RELEASE_VERIFICATION.md).
+The API surface is documented in [API reference](API.md). Release gates are
+documented in [Operations](OPERATIONS.md).
 
 ## Evidence map
 
@@ -213,7 +212,7 @@ manual browser checks are documented in
 | Domain adaptability | `config/domains/`, `src/kuaa/domain.py`, [Domain packs](DOMAIN_PACKS.md) |
 | Exportable catalog | `src/kuaa/exporters/`, `api/routes/export.py`, `tests/test_exports.py` |
 | Run provenance | `src/kuaa/run_manifest.py`, `tests/test_run_manifest.py` |
-| Release discipline | [Release verification](RELEASE_VERIFICATION.md), test/lint/type gates |
+| Release discipline | [Operations](OPERATIONS.md), test/lint/type gates |
 
 ## What changed after measurement
 
@@ -240,8 +239,7 @@ Current public-release limits are intentional and documented:
 - Global prototype chrome has been removed from the launch UI; visible tool
   controls are expected to be backed by behavior.
 - Health and readiness routes (`/health`, `/ready`) ship for ops monitoring;
-  container packaging is out of scope — the project is `uv`-only with no Docker
-  (see the program spec §16).
+  container packaging is out of scope — the project is `uv`-only with no Docker.
 - Final demo screenshots, checksums, and metrics depend on the final published
   artifact bundle.
 - Model licenses and downstream usage need review before institutional or
@@ -279,5 +277,5 @@ Pending release verification:
 4. Capture populated Search, Scenes, Annotate, Processing, and About screenshots.
 5. Export JSON/CSV catalog files and preserve a sample `run_manifest.json`
    excerpt for release notes.
-6. Record the short demo and technical walkthrough using the M5 scripts.
+6. Record the short demo and technical walkthrough using the launch-package scripts.
 7. Tag the release after the automated and manual release gates pass.

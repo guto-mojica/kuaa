@@ -23,9 +23,11 @@ job-layer tests stub the pipeline class entirely.
 
 from __future__ import annotations
 
+import tempfile
 import threading
 import time
 import types
+from pathlib import Path
 
 import pytest
 
@@ -293,8 +295,16 @@ def _patch_pipeline(jobs_mod, monkeypatch, behavior="ok"):
 
     # _run_pipeline now creates a FilmContext before CatalogPipeline; tests
     # that pass object() as cfg don't have real paths, so stub for_film out.
-    _noop = types.SimpleNamespace(mkdir=lambda **_: None)
-    _stub_ctx = types.SimpleNamespace(metadata_dir=_noop, frames_dir=_noop, embeddings_dir=_noop)
+    # Use real Path objects so the cascade-clear check (ctx.metadata_dir /
+    # "keyframes_metadata.json") resolves correctly without crashing.
+    _tmp = Path(tempfile.mkdtemp())
+    _stub_ctx = types.SimpleNamespace(
+        metadata_dir=_tmp / "metadata",
+        frames_dir=_tmp / "frames",
+        embeddings_dir=_tmp / "embeddings",
+    )
+    for _d in (_stub_ctx.metadata_dir, _stub_ctx.frames_dir, _stub_ctx.embeddings_dir):
+        _d.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(FilmContext, "for_film", lambda cfg, slug: _stub_ctx)
 
 

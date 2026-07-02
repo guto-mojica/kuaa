@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Proveniência da Execução — KUAA</title>
+<meta name="description" content="Como o KUAA torna auditável todo registro de catálogo: o run_manifest.json escrito em toda execução do pipeline, o que ele registra, e por que isso importa para a revisão institucional." />
+
+<!-- Open Graph / social -->
+<meta property="og:title" content="Proveniência da Execução — KUAA" />
+<meta property="og:description" content="Toda execução escreve um manifesto imutável que rastreia os metadados do catálogo de volta à sua entrada, configuração e versões de modelo." />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="../scene-detail.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<link rel="icon" type="image/svg+xml" href="../icon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#0c0c11;
+    --bg-soft:#131320;
+    --panel:#161624;
+    --line:#262638;
+    --violet:#a78bfa;
+    --violet-deep:#7c5cff;
+    --yellow:#ffd60a;
+    --orange:#ff9500;
+    --ink:#ecebf5;
+    --ink-dim:#9b9ab2;
+    --ink-faint:#6b6a82;
+    --maxw:1080px;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+    --display:'Space Grotesk',system-ui,sans-serif;
+    --body:'Inter',system-ui,sans-serif;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:var(--body);font-size:17px;line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  a{color:var(--violet);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 1.5rem}
+
+  /* ---- shared type ---- */
+  .eyebrow{
+    font-family:var(--mono);font-size:.72rem;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--ink-faint);
+    display:flex;align-items:center;gap:.6rem;margin:0 0 1.1rem;
+  }
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--violet-deep)}
+  h2{
+    font-family:var(--display);font-weight:600;font-size:clamp(1.7rem,3.4vw,2.4rem);
+    line-height:1.1;letter-spacing:-.02em;margin:0 0 1rem;color:var(--ink);
+  }
+  section{padding:5.5rem 0;border-top:1px solid var(--line)}
+
+  /* ---- top nav ---- */
+  header.nav{
+    position:sticky;top:0;z-index:50;
+    backdrop-filter:blur(12px);background:rgba(12,12,17,.72);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-inner{display:flex;align-items:center;justify-content:space-between;
+    height:62px;max-width:var(--maxw);margin:0 auto;padding:0 1.5rem}
+  .brand{display:flex;align-items:center;gap:.6rem;font-family:var(--display);
+    font-weight:700;font-size:1.15rem;letter-spacing:.04em;color:var(--ink)}
+  .brand img{width:30px;height:30px;display:block}
+  .nav-links{display:flex;gap:1.6rem;font-size:.9rem}
+  .nav-links a{color:var(--ink-dim)}
+  .nav-links a:hover{color:var(--ink);text-decoration:none}
+  .nav .ghost{
+    font-family:var(--mono);font-size:.8rem;border:1px solid var(--line);
+    padding:.4rem .85rem;border-radius:7px;color:var(--ink);
+  }
+  .nav .ghost:hover{border-color:var(--violet-deep);text-decoration:none}
+  @media(max-width:680px){.nav-links{display:none}}
+
+  /* ---- intro statement ---- */
+  .statement p{font-size:clamp(1.25rem,2.6vw,1.6rem);line-height:1.5;
+    max-width:32ch;font-family:var(--display);font-weight:400;color:var(--ink);}
+  @media(max-width:760px){.statement .grid{grid-template-columns:1fr;gap:1.5rem}}
+
+  /* ---- status / honesty note ---- */
+  .status{background:linear-gradient(160deg,var(--panel),var(--bg-soft));
+    border:1px solid var(--line);border-radius:16px;padding:2.2rem;
+    display:grid;grid-template-columns:auto 1fr;gap:1.6rem;align-items:start}
+  .status .dot{width:11px;height:11px;border-radius:50%;background:var(--yellow);
+    margin-top:.55rem;box-shadow:0 0 0 4px rgba(255,214,10,.15)}
+  .status h3{font-family:var(--display);font-size:1.25rem;margin:0 0 .6rem;font-weight:600}
+  .status p{color:var(--ink-dim);font-size:.95rem;margin:0 0 .8rem}
+  .status .ver{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint)}
+  @media(max-width:560px){.status{grid-template-columns:1fr;padding:1.6rem}}
+
+  .mono{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint);
+    background:var(--bg-soft);border:1px solid var(--line);border-radius:7px;
+    padding:.35rem .6rem;display:inline-block}
+
+  pre.manifest{font-family:var(--mono);font-size:.82rem;line-height:1.6;color:var(--ink-dim);
+    background:var(--bg-soft);border:1px solid var(--line);border-radius:12px;
+    padding:1.5rem;overflow-x:auto;margin:1.6rem 0}
+  pre.manifest .k{color:var(--violet)}
+
+  /* ---- footer ---- */
+  footer{border-top:1px solid var(--line);padding:3rem 0 4rem;color:var(--ink-faint);
+    font-size:.85rem}
+  footer .frow{display:flex;justify-content:space-between;gap:1.5rem;flex-wrap:wrap;align-items:center}
+  footer .brand-sm{display:flex;align-items:center;gap:.55rem;font-family:var(--display);
+    color:var(--ink-dim);font-weight:600}
+  footer .brand-sm img{width:22px;height:22px}
+  footer a{color:var(--ink-dim)}
+  .lic{font-family:var(--mono);font-size:.74rem}
+
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+    html{scroll-behavior:auto}
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="index.html"><img src="../icon_Ks.png" alt="">KUAA</a>
+    <nav class="nav-links">
+      <a href="index.html">Início</a>
+      <a href="architecture.html">Arquitetura</a>
+      <a href="constraints.html">Restrições</a>
+      <a href="domain_packs.html">Pacotes de domínio</a>
+      <a href="evaluation.html">Avaliação</a>
+    </nav>
+    <a class="ghost" href="https://github.com/guto-mojica/kuaa" target="_blank" rel="noopener">Ver no GitHub →</a>
+    <a class="ghost" href="../run_provenance.html">EN</a>
+  </div>
+</header>
+
+<section class="statement" style="padding-top:4.5rem">
+  <div class="wrap">
+    <p class="eyebrow">Aprofunde-se · Proveniência da execução</p>
+    <h1 style="font-family:var(--display);font-weight:700;font-size:clamp(2.1rem,4.4vw,3.2rem);line-height:1.08;letter-spacing:-.02em;margin:0 0 1.2rem;max-width:22ch">Todo registro de catálogo rastreia de volta a uma execução.</h1>
+    <p class="lede" style="font-size:1.1rem;color:var(--ink-dim);max-width:56ch;font-family:var(--body)">Para revisores técnicos, a reprodutibilidade importa tanto quanto a precisão. Toda execução do pipeline escreve um recibo legível por máquina — <code style="font-family:var(--mono);font-size:.9em">run_manifest.json</code> — que responde: qual entrada, qual configuração, e quais versões de modelo produziram este catálogo específico?</p>
+  </div>
+</section>
+
+<section id="manifest">
+  <div class="wrap">
+    <p class="eyebrow">O manifesto de execução</p>
+    <h2>O que é registrado, em toda execução.</h2>
+    <p style="color:var(--ink-dim);max-width:60ch;margin:0 0 1rem">Um auxiliar de manifesto compartilhado escreve o mesmo registro após sucesso, erro, uma etapa seguinte bloqueada, ou cancelamento pelo usuário — não apenas em uma execução limpa. A escrita do manifesto é best-effort: uma falha de escrita é registrada em log, mas nunca substitui o resultado real do pipeline.</p>
+    <ul style="color:var(--ink-dim);font-size:.98rem;line-height:1.8;padding-left:1.2rem;margin:0 0 2rem">
+      <li>caminho de entrada, existência, tamanho e data de modificação</li>
+      <li>um hash SHA-256 de configuração mais um snapshot de configuração compatível com JSON</li>
+      <li>o id, o rótulo e o caminho do pacote de domínio selecionado</li>
+      <li>backends de modelo configurados e dicas de versão de modelo</li>
+      <li>estados, durações, erros e caminhos de saída por etapa</li>
+      <li>caminhos de artefatos de saída esperados e se cada um existe</li>
+      <li>timestamps de início/fim da execução e status terminal</li>
+    </ul>
+    <p class="eyebrow">Exemplo (formato ilustrativo)</p>
+    <pre class="manifest">{
+  <span class="k">"input"</span>: {
+    <span class="k">"path"</span>: "/data/raw/jeca_tatu_1959.mp4",
+    <span class="k">"exists"</span>: true,
+    <span class="k">"size_bytes"</span>: 812345678
+  },
+  <span class="k">"config_hash"</span>: "sha256:a9b3c4d1f...",
+  <span class="k">"domain"</span>: { <span class="k">"id"</span>: "archive", <span class="k">"label"</span>: "Film archive" },
+  <span class="k">"model_backends"</span>: {
+    <span class="k">"image_embedder"</span>: "siglip_multilingual",
+    <span class="k">"scene_describer"</span>: "moondream_transformers",
+    <span class="k">"object_detector"</span>: "yolov8"
+  },
+  <span class="k">"steps"</span>: {
+    <span class="k">"frame_extraction"</span>: { <span class="k">"status"</span>: "done", <span class="k">"duration_s"</span>: 42.1 },
+    <span class="k">"llm_description"</span>: { <span class="k">"status"</span>: "done", <span class="k">"duration_s"</span>: 5123.4 }
+  },
+  <span class="k">"terminal_status"</span>: "done"
+}</pre>
+  </div>
+</section>
+
+<section id="impact">
+  <div class="wrap">
+    <p class="eyebrow">Impacto operacional</p>
+    <h2>Por que isso importa além da auditoria.</h2>
+    <div class="status">
+      <div class="dot"></div>
+      <div>
+        <h3>Rastreável, não apenas registrado em log</h3>
+        <p>Como todo campo é estruturado e toda execução escreve um, uma mudança de configuração ou troca de modelo que altera a qualidade da recuperação pode ser rastreada de volta até a execução exata que a causou — não reconstruída de memória ou de linhas de log espalhadas.</p>
+        <p class="ver">O detalhamento completo campo a campo está em docs/OPERATIONS.md.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap frow">
+    <span class="brand-sm"><img src="../icon_Ks.png" alt="">KUAA — Knowledge from Unstructured Audiovisual Archives</span>
+    <span class="lic"><a href="https://github.com/guto-mojica/kuaa" target="_blank" rel="noopener">github.com/guto-mojica/kuaa</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

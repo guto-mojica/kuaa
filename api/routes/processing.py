@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import logging
 import uuid as _uuid
-from pathlib import Path
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 
-from api.deps import film_slug_query, get_config, make_ctx, request_gettext
+from api.deps import film_slug_query, get_config, make_ctx
 from api.jobs import (
-    STEP_DEFS,
     ConcurrencyRejected,
     cancel_job,
     get_job,
@@ -20,11 +18,11 @@ from api.jobs import (
     start_job,
     start_queued_jobs,
 )
+from api.services.pipeline_forms import PipelineFormParams, resolve_pipeline_request
 from api.services.processing_render import (
     build_processing_context,
     build_sse_generator,
     build_start_response,
-    processing_tab_response,
 )
 from api.services.processing_service import enrich_jobs
 from api.templates import templates
@@ -46,19 +44,15 @@ async def tab_processing(
 
 @router.post("/api/pipeline/start", response_class=HTMLResponse)
 async def api_pipeline_start(
-    request: Request, video_path: str = Form(...), steps: list[str] = Form(default=[])
+    request: Request, params: PipelineFormParams = Depends()
 ) -> HTMLResponse:
-    if not steps:
-        steps = [name for name, _ in STEP_DEFS]
     cfg = get_config()
-    vp = Path(video_path)
-    _ = request_gettext(request)
-    file_not_found = _("File not found. Check the path or filename.")
-    if not vp.exists():
-        logger.warning("/api/pipeline/start rejected — file not found: %s", vp)
-        return processing_tab_response(request, error_message=file_not_found)
+    resolved = resolve_pipeline_request(request, cfg, params, "/api/pipeline/start")
+    if isinstance(resolved, HTMLResponse):
+        return resolved
+    vp, steps, sd_override = resolved
     try:
-        job_id = start_job(str(vp), set(steps), cfg)
+        job_id = start_job(str(vp), steps, cfg, sd_override)
     except ConcurrencyRejected as exc:
         return HTMLResponse(f'<p class="text-error">{exc}</p>', status_code=409)
     logger.info("/api/pipeline/start — accepted job_id=%s", job_id)
@@ -69,18 +63,14 @@ async def api_pipeline_start(
     "/api/pipeline/enqueue", response_class=HTMLResponse
 )  # queue only, never auto-starts; use /queue/start
 async def api_pipeline_enqueue(
-    request: Request, video_path: str = Form(...), steps: list[str] = Form(default=[])
+    request: Request, params: PipelineFormParams = Depends()
 ) -> HTMLResponse:
-    if not steps:
-        steps = [name for name, _ in STEP_DEFS]
     cfg = get_config()
-    vp = Path(video_path)
-    _ = request_gettext(request)
-    file_not_found = _("File not found. Check the path or filename.")
-    if not vp.exists():
-        logger.warning("/api/pipeline/enqueue rejected — file not found: %s", vp)
-        return processing_tab_response(request, error_message=file_not_found)
-    queue_job(str(vp), set(steps), cfg)
+    resolved = resolve_pipeline_request(request, cfg, params, "/api/pipeline/enqueue")
+    if isinstance(resolved, HTMLResponse):
+        return resolved
+    vp, steps, sd_override = resolved
+    queue_job(str(vp), steps, cfg, sd_override)
     logger.info("/api/pipeline/enqueue — queued %s", vp)
     return build_start_response(request, cfg, vp, request.cookies.get("active_film", ""))
 

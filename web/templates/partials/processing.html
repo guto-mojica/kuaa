@@ -54,11 +54,26 @@
             so the active card, SSE log, queue, and right resource pane mount
             together after a job is accepted. -#}
         <form class="pipeline-launch-bar"
+              x-data="{
+                steps: {
+                  frame_extraction: true,
+                  scene_detection: true,
+                  visual_analysis: true,
+                  embeddings: true,
+                  llm_description: true
+                },
+                get allSteps() { return Object.values(this.steps).every(Boolean); },
+                set allSteps(v) { Object.keys(this.steps).forEach(k => { this.steps[k] = v; }); },
+                sdDetector: '{{ cfg.scene_detection.detector }}',
+                tipDetector: false,
+                tipAdaptive: false,
+                tipContent: false
+              }"
               hx-post="/api/pipeline/start"
               hx-target="closest .tab-panel"
               hx-swap="outerHTML"
               hx-indicator="#start-spinner"
-              style="display:flex; align-items:center; gap:10px;">
+              style="display:flex; flex-wrap:wrap; align-items:center; gap:10px;">
 
           {% if films %}
             <select name="video_path" class="jump-select">
@@ -70,17 +85,88 @@
             <span class="text-muted" style="font-size:0.8125rem">{{ _("No video files found in the raw directory.") }}</span>
           {% endif %}
 
-          {#- Step checkboxes — kept VISIBLE (not collapsed) so the
-              ``pipeline-steps-check`` / ``tag-pill`` markers remain in
-              the rendered DOM; styling is unchanged (defined in
-              main.css). -#}
+          {#- Step checkboxes — the "All steps" master pill toggles every
+              individual step via Alpine. Per-step pills are wired to
+              ``steps[name]`` so the master stays in sync. -#}
           <div class="pipeline-steps-check">
+            <label class="tag-pill">
+              <input type="checkbox"
+                     :checked="allSteps"
+                     @change="allSteps = $event.target.checked">
+              {{ _("All steps") }}
+            </label>
             {% for name, label in step_defs %}
               <label class="tag-pill">
-                <input type="checkbox" name="steps" value="{{ name }}" checked>
+                <input type="checkbox" name="steps" value="{{ name }}"
+                       x-model="steps['{{ name }}']">
                 {{ step_label(name) }}
               </label>
             {% endfor %}
+          </div>
+
+          {#- Scene detection params panel — visible when scene_detection
+              step is checked. Cascade warning always shown; threshold
+              inputs toggle based on detector type. -#}
+          {%- set tip_detector = _("'adaptive' compares each frame to a rolling window average — better for gradual lighting changes and subtle cuts. 'content' measures raw frame-to-frame pixel difference — faster but may miss soft transitions.") -%}
+          {%- set tip_adaptive = _("How different a frame must be from its local average to count as a cut. Lower values detect more scenes. Typical range: 2–6.") -%}
+          {%- set tip_content = _("Pixel-difference score that triggers a cut. Lower values produce more scenes. Typical range: 15–40.") -%}
+          <div class="sd-params" x-show="steps.scene_detection" x-cloak
+               style="width:100%; display:flex; flex-wrap:wrap; align-items:flex-start; gap:8px; padding:10px 12px;">
+
+            <div class="sd-warn" style="width:100%; font-size:0.75rem; color:var(--c-warn,#b45309); background:var(--c-warn-bg,#fef3c7); border:1px solid var(--c-warn-border,#fde68a); border-radius:4px; padding:6px 10px;">
+              {{ _("Re-running scene detection will delete all downstream outputs (visual analysis, embeddings, LLM descriptions). Check all steps, or run them separately after.") }}
+            </div>
+
+            <label class="sd-field" style="display:flex; flex-direction:column; gap:2px; font-size:0.75rem; color:var(--c-muted);">
+              <span class="sd-label-row">{{ _("Detector") }}<span class="sd-tip" @mouseenter="tipDetector=true" @mouseleave="tipDetector=false">?</span></span>
+              <select name="sd_detector" x-model="sdDetector"
+                      style="font-size:0.8125rem;">
+                <option value="adaptive">{{ _("adaptive") }}</option>
+                <option value="content">{{ _("content") }}</option>
+              </select>
+              <span class="sd-hint" x-show="tipDetector" x-cloak>{{ tip_detector }}</span>
+            </label>
+
+            <label class="sd-field" x-show="sdDetector === 'adaptive'"
+                   style="display:flex; flex-direction:column; gap:2px; font-size:0.75rem; color:var(--c-muted);">
+              <span class="sd-label-row">{{ _("Adaptive threshold") }}<span class="sd-tip" @mouseenter="tipAdaptive=true" @mouseleave="tipAdaptive=false">?</span></span>
+              <input type="number" name="sd_adaptive_threshold" step="0.1" min="0.1" max="100"
+                     value="{{ cfg.scene_detection.adaptive_threshold }}"
+                     style="width:6rem; font-size:0.8125rem;">
+              <span class="sd-hint" x-show="tipAdaptive" x-cloak>{{ tip_adaptive }}</span>
+            </label>
+
+            <label class="sd-field" x-show="sdDetector === 'content'"
+                   style="display:flex; flex-direction:column; gap:2px; font-size:0.75rem; color:var(--c-muted);">
+              <span class="sd-label-row">{{ _("Content threshold") }}<span class="sd-tip" @mouseenter="tipContent=true" @mouseleave="tipContent=false">?</span></span>
+              <input type="number" name="sd_content_threshold" step="0.5" min="1" max="100"
+                     value="{{ cfg.scene_detection.content_threshold }}"
+                     style="width:6rem; font-size:0.8125rem;">
+              <span class="sd-hint" x-show="tipContent" x-cloak>{{ tip_content }}</span>
+            </label>
+
+            <label class="sd-field" style="display:flex; flex-direction:column; gap:2px; font-size:0.75rem; color:var(--c-muted);">
+              {{ _("Min scene length (frames)") }}
+              <input type="number" name="sd_min_scene_len" step="1" min="1"
+                     value="{{ cfg.scene_detection.min_scene_len }}"
+                     style="width:5rem; font-size:0.8125rem;">
+            </label>
+
+            <label class="sd-field" style="display:flex; flex-direction:column; gap:2px; font-size:0.75rem; color:var(--c-muted);">
+              {{ _("Keyframes / scene") }}
+              <select name="sd_keyframes_per_scene"
+                      style="font-size:0.8125rem;">
+                <option value="1"{% if cfg.scene_detection.keyframes_per_scene == 1 %} selected{% endif %}>1</option>
+                <option value="3"{% if cfg.scene_detection.keyframes_per_scene != 1 %} selected{% endif %}>3</option>
+              </select>
+            </label>
+
+            <label class="sd-field" style="display:flex; flex-direction:column; gap:2px; font-size:0.75rem; color:var(--c-muted);">
+              {{ _("Keyframe height") }}
+              <input type="number" name="sd_keyframe_height" step="1" min="120"
+                     value="{{ cfg.scene_detection.keyframe_height }}"
+                     style="width:5rem; font-size:0.8125rem;">
+            </label>
           </div>
 
           <button type="submit" class="fx-btn primary" {% if not films %}disabled{% endif %}>

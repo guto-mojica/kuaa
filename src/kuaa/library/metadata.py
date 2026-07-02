@@ -64,6 +64,7 @@ def load_metadata(
     """
     from kuaa.annotations import load as load_annotations
     from kuaa.annotations import merge_tag_index
+    from kuaa.annotations.descriptions import canonical_description
     from kuaa.annotations.overrides import load as load_overrides
     from kuaa.scene_ids import normalize_tag_index
 
@@ -78,7 +79,7 @@ def load_metadata(
     annotations = load_annotations(metadata_dir)
     overrides = load_overrides(metadata_dir)
 
-    desc_by_scene = {scene_id_key(d["scene_id"]): d for d in descriptions if "scene_id" in d}
+    desc_by_scene = canonical_description(descriptions)
     vis_by_scene = {scene_id_key(v["scene_id"]): v for v in visual_data if "scene_id" in v}
     tag_index = normalize_tag_index(merge_tag_index(llm_tags, annotations, overrides))
 
