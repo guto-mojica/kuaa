@@ -10,6 +10,7 @@
 .pp-cp {
   display: flex; flex-direction: column; gap: var(--sp-4);
   padding: var(--sp-5); min-width: 0;
+  flex: 1; min-height: 0; overflow-y: auto;
 }
 
 /* ── Header + detect form ─────────────────────────────────────────────── */
@@ -82,6 +83,49 @@
   color: var(--c-accent-2);
 }
 .pp-stat--edited svg { width: 12px; height: 12px; }
+.pp-stat--busy { display: inline-flex; align-items: center; gap: 4px; color: var(--c-accent-2); }
+.pp-stat--busy svg { width: 12px; height: 12px; }
+
+/* ── Filmstrip: staged (pending) edits panel ────────────────────────────── */
+.pp-pending {
+  background: var(--c-panel); border: 1px solid var(--c-border);
+  border-radius: var(--r-lg); padding: var(--sp-3) var(--sp-4);
+  display: flex; flex-direction: column; gap: var(--sp-2);
+}
+.pp-pending__head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.pp-pending__count {
+  font-size: 11px; font-weight: 500; letter-spacing: .04em;
+  color: var(--c-muted); text-transform: uppercase;
+}
+.pp-pending__actions { display: inline-flex; gap: var(--sp-2); }
+.pp-pending__apply, .pp-pending__discard {
+  display: inline-flex; align-items: center; gap: 4px;
+  border: none; border-radius: var(--r-sm); cursor: pointer;
+  font-size: 11px; font-weight: 600; padding: 4px 9px;
+  font-family: var(--font-sans);
+  transition: filter var(--dur-fast);
+}
+.pp-pending__apply { background: var(--c-green); color: #0E1014; }
+.pp-pending__apply:hover { filter: brightness(1.1); }
+.pp-pending__discard { background: transparent; color: var(--c-muted); border: 1px solid var(--c-border-2); }
+.pp-pending__discard:hover { color: var(--c-text); border-color: var(--c-border-3); }
+.pp-pending__apply:disabled, .pp-pending__discard:disabled {
+  opacity: .4; cursor: not-allowed; pointer-events: none;
+}
+.pp-pending__list { list-style: none; margin: 0; padding: 0; }
+.pp-pending__item { border-top: 1px solid var(--c-border); }
+.pp-pending__item:first-child { border-top: none; }
+.pp-pending__row {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: 6px 2px; cursor: pointer; font-size: 12px; color: var(--c-text-2);
+}
+.pp-pending__checkbox { accent-color: var(--c-accent); cursor: pointer; }
+.pp-pending__dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.pp-pending__dot--merge { background: var(--c-orange); }
+.pp-pending__dot--split { background: var(--c-red); }
 
 /* ── Filmstrip: the strip band ─────────────────────────────────────────── */
 .pp-strip {
@@ -101,6 +145,13 @@
 }
 .pp-strip::before { top: 4px; }
 .pp-strip::after { bottom: 4px; }
+/* Wider than the global thin scrollbar — this is the primary way to browse
+   a long filmstrip, so its handle needs to read clearly, not disappear. */
+.pp-strip { scrollbar-width: auto; }
+.pp-strip::-webkit-scrollbar { height: 14px; }
+.pp-strip::-webkit-scrollbar-thumb { background: var(--c-border-2); border-radius: 7px; }
+.pp-strip::-webkit-scrollbar-thumb:hover { background: var(--c-border-3); }
+.pp-strip::-webkit-scrollbar-track { background: transparent; }
 
 /* ── Review surface: source-video player + filmstrip ───────────────────── */
 .pp-review { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
@@ -110,7 +161,7 @@
   border: 1px solid var(--c-border); border-radius: var(--r-lg);
 }
 .pp-player__video {
-  width: 100%; max-height: 46vh; border-radius: var(--r-md);
+  width: 100%; max-height: 38vh; border-radius: var(--r-md);
   background: #000; display: block;
 }
 .pp-player__bar {
@@ -128,7 +179,7 @@
 /* ── Filmstrip: one scene (a seek button) ──────────────────────────────── */
 .pp-scene {
   display: flex; flex-direction: column; gap: 6px;
-  margin: 0; padding: 0 6px; flex: 0 0 auto; width: 148px;
+  margin: 0; padding: 0 6px; flex: 0 0 auto; width: 175px;
   background: transparent; border: none; cursor: pointer; text-align: left;
   font: inherit; color: inherit;
 }
@@ -155,6 +206,13 @@
   font-size: 11px; color: var(--c-text-2);
 }
 .pp-scene__dur { color: var(--c-muted); }
+/* A checked, staged split would divide this scene here on Apply — the tile's
+   real thumbnail is untouched until then, this is purely an overlay. */
+.pp-scene__pending-split {
+  position: absolute; top: 0; bottom: 0; width: 2px;
+  background: var(--c-red); transform: translateX(-1px);
+  box-shadow: 0 0 0 1px rgba(14,16,20,0.5);
+}
 
 /* ── Filmstrip: the cut / splice marker between two scenes ─────────────── */
 .pp-cut {
@@ -168,6 +226,9 @@
   width: 0; border-left: 2px dashed var(--c-border-3); transform: translateX(-50%);
 }
 .pp-cut--manual::before { border-left-color: var(--c-accent); }
+/* A checked, staged merge would remove this cut on Apply — reverts to its
+   normal styling automatically once applied (real cut gone) or discarded. */
+.pp-cut--pending-merge::before { border-left-style: solid; border-left-color: var(--c-orange); }
 .pp-cut__merge {
   position: relative; z-index: var(--z-raised);
   display: inline-flex; align-items: center; justify-content: center;
@@ -178,6 +239,9 @@
 }
 .pp-cut:hover .pp-cut__merge, .pp-cut__merge:focus-visible {
   opacity: 1; color: var(--c-text); border-color: var(--c-accent); background: var(--c-raised); outline: none;
+}
+.pp-cut__merge:disabled, #pp-split-here:disabled {
+  opacity: .35; cursor: not-allowed; pointer-events: none;
 }
 
 /* ── Empty state ───────────────────────────────────────────────────────── */

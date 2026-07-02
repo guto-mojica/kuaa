@@ -26,7 +26,14 @@ from api.services.preprocess_render import (
     render_filmstrip_fragment,
 )
 from api.templates import templates
-from kuaa.preprocess import CutEditError, merge_at, split_scene
+from kuaa.preprocess import (
+    CutEditError,
+    apply_pending,
+    discard_pending,
+    stage_merge,
+    stage_split,
+    toggle_pending,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -114,19 +121,48 @@ async def api_preprocess_filmstrip(
 async def api_preprocess_split(
     request: Request, slug: str = Form(...), at_frame: int = Form(...)
 ) -> HTMLResponse:
-    """Split a scene by adding a manual cut at ``at_frame``."""
-    return _edit(request, slug, split=True, frame=at_frame)
+    """Stage a split at ``at_frame`` — cheap JSON write, no rebuild until Apply."""
+    return _run_cut_route(request, slug, lambda ctx, cfg, vp: stage_split(ctx, at_frame=at_frame))
 
 
 @router.post("/api/preprocess/cut/merge", response_class=HTMLResponse)
 async def api_preprocess_merge(
     request: Request, slug: str = Form(...), cut_frame: int = Form(...)
 ) -> HTMLResponse:
-    """Merge two scenes by removing the boundary cut at ``cut_frame``."""
-    return _edit(request, slug, split=False, frame=cut_frame)
+    """Stage a merge removing the cut at ``cut_frame`` — cheap, no rebuild until Apply."""
+    return _run_cut_route(request, slug, lambda ctx, cfg, vp: stage_merge(ctx, cut_frame=cut_frame))
 
 
-def _edit(request: Request, slug: str, *, split: bool, frame: int) -> HTMLResponse:
+@router.post("/api/preprocess/cut/pending/{index}/toggle", response_class=HTMLResponse)
+async def api_preprocess_pending_toggle(
+    request: Request, index: int, slug: str = Form(...)
+) -> HTMLResponse:
+    """Flip whether a single staged edit will be applied."""
+    return _run_cut_route(request, slug, lambda ctx, cfg, vp: toggle_pending(ctx, index=index))
+
+
+@router.post("/api/preprocess/cut/discard", response_class=HTMLResponse)
+async def api_preprocess_discard(request: Request, slug: str = Form(...)) -> HTMLResponse:
+    """Clear the staged-edit session — no rebuild, no-op if nothing staged."""
+    return _run_cut_route(request, slug, lambda ctx, cfg, vp: discard_pending(ctx))
+
+
+@router.post("/api/preprocess/cut/apply", response_class=HTMLResponse)
+async def api_preprocess_apply(request: Request, slug: str = Form(...)) -> HTMLResponse:
+    """Apply the checked staged edits — the real (now partial) rebuild."""
+    return _run_cut_route(
+        request, slug, lambda ctx, cfg, vp: apply_pending(ctx, cfg=cfg, video_path=vp)
+    )
+
+
+def _run_cut_route(request: Request, slug: str, op) -> HTMLResponse:
+    """Resolve ``slug``'s ``FilmContext`` + confirm its video is on disk (every
+    cut route shares this guard, even staging ones that don't touch the video
+    themselves — editing is only ever exposed in the UI when the source is
+    present), run ``op(ctx, cfg, video_path)``, and render the refreshed
+    filmstrip fragment. ``op`` raises ``CutEditError`` for an invalid edit,
+    mapped to a 422.
+    """
     cfg = get_config()
     video_path = film_video_path(cfg, slug)
     if video_path is None:
@@ -136,10 +172,7 @@ def _edit(request: Request, slug: str, *, split: bool, frame: int) -> HTMLRespon
     except ValueError:
         return HTMLResponse('<p class="text-error">Film not registered.</p>', status_code=404)
     try:
-        if split:
-            filmstrip = split_scene(ctx, cfg=cfg, video_path=video_path, at_frame=frame)
-        else:
-            filmstrip = merge_at(ctx, cfg=cfg, video_path=video_path, cut_frame=frame)
+        filmstrip = op(ctx, cfg, video_path)
     except CutEditError as exc:
         logger.warning("/api/preprocess/cut — %s", exc)
         return HTMLResponse(f'<p class="text-error">{exc}</p>', status_code=422)

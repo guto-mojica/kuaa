@@ -56,6 +56,9 @@
     var v = video();
     if (!v || !window.htmx) return;
     var frame = Math.round((v.currentTime || 0) * fps());
+    // Staging a split is a cheap JSON write (no rebuild), so this needs no
+    // busy/disabled-elt wiring — only "Apply changes" (in the filmstrip
+    // fragment) does.
     window.htmx.ajax('POST', '/api/preprocess/cut/split', {
       target: '#pp-filmstrip',
       swap: 'outerHTML',

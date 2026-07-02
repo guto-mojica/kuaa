@@ -105,7 +105,11 @@
       </form>
 
       {% if filmstrip and filmstrip.has_scenes %}
-        <p class="pp-rerun-note">{{ _("Re-detecting replaces the current cuts — including manual edits — and clears the downstream visual, embeddings, and description outputs.") }}</p>
+        {% if filmstrip.pending_count > 0 %}
+          <p class="pp-rerun-note">{{ _("Re-detecting replaces the current cuts — including manual edits and any pending, not-yet-applied changes — and clears the downstream visual, embeddings, and description outputs.") }}</p>
+        {% else %}
+          <p class="pp-rerun-note">{{ _("Re-detecting replaces the current cuts — including manual edits — and clears the downstream visual, embeddings, and description outputs.") }}</p>
+        {% endif %}
       {% endif %}
     {% else %}
       <p class="pp-nofilms text-muted">{{ _("No films in the library yet. Add a film to detect its scenes.") }}</p>
@@ -138,14 +142,16 @@
     </div>
   {% endif %}
 
-  {#- Review surface: source-video player + cut-timeline filmstrip. The player
-      is served off /media (offline, range-request seeking). Scrub to the true
-      cut point, then "Split at playhead" adds a manual cut at the current frame.
-      preprocess.js wires seeking / frame-stepping / split; it reads slug + fps
-      from the data-attrs here. The player lives OUTSIDE #pp-filmstrip so it
-      survives the fragment swaps that every edit triggers. -#}
+  {#- Review surface: cut-timeline filmstrip + source-video player below it.
+      The player is served off /media (offline, range-request seeking). Scrub
+      to the true cut point, then "Split at playhead" adds a manual cut at
+      the current frame. preprocess.js wires seeking / frame-stepping / split;
+      it reads slug + fps from the data-attrs here. The player lives OUTSIDE
+      #pp-filmstrip so it survives the fragment swaps that every edit
+      triggers. -#}
   {% if filmstrip and filmstrip.has_scenes and pp_video_url %}
     <div class="pp-review" id="pp-review" data-slug="{{ pp_slug }}" data-fps="{{ pp_fps }}">
+      {% include "partials/preprocess_filmstrip.html" %}
       <div class="pp-player">
         <video id="pp-video" class="pp-player__video" src="{{ pp_video_url }}"
                preload="metadata" playsinline controls></video>
@@ -164,7 +170,6 @@
         </div>
         <p class="pp-player__hint">{{ _("Scrub to the exact cut, then split. Click any keyframe to jump the player there.") }}</p>
       </div>
-      {% include "partials/preprocess_filmstrip.html" %}
     </div>
   {% else %}
     {% if filmstrip and filmstrip.has_scenes %}

@@ -815,6 +815,7 @@ def _clear_scene_detection_cascade(ctx, cfg) -> None:
         "visual_analysis.json",
         "scene_descriptions.json",
         "scene_tags.json",
+        "pending_edits.json",
     ):
         p = ctx.metadata_dir / name
         if p.exists():

@@ -34,6 +34,19 @@ except ImportError:
 SceneList = list[tuple]  # list of (FrameTimecode, FrameTimecode)
 
 
+def _boundaries_to_scene_list(boundaries: list[tuple[int, int]], fps: float) -> SceneList:
+    """Turn ``[(start_frame, end_frame), ...]`` into ``FrameTimecode`` pairs.
+
+    Shared by :meth:`SceneDetector.cuts_to_scene_list` (a whole cut set) and
+    :meth:`SceneDetector.extract_keyframes_for_boundaries` (an arbitrary
+    boundary subset), so both flow through the same PySceneDetect-facing
+    shape.
+    """
+    if not _SCENEDETECT_AVAILABLE:
+        raise RuntimeError("PySceneDetect não instalado.")
+    return [(FrameTimecode(start, fps), FrameTimecode(end, fps)) for start, end in boundaries]
+
+
 # ─── Cut-list model ──────────────────────────────────────────────────────────
 #
 # The authoritative representation of scene boundaries is a list of *interior*
@@ -396,13 +409,7 @@ class SceneDetector:
         back through the proven :meth:`extract_keyframes` /
         :meth:`export_metadata` path unchanged.
         """
-        if not _SCENEDETECT_AVAILABLE:
-            raise RuntimeError("PySceneDetect não instalado.")
-        fps = cutset.fps or 24.0
-        return [
-            (FrameTimecode(start, fps), FrameTimecode(end, fps))
-            for start, end in cutset.scene_boundaries()
-        ]
+        return _boundaries_to_scene_list(cutset.scene_boundaries(), cutset.fps or 24.0)
 
     def rebuild(
         self,
@@ -415,8 +422,12 @@ class SceneDetector:
 
         Clears ``keyframes_dir`` first so a shorter cut list never leaves
         orphaned images behind, then re-extracts every keyframe and rewrites
-        the metadata. Used by both auto re-detect and manual split/merge, so
-        the on-disk artifacts are always a pure function of the cut set.
+        the metadata. Used by auto re-detect (a fresh run has no "unchanged"
+        scenes to preserve) — manual split/merge instead go through the
+        Pre-processing review's staged-edit path
+        (:func:`kuaa.preprocess.service.apply_pending`), which only
+        re-extracts the scenes an edit actually touched and renames the rest
+        via :meth:`extract_keyframes_for_boundaries`.
         """
         keyframes_dir = Path(keyframes_dir)
         if keyframes_dir.exists():
@@ -427,6 +438,66 @@ class SceneDetector:
         keyframes = self.extract_keyframes(scene_list, video_path, keyframes_dir)
         out = self.export_metadata(scene_list, keyframes, metadata_path)
         return keyframes, out
+
+    def extract_keyframes_for_boundaries(
+        self,
+        boundaries: list[tuple[int, int]],
+        scene_ids: list[int],
+        fps: float,
+        video_path: str | Path,
+        output_dir: str | Path,
+    ) -> dict[int, list[Path]]:
+        """Extract + canonically name keyframes for a boundary subset only.
+
+        Used by the Pre-processing "Apply changes" partial rebuild: only the
+        scene(s) actually touched by a staged split/merge need a fresh video
+        decode. ``scene_ids[i]`` is the FINAL absolute scene number for
+        ``boundaries[i]`` (its position in the whole film after the edit) —
+        used to name the output files, since ``save_images`` always numbers
+        its own output starting at 1 for whatever subset it is given,
+        unrelated to a scene's true position in the film.
+
+        Returns ``{scene_id: [ordered keyframe Paths]}``.
+        """
+        if not _SCENEDETECT_AVAILABLE:
+            raise RuntimeError("PySceneDetect não instalado.")
+        if len(boundaries) != len(scene_ids):
+            raise ValueError("boundaries e scene_ids devem ter o mesmo tamanho.")
+        if not boundaries:
+            return {}
+
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        scene_list = _boundaries_to_scene_list(boundaries, fps or 24.0)
+        video_manager = open_video(str(video_path))
+        raw = save_images(
+            scene_list,
+            video_manager,
+            num_images=self.keyframes_per_scene,
+            image_extension="jpg",
+            output_dir=str(output_dir),
+            height=self.keyframe_height if self.keyframe_height > 0 else None,
+        )
+        video_manager.capture.release()
+
+        # `raw` keys are 0-based positions within `scene_list`, matching
+        # `boundaries`/`scene_ids` order 1:1 (confirmed against PySceneDetect's
+        # source — its docstring says "starting from 1" but the actual
+        # implementation enumerates from 0). Values are bare filenames
+        # relative to `output_dir`, not full paths.
+        out: dict[int, list[Path]] = {}
+        for local_idx, scene_id in enumerate(scene_ids):
+            filenames = raw.get(local_idx, [])
+            renamed: list[Path] = []
+            for pos, filename in enumerate(filenames, start=1):
+                src = output_dir / filename
+                dest = output_dir / f"scene_{scene_id:04d}_kf_{pos:02d}.jpg"
+                src.rename(dest)
+                renamed.append(dest)
+            out[scene_id] = renamed
+        logger.info("✓ %d cenas extraídas (parcial) em %s", len(scene_ids), output_dir)
+        return out
 
 
 def write_cutset(cutset: CutSet, path: str | Path) -> Path:

@@ -2,8 +2,8 @@
 
 The scene-detection rebuild (which needs PySceneDetect + a real video) is
 stubbed via ``_detector_for_rebuild`` so these tests exercise the cut-list
-math, ``scene_cuts.json`` persistence, downstream invalidation, and the
-filmstrip view model without decoding video.
+math, staged-edit persistence, the partial-rebuild rename/extract split, and
+the filmstrip view model without decoding video.
 """
 
 from __future__ import annotations
@@ -57,37 +57,51 @@ def test_read_cutset_missing_returns_none(tmp_path):
 
 
 class _FakeDetector:
-    """Stand-in for SceneDetector.rebuild: writes keyframes_metadata.json
-    consistent with the cut set's scene boundaries, no video decode."""
+    """Stand-in for SceneDetector: no video decode.
 
-    def rebuild(self, cutset, video_path, keyframes_dir, metadata_path):
-        Path(keyframes_dir).mkdir(parents=True, exist_ok=True)
-        rows = []
-        for i, (start, end) in enumerate(cutset.scene_boundaries(), start=1):
-            kf = Path(keyframes_dir) / f"scene_{i:04d}_kf_01.jpg"
-            kf.touch()
-            rows.append(
-                {
-                    "scene_id": i,
-                    "keyframe_id": f"scene_{i:04d}_kf_01",
-                    "filepath": str(kf),
-                    "start_time_s": start / cutset.fps,
-                    "end_time_s": end / cutset.fps,
-                    "duration_s": (end - start) / cutset.fps,
-                    "start_frame": start,
-                    "end_frame": end,
-                }
-            )
-        Path(metadata_path).write_text(json.dumps(rows))
-        return [], Path(metadata_path)
+    Writes deterministic sentinel content so tests can distinguish a scene
+    that was renamed (its original content survives) from one that was
+    freshly "extracted" (this fake's sentinel appears instead). Tracks every
+    call so tests can assert *which* boundaries actually needed a decode.
+    """
+
+    def __init__(self):
+        self.calls: list[list[tuple[int, int]]] = []
+
+    def extract_keyframes_for_boundaries(self, boundaries, scene_ids, fps, video_path, output_dir):
+        self.calls.append(list(boundaries))
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        out = {}
+        for scene_id in scene_ids:
+            p = output_dir / f"scene_{scene_id:04d}_kf_01.jpg"
+            p.write_text(f"decoded-{scene_id}")
+            out[scene_id] = [p]
+        return out
 
 
 def _seed_three_scenes(seed_metadata):
-    """Seed a 3-scene film with frame ranges + a matching scene_cuts.json."""
+    """Seed a 3-scene film with real on-disk keyframe files + a matching
+    scene_cuts.json. Real files (not path strings) so apply_pending's
+    rename/extract swap has real inodes to move."""
+    from kuaa.library import FilmContext
+
+    paths = seed_metadata()
+    cfg = paths["cfg"]
+    ctx = FilmContext.for_film(cfg, "default")
+
+    kf_dir = ctx.frames_dir / "scenes" / "keyframes_content"
+    kf_dir.mkdir(parents=True, exist_ok=True)
+
+    def _touch(scene_id: int) -> str:
+        p = kf_dir / f"scene_{scene_id:04d}_kf_01.jpg"
+        p.write_text(f"orig-{scene_id}")
+        return str(p)
+
     scenes = [
         {
             "scene_id": 1,
-            "filepath": "frames/s1.jpg",
+            "filepath": _touch(1),
             "start_time_s": 0.0,
             "end_time_s": 10.0,
             "start_frame": 0,
@@ -95,7 +109,7 @@ def _seed_three_scenes(seed_metadata):
         },
         {
             "scene_id": 2,
-            "filepath": "frames/s2.jpg",
+            "filepath": _touch(2),
             "start_time_s": 10.0,
             "end_time_s": 25.0,
             "start_frame": 240,
@@ -103,18 +117,15 @@ def _seed_three_scenes(seed_metadata):
         },
         {
             "scene_id": 3,
-            "filepath": "frames/s3.jpg",
+            "filepath": _touch(3),
             "start_time_s": 25.0,
             "end_time_s": 40.0,
             "start_frame": 600,
             "end_frame": 960,
         },
     ]
-    paths = seed_metadata(scenes=scenes)
-    cfg = paths["cfg"]
-    from kuaa.library import FilmContext
+    (ctx.metadata_dir / "keyframes_metadata.json").write_text(json.dumps(scenes))
 
-    ctx = FilmContext.for_film(cfg, "default")
     cutset = CutSet(
         fps=24.0,
         total_frames=960,
@@ -141,6 +152,9 @@ def test_build_filmstrip_reports_scenes_and_stats(seed_metadata):
     assert fs["scenes"][0]["cut_source"] == ""
     assert fs["scenes"][1]["cut_source"] == "auto"
     assert fs["stats"]["min_s"] == 10.0 and fs["stats"]["max_s"] == 15.0
+    # No staged edits: nothing pending, no overlays.
+    assert fs["pending_count"] == 0
+    assert all(not s["pending_removal"] and not s["pending_splits"] for s in fs["scenes"])
 
 
 def test_build_filmstrip_empty_when_no_metadata(tmp_config):
@@ -154,69 +168,189 @@ def test_build_filmstrip_empty_when_no_metadata(tmp_config):
     fs = build_filmstrip(ctx)
     assert fs["has_scenes"] is False
     assert fs["scenes"] == []
+    assert fs["pending_count"] == 0
 
 
-# ── split / merge ─────────────────────────────────────────────────────────────
+# ── Staged edits (stage_split / stage_merge / toggle / discard) ────────────────
 
 
-def test_merge_removes_cut_and_clears_downstream(seed_metadata, monkeypatch):
+def test_stage_split_and_merge_do_not_rebuild(seed_metadata):
+    cfg, ctx = _seed_three_scenes(seed_metadata)
+    from kuaa.preprocess import build_filmstrip, has_pending, stage_merge, stage_split
+
+    metadata_path = ctx.metadata_dir / "keyframes_metadata.json"
+    before = metadata_path.read_text()
+
+    assert has_pending(ctx) is False
+    fs = stage_split(ctx, at_frame=120)
+    assert has_pending(ctx) is True
+    # No rebuild: keyframes_metadata.json is untouched, downstream is intact.
+    assert metadata_path.read_text() == before
+    assert (ctx.metadata_dir / "visual_analysis.json").exists()
+    # Real tiles are unchanged; the live view reflects the staged split only
+    # as an overlay + live stats, not a new tile.
+    assert [s["index"] for s in fs["scenes"]] == [1, 2, 3]
+    assert fs["stats"]["num_scenes"] == 4  # effective (staged) count
+    assert fs["pending_count"] == 1
+    assert fs["pending_ops"][0]["type"] == "split"
+
+    fs = stage_merge(ctx, cut_frame=600)
+    assert fs["pending_count"] == 2
+    assert build_filmstrip(ctx)["stats"]["num_scenes"] == 3  # split then merge cancels out
+
+
+def test_stage_split_rejects_bad_frame(seed_metadata):
+    cfg, ctx = _seed_three_scenes(seed_metadata)
+    from kuaa.preprocess import CutEditError, stage_split
+
+    with pytest.raises(CutEditError):
+        stage_split(ctx, at_frame=240)  # existing cut
+    with pytest.raises(CutEditError):
+        stage_split(ctx, at_frame=0)  # bookend
+    with pytest.raises(CutEditError):
+        stage_split(ctx, at_frame=5000)  # past end
+
+
+def test_stage_merge_rejects_unknown_cut(seed_metadata):
+    cfg, ctx = _seed_three_scenes(seed_metadata)
+    from kuaa.preprocess import CutEditError, stage_merge
+
+    with pytest.raises(CutEditError):
+        stage_merge(ctx, cut_frame=999)
+
+
+def test_toggle_pending_flips_one_op(seed_metadata):
+    cfg, ctx = _seed_three_scenes(seed_metadata)
+    from kuaa.preprocess import stage_merge, stage_split, toggle_pending
+
+    stage_split(ctx, at_frame=120)
+    fs = stage_merge(ctx, cut_frame=600)
+    assert fs["stats"]["num_scenes"] == 3  # 3 + split(4) - merge(3)
+
+    # Uncheck the merge: only the split's effect remains live.
+    fs = toggle_pending(ctx, index=1)
+    assert fs["pending_ops"][1]["checked"] is False
+    assert fs["pending_ops"][0]["checked"] is True
+    assert fs["stats"]["num_scenes"] == 4
+
+    # Toggle it back on.
+    fs = toggle_pending(ctx, index=1)
+    assert fs["pending_ops"][1]["checked"] is True
+    assert fs["stats"]["num_scenes"] == 3
+
+
+def test_discard_pending_reverts_view(seed_metadata):
+    cfg, ctx = _seed_three_scenes(seed_metadata)
+    from kuaa.preprocess import build_filmstrip, discard_pending, has_pending, stage_split
+
+    before = build_filmstrip(ctx)
+    stage_split(ctx, at_frame=120)
+    assert has_pending(ctx) is True
+
+    fs = discard_pending(ctx)
+    assert has_pending(ctx) is False
+    assert fs["stats"] == before["stats"]
+    assert fs["pending_count"] == 0
+
+
+# ── replay() best-effort semantics (pure, no ctx needed) ───────────────────────
+
+
+def test_replay_best_effort_semantics():
+    from kuaa.preprocess.service import PendingOp, replay
+
+    base = CutSet(
+        fps=24.0,
+        total_frames=960,
+        duration_s=40.0,
+        cuts=[SceneCut(240, 10.0, "auto"), SceneCut(600, 25.0, "auto")],
+    )
+    split = PendingOp(type="split", frame=120, time_s=5.0)
+    cancel = PendingOp(type="merge", frame=120, time_s=5.0)
+
+    # Both checked: split then its own cancelling merge — net no-op.
+    result = replay(base, [split, cancel])
+    assert [c.frame for c in result.sorted_cuts()] == [240, 600]
+
+    # Only the merge checked (its originating split was unchecked/dropped):
+    # best-effort skips it instead of raising, since frame 120 isn't a cut.
+    result = replay(base, [cancel])
+    assert [c.frame for c in result.sorted_cuts()] == [240, 600]
+
+    # Only the split checked: applies normally.
+    result = replay(base, [split])
+    assert [c.frame for c in result.sorted_cuts()] == [120, 240, 600]
+
+
+# ── apply_pending (partial rebuild) ─────────────────────────────────────────────
+
+
+def test_apply_pending_errors_when_nothing_checked(seed_metadata, monkeypatch):
     cfg, ctx = _seed_three_scenes(seed_metadata)
     import kuaa.preprocess.service as svc
+    from kuaa.preprocess import CutEditError, apply_pending, stage_split, toggle_pending
+
+    stage_split(ctx, at_frame=120)
+    toggle_pending(ctx, index=0)  # unchecked -> nothing to apply
 
     monkeypatch.setattr(svc, "_detector_for_rebuild", lambda cfg, cutset: _FakeDetector())
+    with pytest.raises(CutEditError):
+        apply_pending(ctx, cfg=cfg, video_path=ctx.raw_path / "default.mp4")
+
+
+def test_apply_pending_renames_unchanged_reextracts_touched(seed_metadata, monkeypatch):
+    cfg, ctx = _seed_three_scenes(seed_metadata)
+    import kuaa.preprocess.service as svc
+    from kuaa.preprocess import apply_pending, has_pending, stage_merge
+
+    fake = _FakeDetector()
+    monkeypatch.setattr(svc, "_detector_for_rebuild", lambda cfg, cutset: fake)
     video = ctx.raw_path / "default.mp4"
 
-    fs = svc.merge_at(ctx, cfg=cfg, video_path=video, cut_frame=240)
-    assert fs["stats"]["num_scenes"] == 2
+    # Merge scenes 2+3 (cut at 600): scene 1 is untouched (same boundary,
+    # same final position) and should be renamed only, never re-extracted.
+    stage_merge(ctx, cut_frame=600)
+    fs = apply_pending(ctx, cfg=cfg, video_path=video)
 
-    # scene_cuts.json now has a single cut (600).
+    assert has_pending(ctx) is False
+    assert fs["stats"]["num_scenes"] == 2
+    # The fake detector only decoded the touched (merged) boundary.
+    assert fake.calls == [[(240, 960)]]
+
+    rows = json.loads((ctx.metadata_dir / "keyframes_metadata.json").read_text())
+    by_scene = {r["scene_id"]: r for r in rows}
+    assert Path(by_scene[1]["filepath"]).read_text() == "orig-1"  # renamed, not decoded
+    assert Path(by_scene[2]["filepath"]).read_text() == "decoded-2"  # freshly extracted
+
     cutset = read_cutset(ctx.metadata_dir / "scene_cuts.json")
-    assert [c.frame for c in cutset.cuts] == [600]
-    # Downstream artifacts cleared.
+    assert [c.frame for c in cutset.cuts] == [240]
     assert not (ctx.metadata_dir / "visual_analysis.json").exists()
     assert not (ctx.metadata_dir / "scene_descriptions.json").exists()
 
 
-def test_split_adds_manual_cut(seed_metadata, monkeypatch):
+def test_apply_pending_migrates_scene_id_overrides(seed_metadata, monkeypatch):
     cfg, ctx = _seed_three_scenes(seed_metadata)
     import kuaa.preprocess.service as svc
+    from kuaa.preprocess import apply_pending, stage_split
+
+    # Scenes 2 and 3 keep their boundaries but shift to positions 3 and 4
+    # once scene 1 is split in two; scene 1's own override has no surviving
+    # boundary and should be dropped.
+    (ctx.metadata_dir / "manual_annotations.json").write_text(
+        json.dumps({"1": ["stale"], "2": ["kept-two"], "3": ["kept-three"]})
+    )
+    (ctx.metadata_dir / "tag_overrides.json").write_text(
+        json.dumps({"1": {"suppressed": ["stale"]}, "2": {"suppressed": ["kept"]}})
+    )
 
     monkeypatch.setattr(svc, "_detector_for_rebuild", lambda cfg, cutset: _FakeDetector())
-    video = ctx.raw_path / "default.mp4"
+    stage_split(ctx, at_frame=120)
+    apply_pending(ctx, cfg=cfg, video_path=ctx.raw_path / "default.mp4")
 
-    fs = svc.split_scene(ctx, cfg=cfg, video_path=video, at_frame=120)
-    assert fs["stats"]["num_scenes"] == 4
-    assert fs["has_manual_edits"] is True
-    cutset = read_cutset(ctx.metadata_dir / "scene_cuts.json")
-    assert 120 in [c.frame for c in cutset.cuts]
-    assert any(c.frame == 120 and c.source == "manual" for c in cutset.cuts)
-
-
-def test_split_at_existing_or_out_of_range_rejected(seed_metadata, monkeypatch):
-    cfg, ctx = _seed_three_scenes(seed_metadata)
-    import kuaa.preprocess.service as svc
-    from kuaa.preprocess import CutEditError
-
-    monkeypatch.setattr(svc, "_detector_for_rebuild", lambda cfg, cutset: _FakeDetector())
-    video = ctx.raw_path / "default.mp4"
-
-    with pytest.raises(CutEditError):
-        svc.split_scene(ctx, cfg=cfg, video_path=video, at_frame=240)  # existing cut
-    with pytest.raises(CutEditError):
-        svc.split_scene(ctx, cfg=cfg, video_path=video, at_frame=0)  # bookend
-    with pytest.raises(CutEditError):
-        svc.split_scene(ctx, cfg=cfg, video_path=video, at_frame=5000)  # past end
-
-
-def test_merge_unknown_cut_rejected(seed_metadata, monkeypatch):
-    cfg, ctx = _seed_three_scenes(seed_metadata)
-    import kuaa.preprocess.service as svc
-    from kuaa.preprocess import CutEditError
-
-    monkeypatch.setattr(svc, "_detector_for_rebuild", lambda cfg, cutset: _FakeDetector())
-    video = ctx.raw_path / "default.mp4"
-    with pytest.raises(CutEditError):
-        svc.merge_at(ctx, cfg=cfg, video_path=video, cut_frame=999)
+    annotations = json.loads((ctx.metadata_dir / "manual_annotations.json").read_text())
+    assert annotations == {"3": ["kept-two"], "4": ["kept-three"]}
+    overrides = json.loads((ctx.metadata_dir / "tag_overrides.json").read_text())
+    assert overrides == {"3": {"suppressed": ["kept"]}}
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -245,6 +379,42 @@ def test_detect_unknown_film_rejected(client):
 def test_cut_merge_unknown_film_404(client):
     r = client.post("/api/preprocess/cut/merge", data={"slug": "ghost", "cut_frame": 10})
     assert r.status_code == 404
+
+
+def test_cut_apply_unknown_film_404(client):
+    r = client.post("/api/preprocess/cut/apply", data={"slug": "ghost"})
+    assert r.status_code == 404
+
+
+def test_cut_discard_unknown_film_404(client):
+    r = client.post("/api/preprocess/cut/discard", data={"slug": "ghost"})
+    assert r.status_code == 404
+
+
+def test_cut_pending_toggle_unknown_film_404(client):
+    r = client.post("/api/preprocess/cut/pending/0/toggle", data={"slug": "ghost"})
+    assert r.status_code == 404
+
+
+def test_cut_routes_stage_and_apply_end_to_end(client, seed_metadata, monkeypatch):
+    # Route-level smoke test: stage a split via HTTP, see it listed as
+    # pending, then apply it via HTTP. ``client`` and ``seed_metadata`` share
+    # the same ``tmp_config`` the routes read via ``get_config()``, so a ctx
+    # built straight from ``_seed_three_scenes`` is exactly what the routes
+    # will resolve for slug "default".
+    cfg, ctx = _seed_three_scenes(seed_metadata)
+
+    import kuaa.preprocess.service as svc
+
+    monkeypatch.setattr(svc, "_detector_for_rebuild", lambda cfg, cutset: _FakeDetector())
+
+    r = client.post("/api/preprocess/cut/split", data={"slug": "default", "at_frame": 120})
+    assert r.status_code == 200
+    assert "pp-pending" in r.text
+
+    r = client.post("/api/preprocess/cut/apply", data={"slug": "default"})
+    assert r.status_code == 200
+    assert "pp-pending" not in r.text  # nothing pending after apply
 
 
 def test_review_player_renders_when_source_present(client, seed_metadata):
