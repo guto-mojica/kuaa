@@ -32,39 +32,50 @@ def film_video_path(cfg, slug: str) -> Path | None:
     return None
 
 
-def _filmstrip_for(cfg, slug: str | None) -> tuple[dict[str, Any] | None, str]:
-    """Build the filmstrip view model + film title for ``slug``.
+def _filmstrip_for(cfg, slug: str | None) -> tuple[dict[str, Any] | None, str, str]:
+    """Build the filmstrip view model, film title, and raw-video URL for ``slug``.
 
-    Returns ``(None, "")`` when no film is selected or it is not registered.
+    Returns ``(None, "", "")`` when no film is selected or it is not registered.
+    The raw-video URL feeds the review player and is served off the ``/media``
+    mount (range-request seeking supported), so scrubbing stays fully offline.
     """
     if not slug:
-        return None, ""
+        return None, "", ""
     from kuaa.preprocess import build_filmstrip
 
     try:
         ctx = FilmContext.for_film(cfg, slug)
     except ValueError:
-        return None, ""
+        return None, "", ""
     title = next(
         (f.title for f in scan_library(Path(cfg.paths.library_dir)) if f.slug == slug), slug
     )
-    return build_filmstrip(ctx), title
+    # Serve the raw video through a dedicated range-capable route rather than the
+    # /media mount: the source often lives outside data_dir (symlinked archive),
+    # which the static mount cannot resolve. Empty when no source is on disk —
+    # the template then omits the player and explains editing needs the source.
+    _ = ctx  # data_dir no longer used for the video URL; kept for clarity
+    video_url = f"/api/preprocess/video/{slug}" if film_video_path(cfg, slug) else ""
+    return build_filmstrip(ctx), title, video_url
 
 
 def build_preprocess_context(slug: str | None) -> dict[str, Any]:
     """Build the template context for the Pre-processing tab.
 
-    Reuses ``build_processing_context`` for the film selector, any active job,
-    and the SSE log seed, then layers the selected film's filmstrip on top.
+    Reuses ``build_processing_context`` (scoped to scene-detection jobs) for the
+    film selector, any active detection job, and the SSE log seed, then layers
+    the selected film's filmstrip + review player on top.
     """
     cfg = get_config()
-    base: dict[str, Any] = dict(build_processing_context())
-    filmstrip, title = _filmstrip_for(cfg, slug)
+    base: dict[str, Any] = dict(build_processing_context(surface="preprocess"))
+    filmstrip, title, video_url = _filmstrip_for(cfg, slug)
     base.update(
         {
             "filmstrip": filmstrip,
             "pp_slug": slug or "",
             "pp_title": title,
+            "pp_video_url": video_url,
+            "pp_fps": filmstrip["fps"] if filmstrip else 24.0,
         }
     )
     return base
@@ -106,7 +117,7 @@ def build_preprocess_start_response(request, cfg, video_path: Path, cookie_slug:
 def render_filmstrip_fragment(request, slug: str):
     """Render just the filmstrip fragment for ``slug`` (post-detect refresh)."""
     cfg = get_config()
-    filmstrip, title = _filmstrip_for(cfg, slug)
+    filmstrip, title, _video = _filmstrip_for(cfg, slug)
     return templates.TemplateResponse(
         request,
         "partials/preprocess_filmstrip.html",

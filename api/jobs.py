@@ -313,6 +313,11 @@ class JobState:
     video_path: str
     status: JobStatus = JobStatus.RUNNING  # created|running|done|error|cancelled
     steps: list[StepInfo] = field(default_factory=list)
+    # The steps actually requested for this run (a subset of STEP_DEFS names).
+    # ``steps`` above always lists ALL pipeline steps for the stepper UI, so this
+    # is the discriminator for which surface owns the job (Pre-processing runs
+    # exactly {"scene_detection"}).
+    enabled_steps: frozenset[str] = field(default_factory=frozenset)
     progress: float = 0.0
     # Multi-consumer event bus. Replaces the old single-consumer
     # ``queue.Queue`` so multiple SSE streams to the same job (two
@@ -333,6 +338,15 @@ class JobState:
     created_at: float = field(default_factory=time.time)
     # Cooperative-cancel flag; the runner polls it between steps.
     _cancel: threading.Event = field(default_factory=threading.Event, repr=False)
+
+    @property
+    def is_scene_detection_only(self) -> bool:
+        """True for a Pre-processing run (exactly the scene_detection step).
+
+        ``steps`` always lists every pipeline step for the stepper UI, so the
+        surface a job belongs to is decided by ``enabled_steps``.
+        """
+        return self.enabled_steps == frozenset({"scene_detection"})
 
     # ── Pub/sub convenience methods ──────────────────────────────────
     def publish(self, name: str, data: Any = None) -> None:
@@ -504,6 +518,7 @@ class JobRegistry:
                 video_path=video_path,
                 status=STATUS_CREATED,
                 steps=[StepInfo(name=name, label=label) for name, label in STEP_DEFS],
+                enabled_steps=frozenset(enabled_steps),
             )
             self._jobs[job_id] = job
             self._evict_locked()

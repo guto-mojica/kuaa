@@ -245,3 +245,41 @@ def test_detect_unknown_film_rejected(client):
 def test_cut_merge_unknown_film_404(client):
     r = client.post("/api/preprocess/cut/merge", data={"slug": "ghost", "cut_frame": 10})
     assert r.status_code == 404
+
+
+def test_review_player_renders_when_source_present(client, seed_metadata):
+    # seed_metadata touches library/default/raw/default.mp4, so the source
+    # exists → the review player + split-at-playhead control render.
+    seed_metadata()
+    r = client.get("/tab/pre-processing?film=default")
+    assert r.status_code == 200
+    assert "pp-player__video" in r.text
+    assert 'src="/api/preprocess/video/default"' in r.text
+    assert "pp-split-here" in r.text
+
+
+def test_video_route_serves_source_with_range(client, seed_metadata):
+    paths = seed_metadata()
+    raw = Path(paths["cfg"].paths.library_dir) / "default" / "raw" / "default.mp4"
+    raw.write_bytes(b"\x00" * 4096)  # non-empty so a range is satisfiable
+    r = client.get("/api/preprocess/video/default", headers={"Range": "bytes=0-1023"})
+    assert r.status_code == 206  # partial content → seeking works
+    assert r.headers["content-type"] == "video/mp4"
+    assert r.headers.get("accept-ranges") == "bytes"
+
+
+def test_video_route_unknown_film_404(client):
+    r = client.get("/api/preprocess/video/ghost")
+    assert r.status_code == 404
+
+
+def test_job_scene_detection_only_classification():
+    from api.jobs import JobState
+
+    # A scene-detection-only run is owned by Pre-processing…
+    sd = JobState(id="a", video_path="x.mp4", enabled_steps=frozenset({"scene_detection"}))
+    assert sd.is_scene_detection_only is True
+    # …a downstream Processing run is not, even though its steps list carries
+    # every pipeline step name for the stepper UI.
+    proc = JobState(id="b", video_path="x.mp4", enabled_steps=frozenset({"visual_analysis"}))
+    assert proc.is_scene_detection_only is False

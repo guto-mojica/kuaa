@@ -138,7 +138,41 @@
     </div>
   {% endif %}
 
-  {% include "partials/preprocess_filmstrip.html" %}
+  {#- Review surface: source-video player + cut-timeline filmstrip. The player
+      is served off /media (offline, range-request seeking). Scrub to the true
+      cut point, then "Split at playhead" adds a manual cut at the current frame.
+      preprocess.js wires seeking / frame-stepping / split; it reads slug + fps
+      from the data-attrs here. The player lives OUTSIDE #pp-filmstrip so it
+      survives the fragment swaps that every edit triggers. -#}
+  {% if filmstrip and filmstrip.has_scenes and pp_video_url %}
+    <div class="pp-review" id="pp-review" data-slug="{{ pp_slug }}" data-fps="{{ pp_fps }}">
+      <div class="pp-player">
+        <video id="pp-video" class="pp-player__video" src="{{ pp_video_url }}"
+               preload="metadata" playsinline controls></video>
+        <div class="pp-player__bar">
+          <span class="pp-player__readout fx-mono" id="pp-readout" aria-live="polite">00:00:00 · f0</span>
+          <div class="pp-player__steps">
+            <button type="button" class="fx-btn secondary sm" data-frame-step="-1"
+                    title="{{ _('Previous frame') }}" aria-label="{{ _('Previous frame') }}">−1f</button>
+            <button type="button" class="fx-btn secondary sm" data-frame-step="1"
+                    title="{{ _('Next frame') }}" aria-label="{{ _('Next frame') }}">+1f</button>
+          </div>
+          <button type="button" class="fx-btn primary" id="pp-split-here"
+                  title="{{ _('Add a cut at the current playhead frame') }}">
+            {{ icon('scissors', 14) }} {{ _("Split at playhead") }}
+          </button>
+        </div>
+        <p class="pp-player__hint">{{ _("Scrub to the exact cut, then split. Click any keyframe to jump the player there.") }}</p>
+      </div>
+      {% include "partials/preprocess_filmstrip.html" %}
+    </div>
+  {% else %}
+    {% if filmstrip and filmstrip.has_scenes %}
+      <p class="pp-rerun-note">{{ _("The source video isn't on disk, so the review player and cut editing are unavailable. The detected cuts are shown below.") }}</p>
+    {% endif %}
+    {% set pp_can_edit = false %}
+    {% include "partials/preprocess_filmstrip.html" %}
+  {% endif %}
 
 </section>
 </div>

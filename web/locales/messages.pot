@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-07-02 14:19-0300\n"
+"POT-Creation-Date: 2026-07-02 15:35-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -21,37 +21,37 @@ msgstr ""
 msgid "About"
 msgstr ""
 
-#: web/templates/base.html:13 web/templates/base.html:121
-#: web/templates/base.html:129 web/templates/partials/about_modal.html:75
+#: web/templates/base.html:13 web/templates/base.html:125
+#: web/templates/base.html:133 web/templates/partials/about_modal.html:75
 msgid "KUAA"
 msgstr ""
 
-#: web/templates/base.html:122 web/templates/partials/_help_overlay.html:75
+#: web/templates/base.html:126 web/templates/partials/_help_overlay.html:75
 #: web/templates/partials/_topbar.html:67
 #: web/templates/partials/about_modal.html:182
 #: web/templates/partials/search.html:194
 msgid "Search"
 msgstr ""
 
-#: web/templates/base.html:123 web/templates/partials/_help_overlay.html:76
+#: web/templates/base.html:127 web/templates/partials/_help_overlay.html:76
 #: web/templates/partials/_topbar.html:68
 #: web/templates/partials/about_modal.html:183
 msgid "Scenes"
 msgstr ""
 
-#: web/templates/base.html:124 web/templates/partials/_help_overlay.html:77
+#: web/templates/base.html:128 web/templates/partials/_help_overlay.html:77
 #: web/templates/partials/_topbar.html:69
 #: web/templates/partials/about_modal.html:184
 #: web/templates/partials/scenes_inspector.html:145
 msgid "Annotate"
 msgstr ""
 
-#: web/templates/base.html:125 web/templates/partials/_topbar.html:71
+#: web/templates/base.html:129 web/templates/partials/_topbar.html:71
 #: web/templates/partials/preprocess.html:20
 msgid "Pre-processing"
 msgstr ""
 
-#: web/templates/base.html:126 web/templates/partials/_help_overlay.html:79
+#: web/templates/base.html:130 web/templates/partials/_help_overlay.html:79
 #: web/templates/partials/_topbar.html:72
 #: web/templates/partials/about_modal.html:186
 #: web/templates/partials/processing.html:36
@@ -59,7 +59,7 @@ msgstr ""
 msgid "Processing"
 msgstr ""
 
-#: web/templates/base.html:127 web/templates/partials/_help_overlay.html:78
+#: web/templates/base.html:131 web/templates/partials/_help_overlay.html:78
 #: web/templates/partials/about_modal.html:185
 #: web/templates/partials/rimas.html:36
 msgid "Visual rhymes"
@@ -962,7 +962,7 @@ msgid "films"
 msgstr ""
 
 #: web/templates/partials/home.html:30
-#: web/templates/partials/preprocess_filmstrip.html:18
+#: web/templates/partials/preprocess_filmstrip.html:19
 #: web/templates/partials/processing_stats.html:19
 #: web/templates/partials/scenes.html:449
 #: web/templates/partials/search_timeline.html:45
@@ -994,7 +994,7 @@ msgid "Current tags"
 msgstr ""
 
 #: web/templates/partials/inspector_properties.html:20
-#: web/templates/partials/preprocess_filmstrip.html:48
+#: web/templates/partials/preprocess_filmstrip.html:55
 #: web/templates/partials/scenes.html:510
 msgid "Scene"
 msgstr ""
@@ -1107,53 +1107,69 @@ msgstr ""
 msgid "Waiting for events…"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:12
+#: web/templates/partials/preprocess.html:156
+msgid "Previous frame"
+msgstr ""
+
+#: web/templates/partials/preprocess.html:158
+msgid "Next frame"
+msgstr ""
+
+#: web/templates/partials/preprocess.html:161
+msgid "Add a cut at the current playhead frame"
+msgstr ""
+
+#: web/templates/partials/preprocess.html:162
+msgid "Split at playhead"
+msgstr ""
+
+#: web/templates/partials/preprocess.html:165
+msgid ""
+"Scrub to the exact cut, then split. Click any keyframe to jump the player"
+" there."
+msgstr ""
+
+#: web/templates/partials/preprocess.html:171
+msgid ""
+"The source video isn't on disk, so the review player and cut editing are "
+"unavailable. The detected cuts are shown below."
+msgstr ""
+
+#: web/templates/partials/preprocess_filmstrip.html:14
 msgid "No scenes yet. Run scene detection to review its cuts here."
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:19
+#: web/templates/partials/preprocess_filmstrip.html:20
 msgid "avg"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:20
+#: web/templates/partials/preprocess_filmstrip.html:21
 msgid "median"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:21
+#: web/templates/partials/preprocess_filmstrip.html:22
 msgid "shortest"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:22
+#: web/templates/partials/preprocess_filmstrip.html:23
 msgid "longest"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:24
+#: web/templates/partials/preprocess_filmstrip.html:25
 msgid "hand-edited"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:28
+#: web/templates/partials/preprocess_filmstrip.html:29
 msgid "Detected scenes"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:34
-#: web/templates/partials/preprocess_filmstrip.html:35
+#: web/templates/partials/preprocess_filmstrip.html:38
+#: web/templates/partials/preprocess_filmstrip.html:39
 msgid "Merge with previous scene"
 msgstr ""
 
 #: web/templates/partials/preprocess_filmstrip.html:52
-msgid "Split this scene"
-msgstr ""
-
-#: web/templates/partials/preprocess_filmstrip.html:68
-msgid "Split at"
-msgstr ""
-
-#: web/templates/partials/preprocess_filmstrip.html:73
-msgid "s"
-msgstr ""
-
-#: web/templates/partials/preprocess_filmstrip.html:75
-msgid "Split"
+msgid "Jump the player to this scene"
 msgstr ""
 
 #: web/templates/partials/processing.html:37

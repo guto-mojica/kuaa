@@ -12,8 +12,8 @@ from __future__ import annotations
 import logging
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Depends, Form, Request, Response
+from fastapi.responses import FileResponse, HTMLResponse
 
 from api.deps import film_slug_query, get_config, make_ctx, resolve_film_context
 from api.jobs import ConcurrencyRejected, start_job
@@ -75,6 +75,31 @@ async def api_preprocess_detect(
         return HTMLResponse(f'<p class="text-error">{exc}</p>', status_code=409)
     logger.info("/api/preprocess/detect — accepted job_id=%s", job_id)
     return build_preprocess_start_response(request, cfg, vp, film)
+
+
+_VIDEO_MEDIA_TYPES = {
+    ".mp4": "video/mp4",
+    ".m4v": "video/x-m4v",
+    ".mkv": "video/x-matroska",
+    ".webm": "video/webm",
+    ".mov": "video/quicktime",
+    ".avi": "video/x-msvideo",
+}
+
+
+@router.get("/api/preprocess/video/{slug}")
+async def api_preprocess_video(slug: str) -> Response:
+    """Stream a film's source video for the review player (range-seekable).
+
+    ``FileResponse`` honours the ``Range`` header and reads the resolved file
+    directly, so a source symlinked outside ``data_dir`` still plays.
+    """
+    cfg = get_config()
+    video_path = film_video_path(cfg, slug)
+    if video_path is None:
+        return HTMLResponse('<p class="text-error">Source video not found.</p>', status_code=404)
+    media_type = _VIDEO_MEDIA_TYPES.get(video_path.suffix.lower(), "application/octet-stream")
+    return FileResponse(video_path, media_type=media_type)
 
 
 @router.get("/api/preprocess/filmstrip", response_class=HTMLResponse)

@@ -164,7 +164,7 @@ _TAB_CONTEXT_BUILDERS = {
     # parsing ``?film=<slug>``. See the matching ``elif`` branches below.
     # annotate is handled directly in render_page's if/elif chain so it can
     # receive current_slug (from ?film= query param or active_film cookie).
-    "processing": build_processing_context,
+    "processing": lambda: build_processing_context(),
     # Rimas Visuais (cross-film visual rhymes) — Task 21 wires the real
     # service builder. The full-page render reads ``?anchor=`` like the
     # tab-fragment endpoint so a deep-share URL (``/rimas?anchor=jeca/1``)

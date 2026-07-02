@@ -45,7 +45,7 @@ class PipelineFormParams:
 def sd_override_from_fields(
     cfg,
     *,
-    detector: str,
+    detector: Literal["content", "adaptive"],
     adaptive_threshold: float,
     content_threshold: float,
     min_scene_len: int,

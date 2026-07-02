@@ -102,16 +102,47 @@
 .pp-strip::before { top: 4px; }
 .pp-strip::after { bottom: 4px; }
 
-/* ── Filmstrip: one scene ──────────────────────────────────────────────── */
+/* ── Review surface: source-video player + filmstrip ───────────────────── */
+.pp-review { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.pp-player {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  padding: var(--sp-3); background: var(--c-panel);
+  border: 1px solid var(--c-border); border-radius: var(--r-lg);
+}
+.pp-player__video {
+  width: 100%; max-height: 46vh; border-radius: var(--r-md);
+  background: #000; display: block;
+}
+.pp-player__bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-3);
+}
+.pp-player__readout {
+  font-size: 13px; color: var(--c-text); padding: 4px 10px;
+  background: var(--c-bg); border: 1px solid var(--c-border); border-radius: var(--r-md);
+}
+.pp-player__steps { display: inline-flex; gap: 6px; }
+.pp-player__steps .fx-btn { font-family: var(--font-mono); }
+#pp-split-here { margin-left: auto; }
+.pp-player__hint { margin: 0; font-size: 11.5px; color: var(--c-muted); }
+
+/* ── Filmstrip: one scene (a seek button) ──────────────────────────────── */
 .pp-scene {
   display: flex; flex-direction: column; gap: 6px;
   margin: 0; padding: 0 6px; flex: 0 0 auto; width: 148px;
+  background: transparent; border: none; cursor: pointer; text-align: left;
+  font: inherit; color: inherit;
 }
 .pp-scene__frame {
-  position: relative; aspect-ratio: 16 / 9; width: 100%;
+  position: relative; display: block; aspect-ratio: 16 / 9; width: 100%;
   border-radius: var(--r-sm); overflow: hidden;
   background: var(--c-bg); border: 1px solid var(--c-border);
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
 }
+.pp-scene:hover .pp-scene__frame,
+.pp-scene:focus-visible .pp-scene__frame {
+  border-color: var(--c-accent); box-shadow: var(--focus-ring);
+}
+.pp-scene:focus-visible { outline: none; }
 .pp-scene__frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .pp-scene__idx {
   position: absolute; top: 4px; left: 4px;
@@ -119,35 +150,11 @@
   font-size: 10px; font-weight: 600; color: var(--c-text);
   background: rgba(14,16,20,0.72); backdrop-filter: blur(2px);
 }
-.pp-scene__split {
-  position: absolute; top: 4px; right: 4px;
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 24px; height: 24px; border-radius: var(--r-sm);
-  color: #fff; background: rgba(14,16,20,0.66); border: none; cursor: pointer;
-  opacity: 0; transform: translateY(-2px);
-  transition: opacity var(--dur-fast), transform var(--dur-fast), background var(--dur-fast);
-}
-.pp-scene:hover .pp-scene__split,
-.pp-scene__split:focus-visible { opacity: 1; transform: none; }
-.pp-scene__split:hover { background: var(--c-accent-btn); }
 .pp-scene__meta {
   display: flex; align-items: baseline; justify-content: space-between; gap: 6px;
   font-size: 11px; color: var(--c-text-2);
 }
 .pp-scene__dur { color: var(--c-muted); }
-
-/* Split-at inline form (revealed by the scissor toggle). */
-.pp-split {
-  display: flex; flex-direction: column; gap: 6px;
-  padding: 8px; border-radius: var(--r-md);
-  background: var(--c-raised); border: 1px solid var(--c-border-2);
-}
-.pp-split__field {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 10.5px; color: var(--c-muted); text-transform: uppercase;
-}
-.pp-split__field .fx-num { width: 100%; font-size: 12px; padding: 4px 7px; }
-.pp-split__unit { color: var(--c-faint); }
 
 /* ── Filmstrip: the cut / splice marker between two scenes ─────────────── */
 .pp-cut {
@@ -182,7 +189,7 @@
 .pp-empty__glyph { color: var(--c-accent-dim); display: inline-flex; }
 .pp-empty__text { font-size: 13px; color: var(--c-muted); margin: 0; max-width: 34ch; }
 
-/* Reduced-motion: neutralise the reveal transitions. */
+/* Reduced-motion: neutralise hover transitions. */
 @media (prefers-reduced-motion: reduce) {
-  .pp-scene__split { opacity: 1; transform: none; transition: none; }
+  .pp-scene__frame { transition: none; }
 }

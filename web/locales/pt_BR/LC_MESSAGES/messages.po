@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kuaa-ai 0.3.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-07-02 14:19-0300\n"
+"POT-Creation-Date: 2026-07-02 15:35-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pt_BR\n"
@@ -19,38 +19,38 @@ msgid "About"
 msgstr "Sobre"
 
 # ── About surface (Mojica redesign · Task 29) ─────────────────────────
-#: web/templates/base.html:13 web/templates/base.html:121
-#: web/templates/base.html:129 web/templates/partials/about_modal.html:75
+#: web/templates/base.html:13 web/templates/base.html:125
+#: web/templates/base.html:133 web/templates/partials/about_modal.html:75
 msgid "KUAA"
 msgstr "KUAA"
 
 # ── Navigation / chrome ───────────────────────────────────────────────
-#: web/templates/base.html:122 web/templates/partials/_help_overlay.html:75
+#: web/templates/base.html:126 web/templates/partials/_help_overlay.html:75
 #: web/templates/partials/_topbar.html:67
 #: web/templates/partials/about_modal.html:182
 #: web/templates/partials/search.html:194
 msgid "Search"
 msgstr "Buscar"
 
-#: web/templates/base.html:123 web/templates/partials/_help_overlay.html:76
+#: web/templates/base.html:127 web/templates/partials/_help_overlay.html:76
 #: web/templates/partials/_topbar.html:68
 #: web/templates/partials/about_modal.html:183
 msgid "Scenes"
 msgstr "Cenas"
 
-#: web/templates/base.html:124 web/templates/partials/_help_overlay.html:77
+#: web/templates/base.html:128 web/templates/partials/_help_overlay.html:77
 #: web/templates/partials/_topbar.html:69
 #: web/templates/partials/about_modal.html:184
 #: web/templates/partials/scenes_inspector.html:145
 msgid "Annotate"
 msgstr "Anotar"
 
-#: web/templates/base.html:125 web/templates/partials/_topbar.html:71
+#: web/templates/base.html:129 web/templates/partials/_topbar.html:71
 #: web/templates/partials/preprocess.html:20
 msgid "Pre-processing"
 msgstr "Pré-processamento"
 
-#: web/templates/base.html:126 web/templates/partials/_help_overlay.html:79
+#: web/templates/base.html:130 web/templates/partials/_help_overlay.html:79
 #: web/templates/partials/_topbar.html:72
 #: web/templates/partials/about_modal.html:186
 #: web/templates/partials/processing.html:36
@@ -58,7 +58,7 @@ msgstr "Pré-processamento"
 msgid "Processing"
 msgstr "Processamento"
 
-#: web/templates/base.html:127 web/templates/partials/_help_overlay.html:78
+#: web/templates/base.html:131 web/templates/partials/_help_overlay.html:78
 #: web/templates/partials/about_modal.html:185
 #: web/templates/partials/rimas.html:36
 msgid "Visual rhymes"
@@ -986,7 +986,7 @@ msgid "films"
 msgstr "filmes"
 
 #: web/templates/partials/home.html:30
-#: web/templates/partials/preprocess_filmstrip.html:18
+#: web/templates/partials/preprocess_filmstrip.html:19
 #: web/templates/partials/processing_stats.html:19
 #: web/templates/partials/scenes.html:449
 #: web/templates/partials/search_timeline.html:45
@@ -1018,7 +1018,7 @@ msgid "Current tags"
 msgstr "Tags atuais"
 
 #: web/templates/partials/inspector_properties.html:20
-#: web/templates/partials/preprocess_filmstrip.html:48
+#: web/templates/partials/preprocess_filmstrip.html:55
 #: web/templates/partials/scenes.html:510
 msgid "Scene"
 msgstr "Cena"
@@ -1142,56 +1142,76 @@ msgstr "Log de detecção"
 msgid "Waiting for events…"
 msgstr "Aguardando eventos…"
 
-#: web/templates/partials/preprocess_filmstrip.html:12
+#: web/templates/partials/preprocess.html:156
+msgid "Previous frame"
+msgstr "Quadro anterior"
+
+#: web/templates/partials/preprocess.html:158
+msgid "Next frame"
+msgstr "Próximo quadro"
+
+#: web/templates/partials/preprocess.html:161
+msgid "Add a cut at the current playhead frame"
+msgstr "Adiciona um corte no quadro atual do player"
+
+#: web/templates/partials/preprocess.html:162
+msgid "Split at playhead"
+msgstr "Dividir no ponto atual"
+
+#: web/templates/partials/preprocess.html:165
+msgid ""
+"Scrub to the exact cut, then split. Click any keyframe to jump the player"
+" there."
+msgstr ""
+"Navegue até o corte exato e então divida. Clique em um keyframe para "
+"levar o player até ele."
+
+#: web/templates/partials/preprocess.html:171
+msgid ""
+"The source video isn't on disk, so the review player and cut editing are "
+"unavailable. The detected cuts are shown below."
+msgstr ""
+"O vídeo de origem não está no disco, então o player de revisão e a edição"
+" de cortes ficam indisponíveis. Os cortes detectados são exibidos abaixo."
+
+#: web/templates/partials/preprocess_filmstrip.html:14
 msgid "No scenes yet. Run scene detection to review its cuts here."
 msgstr ""
 "Nenhuma cena ainda. Rode a detecção de cenas para revisar seus cortes "
 "aqui."
 
-#: web/templates/partials/preprocess_filmstrip.html:19
+#: web/templates/partials/preprocess_filmstrip.html:20
 msgid "avg"
 msgstr "média"
 
-#: web/templates/partials/preprocess_filmstrip.html:20
+#: web/templates/partials/preprocess_filmstrip.html:21
 msgid "median"
 msgstr "mediana"
 
-#: web/templates/partials/preprocess_filmstrip.html:21
+#: web/templates/partials/preprocess_filmstrip.html:22
 msgid "shortest"
 msgstr "mais curta"
 
-#: web/templates/partials/preprocess_filmstrip.html:22
+#: web/templates/partials/preprocess_filmstrip.html:23
 msgid "longest"
 msgstr "mais longa"
 
-#: web/templates/partials/preprocess_filmstrip.html:24
+#: web/templates/partials/preprocess_filmstrip.html:25
 msgid "hand-edited"
 msgstr "editado à mão"
 
-#: web/templates/partials/preprocess_filmstrip.html:28
+#: web/templates/partials/preprocess_filmstrip.html:29
 msgid "Detected scenes"
 msgstr "Cenas detectadas"
 
-#: web/templates/partials/preprocess_filmstrip.html:34
-#: web/templates/partials/preprocess_filmstrip.html:35
+#: web/templates/partials/preprocess_filmstrip.html:38
+#: web/templates/partials/preprocess_filmstrip.html:39
 msgid "Merge with previous scene"
 msgstr "Mesclar com a cena anterior"
 
 #: web/templates/partials/preprocess_filmstrip.html:52
-msgid "Split this scene"
-msgstr "Dividir esta cena"
-
-#: web/templates/partials/preprocess_filmstrip.html:68
-msgid "Split at"
-msgstr "Dividir em"
-
-#: web/templates/partials/preprocess_filmstrip.html:73
-msgid "s"
-msgstr "s"
-
-#: web/templates/partials/preprocess_filmstrip.html:75
-msgid "Split"
-msgstr "Dividir"
+msgid "Jump the player to this scene"
+msgstr "Levar o player para esta cena"
 
 #: web/templates/partials/processing.html:37
 msgid "active"
@@ -2129,4 +2149,10 @@ msgstr "Linha do tempo das cenas do filme"
 #~ "(análise visual, embeddings, descrições LLM)."
 #~ " Marque todas as etapas ou "
 #~ "execute-as separadamente depois."
+
+#~ msgid "s"
+#~ msgstr "s"
+
+#~ msgid "Split"
+#~ msgstr "Dividir"
 

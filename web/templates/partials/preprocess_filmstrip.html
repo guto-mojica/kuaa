@@ -3,8 +3,10 @@
 {#- Cut-timeline filmstrip — the Pre-processing signature surface.
 
     Scenes render as a contiguous band of keyframes separated by splice cut
-    markers. Merge removes the cut that opens a scene; split adds a manual cut
-    inside one. Every edit POSTs back the whole ``#pp-filmstrip`` fragment. -#}
+    markers. Clicking a keyframe seeks the review player to that scene's start
+    (handled by preprocess.js via ``data-seek``). Merge removes the cut that
+    opens a scene (HTMX). Splitting is done at the player playhead, so this
+    fragment carries no per-scene form — every edit re-renders ``#pp-filmstrip``. -#}
 <div id="pp-filmstrip" class="pp-filmstrip">
 {% if not filmstrip or not filmstrip.has_scenes %}
   <div class="pp-empty">
@@ -12,7 +14,6 @@
     <p class="pp-empty__text">{{ _("No scenes yet. Run scene detection to review its cuts here.") }}</p>
   </div>
 {% else %}
-  {%- set fps = filmstrip.fps or 24.0 -%}
   {%- set st = filmstrip.stats -%}
   <div class="pp-stats fx-mono">
     <span class="pp-stat"><b>{{ st.num_scenes }}</b> {{ _("scenes") }}</span>
@@ -28,8 +29,11 @@
   <div class="pp-strip" role="list" aria-label="{{ _('Detected scenes') }}">
     {% for s in filmstrip.scenes %}
       {% if not loop.first %}
-        {#- Splice between the previous scene and this one; merge deletes it. -#}
+        {#- Splice between the previous scene and this one; merge deletes it.
+            Editing needs the source video (rebuild re-extracts keyframes), so
+            the merge control is hidden when it is unavailable. -#}
         <div class="pp-cut{% if s.cut_source == 'manual' %} pp-cut--manual{% endif %}">
+          {% if pp_can_edit | default(true) %}
           <button type="button" class="pp-cut__merge"
                   title="{{ _('Merge with previous scene') }}"
                   aria-label="{{ _('Merge with previous scene') }}"
@@ -38,43 +42,25 @@
                   hx-target="#pp-filmstrip" hx-swap="outerHTML">
             {{ icon('merge', 13) }}
           </button>
+          {% endif %}
         </div>
       {% endif %}
 
-      <figure class="pp-scene" role="listitem"
-              x-data="{ split: false, sec: {{ '%.2f'|format(s.start_time_s + s.duration_s / 2) }} }">
-        <div class="pp-scene__frame">
+      {#- Keyframe seeks the player to this scene's start (preprocess.js). -#}
+      <button type="button" class="pp-scene" role="listitem"
+              data-seek="{{ '%.3f'|format(s.start_time_s) }}"
+              title="{{ _('Jump the player to this scene') }}">
+        <span class="pp-scene__frame">
           {% if s.keyframe_url %}
             <img src="{{ s.keyframe_url }}" alt="{{ _('Scene') }} {{ s.index }}" loading="lazy">
           {% endif %}
           <span class="pp-scene__idx fx-mono">{{ s.index }}</span>
-          <button type="button" class="pp-scene__split" @click="split = !split"
-                  title="{{ _('Split this scene') }}" aria-label="{{ _('Split this scene') }}">
-            {{ icon('scissors', 13) }}
-          </button>
-        </div>
-        <figcaption class="pp-scene__meta fx-mono">
+        </span>
+        <span class="pp-scene__meta fx-mono">
           <span class="pp-scene__tc">{{ s.start_smpte }}</span>
           <span class="pp-scene__dur">{{ '%.1f'|format(s.duration_s) }}s</span>
-        </figcaption>
-
-        <form class="pp-split" x-show="split" x-cloak
-              hx-post="/api/preprocess/cut/split"
-              hx-target="#pp-filmstrip" hx-swap="outerHTML"
-              @submit="split = false">
-          <input type="hidden" name="slug" value="{{ pp_slug }}">
-          <input type="hidden" name="at_frame" :value="Math.round(sec * {{ fps }})">
-          <label class="pp-split__field">
-            <span>{{ _("Split at") }}</span>
-            <input class="fx-num" type="number" step="0.1"
-                   min="{{ '%.2f'|format(s.start_time_s) }}"
-                   max="{{ '%.2f'|format(s.end_time_s) }}"
-                   x-model.number="sec">
-            <span class="pp-split__unit">{{ _("s") }}</span>
-          </label>
-          <button type="submit" class="fx-btn primary sm">{{ _("Split") }}</button>
-        </form>
-      </figure>
+        </span>
+      </button>
     {% endfor %}
   </div>
 {% endif %}
