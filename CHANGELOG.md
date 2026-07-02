@@ -10,8 +10,37 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ## [Não lançado]
 
+## [0.9.0] - 2026-07-02
+
 ### Adicionado
 
+- **Aba de Pré-processamento com revisão de cortes.** A detecção de cenas ganha
+  workspace próprio (`/pre-processing`), antes das etapas pesadas do pipeline.
+  `SceneDetector` foi reorganizado em torno de um `CutSet` autoritativo
+  persistido em `scene_cuts.json` (`detect_cuts` / `cuts_to_scene_list` /
+  `rebuild`), mantendo os artefatos de keyframe byte-compatíveis. Novo pacote
+  `kuaa.preprocess`: view model de filmstrip + edição de cortes (split/merge)
+  que reconstrói keyframes e invalida artefatos downstream desatualizados.
+  Filmstrip com marcadores de corte estilo perfuração de filme
+  (`preprocess.css`) e polimento de controles em todo o sistema (tokens de
+  raio/elevação/espaçamento/focus-ring, range sliders temáticos).
+- **Player de revisão com scrubbing e jobs isolados por superfície.** Edição de
+  corte agora é guiada por um player do vídeo-fonte: scrubbing (com passos de
+  ±1 frame e leitura de tempo/frame ao vivo), "Split at playhead" para corte
+  manual no frame atual, e clique no keyframe posiciona o player — via JS
+  vanilla delegado (`preprocess.js`) que sobrevive a swaps de fragmento HTMX.
+  Vídeo-fonte serve por rota dedicada com suporte a range
+  (`/api/preprocess/video/{slug}`), funcionando mesmo com fonte fora de
+  `data_dir`. `JobState` agora registra `enabled_steps`, então um job de
+  Processamento não vaza mais seu card/SSE para a aba de Pré-processamento
+  (e vice-versa).
+- **Edição em lote de cortes, reconstruindo só o que mudou.** Split/merge
+  manual reconstruía todos os keyframes do filme a cada clique (87s para um
+  merge num filme de 458 cenas). Edições agora são staged (escritas JSON
+  baratas, sem rebuild) e revisadas como lista de pendências marcável; Apply
+  roda uma vez e apenas re-decodifica as cenas realmente tocadas, renomeando
+  o restante. Corrige também `tag_overrides.json` / `manual_annotations.json`
+  desalinhando silenciosamente para a cena errada na renumeração.
 - **Tabela de ablação proxy-first (WS-4 E2b).** Novo módulo
   `kuaa.eval.ablation` (`run_ablation`, `AblationTable`,
   `AblationRowConfig`) + CLI `scripts/run_ablation.py`. Compara variantes de
