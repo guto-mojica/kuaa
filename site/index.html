@@ -73,9 +73,35 @@
   .brand{display:flex;align-items:center;gap:.6rem;font-family:var(--display);
     font-weight:700;font-size:1.15rem;letter-spacing:.04em;color:var(--ink)}
   .brand img{width:30px;height:30px;display:block}
-  .nav-links{display:flex;gap:1.6rem;font-size:.9rem}
+  .nav-links{display:flex;align-items:center;gap:1.6rem;font-size:.9rem}
   .nav-links a{color:var(--ink-dim)}
   .nav-links a:hover{color:var(--ink);text-decoration:none}
+  .nav-item{position:relative}
+  .nav-trigger{
+    background:none;border:none;padding:0;margin:0;cursor:pointer;
+    font:inherit;font-family:inherit;font-size:.9rem;color:var(--ink-dim);
+    display:flex;align-items:center;gap:.3rem;
+  }
+  .nav-trigger:hover{color:var(--ink)}
+  .nav-trigger .chev{font-size:.6rem;transition:transform .15s ease}
+  .nav-item:hover .nav-trigger .chev,
+  .nav-item.open .nav-trigger .chev{transform:rotate(180deg)}
+  .nav-dropdown{
+    position:absolute;top:100%;left:50%;transform:translateX(-50%);
+    padding-top:.7rem;opacity:0;visibility:hidden;pointer-events:none;
+    transition:opacity .15s ease;
+  }
+  .nav-item:hover .nav-dropdown,
+  .nav-item.open .nav-dropdown{opacity:1;visibility:visible;pointer-events:auto}
+  .nav-dropdown-inner{
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:.4rem;min-width:180px;box-shadow:0 14px 30px rgba(0,0,0,.45);
+  }
+  .nav-dropdown-inner a{
+    display:block;padding:.5rem .65rem;border-radius:6px;
+    font-size:.86rem;color:var(--ink-dim);white-space:nowrap;
+  }
+  .nav-dropdown-inner a:hover{background:rgba(255,255,255,.05);color:var(--ink);text-decoration:none}
   .nav .ghost{
     font-family:var(--mono);font-size:.8rem;border:1px solid var(--line);
     padding:.4rem .85rem;border-radius:7px;color:var(--ink);
@@ -218,6 +244,18 @@
       <a href="#pipeline">Pipeline</a>
       <a href="#tour">Tour</a>
       <a href="#stack">Stack</a>
+      <div class="nav-item">
+        <button class="nav-trigger" type="button" aria-haspopup="true" aria-expanded="false">Go deeper <span class="chev">▾</span></button>
+        <div class="nav-dropdown">
+          <div class="nav-dropdown-inner">
+            <a href="architecture.html">Architecture</a>
+            <a href="constraints.html">Constraints</a>
+            <a href="domain_packs.html">Domain packs</a>
+            <a href="evaluation.html">Evaluation</a>
+            <a href="run_provenance.html">Run provenance</a>
+          </div>
+        </div>
+      </div>
     </nav>
     <a class="ghost" href="https://github.com/guto-mojica/kuaa" target="_blank" rel="noopener">View on GitHub →</a>
     <a class="ghost" href="pt-br/index.html">PT-BR</a>
@@ -468,5 +506,32 @@
   </div>
 </footer>
 
+<script>
+(function(){
+  document.querySelectorAll('.nav-item').forEach(function(item){
+    var trigger = item.querySelector('.nav-trigger');
+    if(!trigger) return;
+    trigger.addEventListener('click', function(e){
+      e.stopPropagation();
+      var isOpen = item.classList.toggle('open');
+      trigger.setAttribute('aria-expanded', String(isOpen));
+    });
+  });
+  document.addEventListener('click', function(){
+    document.querySelectorAll('.nav-item.open').forEach(function(item){
+      item.classList.remove('open');
+      item.querySelector('.nav-trigger').setAttribute('aria-expanded', 'false');
+    });
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      document.querySelectorAll('.nav-item.open').forEach(function(item){
+        item.classList.remove('open');
+        item.querySelector('.nav-trigger').setAttribute('aria-expanded', 'false');
+      });
+    }
+  });
+})();
+</script>
 </body>
 </html>
