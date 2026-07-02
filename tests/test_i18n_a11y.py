@@ -259,13 +259,17 @@ def test_step_defs_unchanged():
 
 def test_step_labels_render_translated_pt(raw_client):
     """pt_BR processing page shows the *translated* step labels resolved
-    from the step id — NOT the opaque STEP_DEFS Python labels."""
+    from the step id — NOT the opaque STEP_DEFS Python labels.
+
+    Scene detection is launched from the dedicated Pre-processing tab, so its
+    pill no longer appears in the Processing launch form; the remaining steps
+    still validate the translated-not-opaque contract.
+    """
     raw_client.cookies.set("locale", "pt_BR")
     r = raw_client.get("/processing")
     assert r.status_code == 200
     # Translated (from _step_labels.html → gettext), id-driven:
     assert "Extração de quadros" in r.text
-    assert "Detecção de cenas" in r.text
     assert "Análise visual" in r.text
     # The opaque internal STEP_DEFS labels must NOT leak to the UI:
     assert "Frames<" not in r.text
@@ -277,7 +281,6 @@ def test_step_labels_render_translated_en(raw_client):
     r = raw_client.get("/processing")
     assert r.status_code == 200
     assert "Frame extraction" in r.text
-    assert "Scene detection" in r.text
     assert "Visual analysis" in r.text
 
 

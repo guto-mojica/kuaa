@@ -1,0 +1,81 @@
+{% from "partials/_icons.html" import icon %}
+
+{#- Cut-timeline filmstrip — the Pre-processing signature surface.
+
+    Scenes render as a contiguous band of keyframes separated by splice cut
+    markers. Merge removes the cut that opens a scene; split adds a manual cut
+    inside one. Every edit POSTs back the whole ``#pp-filmstrip`` fragment. -#}
+<div id="pp-filmstrip" class="pp-filmstrip">
+{% if not filmstrip or not filmstrip.has_scenes %}
+  <div class="pp-empty">
+    <span class="pp-empty__glyph">{{ icon('preproc', 26) }}</span>
+    <p class="pp-empty__text">{{ _("No scenes yet. Run scene detection to review its cuts here.") }}</p>
+  </div>
+{% else %}
+  {%- set fps = filmstrip.fps or 24.0 -%}
+  {%- set st = filmstrip.stats -%}
+  <div class="pp-stats fx-mono">
+    <span class="pp-stat"><b>{{ st.num_scenes }}</b> {{ _("scenes") }}</span>
+    <span class="pp-stat">{{ _("avg") }} <b>{{ '%.1f'|format(st.mean_s) }}s</b></span>
+    <span class="pp-stat">{{ _("median") }} <b>{{ '%.1f'|format(st.median_s) }}s</b></span>
+    <span class="pp-stat">{{ _("shortest") }} <b>{{ '%.1f'|format(st.min_s) }}s</b></span>
+    <span class="pp-stat">{{ _("longest") }} <b>{{ '%.1f'|format(st.max_s) }}s</b></span>
+    {% if filmstrip.has_manual_edits %}
+      <span class="pp-stat pp-stat--edited">{{ icon('scissors', 12) }} {{ _("hand-edited") }}</span>
+    {% endif %}
+  </div>
+
+  <div class="pp-strip" role="list" aria-label="{{ _('Detected scenes') }}">
+    {% for s in filmstrip.scenes %}
+      {% if not loop.first %}
+        {#- Splice between the previous scene and this one; merge deletes it. -#}
+        <div class="pp-cut{% if s.cut_source == 'manual' %} pp-cut--manual{% endif %}">
+          <button type="button" class="pp-cut__merge"
+                  title="{{ _('Merge with previous scene') }}"
+                  aria-label="{{ _('Merge with previous scene') }}"
+                  hx-post="/api/preprocess/cut/merge"
+                  hx-vals='{"slug": "{{ pp_slug }}", "cut_frame": {{ s.start_frame }}}'
+                  hx-target="#pp-filmstrip" hx-swap="outerHTML">
+            {{ icon('merge', 13) }}
+          </button>
+        </div>
+      {% endif %}
+
+      <figure class="pp-scene" role="listitem"
+              x-data="{ split: false, sec: {{ '%.2f'|format(s.start_time_s + s.duration_s / 2) }} }">
+        <div class="pp-scene__frame">
+          {% if s.keyframe_url %}
+            <img src="{{ s.keyframe_url }}" alt="{{ _('Scene') }} {{ s.index }}" loading="lazy">
+          {% endif %}
+          <span class="pp-scene__idx fx-mono">{{ s.index }}</span>
+          <button type="button" class="pp-scene__split" @click="split = !split"
+                  title="{{ _('Split this scene') }}" aria-label="{{ _('Split this scene') }}">
+            {{ icon('scissors', 13) }}
+          </button>
+        </div>
+        <figcaption class="pp-scene__meta fx-mono">
+          <span class="pp-scene__tc">{{ s.start_smpte }}</span>
+          <span class="pp-scene__dur">{{ '%.1f'|format(s.duration_s) }}s</span>
+        </figcaption>
+
+        <form class="pp-split" x-show="split" x-cloak
+              hx-post="/api/preprocess/cut/split"
+              hx-target="#pp-filmstrip" hx-swap="outerHTML"
+              @submit="split = false">
+          <input type="hidden" name="slug" value="{{ pp_slug }}">
+          <input type="hidden" name="at_frame" :value="Math.round(sec * {{ fps }})">
+          <label class="pp-split__field">
+            <span>{{ _("Split at") }}</span>
+            <input class="fx-num" type="number" step="0.1"
+                   min="{{ '%.2f'|format(s.start_time_s) }}"
+                   max="{{ '%.2f'|format(s.end_time_s) }}"
+                   x-model.number="sec">
+            <span class="pp-split__unit">{{ _("s") }}</span>
+          </label>
+          <button type="submit" class="fx-btn primary sm">{{ _("Split") }}</button>
+        </form>
+      </figure>
+    {% endfor %}
+  </div>
+{% endif %}
+</div>

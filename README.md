@@ -51,7 +51,7 @@ The system features a modular retrieval stack where every component runs locally
 
 Beyond search, the core pipeline automates the heavy lifting of archival metadata:
 
-1.  **Scene Segmentation:** Automatically detects cuts and extracts representative keyframes.
+1.  **Scene Segmentation:** Automatically detects cuts and extracts representative keyframes. A dedicated **Pre-processing** tab lets curators review the cuts on a filmstrip timeline and hand-correct boundaries (split/merge) before the heavy steps run.
 2.  **Visual Analysis:** Detects faces/objects and classifies environments (e.g., "indoor," "night").
 3.  **Natural Language Descriptions:** Moondream 2 generates descriptive text for every scene.
 4.  **Manual Overrides:** A dedicated UI allows curators to correct AI-generated tags, merging human expertise with machine scale.

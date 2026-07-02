@@ -110,6 +110,30 @@
     --dur-norm:          150ms;                  /* slower fade / color shift (== .15s == 0.15s) */
     --ease-emphasized:   cubic-bezier(.2,.7,.3,1); /* fade-in / toast-in entrance curve */
 
+    /* === Radius / elevation / spacing scales ===
+       Introduced so new components (and the polish pass) stop inventing
+       per-site literals. Values chosen to match the radii/shadows already in
+       the Mojica layer (4/6/8/pill; soft ambient shadows). Existing components
+       are migrated opportunistically; nothing is forced to change. */
+    --r-sm:   4px;
+    --r-md:   6px;
+    --r-lg:   10px;
+    --r-pill: 999px;
+    --sh-1: 0 1px 2px rgba(0,0,0,0.28);
+    --sh-2: 0 4px 14px rgba(0,0,0,0.34);
+    --sh-3: 0 18px 48px rgba(0,0,0,0.48);
+    --sp-1: 4px;
+    --sp-2: 8px;
+    --sp-3: 12px;
+    --sp-4: 16px;
+    --sp-5: 24px;
+
+    /* === Focus ring ===
+       One canonical keyboard/focus-within ring. Legacy inputs used a mix of
+       raw rgba(139,123,216,0.25) and --c-accent-bg-low; new + restyled
+       controls converge on this. */
+    --focus-ring: 0 0 0 3px var(--c-accent-bg);
+
     /* === Legacy aliases — keep until v0.3 tests retire === */
     --c-bg-base:        var(--c-bg);
     --c-bg-raised:      var(--c-raised);

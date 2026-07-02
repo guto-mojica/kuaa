@@ -29,6 +29,7 @@
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/anotar.css') }}">
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/rimas.css') }}">
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/proc.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/preprocess.css') }}">
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/polish.css') }}">
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/about.css') }}">
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/home.css') }}">
@@ -121,6 +122,7 @@
             'search': _('Search'),
             'scenes': _('Scenes'),
             'annotate': _('Annotate'),
+            'preprocessing': _('Pre-processing'),
             'processing': _('Processing'),
             'rimas': _('Visual rhymes'),
         } %}
@@ -144,6 +146,8 @@
             {% include "partials/scenes.html" %}
         {% elif legacy_active_tab == 'annotate' %}
             {% include "partials/annotate.html" %}
+        {% elif legacy_active_tab == 'preprocessing' %}
+            {% include "partials/preprocess.html" %}
         {% elif legacy_active_tab == 'processing' %}
             {% include "partials/processing.html" %}
         {% elif legacy_active_tab == 'rimas' %}

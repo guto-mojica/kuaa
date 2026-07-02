@@ -42,12 +42,38 @@ class PipelineFormParams:
         self.sd_keyframe_height = sd_keyframe_height
 
 
-def build_sd_override(cfg, params: PipelineFormParams):
-    """Return a SceneDetectionCfg override only when values differ from cfg."""
+def sd_override_from_fields(
+    cfg,
+    *,
+    detector: str,
+    adaptive_threshold: float,
+    content_threshold: float,
+    min_scene_len: int,
+    keyframes_per_scene: int,
+    keyframe_height: int,
+):
+    """Return a SceneDetectionCfg override only when values differ from cfg.
+
+    Value-based so both the Processing form (:func:`build_sd_override`) and the
+    Pre-processing detect route share one construction + equality check.
+    """
     from kuaa.config.schema import SceneDetectionCfg
 
-    current = cfg.scene_detection
     override = SceneDetectionCfg(
+        detector=detector,
+        adaptive_threshold=adaptive_threshold,
+        content_threshold=content_threshold,
+        min_scene_len=min_scene_len,
+        keyframes_per_scene=keyframes_per_scene,
+        keyframe_height=keyframe_height,
+    )
+    return None if override == cfg.scene_detection else override
+
+
+def build_sd_override(cfg, params: PipelineFormParams):
+    """Return a SceneDetectionCfg override only when values differ from cfg."""
+    return sd_override_from_fields(
+        cfg,
         detector=params.sd_detector,
         adaptive_threshold=params.sd_adaptive_threshold,
         content_threshold=params.sd_content_threshold,
@@ -55,9 +81,6 @@ def build_sd_override(cfg, params: PipelineFormParams):
         keyframes_per_scene=params.sd_keyframes_per_scene,
         keyframe_height=params.sd_keyframe_height,
     )
-    if override == current:
-        return None
-    return override
 
 
 def resolve_pipeline_request(request: Request, cfg, params: PipelineFormParams, route_name: str):

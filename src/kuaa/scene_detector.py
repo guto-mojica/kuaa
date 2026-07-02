@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import json
 import logging
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from kuaa.config import _Namespace
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 # PySceneDetect — importação diferida para não quebrar se não instalado
 try:
-    from scenedetect import SceneManager, open_video
+    from scenedetect import FrameTimecode, SceneManager, open_video
     from scenedetect.detectors import AdaptiveDetector, ContentDetector
     from scenedetect.scene_manager import save_images
 
@@ -31,6 +32,91 @@ except ImportError:
 
 
 SceneList = list[tuple]  # list of (FrameTimecode, FrameTimecode)
+
+
+# ─── Cut-list model ──────────────────────────────────────────────────────────
+#
+# The authoritative representation of scene boundaries is a list of *interior*
+# cut frames. Scenes are derived as [(0, c1), (c1, c2), ..., (cn, total)], so
+# both re-tuning (auto re-detect) and hand-correction (manual split / merge)
+# become pure functions of ``(video, cut list)``. This is what the
+# Pre-processing review UI reads and edits; it is persisted to
+# ``metadata/scene_cuts.json`` alongside the keyframe artifacts.
+
+
+@dataclass
+class SceneCut:
+    """One interior scene boundary.
+
+    ``source`` is ``"auto"`` (produced by the detector) or ``"manual"``
+    (added/kept by an operator during review).
+    """
+
+    frame: int
+    time_s: float
+    source: str = "auto"
+
+
+@dataclass
+class CutSet:
+    """The effective scene-boundary set for a single film.
+
+    ``cuts`` holds only the *interior* boundaries; the implicit 0 and
+    ``total_frames`` bookends are added by :meth:`scene_boundaries`.
+    """
+
+    fps: float
+    total_frames: int
+    duration_s: float
+    cuts: list[SceneCut] = field(default_factory=list)
+    params: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def has_manual_edits(self) -> bool:
+        return any(c.source == "manual" for c in self.cuts)
+
+    @property
+    def num_scenes(self) -> int:
+        return len(self.cuts) + 1
+
+    def sorted_cuts(self) -> list[SceneCut]:
+        return sorted(self.cuts, key=lambda c: c.frame)
+
+    def scene_boundaries(self) -> list[tuple[int, int]]:
+        """Return ``[(start_frame, end_frame), ...]`` for every scene."""
+        pts = [0, *[c.frame for c in self.sorted_cuts()], self.total_frames]
+        return [(pts[i], pts[i + 1]) for i in range(len(pts) - 1)]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "fps": self.fps,
+            "total_frames": self.total_frames,
+            "duration_s": self.duration_s,
+            "has_manual_edits": self.has_manual_edits,
+            "params": self.params,
+            "cuts": [
+                {"frame": c.frame, "time_s": c.time_s, "source": c.source}
+                for c in self.sorted_cuts()
+            ],
+        }
+
+    @classmethod
+    def from_dict(cls, raw: dict[str, Any]) -> CutSet:
+        cuts = [
+            SceneCut(
+                frame=int(c["frame"]),
+                time_s=float(c.get("time_s", 0.0)),
+                source=str(c.get("source", "auto")),
+            )
+            for c in raw.get("cuts", [])
+        ]
+        return cls(
+            fps=float(raw.get("fps", 24.0)),
+            total_frames=int(raw.get("total_frames", 0)),
+            duration_s=float(raw.get("duration_s", 0.0)),
+            cuts=cuts,
+            params=dict(raw.get("params", {})),
+        )
 
 
 class SceneDetector:
@@ -253,3 +339,124 @@ class SceneDetector:
             output_path,
         )
         return output_path
+
+    # ─── Cut-list API ─────────────────────────────────────────────────────────
+
+    def current_params(self) -> dict[str, Any]:
+        """Snapshot the detector settings that produced (or will produce) a cut set."""
+        return {
+            "detector": self.detector_type,
+            "content_threshold": self.content_threshold,
+            "adaptive_threshold": self.adaptive_threshold,
+            "min_scene_len": self.min_scene_len,
+            "keyframes_per_scene": self.keyframes_per_scene,
+            "keyframe_height": self.keyframe_height,
+        }
+
+    def build_cutset(self, scene_list: SceneList) -> CutSet:
+        """Derive a :class:`CutSet` from a PySceneDetect scene list.
+
+        The interior cut frames are the end of every scene except the last;
+        ``total_frames`` is the end of the last scene. FPS is read from the
+        timecode framerate, falling back to frames/seconds.
+        """
+        if not scene_list:
+            return CutSet(fps=24.0, total_frames=0, duration_s=0.0, params=self.current_params())
+
+        last_end = scene_list[-1][1]
+        total_frames = int(last_end.get_frames())
+        duration_s = float(last_end.get_seconds())
+        fps = _framerate_of(last_end, duration_s, total_frames)
+
+        cuts = [
+            SceneCut(
+                frame=int(end.get_frames()),
+                time_s=float(end.get_seconds()),
+                source="auto",
+            )
+            for start, end in scene_list[:-1]
+        ]
+        return CutSet(
+            fps=fps,
+            total_frames=total_frames,
+            duration_s=duration_s,
+            cuts=cuts,
+            params=self.current_params(),
+        )
+
+    def detect_cuts(self, video_path: str | Path) -> CutSet:
+        """Run detection and return the authoritative :class:`CutSet`."""
+        scene_list = self.detect(video_path)
+        return self.build_cutset(scene_list)
+
+    def cuts_to_scene_list(self, cutset: CutSet) -> SceneList:
+        """Reconstruct a PySceneDetect scene list from a cut set.
+
+        Builds ``FrameTimecode`` bookends so the reconstructed scenes flow
+        back through the proven :meth:`extract_keyframes` /
+        :meth:`export_metadata` path unchanged.
+        """
+        if not _SCENEDETECT_AVAILABLE:
+            raise RuntimeError("PySceneDetect não instalado.")
+        fps = cutset.fps or 24.0
+        return [
+            (FrameTimecode(start, fps), FrameTimecode(end, fps))
+            for start, end in cutset.scene_boundaries()
+        ]
+
+    def rebuild(
+        self,
+        cutset: CutSet,
+        video_path: str | Path,
+        keyframes_dir: str | Path,
+        metadata_path: str | Path,
+    ) -> tuple[list[Path], Path]:
+        """Regenerate keyframes + ``keyframes_metadata.json`` from a cut set.
+
+        Clears ``keyframes_dir`` first so a shorter cut list never leaves
+        orphaned images behind, then re-extracts every keyframe and rewrites
+        the metadata. Used by both auto re-detect and manual split/merge, so
+        the on-disk artifacts are always a pure function of the cut set.
+        """
+        keyframes_dir = Path(keyframes_dir)
+        if keyframes_dir.exists():
+            for old in keyframes_dir.glob("*.jpg"):
+                old.unlink()
+
+        scene_list = self.cuts_to_scene_list(cutset)
+        keyframes = self.extract_keyframes(scene_list, video_path, keyframes_dir)
+        out = self.export_metadata(scene_list, keyframes, metadata_path)
+        return keyframes, out
+
+
+def write_cutset(cutset: CutSet, path: str | Path) -> Path:
+    """Persist a cut set to ``scene_cuts.json``."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(cutset.to_dict(), f, indent=2, ensure_ascii=False)
+    return path
+
+
+def read_cutset(path: str | Path) -> CutSet | None:
+    """Load a cut set from ``scene_cuts.json``, or ``None`` if absent."""
+    path = Path(path)
+    if not path.exists():
+        return None
+    with open(path, encoding="utf-8") as f:
+        return CutSet.from_dict(json.load(f))
+
+
+def _framerate_of(timecode: Any, duration_s: float, total_frames: int) -> float:
+    """Best-effort FPS from a FrameTimecode, falling back to frames/seconds."""
+    getter = getattr(timecode, "get_framerate", None)
+    if callable(getter):
+        try:
+            fps = float(getter())
+            if fps > 0:
+                return fps
+        except Exception:  # pragma: no cover - defensive
+            pass
+    if duration_s > 0 and total_frames > 0:
+        return total_frames / duration_s
+    return 24.0

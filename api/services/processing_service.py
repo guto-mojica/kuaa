@@ -29,7 +29,7 @@ import time
 from typing import Any
 
 from api.services.processing_stats import (
-    _fallback_substeps,
+    _STEP_DESCRIPTIONS,
     aggregate_stats,
     build_resource_metrics,
 )
@@ -40,7 +40,6 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "aggregate_stats",
     "build_resource_metrics",
-    "_fallback_substeps",
     "build_active_step",
     "build_job_queue",
     "_job_queue_status",
@@ -48,60 +47,21 @@ __all__ = [
     "enrich_jobs",
 ]
 
-
-# ── Pipeline step descriptions (right-pane copy) ──────────────────────────────
-#
-# Short, factual descriptions of what each pipeline step does — surfaced
-# in the .p-rp "what" paragraph and the synthetic substeps list. The
-# real backend doesn't expose per-step substeps yet; the list below is
-# a thin, honest fallback ("loading model" / "running" / "persisting")
-# so the layout has content to render. When a future runner emits real
-# sub-step progress, ``active_step.substeps`` becomes the live source
-# and this fallback can be deleted.
-
-_STEP_DESCRIPTIONS: dict[str, dict[str, str]] = {
-    "frame_extraction": {
-        "label": "Frame extraction",
-        "detail": "ffmpeg · 1 fps · 480p",
-        "description": (
-            "Decode the source video and emit one keyframe per second "
-            "(downscaled). Feeds scene detection and visual analysis."
-        ),
-    },
-    "scene_detection": {
-        "label": "Scene detection",
-        "detail": "PySceneDetect · adaptive",
-        "description": (
-            "Detect shot boundaries across the extracted frames and "
-            "build the scene index. Output: scene cuts + representative "
-            "keyframes."
-        ),
-    },
-    "visual_analysis": {
-        "label": "Visual analysis",
-        "detail": "YOLOv8 (objects) + MTCNN (faces)",
-        "description": (
-            "Run object and face detection on each scene's keyframes to "
-            "produce automatic tags. Output feeds embeddings + descriptions."
-        ),
-    },
-    "embeddings": {
-        "label": "Embeddings",
-        "detail": "CLIP ViT-B/32",
-        "description": (
-            "Encode every keyframe into a CLIP embedding so the scene "
-            "is searchable by text query or by another image."
-        ),
-    },
-    "llm_description": {
-        "label": "LLM descriptions",
-        "detail": "Moondream2 · transformers",
-        "description": (
-            "Generate a short natural-language description of each scene "
-            "from its keyframe. Slowest step; CPU-bound by default."
-        ),
-    },
+# State → right-pane substep status (proc.css dot colour + check/circle icon).
+_SUBSTEP_STATUS_BY_STATE: dict[str, str] = {
+    "done": "done",
+    "skipped": "done",
+    "active": "active",
+    "error": "error",
+    "blocked": "pending",
+    "pending": "pending",
 }
+
+
+# Pipeline step copy (right-pane "what" paragraph) lives in processing_stats
+# alongside the other right-pane data; imported here for build_active_step.
+# The right-pane sub-step list reflects the job's REAL per-step state (see
+# ``_real_substeps``) — the earlier synthetic fallback was retired.
 
 
 # ── Job queue mapping ─────────────────────────────────────────────────────────
@@ -162,12 +122,48 @@ def build_job_queue(  # pending first, then active/terminal newest-first
 # ── Active step (right pane) ──────────────────────────────────────────────────
 
 
-def build_active_step(jobs: list[Any]) -> dict[str, Any] | None:
-    """Build the .p-rp sub-step context for the first running job.
+def _real_substeps(job: Any) -> list[dict[str, str]]:
+    """Project the job's real per-step state onto the right-pane substep rows.
 
-    Returns ``None`` when there is no active job (the right pane is
-    then rendered empty). The substeps list is the synthetic fallback
-    above — a real per-step sub-progress feed would replace it.
+    One row per pipeline step, carrying its actual state (from
+    ``JobState.steps``) and, for finished steps, the measured duration. No
+    fabricated sub-progress — the panel shows only what the runner reports.
+    """
+    rows: list[dict[str, str]] = []
+    for step in job.steps:
+        meta = _STEP_DESCRIPTIONS.get(step.name, {"label": step.name, "detail": ""})
+        state = step.state
+        duration = getattr(step, "duration_s", 0.0) or 0.0
+        if state in ("done", "skipped") and duration:
+            value = f"{duration:.1f}s"
+        elif state == "skipped":
+            value = "skipped"
+        elif state == "active":
+            value = "running"
+        elif state == "error":
+            value = "error"
+        elif state == "blocked":
+            value = "blocked"
+        else:
+            value = ""
+        rows.append(
+            {
+                "label": meta["label"],
+                "sub": meta["detail"],
+                "value": value,
+                "status": _SUBSTEP_STATUS_BY_STATE.get(state, "pending"),
+            }
+        )
+    return rows
+
+
+def build_active_step(jobs: list[Any]) -> dict[str, Any] | None:
+    """Build the .p-rp active-step context for the first running job.
+
+    Returns ``None`` when there is no active job (the right pane is then
+    rendered empty). The header focuses the currently running step; the
+    substep list mirrors the job's real per-step state via
+    :func:`_real_substeps`.
     """
     if not jobs:
         return None
@@ -189,7 +185,7 @@ def build_active_step(jobs: list[Any]) -> dict[str, Any] | None:
         "label": meta["label"],
         "detail": meta["detail"],
         "description": meta["description"],
-        "substeps": _fallback_substeps(step.name, step.state),
+        "substeps": _real_substeps(job),
     }
 
 

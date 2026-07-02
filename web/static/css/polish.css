@@ -394,3 +394,20 @@
 
 /* ─── Better scrollbar everywhere (Firefox) ──────────────────────────── */
 .fx-app *, .ev-app *, .ab-app * { scrollbar-color: var(--c-border-2) transparent; scrollbar-width: thin; }
+
+/* ─── Card click-affordance (hover lift) ───────────────────────────────
+   Clickable result cards read flat until hover. A subtle raise + shadow +
+   border tells the eye they are interactive before the pointer arrives.
+   Loaded last so it wins the cascade over the per-tab base card rules. */
+.b-card, .scenecard {
+  transition: transform var(--dur-fast) var(--ease-emphasized),
+              box-shadow var(--dur-fast), border-color var(--dur-fast);
+}
+.b-card:hover, .scenecard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sh-2);
+  border-color: var(--c-border-2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .b-card:hover, .scenecard:hover { transform: none; }
+}
