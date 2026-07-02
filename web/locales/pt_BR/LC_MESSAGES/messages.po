@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kuaa-ai 0.3.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-06-30 15:27-0300\n"
+"POT-Creation-Date: 2026-07-02 15:35-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pt_BR\n"
@@ -19,41 +19,46 @@ msgid "About"
 msgstr "Sobre"
 
 # ── About surface (Mojica redesign · Task 29) ─────────────────────────
-#: web/templates/base.html:13 web/templates/base.html:120
-#: web/templates/base.html:127 web/templates/partials/about_modal.html:75
+#: web/templates/base.html:13 web/templates/base.html:125
+#: web/templates/base.html:133 web/templates/partials/about_modal.html:75
 msgid "KUAA"
 msgstr "KUAA"
 
 # ── Navigation / chrome ───────────────────────────────────────────────
-#: web/templates/base.html:121 web/templates/partials/_help_overlay.html:75
+#: web/templates/base.html:126 web/templates/partials/_help_overlay.html:75
 #: web/templates/partials/_topbar.html:67
 #: web/templates/partials/about_modal.html:182
 #: web/templates/partials/search.html:194
 msgid "Search"
 msgstr "Buscar"
 
-#: web/templates/base.html:122 web/templates/partials/_help_overlay.html:76
+#: web/templates/base.html:127 web/templates/partials/_help_overlay.html:76
 #: web/templates/partials/_topbar.html:68
 #: web/templates/partials/about_modal.html:183
 msgid "Scenes"
 msgstr "Cenas"
 
-#: web/templates/base.html:123 web/templates/partials/_help_overlay.html:77
+#: web/templates/base.html:128 web/templates/partials/_help_overlay.html:77
 #: web/templates/partials/_topbar.html:69
 #: web/templates/partials/about_modal.html:184
 #: web/templates/partials/scenes_inspector.html:145
 msgid "Annotate"
 msgstr "Anotar"
 
-#: web/templates/base.html:124 web/templates/partials/_help_overlay.html:79
-#: web/templates/partials/_topbar.html:71
+#: web/templates/base.html:129 web/templates/partials/_topbar.html:71
+#: web/templates/partials/preprocess.html:20
+msgid "Pre-processing"
+msgstr "Pré-processamento"
+
+#: web/templates/base.html:130 web/templates/partials/_help_overlay.html:79
+#: web/templates/partials/_topbar.html:72
 #: web/templates/partials/about_modal.html:186
 #: web/templates/partials/processing.html:36
 #: web/templates/partials/processing_job.html:51
 msgid "Processing"
 msgstr "Processamento"
 
-#: web/templates/base.html:125 web/templates/partials/_help_overlay.html:78
+#: web/templates/base.html:131 web/templates/partials/_help_overlay.html:78
 #: web/templates/partials/about_modal.html:185
 #: web/templates/partials/rimas.html:36
 msgid "Visual rhymes"
@@ -734,17 +739,17 @@ msgstr "Sobrescrever e salvar"
 #: web/templates/partials/annotate_props.html:12
 #: web/templates/partials/inspector_properties.html:15
 #: web/templates/partials/scenes.html:203
-#: web/templates/partials/scenes.html:362
 #: web/templates/partials/scenes.html:365
-#: web/templates/partials/scenes.html:382
+#: web/templates/partials/scenes.html:368
+#: web/templates/partials/scenes.html:385
 #: web/templates/partials/scenes_inspector.html:80
 msgid "Timecode"
 msgstr "Timecode"
 
 #: web/templates/partials/annotate_props.html:17
 #: web/templates/partials/inspector_properties.html:25
-#: web/templates/partials/scenes.html:363
-#: web/templates/partials/scenes.html:387
+#: web/templates/partials/scenes.html:366
+#: web/templates/partials/scenes.html:390
 #: web/templates/partials/scenes_inspector.html:83
 msgid "Duration"
 msgstr "Duração"
@@ -763,9 +768,10 @@ msgstr "Posição"
 #: web/templates/partials/annotate_props.html:30
 #: web/templates/partials/annotate_props.html:37
 #: web/templates/partials/inspector_properties.html:32
+#: web/templates/partials/preprocess.html:38
 #: web/templates/partials/scenes.html:306
 #: web/templates/partials/scenes.html:309
-#: web/templates/partials/scenes.html:326
+#: web/templates/partials/scenes.html:329
 msgid "Film"
 msgstr "Filme"
 
@@ -936,7 +942,7 @@ msgstr "Salvar"
 
 #: web/templates/partials/annotate_tags.html:122
 #: web/templates/partials/scenes.html:260
-#: web/templates/partials/scenes.html:487
+#: web/templates/partials/scenes.html:490
 msgid "Clear"
 msgstr "Limpar"
 
@@ -974,14 +980,15 @@ msgstr "Acervo inteiro"
 
 # ── Processing tab ────────────────────────────────────────────────────
 #: web/templates/partials/home.html:14 web/templates/partials/rimas.html:40
-#: web/templates/partials/rimas.html:157 web/templates/partials/scenes.html:449
+#: web/templates/partials/rimas.html:157 web/templates/partials/scenes.html:452
 #: web/templates/partials/search.html:402
 msgid "films"
 msgstr "filmes"
 
 #: web/templates/partials/home.html:30
+#: web/templates/partials/preprocess_filmstrip.html:19
 #: web/templates/partials/processing_stats.html:19
-#: web/templates/partials/scenes.html:446
+#: web/templates/partials/scenes.html:449
 #: web/templates/partials/search_timeline.html:45
 msgid "scenes"
 msgstr "cenas"
@@ -1011,7 +1018,8 @@ msgid "Current tags"
 msgstr "Tags atuais"
 
 #: web/templates/partials/inspector_properties.html:20
-#: web/templates/partials/scenes.html:507
+#: web/templates/partials/preprocess_filmstrip.html:55
+#: web/templates/partials/scenes.html:510
 msgid "Scene"
 msgstr "Cena"
 
@@ -1042,38 +1050,30 @@ msgstr "Índice de busca ausente"
 msgid "Remove"
 msgstr "Remover"
 
-#: web/templates/partials/processing.html:37
-msgid "active"
-msgstr "ativo"
+#: web/templates/partials/preprocess.html:22
+msgid "Detect scene cuts and review them before the heavy steps run."
+msgstr "Detecte os cortes de cena e revise-os antes das etapas pesadas."
 
-#: web/templates/partials/processing.html:85
-msgid "No video files found in the raw directory."
-msgstr "Nenhum arquivo de vídeo encontrado no diretório raw."
-
-#: web/templates/partials/processing.html:96
-msgid "All steps"
-msgstr "Todas as etapas"
-
-#: web/templates/partials/processing.html:110
+#: web/templates/partials/preprocess.html:25
 msgid ""
 "'adaptive' compares each frame to a rolling window average — better for "
 "gradual lighting changes and subtle cuts. 'content' measures raw frame-"
 "to-frame pixel difference — faster but may miss soft transitions."
 msgstr ""
 "'adaptativo' compara cada quadro com a média de uma janela deslizante — "
-"melhor para mudanças graduais de iluminação e cortes sutis. 'conteúdo' mede "
-"a diferença bruta de pixel entre quadros — mais rápido, mas pode perder "
-"transições suaves."
+"melhor para mudanças graduais de iluminação e cortes sutis. 'conteúdo' "
+"mede a diferença bruta de pixel entre quadros — mais rápido, mas pode "
+"perder transições suaves."
 
-#: web/templates/partials/processing.html:111
+#: web/templates/partials/preprocess.html:26
 msgid ""
 "How different a frame must be from its local average to count as a cut. "
 "Lower values detect more scenes. Typical range: 2–6."
 msgstr ""
-"O quanto um quadro deve diferir de sua média local para ser contado como um "
-"corte. Valores menores detectam mais cenas. Faixa típica: 2–6."
+"O quanto um quadro deve diferir de sua média local para ser contado como "
+"um corte. Valores menores detectam mais cenas. Faixa típica: 2–6."
 
-#: web/templates/partials/processing.html:112
+#: web/templates/partials/preprocess.html:27
 msgid ""
 "Pixel-difference score that triggers a cut. Lower values produce more "
 "scenes. Typical range: 15–40."
@@ -1081,88 +1081,186 @@ msgstr ""
 "Pontuação de diferença de pixel que dispara um corte. Valores menores "
 "produzem mais cenas. Faixa típica: 15–40."
 
-#: web/templates/partials/processing.html:117
-msgid ""
-"Re-running scene detection will delete all downstream outputs (visual "
-"analysis, embeddings, LLM descriptions). Check all steps, or run them "
-"separately after."
-msgstr ""
-"Executar a detecção de cenas novamente apagará todas as saídas posteriores "
-"(análise visual, embeddings, descrições LLM). Marque todas as etapas ou "
-"execute-as separadamente depois."
-
-#: web/templates/partials/processing.html:121
+#: web/templates/partials/preprocess.html:54
 msgid "Detector"
-msgstr "Detecção"
+msgstr "Detector"
 
-#: web/templates/partials/processing.html:124
+#: web/templates/partials/preprocess.html:58
 msgid "adaptive"
 msgstr "adaptativo"
 
-#: web/templates/partials/processing.html:125
+#: web/templates/partials/preprocess.html:59
 msgid "content"
 msgstr "conteúdo"
 
-#: web/templates/partials/processing.html:132
+#: web/templates/partials/preprocess.html:64
 msgid "Adaptive threshold"
 msgstr "Limiar adaptativo"
 
-#: web/templates/partials/processing.html:141
+#: web/templates/partials/preprocess.html:72
 msgid "Content threshold"
 msgstr "Limiar de conteúdo"
 
-#: web/templates/partials/processing.html:149
-msgid "Min scene length (frames)"
-msgstr "Duração mínima da cena (quadros)"
+#: web/templates/partials/preprocess.html:80
+msgid "Min scene length"
+msgstr "Duração mínima da cena"
 
-#: web/templates/partials/processing.html:156
+#: web/templates/partials/preprocess.html:86
 msgid "Keyframes / scene"
 msgstr "Keyframes / cena"
 
-#: web/templates/partials/processing.html:165
+#: web/templates/partials/preprocess.html:94
 msgid "Keyframe height"
 msgstr "Altura do keyframe"
 
-#: web/templates/partials/processing.html:173
+#: web/templates/partials/preprocess.html:101
+msgid "Detect scenes"
+msgstr "Detectar cenas"
+
+#: web/templates/partials/preprocess.html:103
+msgid "Detecting…"
+msgstr "Detectando…"
+
+#: web/templates/partials/preprocess.html:108
+msgid ""
+"Re-detecting replaces the current cuts — including manual edits — and "
+"clears the downstream visual, embeddings, and description outputs."
+msgstr ""
+"Redetectar substitui os cortes atuais — incluindo edições manuais — e "
+"limpa as saídas posteriores de análise visual, embeddings e descrições."
+
+#: web/templates/partials/preprocess.html:111
+msgid "No films in the library yet. Add a film to detect its scenes."
+msgstr "Nenhum filme no acervo ainda. Adicione um filme para detectar suas cenas."
+
+#: web/templates/partials/preprocess.html:129
+msgid "Detection log"
+msgstr "Log de detecção"
+
+#: web/templates/partials/preprocess.html:131
+#: web/templates/partials/processing.html:198
+msgid "Waiting for events…"
+msgstr "Aguardando eventos…"
+
+#: web/templates/partials/preprocess.html:156
+msgid "Previous frame"
+msgstr "Quadro anterior"
+
+#: web/templates/partials/preprocess.html:158
+msgid "Next frame"
+msgstr "Próximo quadro"
+
+#: web/templates/partials/preprocess.html:161
+msgid "Add a cut at the current playhead frame"
+msgstr "Adiciona um corte no quadro atual do player"
+
+#: web/templates/partials/preprocess.html:162
+msgid "Split at playhead"
+msgstr "Dividir no ponto atual"
+
+#: web/templates/partials/preprocess.html:165
+msgid ""
+"Scrub to the exact cut, then split. Click any keyframe to jump the player"
+" there."
+msgstr ""
+"Navegue até o corte exato e então divida. Clique em um keyframe para "
+"levar o player até ele."
+
+#: web/templates/partials/preprocess.html:171
+msgid ""
+"The source video isn't on disk, so the review player and cut editing are "
+"unavailable. The detected cuts are shown below."
+msgstr ""
+"O vídeo de origem não está no disco, então o player de revisão e a edição"
+" de cortes ficam indisponíveis. Os cortes detectados são exibidos abaixo."
+
+#: web/templates/partials/preprocess_filmstrip.html:14
+msgid "No scenes yet. Run scene detection to review its cuts here."
+msgstr ""
+"Nenhuma cena ainda. Rode a detecção de cenas para revisar seus cortes "
+"aqui."
+
+#: web/templates/partials/preprocess_filmstrip.html:20
+msgid "avg"
+msgstr "média"
+
+#: web/templates/partials/preprocess_filmstrip.html:21
+msgid "median"
+msgstr "mediana"
+
+#: web/templates/partials/preprocess_filmstrip.html:22
+msgid "shortest"
+msgstr "mais curta"
+
+#: web/templates/partials/preprocess_filmstrip.html:23
+msgid "longest"
+msgstr "mais longa"
+
+#: web/templates/partials/preprocess_filmstrip.html:25
+msgid "hand-edited"
+msgstr "editado à mão"
+
+#: web/templates/partials/preprocess_filmstrip.html:29
+msgid "Detected scenes"
+msgstr "Cenas detectadas"
+
+#: web/templates/partials/preprocess_filmstrip.html:38
+#: web/templates/partials/preprocess_filmstrip.html:39
+msgid "Merge with previous scene"
+msgstr "Mesclar com a cena anterior"
+
+#: web/templates/partials/preprocess_filmstrip.html:52
+msgid "Jump the player to this scene"
+msgstr "Levar o player para esta cena"
+
+#: web/templates/partials/processing.html:37
+msgid "active"
+msgstr "ativo"
+
+#: web/templates/partials/processing.html:83
+msgid "No video files found in the raw directory."
+msgstr "Nenhum arquivo de vídeo encontrado no diretório raw."
+
+#: web/templates/partials/processing.html:94
+msgid "All steps"
+msgstr "Todas as etapas"
+
+#: web/templates/partials/processing.html:106
 msgid "Start processing"
 msgstr "Iniciar processamento"
 
-#: web/templates/partials/processing.html:176
+#: web/templates/partials/processing.html:109
 msgid "Starting…"
 msgstr "Iniciando…"
 
-#: web/templates/partials/processing.html:188
+#: web/templates/partials/processing.html:121
 #, fuzzy
 msgid "+ Queue"
 msgstr "FILA"
 
-#: web/templates/partials/processing.html:191
+#: web/templates/partials/processing.html:124
 #, fuzzy
 msgid "Queuing…"
 msgstr "FILA"
 
-#: web/templates/partials/processing.html:208
+#: web/templates/partials/processing.html:141
 msgid "No active jobs."
 msgstr "Nenhum processamento em andamento."
 
-#: web/templates/partials/processing.html:245
+#: web/templates/partials/processing.html:178
 msgid "Log · SSE"
 msgstr "Log · SSE"
 
-#: web/templates/partials/processing.html:250
-#: web/templates/partials/processing.html:251
+#: web/templates/partials/processing.html:183
+#: web/templates/partials/processing.html:184
 msgid "Download log"
 msgstr "Baixar log"
 
-#: web/templates/partials/processing.html:255
+#: web/templates/partials/processing.html:188
 msgid "auto-scroll"
 msgstr "auto-scroll"
 
-#: web/templates/partials/processing.html:265
-msgid "Waiting for events…"
-msgstr "Aguardando eventos…"
-
-#: web/templates/partials/processing.html:297
+#: web/templates/partials/processing.html:230
 msgid "Step detail appears here while a film is processing."
 msgstr "O detalhe da etapa aparece aqui enquanto um filme é processado."
 
@@ -1458,8 +1556,8 @@ msgid "Reset"
 msgstr "Redefinir"
 
 #: web/templates/partials/scenes.html:207
-#: web/templates/partials/scenes.html:364
-#: web/templates/partials/scenes.html:392
+#: web/templates/partials/scenes.html:367
+#: web/templates/partials/scenes.html:395
 msgid "Pin count"
 msgstr "Número de marcadores"
 
@@ -1492,7 +1590,7 @@ msgid "Grouped by"
 msgstr "Agrupado por"
 
 #: web/templates/partials/scenes.html:307
-#: web/templates/partials/scenes.html:331
+#: web/templates/partials/scenes.html:334
 #: web/templates/partials/scenes_inspector.html:92
 msgid "Type"
 msgstr "Tipo"
@@ -1501,60 +1599,60 @@ msgstr "Tipo"
 msgid "None"
 msgstr "Nenhum"
 
-#: web/templates/partials/scenes.html:320
+#: web/templates/partials/scenes.html:323
 msgid "Group scenes by"
 msgstr "Agrupar cenas por"
 
-#: web/templates/partials/scenes.html:336
+#: web/templates/partials/scenes.html:339
 msgid "None (flat)"
 msgstr "Nenhum (plano)"
 
-#: web/templates/partials/scenes.html:360
+#: web/templates/partials/scenes.html:363
 msgid "Sorted by"
 msgstr "Ordenado por"
 
-#: web/templates/partials/scenes.html:376
+#: web/templates/partials/scenes.html:379
 msgid "Sort scenes by"
 msgstr "Ordenar cenas por"
 
-#: web/templates/partials/scenes.html:387
+#: web/templates/partials/scenes.html:390
 msgid "longest first"
 msgstr "mais longas primeiro"
 
-#: web/templates/partials/scenes.html:392
+#: web/templates/partials/scenes.html:395
 msgid "most pinned first"
 msgstr "mais marcadas primeiro"
 
 # ── Navigation / chrome ───────────────────────────────────────────────
-#: web/templates/partials/scenes.html:434
+#: web/templates/partials/scenes.html:437
 msgid "Search…"
 msgstr "Buscar…"
 
-#: web/templates/partials/scenes.html:452
+#: web/templates/partials/scenes.html:455
 #: web/templates/partials/scenes_grid.html:107
 msgid "runtime"
 msgstr "runtime"
 
-#: web/templates/partials/scenes.html:455
+#: web/templates/partials/scenes.html:458
 msgid "keyframes"
 msgstr "keyframes"
 
-#: web/templates/partials/scenes.html:480
+#: web/templates/partials/scenes.html:483
 #, fuzzy
 msgid "scene(s) selected"
 msgstr "Nenhuma cena selecionada"
 
 # ── Search tab ────────────────────────────────────────────────────────
-#: web/templates/partials/scenes.html:484
+#: web/templates/partials/scenes.html:487
 #, fuzzy
 msgid "Export EDL"
 msgstr "exportar"
 
-#: web/templates/partials/scenes.html:516
+#: web/templates/partials/scenes.html:519
 msgid "No scene selected"
 msgstr "Nenhuma cena selecionada"
 
-#: web/templates/partials/scenes.html:517
+#: web/templates/partials/scenes.html:520
 msgid "Select a scene in the grid to inspect its keyframe, tags, and description."
 msgstr ""
 "Selecione uma cena na grade para inspecionar seu keyframe, tags e "
@@ -2039,4 +2137,22 @@ msgstr "Linha do tempo das cenas do filme"
 
 #~ msgid "Night scenes"
 #~ msgstr "Cenas noturnas"
+
+#~ msgid ""
+#~ "Re-running scene detection will delete"
+#~ " all downstream outputs (visual analysis,"
+#~ " embeddings, LLM descriptions). Check all"
+#~ " steps, or run them separately after."
+#~ msgstr ""
+#~ "Executar a detecção de cenas novamente"
+#~ " apagará todas as saídas posteriores "
+#~ "(análise visual, embeddings, descrições LLM)."
+#~ " Marque todas as etapas ou "
+#~ "execute-as separadamente depois."
+
+#~ msgid "s"
+#~ msgstr "s"
+
+#~ msgid "Split"
+#~ msgstr "Dividir"
 

@@ -1,0 +1,259 @@
+/* ══ Pre-processing tab — scene-cut review ═══════════════════════════════
+   Signature surface: a cut-timeline "filmstrip". Detected scenes render as a
+   contiguous band of keyframes separated by film-splice cut markers with
+   sprocket perforations — the subject (finding splices in a strip of film)
+   made literal. Built entirely from the shared Mojica tokens; the only bold
+   move is the perforation motif on the strip and its cut markers. Everything
+   else stays quiet.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.pp-cp {
+  display: flex; flex-direction: column; gap: var(--sp-4);
+  padding: var(--sp-5); min-width: 0;
+  flex: 1; min-height: 0; overflow-y: auto;
+}
+
+/* ── Header + detect form ─────────────────────────────────────────────── */
+.pp-top { display: flex; flex-direction: column; gap: var(--sp-3); }
+.pp-row1 { display: flex; align-items: baseline; gap: var(--sp-3); flex-wrap: wrap; }
+.pp-row1 h1 {
+  display: flex; align-items: center; gap: var(--sp-2);
+  font-size: 18px; font-weight: 600; color: var(--c-text); margin: 0;
+}
+.pp-row1 h1 .ic { color: var(--c-accent-2); display: inline-flex; }
+.pp-lede { font-size: 13px; color: var(--c-muted); margin: 0; }
+
+.pp-detect {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--c-panel); border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+}
+.pp-field { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
+.pp-field--film { min-width: 200px; }
+.pp-field__label {
+  display: inline-flex; align-items: center;
+  font-size: 11px; font-weight: 500; letter-spacing: .01em;
+  color: var(--c-muted); text-transform: uppercase;
+}
+.pp-detect__go { display: flex; align-items: center; gap: var(--sp-2); margin-left: auto; }
+.pp-detect__go .htmx-indicator { font-size: 12px; }
+
+.pp-rerun-note, .pp-nofilms { font-size: 12px; color: var(--c-muted); margin: 0; }
+.pp-rerun-note {
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 2px solid var(--c-orange);
+  background: var(--c-orange-bg); border-radius: var(--r-sm);
+  color: var(--c-text-2);
+}
+
+/* ── Detection job (SSE stepper card reused) + log ─────────────────────── */
+.pp-job { display: flex; flex-direction: column; gap: var(--sp-3); }
+.pp-log {
+  background: var(--c-bg); border: 1px solid var(--c-border);
+  border-radius: var(--r-md); overflow: hidden;
+}
+.pp-log__head {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: 11px; color: var(--c-muted); border-bottom: 1px solid var(--c-border);
+}
+.pp-log__head .dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--c-green);
+  box-shadow: 0 0 0 3px var(--c-green-bg);
+}
+.pp-log__lines {
+  max-height: 220px; overflow-y: auto;
+  padding: var(--sp-2) var(--sp-3);
+  font-family: var(--font-mono); font-size: 11.5px; line-height: 1.7;
+}
+.pp-log__lines:empty::before {
+  content: attr(data-empty-text); color: var(--c-faint); font-style: italic;
+}
+
+/* ── Filmstrip: stats readout ──────────────────────────────────────────── */
+.pp-filmstrip { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+.pp-stats {
+  display: flex; flex-wrap: wrap; gap: var(--sp-4);
+  font-size: 12px; color: var(--c-muted);
+}
+.pp-stat b { color: var(--c-text); font-weight: 600; }
+.pp-stat--edited {
+  display: inline-flex; align-items: center; gap: 4px;
+  color: var(--c-accent-2);
+}
+.pp-stat--edited svg { width: 12px; height: 12px; }
+.pp-stat--busy { display: inline-flex; align-items: center; gap: 4px; color: var(--c-accent-2); }
+.pp-stat--busy svg { width: 12px; height: 12px; }
+
+/* ── Filmstrip: staged (pending) edits panel ────────────────────────────── */
+.pp-pending {
+  background: var(--c-panel); border: 1px solid var(--c-border);
+  border-radius: var(--r-lg); padding: var(--sp-3) var(--sp-4);
+  display: flex; flex-direction: column; gap: var(--sp-2);
+}
+.pp-pending__head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.pp-pending__count {
+  font-size: 11px; font-weight: 500; letter-spacing: .04em;
+  color: var(--c-muted); text-transform: uppercase;
+}
+.pp-pending__actions { display: inline-flex; gap: var(--sp-2); }
+.pp-pending__apply, .pp-pending__discard {
+  display: inline-flex; align-items: center; gap: 4px;
+  border: none; border-radius: var(--r-sm); cursor: pointer;
+  font-size: 11px; font-weight: 600; padding: 4px 9px;
+  font-family: var(--font-sans);
+  transition: filter var(--dur-fast);
+}
+.pp-pending__apply { background: var(--c-green); color: #0E1014; }
+.pp-pending__apply:hover { filter: brightness(1.1); }
+.pp-pending__discard { background: transparent; color: var(--c-muted); border: 1px solid var(--c-border-2); }
+.pp-pending__discard:hover { color: var(--c-text); border-color: var(--c-border-3); }
+.pp-pending__apply:disabled, .pp-pending__discard:disabled {
+  opacity: .4; cursor: not-allowed; pointer-events: none;
+}
+.pp-pending__list { list-style: none; margin: 0; padding: 0; }
+.pp-pending__item { border-top: 1px solid var(--c-border); }
+.pp-pending__item:first-child { border-top: none; }
+.pp-pending__row {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: 6px 2px; cursor: pointer; font-size: 12px; color: var(--c-text-2);
+}
+.pp-pending__checkbox { accent-color: var(--c-accent); cursor: pointer; }
+.pp-pending__dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.pp-pending__dot--merge { background: var(--c-orange); }
+.pp-pending__dot--split { background: var(--c-red); }
+
+/* ── Filmstrip: the strip band ─────────────────────────────────────────── */
+.pp-strip {
+  display: flex; align-items: stretch; gap: 0;
+  overflow-x: auto; overflow-y: hidden;
+  padding: 14px 0;                    /* room for the sprocket rows */
+  background: var(--c-panel);
+  border: 1px solid var(--c-border); border-radius: var(--r-lg);
+  position: relative;
+}
+/* Sprocket perforation rows top + bottom — the 35mm-strip signature. */
+.pp-strip::before, .pp-strip::after {
+  content: ''; position: absolute; left: 0; right: 0; height: 6px;
+  background-image: radial-gradient(var(--c-bg) 40%, transparent 42%);
+  background-size: 16px 6px; background-repeat: repeat-x;
+  opacity: .8; pointer-events: none;
+}
+.pp-strip::before { top: 4px; }
+.pp-strip::after { bottom: 4px; }
+/* Wider than the global thin scrollbar — this is the primary way to browse
+   a long filmstrip, so its handle needs to read clearly, not disappear. */
+.pp-strip { scrollbar-width: auto; }
+.pp-strip::-webkit-scrollbar { height: 14px; }
+.pp-strip::-webkit-scrollbar-thumb { background: var(--c-border-2); border-radius: 7px; }
+.pp-strip::-webkit-scrollbar-thumb:hover { background: var(--c-border-3); }
+.pp-strip::-webkit-scrollbar-track { background: transparent; }
+
+/* ── Review surface: source-video player + filmstrip ───────────────────── */
+.pp-review { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.pp-player {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  padding: var(--sp-3); background: var(--c-panel);
+  border: 1px solid var(--c-border); border-radius: var(--r-lg);
+}
+.pp-player__video {
+  width: 100%; max-height: 38vh; border-radius: var(--r-md);
+  background: #000; display: block;
+}
+.pp-player__bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-3);
+}
+.pp-player__readout {
+  font-size: 13px; color: var(--c-text); padding: 4px 10px;
+  background: var(--c-bg); border: 1px solid var(--c-border); border-radius: var(--r-md);
+}
+.pp-player__steps { display: inline-flex; gap: 6px; }
+.pp-player__steps .fx-btn { font-family: var(--font-mono); }
+#pp-split-here { margin-left: auto; }
+.pp-player__hint { margin: 0; font-size: 11.5px; color: var(--c-muted); }
+
+/* ── Filmstrip: one scene (a seek button) ──────────────────────────────── */
+.pp-scene {
+  display: flex; flex-direction: column; gap: 6px;
+  margin: 0; padding: 0 6px; flex: 0 0 auto; width: 175px;
+  background: transparent; border: none; cursor: pointer; text-align: left;
+  font: inherit; color: inherit;
+}
+.pp-scene__frame {
+  position: relative; display: block; aspect-ratio: 16 / 9; width: 100%;
+  border-radius: var(--r-sm); overflow: hidden;
+  background: var(--c-bg); border: 1px solid var(--c-border);
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.pp-scene:hover .pp-scene__frame,
+.pp-scene:focus-visible .pp-scene__frame {
+  border-color: var(--c-accent); box-shadow: var(--focus-ring);
+}
+.pp-scene:focus-visible { outline: none; }
+.pp-scene__frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pp-scene__idx {
+  position: absolute; top: 4px; left: 4px;
+  padding: 1px 6px; border-radius: var(--r-sm);
+  font-size: 10px; font-weight: 600; color: var(--c-text);
+  background: rgba(14,16,20,0.72); backdrop-filter: blur(2px);
+}
+.pp-scene__meta {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 6px;
+  font-size: 11px; color: var(--c-text-2);
+}
+.pp-scene__dur { color: var(--c-muted); }
+/* A checked, staged split would divide this scene here on Apply — the tile's
+   real thumbnail is untouched until then, this is purely an overlay. */
+.pp-scene__pending-split {
+  position: absolute; top: 0; bottom: 0; width: 2px;
+  background: var(--c-red); transform: translateX(-1px);
+  box-shadow: 0 0 0 1px rgba(14,16,20,0.5);
+}
+
+/* ── Filmstrip: the cut / splice marker between two scenes ─────────────── */
+.pp-cut {
+  position: relative; flex: 0 0 auto; width: 22px;
+  display: flex; align-items: center; justify-content: center;
+  align-self: stretch;
+}
+/* The splice line — dashed like a film cut; accent when the cut is manual. */
+.pp-cut::before {
+  content: ''; position: absolute; top: 8px; bottom: 8px; left: 50%;
+  width: 0; border-left: 2px dashed var(--c-border-3); transform: translateX(-50%);
+}
+.pp-cut--manual::before { border-left-color: var(--c-accent); }
+/* A checked, staged merge would remove this cut on Apply — reverts to its
+   normal styling automatically once applied (real cut gone) or discarded. */
+.pp-cut--pending-merge::before { border-left-style: solid; border-left-color: var(--c-orange); }
+.pp-cut__merge {
+  position: relative; z-index: var(--z-raised);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  color: var(--c-muted); background: var(--c-panel); border: 1px solid var(--c-border-2);
+  cursor: pointer; opacity: .55;
+  transition: opacity var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast);
+}
+.pp-cut:hover .pp-cut__merge, .pp-cut__merge:focus-visible {
+  opacity: 1; color: var(--c-text); border-color: var(--c-accent); background: var(--c-raised); outline: none;
+}
+.pp-cut__merge:disabled, #pp-split-here:disabled {
+  opacity: .35; cursor: not-allowed; pointer-events: none;
+}
+
+/* ── Empty state ───────────────────────────────────────────────────────── */
+.pp-empty {
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-3);
+  padding: 48px var(--sp-4); text-align: center;
+  background: var(--c-panel); border: 1px dashed var(--c-border-2); border-radius: var(--r-lg);
+}
+.pp-empty__glyph { color: var(--c-accent-dim); display: inline-flex; }
+.pp-empty__text { font-size: 13px; color: var(--c-muted); margin: 0; max-width: 34ch; }
+
+/* Reduced-motion: neutralise hover transitions. */
+@media (prefers-reduced-motion: reduce) {
+  .pp-scene__frame { transition: none; }
+}

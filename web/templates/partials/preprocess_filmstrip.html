@@ -1,0 +1,132 @@
+{% from "partials/_icons.html" import icon %}
+
+{#- Cut-timeline filmstrip — the Pre-processing signature surface.
+
+    Scenes render as a contiguous band of keyframes separated by splice cut
+    markers. Clicking a keyframe seeks the review player to that scene's start
+    (handled by preprocess.js via ``data-seek``). Merge/split are staged, not
+    applied immediately (see kuaa.preprocess.service): clicking either is a
+    cheap JSON write with no rebuild, surfaced here as a colored overlay on
+    the existing, unchanged tiles (a pending merge colors the divider it
+    would remove yellow; a pending split draws a red marker at its position
+    inside the scene it would divide) plus a row in the pending-changes list
+    below. Only "Apply changes" triggers the real (now partial) rebuild. -#}
+<div id="pp-filmstrip" class="pp-filmstrip">
+{% if not filmstrip or not filmstrip.has_scenes %}
+  <div class="pp-empty">
+    <span class="pp-empty__glyph">{{ icon('preproc', 26) }}</span>
+    <p class="pp-empty__text">{{ _("No scenes yet. Run scene detection to review its cuts here.") }}</p>
+  </div>
+{% else %}
+  {%- set st = filmstrip.stats -%}
+  <div class="pp-stats fx-mono">
+    <span class="pp-stat"><b>{{ st.num_scenes }}</b> {{ _("scenes") }}</span>
+    <span class="pp-stat">{{ _("avg") }} <b>{{ '%.1f'|format(st.mean_s) }}s</b></span>
+    <span class="pp-stat">{{ _("median") }} <b>{{ '%.1f'|format(st.median_s) }}s</b></span>
+    <span class="pp-stat">{{ _("shortest") }} <b>{{ '%.1f'|format(st.min_s) }}s</b></span>
+    <span class="pp-stat">{{ _("longest") }} <b>{{ '%.1f'|format(st.max_s) }}s</b></span>
+    {% if filmstrip.has_manual_edits %}
+      <span class="pp-stat pp-stat--edited">{{ icon('scissors', 12) }} {{ _("hand-edited") }}</span>
+    {% endif %}
+    {#- Applying rebuilds whatever scenes the checked changes touched, which
+        can take a while on long films. Without this, Apply looks hung and
+        invites a second click that races the first. -#}
+    <span id="pp-edit-busy" class="pp-stat pp-stat--busy htmx-indicator">
+      {{ icon('spinner-gap', 'spin') }} {{ _("Rebuilding keyframes… this can take a while for long films.") }}
+    </span>
+  </div>
+
+  {% if filmstrip.pending_count > 0 %}
+  {#- Staged edits, mirroring the Processing tab's queue idiom: a count +
+      commit action, plus one checkable row per staged operation so a single
+      mistaken edit can be dropped without discarding the whole session. -#}
+  <div class="pp-pending" id="pp-pending">
+    <div class="pp-pending__head">
+      <span class="pp-pending__count">
+        {{ _("%(n)s pending change(s)") % {"n": filmstrip.pending_count} }}
+      </span>
+      <div class="pp-pending__actions">
+        <button type="button" class="pp-pending__apply"
+                title="{{ _('Rebuild only the checked changes') }}"
+                hx-post="/api/preprocess/cut/apply"
+                hx-vals='{"slug": "{{ pp_slug }}"}'
+                hx-target="#pp-filmstrip" hx-swap="outerHTML"
+                hx-indicator="#pp-edit-busy"
+                hx-disabled-elt="#pp-filmstrip button, #pp-filmstrip input, #pp-split-here">
+          {{ icon('check', 14) }} {{ _("Apply changes") }}
+        </button>
+        <button type="button" class="pp-pending__discard"
+                title="{{ _('Discard every staged change') }}"
+                hx-post="/api/preprocess/cut/discard"
+                hx-vals='{"slug": "{{ pp_slug }}"}'
+                hx-target="#pp-filmstrip" hx-swap="outerHTML">
+          {{ icon('x', 14) }} {{ _("Discard") }}
+        </button>
+      </div>
+    </div>
+    <ul class="pp-pending__list">
+      {% for op in filmstrip.pending_ops %}
+        <li class="pp-pending__item">
+          <label class="pp-pending__row">
+            <input type="checkbox" class="pp-pending__checkbox"
+                   {% if op.checked %}checked{% endif %}
+                   hx-post="/api/preprocess/cut/pending/{{ op.index }}/toggle"
+                   hx-vals='{"slug": "{{ pp_slug }}"}'
+                   hx-target="#pp-filmstrip" hx-swap="outerHTML">
+            <span class="pp-pending__dot pp-pending__dot--{{ op.type }}"></span>
+            <span class="pp-pending__label fx-mono">
+              {% if op.type == "merge" %}
+                {{ _("Merge at %(tc)s") % {"tc": op.start_smpte} }}
+              {% else %}
+                {{ _("Split at %(tc)s") % {"tc": op.start_smpte} }}
+              {% endif %}
+            </span>
+          </label>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <div class="pp-strip" role="list" aria-label="{{ _('Detected scenes') }}">
+    {% for s in filmstrip.scenes %}
+      {% if not loop.first %}
+        {#- Splice between the previous scene and this one; merge stages its
+            removal (HTMX). Editing needs the source video (apply re-extracts
+            keyframes), so the merge control is hidden when it is unavailable. -#}
+        <div class="pp-cut{% if s.cut_source == 'manual' %} pp-cut--manual{% endif %}{% if s.pending_removal %} pp-cut--pending-merge{% endif %}">
+          {% if pp_can_edit | default(true) %}
+          <button type="button" class="pp-cut__merge"
+                  title="{{ _('Merge with previous scene') }}"
+                  aria-label="{{ _('Merge with previous scene') }}"
+                  hx-post="/api/preprocess/cut/merge"
+                  hx-vals='{"slug": "{{ pp_slug }}", "cut_frame": {{ s.start_frame }}}'
+                  hx-target="#pp-filmstrip" hx-swap="outerHTML">
+            {{ icon('merge', 13) }}
+          </button>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      {#- Keyframe seeks the player to this scene's start (preprocess.js). -#}
+      <button type="button" class="pp-scene" role="listitem"
+              data-seek="{{ '%.3f'|format(s.start_time_s) }}"
+              title="{{ _('Jump the player to this scene') }}">
+        <span class="pp-scene__frame">
+          {% if s.keyframe_url %}
+            <img src="{{ s.keyframe_url }}" alt="{{ _('Scene') }} {{ s.index }}" loading="lazy">
+          {% endif %}
+          <span class="pp-scene__idx fx-mono">{{ s.index }}</span>
+          {% for frac in s.pending_splits %}
+            <span class="pp-scene__pending-split" style="left: {{ '%.1f'|format(frac * 100) }}%;" aria-hidden="true"></span>
+          {% endfor %}
+        </span>
+        <span class="pp-scene__meta fx-mono">
+          <span class="pp-scene__tc">{{ s.start_smpte }}</span>
+          <span class="pp-scene__dur">{{ '%.1f'|format(s.duration_s) }}s</span>
+        </span>
+      </button>
+    {% endfor %}
+  </div>
+{% endif %}
+</div>

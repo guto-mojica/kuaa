@@ -95,19 +95,18 @@ async def build_sse_generator(
 # ── Context builder ───────────────────────────────────────────────────────────
 
 
-def build_processing_context() -> ProcessingContext:
+def build_processing_context(surface: str = "processing") -> ProcessingContext:
     """Build the template context the processing tab partial needs.
 
-    Shared by the ``/tab/processing`` HTMX fragment and the
-    ``/processing`` full-page route so both render the step checklist
-    and active-job list identically.
+    Shared by the ``/tab/processing`` fragment and ``/processing`` full page.
+    ``surface`` scopes which active jobs are shown so the two surfaces never
+    display each other's runs: ``"processing"`` hides scene-detection jobs,
+    ``"preprocess"`` shows only them.
 
     Mojica Task 24 extends the context with the new ``.p-cp`` layout's
     requirements:
 
-      * ``initial_log_lines`` — empty; SSE feeds the terminal log
-        live. A future tail-of-buffer hook can seed this with the
-        most recent N events.
+      * ``initial_log_lines`` — empty; SSE feeds the terminal log live.
       * ``stats`` — aggregate frames/scenes/embeddings/descriptions/
         faces/objects counts (see :func:`processing_service.aggregate_stats`).
       * ``job_queue`` — recent-job history mapped to the .p-queue
@@ -133,6 +132,10 @@ def build_processing_context() -> ProcessingContext:
     library_dir = Path(cfg.paths.library_dir)
     films = [f for f in scan_library(library_dir) if f.raw_path.exists()]
     active = active_jobs()
+    if surface == "processing":
+        active = [j for j in active if not j.is_scene_detection_only]
+    elif surface == "preprocess":
+        active = [j for j in active if j.is_scene_detection_only]
     jobs = enrich_jobs(active)
 
     # Seed the terminal-log pane with the active job's captured log

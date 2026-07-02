@@ -64,13 +64,14 @@
 
   <nav class="tabs" aria-label="{{ _('Main tabs') }}">
     {% set tab_defs = [
-      ('buscar', _('Search'), 'search'),
-      ('cenas',  _('Scenes'), 'grid'),
-      ('anotar', _('Annotate'), 'tag'),
-      ('rimas',  _('Rhymes'), 'rhymes'),
-      ('proc',   _('Processing'), 'proc'),
+      ('buscar',  _('Search'), 'search'),
+      ('cenas',   _('Scenes'), 'grid'),
+      ('anotar',  _('Annotate'), 'tag'),
+      ('rimas',   _('Rhymes'), 'rhymes'),
+      ('preproc', _('Pre-processing'), 'preproc'),
+      ('proc',    _('Processing'), 'proc'),
     ] %}
-    {% set tab_routes = {'buscar':'search','cenas':'scenes','anotar':'annotate','rimas':'rimas','proc':'processing'} %}
+    {% set tab_routes = {'buscar':'search','cenas':'scenes','anotar':'annotate','rimas':'rimas','preproc':'pre-processing','proc':'processing'} %}
     {# Preserve the active film slug across tab switches. Without this, picking
        a film (which sets ?film=<slug>) and then clicking another top tab would
        silently revert to the aggregate view — matching the legacy tab-bar's

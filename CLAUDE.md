@@ -56,6 +56,8 @@ These words have fixed meaning in code, URLs, translation keys, and UI.
 | Sobre | About | Institutional credits modal/page |
 | Tag | Tag | Label applicable to a scene (automatic or manual) |
 | Pipeline | Pipeline | Step sequence: frames → scenes → visual → embeddings → llm |
+| Pré-processamento | Pre-processing | Dedicated tab: scene-cut detection + filmstrip review (split/merge) before the heavy steps |
+| Corte | Cut | A detected scene boundary; the authoritative cut list lives in `scene_cuts.json` |
 | Rimas | Rhymes | Cross-film visual similarity matches (Rimas Visuais tab) |
 | Âncora | Anchor | The scene whose visual rhymes are being explored |
 
@@ -74,6 +76,7 @@ Terms to avoid:
 src/kuaa/      AI core. HTTP-agnostic logic. Cleanly importable.
   search/              4-verb / 7-type retrieval API (find / aggregate / reindex_bm25 / rerank).
   library/             Registry + scan + FilmContext + per-film metadata loaders.
+  preprocess/          Scene-cut review: cut-list load/edit (split/merge) + filmstrip view model.
   annotations/         Manual tags + descriptions + annotate-tab scene builders.
   rhymes/              Cross-film visual-rhyme algorithm + enrichment.
   eval/                Eval-set datasets + grades + IAA / κ metrics.

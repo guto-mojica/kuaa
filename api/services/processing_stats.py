@@ -9,77 +9,59 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from types import MappingProxyType
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-# ── Per-step substep recipes ──────────────────────────────────────────────────
+# ── Pipeline step descriptions (right-pane copy) ──────────────────────────────
 #
-# Kept here alongside ``_fallback_substeps`` because ``build_active_step``
-# (which remains in processing_service) calls ``_fallback_substeps``, and
-# we re-export it from processing_service to keep the public surface intact.
+# Short, factual descriptions of what each pipeline step does — surfaced in the
+# .p-rp "what" paragraph and as the label/detail of each real substep row.
 
-_SUBSTEP_RECIPES: MappingProxyType[str, tuple[dict[str, str], ...]] = MappingProxyType(
-    {
-        "frame_extraction": (
-            {"label": "Probe video", "sub": "ffmpeg · streams", "value": "~0.3s"},
-            {"label": "Extract frames", "sub": "1 fps · 480p", "value": ""},
-            {"label": "Persist frames", "sub": "data/frames/", "value": "~5s"},
+_STEP_DESCRIPTIONS: dict[str, dict[str, str]] = {
+    "frame_extraction": {
+        "label": "Frame extraction",
+        "detail": "ffmpeg · 1 fps · 480p",
+        "description": (
+            "Decode the source video and emit one keyframe per second "
+            "(downscaled). Feeds scene detection and visual analysis."
         ),
-        "scene_detection": (
-            {"label": "Read frames", "sub": "PySceneDetect input", "value": "~0.5s"},
-            {"label": "Detect cuts", "sub": "adaptive threshold", "value": ""},
-            {"label": "Pick keyframes", "sub": "1 per scene", "value": "~2s"},
-            {"label": "Persist scenes", "sub": "keyframes_metadata.json", "value": "~1s"},
+    },
+    "scene_detection": {
+        "label": "Scene detection",
+        "detail": "PySceneDetect · adaptive",
+        "description": (
+            "Detect shot boundaries across the extracted frames and "
+            "build the scene index. Output: scene cuts + representative "
+            "keyframes."
         ),
-        "visual_analysis": (
-            {"label": "Load YOLOv8 weights", "sub": "ultralytics", "value": "~0.4s"},
-            {"label": "Load MTCNN", "sub": "facenet-pytorch", "value": "~0.6s"},
-            {"label": "Detect objects", "sub": "per scene", "value": ""},
-            {"label": "Detect faces", "sub": "per scene", "value": ""},
-            {"label": "Persist tags", "sub": "tags_per_scene.json", "value": "~15s"},
+    },
+    "visual_analysis": {
+        "label": "Visual analysis",
+        "detail": "YOLOv8 (objects) + MTCNN (faces)",
+        "description": (
+            "Run object and face detection on each scene's keyframes to "
+            "produce automatic tags. Output feeds embeddings + descriptions."
         ),
-        "embeddings": (
-            {"label": "Load CLIP", "sub": "ViT-B/32", "value": "~1s"},
-            {"label": "Encode keyframes", "sub": "batch · GPU/CPU", "value": ""},
-            {"label": "Persist embeddings", "sub": "keyframe_embeddings.npy", "value": "~2s"},
+    },
+    "embeddings": {
+        "label": "Embeddings",
+        "detail": "CLIP ViT-B/32",
+        "description": (
+            "Encode every keyframe into a CLIP embedding so the scene "
+            "is searchable by text query or by another image."
         ),
-        "llm_description": (
-            {"label": "Load Moondream2", "sub": "transformers", "value": "~6s"},
-            {"label": "Describe scenes", "sub": "per keyframe", "value": ""},
-            {"label": "Persist descriptions", "sub": "scene_descriptions.json", "value": "~3s"},
+    },
+    "llm_description": {
+        "label": "LLM descriptions",
+        "detail": "Moondream2 · transformers",
+        "description": (
+            "Generate a short natural-language description of each scene "
+            "from its keyframe. Slowest step; CPU-bound by default."
         ),
-    }
-)
-
-_DEFAULT_RECIPE: tuple[dict[str, str], ...] = (
-    {"label": "Load weights", "sub": "", "value": ""},
-    {"label": "Run", "sub": "", "value": ""},
-    {"label": "Persist outputs", "sub": "", "value": ""},
-)
-
-_ACTIVE_STATUS_BY_INDEX = ("done", "active")  # i=0 → done, i=1 → active, else pending
-
-
-def _fallback_substeps(step_name: str, step_state: str) -> list[dict[str, str]]:
-    """Per-step synthetic substeps so the right pane renders meaningfully.
-
-    Status derived from the parent step's state:
-      'done'   → all done
-      'active' → first sub done, second active, remainder pending
-      else     → all pending
-    """
-    recipe = _SUBSTEP_RECIPES.get(step_name, _DEFAULT_RECIPE)
-    if step_state == "done":
-        return [{**r, "status": "done"} for r in recipe]
-    if step_state == "active":
-        return [
-            {**r, "status": _ACTIVE_STATUS_BY_INDEX[i] if i < 2 else "pending"}
-            for i, r in enumerate(recipe)
-        ]
-    return [{**r, "status": "pending"} for r in recipe]
+    },
+}
 
 
 # ── Stats aggregation ─────────────────────────────────────────────────────────

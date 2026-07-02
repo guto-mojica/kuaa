@@ -111,6 +111,65 @@
   background: var(--c-bg);
 }
 
+/* ─── NATIVE CONTROLS, THEMED (select / number / tooltip badge) ────────
+   Native <select> and <input type=number> otherwise inherit OS chrome that
+   clashes with the dark theme. These classes give them the .fx-input look
+   while keeping the no-build-step constraint (no JS widgets). */
+.fx-num, .fx-select {
+  font: inherit; font-size: 13px; color: var(--c-text);
+  background: var(--c-panel); border: 1px solid var(--c-border);
+  padding: 6px 10px; border-radius: var(--r-md);
+  transition: border-color var(--dur-fast), background var(--dur-fast), box-shadow var(--dur-fast);
+}
+.fx-num:hover, .fx-select:hover { border-color: var(--c-border-2); }
+.fx-num:focus, .fx-select:focus {
+  outline: none; border-color: var(--c-accent);
+  background: var(--c-raised); box-shadow: var(--focus-ring);
+}
+.fx-num {
+  width: 6.5rem; font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+}
+.fx-select {
+  appearance: none; -webkit-appearance: none; padding-right: 28px; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239097A3' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 9px center;
+}
+/* Small round "?" affordance; the tooltip text rides the existing
+   polish.css [data-tip] mechanism. */
+.fx-tip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; margin-left: 5px; border-radius: 50%;
+  font-size: 9px; font-weight: 600; line-height: 1; cursor: help;
+  color: var(--c-muted); border: 1px solid var(--c-border-2); background: var(--c-bg);
+  transition: color var(--dur-fast), border-color var(--dur-fast);
+}
+.fx-tip:hover, .fx-tip:focus-visible {
+  color: var(--c-text); border-color: var(--c-border-3); outline: none;
+}
+
+/* ─── RANGE SLIDERS, THEMED (system-wide) ──────────────────────────────
+   The two existing range inputs (Buscar semantic↔lexical weight, Rimas λ)
+   rendered as raw OS sliders. Theming the bare element covers them and any
+   future slider without per-template markup changes. */
+input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 4px; margin: 8px 0; border-radius: var(--r-pill);
+  background: var(--c-border-2); outline: none; cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--c-accent-2); border: 2px solid var(--c-bg); box-shadow: var(--sh-1);
+  transition: background var(--dur-fast), transform var(--dur-fast);
+}
+input[type="range"]::-webkit-slider-thumb:hover { background: var(--c-accent); transform: scale(1.12); }
+input[type="range"]::-moz-range-track { height: 4px; border-radius: var(--r-pill); background: var(--c-border-2); }
+input[type="range"]::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--c-accent-2); border: 2px solid var(--c-bg); box-shadow: var(--sh-1); cursor: pointer;
+}
+input[type="range"]:focus-visible { box-shadow: var(--focus-ring); }
+
 /* ─── BUTTONS ────────────────────────────────────────────────────────── */
 .fx-btn {
   display: inline-flex; align-items: center; gap: 7px;
@@ -139,6 +198,7 @@
   background: transparent; color: var(--c-text-2);
 }
 .fx-btn.ghost:hover { background: var(--c-hover); color: var(--c-text); }
+.fx-btn.sm { padding: 4px 9px; font-size: 11.5px; }
 
 /* ─── PANEL HEADER (small caps) ─────────────────────────────────────── */
 .fx-ph {

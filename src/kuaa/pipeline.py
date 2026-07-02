@@ -339,10 +339,11 @@ class CatalogPipeline:
             return StepResult(name=name, success=False, duration_s=time.time() - t0, error=str(e))
 
     def _step_scene_detection(self, video_path: Path) -> StepResult:
-        from kuaa.scene_detector import SceneDetector
+        from kuaa.scene_detector import SceneDetector, write_cutset
 
         name = "scene_detection"
         metadata_path = self._metadata_dir() / "keyframes_metadata.json"
+        cuts_path = self._metadata_dir() / "scene_cuts.json"
         keyframes_dir = self._frames_dir() / "scenes" / "keyframes_content"
 
         if self.cfg.pipeline.skip_existing and metadata_path.exists():
@@ -360,6 +361,9 @@ class CatalogPipeline:
             scene_list = detector.detect(video_path)
             keyframes = detector.extract_keyframes(scene_list, video_path, keyframes_dir)
             metadata_path = detector.export_metadata(scene_list, keyframes, metadata_path)
+            # Persist the authoritative cut set so the Pre-processing review UI
+            # can read/edit boundaries without re-running detection.
+            write_cutset(detector.build_cutset(scene_list), cuts_path)
             stats = detector.scene_stats(scene_list)
             logger.info(
                 "Cenas: %d detectadas | média %.1fs | keyframes: %d",

@@ -1,0 +1,183 @@
+{% from "partials/_icons.html" import icon %}
+
+{#- Pre-processing tab — scene-detection review workspace.
+
+    Workflow: pick a film → tune detection → run it → review the cut-timeline
+    filmstrip → hand-correct boundaries (split / merge) → hand off to Processing
+    for the downstream visual / embeddings / LLM steps.
+
+    Scene-detection runs reuse the Processing job registry + SSE stream
+    (``/api/pipeline/stream``); ``processing_job.html`` carries that pinned SSE
+    contract unchanged. On stream close the filmstrip is refreshed so the new
+    cuts appear without a full reload. -#}
+<div class="tab-panel">
+<section class="pp-cp">
+
+  <header class="pp-top">
+    <div class="pp-row1">
+      <h1>
+        <span class="ic">{{ icon('preproc', 18) }}</span>
+        {{ _("Pre-processing") }}
+      </h1>
+      <p class="pp-lede">{{ _("Detect scene cuts and review them before the heavy steps run.") }}</p>
+    </div>
+
+    {%- set tip_detector = _("'adaptive' compares each frame to a rolling window average — better for gradual lighting changes and subtle cuts. 'content' measures raw frame-to-frame pixel difference — faster but may miss soft transitions.") -%}
+    {%- set tip_adaptive = _("How different a frame must be from its local average to count as a cut. Lower values detect more scenes. Typical range: 2–6.") -%}
+    {%- set tip_content = _("Pixel-difference score that triggers a cut. Lower values produce more scenes. Typical range: 15–40.") -%}
+
+    {% if films %}
+      <form class="pp-detect"
+            x-data="{ detector: '{{ cfg.scene_detection.detector }}' }"
+            hx-post="/api/preprocess/detect"
+            hx-target="closest .tab-panel"
+            hx-swap="outerHTML"
+            hx-indicator="#pp-detect-spinner">
+
+        <label class="pp-field pp-field--film">
+          <span class="pp-field__label">{{ _("Film") }}</span>
+          {#- Changing the film reloads the tab for that slug (view switch);
+              submitting the form runs detection on the selected film. -#}
+          <select name="film" class="fx-select"
+                  hx-get="/tab/pre-processing"
+                  hx-trigger="change"
+                  hx-target="closest .tab-panel"
+                  hx-swap="outerHTML"
+                  hx-include="this">
+            {% for film in films %}
+              <option value="{{ film.slug }}"{% if film.slug == pp_slug %} selected{% endif %}>{{ film.title }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label class="pp-field">
+          <span class="pp-field__label">{{ _("Detector") }}
+            <span class="fx-tip" data-tip="{{ tip_detector }}" tabindex="0">?</span>
+          </span>
+          <select name="sd_detector" class="fx-select" x-model="detector">
+            <option value="adaptive">{{ _("adaptive") }}</option>
+            <option value="content">{{ _("content") }}</option>
+          </select>
+        </label>
+
+        <label class="pp-field" x-show="detector === 'adaptive'">
+          <span class="pp-field__label">{{ _("Adaptive threshold") }}
+            <span class="fx-tip" data-tip="{{ tip_adaptive }}" tabindex="0">?</span>
+          </span>
+          <input class="fx-num" type="number" name="sd_adaptive_threshold" step="0.1" min="0.1" max="100"
+                 value="{{ cfg.scene_detection.adaptive_threshold }}">
+        </label>
+
+        <label class="pp-field" x-show="detector === 'content'" x-cloak>
+          <span class="pp-field__label">{{ _("Content threshold") }}
+            <span class="fx-tip" data-tip="{{ tip_content }}" tabindex="0">?</span>
+          </span>
+          <input class="fx-num" type="number" name="sd_content_threshold" step="0.5" min="1" max="100"
+                 value="{{ cfg.scene_detection.content_threshold }}">
+        </label>
+
+        <label class="pp-field">
+          <span class="pp-field__label">{{ _("Min scene length") }}</span>
+          <input class="fx-num" type="number" name="sd_min_scene_len" step="1" min="1"
+                 value="{{ cfg.scene_detection.min_scene_len }}">
+        </label>
+
+        <label class="pp-field">
+          <span class="pp-field__label">{{ _("Keyframes / scene") }}</span>
+          <select name="sd_keyframes_per_scene" class="fx-select">
+            <option value="1"{% if cfg.scene_detection.keyframes_per_scene == 1 %} selected{% endif %}>1</option>
+            <option value="3"{% if cfg.scene_detection.keyframes_per_scene != 1 %} selected{% endif %}>3</option>
+          </select>
+        </label>
+
+        <label class="pp-field">
+          <span class="pp-field__label">{{ _("Keyframe height") }}</span>
+          <input class="fx-num" type="number" name="sd_keyframe_height" step="1" min="120"
+                 value="{{ cfg.scene_detection.keyframe_height }}">
+        </label>
+
+        <div class="pp-detect__go">
+          <button type="submit" class="fx-btn primary">
+            {{ icon('play', 14) }} {{ _("Detect scenes") }}
+          </button>
+          <span id="pp-detect-spinner" class="htmx-indicator text-muted">{{ _("Detecting…") }}</span>
+        </div>
+      </form>
+
+      {% if filmstrip and filmstrip.has_scenes %}
+        {% if filmstrip.pending_count > 0 %}
+          <p class="pp-rerun-note">{{ _("Re-detecting replaces the current cuts — including manual edits and any pending, not-yet-applied changes — and clears the downstream visual, embeddings, and description outputs.") }}</p>
+        {% else %}
+          <p class="pp-rerun-note">{{ _("Re-detecting replaces the current cuts — including manual edits — and clears the downstream visual, embeddings, and description outputs.") }}</p>
+        {% endif %}
+      {% endif %}
+    {% else %}
+      <p class="pp-nofilms text-muted">{{ _("No films in the library yet. Add a film to detect its scenes.") }}</p>
+    {% endif %}
+  </header>
+
+  {#- Active scene-detection job: SSE stepper card + live log. On stream close
+      the filmstrip refreshes so the freshly detected cuts render. -#}
+  {% if jobs %}
+    <div class="pp-job">
+      {% for job in jobs %}
+        {% include "partials/processing_job.html" %}
+      {% endfor %}
+      <div class="pp-log" id="pp-log"
+           hx-ext="sse"
+           sse-connect="/api/pipeline/stream/{{ jobs[0].id }}"
+           sse-close="done,error,cancelled"
+           hx-on:htmx:sseClose="htmx.ajax('GET', '/api/preprocess/filmstrip?film={{ pp_slug }}', {target: '#pp-filmstrip', swap: 'outerHTML'})">
+        <div class="pp-log__head">
+          <span class="dot"></span>
+          <span>{{ _("Detection log") }}</span>
+        </div>
+        <div class="pp-log__lines" data-empty-text="{{ _('Waiting for events…') }}"
+             sse-swap="log" hx-swap="beforeend">
+          {%- for line in initial_log_lines -%}
+            {% include "partials/processing_log_line.html" %}
+          {%- endfor -%}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  {#- Review surface: cut-timeline filmstrip + source-video player below it.
+      The player is served off /media (offline, range-request seeking). Scrub
+      to the true cut point, then "Split at playhead" adds a manual cut at
+      the current frame. preprocess.js wires seeking / frame-stepping / split;
+      it reads slug + fps from the data-attrs here. The player lives OUTSIDE
+      #pp-filmstrip so it survives the fragment swaps that every edit
+      triggers. -#}
+  {% if filmstrip and filmstrip.has_scenes and pp_video_url %}
+    <div class="pp-review" id="pp-review" data-slug="{{ pp_slug }}" data-fps="{{ pp_fps }}">
+      {% include "partials/preprocess_filmstrip.html" %}
+      <div class="pp-player">
+        <video id="pp-video" class="pp-player__video" src="{{ pp_video_url }}"
+               preload="metadata" playsinline controls></video>
+        <div class="pp-player__bar">
+          <span class="pp-player__readout fx-mono" id="pp-readout" aria-live="polite">00:00:00 · f0</span>
+          <div class="pp-player__steps">
+            <button type="button" class="fx-btn secondary sm" data-frame-step="-1"
+                    title="{{ _('Previous frame') }}" aria-label="{{ _('Previous frame') }}">−1f</button>
+            <button type="button" class="fx-btn secondary sm" data-frame-step="1"
+                    title="{{ _('Next frame') }}" aria-label="{{ _('Next frame') }}">+1f</button>
+          </div>
+          <button type="button" class="fx-btn primary" id="pp-split-here"
+                  title="{{ _('Add a cut at the current playhead frame') }}">
+            {{ icon('scissors', 14) }} {{ _("Split at playhead") }}
+          </button>
+        </div>
+        <p class="pp-player__hint">{{ _("Scrub to the exact cut, then split. Click any keyframe to jump the player there.") }}</p>
+      </div>
+    </div>
+  {% else %}
+    {% if filmstrip and filmstrip.has_scenes %}
+      <p class="pp-rerun-note">{{ _("The source video isn't on disk, so the review player and cut editing are unavailable. The detected cuts are shown below.") }}</p>
+    {% endif %}
+    {% set pp_can_edit = false %}
+    {% include "partials/preprocess_filmstrip.html" %}
+  {% endif %}
+
+</section>
+</div>

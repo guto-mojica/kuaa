@@ -26,6 +26,7 @@ from api.routes import (
     export,
     library,
     palette,
+    preprocess,
     processing,
     rimas,
     scenes,
@@ -134,6 +135,7 @@ app.include_router(scenes.router, tags=["scenes"])
 app.include_router(annotate.router, tags=["annotate"])
 app.include_router(annotate_tags.router, tags=["annotate"])
 app.include_router(annotate_description.router, tags=["annotate"])
+app.include_router(preprocess.router, tags=["preprocessing"])
 app.include_router(processing.router, tags=["processing"])
 app.include_router(about.router, tags=["system"])
 app.include_router(library.router, tags=["library"])
@@ -162,7 +164,7 @@ _TAB_CONTEXT_BUILDERS = {
     # parsing ``?film=<slug>``. See the matching ``elif`` branches below.
     # annotate is handled directly in render_page's if/elif chain so it can
     # receive current_slug (from ?film= query param or active_film cookie).
-    "processing": build_processing_context,
+    "processing": lambda: build_processing_context(),
     # Rimas Visuais (cross-film visual rhymes) — Task 21 wires the real
     # service builder. The full-page render reads ``?anchor=`` like the
     # tab-fragment endpoint so a deep-share URL (``/rimas?anchor=jeca/1``)
@@ -214,6 +216,9 @@ _TAB_CHROME = {
     "search": {"active_tab": "buscar", "compact_lp": False, "has_right_pane": False},
     "scenes": {"active_tab": "cenas", "compact_lp": False, "has_right_pane": False},
     "annotate": {"active_tab": "anotar", "compact_lp": True, "has_right_pane": False},
+    # Pre-processing (scene-detection review) — body slug "preproc" matches the
+    # topbar tab chip's data-tab so the active-state CSS selector fires.
+    "preprocessing": {"active_tab": "preproc", "compact_lp": False, "has_right_pane": False},
     # NOTE: the body's data-active-tab uses the short slug "proc" (not the
     # full PT "processamento") so the topbar tab chip's `data-tab="proc"`
     # selector matches in CSS / JS. Task 7 wired this contract.
@@ -357,6 +362,12 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
             **build_annotate_context(fctx, filter_param, scene_id),
             "annotate_tab": normalize_annotate_tab(request.query_params.get("tab")),
         }
+    elif active_tab == "preprocessing":
+        # Pre-processing is per-film: the filmstrip is scoped to the selected
+        # slug (``?film=`` or the active_film cookie), like scenes/annotate.
+        from api.services.preprocess_render import build_preprocess_context
+
+        tab_ctx = build_preprocess_context(current_slug)
     else:
         tab_ctx = _TAB_CONTEXT_BUILDERS[active_tab]()
     # Mojica chrome kwargs (active_tab=PT slug, compact_lp, has_right_pane) are
@@ -402,6 +413,12 @@ async def page_scenes(request: Request) -> HTMLResponse:
 @app.get("/annotate", response_class=HTMLResponse)
 async def page_annotate(request: Request) -> HTMLResponse:
     return render_page(request, "annotate")
+
+
+@app.get("/pre-processing", response_class=HTMLResponse)
+async def page_preprocessing(request: Request) -> HTMLResponse:
+    """Pre-processing (scene-detection review) full-page route."""
+    return render_page(request, "preprocessing")
 
 
 @app.get("/processing", response_class=HTMLResponse)

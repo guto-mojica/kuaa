@@ -29,6 +29,7 @@
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/anotar.css') }}">
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/rimas.css') }}">
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/proc.css') }}">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/preprocess.css') }}">
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/polish.css') }}">
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/about.css') }}">
     <link rel="stylesheet" href="{{ request.url_for('static', path='css/home.css') }}">
@@ -86,6 +87,10 @@
        About modal): traps Tab/Shift+Tab inside the open overlay and
        restores focus to the trigger on close. #}
     <script src="{{ request.url_for('static', path='js/focus_trap.js') }}" defer></script>
+    {# preprocess.js — Pre-processing review player (scrub + frame-step + split
+       at playhead). Vanilla IIFE, event-delegated, no Alpine dependency; inert
+       when the Pre-processing tab is absent. Order-independent. #}
+    <script src="{{ request.url_for('static', path='js/preprocess.js') }}" defer></script>
 </head>
 <body class="fx-app"
       data-active-tab="{{ active_tab }}"
@@ -121,6 +126,7 @@
             'search': _('Search'),
             'scenes': _('Scenes'),
             'annotate': _('Annotate'),
+            'preprocessing': _('Pre-processing'),
             'processing': _('Processing'),
             'rimas': _('Visual rhymes'),
         } %}
@@ -144,6 +150,8 @@
             {% include "partials/scenes.html" %}
         {% elif legacy_active_tab == 'annotate' %}
             {% include "partials/annotate.html" %}
+        {% elif legacy_active_tab == 'preprocessing' %}
+            {% include "partials/preprocess.html" %}
         {% elif legacy_active_tab == 'processing' %}
             {% include "partials/processing.html" %}
         {% elif legacy_active_tab == 'rimas' %}
