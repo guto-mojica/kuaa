@@ -597,7 +597,9 @@ class JobRegistry:
         # No active job — start immediately (takes its own lock).
         return self.start(video_path, steps, cfg, scene_detection_override)
 
-    def queue_only(self, video_path: str, steps: set[str], cfg, scene_detection_override=None) -> str:
+    def queue_only(
+        self, video_path: str, steps: set[str], cfg, scene_detection_override=None
+    ) -> str:
         """Always add to the pending queue, even when the registry is idle.
 
         Use this to pre-populate the queue before explicitly starting it
@@ -738,7 +740,9 @@ def start_job(
     return _registry.start(video_path, enabled_steps, cfg, scene_detection_override)
 
 
-def enqueue_job(video_path: str, enabled_steps: set[str], cfg, scene_detection_override=None) -> str:
+def enqueue_job(
+    video_path: str, enabled_steps: set[str], cfg, scene_detection_override=None
+) -> str:
     """Start immediately if idle, or add to the pending batch queue.
 
     Unlike :func:`start_job`, never raises :class:`ConcurrencyRejected`.
@@ -883,7 +887,10 @@ def _run_pipeline(
     ctx.frames_dir.mkdir(parents=True, exist_ok=True)
     ctx.embeddings_dir.mkdir(parents=True, exist_ok=True)
 
-    if "scene_detection" in enabled_steps and (ctx.metadata_dir / "keyframes_metadata.json").exists():
+    if (
+        "scene_detection" in enabled_steps
+        and (ctx.metadata_dir / "keyframes_metadata.json").exists()
+    ):
         logger.info("[job=%s] cascade-clearing stale scene-detection artifacts", job.id)
         _clear_scene_detection_cascade(ctx, cfg)
 

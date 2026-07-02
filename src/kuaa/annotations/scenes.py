@@ -213,9 +213,7 @@ def build_scene_list(ctx: FilmContext, filter_mode: str) -> tuple[list, dict, di
         unique_kf_meta.append(rep)
 
     if filter_mode == "no_llm":
-        scenes = [
-            s for s in unique_kf_meta if scene_id_key(s["scene_id"]) not in valid_desc_ids
-        ]
+        scenes = [s for s in unique_kf_meta if scene_id_key(s["scene_id"]) not in valid_desc_ids]
     else:
         scenes = unique_kf_meta
 

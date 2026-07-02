@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import uuid as _uuid
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
@@ -46,7 +47,7 @@ async def tab_processing(
 
 def _build_sd_override(
     cfg,
-    sd_detector: str,
+    sd_detector: Literal["content", "adaptive"],
     sd_adaptive_threshold: float,
     sd_content_threshold: float,
     sd_min_scene_len: int,
@@ -75,7 +76,7 @@ async def api_pipeline_start(
     request: Request,
     video_path: str = Form(...),
     steps: list[str] = Form(default=[]),
-    sd_detector: str = Form(default="adaptive"),
+    sd_detector: Literal["content", "adaptive"] = Form(default="adaptive"),
     sd_adaptive_threshold: float = Form(default=3.0),
     sd_content_threshold: float = Form(default=27.0),
     sd_min_scene_len: int = Form(default=15),
@@ -115,7 +116,7 @@ async def api_pipeline_enqueue(
     request: Request,
     video_path: str = Form(...),
     steps: list[str] = Form(default=[]),
-    sd_detector: str = Form(default="adaptive"),
+    sd_detector: Literal["content", "adaptive"] = Form(default="adaptive"),
     sd_adaptive_threshold: float = Form(default=3.0),
     sd_content_threshold: float = Form(default=27.0),
     sd_min_scene_len: int = Form(default=15),
