@@ -10,6 +10,30 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ## [Não lançado]
 
+## [0.9.1] - 2026-07-03
+
+### Corrigido
+
+- **Pré-processamento não encadeia mais no pipeline completo.** Finalizar um
+  job de detecção de cortes disparava incondicionalmente a fila em lote,
+  iniciando silenciosamente qualquer job de pipeline completo já enfileirado
+  para o filme (ex.: via gesto "adicionar filme") — análise visual,
+  embeddings e descrição por LLM rodavam logo após a detecção de cortes, sem
+  etapa de revisão no meio. Agora condicionado ao novo
+  `JobState.is_preprocess_only`, de forma que só execuções em lote genuínas
+  da aba Processamento avançam automaticamente.
+- Aba de Pré-processamento ganha card de job e stepper compactos próprios
+  (`preprocess_job.html` / `preprocess_stepper.html`) em vez de reaproveitar
+  o card completo da aba Processamento.
+
+### Removido
+
+- Etapa `frame_extraction` do pipeline, morta: nada nos passos adiante consumia sua
+  saída (`frames/sample/*.jpg`, `video_properties.json`) — a detecção de
+  cenas já lê o vídeo-fonte diretamente. Removida de `STEP_ORDER`/
+  `STEP_DEPS`/`STEP_DEFS`, do schema de config, das configs default/demo, da
+  flag `--steps` da CLI, dos docs e do site público.
+
 ## [0.9.0] - 2026-07-02
 
 ### Adicionado
