@@ -148,14 +148,14 @@ uv sync --extra web       # só a interface FastAPI + HTMX
 **Verificar instalação:**
 ```bash
 uv run python -c "import kuaa; print(kuaa.__version__)"
-# Deve imprimir: 0.8.0rc1
+# Deve imprimir: 0.9.1
 ```
 
 ---
 
 ## 5. Instalar FFmpeg
 
-FFmpeg é usado para extração de frames e inspeção de vídeo.
+FFmpeg é usado para inspeção de vídeo e é a base de leitura de frames do PySceneDetect na detecção de cenas.
 Ele não é um pacote Python — precisa ser instalado no sistema.
 
 **macOS (Homebrew):**
@@ -355,7 +355,6 @@ Isso acontece **uma vez** — ficam em cache para as execuções seguintes.
 
 | Etapa | Tempo aproximado |
 |---|---|
-| Extração de frames | 2–5 min |
 | Detecção de cenas | 5–15 min |
 | Análise visual | 10–20 min |
 | Embeddings CLIP | 5–10 min |

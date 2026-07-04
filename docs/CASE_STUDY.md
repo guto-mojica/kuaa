@@ -74,11 +74,11 @@ and image:
 
 The retrieval engine sits on top of, and is supported by:
 
-- A Python processing pipeline for FFprobe/FFmpeg inspection, frame extraction,
-  PySceneDetect scene segmentation, visual analysis, embedding indexing, and local
-  Moondream 2 scene descriptions.
-- A FastAPI + HTMX web interface with Search, Scenes, Annotate, Processing, and
-  About surfaces.
+- A Python processing pipeline for FFprobe/FFmpeg inspection, PySceneDetect
+  scene segmentation (reads the video directly), visual analysis, embedding
+  indexing, and local Moondream 2 scene descriptions.
+- A FastAPI + HTMX web interface with Search, Scenes, Annotate, Pre-processing,
+  Processing, and About surfaces.
 - Text search, reference-image search, scene browsing, and tag filtering over
   generated metadata.
 - Manual annotation persistence with normalized curator tags that merge with

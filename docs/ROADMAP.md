@@ -7,8 +7,8 @@ domain packs, limitations, next steps), see [`CASE_STUDY.md`](CASE_STUDY.md).
 ## Implemented now
 
 - Local video processing pipeline:
-  - FFmpeg/FFprobe video inspection and frame extraction,
-  - PySceneDetect scene detection and keyframe extraction,
+  - FFmpeg/FFprobe video inspection,
+  - PySceneDetect scene detection and keyframe extraction (reads the video directly),
   - visual analysis,
   - visual embeddings,
   - local Moondream 2 scene descriptions.

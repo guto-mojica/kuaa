@@ -54,8 +54,9 @@ The product should demonstrate applied AI skill in a realistic setting:
 
 Implemented today:
 
-- Video inspection and frame extraction with FFmpeg/FFprobe.
-- Scene detection and representative keyframe extraction with PySceneDetect.
+- Video inspection with FFmpeg/FFprobe.
+- Scene detection and representative keyframe extraction with PySceneDetect
+  (reads the video directly).
 - Visual analysis using face detection, object detection, and environment
   heuristics.
 - CLIP embeddings for semantic text search and image search.

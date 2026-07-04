@@ -9,7 +9,7 @@
 [![CI](https://github.com/guto-mojica/kuaa/actions/workflows/ci.yml/badge.svg)](https://github.com/guto-mojica/kuaa/actions/workflows/ci.yml)
 [![Licença: MIT](https://img.shields.io/badge/Licença-MIT-amber.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://python.org)
-[![Versão](https://img.shields.io/badge/versão-0.8.0rc1-blue.svg)](CHANGELOG.md)
+[![Versão](https://img.shields.io/badge/versão-0.9.1-blue.svg)](CHANGELOG.md)
 
 ---
 
@@ -99,7 +99,7 @@ uv run kuaa serve --config config/demo.yaml
 
 O sistema é modularizado para facilitar a manutenção e a substituição de componentes:
 
-1.  **Ingestão:** Extração de frames via FFmpeg.
+1.  **Detecção de Cenas:** PySceneDetect lê o vídeo diretamente via FFmpeg e extrai keyframes representativos por cena.
 2.  **Processamento:** Pipeline sequencial que gera embeddings (SigLIP) e descrições (Moondream).
 3.  **Indexação:** Motor de busca combinando BM25 e buscas densas.
 4.  **Interface:** Desenvolvida com FastAPI + HTMX, focada em usabilidade para usuários não-técnicos.
@@ -108,8 +108,7 @@ O sistema é modularizado para facilitar a manutenção e a substituição de co
 
 ```mermaid
 flowchart TD
-    V[Vídeo] --> FR[FFmpeg frames]
-    FR --> SC[Detecção de Cenas]
+    V[Vídeo] --> SC[Detecção de Cenas]
     SC --> VIS[Análise Visual: YOLOv8/MTCNN]
     SC --> EMB[Embeddings: SigLIP2]
     SC --> LLM[Descrições: Moondream 2]
