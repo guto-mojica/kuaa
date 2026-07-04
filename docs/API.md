@@ -222,7 +222,6 @@ Response: processing job HTML fragment.
 
 If `steps` is omitted, all steps are selected:
 
-- `frame_extraction`
 - `scene_detection`
 - `visual_analysis`
 - `embeddings`

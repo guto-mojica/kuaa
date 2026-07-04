@@ -16,10 +16,9 @@ from fastapi import APIRouter, Depends, Form, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse
 
 from api.deps import film_slug_query, get_config, make_ctx, resolve_film_context
-from api.jobs import ConcurrencyRejected, start_job
+from api.jobs import PREPROCESS_STEPS, ConcurrencyRejected, start_job
 from api.services.pipeline_forms import sd_override_from_fields
 from api.services.preprocess_render import (
-    PREPROCESS_STEPS,
     build_preprocess_context,
     build_preprocess_start_response,
     film_video_path,

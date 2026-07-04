@@ -80,7 +80,6 @@ def _pipeline_with_stubbed_steps(tmp_path, *, outcomes: dict[str, str]):
 
         return _step
 
-    p._step_frame_extraction = make("frame_extraction")
     p._step_scene_detection = make("scene_detection")
     p._step_visual_analysis = make("visual_analysis")
     p._step_embeddings = make("embeddings")
@@ -94,13 +93,11 @@ def _pipeline_with_stubbed_steps(tmp_path, *, outcomes: dict[str, str]):
 def test_dependency_graph_matches_verified_prereqs():
     """Roots have no deps; the keyframe-metadata consumers depend on
     scene_detection (verified against pipeline.run() + _step_*)."""
-    assert STEP_DEPS["frame_extraction"] == ()
     assert STEP_DEPS["scene_detection"] == ()
     assert STEP_DEPS["visual_analysis"] == ("scene_detection",)
     assert STEP_DEPS["embeddings"] == ("scene_detection",)
     assert STEP_DEPS["llm_description"] == ("scene_detection",)
     assert STEP_ORDER == (
-        "frame_extraction",
         "scene_detection",
         "visual_analysis",
         "embeddings",
@@ -122,7 +119,7 @@ def test_full_run_all_steps_execute_in_order(tmp_path):
 
     assert calls == list(STEP_ORDER)
     assert res.ok
-    assert [r.state for r in res.runs] == ["done"] * 5
+    assert [r.state for r in res.runs] == ["done"] * 4
 
 
 def test_progress_callback_reports_start_and_finish(tmp_path):
@@ -137,10 +134,10 @@ def test_progress_callback_reports_start_and_finish(tmp_path):
         progress_cb=lambda n, ph, run: events.append((n, ph, run.state if run else None)),
     )
     # Each step: one start (run None) then one finish (run with state).
-    fe = [e for e in events if e[0] == "frame_extraction"]
-    assert fe == [
-        ("frame_extraction", "start", None),
-        ("frame_extraction", "finish", "done"),
+    sd = [e for e in events if e[0] == "scene_detection"]
+    assert sd == [
+        ("scene_detection", "start", None),
+        ("scene_detection", "finish", "done"),
     ]
 
 
@@ -319,7 +316,7 @@ def _wait_terminal(job, timeout=5.0):
 
 def test_job_lifecycle_created_running_done(jobs_mod, monkeypatch):
     _patch_pipeline(jobs_mod, monkeypatch, "ok")
-    jid = jobs_mod.start_job("v.mp4", {"frame_extraction"}, object())
+    jid = jobs_mod.start_job("v.mp4", {"scene_detection"}, object())
     job = jobs_mod.get_job(jid)
     _wait_terminal(job)
     assert job.status == jobs_mod.STATUS_DONE
@@ -348,7 +345,7 @@ def test_blocked_step_makes_job_error_no_silent_success(jobs_mod, monkeypatch):
 def test_concurrency_single_global_active_job_rejected(jobs_mod, monkeypatch):
     """Second start while one runs is rejected (single-user policy)."""
     _patch_pipeline(jobs_mod, monkeypatch, "hang")
-    jid = jobs_mod.start_job("a.mp4", {"frame_extraction"}, object())
+    jid = jobs_mod.start_job("a.mp4", {"scene_detection"}, object())
     job = jobs_mod.get_job(jid)
     # Wait until it is actually running.
     t0 = time.time()
@@ -356,7 +353,7 @@ def test_concurrency_single_global_active_job_rejected(jobs_mod, monkeypatch):
         time.sleep(0.01)
 
     with pytest.raises(jobs_mod.ConcurrencyRejected) as ei:
-        jobs_mod.start_job("b.mp4", {"frame_extraction"}, object())
+        jobs_mod.start_job("b.mp4", {"scene_detection"}, object())
     assert ei.value.active.id == jid
 
     # Cancel to release the worker.
@@ -364,9 +361,59 @@ def test_concurrency_single_global_active_job_rejected(jobs_mod, monkeypatch):
     _wait_terminal(job)
 
 
+def test_preprocess_only_completion_does_not_drain_queued_full_job(jobs_mod, monkeypatch):
+    """Finishing a Pre-processing (scene_detection) run must NOT auto-start
+    a full-pipeline job sitting in the batch queue.
+
+    A full run for the same film can already be queued (e.g. by the "add
+    film" gesture, which queues every STEP_DEFS step). If the batch queue's
+    auto-advance fired here, scene-cut review would be pointless: the
+    moment detection finished, visual_analysis/embeddings/llm_description
+    would silently cascade right after it.
+    """
+    _patch_pipeline(jobs_mod, monkeypatch, "ok")
+    jobs_mod.queue_job("a.mp4", {name for name, _ in jobs_mod.STEP_DEFS}, object())
+    assert len(jobs_mod.pending_jobs()) == 1
+
+    jid = jobs_mod.start_job("a.mp4", set(jobs_mod.PREPROCESS_STEPS), object())
+    job = jobs_mod.get_job(jid)
+    _wait_terminal(job)
+    assert job.status == jobs_mod.STATUS_DONE
+
+    # Poll briefly: if the queued job were (wrongly) auto-started it would
+    # show up as active well within this window.
+    t0 = time.time()
+    found_active = False
+    while time.time() - t0 < 0.5:
+        if jobs_mod.active_jobs():
+            found_active = True
+            break
+        time.sleep(0.01)
+    assert not found_active, "preprocess-only completion auto-started the queued full run"
+    assert len(jobs_mod.pending_jobs()) == 1
+
+
+def test_full_run_completion_still_drains_queue(jobs_mod, monkeypatch):
+    """Sanity check the opposite: a genuine Processing-tab run still
+    auto-advances the batch queue once it finishes (unchanged behaviour —
+    only Pre-processing runs are exempted)."""
+    _patch_pipeline(jobs_mod, monkeypatch, "ok")
+    jobs_mod.queue_job("b.mp4", {name for name, _ in jobs_mod.STEP_DEFS}, object())
+    assert len(jobs_mod.pending_jobs()) == 1
+
+    jid = jobs_mod.start_job("a.mp4", {name for name, _ in jobs_mod.STEP_DEFS}, object())
+    job = jobs_mod.get_job(jid)
+    _wait_terminal(job)
+
+    t0 = time.time()
+    while jobs_mod.pending_jobs() and time.time() - t0 < 2:
+        time.sleep(0.01)
+    assert len(jobs_mod.pending_jobs()) == 0, "queued full run was not auto-started"
+
+
 def test_cancellation_mid_run_yields_cancelled_terminal(jobs_mod, monkeypatch):
     _patch_pipeline(jobs_mod, monkeypatch, "hang")
-    jid = jobs_mod.start_job("v.mp4", {"frame_extraction"}, object())
+    jid = jobs_mod.start_job("v.mp4", {"scene_detection"}, object())
     job = jobs_mod.get_job(jid)
     # Subscribe BEFORE the cancel so the broadcaster's terminal
     # publish lands in our probe queue. This is the contract the SSE
@@ -389,7 +436,7 @@ def test_cancellation_mid_run_yields_cancelled_terminal(jobs_mod, monkeypatch):
 def test_cancel_unknown_or_finished_job_returns_false(jobs_mod, monkeypatch):
     _patch_pipeline(jobs_mod, monkeypatch, "ok")
     assert jobs_mod.cancel_job("nope") is False
-    jid = jobs_mod.start_job("v.mp4", {"frame_extraction"}, object())
+    jid = jobs_mod.start_job("v.mp4", {"scene_detection"}, object())
     job = jobs_mod.get_job(jid)
     _wait_terminal(job)
     assert jobs_mod.cancel_job(jid) is False  # already terminal
@@ -401,7 +448,7 @@ def test_retention_evicts_oldest_terminal_jobs(jobs_mod, monkeypatch):
 
     ids = []
     for _ in range(6):
-        jid = jobs_mod.start_job("v.mp4", {"frame_extraction"}, object())
+        jid = jobs_mod.start_job("v.mp4", {"scene_detection"}, object())
         ids.append(jid)
         _wait_terminal(jobs_mod.get_job(jid))
     # _prune_registry() runs in the worker thread after transition_to(terminal);
@@ -435,7 +482,7 @@ def test_registry_thread_safe_concurrent_access(jobs_mod, monkeypatch):
         t.start()
     try:
         for _ in range(5):
-            jid = jobs_mod.start_job("v.mp4", {"frame_extraction"}, object())
+            jid = jobs_mod.start_job("v.mp4", {"scene_detection"}, object())
             _wait_terminal(jobs_mod.get_job(jid))
     finally:
         stop.set()

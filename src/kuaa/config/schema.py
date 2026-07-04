@@ -92,14 +92,6 @@ class HardwareCfg(_Section):
     force_cpu: bool = False
 
 
-# ── frame_extraction ─────────────────────────────────────────────────────────
-class FrameExtractionCfg(_Section):
-    fps: int = 1
-    target_height: int = 480
-    quality: int = 2
-    sample_duration: int | None = None
-
-
 # ── scene_detection ──────────────────────────────────────────────────────────
 class SceneDetectionCfg(_Section):
     detector: Literal["content", "adaptive"] = "adaptive"
@@ -222,7 +214,6 @@ class ModelsCfg(_Section):
 
 # ── pipeline (+ nested steps) ────────────────────────────────────────────────
 class PipelineStepsCfg(_Section):
-    frame_extraction: bool = True
     scene_detection: bool = True
     visual_analysis: bool = True
     embeddings: bool = True
@@ -270,7 +261,6 @@ class Settings(_Section):
     domain: DomainCfg
     paths: PathsCfg
     hardware: HardwareCfg
-    frame_extraction: FrameExtractionCfg
     scene_detection: SceneDetectionCfg
     visual_analysis: VisualAnalysisCfg
     embeddings: EmbeddingsCfg

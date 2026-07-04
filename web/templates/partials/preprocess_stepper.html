@@ -1,0 +1,50 @@
+{% from "partials/_icons.html" import icon %}
+{% from "partials/_step_labels.html" import step_label with context %}
+
+{#- Pre-processing's own progress readout — the inner fragment the SSE
+    stream swaps on ``update`` / ``done`` / ``error`` / ``cancelled``
+    (see ``render_stepper`` in api/services/processing_render.py).
+
+    Shows ONLY the steps this surface runs (``job.enabled_steps`` — scene
+    detection), never the Processing tab's full pipeline. ``job.progress``
+    is still computed over every STEP_DEFS entry (api/jobs.py marks the
+    unselected ones "skipped" up front), so it already reaches 100% once
+    the pp step finishes — no separate math needed here. -#}
+{%- set pp_steps = job.steps | selectattr("name", "in", job.enabled_steps) | list -%}
+<div class="pp-run" style="--p: {{ ((job.progress or 0) * 100) | int }}%;">
+  <div class="pp-run__bar"></div>
+  <div class="pp-run__steps">
+    {% for step in pp_steps %}
+      {%- set vis_state = 'done' if step.state in ('done', 'skipped') else ('active' if step.state == 'active' else ('error' if step.state in ('error', 'blocked') else 'pending')) -%}
+      <div class="pp-run__step pp-run__step--{{ vis_state }}">
+        <span class="pp-run__dot">
+          {%- if vis_state == 'done' -%}{{ icon('check', 10) }}
+          {%- else -%}{{ loop.index }}
+          {%- endif -%}
+        </span>
+        <span class="pp-run__label">{{ step_label(step.name) }}</span>
+        {% if step.duration_s %}<span class="pp-run__dur">{{ "%.0fs" | format(step.duration_s) }}</span>{% endif %}
+        {% if step.state in ('blocked', 'error') and step.detail %}
+          <p class="pp-run__detail">{{ step.detail }}</p>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+
+  {% if job.status == 'done' %}
+    <p class="pp-run__msg pp-run__msg--done">
+      {{ icon("check-circle") }}
+      {{ _("Pre-processing completed in") }} {{ "%.0f" | format(job.total_duration_s) }}s
+    </p>
+  {% elif job.status == 'error' %}
+    <p class="pp-run__msg pp-run__msg--error">
+      {{ icon("x-circle") }}
+      {{ _("Pre-processing failed") }}{% if job.error_msg %}: {{ job.error_msg }}{% endif %}
+    </p>
+  {% elif job.status == 'cancelled' %}
+    <p class="pp-run__msg pp-run__msg--cancelled">
+      {{ icon("prohibit") }}
+      {{ _("Pre-processing cancelled") }}
+    </p>
+  {% endif %}
+</div>

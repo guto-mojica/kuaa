@@ -70,7 +70,6 @@ def _stub_cfg(tmp_path: Path) -> SimpleNamespace:
         ),
         pipeline=SimpleNamespace(
             steps=SimpleNamespace(
-                frame_extraction=False,
                 scene_detection=False,
                 visual_analysis=False,
                 embeddings=False,

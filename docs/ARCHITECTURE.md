@@ -18,12 +18,6 @@ older configs.
 ```text
 Video file + film slug
   |
-  |-- FFprobe
-  |     -> data/library/<slug>/metadata/video_properties.json
-  |
-  |-- FFmpeg frame extraction
-  |     -> data/library/<slug>/frames/sample/*.jpg
-  |
   |-- PySceneDetect scene detection
   |     -> data/library/<slug>/frames/scenes/keyframes_content/*.jpg
   |     -> data/library/<slug>/metadata/keyframes_metadata.json
@@ -47,8 +41,7 @@ Video file + film slug
 
 ```mermaid
 flowchart TD
-    V[Video file + film slug] --> FR[FFmpeg frame extraction<br/>frames/sample/*.jpg]
-    FR --> SC[PySceneDetect scene detection<br/>keyframes + keyframes_metadata.json]
+    V[Video file + film slug] --> SC[PySceneDetect scene detection<br/>keyframes + keyframes_metadata.json]
     SC --> VIS[Visual analysis<br/>MTCNN faces · YOLOv8 objects · OpenCV env]
     SC --> EMB[Visual embeddings<br/>SigLIP2 1024-d · keyframe_embeddings.npy]
     SC --> LLM[Moondream 2 descriptions<br/>scene_descriptions.json · scene_tags.json]
@@ -80,8 +73,10 @@ Primary entry points:
 
 Processing modules:
 
-- `src/kuaa/data_prep.py`: FFprobe video inspection and FFmpeg frame extraction.
-- `src/kuaa/scene_detector.py`: scene detection and keyframe extraction.
+- `src/kuaa/data_prep.py`: FFprobe video inspection (`kuaa info`) and frame
+  quality analysis.
+- `src/kuaa/scene_detector.py`: scene detection and keyframe extraction
+  (reads the video directly via PySceneDetect).
 - `src/kuaa/visual_analyzer.py`: facade that composes injected visual backends.
 - `src/kuaa/embeddings.py`: visual embedding generation/search helpers.
 - `src/kuaa/annotations/`: manual annotation storage, scene assembly, and
@@ -97,7 +92,7 @@ Processing modules:
 The pipeline step order is defined in `STEP_ORDER`:
 
 ```text
-frame_extraction -> scene_detection -> visual_analysis -> embeddings -> llm_description
+scene_detection -> visual_analysis -> embeddings -> llm_description
 ```
 
 Selected-step execution uses a dependency graph in `STEP_DEPS`. Downstream steps
@@ -215,7 +210,6 @@ Important sections:
 
 - `paths`: local artifact directories.
 - `hardware`: CPU/CUDA/MPS selection.
-- `frame_extraction`: sampling and resize settings.
 - `scene_detection`: detector and threshold settings.
 - `visual_analysis`: face/object/environment options.
 - `embeddings`: image-embedding model and output filenames.

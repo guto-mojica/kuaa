@@ -249,7 +249,6 @@ def test_step_defs_unchanged():
     from api.jobs import STEP_DEFS
 
     assert STEP_DEFS == [
-        ("frame_extraction", "Frames"),
         ("scene_detection", "Cenas"),
         ("visual_analysis", "Visual"),
         ("embeddings", "Embeddings"),
@@ -269,19 +268,19 @@ def test_step_labels_render_translated_pt(raw_client):
     r = raw_client.get("/processing")
     assert r.status_code == 200
     # Translated (from _step_labels.html → gettext), id-driven:
-    assert "Extração de quadros" in r.text
     assert "Análise visual" in r.text
-    # The opaque internal STEP_DEFS labels must NOT leak to the UI:
-    assert "Frames<" not in r.text
-    assert ">Frames" not in r.text
+    assert "Descrições LLM" in r.text
+    # The opaque internal STEP_DEFS label ("Visual") must NOT leak to the UI
+    # as a standalone token — only the translated "Análise visual" may render.
+    assert ">Visual<" not in r.text
 
 
 def test_step_labels_render_translated_en(raw_client):
     raw_client.cookies.set("locale", "en")
     r = raw_client.get("/processing")
     assert r.status_code == 200
-    assert "Frame extraction" in r.text
     assert "Visual analysis" in r.text
+    assert "LLM descriptions" in r.text
 
 
 # ── Fully offline: zero external icon/CDN reference ───────────────────

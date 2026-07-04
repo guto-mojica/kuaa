@@ -63,8 +63,13 @@ def slugify(text: str) -> str:
 
 # Canonical pipeline step order. The single source of truth for which
 # steps exist and in what order they run.
+#
+# ``frame_extraction`` (FFmpeg 1fps sample frames + video_properties.json)
+# was removed: nothing downstream ever consumed it — scene_detection reads
+# the video directly, and visual_analysis/embeddings/llm_description all
+# read from keyframes_metadata.json + keyframes_content/ produced by
+# scene_detection. It was a root node with no reader.
 STEP_ORDER: tuple[str, ...] = (
-    "frame_extraction",
     "scene_detection",
     "visual_analysis",
     "embeddings",
@@ -77,10 +82,8 @@ STEP_ORDER: tuple[str, ...] = (
 # below were verified against the private ``_step_*`` implementations and
 # the legacy ``run()`` orchestrator (which is preserved verbatim):
 #
-#   * ``frame_extraction``  — root. Reads the video file only.
 #   * ``scene_detection``   — root. ``_step_scene_detection`` reads the
-#     video directly (it does NOT consume sampled frames); ``run()``
-#     never gated it on frame_extraction. So it has no step prereq.
+#     video directly, so it has no step prereq.
 #   * ``visual_analysis``   — needs the keyframe ``.jpg`` files produced
 #     by ``scene_detection`` (``_step_visual_analysis`` raises
 #     ``FileNotFoundError`` when ``keyframes_dir`` is empty).
@@ -96,7 +99,6 @@ STEP_ORDER: tuple[str, ...] = (
 # preserves legitimate subset runs that rely on artefacts from a prior
 # successful run.
 STEP_DEPS: dict[str, tuple[str, ...]] = {
-    "frame_extraction": (),
     "scene_detection": (),
     "visual_analysis": ("scene_detection",),
     "embeddings": ("scene_detection",),
@@ -220,11 +222,10 @@ class CatalogPipeline:
     Executa o pipeline completo de catalogação audiovisual.
 
     Etapas:
-        1. frame_extraction   — Extração de frames via FFmpeg
-        2. scene_detection    — Detecção de cortes e extração de keyframes
-        3. visual_analysis    — MTCNN + YOLO + classificação de ambiente
-        4. embeddings         — Geração de embeddings CLIP
-        5. llm_description    — Geração de metadados com Moondream 2
+        1. scene_detection    — Detecção de cortes e extração de keyframes
+        2. visual_analysis    — MTCNN + YOLO + classificação de ambiente
+        3. embeddings         — Geração de embeddings CLIP
+        4. llm_description    — Geração de metadados com Moondream 2
 
     Cada etapa pode ser pulada (skip_existing=True ou step desativado na config).
 
@@ -315,28 +316,6 @@ class CatalogPipeline:
         return Path(self.cfg.paths.embeddings_dir)
 
     # ─── Etapas individuais ───────────────────────────────────────────────────
-
-    def _step_frame_extraction(self, video_path: Path) -> StepResult:
-        from kuaa.data_prep import FrameExtractor, VideoInspector
-
-        name = "frame_extraction"
-        output_dir = self._frames_dir() / "sample"
-
-        # Skip se já existirem frames
-        existing = sorted(output_dir.glob("*.jpg"))
-        if self.cfg.pipeline.skip_existing and existing:
-            logger.info("↷ Pulando frame_extraction (%d frames existentes)", len(existing))
-            return StepResult(name=name, success=True, skipped=True, output=existing)
-
-        t0 = time.time()
-        try:
-            inspector = VideoInspector(video_path)
-            inspector.save_metadata(self._metadata_dir() / "video_properties.json")
-            extractor = FrameExtractor(self.cfg)
-            frames = extractor.extract(video_path, output_dir)
-            return StepResult(name=name, success=True, duration_s=time.time() - t0, output=frames)
-        except Exception as e:
-            return StepResult(name=name, success=False, duration_s=time.time() - t0, error=str(e))
 
     def _step_scene_detection(self, video_path: Path) -> StepResult:
         from kuaa.scene_detector import SceneDetector, write_cutset
@@ -559,19 +538,7 @@ class CatalogPipeline:
         keyframes_dir = self._frames_dir() / "scenes" / "keyframes_content"
         metadata_path = self._metadata_dir() / "keyframes_metadata.json"
 
-        # ── Etapa 1: Extração de frames ───────────────────────────────────────
-        if steps_cfg.frame_extraction:
-            step = self._step_frame_extraction(video_path)
-            result.steps.append(step)
-            if not step.success and self.cfg.pipeline.stop_on_error:
-                logger.error("Pipeline interrompido na etapa: %s", step.name)
-                result.total_duration_s = time.time() - pipeline_start
-                self._write_run_manifest(video_path, result, pipeline_start)
-                return result
-        else:
-            result.steps.append(StepResult(name="frame_extraction", success=True, skipped=True))
-
-        # ── Etapa 2: Detecção de cenas ────────────────────────────────────────
+        # ── Etapa 1: Detecção de cenas ────────────────────────────────────────
         if steps_cfg.scene_detection:
             step = self._step_scene_detection(video_path)
             result.steps.append(step)
@@ -589,7 +556,7 @@ class CatalogPipeline:
         else:
             result.steps.append(StepResult(name="scene_detection", success=True, skipped=True))
 
-        # ── Etapa 3: Análise visual ───────────────────────────────────────────
+        # ── Etapa 2: Análise visual ───────────────────────────────────────────
         if steps_cfg.visual_analysis:
             step = self._step_visual_analysis(keyframes_dir)
             result.steps.append(step)
@@ -601,7 +568,7 @@ class CatalogPipeline:
         else:
             result.steps.append(StepResult(name="visual_analysis", success=True, skipped=True))
 
-        # ── Etapa 4: Embeddings ───────────────────────────────────────────────
+        # ── Etapa 3: Embeddings ───────────────────────────────────────────────
         if steps_cfg.embeddings and metadata_path.exists():
             step = self._step_embeddings(metadata_path)
             result.steps.append(step)
@@ -613,7 +580,7 @@ class CatalogPipeline:
         else:
             result.steps.append(StepResult(name="embeddings", success=True, skipped=True))
 
-        # ── Etapa 5: Descrição LLM ────────────────────────────────────────────
+        # ── Etapa 4: Descrição LLM ────────────────────────────────────────────
         if steps_cfg.llm_description and metadata_path.exists():
             step = self._step_llm_description(metadata_path)
             result.steps.append(step)
@@ -682,7 +649,7 @@ class CatalogPipeline:
         the artefacts a prior successful run produced are still present,
         and only reports missing inputs when they are genuinely absent.
         """
-        if step in ("frame_extraction", "scene_detection"):
+        if step == "scene_detection":
             return True
         if step == "visual_analysis":
             return bool(sorted(keyframes_dir.glob("*.jpg")))
@@ -780,9 +747,7 @@ class CatalogPipeline:
             _emit(name, "start", None)
 
             # ── Delegate to the existing private step impl ────────────
-            if name == "frame_extraction":
-                sr = self._step_frame_extraction(video_path)
-            elif name == "scene_detection":
+            if name == "scene_detection":
                 sr = self._step_scene_detection(video_path)
                 if (
                     sr.success

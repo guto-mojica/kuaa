@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kuaa-ai 0.3.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-07-02 15:35-0300\n"
+"POT-Creation-Date: 2026-07-03 21:59-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pt_BR\n"
@@ -46,7 +46,7 @@ msgid "Annotate"
 msgstr "Anotar"
 
 #: web/templates/base.html:129 web/templates/partials/_topbar.html:71
-#: web/templates/partials/preprocess.html:20
+#: web/templates/partials/preprocess.html:25
 msgid "Pre-processing"
 msgstr "Pré-processamento"
 
@@ -488,24 +488,19 @@ msgstr "selecionar"
 msgid "close"
 msgstr "fechar"
 
-# ── Pipeline step labels (resolved by step id, not STEP_DEFS) ─────────
 #: web/templates/partials/_step_labels.html:9
-msgid "Frame extraction"
-msgstr "Extração de quadros"
-
-#: web/templates/partials/_step_labels.html:10
 msgid "Scene detection"
 msgstr "Detecção de cenas"
 
-#: web/templates/partials/_step_labels.html:11
+#: web/templates/partials/_step_labels.html:10
 msgid "Visual analysis"
 msgstr "Análise visual"
 
-#: web/templates/partials/_step_labels.html:12
+#: web/templates/partials/_step_labels.html:11
 msgid "Embeddings"
 msgstr "Embeddings"
 
-#: web/templates/partials/_step_labels.html:13
+#: web/templates/partials/_step_labels.html:12
 msgid "LLM descriptions"
 msgstr "Descrições LLM"
 
@@ -619,6 +614,7 @@ msgstr "Adicionar"
 #: web/templates/partials/add_film_form.html:46
 #: web/templates/partials/add_film_form.html:51
 #: web/templates/partials/annotate_desc_edit.html:19
+#: web/templates/partials/preprocess_job.html:29
 #: web/templates/partials/processing_job.html:67
 #: web/templates/partials/remove_film_confirm.html:15
 msgid "Cancel"
@@ -768,7 +764,7 @@ msgstr "Posição"
 #: web/templates/partials/annotate_props.html:30
 #: web/templates/partials/annotate_props.html:37
 #: web/templates/partials/inspector_properties.html:32
-#: web/templates/partials/preprocess.html:38
+#: web/templates/partials/preprocess.html:43
 #: web/templates/partials/scenes.html:306
 #: web/templates/partials/scenes.html:309
 #: web/templates/partials/scenes.html:329
@@ -986,7 +982,7 @@ msgid "films"
 msgstr "filmes"
 
 #: web/templates/partials/home.html:30
-#: web/templates/partials/preprocess_filmstrip.html:19
+#: web/templates/partials/preprocess_filmstrip.html:23
 #: web/templates/partials/processing_stats.html:19
 #: web/templates/partials/scenes.html:449
 #: web/templates/partials/search_timeline.html:45
@@ -1018,7 +1014,7 @@ msgid "Current tags"
 msgstr "Tags atuais"
 
 #: web/templates/partials/inspector_properties.html:20
-#: web/templates/partials/preprocess_filmstrip.html:55
+#: web/templates/partials/preprocess_filmstrip.html:117
 #: web/templates/partials/scenes.html:510
 msgid "Scene"
 msgstr "Cena"
@@ -1050,11 +1046,11 @@ msgstr "Índice de busca ausente"
 msgid "Remove"
 msgstr "Remover"
 
-#: web/templates/partials/preprocess.html:22
+#: web/templates/partials/preprocess.html:27
 msgid "Detect scene cuts and review them before the heavy steps run."
 msgstr "Detecte os cortes de cena e revise-os antes das etapas pesadas."
 
-#: web/templates/partials/preprocess.html:25
+#: web/templates/partials/preprocess.html:30
 msgid ""
 "'adaptive' compares each frame to a rolling window average — better for "
 "gradual lighting changes and subtle cuts. 'content' measures raw frame-"
@@ -1065,7 +1061,7 @@ msgstr ""
 "mede a diferença bruta de pixel entre quadros — mais rápido, mas pode "
 "perder transições suaves."
 
-#: web/templates/partials/preprocess.html:26
+#: web/templates/partials/preprocess.html:31
 msgid ""
 "How different a frame must be from its local average to count as a cut. "
 "Lower values detect more scenes. Typical range: 2–6."
@@ -1073,7 +1069,7 @@ msgstr ""
 "O quanto um quadro deve diferir de sua média local para ser contado como "
 "um corte. Valores menores detectam mais cenas. Faixa típica: 2–6."
 
-#: web/templates/partials/preprocess.html:27
+#: web/templates/partials/preprocess.html:32
 msgid ""
 "Pixel-difference score that triggers a cut. Lower values produce more "
 "scenes. Typical range: 15–40."
@@ -1081,47 +1077,57 @@ msgstr ""
 "Pontuação de diferença de pixel que dispara um corte. Valores menores "
 "produzem mais cenas. Faixa típica: 15–40."
 
-#: web/templates/partials/preprocess.html:54
+#: web/templates/partials/preprocess.html:59
 msgid "Detector"
 msgstr "Detector"
 
-#: web/templates/partials/preprocess.html:58
+#: web/templates/partials/preprocess.html:63
 msgid "adaptive"
 msgstr "adaptativo"
 
-#: web/templates/partials/preprocess.html:59
+#: web/templates/partials/preprocess.html:64
 msgid "content"
 msgstr "conteúdo"
 
-#: web/templates/partials/preprocess.html:64
+#: web/templates/partials/preprocess.html:69
 msgid "Adaptive threshold"
 msgstr "Limiar adaptativo"
 
-#: web/templates/partials/preprocess.html:72
+#: web/templates/partials/preprocess.html:77
 msgid "Content threshold"
 msgstr "Limiar de conteúdo"
 
-#: web/templates/partials/preprocess.html:80
+#: web/templates/partials/preprocess.html:85
 msgid "Min scene length"
 msgstr "Duração mínima da cena"
 
-#: web/templates/partials/preprocess.html:86
+#: web/templates/partials/preprocess.html:91
 msgid "Keyframes / scene"
 msgstr "Keyframes / cena"
 
-#: web/templates/partials/preprocess.html:94
+#: web/templates/partials/preprocess.html:99
 msgid "Keyframe height"
 msgstr "Altura do keyframe"
 
-#: web/templates/partials/preprocess.html:101
+#: web/templates/partials/preprocess.html:106
 msgid "Detect scenes"
 msgstr "Detectar cenas"
 
-#: web/templates/partials/preprocess.html:103
+#: web/templates/partials/preprocess.html:108
 msgid "Detecting…"
 msgstr "Detectando…"
 
-#: web/templates/partials/preprocess.html:108
+#: web/templates/partials/preprocess.html:114
+#, fuzzy
+msgid ""
+"Re-detecting replaces the current cuts — including manual edits and any "
+"pending, not-yet-applied changes — and clears the downstream visual, "
+"embeddings, and description outputs."
+msgstr ""
+"Redetectar substitui os cortes atuais — incluindo edições manuais — e "
+"limpa as saídas posteriores de análise visual, embeddings e descrições."
+
+#: web/templates/partials/preprocess.html:116
 msgid ""
 "Re-detecting replaces the current cuts — including manual edits — and "
 "clears the downstream visual, embeddings, and description outputs."
@@ -1129,36 +1135,36 @@ msgstr ""
 "Redetectar substitui os cortes atuais — incluindo edições manuais — e "
 "limpa as saídas posteriores de análise visual, embeddings e descrições."
 
-#: web/templates/partials/preprocess.html:111
+#: web/templates/partials/preprocess.html:120
 msgid "No films in the library yet. Add a film to detect its scenes."
 msgstr "Nenhum filme no acervo ainda. Adicione um filme para detectar suas cenas."
 
-#: web/templates/partials/preprocess.html:129
+#: web/templates/partials/preprocess.html:138
 msgid "Detection log"
 msgstr "Log de detecção"
 
-#: web/templates/partials/preprocess.html:131
-#: web/templates/partials/processing.html:198
+#: web/templates/partials/preprocess.html:140
+#: web/templates/partials/processing.html:197
 msgid "Waiting for events…"
 msgstr "Aguardando eventos…"
 
-#: web/templates/partials/preprocess.html:156
+#: web/templates/partials/preprocess.html:167
 msgid "Previous frame"
 msgstr "Quadro anterior"
 
-#: web/templates/partials/preprocess.html:158
+#: web/templates/partials/preprocess.html:169
 msgid "Next frame"
 msgstr "Próximo quadro"
 
-#: web/templates/partials/preprocess.html:161
+#: web/templates/partials/preprocess.html:172
 msgid "Add a cut at the current playhead frame"
 msgstr "Adiciona um corte no quadro atual do player"
 
-#: web/templates/partials/preprocess.html:162
+#: web/templates/partials/preprocess.html:173
 msgid "Split at playhead"
 msgstr "Dividir no ponto atual"
 
-#: web/templates/partials/preprocess.html:165
+#: web/templates/partials/preprocess.html:176
 msgid ""
 "Scrub to the exact cut, then split. Click any keyframe to jump the player"
 " there."
@@ -1166,7 +1172,7 @@ msgstr ""
 "Navegue até o corte exato e então divida. Clique em um keyframe para "
 "levar o player até ele."
 
-#: web/templates/partials/preprocess.html:171
+#: web/templates/partials/preprocess.html:181
 msgid ""
 "The source video isn't on disk, so the review player and cut editing are "
 "unavailable. The detected cuts are shown below."
@@ -1174,93 +1180,145 @@ msgstr ""
 "O vídeo de origem não está no disco, então o player de revisão e a edição"
 " de cortes ficam indisponíveis. Os cortes detectados são exibidos abaixo."
 
-#: web/templates/partials/preprocess_filmstrip.html:14
+#: web/templates/partials/preprocess_filmstrip.html:18
 msgid "No scenes yet. Run scene detection to review its cuts here."
 msgstr ""
 "Nenhuma cena ainda. Rode a detecção de cenas para revisar seus cortes "
 "aqui."
 
-#: web/templates/partials/preprocess_filmstrip.html:20
+#: web/templates/partials/preprocess_filmstrip.html:24
 msgid "avg"
 msgstr "média"
 
-#: web/templates/partials/preprocess_filmstrip.html:21
+#: web/templates/partials/preprocess_filmstrip.html:25
 msgid "median"
 msgstr "mediana"
 
-#: web/templates/partials/preprocess_filmstrip.html:22
+#: web/templates/partials/preprocess_filmstrip.html:26
 msgid "shortest"
 msgstr "mais curta"
 
-#: web/templates/partials/preprocess_filmstrip.html:23
+#: web/templates/partials/preprocess_filmstrip.html:27
 msgid "longest"
 msgstr "mais longa"
 
-#: web/templates/partials/preprocess_filmstrip.html:25
+#: web/templates/partials/preprocess_filmstrip.html:29
 msgid "hand-edited"
 msgstr "editado à mão"
 
-#: web/templates/partials/preprocess_filmstrip.html:29
+#: web/templates/partials/preprocess_filmstrip.html:35
+msgid "Rebuilding keyframes… this can take a while for long films."
+msgstr "Reconstruindo keyframes… isso pode levar um tempo em filmes longos."
+
+#: web/templates/partials/preprocess_filmstrip.html:46
+#, python-format
+msgid "%(n)s pending change(s)"
+msgstr "%(n)s alteração(ões) pendente(s)"
+
+#: web/templates/partials/preprocess_filmstrip.html:50
+msgid "Rebuild only the checked changes"
+msgstr "Reconstruir apenas as alterações marcadas"
+
+#: web/templates/partials/preprocess_filmstrip.html:56
+msgid "Apply changes"
+msgstr "Aplicar alterações"
+
+#: web/templates/partials/preprocess_filmstrip.html:59
+msgid "Discard every staged change"
+msgstr "Descartar todas as alterações pendentes"
+
+#: web/templates/partials/preprocess_filmstrip.html:63
+msgid "Discard"
+msgstr "Descartar"
+
+#: web/templates/partials/preprocess_filmstrip.html:79
+#, python-format
+msgid "Merge at %(tc)s"
+msgstr "Mesclar em %(tc)s"
+
+#: web/templates/partials/preprocess_filmstrip.html:81
+#, python-format
+msgid "Split at %(tc)s"
+msgstr "Dividir em %(tc)s"
+
+#: web/templates/partials/preprocess_filmstrip.html:91
 msgid "Detected scenes"
 msgstr "Cenas detectadas"
 
-#: web/templates/partials/preprocess_filmstrip.html:38
-#: web/templates/partials/preprocess_filmstrip.html:39
+#: web/templates/partials/preprocess_filmstrip.html:100
+#: web/templates/partials/preprocess_filmstrip.html:101
 msgid "Merge with previous scene"
 msgstr "Mesclar com a cena anterior"
 
-#: web/templates/partials/preprocess_filmstrip.html:52
+#: web/templates/partials/preprocess_filmstrip.html:114
 msgid "Jump the player to this scene"
 msgstr "Levar o player para esta cena"
+
+#: web/templates/partials/preprocess_job.html:18
+#: web/templates/partials/processing_job.html:55
+msgid "started at"
+msgstr "iniciado em"
+
+#: web/templates/partials/preprocess_stepper.html:37
+msgid "Pre-processing completed in"
+msgstr "Pré-processamento concluído em"
+
+#: web/templates/partials/preprocess_stepper.html:42
+msgid "Pre-processing failed"
+msgstr "Pré-processamento falhou"
+
+#: web/templates/partials/preprocess_stepper.html:47
+msgid "Pre-processing cancelled"
+msgstr "Pré-processamento cancelado"
 
 #: web/templates/partials/processing.html:37
 msgid "active"
 msgstr "ativo"
 
-#: web/templates/partials/processing.html:83
+#: web/templates/partials/processing.html:82
 msgid "No video files found in the raw directory."
 msgstr "Nenhum arquivo de vídeo encontrado no diretório raw."
 
-#: web/templates/partials/processing.html:94
+#: web/templates/partials/processing.html:93
 msgid "All steps"
 msgstr "Todas as etapas"
 
-#: web/templates/partials/processing.html:106
+#: web/templates/partials/processing.html:105
 msgid "Start processing"
 msgstr "Iniciar processamento"
 
-#: web/templates/partials/processing.html:109
+#: web/templates/partials/processing.html:108
 msgid "Starting…"
 msgstr "Iniciando…"
 
-#: web/templates/partials/processing.html:121
+#: web/templates/partials/processing.html:120
 #, fuzzy
 msgid "+ Queue"
 msgstr "FILA"
 
-#: web/templates/partials/processing.html:124
+#: web/templates/partials/processing.html:123
 #, fuzzy
 msgid "Queuing…"
 msgstr "FILA"
 
-#: web/templates/partials/processing.html:141
+#: web/templates/partials/processing.html:140
 msgid "No active jobs."
 msgstr "Nenhum processamento em andamento."
 
-#: web/templates/partials/processing.html:178
+#: web/templates/partials/processing.html:177
 msgid "Log · SSE"
 msgstr "Log · SSE"
 
+#: web/templates/partials/processing.html:182
 #: web/templates/partials/processing.html:183
-#: web/templates/partials/processing.html:184
 msgid "Download log"
 msgstr "Baixar log"
 
-#: web/templates/partials/processing.html:188
+#: web/templates/partials/processing.html:187
 msgid "auto-scroll"
 msgstr "auto-scroll"
 
-#: web/templates/partials/processing.html:230
+#: web/templates/partials/processing.html:229
 msgid "Step detail appears here while a film is processing."
 msgstr "O detalhe da etapa aparece aqui enquanto um filme é processado."
 
@@ -1270,10 +1328,6 @@ msgstr "O detalhe da etapa aparece aqui enquanto um filme é processado."
 #: web/templates/partials/search_inspector.html:108
 msgid "dir."
 msgstr "dir."
-
-#: web/templates/partials/processing_job.html:55
-msgid "started at"
-msgstr "iniciado em"
 
 #: web/templates/partials/processing_queue.html:10
 msgid "QUEUE"
@@ -2155,4 +2209,8 @@ msgstr "Linha do tempo das cenas do filme"
 
 #~ msgid "Split"
 #~ msgstr "Dividir"
+
+# ── Pipeline step labels (resolved by step id, not STEP_DEFS) ─────────
+#~ msgid "Frame extraction"
+#~ msgstr "Extração de quadros"
 

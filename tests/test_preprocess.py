@@ -443,13 +443,46 @@ def test_video_route_unknown_film_404(client):
     assert r.status_code == 404
 
 
-def test_job_scene_detection_only_classification():
-    from api.jobs import JobState
+def test_job_preprocess_only_classification():
+    from api.jobs import PREPROCESS_STEPS, JobState
 
-    # A scene-detection-only run is owned by Pre-processing…
-    sd = JobState(id="a", video_path="x.mp4", enabled_steps=frozenset({"scene_detection"}))
-    assert sd.is_scene_detection_only is True
+    # A Pre-processing run (frame extraction + scene detection) is owned by
+    # this surface…
+    pp = JobState(id="a", video_path="x.mp4", enabled_steps=frozenset(PREPROCESS_STEPS))
+    assert pp.is_preprocess_only is True
     # …a downstream Processing run is not, even though its steps list carries
     # every pipeline step name for the stepper UI.
     proc = JobState(id="b", video_path="x.mp4", enabled_steps=frozenset({"visual_analysis"}))
-    assert proc.is_scene_detection_only is False
+    assert proc.is_preprocess_only is False
+
+
+def test_active_preprocess_job_renders_own_card_not_processing_card(client, seed_metadata):
+    """A running Pre-processing job renders through this surface's own compact
+    card — never the Processing tab's full 5-step one (which used to leak in
+    wholesale via ``{% include "partials/processing_job.html" %}``)."""
+    import api.jobs as jobs
+
+    seed_metadata()
+    job = jobs.JobState(
+        id="ppjob",
+        video_path="default.mp4",
+        enabled_steps=frozenset(jobs.PREPROCESS_STEPS),
+        steps=[jobs.StepInfo(name=name, label=label) for name, label in jobs.STEP_DEFS],
+    )
+    job.steps[0].state = "done"
+    job.steps[1].state = "active"
+    for s in job.steps:
+        if s.name not in job.enabled_steps:
+            s.state = "skipped"
+    jobs._registry.add(job)
+
+    r = client.get("/tab/pre-processing?film=default")
+    assert r.status_code == 200
+    assert "pp-run-card" in r.text
+    assert 'id="job-ppjob"' in r.text
+    # The Processing tab's own card class must not leak into this surface.
+    assert "p-active" not in r.text
+    # Steps this run doesn't execute must not be shown here.
+    assert "Embeddings" not in r.text
+    assert "LLM descriptions" not in r.text
+    assert "Visual analysis" not in r.text

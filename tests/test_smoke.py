@@ -218,9 +218,9 @@ def test_steps_alias_maps_to_full_names():
     from kuaa.__main__ import _resolve_steps
 
     assert _resolve_steps("llm") == {"llm_description"}
-    assert _resolve_steps("frames,scenes") == {
-        "frame_extraction",
+    assert _resolve_steps("scenes,visual") == {
         "scene_detection",
+        "visual_analysis",
     }
     assert _resolve_steps("llm_description") == {"llm_description"}  # full name OK
     # In the Typer CLI, bad --steps values raise ``typer.BadParameter`` which

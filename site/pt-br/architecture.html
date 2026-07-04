@@ -236,17 +236,15 @@
 <section id="flow">
   <div class="wrap">
     <p class="eyebrow">Fluxo de alto nível</p>
-    <h2>Um vídeo, seis etapas, uma árvore de artefatos.</h2>
+    <h2>Um vídeo, quatro etapas, uma árvore de artefatos.</h2>
     <p style="color:var(--ink-dim);max-width:56ch;margin:0">Cada etapa lê a saída da etapa anterior e escreve seus próprios artefatos no diretório do filme. As etapas seguintes são bloqueadas — não silenciosamente puladas — quando uma entrada necessária está ausente ou um pré-requisito da execução falhou.</p>
     <div class="pipe">
-      <div class="step"><span class="n">01</span><div class="bar"></div><h4>FFprobe</h4><p>Inspeciona o arquivo de origem → <span class="mono" style="font-size:.72rem">video_properties.json</span></p></div>
-      <div class="step"><span class="n">02</span><div class="bar"></div><h4>Extração via FFmpeg</h4><p>Decodifica e amostra frames → <span class="mono" style="font-size:.72rem">frames/sample/*.jpg</span></p></div>
-      <div class="step"><span class="n">03</span><div class="bar"></div><h4>PySceneDetect</h4><p>Encontra os limites de corte, armazena keyframes → <span class="mono" style="font-size:.72rem">keyframes_metadata.json</span></p></div>
-      <div class="step"><span class="n">04</span><div class="bar"></div><h4>Análise visual</h4><p>Detecção de rostos, detecção de objetos, heurística de ambiente → <span class="mono" style="font-size:.72rem">visual_analysis.json</span></p></div>
-      <div class="step"><span class="n">05</span><div class="bar"></div><h4>Embeddings</h4><p>Vetores de keyframe do SigLIP2 → <span class="mono" style="font-size:.72rem">keyframe_embeddings.npy</span></p></div>
-      <div class="step"><span class="n">06</span><div class="bar"></div><h4>Descrições por LLM</h4><p>O Moondream 2 escreve texto de cena e tags → <span class="mono" style="font-size:.72rem">scene_descriptions.json</span></p></div>
+      <div class="step"><span class="n">01</span><div class="bar"></div><h4>PySceneDetect</h4><p>Lê a origem diretamente, encontra os limites de corte, armazena keyframes → <span class="mono" style="font-size:.72rem">keyframes_metadata.json</span></p></div>
+      <div class="step"><span class="n">02</span><div class="bar"></div><h4>Análise visual</h4><p>Detecção de rostos, detecção de objetos, heurística de ambiente → <span class="mono" style="font-size:.72rem">visual_analysis.json</span></p></div>
+      <div class="step"><span class="n">03</span><div class="bar"></div><h4>Embeddings</h4><p>Vetores de keyframe do SigLIP2 → <span class="mono" style="font-size:.72rem">keyframe_embeddings.npy</span></p></div>
+      <div class="step"><span class="n">04</span><div class="bar"></div><h4>Descrições por LLM</h4><p>O Moondream 2 escreve texto de cena e tags → <span class="mono" style="font-size:.72rem">scene_descriptions.json</span></p></div>
     </div>
-    <p style="margin-top:2rem"><span class="mono">STEP_ORDER: frame_extraction → scene_detection → visual_analysis → embeddings → llm_description</span></p>
+    <p style="margin-top:2rem"><span class="mono">STEP_ORDER: scene_detection → visual_analysis → embeddings → llm_description</span></p>
   </div>
 </section>
 
@@ -304,7 +302,6 @@
       <thead><tr><th>Artefato</th><th>Produtor</th><th class="hide-sm">Consumidor</th></tr></thead>
       <tbody>
         <tr><td>films.json</td><td class="model">registro do acervo</td><td class="role hide-sm">chrome, busca agregada, exportações</td></tr>
-        <tr><td>video_properties.json</td><td class="model">VideoInspector</td><td class="role hide-sm">manifesto de execução, depuração</td></tr>
         <tr><td>keyframes_metadata.json</td><td class="model">SceneDetector</td><td class="role hide-sm">análise visual, embeddings, descrições, UI</td></tr>
         <tr><td>visual_analysis.json</td><td class="model">VisualAnalyzer</td><td class="role hide-sm">UI de cenas, exportações</td></tr>
         <tr><td>keyframe_embeddings.npy</td><td class="model">backend de embedding de imagem</td><td class="role hide-sm">busca, rimas visuais</td></tr>

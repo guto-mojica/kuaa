@@ -40,7 +40,6 @@ def _fake_cfg(tmp_path: Path):
         skip_existing=False,
         stop_on_error=True,
         steps=types.SimpleNamespace(
-            frame_extraction=True,
             scene_detection=True,
             visual_analysis=True,
             embeddings=True,
@@ -79,7 +78,6 @@ def _stub_steps(pipeline: CatalogPipeline) -> None:
 
         return _stub
 
-    pipeline._step_frame_extraction = _ok("frame_extraction")
     pipeline._step_scene_detection = _ok("scene_detection")
     pipeline._step_visual_analysis = _ok("visual_analysis")
     pipeline._step_embeddings = _ok("embeddings")
@@ -135,10 +133,9 @@ def test_pipeline_does_not_register_on_partial_failure(tmp_path):
     cfg = _fake_cfg(tmp_path)
     p = CatalogPipeline(cfg, slug="partial")
 
-    # Stub: frame_extraction succeeds, scene_detection fails, others succeed.
-    # The pipeline's _step_* methods take (*_a, **_kw) per the _stub_steps
-    # pattern in this file. result.success becomes False because of the
-    # scene_detection failure.
+    # Stub: scene_detection fails, others succeed. The pipeline's _step_*
+    # methods take (*_a, **_kw) per the _stub_steps pattern in this file.
+    # result.success becomes False because of the scene_detection failure.
     def _ok(name):
         def _stub(*_a, **_kw):
             return StepResult(name=name, success=True, duration_s=0.0)
@@ -151,7 +148,6 @@ def test_pipeline_does_not_register_on_partial_failure(tmp_path):
 
         return _stub
 
-    p._step_frame_extraction = _ok("frame_extraction")
     p._step_scene_detection = _fail("scene_detection")
     p._step_visual_analysis = _ok("visual_analysis")
     p._step_embeddings = _ok("embeddings")

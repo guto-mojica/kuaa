@@ -236,17 +236,15 @@
 <section id="flow">
   <div class="wrap">
     <p class="eyebrow">High-level flow</p>
-    <h2>One video, six stages, one artifact tree.</h2>
+    <h2>One video, four stages, one artifact tree.</h2>
     <p style="color:var(--ink-dim);max-width:56ch;margin:0">Each stage reads the previous stage's output and writes its own artifacts under the film's directory. Downstream steps are blocked — not silently skipped — when a required input is missing or an in-run prerequisite failed.</p>
     <div class="pipe">
-      <div class="step"><span class="n">01</span><div class="bar"></div><h4>FFprobe</h4><p>Inspects the source file → <span class="mono" style="font-size:.72rem">video_properties.json</span></p></div>
-      <div class="step"><span class="n">02</span><div class="bar"></div><h4>FFmpeg extraction</h4><p>Decodes and samples frames → <span class="mono" style="font-size:.72rem">frames/sample/*.jpg</span></p></div>
-      <div class="step"><span class="n">03</span><div class="bar"></div><h4>PySceneDetect</h4><p>Finds cut boundaries, stores keyframes → <span class="mono" style="font-size:.72rem">keyframes_metadata.json</span></p></div>
-      <div class="step"><span class="n">04</span><div class="bar"></div><h4>Visual analysis</h4><p>Face detection, object detection, environment heuristic → <span class="mono" style="font-size:.72rem">visual_analysis.json</span></p></div>
-      <div class="step"><span class="n">05</span><div class="bar"></div><h4>Embeddings</h4><p>SigLIP2 keyframe vectors → <span class="mono" style="font-size:.72rem">keyframe_embeddings.npy</span></p></div>
-      <div class="step"><span class="n">06</span><div class="bar"></div><h4>LLM descriptions</h4><p>Moondream 2 writes scene text and tags → <span class="mono" style="font-size:.72rem">scene_descriptions.json</span></p></div>
+      <div class="step"><span class="n">01</span><div class="bar"></div><h4>PySceneDetect</h4><p>Reads the source directly, finds cut boundaries, stores keyframes → <span class="mono" style="font-size:.72rem">keyframes_metadata.json</span></p></div>
+      <div class="step"><span class="n">02</span><div class="bar"></div><h4>Visual analysis</h4><p>Face detection, object detection, environment heuristic → <span class="mono" style="font-size:.72rem">visual_analysis.json</span></p></div>
+      <div class="step"><span class="n">03</span><div class="bar"></div><h4>Embeddings</h4><p>SigLIP2 keyframe vectors → <span class="mono" style="font-size:.72rem">keyframe_embeddings.npy</span></p></div>
+      <div class="step"><span class="n">04</span><div class="bar"></div><h4>LLM descriptions</h4><p>Moondream 2 writes scene text and tags → <span class="mono" style="font-size:.72rem">scene_descriptions.json</span></p></div>
     </div>
-    <p style="margin-top:2rem"><span class="mono">STEP_ORDER: frame_extraction → scene_detection → visual_analysis → embeddings → llm_description</span></p>
+    <p style="margin-top:2rem"><span class="mono">STEP_ORDER: scene_detection → visual_analysis → embeddings → llm_description</span></p>
   </div>
 </section>
 
@@ -304,7 +302,6 @@
       <thead><tr><th>Artifact</th><th>Producer</th><th class="hide-sm">Consumer</th></tr></thead>
       <tbody>
         <tr><td>films.json</td><td class="model">library registration</td><td class="role hide-sm">chrome, aggregate search, exports</td></tr>
-        <tr><td>video_properties.json</td><td class="model">VideoInspector</td><td class="role hide-sm">run manifest, debugging</td></tr>
         <tr><td>keyframes_metadata.json</td><td class="model">SceneDetector</td><td class="role hide-sm">visual analysis, embeddings, descriptions, UI</td></tr>
         <tr><td>visual_analysis.json</td><td class="model">VisualAnalyzer</td><td class="role hide-sm">scenes UI, exports</td></tr>
         <tr><td>keyframe_embeddings.npy</td><td class="model">image embedder backend</td><td class="role hide-sm">search, visual rhymes</td></tr>

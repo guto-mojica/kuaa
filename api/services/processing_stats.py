@@ -20,21 +20,12 @@ logger = logging.getLogger(__name__)
 # .p-rp "what" paragraph and as the label/detail of each real substep row.
 
 _STEP_DESCRIPTIONS: dict[str, dict[str, str]] = {
-    "frame_extraction": {
-        "label": "Frame extraction",
-        "detail": "ffmpeg · 1 fps · 480p",
-        "description": (
-            "Decode the source video and emit one keyframe per second "
-            "(downscaled). Feeds scene detection and visual analysis."
-        ),
-    },
     "scene_detection": {
         "label": "Scene detection",
         "detail": "PySceneDetect · adaptive",
         "description": (
-            "Detect shot boundaries across the extracted frames and "
-            "build the scene index. Output: scene cuts + representative "
-            "keyframes."
+            "Decode the source video, detect shot boundaries, and build "
+            "the scene index. Output: scene cuts + representative keyframes."
         ),
     },
     "visual_analysis": {

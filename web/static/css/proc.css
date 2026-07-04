@@ -504,7 +504,7 @@
 /* ─── Responsive ─────────────────────────────────────────────────────────
    The Processing tab has two big content blocks: the active-job card at
    the top and the 2-col body (live log on the left, stats/queue on the
-   right). At narrow widths the 5-step pill row wraps to two rows, the
+   right). At narrow widths the pill row wraps to two rows, the
    2-col body becomes a 1-col stack, and the queue card moves below the
    log. chrome.css hides .ch-right at ≤960px, which already removes the
    substep panel — these rules cover only the centre-pane internals. */

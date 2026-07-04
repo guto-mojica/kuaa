@@ -165,7 +165,6 @@ def output_artifacts(
     mapping_file = _get_path(cfg, "embeddings", "mapping_filename", default="index_mapping.json")
 
     paths = {
-        "video_properties": metadata_dir / "video_properties.json",
         "keyframes_metadata": metadata_dir / "keyframes_metadata.json",
         "visual_analysis": metadata_dir / "visual_analysis.json",
         "scene_descriptions": metadata_dir / llm_desc,

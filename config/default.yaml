@@ -43,13 +43,6 @@ hardware:
   device: "auto"
   force_cpu: false     # override de emergência — força CPU mesmo se GPU disponível
 
-# ── Extração de frames (NB01) ─────────────────────────────────────────────────
-frame_extraction:
-  fps: 1                    # frames por segundo a extrair
-  target_height: 480        # altura alvo (0 = manter original)
-  quality: 2                # qualidade JPEG FFmpeg (2=alta, 31=baixa)
-  sample_duration: null     # null = vídeo inteiro; int = segundos (ex: 300 = 5min)
-
 # ── Detecção de cenas (NB02) ──────────────────────────────────────────────────
 scene_detection:
   detector: "adaptive"      # "content" ou "adaptive" — adaptive é mais robusto para filmes P&B de arquivo
@@ -234,7 +227,6 @@ models:
 pipeline:
   # Quais módulos rodar (desative para pular etapas já concluídas)
   steps:
-    frame_extraction: true
     scene_detection: true
     visual_analysis: true
     embeddings: true

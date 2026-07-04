@@ -4,12 +4,17 @@
 
     Workflow: pick a film → tune detection → run it → review the cut-timeline
     filmstrip → hand-correct boundaries (split / merge) → hand off to Processing
-    for the downstream visual / embeddings / LLM steps.
+    for the downstream visual / embeddings / LLM steps. That hand-off is always
+    deliberate: finishing a run here never auto-starts anything else (see
+    ``api.jobs._drain_pending_unless_preprocess``) — the operator explicitly
+    starts the Processing tab's queue once the cuts look right.
 
-    Scene-detection runs reuse the Processing job registry + SSE stream
-    (``/api/pipeline/stream``); ``processing_job.html`` carries that pinned SSE
-    contract unchanged. On stream close the filmstrip is refreshed so the new
-    cuts appear without a full reload. -#}
+    The run reuses the Processing job registry + SSE stream
+    (``/api/pipeline/stream``), but renders through this surface's own
+    ``preprocess_job.html`` / ``preprocess_stepper.html`` — never the
+    Processing tab's full card — so only scene detection shows here. On
+    stream close the filmstrip is refreshed so the new cuts appear without
+    a full reload. -#}
 <div class="tab-panel">
 <section class="pp-cp">
 
@@ -121,7 +126,7 @@
   {% if jobs %}
     <div class="pp-job">
       {% for job in jobs %}
-        {% include "partials/processing_job.html" %}
+        {% include "partials/preprocess_job.html" %}
       {% endfor %}
       <div class="pp-log" id="pp-log"
            hx-ext="sse"

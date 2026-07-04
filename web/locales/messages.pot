@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-07-02 15:35-0300\n"
+"POT-Creation-Date: 2026-07-03 21:59-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -47,7 +47,7 @@ msgid "Annotate"
 msgstr ""
 
 #: web/templates/base.html:129 web/templates/partials/_topbar.html:71
-#: web/templates/partials/preprocess.html:20
+#: web/templates/partials/preprocess.html:25
 msgid "Pre-processing"
 msgstr ""
 
@@ -484,22 +484,18 @@ msgid "close"
 msgstr ""
 
 #: web/templates/partials/_step_labels.html:9
-msgid "Frame extraction"
-msgstr ""
-
-#: web/templates/partials/_step_labels.html:10
 msgid "Scene detection"
 msgstr ""
 
-#: web/templates/partials/_step_labels.html:11
+#: web/templates/partials/_step_labels.html:10
 msgid "Visual analysis"
 msgstr ""
 
-#: web/templates/partials/_step_labels.html:12
+#: web/templates/partials/_step_labels.html:11
 msgid "Embeddings"
 msgstr ""
 
-#: web/templates/partials/_step_labels.html:13
+#: web/templates/partials/_step_labels.html:12
 msgid "LLM descriptions"
 msgstr ""
 
@@ -609,6 +605,7 @@ msgstr ""
 #: web/templates/partials/add_film_form.html:46
 #: web/templates/partials/add_film_form.html:51
 #: web/templates/partials/annotate_desc_edit.html:19
+#: web/templates/partials/preprocess_job.html:29
 #: web/templates/partials/processing_job.html:67
 #: web/templates/partials/remove_film_confirm.html:15
 msgid "Cancel"
@@ -750,7 +747,7 @@ msgstr ""
 #: web/templates/partials/annotate_props.html:30
 #: web/templates/partials/annotate_props.html:37
 #: web/templates/partials/inspector_properties.html:32
-#: web/templates/partials/preprocess.html:38
+#: web/templates/partials/preprocess.html:43
 #: web/templates/partials/scenes.html:306
 #: web/templates/partials/scenes.html:309
 #: web/templates/partials/scenes.html:329
@@ -962,7 +959,7 @@ msgid "films"
 msgstr ""
 
 #: web/templates/partials/home.html:30
-#: web/templates/partials/preprocess_filmstrip.html:19
+#: web/templates/partials/preprocess_filmstrip.html:23
 #: web/templates/partials/processing_stats.html:19
 #: web/templates/partials/scenes.html:449
 #: web/templates/partials/search_timeline.html:45
@@ -994,7 +991,7 @@ msgid "Current tags"
 msgstr ""
 
 #: web/templates/partials/inspector_properties.html:20
-#: web/templates/partials/preprocess_filmstrip.html:55
+#: web/templates/partials/preprocess_filmstrip.html:117
 #: web/templates/partials/scenes.html:510
 msgid "Scene"
 msgstr ""
@@ -1025,199 +1022,258 @@ msgstr ""
 msgid "Remove"
 msgstr ""
 
-#: web/templates/partials/preprocess.html:22
+#: web/templates/partials/preprocess.html:27
 msgid "Detect scene cuts and review them before the heavy steps run."
 msgstr ""
 
-#: web/templates/partials/preprocess.html:25
+#: web/templates/partials/preprocess.html:30
 msgid ""
 "'adaptive' compares each frame to a rolling window average — better for "
 "gradual lighting changes and subtle cuts. 'content' measures raw frame-"
 "to-frame pixel difference — faster but may miss soft transitions."
 msgstr ""
 
-#: web/templates/partials/preprocess.html:26
+#: web/templates/partials/preprocess.html:31
 msgid ""
 "How different a frame must be from its local average to count as a cut. "
 "Lower values detect more scenes. Typical range: 2–6."
 msgstr ""
 
-#: web/templates/partials/preprocess.html:27
+#: web/templates/partials/preprocess.html:32
 msgid ""
 "Pixel-difference score that triggers a cut. Lower values produce more "
 "scenes. Typical range: 15–40."
 msgstr ""
 
-#: web/templates/partials/preprocess.html:54
+#: web/templates/partials/preprocess.html:59
 msgid "Detector"
 msgstr ""
 
-#: web/templates/partials/preprocess.html:58
+#: web/templates/partials/preprocess.html:63
 msgid "adaptive"
 msgstr ""
 
-#: web/templates/partials/preprocess.html:59
+#: web/templates/partials/preprocess.html:64
 msgid "content"
 msgstr ""
 
-#: web/templates/partials/preprocess.html:64
+#: web/templates/partials/preprocess.html:69
 msgid "Adaptive threshold"
 msgstr ""
 
-#: web/templates/partials/preprocess.html:72
+#: web/templates/partials/preprocess.html:77
 msgid "Content threshold"
 msgstr ""
 
-#: web/templates/partials/preprocess.html:80
+#: web/templates/partials/preprocess.html:85
 msgid "Min scene length"
 msgstr ""
 
-#: web/templates/partials/preprocess.html:86
+#: web/templates/partials/preprocess.html:91
 msgid "Keyframes / scene"
 msgstr ""
 
-#: web/templates/partials/preprocess.html:94
+#: web/templates/partials/preprocess.html:99
 msgid "Keyframe height"
 msgstr ""
 
-#: web/templates/partials/preprocess.html:101
+#: web/templates/partials/preprocess.html:106
 msgid "Detect scenes"
 msgstr ""
 
-#: web/templates/partials/preprocess.html:103
+#: web/templates/partials/preprocess.html:108
 msgid "Detecting…"
 msgstr ""
 
-#: web/templates/partials/preprocess.html:108
+#: web/templates/partials/preprocess.html:114
+msgid ""
+"Re-detecting replaces the current cuts — including manual edits and any "
+"pending, not-yet-applied changes — and clears the downstream visual, "
+"embeddings, and description outputs."
+msgstr ""
+
+#: web/templates/partials/preprocess.html:116
 msgid ""
 "Re-detecting replaces the current cuts — including manual edits — and "
 "clears the downstream visual, embeddings, and description outputs."
 msgstr ""
 
-#: web/templates/partials/preprocess.html:111
+#: web/templates/partials/preprocess.html:120
 msgid "No films in the library yet. Add a film to detect its scenes."
 msgstr ""
 
-#: web/templates/partials/preprocess.html:129
+#: web/templates/partials/preprocess.html:138
 msgid "Detection log"
 msgstr ""
 
-#: web/templates/partials/preprocess.html:131
-#: web/templates/partials/processing.html:198
+#: web/templates/partials/preprocess.html:140
+#: web/templates/partials/processing.html:197
 msgid "Waiting for events…"
 msgstr ""
 
-#: web/templates/partials/preprocess.html:156
+#: web/templates/partials/preprocess.html:167
 msgid "Previous frame"
 msgstr ""
 
-#: web/templates/partials/preprocess.html:158
+#: web/templates/partials/preprocess.html:169
 msgid "Next frame"
 msgstr ""
 
-#: web/templates/partials/preprocess.html:161
+#: web/templates/partials/preprocess.html:172
 msgid "Add a cut at the current playhead frame"
 msgstr ""
 
-#: web/templates/partials/preprocess.html:162
+#: web/templates/partials/preprocess.html:173
 msgid "Split at playhead"
 msgstr ""
 
-#: web/templates/partials/preprocess.html:165
+#: web/templates/partials/preprocess.html:176
 msgid ""
 "Scrub to the exact cut, then split. Click any keyframe to jump the player"
 " there."
 msgstr ""
 
-#: web/templates/partials/preprocess.html:171
+#: web/templates/partials/preprocess.html:181
 msgid ""
 "The source video isn't on disk, so the review player and cut editing are "
 "unavailable. The detected cuts are shown below."
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:14
+#: web/templates/partials/preprocess_filmstrip.html:18
 msgid "No scenes yet. Run scene detection to review its cuts here."
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:20
+#: web/templates/partials/preprocess_filmstrip.html:24
 msgid "avg"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:21
+#: web/templates/partials/preprocess_filmstrip.html:25
 msgid "median"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:22
+#: web/templates/partials/preprocess_filmstrip.html:26
 msgid "shortest"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:23
+#: web/templates/partials/preprocess_filmstrip.html:27
 msgid "longest"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:25
+#: web/templates/partials/preprocess_filmstrip.html:29
 msgid "hand-edited"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:29
+#: web/templates/partials/preprocess_filmstrip.html:35
+msgid "Rebuilding keyframes… this can take a while for long films."
+msgstr ""
+
+#: web/templates/partials/preprocess_filmstrip.html:46
+#, python-format
+msgid "%(n)s pending change(s)"
+msgstr ""
+
+#: web/templates/partials/preprocess_filmstrip.html:50
+msgid "Rebuild only the checked changes"
+msgstr ""
+
+#: web/templates/partials/preprocess_filmstrip.html:56
+msgid "Apply changes"
+msgstr ""
+
+#: web/templates/partials/preprocess_filmstrip.html:59
+msgid "Discard every staged change"
+msgstr ""
+
+#: web/templates/partials/preprocess_filmstrip.html:63
+msgid "Discard"
+msgstr ""
+
+#: web/templates/partials/preprocess_filmstrip.html:79
+#, python-format
+msgid "Merge at %(tc)s"
+msgstr ""
+
+#: web/templates/partials/preprocess_filmstrip.html:81
+#, python-format
+msgid "Split at %(tc)s"
+msgstr ""
+
+#: web/templates/partials/preprocess_filmstrip.html:91
 msgid "Detected scenes"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:38
-#: web/templates/partials/preprocess_filmstrip.html:39
+#: web/templates/partials/preprocess_filmstrip.html:100
+#: web/templates/partials/preprocess_filmstrip.html:101
 msgid "Merge with previous scene"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:52
+#: web/templates/partials/preprocess_filmstrip.html:114
 msgid "Jump the player to this scene"
+msgstr ""
+
+#: web/templates/partials/preprocess_job.html:18
+#: web/templates/partials/processing_job.html:55
+msgid "started at"
+msgstr ""
+
+#: web/templates/partials/preprocess_stepper.html:37
+msgid "Pre-processing completed in"
+msgstr ""
+
+#: web/templates/partials/preprocess_stepper.html:42
+msgid "Pre-processing failed"
+msgstr ""
+
+#: web/templates/partials/preprocess_stepper.html:47
+msgid "Pre-processing cancelled"
 msgstr ""
 
 #: web/templates/partials/processing.html:37
 msgid "active"
 msgstr ""
 
-#: web/templates/partials/processing.html:83
+#: web/templates/partials/processing.html:82
 msgid "No video files found in the raw directory."
 msgstr ""
 
-#: web/templates/partials/processing.html:94
+#: web/templates/partials/processing.html:93
 msgid "All steps"
 msgstr ""
 
-#: web/templates/partials/processing.html:106
+#: web/templates/partials/processing.html:105
 msgid "Start processing"
 msgstr ""
 
-#: web/templates/partials/processing.html:109
+#: web/templates/partials/processing.html:108
 msgid "Starting…"
 msgstr ""
 
-#: web/templates/partials/processing.html:121
+#: web/templates/partials/processing.html:120
 msgid "+ Queue"
 msgstr ""
 
-#: web/templates/partials/processing.html:124
+#: web/templates/partials/processing.html:123
 msgid "Queuing…"
 msgstr ""
 
-#: web/templates/partials/processing.html:141
+#: web/templates/partials/processing.html:140
 msgid "No active jobs."
 msgstr ""
 
-#: web/templates/partials/processing.html:178
+#: web/templates/partials/processing.html:177
 msgid "Log · SSE"
 msgstr ""
 
+#: web/templates/partials/processing.html:182
 #: web/templates/partials/processing.html:183
-#: web/templates/partials/processing.html:184
 msgid "Download log"
 msgstr ""
 
-#: web/templates/partials/processing.html:188
+#: web/templates/partials/processing.html:187
 msgid "auto-scroll"
 msgstr ""
 
-#: web/templates/partials/processing.html:230
+#: web/templates/partials/processing.html:229
 msgid "Step detail appears here while a film is processing."
 msgstr ""
 
@@ -1226,10 +1282,6 @@ msgstr ""
 #: web/templates/partials/scenes_inspector.html:71
 #: web/templates/partials/search_inspector.html:108
 msgid "dir."
-msgstr ""
-
-#: web/templates/partials/processing_job.html:55
-msgid "started at"
 msgstr ""
 
 #: web/templates/partials/processing_queue.html:10

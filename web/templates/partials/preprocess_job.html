@@ -1,0 +1,43 @@
+{% from "partials/_icons.html" import icon %}
+
+{#- Pre-processing's own compact job card.
+
+    Mirrors the SSE contract pinned for the Processing tab's
+    ``processing_job.html`` (``sse-connect``/``sse-close`` on
+    done,error,cancelled; ``sse-swap`` on update,done,error,cancelled — see
+    tests/test_sse.py) but renders only the steps this surface actually
+    runs, via ``preprocess_stepper.html``, instead of reusing the
+    Processing tab's full card. Kept deliberately minimal: no film
+    thumbnail/director row — those belong to the Processing tab's framing,
+    not this one. -#}
+<article class="pp-run-card" id="job-{{ job.id }}" data-job-id="{{ job.id }}">
+  <div class="pp-run-card__head">
+    <span class="dot"></span>
+    <span class="pp-run-card__title">{{ job.film_title or job.video_name }}</span>
+    {% if job.started_at_display %}
+      <span class="pp-run-card__meta">{{ _("started at") }} {{ job.started_at_display }}</span>
+    {% endif %}
+    {% if job.elapsed_display %}
+      <span class="pp-run-card__meta">· {{ job.elapsed_display }}</span>
+    {% endif %}
+    {% if job.status in ('running', 'created') %}
+      <button type="button"
+              class="fx-icbtn pp-run-card__cancel"
+              hx-post="/api/pipeline/cancel/{{ job.id }}"
+              hx-target="#job-{{ job.id }}"
+              hx-swap="outerHTML"
+              title="{{ _('Cancel') }}">
+        {{ icon('x', 14) }}
+      </button>
+    {% endif %}
+  </div>
+
+  <div hx-ext="sse"
+       sse-connect="/api/pipeline/stream/{{ job.id }}"
+       sse-close="done,error,cancelled"
+       hx-on:htmx:sseClose="htmx.ajax('GET', '/api/pipeline/job-card/{{ job.id }}', {target: '#job-{{ job.id }}', swap: 'outerHTML'})">
+    <div sse-swap="update,done,error,cancelled" hx-swap="innerHTML">
+      {% include "partials/preprocess_stepper.html" with context %}
+    </div>
+  </div>
+</article>

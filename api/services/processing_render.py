@@ -31,13 +31,11 @@ _TERMINAL_EVENTS = ("done", "error", "cancelled")
 
 
 def render_stepper(job: JobState, locale: str = "pt_BR") -> str:
-    """Render the stepper HTML fragment for SSE."""
+    """Render the SSE stepper fragment (Pre-processing gets its own template)."""
     trans = _get_translations(locale)
-    html = templates.env.get_template("partials/processing_stepper.html").render(
-        job=job,
-        _=trans.gettext,
-    )
-    return html.replace("\n", " ").strip()
+    base = "preprocess" if job.is_preprocess_only else "processing"
+    tmpl = templates.env.get_template(f"partials/{base}_stepper.html")
+    return tmpl.render(job=job, _=trans.gettext).replace("\n", " ").strip()
 
 
 def render_log_row(row: dict, locale: str = "pt_BR") -> str:
@@ -133,9 +131,9 @@ def build_processing_context(surface: str = "processing") -> ProcessingContext:
     films = [f for f in scan_library(library_dir) if f.raw_path.exists()]
     active = active_jobs()
     if surface == "processing":
-        active = [j for j in active if not j.is_scene_detection_only]
+        active = [j for j in active if not j.is_preprocess_only]
     elif surface == "preprocess":
-        active = [j for j in active if j.is_scene_detection_only]
+        active = [j for j in active if j.is_preprocess_only]
     jobs = enrich_jobs(active)
 
     # Seed the terminal-log pane with the active job's captured log

@@ -25,7 +25,6 @@ Default paths come from `config/default.yaml` or the selected config override.
 | Artifact | Default path | Producer |
 |---|---|---|
 | Film registry | `data/library/films.json` | Library add/register |
-| Video properties | `data/library/<slug>/metadata/video_properties.json` | Frame extraction |
 | Keyframe metadata | `data/library/<slug>/metadata/keyframes_metadata.json` | Scene detection |
 | Keyframe images | `data/library/<slug>/frames/scenes/keyframes_content/` | Scene detection |
 | Visual analysis | `data/library/<slug>/metadata/visual_analysis.json` | Visual analysis |

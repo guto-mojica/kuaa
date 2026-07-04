@@ -47,8 +47,60 @@
   color: var(--c-text-2);
 }
 
-/* ── Detection job (SSE stepper card reused) + log ─────────────────────── */
+/* ── Detection job: own compact card + progress readout ────────────────── */
 .pp-job { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.pp-run-card {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--c-panel); border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+}
+.pp-run-card__head {
+  display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap;
+}
+.pp-run-card__head .dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--c-green);
+  box-shadow: 0 0 0 3px var(--c-green-bg); flex-shrink: 0;
+}
+.pp-run-card__title { font-size: 13px; font-weight: 600; color: var(--c-text); }
+.pp-run-card__meta { font-size: 11.5px; color: var(--c-muted); }
+.pp-run-card__cancel { margin-left: auto; }
+
+.pp-run { display: flex; flex-direction: column; gap: var(--sp-2); }
+.pp-run__bar {
+  height: 4px; border-radius: 2px; background: var(--c-border);
+  overflow: hidden; position: relative;
+}
+.pp-run__bar::before {
+  content: ''; position: absolute; inset: 0 auto 0 0; width: var(--p, 0%);
+  background: var(--c-accent); transition: width var(--dur-fast);
+}
+.pp-run__steps { display: flex; flex-wrap: wrap; gap: var(--sp-4); }
+.pp-run__step {
+  display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--c-muted);
+}
+.pp-run__step--done { color: var(--c-text-2); }
+.pp-run__step--active { color: var(--c-accent-2); font-weight: 600; }
+.pp-run__step--error { color: var(--c-red); }
+.pp-run__dot {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+  font-size: 10px; font-weight: 600; color: var(--c-muted);
+  background: var(--c-bg); border: 1px solid var(--c-border-2);
+}
+.pp-run__step--done .pp-run__dot { color: var(--c-green); border-color: var(--c-green); }
+.pp-run__step--active .pp-run__dot { color: var(--c-accent-2); border-color: var(--c-accent-2); }
+.pp-run__step--error .pp-run__dot { color: var(--c-red); border-color: var(--c-red); }
+.pp-run__dur { color: var(--c-faint); font-family: var(--font-mono); font-size: 11px; }
+.pp-run__detail { flex-basis: 100%; margin: 0; font-size: 11.5px; color: var(--c-red); }
+.pp-run__msg {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 12.5px;
+}
+.pp-run__msg--done { color: var(--c-green); }
+.pp-run__msg--error { color: var(--c-red); }
+.pp-run__msg--cancelled { color: var(--c-muted); }
+
 .pp-log {
   background: var(--c-bg); border: 1px solid var(--c-border);
   border-radius: var(--r-md); overflow: hidden;

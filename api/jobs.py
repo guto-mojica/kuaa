@@ -71,12 +71,18 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 STEP_DEFS: list[tuple[str, str]] = [
-    ("frame_extraction", "Frames"),
     ("scene_detection", "Cenas"),
     ("visual_analysis", "Visual"),
     ("embeddings", "Embeddings"),
     ("llm_description", "Descrições"),
 ]
+
+# Steps launched from the Pre-processing surface. scene_detection is a root
+# in kuaa.pipeline.STEP_DEPS (reads the video directly) so running it here
+# cannot affect the deferred visual/embeddings/llm steps. This is also the
+# exact-match test JobState.is_preprocess_only uses to decide which surface
+# a job belongs to — keep the two in sync.
+PREPROCESS_STEPS: frozenset[str] = frozenset({"scene_detection"})
 
 
 class JobStatus(str, Enum):
@@ -316,7 +322,7 @@ class JobState:
     # The steps actually requested for this run (a subset of STEP_DEFS names).
     # ``steps`` above always lists ALL pipeline steps for the stepper UI, so this
     # is the discriminator for which surface owns the job (Pre-processing runs
-    # exactly {"scene_detection"}).
+    # exactly PREPROCESS_STEPS).
     enabled_steps: frozenset[str] = field(default_factory=frozenset)
     progress: float = 0.0
     # Multi-consumer event bus. Replaces the old single-consumer
@@ -340,13 +346,16 @@ class JobState:
     _cancel: threading.Event = field(default_factory=threading.Event, repr=False)
 
     @property
-    def is_scene_detection_only(self) -> bool:
-        """True for a Pre-processing run (exactly the scene_detection step).
+    def is_preprocess_only(self) -> bool:
+        """True for a Pre-processing run (exactly ``PREPROCESS_STEPS``).
 
         ``steps`` always lists every pipeline step for the stepper UI, so the
-        surface a job belongs to is decided by ``enabled_steps``.
+        surface a job belongs to is decided by ``enabled_steps``. Consulted
+        both by the renderer (which template/card a job gets) and by the
+        runner (whether finishing this job may auto-drain the batch queue —
+        see ``_run_pipeline``).
         """
-        return self.enabled_steps == frozenset({"scene_detection"})
+        return self.enabled_steps == PREPROCESS_STEPS
 
     # ── Pub/sub convenience methods ──────────────────────────────────
     def publish(self, name: str, data: Any = None) -> None:
@@ -806,7 +815,6 @@ def _clear_scene_detection_cascade(ctx, cfg) -> None:
 
     Called when scene_detection is re-run so skip_existing doesn't silently
     no-op the step and leave stale downstream data in visual/embeddings/llm.
-    frame_extraction (frames/sample/) is NOT touched — it's independent.
     """
     import shutil
 
@@ -954,6 +962,29 @@ def _run_pipeline(
         done = sum(1 for s in job.steps if s.state in ("done", "skipped", "error", "blocked"))
         job.progress = done / len(job.steps) if job.steps else 1.0
 
+    def _drain_pending_unless_preprocess() -> None:
+        """Auto-advance the batch queue — except when this was a
+        Pre-processing run.
+
+        The batch queue exists so several full films queued from the
+        Processing tab chain automatically. A Pre-processing (scene-
+        detection-only) job must NOT trigger that chain: the operator adds
+        a film, its cuts get detected, and the pipeline halts there for
+        review — the downstream visual/embeddings/llm steps only start
+        when the operator deliberately starts them (Processing tab "Start
+        queue", or a fresh selected-step run). Without this guard, a full
+        run queued earlier for the same film (e.g. by the "add film"
+        gesture) would silently start the moment scene detection finished,
+        defeating the point of a separate review step.
+        """
+        if job.is_preprocess_only:
+            logger.info(
+                "[job=%s] preprocess-only run finished — not auto-draining the batch queue",
+                job.id,
+            )
+            return
+        _registry.drain_pending()
+
     def progress_cb(name: str, phase: str, run) -> None:
         step = by_name.get(name)
         if step is None:
@@ -1010,7 +1041,7 @@ def _run_pipeline(
             job.publish("cancelled")
             logger.info("[job=%s] cancelled after %.1fs", job.id, job.total_duration_s)
             _prune_registry()
-            _registry.drain_pending()
+            _drain_pending_unless_preprocess()
             return
         except Exception as exc:  # defensive: run_steps wraps step errors,
             # so this only fires on an orchestration-level fault.
@@ -1022,7 +1053,7 @@ def _run_pipeline(
             job.publish("error")
             logger.exception("[job=%s] crashed in run_steps", job.id)
             _prune_registry()
-            _registry.drain_pending()
+            _drain_pending_unless_preprocess()
             return
 
         had_error = any(r.state in ("error", "blocked") for r in results.runs)
@@ -1042,4 +1073,4 @@ def _run_pipeline(
             job.status,
         )
         _prune_registry()
-        _registry.drain_pending()
+        _drain_pending_unless_preprocess()

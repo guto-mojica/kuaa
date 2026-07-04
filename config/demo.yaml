@@ -30,12 +30,6 @@ hardware:
   device: "cpu"
   force_cpu: true
 
-frame_extraction:
-  fps: 1
-  target_height: 360
-  quality: 4
-  sample_duration: 180
-
 scene_detection:
   detector: "adaptive"
   adaptive_threshold: 3.0

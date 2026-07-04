@@ -323,15 +323,14 @@
 
 <section id="pipeline">
   <div class="wrap">
-    <p class="eyebrow">O pipeline · cinco etapas</p>
+    <p class="eyebrow">O pipeline · quatro etapas</p>
     <h2>De um <code style="font-family:var(--mono);font-size:.85em;color:var(--violet)">.mp4</code> bruto a um catálogo indexado.</h2>
     <p style="color:var(--ink-dim);max-width:52ch;margin:0">Cada execução é sequencial e rastreável. Um <span style="font-family:var(--mono);font-size:.85em;color:var(--ink)">run_manifest.json</span> registra a entrada, o hash de configuração e os backends de modelo por trás de cada metadado.</p>
     <div class="pipe">
-      <div class="step"><span class="n">01</span><div class="bar"></div><h4>Extração de frames</h4><p>O FFmpeg decodifica a origem e emite um keyframe reduzido por segundo.</p></div>
-      <div class="step"><span class="n">02</span><div class="bar"></div><h4>Detecção de cenas</h4><p>O PySceneDetect encontra os limites de corte e armazena um keyframe representativo por cena.</p></div>
-      <div class="step"><span class="n">03</span><div class="bar"></div><h4>Análise visual</h4><p>O YOLOv8 e o MTCNN detectam objetos, rostos e rótulos aproximados de ambiente.</p></div>
-      <div class="step"><span class="n">04</span><div class="bar"></div><h4>Embeddings</h4><p>Os embeddings de imagem do SigLIP2 são indexados com o mapeamento de cena e keyframe.</p></div>
-      <div class="step"><span class="n">05</span><div class="bar"></div><h4>Descrições por LLM</h4><p>O Moondream 2 escreve uma descrição local de cena e tags para cada keyframe.</p></div>
+      <div class="step"><span class="n">01</span><div class="bar"></div><h4>Detecção de cenas</h4><p>O PySceneDetect lê a origem diretamente, encontra os limites de corte e armazena um keyframe representativo por cena.</p></div>
+      <div class="step"><span class="n">02</span><div class="bar"></div><h4>Análise visual</h4><p>O YOLOv8 e o MTCNN detectam objetos, rostos e rótulos aproximados de ambiente.</p></div>
+      <div class="step"><span class="n">03</span><div class="bar"></div><h4>Embeddings</h4><p>Os embeddings de imagem do SigLIP2 são indexados com o mapeamento de cena e keyframe.</p></div>
+      <div class="step"><span class="n">04</span><div class="bar"></div><h4>Descrições por LLM</h4><p>O Moondream 2 escreve uma descrição local de cena e tags para cada keyframe.</p></div>
     </div>
     <p style="margin-top:2rem"><span class="mono">run_manifest.json · hash de configuração + backend de modelo registrado por execução</span></p>
   </div>
@@ -388,7 +387,7 @@
         <span class="tag">Processamento</span>
         <h3>Acompanhe a execução, etapa por etapa.</h3>
         <p>Um log SSE ao vivo transmite cada etapa com uso de recursos e contagens em execução — frames, cenas, embeddings, descrições, rostos, objetos — para que uma execução local longa continue legível.</p>
-        <span class="mono">step 1 / 5 · frame_extraction — start</span>
+        <span class="mono">step 1 / 4 · scene_detection — start</span>
       </div>
       <figure><img src="../processing.jpg" alt="Tela de processamento do KUAA com log ao vivo e progresso por etapa" loading="lazy"></figure>
     </div>

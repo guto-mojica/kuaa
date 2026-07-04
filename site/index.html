@@ -361,15 +361,14 @@
 
 <section id="pipeline">
   <div class="wrap">
-    <p class="eyebrow">The pipeline · five steps</p>
+    <p class="eyebrow">The pipeline · four steps</p>
     <h2>From a raw <code style="font-family:var(--mono);font-size:.85em;color:var(--violet)">.mp4</code> to an indexed catalog.</h2>
     <p style="color:var(--ink-dim);max-width:52ch;margin:0">Each run is sequential and traceable. A <span style="font-family:var(--mono);font-size:.85em;color:var(--ink)">run_manifest.json</span> records the input, config hash, and model backends behind every piece of metadata.</p>
     <div class="pipe">
-      <div class="step"><span class="n">01</span><div class="bar"></div><h4>Frame extraction</h4><p>FFmpeg decodes the source and emits one downscaled keyframe per second.</p></div>
-      <div class="step"><span class="n">02</span><div class="bar"></div><h4>Scene detection</h4><p>PySceneDetect finds cut boundaries and stores a representative keyframe per scene.</p></div>
-      <div class="step"><span class="n">03</span><div class="bar"></div><h4>Visual analysis</h4><p>YOLOv8 and MTCNN detect objects, faces, and coarse environment labels.</p></div>
-      <div class="step"><span class="n">04</span><div class="bar"></div><h4>Embeddings</h4><p>SigLIP2 image embeddings are indexed with scene and keyframe mapping.</p></div>
-      <div class="step"><span class="n">05</span><div class="bar"></div><h4>LLM descriptions</h4><p>Moondream 2 writes a local scene description and tags for each keyframe.</p></div>
+      <div class="step"><span class="n">01</span><div class="bar"></div><h4>Scene detection</h4><p>PySceneDetect reads the source directly, finds cut boundaries, and stores a representative keyframe per scene.</p></div>
+      <div class="step"><span class="n">02</span><div class="bar"></div><h4>Visual analysis</h4><p>YOLOv8 and MTCNN detect objects, faces, and coarse environment labels.</p></div>
+      <div class="step"><span class="n">03</span><div class="bar"></div><h4>Embeddings</h4><p>SigLIP2 image embeddings are indexed with scene and keyframe mapping.</p></div>
+      <div class="step"><span class="n">04</span><div class="bar"></div><h4>LLM descriptions</h4><p>Moondream 2 writes a local scene description and tags for each keyframe.</p></div>
     </div>
     <p style="margin-top:2rem"><span class="mono">run_manifest.json · config hash + model backend recorded per run</span></p>
   </div>
@@ -426,7 +425,7 @@
         <span class="tag">Processing</span>
         <h3>Watch the run, step by step.</h3>
         <p>A live SSE log streams each stage with resource use and running counts — frames, scenes, embeddings, descriptions, faces, objects — so a long local job stays legible.</p>
-        <span class="mono">step 1 / 5 · frame_extraction — start</span>
+        <span class="mono">step 1 / 4 · scene_detection — start</span>
       </div>
       <figure><img src="processing.jpg" alt="KUAA processing view with live log and per-step progress" loading="lazy"></figure>
     </div>

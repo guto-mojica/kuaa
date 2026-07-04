@@ -5,14 +5,12 @@ from __future__ import annotations
 import typer
 
 _STEP_ALIASES: dict[str, str] = {
-    "frames": "frame_extraction",
     "scenes": "scene_detection",
     "visual": "visual_analysis",
     "embeddings": "embeddings",
     "llm": "llm_description",
 }
 _STEP_FULL_NAMES: tuple[str, ...] = (
-    "frame_extraction",
     "scene_detection",
     "visual_analysis",
     "embeddings",

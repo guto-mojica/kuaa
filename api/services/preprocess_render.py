@@ -1,10 +1,15 @@
 """Pre-processing tab — context builder + start-response composer.
 
-The Pre-processing surface drives scene-detection-only pipeline runs and a
-filmstrip cut-review UI. It deliberately reuses the Processing tab's job
-registry, SSE stream, and job-card machinery (``build_processing_context``,
-``/api/pipeline/stream``); this module only adds the per-film filmstrip view
-model (``kuaa.preprocess.build_filmstrip``) on top.
+The Pre-processing surface drives ``api.jobs.PREPROCESS_STEPS``-only pipeline
+runs (scene detection — a root in the dependency graph, so nothing
+downstream depends on running it here) and a filmstrip cut-review UI. It
+reuses the Processing tab's job registry and SSE stream
+(``build_processing_context``, ``/api/pipeline/stream``) so a Pre-processing
+run is still tracked by the same single-active-job policy, but renders its
+own compact job card (``preprocess_job.html`` / ``preprocess_stepper.html``)
+rather than the Processing tab's full one — see ``JobState.is_preprocess_only``.
+This module adds the per-film filmstrip view model
+(``kuaa.preprocess.build_filmstrip``) on top.
 """
 
 from __future__ import annotations
@@ -19,9 +24,6 @@ from api.templates import templates
 from kuaa.library import FilmContext, scan_library
 
 logger = logging.getLogger(__name__)
-
-# Only scene detection runs from the Pre-processing surface.
-PREPROCESS_STEPS: set[str] = {"scene_detection"}
 
 
 def film_video_path(cfg, slug: str) -> Path | None:

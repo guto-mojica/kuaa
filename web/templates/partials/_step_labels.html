@@ -6,8 +6,7 @@
     canonical pipeline step names — keep this mapping in lockstep with
     kuaa.pipeline.STEP_ORDER. -#}
 {%- macro step_label(step_id) -%}
-{%- if step_id == 'frame_extraction' -%}{{ _("Frame extraction") }}
-{%- elif step_id == 'scene_detection' -%}{{ _("Scene detection") }}
+{%- if step_id == 'scene_detection' -%}{{ _("Scene detection") }}
 {%- elif step_id == 'visual_analysis' -%}{{ _("Visual analysis") }}
 {%- elif step_id == 'embeddings' -%}{{ _("Embeddings") }}
 {%- elif step_id == 'llm_description' -%}{{ _("LLM descriptions") }}

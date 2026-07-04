@@ -31,6 +31,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _job_card_template(job) -> str:
+    """Job-card template for ``job``'s surface — Pre-processing's own
+    compact card (never Processing's full one) when applicable."""
+    return (
+        "partials/preprocess_job.html" if job.is_preprocess_only else "partials/processing_job.html"
+    )
+
+
 @router.get("/tab/processing", response_class=HTMLResponse)
 async def tab_processing(
     request: Request, slug: str | None = Depends(film_slug_query)
@@ -107,9 +115,7 @@ async def api_pipeline_cancel(
     if not ok:
         return HTMLResponse('<p class="text-muted">Job already finished.</p>', status_code=409)
     enrich_jobs([job])
-    return templates.TemplateResponse(
-        request, "partials/processing_job.html", make_ctx(request, job=job)
-    )
+    return templates.TemplateResponse(request, _job_card_template(job), make_ctx(request, job=job))
 
 
 @router.get(
@@ -120,9 +126,7 @@ async def api_pipeline_job_card(request: Request, job_id: str) -> HTMLResponse:
     if job is None:
         return HTMLResponse('<p class="text-error">Job not found.</p>', status_code=404)
     enrich_jobs([job])
-    return templates.TemplateResponse(
-        request, "partials/processing_job.html", make_ctx(request, job=job)
-    )
+    return templates.TemplateResponse(request, _job_card_template(job), make_ctx(request, job=job))
 
 
 @router.get(

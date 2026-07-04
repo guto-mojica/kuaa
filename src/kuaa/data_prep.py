@@ -1,7 +1,7 @@
 """
 kuaa.data_prep
 ~~~~~~~~~~~~~~~~~~~~
-Preparação de dados: inspeção de vídeo e extração de frames via FFmpeg.
+Preparação de dados: inspeção de vídeo (FFprobe) e análise de qualidade de frames.
 
 Baseado no Notebook 01 (01_preparacao_dados.ipynb).
 """
@@ -12,13 +12,9 @@ import json
 import logging
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
-
-if TYPE_CHECKING:
-    from kuaa.config import _Namespace
 
 logger = logging.getLogger(__name__)
 
@@ -104,112 +100,6 @@ class VideoInspector:
             json.dump(self.properties, f, indent=2)
         logger.info("Metadados do vídeo salvos: %s", out)
         return out
-
-
-class FrameExtractor:
-    """
-    Extrai frames de um vídeo usando FFmpeg.
-
-    Exemplo:
-        extractor = FrameExtractor(cfg)
-        frames = extractor.extract("data/raw/jeca_tatu.mp4", "data/frames/sample")
-    """
-
-    def __init__(self, cfg: _Namespace | None = None):
-        """
-        Args:
-            cfg: _Namespace da config (ou None para usar defaults).
-        """
-        if cfg is not None:
-            fe = cfg.frame_extraction
-            self.fps = fe.fps
-            self.target_height = fe.target_height
-            self.quality = fe.quality
-            self.sample_duration = fe.sample_duration
-        else:
-            self.fps = 1
-            self.target_height = 480
-            self.quality = 2
-            self.sample_duration = None
-
-    def extract(
-        self,
-        video_path: str | Path,
-        output_dir: str | Path,
-        clean_existing: bool = True,
-    ) -> list[Path]:
-        """
-        Extrai frames do vídeo para output_dir.
-
-        Args:
-            video_path:     Caminho do arquivo de vídeo.
-            output_dir:     Diretório de saída para os frames JPEG.
-            clean_existing: Se True, apaga frames anteriores no diretório.
-
-        Returns:
-            Lista ordenada dos Paths dos frames extraídos.
-        """
-        video_path = Path(video_path)
-        output_dir = Path(output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        if not video_path.exists():
-            raise FileNotFoundError(f"Vídeo não encontrado: {video_path}")
-
-        if clean_existing:
-            removed = list(output_dir.glob("*.jpg"))
-            for f in removed:
-                f.unlink()
-            if removed:
-                logger.debug("Removidos %d frames anteriores de %s", len(removed), output_dir)
-
-        # Montar filtro de vídeo FFmpeg
-        vf_parts = [f"fps={self.fps}"]
-        if self.target_height and self.target_height > 0:
-            vf_parts.append(f"scale=-2:{self.target_height}")
-        vf = ",".join(vf_parts)
-
-        cmd = [
-            "ffmpeg",
-            "-i",
-            str(video_path),
-        ]
-        if self.sample_duration:
-            cmd += ["-t", str(self.sample_duration)]
-        cmd += [
-            "-vf",
-            vf,
-            "-q:v",
-            str(self.quality),
-            "-f",
-            "image2",
-            str(output_dir / "frame_%04d.jpg"),
-            "-y",  # sobrescrever sem perguntar
-            "-loglevel",
-            "error",
-        ]
-
-        logger.info(
-            "Extraindo frames: %s → %s  [fps=%s, height=%s, duration=%s]",
-            video_path.name,
-            output_dir,
-            self.fps,
-            self.target_height or "original",
-            self.sample_duration or "total",
-        )
-
-        try:
-            subprocess.run(cmd, check=True, capture_output=True, text=True)
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"FFmpeg falhou:\n{e.stderr}") from e
-        except FileNotFoundError:
-            raise RuntimeError(
-                "FFmpeg não encontrado. Instale o FFmpeg: https://ffmpeg.org/download.html"
-            )
-
-        frames = sorted(output_dir.glob("*.jpg"))
-        logger.info("✓ %d frames extraídos em %s", len(frames), output_dir)
-        return frames
 
 
 class FrameQualityAnalyzer:
