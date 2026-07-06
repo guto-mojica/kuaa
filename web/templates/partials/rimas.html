@@ -53,13 +53,14 @@
     </header>
 
     <div class="controls">
-      <span class="knob"><span class="k">{{ _('Model') }}</span><span class="v">CLIP-L/14</span></span>
+      <span class="knob"><span class="k">{{ _('Model') }}</span><span class="v">{{ model_label }}</span></span>
       <span class="knob"><span class="k">{{ _('Distance') }}</span><span class="v">cosine</span></span>
-      {# Diversidade (MMR λ) — interactive M3 popover. Slider live-fires the
-         /api/rimas/echoes fragment so the grid updates on every step without
-         a full tab swap. The anchor + echo query params are preserved so the
-         anchor stays selected across re-fires. #}
+      {# Live knobs — each writes its $store.rimasRetrieval key and calls
+         rimasRefire() (mojica.js), which re-fires the /api/rimas/echoes
+         fragment with the FULL knob state so the grid updates without a
+         full tab swap. The anchor query param is preserved across re-fires. #}
       {% if anchor_scene %}
+      {% set anchor_key = anchor_scene.film_slug ~ '/' ~ anchor_scene.scene_id %}
       <div class="knob knob-popover" x-data="{ open: false }">
         <button type="button"
                 class="knob-toggle"
@@ -85,23 +86,103 @@
                    id="rimas-lambda-slider"
                    min="0" max="1" step="0.05"
                    x-model.number="$store.rimasRetrieval.diversity"
-                   @change="htmx.ajax('GET', '/api/rimas/echoes?' + new URLSearchParams({
-                     anchor: '{{ anchor_scene.film_slug }}/{{ anchor_scene.scene_id }}',
-                     lambda: $store.rimasRetrieval.diversity,
-                     k_candidates: $store.rimasRetrieval.k_candidates,
-                   }).toString(), '#rimas-echoes')">
+                   @change="rimasRefire('{{ anchor_key }}')">
             <span class="slider-readout">
               λ <span x-text="Number($store.rimasRetrieval.diversity).toFixed(2)"></span>
             </span>
           </div>
         </div>
       </div>
+      <div class="knob knob-popover" x-data="{ open: false }">
+        <button type="button"
+                class="knob-toggle"
+                @click="open = !open"
+                :aria-expanded="open ? 'true' : 'false'"
+                aria-haspopup="dialog">
+          <span class="k">{{ _('Cross-film') }}</span>
+          <span class="v acc"
+                x-text='$store.rimasRetrieval.cross_film ? {{ _("required") | tojson }} : {{ _("off") | tojson }}'></span>
+        </button>
+        <div class="popover"
+             x-show="open"
+             x-cloak
+             @click.outside="open = false"
+             role="dialog"
+             aria-label="{{ _('Cross-film constraint') }}">
+          <h3>{{ _('Cross-film constraint') }}</h3>
+          <div class="slider-row">
+            <label for="rimas-crossfilm-toggle">{{ _('Only rhymes from other films') }}</label>
+            <input type="checkbox"
+                   id="rimas-crossfilm-toggle"
+                   x-model="$store.rimasRetrieval.cross_film"
+                   @change="rimasRefire('{{ anchor_key }}')">
+          </div>
+        </div>
+      </div>
+      <div class="knob knob-popover" x-data="{ open: false }">
+        <button type="button"
+                class="knob-toggle"
+                @click="open = !open"
+                :aria-expanded="open ? 'true' : 'false'"
+                aria-haspopup="dialog">
+          <span class="k">k</span>
+          <span class="v acc" x-text="$store.rimasRetrieval.top_n"></span>
+        </button>
+        <div class="popover"
+             x-show="open"
+             x-cloak
+             @click.outside="open = false"
+             role="dialog"
+             aria-label="{{ _('Number of rhymes') }}">
+          <h3>{{ _('Number of rhymes') }}</h3>
+          <div class="slider-row">
+            <label for="rimas-k-slider">{{ _('Fewer') }} ↔ {{ _('More') }}</label>
+            <input type="range"
+                   id="rimas-k-slider"
+                   min="1" max="24" step="1"
+                   x-model.number="$store.rimasRetrieval.top_n"
+                   @change="rimasRefire('{{ anchor_key }}')">
+            <span class="slider-readout" x-text="$store.rimasRetrieval.top_n"></span>
+          </div>
+        </div>
+      </div>
+      <div class="knob knob-popover" x-data="{ open: false }">
+        <button type="button"
+                class="knob-toggle"
+                @click="open = !open"
+                :aria-expanded="open ? 'true' : 'false'"
+                aria-haspopup="dialog">
+          <span class="k">{{ _('Threshold') }}</span>
+          <span class="v acc"
+                x-text='Number($store.rimasRetrieval.threshold) > 0 ? Number($store.rimasRetrieval.threshold).toFixed(2) : {{ _("off") | tojson }}'></span>
+        </button>
+        <div class="popover"
+             x-show="open"
+             x-cloak
+             @click.outside="open = false"
+             role="dialog"
+             aria-label="{{ _('Minimum similarity') }}">
+          <h3>{{ _('Minimum similarity') }}</h3>
+          <div class="slider-row">
+            <label for="rimas-threshold-slider">
+              {{ _('0 = off; high values may return fewer rhymes') }}
+            </label>
+            <input type="range"
+                   id="rimas-threshold-slider"
+                   min="0" max="1" step="0.01"
+                   x-model.number="$store.rimasRetrieval.threshold"
+                   @change="rimasRefire('{{ anchor_key }}')">
+            <span class="slider-readout"
+                  x-text="Number($store.rimasRetrieval.threshold).toFixed(2)"></span>
+          </div>
+        </div>
+      </div>
       {% else %}
       <span class="knob"><span class="k">MMR</span><span class="v">λ {{ '%.2f'|format(mmr_lambda) }}</span></span>
-      {% endif %}
-      <span class="knob"><span class="k">{{ _('Cross-film') }}</span><span class="v acc">{{ _('required') }}</span></span>
+      <span class="knob"><span class="k">{{ _('Cross-film') }}</span><span class="v acc">{{ _('required') if cross_film else _('off') }}</span></span>
       <span class="knob"><span class="k">k</span><span class="v">{{ k }}</span></span>
-      <span class="knob"><span class="k">{{ _('Threshold') }}</span><span class="v">{{ '%.2f'|format(threshold) }}</span></span>
+      <span class="knob"><span class="k">{{ _('Threshold') }}</span><span class="v">{{ '%.2f'|format(threshold) if threshold > 0 else _('off') }}</span></span>
+      {% endif %}
       <span class="grow"></span>
     </div>
 

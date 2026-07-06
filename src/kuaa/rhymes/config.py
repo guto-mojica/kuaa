@@ -16,5 +16,7 @@ def rimas_cfg(cfg: Settings) -> tuple[int, float, float]:
     rimas = getattr(cfg, "rimas", None)
     top_n = int(getattr(rimas, "top_n", 8))
     mmr_lambda = float(getattr(rimas, "mmr_lambda", 0.5))
-    threshold = float(getattr(rimas, "threshold", 0.75))
+    # 0.0 = filter off. The threshold is applied to the candidate pool since
+    # the Rimas knobs went live; a non-zero default would silently drop rhymes.
+    threshold = float(getattr(rimas, "threshold", 0.0))
     return top_n, mmr_lambda, threshold

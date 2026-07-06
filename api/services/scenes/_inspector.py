@@ -19,7 +19,9 @@ from api.services.catalog import (
     to_smpte,
 )
 from api.services.scenes._tipo import tipo_of
+from kuaa.annotations.descriptions import canonical_description
 from kuaa.library import FilmContext
+from kuaa.scene_ids import scene_id_key
 
 logger = logging.getLogger(__name__)
 
@@ -65,20 +67,17 @@ def _films_by_slug(cfg: Any) -> dict:
 
 
 def _description_for(metadata_dir: Path, scene_id: int) -> str:
-    """Look up the moondream description for ``scene_id`` (empty string if absent)."""
+    """Look up the canonical description for ``scene_id`` (empty string if absent).
+
+    Goes through :func:`canonical_description` so the inspector shows the
+    same per-scene record as the Annotate tab and the library metadata
+    loaders — not whichever keyframe row happens to come first in the file.
+    """
     descs = load_json(metadata_dir / "scene_descriptions.json") or []
     if not isinstance(descs, list):
         return ""
-    for entry in descs:
-        sid = entry.get("scene_id")
-        if sid is None:
-            continue
-        try:
-            if int(sid) == scene_id:
-                return str(entry.get("description") or "")
-        except (TypeError, ValueError):
-            continue
-    return ""
+    rec = canonical_description(descs).get(scene_id_key(scene_id))
+    return str(rec.get("description") or "") if rec else ""
 
 
 def _tags_for(metadata_dir: Path, scene_id: int) -> list[str]:

@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kuaa-ai 0.3.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-07-03 21:59-0300\n"
+"POT-Creation-Date: 2026-07-05 14:16-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pt_BR\n"
@@ -674,7 +674,7 @@ msgid "Previous scene"
 msgstr "Cena anterior"
 
 #: web/templates/partials/annotate.html:198
-#: web/templates/partials/rimas.html:135
+#: web/templates/partials/rimas.html:216
 #: web/templates/partials/rimas_inspector.html:50
 #: web/templates/partials/rimas_inspector.html:60
 msgid "scene"
@@ -815,7 +815,7 @@ msgid "Comments"
 msgstr "Comentários"
 
 #: web/templates/partials/annotate_scene.html:89
-#: web/templates/partials/rimas.html:123
+#: web/templates/partials/rimas.html:204
 #: web/templates/partials/rimas_echoes.html:48
 #: web/templates/partials/scenes_inspector.html:64
 #: web/templates/partials/search_inspector.html:101
@@ -976,7 +976,7 @@ msgstr "Acervo inteiro"
 
 # ── Processing tab ────────────────────────────────────────────────────
 #: web/templates/partials/home.html:14 web/templates/partials/rimas.html:40
-#: web/templates/partials/rimas.html:157 web/templates/partials/scenes.html:452
+#: web/templates/partials/rimas.html:238 web/templates/partials/scenes.html:452
 #: web/templates/partials/search.html:402
 msgid "films"
 msgstr "filmes"
@@ -1015,7 +1015,7 @@ msgstr "Tags atuais"
 
 #: web/templates/partials/inspector_properties.html:20
 #: web/templates/partials/preprocess_filmstrip.html:117
-#: web/templates/partials/scenes.html:510
+#: web/templates/partials/scenes.html:519
 msgid "Scene"
 msgstr "Cena"
 
@@ -1167,10 +1167,10 @@ msgstr "Dividir no ponto atual"
 #: web/templates/partials/preprocess.html:176
 msgid ""
 "Scrub to the exact cut, then split. Click any keyframe to jump the player"
-" there."
+" there. ← / → jump to the previous / next cut."
 msgstr ""
 "Navegue até o corte exato e então divida. Clique em um keyframe para "
-"levar o player até ele."
+"levar o player até ele. ← / → saltam para o corte anterior / seguinte."
 
 #: web/templates/partials/preprocess.html:181
 msgid ""
@@ -1323,7 +1323,7 @@ msgid "Step detail appears here while a film is processing."
 msgstr "O detalhe da etapa aparece aqui enquanto um filme é processado."
 
 #: web/templates/partials/processing_job.html:54
-#: web/templates/partials/rimas.html:131
+#: web/templates/partials/rimas.html:212
 #: web/templates/partials/scenes_inspector.html:71
 #: web/templates/partials/search_inspector.html:108
 msgid "dir."
@@ -1415,11 +1415,11 @@ msgstr "Apenas acervo"
 msgid "+ wipe data"
 msgstr "+ apagar dados"
 
-#: web/templates/partials/rimas.html:40 web/templates/partials/rimas.html:157
+#: web/templates/partials/rimas.html:40 web/templates/partials/rimas.html:238
 msgid "rhymes in"
 msgstr "rimas em"
 
-#: web/templates/partials/rimas.html:42 web/templates/partials/rimas.html:181
+#: web/templates/partials/rimas.html:42 web/templates/partials/rimas.html:262
 #: web/templates/partials/rimas_inspector.html:144
 msgid "No anchor selected"
 msgstr "Nenhuma âncora selecionada"
@@ -1440,64 +1440,97 @@ msgstr "Modelo"
 msgid "Distance"
 msgstr "Distância"
 
-#: web/templates/partials/rimas.html:69
+#: web/templates/partials/rimas.html:70
 msgid "Diversidade"
 msgstr "Diversidade"
 
-#: web/templates/partials/rimas.html:78 web/templates/partials/rimas.html:79
+#: web/templates/partials/rimas.html:79 web/templates/partials/rimas.html:80
 msgid "Visual rhyme diversity"
 msgstr "Diversidade das rimas visuais"
 
-#: web/templates/partials/rimas.html:82
+#: web/templates/partials/rimas.html:83
 msgid "More relevance"
 msgstr "Mais relevância"
 
-#: web/templates/partials/rimas.html:82
+#: web/templates/partials/rimas.html:83
 msgid "More diversity"
 msgstr "Mais diversidade"
 
-#: web/templates/partials/rimas.html:102
+#: web/templates/partials/rimas.html:102 web/templates/partials/rimas.html:182
 msgid "Cross-film"
 msgstr "Cross-film"
 
-#: web/templates/partials/rimas.html:102
+#: web/templates/partials/rimas.html:104 web/templates/partials/rimas.html:182
 msgid "required"
 msgstr "obrigatório"
 
-#: web/templates/partials/rimas.html:104
+#: web/templates/partials/rimas.html:104 web/templates/partials/rimas.html:157
+#: web/templates/partials/rimas.html:182 web/templates/partials/rimas.html:184
+msgid "off"
+msgstr "desligado"
+
+#: web/templates/partials/rimas.html:111 web/templates/partials/rimas.html:112
+msgid "Cross-film constraint"
+msgstr "Restrição entre filmes"
+
+#: web/templates/partials/rimas.html:114
+msgid "Only rhymes from other films"
+msgstr "Apenas rimas de outros filmes"
+
+#: web/templates/partials/rimas.html:136 web/templates/partials/rimas.html:137
+msgid "Number of rhymes"
+msgstr "Número de rimas"
+
+#: web/templates/partials/rimas.html:139
+msgid "Fewer"
+msgstr "Menos"
+
+#: web/templates/partials/rimas.html:139
+msgid "More"
+msgstr "Mais"
+
+#: web/templates/partials/rimas.html:155 web/templates/partials/rimas.html:184
 msgid "Threshold"
 msgstr "Limiar"
 
-#: web/templates/partials/rimas.html:115
+#: web/templates/partials/rimas.html:164 web/templates/partials/rimas.html:165
+msgid "Minimum similarity"
+msgstr "Similaridade mínima"
+
+#: web/templates/partials/rimas.html:168
+msgid "0 = off; high values may return fewer rhymes"
+msgstr "0 = desligado; valores altos podem retornar menos rimas"
+
+#: web/templates/partials/rimas.html:196
 #: web/templates/partials/rimas_inspector.html:43
 msgid "Anchor"
 msgstr "Âncora"
 
-#: web/templates/partials/rimas.html:121
+#: web/templates/partials/rimas.html:202
 msgid "Reference scene · fixed embedding"
 msgstr "Cena de referência · embedding fixo"
 
-#: web/templates/partials/rimas.html:159
+#: web/templates/partials/rimas.html:240
 msgid "rhymes"
 msgstr "rimas"
 
-#: web/templates/partials/rimas.html:183
+#: web/templates/partials/rimas.html:264
 #: web/templates/partials/rimas_inspector.html:146
 msgid "Open a scene in the Scenes tab and click"
 msgstr "Abra uma cena na aba Cenas e clique em"
 
-#: web/templates/partials/rimas.html:184
+#: web/templates/partials/rimas.html:265
 #: web/templates/partials/rimas_inspector.html:147
 #: web/templates/partials/scenes_inspector.html:149
 msgid "Find visual rhymes"
 msgstr "Buscar rimas visuais"
 
-#: web/templates/partials/rimas.html:185
+#: web/templates/partials/rimas.html:266
 #: web/templates/partials/rimas_inspector.html:148
 msgid "to explore cross-film visual echoes."
 msgstr "para explorar ecos visuais entre filmes."
 
-#: web/templates/partials/rimas.html:191
+#: web/templates/partials/rimas.html:272
 msgid ""
 "No processed films yet — run the embeddings pipeline to enable Rimas "
 "Visuais."
@@ -1506,7 +1539,7 @@ msgstr ""
 "ativar Rimas Visuais."
 
 #: web/templates/partials/rimas_echoes.html:34
-#: web/templates/partials/scenes_grid.html:130
+#: web/templates/partials/scenes_grid.html:134
 #: web/templates/partials/search_results.html:71
 msgid "Keyframe"
 msgstr "Keyframe"
@@ -1683,7 +1716,7 @@ msgid "Search…"
 msgstr "Buscar…"
 
 #: web/templates/partials/scenes.html:455
-#: web/templates/partials/scenes_grid.html:107
+#: web/templates/partials/scenes_grid.html:110
 msgid "runtime"
 msgstr "runtime"
 
@@ -1702,11 +1735,11 @@ msgstr "Nenhuma cena selecionada"
 msgid "Export EDL"
 msgstr "exportar"
 
-#: web/templates/partials/scenes.html:519
+#: web/templates/partials/scenes.html:528
 msgid "No scene selected"
 msgstr "Nenhuma cena selecionada"
 
-#: web/templates/partials/scenes.html:520
+#: web/templates/partials/scenes.html:529
 msgid "Select a scene in the grid to inspect its keyframe, tags, and description."
 msgstr ""
 "Selecione uma cena na grade para inspecionar seu keyframe, tags e "
@@ -1717,32 +1750,32 @@ msgstr ""
 msgid "Pagination"
 msgstr "Posição"
 
-#: web/templates/partials/scenes_grid.html:69
+#: web/templates/partials/scenes_grid.html:72
 msgid "of"
 msgstr ""
 
-#: web/templates/partials/scenes_grid.html:78
+#: web/templates/partials/scenes_grid.html:81
 msgid "← Prev"
 msgstr ""
 
-#: web/templates/partials/scenes_grid.html:86
+#: web/templates/partials/scenes_grid.html:89
 #, fuzzy
 msgid "Next →"
 msgstr "Próxima cena"
 
-#: web/templates/partials/scenes_grid.html:93
+#: web/templates/partials/scenes_grid.html:96
 msgid "No scenes match the filters."
 msgstr "Nenhuma cena corresponde aos filtros."
 
-#: web/templates/partials/scenes_grid.html:128
+#: web/templates/partials/scenes_grid.html:132
 msgid "Select"
 msgstr "Selecionar"
 
-#: web/templates/partials/scenes_grid.html:147
+#: web/templates/partials/scenes_grid.html:151
 msgid "TYPE"
 msgstr "TIPO"
 
-#: web/templates/partials/scenes_grid.html:177
+#: web/templates/partials/scenes_grid.html:181
 #, fuzzy
 msgid "Load more"
 msgstr "Modo cego"

@@ -392,8 +392,16 @@
   transition: background .1s ease, border-color var(--dur-fast) ease, transform .1s ease, box-shadow var(--dur-fast) ease;
 }
 
-/* ─── Better scrollbar everywhere (Firefox) ──────────────────────────── */
-.fx-app *, .ev-app *, .ab-app * { scrollbar-color: var(--c-border-2) transparent; scrollbar-width: thin; }
+/* ─── Better scrollbar everywhere (Firefox ONLY) ─────────────────────────
+   Since Chrome 121 (and current Safari), an element with author-specified
+   `scrollbar-color`/`scrollbar-width` IGNORES all its ::-webkit-scrollbar
+   rules — so applying these standard properties everywhere silently killed
+   the styled scrollbars in main.css / eval.css / about.css / preprocess.css
+   on WebKit/Blink. Gate them to Gecko (`-moz-appearance` only parses in
+   Firefox) so each engine gets its own styled scrollbars. */
+@supports (-moz-appearance: none) {
+  .fx-app *, .ev-app *, .ab-app * { scrollbar-color: var(--c-border-2) transparent; scrollbar-width: thin; }
+}
 
 /* ─── Card click-affordance (hover lift) ───────────────────────────────
    Clickable result cards read flat until hover. A subtle raise + shadow +

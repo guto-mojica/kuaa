@@ -504,6 +504,15 @@
      and the section carries the .c-rp CSS (width 380px, flex column, etc.). #}
 <div class="rp-slot">
   <aside id="right-pane">
+    {# When the URL carries ?scene= (+ a film), self-load the inspector on
+       page load so a tab round-trip (Cenas → Anotar/Rimas → back) restores
+       the full selection, not just the card highlight. #}
+    {% if selected_scene_id is defined and selected_scene_id is not none and current_slug %}
+    <div hx-get="/api/scenes/{{ selected_scene_id }}/inspector?film={{ current_slug }}&tab=properties&kind=cenas"
+         hx-trigger="load"
+         hx-target="#right-pane"
+         hx-swap="innerHTML"></div>
+    {% endif %}
     <section class="c-rp">
       <div class="head">
         <div class="l">

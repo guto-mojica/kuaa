@@ -517,11 +517,51 @@
       var hs = helpStore();
       if (hs && hs.open) return;
       e.preventDefault();
-      var film = new URLSearchParams(window.location.search).get('film');
-      window.location.href = navMap[e.key] + (film ? '?film=' + encodeURIComponent(film) : '');
+      window.location.href = window.sceneAwareTabHref(navMap[e.key]);
     }
   });
 })();
+
+// ─── Scene-aware tab navigation ───────────────────────────────────────
+// Carries the currently selected scene across tab switches so Cenas ↔
+// Anotar ↔ Rimas round-trips land on the same scene instead of the
+// first one. Each tab exposes the selection in its own URL param:
+// /scenes → ?scene=, /annotate → ?id=, /rimas → ?anchor=<slug>/<id>.
+window.sceneAwareTabHref = function (path) {
+  var p = new URLSearchParams(window.location.search);
+  var film = p.get('film');
+  var scene = p.get('scene') || p.get('id');
+  var anchor = p.get('anchor');
+  if (anchor && anchor.indexOf('/') > 0) {
+    // On Rimas the anchor IS the selected scene — it wins over ?film=.
+    var parts = anchor.split('/');
+    film = parts[0];
+    scene = parts[1];
+  }
+  var out = new URLSearchParams();
+  if (film) out.set('film', film);
+  if (film && scene) {
+    if (path === '/scenes') out.set('scene', scene);
+    else if (path === '/annotate') out.set('id', scene);
+    else if (path === '/rimas') out.set('anchor', film + '/' + scene);
+  }
+  var qs = out.toString();
+  return path + (qs ? '?' + qs : '');
+};
+
+// Rewrite topbar tab chips at click time. The chips are static SSR (they
+// only bake in ?film=), so the current selection — which changes via HTMX
+// swaps + hx-push-url without re-rendering the topbar — is read from
+// location.search the moment the user actually navigates.
+document.addEventListener('click', function (e) {
+  var tab = e.target.closest && e.target.closest('.tabs a.tab');
+  if (!tab) return;
+  var href = tab.getAttribute('href') || '';
+  var path = href.split('?')[0];
+  if (path === '/scenes' || path === '/annotate' || path === '/rimas') {
+    tab.setAttribute('href', window.sceneAwareTabHref(path));
+  }
+});
 
 // ─── UI preferences (Cenas Appearance/Fields/Group/Sort + Buscar view + Buscar retrieval) ───
 // localStorage-backed Alpine stores driving toolrow popovers in
@@ -594,11 +634,13 @@
         : false,
     },
     // ``rimasRetrieval`` mirrors ``retrieval.rhymes.{diversity, k_candidates}``
-    // in ``config/default.yaml`` and feeds the Diversidade slider on the
-    // Rimas Visuais tab (Task 4.2). ``diversity`` is MMR lambda (0=pure
-    // similarity, 1=pure diversity); ``k_candidates`` is the kNN pool
-    // size the MMR rerank draws from before truncating to ``k_final``.
-    rimasRetrieval: { diversity: 0.5, k_candidates: 30 },
+    // + ``rimas.{top_n, threshold}`` in ``config/default.yaml`` and feeds the
+    // knob row on the Rimas Visuais tab. ``diversity`` is MMR lambda (0=pure
+    // similarity, 1=pure diversity); ``k_candidates`` is the kNN pool size
+    // the MMR rerank draws from; ``top_n`` is the result count (k);
+    // ``threshold`` is the min cosine similarity (0 = off); ``cross_film``
+    // excludes same-film rhymes when true.
+    rimasRetrieval: { diversity: 0.5, k_candidates: 30, top_n: 8, threshold: 0.0, cross_film: true },
   };
 
   /**
@@ -716,9 +758,33 @@
     persistOnChange('cenasSort',       KEYS.sort,       ['by']);
     persistOnChange('buscarView',      KEYS.view,       ['mode']);
     persistOnChange('buscarRetrieval', KEYS.retrieval,  ['mode', 'sem_w', 'top_k', 'rerank_enabled']);
-    persistOnChange('rimasRetrieval',  KEYS.rimasRetrieval, ['diversity', 'k_candidates']);
+    persistOnChange('rimasRetrieval',  KEYS.rimasRetrieval, ['diversity', 'k_candidates', 'top_n', 'threshold', 'cross_film']);
   });
 })();
+
+// ─── Rimas knob refire helper ─────────────────────────────────────────
+// Shared by every knob in the Rimas controls row: rebuilds the echoes
+// fragment with the full knob state from the rimasRetrieval store, so
+// each control only has to update its own store key and call this.
+window.rimasRefire = function (anchor) {
+  var s = window.Alpine && window.Alpine.store('rimasRetrieval');
+  if (!s || !anchor || !window.htmx) return;
+  var params = new URLSearchParams({
+    anchor: anchor,
+    lambda: s.diversity,
+    k_candidates: s.k_candidates,
+    k: s.top_n,
+    threshold: s.threshold,
+    cross_film: s.cross_film,
+  });
+  // outerHTML: the fragment's root IS #rimas-echoes — an innerHTML swap
+  // would nest a duplicate #rimas-echoes grid inside the old one on every
+  // tweak, collapsing the card layout and breaking subsequent swaps.
+  window.htmx.ajax('GET', '/api/rimas/echoes?' + params.toString(), {
+    target: '#rimas-echoes',
+    swap: 'outerHTML',
+  });
+};
 
 // ─── EDL download helper ──────────────────────────────────────────────
 // Called by the selection action bar's "Export EDL" button. Reads the

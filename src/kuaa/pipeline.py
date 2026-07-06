@@ -459,6 +459,21 @@ class CatalogPipeline:
             kf_df["exists"] = kf_df["filepath"].apply(lambda x: Path(x).exists())
             valid_kf = kf_df[kf_df["exists"]].reset_index(drop=True)
 
+            if llm_cfg.keyframes == "middle":
+                # Descrever só o keyframe canônico (posicional do meio) de cada
+                # cena — o mesmo que canonical_description mostra na UI. Corta
+                # ~2/3 do custo do step sem afetar embeddings/visual_analysis.
+                ordered = valid_kf.sort_values(["scene_id", "keyframe_id"])
+                mid_rows = [
+                    group.index[len(group) // 2]
+                    for _, group in ordered.groupby("scene_id", sort=False)
+                ]
+                valid_kf = ordered.loc[mid_rows].reset_index(drop=True)
+                logger.info(
+                    "llm_description: keyframes=middle — %d cenas (1 keyframe/cena)",
+                    len(valid_kf),
+                )
+
             # Pular apenas se TODAS as cenas válidas já foram descritas
             if self.cfg.pipeline.skip_existing and desc_path.exists():
                 with open(desc_path, encoding="utf-8") as f:

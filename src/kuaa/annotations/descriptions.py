@@ -55,6 +55,11 @@ def _is_novel(sentence: str, existing_normalized: list[str]) -> bool:
     )
 
 
+def _ordered_by_kf(group: list[dict]) -> list[dict]:
+    """Sort a scene's records by keyframe position (original order as tiebreak)."""
+    return [rec for _, rec in sorted(enumerate(group), key=lambda pair: _kf_pos(pair[1], pair[0]))]
+
+
 def canonical_description(descriptions: list[dict]) -> dict[str, dict]:
     """Collapse per-keyframe description records to one per scene.
 
@@ -87,14 +92,14 @@ def canonical_description(descriptions: list[dict]) -> dict[str, dict]:
 
     canonical: dict[str, dict] = {}
     for sid, group in groups.items():
-        ordered = [
-            rec for _, rec in sorted(enumerate(group), key=lambda pair: _kf_pos(pair[1], pair[0]))
-        ]
+        ordered = _ordered_by_kf(group)
         mid = len(ordered) // 2
         rep = dict(ordered[mid])
         siblings = ordered[:mid] + ordered[mid + 1 :]
 
-        if "error" not in rep and rep.get("description"):
+        # Manually edited records are shown verbatim: re-folding sibling
+        # sentences would resurrect text the curator deliberately removed.
+        if "error" not in rep and rep.get("description") and not rep.get("edited"):
             normalized = [" ".join(s.lower().split()) for s in _split_sentences(rep["description"])]
             additions: list[str] = []
             for sibling in siblings:
@@ -115,25 +120,30 @@ def canonical_description(descriptions: list[dict]) -> dict[str, dict]:
 def save_description(ctx: FilmContext, scene_id: int, new_text: str) -> None:
     """Update (or create) the description for ``scene_id`` in ``scene_descriptions.json``.
 
-    Finds the entry whose ``scene_id`` field matches ``scene_id`` and
-    replaces its ``description`` value with ``new_text``, preserving all
-    other fields (e.g. ``tags``, ``objects``). If no entry exists for
-    that scene, a minimal ``{"scene_id": scene_id, "description": new_text}``
-    record is appended. The write is atomic (same-dir temp + os.replace)
-    with the same permissions semantics as ``kuaa.annotations.io.save``.
+    Writes to the scene's *canonical* (positional-middle) record — the same
+    record :func:`canonical_description` shows — preserving all other fields
+    (e.g. ``tags``, ``objects``) and marking it ``edited`` so read paths stop
+    enriching it with sibling sentences. If no record exists for that scene,
+    a minimal ``{"scene_id": scene_id, "description": new_text}`` record is
+    appended. The write is atomic (same-dir temp + os.replace) with the same
+    permissions semantics as ``kuaa.annotations.io.save``.
     """
     path = ctx.metadata_dir / "scene_descriptions.json"
     raw = load_json(path)
     records: list[Any] = raw if isinstance(raw, list) else []
 
-    found = False
-    for rec in records:
-        if rec.get("scene_id") == scene_id:
-            rec["description"] = new_text
-            found = True
-            break
-    if not found:
-        records.append({"scene_id": scene_id, "description": new_text})
+    sid = scene_id_key(scene_id)
+    group = [
+        rec
+        for rec in records
+        if isinstance(rec, dict) and "scene_id" in rec and scene_id_key(rec["scene_id"]) == sid
+    ]
+    if group:
+        rep = _ordered_by_kf(group)[len(group) // 2]
+        rep["description"] = new_text
+        rep["edited"] = True
+    else:
+        records.append({"scene_id": scene_id, "description": new_text, "edited": True})
 
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp_name = tempfile.mkstemp(prefix=".scene_descriptions.", suffix=".tmp", dir=path.parent)

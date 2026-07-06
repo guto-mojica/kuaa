@@ -340,14 +340,31 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
         # active had no effect on the visible thumbnails. The HTMX
         # fragment routes (``/tab/scenes``, ``/api/scenes``) always
         # threaded the slug through; this branch restores parity.
-        # ``?scene=<id>`` deep-link parsing stays a fragment-only
-        # concern (the right-pane inspector lives on a separate swap),
-        # so ``selected_scene_id`` is left at the builder's default.
+        # ``?scene=<id>`` restores the selected card (``.sel``) after a
+        # tab round-trip (Cenas → Anotar/Rimas → back) or a deep-share
+        # URL; the right-pane inspector self-loads off the same value
+        # (see the ``#right-pane`` trigger in ``partials/scenes.html``).
+        scene_param = request.query_params.get("scene")
+        try:
+            selected_scene_id = int(scene_param) if scene_param is not None else None
+        except ValueError:
+            selected_scene_id = None
         tab_ctx = build_cenas_context(
             cfg,
             slug=current_slug,
             bucket=request.query_params.get("bucket"),
+            selected_scene_id=selected_scene_id,
         )
+        # Sentinel params: the pagination bar + load-more sentinel bake these
+        # into their hx-include scope. The HTMX route (/tab/scenes) always set
+        # them, but this full-page render didn't — so a grid entered via a
+        # direct URL paginated WITHOUT the film filter and leaked other films.
+        tab_ctx["sentinel_sort"] = tab_ctx["active_sort"]
+        tab_ctx["sentinel_group"] = tab_ctx["active_group"]
+        tab_ctx["sentinel_bucket"] = tab_ctx.get("active_bucket") or ""
+        tab_ctx["sentinel_q"] = ""
+        tab_ctx["sentinel_tags"] = []
+        tab_ctx["sentinel_slug"] = current_slug or ""
     elif active_tab == "annotate":
         from api.deps import resolve_film_context as _resolve_fc
 

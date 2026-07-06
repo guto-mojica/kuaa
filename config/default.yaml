@@ -174,7 +174,9 @@ retrieval:
 rimas:
   top_n: 8                # how many neighbours the route returns
   mmr_lambda: 0.5         # legacy display default; live MMR reads retrieval.rhymes.diversity
-  threshold: 0.75         # display threshold for the Rimas controls
+  threshold: 0.0          # min cosine similarity for a candidate (0 = off).
+                          # Applied for real since the Rimas knobs went live;
+                          # high values may return fewer than top_n rhymes.
 
 # ── Collaboration (comment thread / composer / pin persistence) ──────────────
 # The Mojica inspector renders a comment composer + activity thread; both lean
@@ -201,6 +203,9 @@ llm:
   # Processamento
   checkpoint_interval: 25   # salvar progresso a cada N frames
   process_limit: null       # null = tudo; int = limitar (para testes)
+  # middle = descrever só o keyframe canônico (do meio) de cada cena — o mesmo
+  # que a UI exibe; all = descrever todos os keyframes (~3× mais lento)
+  keyframes: middle
   # GGUF GPU offload: -1 = todas as camadas na GPU (sem efeito num build
   # CPU-only do llama-cpp-python; aí roda em CPU). 0 = forçar CPU.
   gpu_layers: -1

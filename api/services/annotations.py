@@ -171,12 +171,16 @@ def build_description_edit_context(
     save form correctly.
     """
     from api.services.catalog import load_json
+    from kuaa.annotations.descriptions import canonical_description
+    from kuaa.scene_ids import scene_id_key
 
     descriptions = load_json(fctx.metadata_dir / "scene_descriptions.json") or []
-    current = next(
-        (d.get("description", "") for d in descriptions if d.get("scene_id") == scene_id),
-        "",
+    rec = (
+        canonical_description(descriptions).get(scene_id_key(scene_id))
+        if isinstance(descriptions, list)
+        else None
     )
+    current = str(rec.get("description") or "") if rec else ""
     return {"scene_id": scene_id, "filter": filter, "current_description": current}
 
 

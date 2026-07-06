@@ -182,7 +182,8 @@ class RetrievalCfg(_Section):
 class RimasCfg(_Section):
     top_n: int = 8
     mmr_lambda: float = 0.5
-    threshold: float = 0.75
+    # Min cosine similarity for a rhyme candidate; 0.0 = filter off.
+    threshold: float = 0.0
 
 
 # ── collaboration ────────────────────────────────────────────────────────────
@@ -199,6 +200,9 @@ class LlmCfg(_Section):
     checkpoint_interval: int = 25
     process_limit: int | None = None
     gpu_layers: int = -1
+    # "middle" describes only the canonical middle keyframe per scene (the one
+    # the UI shows); "all" describes every extracted keyframe (~3× slower).
+    keyframes: Literal["middle", "all"] = "middle"
     descriptions_filename: str = "scene_descriptions.json"
     tags_filename: str = "scene_tags.json"
 

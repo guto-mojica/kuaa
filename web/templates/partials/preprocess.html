@@ -159,7 +159,7 @@
       {% include "partials/preprocess_filmstrip.html" %}
       <div class="pp-player">
         <video id="pp-video" class="pp-player__video" src="{{ pp_video_url }}"
-               preload="metadata" playsinline controls></video>
+               preload="metadata" playsinline controls hx-preserve="true"></video>
         <div class="pp-player__bar">
           <span class="pp-player__readout fx-mono" id="pp-readout" aria-live="polite">00:00:00 · f0</span>
           <div class="pp-player__steps">
@@ -173,7 +173,7 @@
             {{ icon('scissors', 14) }} {{ _("Split at playhead") }}
           </button>
         </div>
-        <p class="pp-player__hint">{{ _("Scrub to the exact cut, then split. Click any keyframe to jump the player there.") }}</p>
+        <p class="pp-player__hint">{{ _("Scrub to the exact cut, then split. Click any keyframe to jump the player there. ← / → jump to the previous / next cut.") }}</p>
       </div>
     </div>
   {% else %}

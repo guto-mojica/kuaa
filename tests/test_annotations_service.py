@@ -456,7 +456,7 @@ class TestSaveDescription:
         import json
 
         records = json.loads((ctx.metadata_dir / "scene_descriptions.json").read_text())
-        assert records == [{"scene_id": 351, "description": "first description"}]
+        assert records == [{"scene_id": 351, "description": "first description", "edited": True}]
 
     def test_leaves_no_temp_file(self, tmp_config, seed_metadata):
         seed_metadata()
@@ -485,3 +485,47 @@ class TestSaveDescription:
         save_description(ctx, 351, "rewritten by user")
         panel = build_scene_panel(ctx, 351, "all")
         assert panel["llm"]["description"] == "rewritten by user"
+
+    def test_writes_middle_keyframe_record(self, tmp_config, seed_metadata):
+        # Three per-keyframe rows for the same scene: the edit must land on
+        # the positional-middle record (kf_02) — the one canonical readers show.
+        seed_metadata(
+            descriptions=[
+                {"scene_id": 351, "keyframe_id": "scene_0351_kf_01", "description": "first kf"},
+                {"scene_id": 351, "keyframe_id": "scene_0351_kf_02", "description": "middle kf"},
+                {"scene_id": 351, "keyframe_id": "scene_0351_kf_03", "description": "last kf"},
+            ]
+        )
+        ctx = FilmContext.from_config(tmp_config)
+        save_description(ctx, 351, "curated text")
+
+        import json
+
+        records = json.loads((ctx.metadata_dir / "scene_descriptions.json").read_text())
+        by_kf = {r["keyframe_id"]: r for r in records}
+        assert by_kf["scene_0351_kf_02"]["description"] == "curated text"
+        assert by_kf["scene_0351_kf_02"]["edited"] is True
+        assert by_kf["scene_0351_kf_01"]["description"] == "first kf"
+        assert by_kf["scene_0351_kf_03"]["description"] == "last kf"
+
+    def test_edited_record_is_not_re_enriched(self, tmp_config, seed_metadata):
+        # canonical_description folds novel sibling sentences into the middle
+        # record — but must NOT do so once the record was manually edited,
+        # or deleted sentences would resurrect on the next read.
+        from kuaa.annotations.descriptions import canonical_description
+
+        seed_metadata(
+            descriptions=[
+                {"scene_id": 351, "keyframe_id": "scene_0351_kf_01", "description": "A dog runs."},
+                {"scene_id": 351, "keyframe_id": "scene_0351_kf_02", "description": "middle kf"},
+                {"scene_id": 351, "keyframe_id": "scene_0351_kf_03", "description": "A cat sits."},
+            ]
+        )
+        ctx = FilmContext.from_config(tmp_config)
+        save_description(ctx, 351, "curated text")
+
+        import json
+
+        records = json.loads((ctx.metadata_dir / "scene_descriptions.json").read_text())
+        rep = canonical_description(records)["351"]
+        assert rep["description"] == "curated text"

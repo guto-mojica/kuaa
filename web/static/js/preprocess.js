@@ -83,4 +83,82 @@
 
     if (e.target.closest('#pp-split-here')) { splitAtPlayhead(); return; }
   });
+
+  // ── Keep the strip scroll + playhead across filmstrip swaps ───────────
+  // Every edit outerHTML-swaps #pp-filmstrip, which replaces .pp-strip and
+  // resets its horizontal scroll to 0 — visually "throwing the timeline back
+  // to frame 1". Snapshot the scroll offset (and the playhead, defensively —
+  // some engines drop media position on the sibling reflow) before the swap
+  // and restore both once the new fragment settles.
+  var swapState = { scrollLeft: 0, time: 0 };
+
+  document.addEventListener('htmx:beforeSwap', function (e) {
+    var target = e.detail && e.detail.target;
+    if (!target || target.id !== 'pp-filmstrip') return;
+    var strip = target.querySelector('.pp-strip');
+    swapState.scrollLeft = strip ? strip.scrollLeft : 0;
+    var v = video();
+    swapState.time = v ? (v.currentTime || 0) : 0;
+  });
+
+  document.addEventListener('htmx:afterSettle', function (e) {
+    var target = e.detail && e.detail.target;
+    if (!target || target.id !== 'pp-filmstrip') return;
+    var strip = document.querySelector('#pp-filmstrip .pp-strip');
+    if (strip && swapState.scrollLeft) strip.scrollLeft = swapState.scrollLeft;
+    var v = video();
+    if (v && swapState.time > 0.05 && (v.currentTime || 0) < 0.05) {
+      v.currentTime = swapState.time;
+      readout();
+    }
+  });
+
+  // ── Keyboard: ← / → jump the playhead between scene cuts ──────────────
+  // The active scene is derived from the playhead (not a stored index), so
+  // it stays correct across the filmstrip fragment swaps every edit triggers.
+  function sceneButtons() {
+    return Array.prototype.slice.call(
+      document.querySelectorAll('#pp-filmstrip .pp-scene[data-seek]')
+    );
+  }
+
+  function markActive(el) {
+    sceneButtons().forEach(function (s) { s.removeAttribute('aria-current'); });
+    el.setAttribute('aria-current', 'true');
+    el.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }
+
+  function gotoCut(dir) {
+    var list = sceneButtons();
+    if (!list.length) return;
+    var v = video();
+    var t = (v && v.currentTime) || 0;
+    // Half a frame of tolerance so a playhead sitting exactly on a cut
+    // still moves to the neighbouring one instead of re-selecting itself.
+    var eps = 0.5 / fps();
+    var target = null;
+    if (dir > 0) {
+      for (var i = 0; i < list.length; i++) {
+        if (parseFloat(list[i].getAttribute('data-seek')) > t + eps) { target = list[i]; break; }
+      }
+    } else {
+      for (var j = list.length - 1; j >= 0; j--) {
+        if (parseFloat(list[j].getAttribute('data-seek')) < t - eps) { target = list[j]; break; }
+      }
+    }
+    if (!target) return;
+    markActive(target);
+    seekTo(parseFloat(target.getAttribute('data-seek')));
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (!review()) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();  // also blocks the <video>'s native ±5s arrow seek
+      gotoCut(e.key === 'ArrowRight' ? 1 : -1);
+    }
+  });
 })();

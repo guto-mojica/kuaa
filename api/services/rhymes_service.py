@@ -74,6 +74,9 @@ def build_rimas_context(
     echo: str | None = None,
     lambda_diversity: float | None = None,
     k_candidates: int | None = None,
+    top_n: int | None = None,
+    threshold: float | None = None,
+    cross_film: bool | None = None,
 ) -> RimasContext:
     """Build the Rimas Visuais template context.
 
@@ -100,9 +103,10 @@ def build_rimas_context(
         by ``rimas_echoes.html`` to add the ``.sel`` highlight class).
       * ``shared_tags`` — list[str], intersection of anchor + selected
         echo tag sets (empty when either side absent or no overlap).
-      * ``k`` / ``mmr_lambda`` / ``k_candidates`` / ``threshold`` — the Rimas
-        knobs surfaced in the template. ``mmr_lambda`` and ``k_candidates`` are
-        live request/config inputs; ``threshold`` is still display-only.
+      * ``k`` / ``mmr_lambda`` / ``k_candidates`` / ``threshold`` /
+        ``cross_film`` — the Rimas knobs surfaced in the template. All are
+        live request inputs falling back to config defaults; ``threshold``
+        (min cosine similarity, 0 = off) is applied to the candidate pool.
 
     Never raises on an unresolvable anchor / echo — the empty state is
     the contract for both the route and the HTMX fragments.
@@ -120,7 +124,13 @@ def build_rimas_context(
         _load_scene_meta(cfg, slug, scene_id) if slug is not None and scene_id is not None else None
     )
 
-    top_n, mmr_lambda, threshold = _rimas_cfg(cfg)
+    cfg_top_n, mmr_lambda, cfg_threshold = _rimas_cfg(cfg)
+
+    # Explicit request param > config default. ``top_n`` is clamped so a
+    # hand-edited URL can't ask for the whole library; threshold ≤ 0 = off.
+    top_n = max(1, min(int(top_n), 50)) if top_n is not None else cfg_top_n
+    threshold = float(threshold) if threshold is not None else cfg_threshold
+    cross_film_only = True if cross_film is None else bool(cross_film)
 
     # Resolve MMR kwargs: explicit > cfg.retrieval.rhymes.{diversity,k_candidates}
     # > hard defaults. Task 3.3 lands the cfg block; until then the getattr-chain
@@ -139,8 +149,10 @@ def build_rimas_context(
             anchor_slug=slug,
             anchor_scene_id=scene_id,
             top_n=top_n,
+            cross_film_only=cross_film_only,
             lambda_diversity=lambda_diversity,
             k_candidates=k_candidates,
+            min_score=threshold if threshold > 0 else None,
         )
 
     # Share one keyframe-metadata cache across the grid so a run of echoes from
@@ -184,7 +196,8 @@ def build_rimas_context(
                 pass
 
     logger.info(
-        "rimas: anchor=%s/%s films=%d echoes=%d (k=%d, lambda=%.2f, k_candidates=%d) selected_echo=%s",
+        "rimas: anchor=%s/%s films=%d echoes=%d (k=%d, lambda=%.2f, k_candidates=%d, "
+        "threshold=%.2f, cross_film=%s) selected_echo=%s",
         slug,
         scene_id,
         len(films),
@@ -192,6 +205,8 @@ def build_rimas_context(
         top_n,
         lambda_diversity,
         k_candidates,
+        threshold,
+        cross_film_only,
         f"{echo_slug}/{echo_scene_id}" if selected_echo else None,
     )
 
@@ -206,6 +221,8 @@ def build_rimas_context(
         "mmr_lambda": lambda_diversity,
         "k_candidates": k_candidates,
         "threshold": threshold,
+        "cross_film": cross_film_only,
+        "model_label": str(getattr(getattr(cfg, "models", None), "image_embedder", "") or "—"),
         "library_has_scenes": any(getattr(f, "is_processed", False) for f in films),
     }
 

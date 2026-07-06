@@ -172,4 +172,6 @@ class RimasContext(TypedDict):
     mmr_lambda: float
     k_candidates: int
     threshold: float
+    cross_film: bool
+    model_label: str
     library_has_scenes: bool

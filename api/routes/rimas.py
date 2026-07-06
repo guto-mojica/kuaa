@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _rimas_ctx(cfg, anchor, echo, lambda_, k_candidates) -> RimasContext:
+def _rimas_ctx(cfg, anchor, echo, lambda_, k_candidates, k, threshold, cross_film) -> RimasContext:
     """Assemble rimas context from route params — single call for all three handlers."""
     return build_rimas_context(
         cfg,
@@ -28,6 +28,9 @@ def _rimas_ctx(cfg, anchor, echo, lambda_, k_candidates) -> RimasContext:
         echo=echo,
         lambda_diversity=lambda_,
         k_candidates=k_candidates,
+        top_n=k,
+        threshold=threshold,
+        cross_film=cross_film,
     )
 
 
@@ -38,9 +41,12 @@ async def tab_rimas(
     echo: str | None = None,
     lambda_: float | None = Query(default=None, alias="lambda"),
     k_candidates: int | None = None,
+    k: int | None = None,
+    threshold: float | None = None,
+    cross_film: bool | None = None,
 ) -> HTMLResponse:
     """Render the Rimas Visuais tab partial."""
-    ctx = _rimas_ctx(get_config(), anchor, echo, lambda_, k_candidates)
+    ctx = _rimas_ctx(get_config(), anchor, echo, lambda_, k_candidates, k, threshold, cross_film)
     return templates.TemplateResponse(
         request,
         "partials/rimas.html",
@@ -55,9 +61,12 @@ async def api_rimas_echoes(
     echo: str | None = None,
     lambda_: float | None = Query(default=None, alias="lambda"),
     k_candidates: int | None = None,
+    k: int | None = None,
+    threshold: float | None = None,
+    cross_film: bool | None = None,
 ) -> HTMLResponse:
     """Return the echo-grid fragment for HTMX anchor swaps."""
-    ctx = _rimas_ctx(get_config(), anchor, echo, lambda_, k_candidates)
+    ctx = _rimas_ctx(get_config(), anchor, echo, lambda_, k_candidates, k, threshold, cross_film)
     return templates.TemplateResponse(
         request,
         "partials/rimas_echoes.html",
@@ -72,9 +81,12 @@ async def api_rimas_inspector(
     echo: str | None = None,
     lambda_: float | None = Query(default=None, alias="lambda"),
     k_candidates: int | None = None,
+    k: int | None = None,
+    threshold: float | None = None,
+    cross_film: bool | None = None,
 ) -> HTMLResponse:
     """Return the right-pane inspector fragment."""
-    ctx = _rimas_ctx(get_config(), anchor, echo, lambda_, k_candidates)
+    ctx = _rimas_ctx(get_config(), anchor, echo, lambda_, k_candidates, k, threshold, cross_film)
     return templates.TemplateResponse(
         request,
         "partials/rimas_inspector.html",
