@@ -31,9 +31,7 @@ logger = logging.getLogger(__name__)
 
 # Raster formats Pillow can open and SigLIP/CLIP can embed. Matched
 # case-insensitively against each file's suffix.
-_IMAGE_SUFFIXES = frozenset(
-    {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
-)
+_IMAGE_SUFFIXES = frozenset({".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"})
 
 
 class DirectoryStillsFrameSource:
@@ -56,9 +54,7 @@ class DirectoryStillsFrameSource:
                 "Point --video/source at the directory instead."
             )
         images = sorted(
-            p
-            for p in source.iterdir()
-            if p.is_file() and p.suffix.lower() in _IMAGE_SUFFIXES
+            p for p in source.iterdir() if p.is_file() and p.suffix.lower() in _IMAGE_SUFFIXES
         )
         if not images:
             raise FileNotFoundError(
@@ -71,13 +67,13 @@ class DirectoryStillsFrameSource:
         from PIL import Image
 
         with Image.open(src) as img:
-            img = img.convert("RGB")
+            rgb = img.convert("RGB")
             h = self.keyframe_height
-            if h > 0 and img.height != h:
-                ratio = h / img.height
-                new_w = max(1, round(img.width * ratio))
-                img = img.resize((new_w, h), Image.LANCZOS)
-            img.save(dest, format="JPEG", quality=95)
+            if h > 0 and rgb.height != h:
+                ratio = h / rgb.height
+                new_w = max(1, round(rgb.width * ratio))
+                rgb = rgb.resize((new_w, h), Image.Resampling.LANCZOS)
+            rgb.save(dest, format="JPEG", quality=95)
 
     def produce(
         self,

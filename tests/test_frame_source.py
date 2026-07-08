@@ -124,8 +124,8 @@ def test_directory_stills_produces_video_compatible_manifest(tmp_path):
     assert (kf_dir / "scene_0001_kf_01.jpg").exists()
     with Image.open(kf_dir / "scene_0002_kf_01.jpg") as im:
         assert im.mode == "RGB"
-        assert im.height == 480          # downscaled to keyframe_height
-        assert im.width == 640           # 800 * (480 / 600), aspect preserved
+        assert im.height == 480  # downscaled to keyframe_height
+        assert im.width == 640  # 800 * (480 / 600), aspect preserved
 
 
 def test_directory_stills_no_downscale_when_height_zero(tmp_path):
