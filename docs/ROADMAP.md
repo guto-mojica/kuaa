@@ -39,6 +39,11 @@ domain packs, limitations, next steps), see [`CASE_STUDY.md`](CASE_STUDY.md).
 - Processing job progress with server-sent events.
 - Admin-gated eval grading UI with JSONL grade persistence and live metrics.
 - Pluggable model backend registry using typed Protocols.
+- Pluggable vector-index backend behind a `VectorIndex` Protocol:
+  in-memory NumPy brute-force search (default) or an opt-in on-disk LanceDB
+  table for single-query cross-film search at larger corpus scale, with a
+  `kuaa library reindex-vectors` maintenance command for backend migration
+  and drift repair.
 - Offline-oriented UI assets: local JavaScript, icons, fonts, and CSS.
 - Domain-aware JSON/CSV exports and run manifests.
 - Regression test coverage for web routes, services, search, processing, i18n,

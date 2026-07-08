@@ -34,6 +34,7 @@ The system features a modular retrieval stack where every component runs locally
 | **Scene Description** | Moondream 2 | Local Vision-Language Model (VLM) |
 | **Object Detection** | YOLOv8 | Identifying objects and scene elements |
 | **Face Detection** | MTCNN | Facial detection & crowd counting |
+| **Vector Index** | NumPy brute-force (default, exact) / LanceDB (Opt-in ANN) | Nearest-neighbour search over keyframe embeddings; stay on the NumPy default unless a measured bottleneck justifies the on-disk ANN index |
 
 ### What makes it "Production-Ready"?
 *   **Privacy by Design:** Designed for institutional use where data sovereignty is non-negotiable.

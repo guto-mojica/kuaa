@@ -5,6 +5,11 @@ current headline latency number because the benchmark depends on local
 per-film library artifacts and hardware. Re-run the harness against the final
 demo bundle before publishing README or portfolio numbers.
 
+The harness currently measures the default `numpy_bruteforce` vector-index
+backend only (see `docs/ARCHITECTURE.md`, "Vector-index backend
+architecture"). The opt-in `lancedb` backend is not yet covered here —
+extend the benchmark before quoting cross-backend numbers.
+
 ## Benchmark command
 
 ```bash
