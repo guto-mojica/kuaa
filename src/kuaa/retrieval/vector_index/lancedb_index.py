@@ -83,9 +83,7 @@ class LanceDBIndex:
     def _records(self, embeddings: np.ndarray, rows: pd.DataFrame) -> list[dict]:
         emb = np.asarray(embeddings, dtype="float32")
         if len(rows) != emb.shape[0]:
-            raise ValueError(
-                f"embeddings/rows row mismatch: {emb.shape[0]} vs {len(rows)}"
-            )
+            raise ValueError(f"embeddings/rows row mismatch: {emb.shape[0]} vs {len(rows)}")
         records = rows.to_dict(orient="records")
         for rec, vec in zip(records, emb):
             rec[_VECTOR_COLUMN] = vec.tolist()

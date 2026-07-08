@@ -224,6 +224,11 @@ def library_reindex_vectors(
             summary.append((film.slug, "skipped (corrupt)", 0))
             continue
 
+        # index.ok (equivalent to status is OK here) guarantees embeddings/kf_df
+        # are non-None — narrows the Optional fields for mypy, mirroring
+        # src/kuaa/search/clip.py's convention.
+        assert index.embeddings is not None
+        assert index.kf_df is not None
         cols = [c for c in ("scene_id", "keyframe_id", "filepath") if c in index.kf_df.columns]
         rows = index.kf_df[cols].copy().reset_index(drop=True)
         rows["film_slug"] = film.slug
@@ -239,7 +244,10 @@ def library_reindex_vectors(
     print("━" * 60, flush=True)
     n_ok = sum(1 for _, s, _ in summary if s == "indexed")
     n_vectors = sum(n for _, s, n in summary if s == "indexed")
-    print(f"  {n_ok}/{len(summary)} filmes indexados · {n_vectors} vetores · backend={backend}", flush=True)
+    print(
+        f"  {n_ok}/{len(summary)} filmes indexados · {n_vectors} vetores · backend={backend}",
+        flush=True,
+    )
 
 
 @app.command("delete")
