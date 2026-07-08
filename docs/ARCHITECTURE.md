@@ -130,6 +130,67 @@ ONNX, quantized, fine-tuned, or domain-specific backends possible without
 rewriting the orchestration layer. See `docs/PROTOCOL_OPTION.md` for the
 rationale behind this design.
 
+## Vector-index backend architecture
+
+The same registry pattern applies to nearest-neighbour lookup over keyframe
+embeddings. `VectorIndex` (`src/kuaa/retrieval/vector_index/base.py`) is a
+typed Protocol — `add`, `delete`, `search`, `knn` — and concrete backends are
+selected by `kuaa.retrieval.vector_index.get_vector_index()` via the
+`search.index_backend` config key.
+
+| Config value | Implementation | Store |
+|---|---|---|
+| `numpy_bruteforce` (default) | `numpy_bruteforce.py` | In-memory; the existing `keyframe_embeddings.npy` + `index_mapping.json` pair remains the on-disk source of truth |
+| `lancedb` (opt-in, `scale` extra) | `lancedb_index.py` | One on-disk LanceDB table (`data/library/vector_index.lancedb/`) tagged by `film_slug`, enabling single-query cross-film search |
+
+`SemanticSearch` (`src/kuaa/embeddings.py`) always delegates its ranking math
+to an in-memory `NumpyBruteForceIndex` regardless of the configured backend,
+so per-film search stays byte-identical to the pre-seam inline dot product.
+That backend also deliberately performs no embeddings/rows shape validation
+— that check lives one layer up, in `kuaa.search.cache.load_index` (see
+"Current constraints" below) — so a corrupt index still crashes at the same
+call site it always did, not earlier at construction.
+
+`_step_embeddings` in `src/kuaa/pipeline.py` additionally upserts into the
+configured backend when it is not the default (no-op for
+`numpy_bruteforce`, since its store already is the `.npy` pair). Already-
+processed films are **not** backfilled automatically when switching to
+`lancedb` — run `kuaa library reindex-vectors` to populate the on-disk table
+from each film's existing embeddings (no model inference; deletes-then-adds
+per film-slug, so it is safe to re-run for drift repair or disaster
+recovery). See `docs/OPERATIONS.md`, "Vector-index maintenance".
+
+### Choosing a backend: stay on `numpy_bruteforce` by default
+
+`lancedb` is a scaling escape hatch, not a generally-better starting point.
+New installs and modest archives should stay on the default unless there is
+a measured bottleneck (a slow cross-film aggregate search caused by looping
+over many large per-film indices), because switching has real costs with no
+payoff below that scale:
+
+- **Unverified dependency pin.** The base project pins `numpy>=1.24,<2`
+  (`pyproject.toml`); `lancedb`/`pyarrow` wheel compatibility against that
+  pin is flagged as unverified in the `scale` extra's own comment. Installing
+  it can be the first friction a new user hits, for no benefit at small scale.
+- **Exact vs. approximate recall.** `numpy_bruteforce` is a full dot product
+  plus sort — exact nearest neighbours. `lancedb` is an ANN index that trades
+  some recall for speed. The eval numbers in `docs/EVALUATION.md` were
+  computed against the exact path; switching backends changes what those
+  numbers mean without a fresh eval run.
+- **Parity is planned, not proven.** There is no committed
+  `numpy_bruteforce`-vs-`lancedb` parity test yet, and `docs/PERFORMANCE.md`'s
+  benchmark currently covers only the default backend.
+- **A second on-disk store to keep in sync.** `lancedb` adds
+  `vector_index.lancedb/` alongside the `.npy`/`index_mapping.json` pair,
+  which remains authoritative regardless of backend. The pipeline's upsert
+  into `lancedb` is best-effort (logs and continues on failure), so drift
+  between the two stores is a real failure mode — exactly what
+  `kuaa library reindex-vectors` exists to repair.
+- **The scale threshold is high.** Brute-force numpy is adequate up to
+  archive scale (thousands of keyframes per film, tens of films); the
+  search-side wall that `lancedb` addresses appears near 10⁷–10⁸ vectors —
+  far beyond a single small-to-mid film archive.
+
 ## Web application
 
 Primary modules:
@@ -221,11 +282,16 @@ Important sections:
 
 ## Current constraints
 
-- Semantic search is a NumPy dot product over local embeddings, not a vector
-  database. This is appropriate for small/medium demo collections and keeps the
-  dependency surface simple.
-- Cross-film aggregate retrieval scans local per-film indices. It is not a
-  distributed vector service.
+- Semantic search defaults to a NumPy dot product over local embeddings
+  (`search.index_backend: numpy_bruteforce`), not a vector database. This is
+  appropriate for small/medium collections and keeps the dependency surface
+  simple. An opt-in `lancedb` backend (see "Vector-index backend
+  architecture" above) lifts this for larger corpora, but it is not the
+  default and is not backfilled automatically for already-processed films.
+- Cross-film aggregate retrieval scans local per-film indices under the
+  default backend. `lancedb` collapses this into a single filtered on-disk
+  query, but it is still an embedded, single-node index — not a distributed
+  vector service.
 - The cross-encoder reranker is OFF by default — its effect is unmeasured on
   short captions and its text-only design is suspect (see
   `docs/RERANKER_DECISION.md`). `/api/search` keeps the per-request

@@ -33,6 +33,7 @@ Default paths come from `config/default.yaml` or the selected config override.
 | Manual annotations | `data/library/<slug>/metadata/manual_annotations.json` | Annotation UI |
 | Visual embeddings | `data/library/<slug>/embeddings/keyframe_embeddings.npy` | Embeddings |
 | Visual index mapping | `data/library/<slug>/embeddings/index_mapping.json` | Embeddings |
+| Vector index (opt-in) | `data/library/vector_index.lancedb/` | Embeddings step or `kuaa library reindex-vectors`, only when `search.index_backend: lancedb` |
 | Run manifest | `data/metadata/run_manifest.json` | Pipeline or Processing tab |
 
 ## Run manifests
@@ -86,6 +87,26 @@ Required artifact: at least one registered film with
 `metadata/keyframes_metadata.json`. If required metadata is missing, export
 routes return `404` with a clear message. Other missing artifacts are recorded
 in `missing_artifacts`.
+
+## Vector-index maintenance
+
+`kuaa library reindex-vectors [--only <slug>...]` rebuilds the configured
+vector index (`search.index_backend`) from each registered film's existing
+`keyframe_embeddings.npy` + `index_mapping.json` — no model inference, pure
+I/O. It is a no-op when `index_backend` is the default `numpy_bruteforce`
+(that backend's store already is the `.npy` pair).
+
+Use it:
+
+- after switching `search.index_backend` to `lancedb` — already-processed
+  films are not backfilled automatically;
+- to repair drift — the live pipeline's per-film upsert
+  (`_maybe_index_embeddings`) is best-effort and logs-and-continues on
+  failure rather than failing the run;
+- after a missing or corrupted `vector_index.lancedb/` directory.
+
+The command deletes each film's existing rows before re-adding them, so
+repeated runs do not accumulate duplicate vectors.
 
 ## Failure behavior
 

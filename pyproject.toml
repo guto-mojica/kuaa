@@ -105,6 +105,18 @@ search = [
     "torch>=2.0",
     "open-clip-torch>=2.20",
 ]
+# Escala: índice vetorial on-disk (LanceDB) para busca cross-film em corpora
+# grandes. Opt-in — a busca padrão continua sendo numpy brute-force in-memory.
+#   pip install -e ".[scale]"
+# WATCH: the base deps pin ``numpy>=1.24,<2`` (see the note above). lancedb
+# pulls ``pyarrow``; verify the resolved lancedb/pyarrow wheels are built
+# against numpy 1.x before shipping, or lift the numpy pin deliberately in a
+# paired torch bump. Left unversioned-minimally here (>=) so a resolver can
+# pick a numpy<2-compatible line.
+scale = [
+    "lancedb>=0.5",
+    "pyarrow>=14.0",
+]
 
 [project.scripts]
 # Após instalação: kuaa process --video meu_filme.mp4

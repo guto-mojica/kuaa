@@ -1,9 +1,12 @@
 """
 kuaa.embeddings
 ~~~~~~~~~~~~~~~~~~~~~
-Busca semântica sobre embeddings CLIP. Pure-numpy dot product
-(equivalente a cosseno para vetores normalizados). The CLIP embedder
-itself lives in kuaa.models.clip.openclip.
+Busca semântica sobre embeddings CLIP. Delegates the nearest-neighbour
+lookup to a :class:`~kuaa.retrieval.vector_index.base.VectorIndex` — the
+default ``numpy_bruteforce`` backend is a pure-numpy dot product
+(equivalente a cosseno para vetores normalizados), byte-identical to the
+former inline ``embeddings @ query`` path. The CLIP embedder itself lives
+in kuaa.models.clip.openclip.
 """
 
 from __future__ import annotations
@@ -14,31 +17,43 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from kuaa.retrieval.vector_index.base import SCORE_COLUMN
+from kuaa.retrieval.vector_index.numpy_bruteforce import NumpyBruteForceIndex
+
 logger = logging.getLogger(__name__)
 
 
 class SemanticSearch:
-    """Semantic search over CLIP embeddings (text / image / combined)."""
+    """Semantic search over CLIP embeddings (text / image / combined).
+
+    The raw vector math runs through an in-memory
+    :class:`NumpyBruteForceIndex` (the Protocol's default backend), so the
+    ranking is identical to the legacy inline dot-product while the
+    similarity computation now lives behind the ``VectorIndex`` seam.
+    """
 
     def __init__(self, embeddings: np.ndarray, keyframes_df: pd.DataFrame, embedder):
         self.embeddings = embeddings
         self.keyframes_df = keyframes_df
         self.embedder = embedder
+        # Index over the (non-renormalised) embeddings for by_text / by_image.
+        # ``combined`` builds its own transient index over a renormalised
+        # subset, matching the historical per-call renormalisation.
+        self._index = NumpyBruteForceIndex()
+        self._index.add(embeddings, keyframes_df)
 
     def by_text(self, query: str, top_k: int = 8) -> pd.DataFrame:
         query_emb = self.embedder.encode_text(query)
-        similarities = (self.embeddings @ query_emb).flatten()
-        top_indices = np.argsort(similarities)[::-1][:top_k]
+        hits = self._index.search(query_emb, top_k)
 
         rows = []
-        for rank, idx in enumerate(top_indices):
-            row = self.keyframes_df.iloc[idx]
+        for rank, (_, row) in enumerate(hits.iterrows()):
             rows.append(
                 {
                     "rank": rank + 1,
                     "scene_id": row["scene_id"],
                     "filepath": row["filepath"],
-                    "similarity": float(similarities[idx]),
+                    "similarity": float(row[SCORE_COLUMN]),
                     "description": str(row.get("description", "")),
                 }
             )
@@ -52,26 +67,24 @@ class SemanticSearch:
     ) -> pd.DataFrame:
         img_emb = self.embedder.encode_image_single(image_path)
 
-        similarities = (self.embeddings @ img_emb).flatten()
-        sorted_indices = list(np.argsort(similarities)[::-1])
+        # Full descending order so exclude-self can drop the query row before
+        # the top-k slice (matches the legacy argsort-then-filter sequence).
+        hits = self._index.search(img_emb, None)
 
-        if exclude_self:
+        if exclude_self and not hits.empty:
             query_str = str(image_path)
-            sorted_indices = [
-                i for i in sorted_indices if str(self.keyframes_df.iloc[i]["filepath"]) != query_str
-            ]
+            hits = hits[hits["filepath"].astype(str) != query_str]
 
-        top_indices = sorted_indices[:top_k]
+        hits = hits.head(top_k)
 
         rows = []
-        for rank, idx in enumerate(top_indices):
-            row = self.keyframes_df.iloc[idx]
+        for rank, (_, row) in enumerate(hits.iterrows()):
             rows.append(
                 {
                     "rank": rank + 1,
                     "scene_id": row["scene_id"],
                     "filepath": row["filepath"],
-                    "similarity": float(similarities[idx]),
+                    "similarity": float(row[SCORE_COLUMN]),
                     "description": str(row.get("description", "")),
                 }
             )
@@ -134,21 +147,22 @@ class SemanticSearch:
             return pd.DataFrame()
 
         query_emb = self.embedder.encode_text(query)
-        # Re-normalizar subconjunto (por precaução)
+        # Re-normalizar subconjunto (por precaução), depois buscar via índice
+        # transitório sobre o subconjunto renormalizado (mesma matemática).
         norms = np.linalg.norm(emb_subset, axis=1, keepdims=True) + 1e-8
         emb_norm = emb_subset / norms
-        similarities = (emb_norm @ query_emb).flatten()
-        top_indices = np.argsort(similarities)[::-1][:top_k]
+        subset_index = NumpyBruteForceIndex()
+        subset_index.add(emb_norm, kf_subset)
+        hits = subset_index.search(query_emb, top_k)
 
         rows = []
-        for rank, idx in enumerate(top_indices):
-            row = kf_subset.iloc[idx]
+        for rank, (_, row) in enumerate(hits.iterrows()):
             rows.append(
                 {
                     "rank": rank + 1,
                     "scene_id": row["scene_id"],
                     "filepath": row["filepath"],
-                    "similarity": float(similarities[idx]),
+                    "similarity": float(row[SCORE_COLUMN]),
                 }
             )
         return pd.DataFrame(rows)

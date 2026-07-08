@@ -145,6 +145,111 @@ def library_reembed(
         raise typer.Exit(1)
 
 
+@app.command("reindex-vectors")
+def library_reindex_vectors(
+    only: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--only", help="Slug a reindexar (repetível). Padrão: todos os filmes registrados."
+        ),
+    ] = None,
+    config: Annotated[
+        Path | None,
+        typer.Option(help="Caminho do arquivo config YAML."),
+    ] = None,
+) -> None:
+    """Rebuild the configured vector index from each film's existing embeddings.
+
+    Idempotent maintenance command: reads the already-computed
+    ``keyframe_embeddings.npy`` + ``index_mapping.json`` pair already on disk
+    for each film — no model inference — and upserts it into whichever
+    backend ``search.index_backend`` currently selects. No-op for the default
+    ``numpy_bruteforce`` backend, whose store already IS that ``.npy`` pair.
+
+    Use this after switching to ``lancedb`` (already-processed films are not
+    backfilled automatically), after a missing/corrupted index directory, or
+    to repair drift from a best-effort upsert failure during normal
+    processing (``_maybe_index_embeddings`` logs and continues on error
+    rather than failing the pipeline run).
+    """
+    from kuaa.config import load_config, setup_logging
+    from kuaa.library import FilmContext, scan_library
+    from kuaa.retrieval.vector_index import get_vector_index
+    from kuaa.search.cache import IndexStatus, load_index
+
+    cfg = load_config(str(config) if config else None)
+    setup_logging(cfg)
+
+    backend = getattr(cfg.search, "index_backend", "numpy_bruteforce")
+    print_banner()
+    if backend == "numpy_bruteforce":
+        print(
+            "  index_backend = numpy_bruteforce — nada a fazer "
+            "(o .npy de cada filme já É o índice)."
+        )
+        return
+
+    library_dir = Path(cfg.paths.library_dir)
+    films = scan_library(library_dir)
+    if not films:
+        typer.echo(f"✗ Nenhum filme registrado em {library_dir / 'films.json'}", err=True)
+        raise typer.Exit(1)
+
+    only_set = set(only or [])
+    if only_set:
+        unknown = only_set - {f.slug for f in films}
+        if unknown:
+            typer.echo(f"✗ Slugs não registrados: {', '.join(sorted(unknown))}", err=True)
+            raise typer.Exit(1)
+        films = [f for f in films if f.slug in only_set]
+
+    print(f"  Backend              : {backend}")
+    print(f"  Filmes candidatos    : {len(films)}\n", flush=True)
+
+    summary: list[tuple[str, str, int]] = []
+    for film in films:
+        ctx = FilmContext.for_film(cfg, film.slug)
+        index = load_index(
+            ctx,
+            mapping_filename=cfg.embeddings.mapping_filename,
+            embeddings_filename=cfg.embeddings.filename,
+            cfg=cfg,
+        )
+        if index.status is IndexStatus.MISSING:
+            print(f"  ⏭  {film.slug} — sem embeddings ainda ({index.detail})", flush=True)
+            summary.append((film.slug, "skipped (missing)", 0))
+            continue
+        if index.status is IndexStatus.CORRUPT:
+            print(f"  ✗ {film.slug} — índice corrompido ({index.detail})", flush=True)
+            summary.append((film.slug, "skipped (corrupt)", 0))
+            continue
+
+        # index.ok (equivalent to status is OK here) guarantees embeddings/kf_df
+        # are non-None — narrows the Optional fields for mypy, mirroring
+        # src/kuaa/search/clip.py's convention.
+        assert index.embeddings is not None
+        assert index.kf_df is not None
+        cols = [c for c in ("scene_id", "keyframe_id", "filepath") if c in index.kf_df.columns]
+        rows = index.kf_df[cols].copy().reset_index(drop=True)
+        rows["film_slug"] = film.slug
+        vector_index = get_vector_index(cfg)
+        # Delete-then-add makes this idempotent: re-running (drift repair,
+        # disaster recovery) replaces the film's rows instead of duplicating
+        # them on every run.
+        vector_index.delete(film.slug)
+        vector_index.add(index.embeddings, rows)
+        print(f"  ✓ {film.slug} — {len(rows)} vetores", flush=True)
+        summary.append((film.slug, "indexed", len(rows)))
+
+    print("━" * 60, flush=True)
+    n_ok = sum(1 for _, s, _ in summary if s == "indexed")
+    n_vectors = sum(n for _, s, n in summary if s == "indexed")
+    print(
+        f"  {n_ok}/{len(summary)} filmes indexados · {n_vectors} vetores · backend={backend}",
+        flush=True,
+    )
+
+
 @app.command("delete")
 def library_delete(
     slug: Annotated[str, typer.Argument(help="Slug do filme a remover (ex: jeca_tatu).")],

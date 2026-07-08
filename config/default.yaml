@@ -130,6 +130,10 @@ search:
   mmr_lambda: 0.5             # Legacy Search config; Rimas uses retrieval.rhymes.
   # Modality gates (each toggles its chip on/off in the Buscar tab).
   image_enabled: true         # existing image-similarity search
+  # Vector-index backend. `numpy_bruteforce` (default) keeps the in-memory
+  # .npy brute force; `lancedb` (opt-in, needs the `scale` extra) stores one
+  # on-disk table for single-query cross-film search at large scale.
+  index_backend: numpy_bruteforce   # numpy_bruteforce | lancedb
 
 # ── Retrieval (Month-2/3 reranker + fusion/rhymes knobs) ─────────────────────
 # Separate from ``search:`` because ``search:`` owns UI-surfaced display knobs
