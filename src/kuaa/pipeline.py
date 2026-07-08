@@ -432,6 +432,11 @@ class CatalogPipeline:
                 emb_cfg.filename,
                 emb_cfg.mapping_filename,
             )
+            # The ``.npy`` above IS the store for the default numpy_bruteforce
+            # backend. When ``search.index_backend == "lancedb"``, also upsert
+            # this film's rows into the shared on-disk table (best-effort: the
+            # ``.npy`` stays authoritative for provenance and fallback).
+            self._maybe_index_embeddings(embeddings, valid_kf)
             return StepResult(
                 name=name,
                 success=True,
@@ -440,6 +445,29 @@ class CatalogPipeline:
             )
         except Exception as e:
             return StepResult(name=name, success=False, duration_s=time.time() - t0, error=str(e))
+
+    def _maybe_index_embeddings(self, embeddings, valid_kf) -> None:
+        """Populate the configured vector index for lancedb; no-op for numpy.
+
+        For the default ``numpy_bruteforce`` backend the ``.npy`` + mapping
+        pair already written by ``embedder.save`` is the store, so nothing
+        extra happens. For ``lancedb`` the per-film rows (tagged with
+        ``film_slug`` so a single filtered query can span the library) are
+        added to the shared table.
+        """
+        backend = getattr(self.cfg.search, "index_backend", "numpy_bruteforce")
+        if backend == "numpy_bruteforce":
+            return
+        try:
+            from kuaa.retrieval.vector_index import get_vector_index
+
+            cols = [c for c in ("scene_id", "keyframe_id", "filepath") if c in valid_kf.columns]
+            rows = valid_kf[cols].copy().reset_index(drop=True)
+            rows["film_slug"] = self.slug if self.slug is not None else ""
+            get_vector_index(self.cfg).add(embeddings, rows)
+            logger.info("Vector index (%s) updated for %s", backend, self.slug or "(legacy)")
+        except Exception as exc:  # noqa: BLE001 - index is supplementary to .npy
+            logger.warning("Could not update vector index (%s): %s", backend, exc)
 
     def _step_llm_description(self, metadata_path: Path) -> StepResult:
         import pandas as pd

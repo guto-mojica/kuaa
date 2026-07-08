@@ -158,6 +158,11 @@ class SearchCfg(_Section):
     mmr_lambda: float = 0.5
     image_enabled: bool = True
     signals_enabled: bool = False
+    # Vector-index backend (retrieval-scaling seam). Defaulted so existing
+    # configs keep the byte-identical in-memory brute-force path; ``lancedb``
+    # (opt-in, needs the ``scale`` extra) stores one on-disk table for
+    # single-query cross-film search at large corpus scale.
+    index_backend: Literal["numpy_bruteforce", "lancedb"] = "numpy_bruteforce"
 
 
 # ── retrieval (+ nested reranker/fusion/rhymes) ──────────────────────────────
