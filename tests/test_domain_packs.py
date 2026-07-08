@@ -70,6 +70,31 @@ def test_media_broadcast_domain_changes_prompt_and_export_shape():
     assert "location" not in exported
 
 
+def test_underwater_domain_loads_and_retunes_prompts():
+    pack = load_domain_pack("config/domains/underwater.yaml")
+    prompts = prompt_dict(pack)
+
+    assert pack.id == "underwater"
+    assert pack.label == "Underwater & ROV inspection"
+    # Retuned inspection prompts land alongside the standard description key.
+    assert "description" in prompts
+    assert "anomaly" in prompts
+    assert "marine_life" in prompts
+    # Custom fields export through the describer's _raw_responses surface.
+    assert pack.export_mapping["anomaly"] == "_raw_responses.anomaly"
+
+
+def test_generative_domain_loads_and_retunes_prompts():
+    pack = load_domain_pack("config/domains/generative.yaml")
+    prompts = prompt_dict(pack)
+
+    assert pack.id == "generative"
+    assert "description" in prompts
+    assert "style" in prompts
+    assert "medium" in prompts
+    assert pack.export_mapping["style"] == "_raw_responses.style"
+
+
 def test_media_broadcast_eval_queries_follow_m2_schema():
     dataset = load_dataset("data/eval/media_broadcast_queries.yaml")
 

@@ -1,0 +1,160 @@
+id: underwater
+label: Underwater & ROV inspection
+description: >
+  Catalog ROV, diver, and subsea-inspection footage for survey review,
+  anomaly search, and asset cataloguing. Pairs naturally with the
+  video_scenedetect frame source; the metadata and prompts are retuned for
+  underwater habitats, structures, and inspection findings.
+
+metadata_fields:
+  - name: description
+    label: Description
+    type: text
+    required: true
+    help: One or two sentences describing the visible subject, structure, or habitat.
+  - name: scene_type
+    label: Scene type
+    type: enum
+    values: [open-water, seabed, reef, structure, hull, pipeline, wreck, unknown]
+    required: false
+  - name: marine_life
+    label: Marine life
+    type: short_text
+    required: false
+  - name: substrate
+    label: Substrate / seabed
+    type: enum
+    values: [sand, mud, rock, coral, gravel, vegetation, artificial, unknown]
+    required: false
+  - name: anomaly
+    label: Inspection anomaly
+    type: text
+    required: false
+    help: Corrosion, cracks, marine growth, debris, leaks, or none visible.
+  - name: visibility
+    label: Water visibility
+    type: enum
+    values: [clear, moderate, turbid, unknown]
+    required: false
+  - name: objects
+    label: Notable objects
+    type: list
+    item_type: string
+    required: false
+  - name: tags
+    label: Search tags
+    type: tag_list
+    required: false
+
+prompt_templates:
+  description:
+    prompt: "Describe this underwater scene in one or two sentences. Focus on the main structure, habitat, or subject and any visible condition."
+    max_new_tokens: 80
+  scene_type:
+    prompt: "What kind of underwater scene is this? Answer with one phrase such as open water, seabed, reef, structure, hull, pipeline, wreck, or unknown."
+    max_new_tokens: 15
+  marine_life:
+    prompt: "What marine life is visible? Answer briefly, or answer none."
+    max_new_tokens: 30
+  substrate:
+    prompt: "What is the seabed or substrate? Answer with one word: sand, mud, rock, coral, gravel, vegetation, artificial, or unknown."
+    max_new_tokens: 12
+  anomaly:
+    prompt: "Are there any inspection anomalies such as corrosion, cracks, marine growth, debris, or leaks? Summarize briefly or answer none visible."
+    max_new_tokens: 50
+  visibility:
+    prompt: "How clear is the water? Answer with one word: clear, moderate, turbid, or unknown."
+    max_new_tokens: 10
+  objects:
+    prompt: "List the most notable objects or equipment in this scene, comma-separated. Maximum 6 items."
+    max_new_tokens: 40
+
+taxonomy:
+  scene_type:
+    - open-water
+    - seabed
+    - reef
+    - structure
+    - hull
+    - pipeline
+    - wreck
+    - unknown
+  substrate:
+    - sand
+    - mud
+    - rock
+    - coral
+    - gravel
+    - vegetation
+    - artificial
+    - unknown
+  visibility:
+    - clear
+    - moderate
+    - turbid
+    - unknown
+  common_tags:
+    - reef
+    - structure
+    - corrosion
+    - marine-growth
+    - debris
+    - fish
+    - clear-water
+    - turbid-water
+
+filters:
+  - name: scene_type
+    label: Scene type
+    source: _raw_responses.scene_type
+    type: enum
+  - name: substrate
+    label: Substrate
+    source: _raw_responses.substrate
+    type: enum
+  - name: visibility
+    label: Visibility
+    source: _raw_responses.visibility
+    type: enum
+  - name: anomaly
+    label: Anomaly
+    source: _raw_responses.anomaly
+    type: text_contains
+  - name: tags
+    label: Tags
+    source: tags
+    type: tag_multi_select
+
+export_mapping:
+  scene_id: scene_id
+  keyframe_id: keyframe_id
+  keyframe_path: keyframe_path
+  start_time_s: start_time_s
+  end_time_s: end_time_s
+  duration_s: duration_s
+  description: description
+  scene_type: _raw_responses.scene_type
+  marine_life: _raw_responses.marine_life
+  substrate: _raw_responses.substrate
+  anomaly: _raw_responses.anomaly
+  visibility: _raw_responses.visibility
+  objects: objects
+  tags: tags
+
+sample_outputs:
+  - scene_id: 1
+    description: "A steel jacket leg on the seabed with patchy marine growth."
+    scene_type: structure
+    substrate: sand
+    anomaly: "marine growth on lower section"
+    visibility: moderate
+    objects: [jacket-leg, anode, marine-growth]
+    tags: [structure, marine-growth, moderate-water]
+  - scene_id: 2
+    description: "A shoal of fish crossing a coral reef in clear water."
+    scene_type: reef
+    substrate: coral
+    anomaly: "none visible"
+    visibility: clear
+    objects: [fish, coral]
+    tags: [reef, fish, clear-water]

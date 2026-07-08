@@ -214,6 +214,9 @@ class ModelsCfg(_Section):
     object_detector: Literal["yolov8"]
     scene_describer: Literal["moondream_transformers", "moondream_gguf"]
     environment_classifier: Literal["opencv_heuristic"]
+    # Input-side seam selector. Defaulted so existing configs/local overrides
+    # without the key keep loading and keep the video default unchanged.
+    frame_source: Literal["video_scenedetect", "directory_stills"] = "video_scenedetect"
 
 
 # ── pipeline (+ nested steps) ────────────────────────────────────────────────

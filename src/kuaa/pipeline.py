@@ -318,7 +318,7 @@ class CatalogPipeline:
     # ─── Etapas individuais ───────────────────────────────────────────────────
 
     def _step_scene_detection(self, video_path: Path) -> StepResult:
-        from kuaa.scene_detector import SceneDetector, write_cutset
+        from kuaa.models.registry import get_frame_source
 
         name = "scene_detection"
         metadata_path = self._metadata_dir() / "keyframes_metadata.json"
@@ -336,14 +336,20 @@ class CatalogPipeline:
 
         t0 = time.time()
         try:
-            detector = SceneDetector(self.cfg)
-            scene_list = detector.detect(video_path)
-            keyframes = detector.extract_keyframes(scene_list, video_path, keyframes_dir)
-            metadata_path = detector.export_metadata(scene_list, keyframes, metadata_path)
-            # Persist the authoritative cut set so the Pre-processing review UI
-            # can read/edit boundaries without re-running detection.
-            write_cutset(detector.build_cutset(scene_list), cuts_path)
-            stats = detector.scene_stats(scene_list)
+            # Delegate keyframe production to the configured input-side
+            # backend. The default ``video_scenedetect`` reproduces the
+            # historical PySceneDetect sequence byte-for-byte (incl. writing
+            # the authoritative cut set for the Pre-processing review UI);
+            # ``directory_stills`` catalogs an image folder instead.
+            source = get_frame_source(self.cfg, self.device)
+            manifest = source.produce(
+                video_path,
+                keyframes_dir=keyframes_dir,
+                metadata_path=metadata_path,
+                cuts_path=cuts_path,
+            )
+            keyframes = manifest.get("keyframes", [])
+            stats = manifest.get("stats", {})
             logger.info(
                 "Cenas: %d detectadas | média %.1fs | keyframes: %d",
                 stats.get("num_scenes", 0),
@@ -354,7 +360,12 @@ class CatalogPipeline:
                 name=name,
                 success=True,
                 duration_s=time.time() - t0,
-                output={"metadata_path": metadata_path, "keyframes": keyframes, "stats": stats},
+                output={
+                    "metadata_path": manifest.get("metadata_path", metadata_path),
+                    "keyframes": keyframes,
+                    "keyframes_dir": manifest.get("keyframes_dir", keyframes_dir),
+                    "stats": stats,
+                },
             )
         except Exception as e:
             return StepResult(name=name, success=False, duration_s=time.time() - t0, error=str(e))

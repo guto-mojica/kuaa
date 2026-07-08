@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from kuaa.models.base import (
         EnvironmentClassifier,
         FaceDetector,
+        FrameSource,
         ImageEmbedder,
         ObjectDetector,
         SceneDescriber,
@@ -87,6 +88,33 @@ def get_image_embedder(cfg: Settings, device=None) -> ImageEmbedder:
         raise ValueError(f"Unknown image_embedder: {name!r}")
     _image_embedder_cache[key] = instance
     return instance
+
+
+def get_frame_source(cfg: Settings, device=None) -> FrameSource:
+    """Return the configured frame-source (input-side) backend.
+
+    Reads ``cfg.models.frame_source``. The default ``video_scenedetect``
+    wraps PySceneDetect (byte-identical to the historical inline path);
+    ``directory_stills`` globs a folder of images into single-frame scenes.
+    No ``ModelCard`` exists for this role — it is a pipeline ingestion
+    mechanism, not a weighted model — so it is intentionally absent from
+    ``_MODELS_ROLES`` / :func:`model_card`.
+    """
+    name = _name(cfg, "frame_source")
+    # Order is load-bearing: video_scenedetect is the default backend.
+    if name == "video_scenedetect":
+        from kuaa.models.frame_source.video_scenedetect import (
+            VideoSceneDetectFrameSource,
+        )
+
+        return VideoSceneDetectFrameSource(cfg, device)
+    if name == "directory_stills":
+        from kuaa.models.frame_source.directory_stills import (
+            DirectoryStillsFrameSource,
+        )
+
+        return DirectoryStillsFrameSource(cfg, device)
+    raise ValueError(f"Unknown frame_source: {name!r}")
 
 
 def get_face_detector(cfg: Settings, device=None) -> FaceDetector:
