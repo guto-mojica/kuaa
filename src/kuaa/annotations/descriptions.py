@@ -13,6 +13,7 @@ import os
 import re
 import stat
 import tempfile
+from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -115,6 +116,47 @@ def canonical_description(descriptions: list[dict]) -> dict[str, dict]:
         canonical[sid] = rep
 
     return canonical
+
+
+@lru_cache(maxsize=32)
+def _cached_canonical_descriptions(metadata_dir: str, stamp: tuple[int, int]) -> tuple[dict, ...]:
+    """Build the canonical per-scene records for one metadata dir.
+
+    ``stamp`` is the ``scene_descriptions.json`` (mtime_ns, size) pair — it is
+    the cache key, so a write to the file yields a different key and the next
+    read rebuilds. Returns a tuple because ``lru_cache`` values are shared
+    between callers and a list would let one caller mutate another's copy.
+    """
+    raw = load_json(Path(metadata_dir) / "scene_descriptions.json")
+    if not isinstance(raw, list):
+        return ()
+    return tuple(canonical_description(raw).values())
+
+
+def load_canonical_descriptions(metadata_dir: Path) -> list[dict]:
+    """Load ``scene_descriptions.json`` collapsed to one record per scene.
+
+    The single entry point every consumer should use: reading the file raw
+    yields N records per scene and leaves the caller to pick one by file order,
+    which is how the BM25 corpus, the reranker, and the UI ended up showing
+    three different captions for the same scene.
+
+    Cached on the file's (mtime_ns, size). :func:`canonical_description` runs
+    ``difflib`` over every sibling sentence pair — ~50x the cost of the JSON
+    parse on a feature-length film — and the cross-film search path rebuilds
+    its artefacts on every query.
+    """
+    path = Path(metadata_dir) / "scene_descriptions.json"
+    try:
+        st = path.stat()
+    except OSError:
+        return []
+    return [
+        dict(record)
+        for record in _cached_canonical_descriptions(
+            str(metadata_dir), (st.st_mtime_ns, st.st_size)
+        )
+    ]
 
 
 def save_description(ctx: FilmContext, scene_id: int, new_text: str) -> None:

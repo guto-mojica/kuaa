@@ -125,15 +125,23 @@ def _load_clip_index(cfg) -> tuple[Any, dict, Any, Path, Path]:
 
 
 def _load_descriptions(metadata_dir: Path) -> list[dict]:
-    path = metadata_dir / "scene_descriptions.json"
-    if not path.exists():
-        return []
+    """One canonical record per scene — the same text production indexes.
+
+    Must stay on the shared loader: if this read the raw rows while
+    ``kuaa.search.bm25`` reads canonical ones, the eval harness would score a
+    corpus the running system never builds, and every retrieval metric it
+    reports would be measuring the wrong index.
+    """
+    from kuaa.annotations.descriptions import load_canonical_descriptions
+
     try:
-        data = json.loads(path.read_text())
+        return load_canonical_descriptions(metadata_dir)
     except json.JSONDecodeError:
-        logger.warning("eval: malformed %s — using empty descriptions", path)
+        logger.warning(
+            "eval: malformed %s — using empty descriptions",
+            metadata_dir / "scene_descriptions.json",
+        )
         return []
-    return data if isinstance(data, list) else []
 
 
 def _load_tag_index(metadata_dir: Path) -> dict[str, list[int]]:
