@@ -34,6 +34,7 @@ The system features a modular retrieval stack where every component runs locally
 | **Scene Description** | Moondream 2 | Local Vision-Language Model (VLM) |
 | **Object Detection** | YOLOv8 | Identifying objects and scene elements |
 | **Face Detection** | MTCNN | Facial detection & crowd counting |
+| **Frame Source** | PySceneDetect (video) / directory glob (stills) | Pluggable keyframe production — video cuts or a folder of still images |
 
 ### What makes it "Production-Ready"?
 *   **Privacy by Design:** Designed for institutional use where data sovereignty is non-negotiable.

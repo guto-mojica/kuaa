@@ -9,10 +9,15 @@ Implemented files:
 
 - `config/domains/archive.yaml`
 - `config/domains/media_broadcast.yaml`
+- `config/domains/generative.yaml`
 - `data/eval/media_broadcast_queries.yaml`
 - `src/kuaa/domain.py`
 - `src/kuaa/models/describer/domain_prompts.py`
 - `tests/test_domain_packs.py`
+
+A draft `config/domains/underwater.yaml` also exists in the repo, but it is a
+future derivation, not a delivered capability — see "Future derivation:
+underwater/ROV" below.
 
 ## Goals
 
@@ -147,6 +152,33 @@ What stays identical across both: scene detection, keyframe extraction, visual
 embeddings, the search/hybrid/rhymes/rerank stack, and the JSON/CSV export
 machinery. Only prompts, fields, taxonomy, filters, and export mapping move into
 the pack YAML — no pipeline code changes (proven by `tests/test_domain_packs.py`).
+
+## Beyond film archives: the generative pack
+
+`archive` and `media_broadcast` both catalog film footage — only the
+vocabulary changes. `generative` (`config/domains/generative.yaml`) extends
+the same pattern to a non-film-archive corpus, pairing with the
+`FrameSource` seam (see `docs/ARCHITECTURE.md`, "Frame-source backend
+architecture"): it retunes prompts for generated-image sets — `style`,
+`medium` — and is meant to pair with the `directory_stills` frame source,
+since generative output has no scene cuts to detect.
+
+This is additional evidence for the domain-adaptability claim above: no
+pipeline code changes, only a new pack YAML plus a `models.frame_source`
+config selection.
+
+## Future derivation: underwater/ROV
+
+`config/domains/underwater.yaml` is a draft pack that retunes prompts toward
+ROV/inspection footage (anomaly flags, marine-life notes, substrate). It
+loads and passes `tests/test_domain_packs.py`'s schema checks, but it has
+**not** been run end-to-end against real ROV or underwater footage, has no
+eval query set, and is not part of any launch surface. Treat it as a
+scaffold for a possible future fork or derivation of the domain-pack
+pattern (in the spirit of `media_broadcast`), not as a shipped or evaluated
+capability. Bringing it to parity with `archive`/`media_broadcast` would
+need: sample footage, an eval query set, an end-to-end description pass,
+and review against real inspection-cataloguing requirements.
 
 ## Adding A New Domain Pack
 
