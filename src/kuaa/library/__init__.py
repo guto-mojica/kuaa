@@ -19,6 +19,7 @@ from pathlib import Path
 
 from kuaa.library.context import FilmContext
 from kuaa.library.metadata import (
+    frame_to_scene_index,
     load_metadata,
     load_tag_index,
 )
@@ -109,6 +110,7 @@ __all__ = [
     "LibraryState",
     "delete_film",
     "derive_fps",
+    "frame_to_scene_index",
     "keyframe_url",
     "library_state",
     "load_json",

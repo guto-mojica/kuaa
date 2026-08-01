@@ -54,6 +54,52 @@ def load_tag_index(metadata_dir: Path) -> dict:
     return merge_tag_index(llm_tags, annotations, overrides)
 
 
+def frame_to_scene_index(kf_meta: list[Any]) -> dict[str, Any]:
+    """Return ``{keyframe basename: scene_id}`` from ``keyframes_metadata.json``.
+
+    This manifest is the authoritative frame → scene join. ``visual_analysis.json``
+    records identify their frame only by a ``frame_path`` basename and carry no
+    ``scene_id`` of their own, so every consumer that needs one must resolve it
+    through here. Deriving the id from the filename instead is not viable: the
+    library holds at least two keyframe naming conventions
+    (``<slug>-Scene-001-01.jpg`` and ``scene_0001_kf_01.jpg``), and a third would
+    break any regex again.
+    """
+    index: dict[str, Any] = {}
+    for row in kf_meta:
+        if not isinstance(row, dict):
+            continue
+        filepath = row.get("filepath")
+        if filepath is None or "scene_id" not in row:
+            continue
+        index[Path(str(filepath)).name] = row["scene_id"]
+    return index
+
+
+def _visual_by_scene(visual_data: list[Any], frame_to_scene: dict[str, Any]) -> dict[Any, Any]:
+    """Collapse ``visual_analysis.json`` rows to one record per canonical scene id.
+
+    A scene has one row per keyframe, so the N rows of a scene are candidates for
+    the same slot; the FIRST is kept, matching the first-wins convention the
+    search layer uses for the same shape of data. Rows whose frame is absent from
+    the keyframe manifest are dropped — without a scene id they cannot be placed.
+    """
+    by_scene: dict[Any, Any] = {}
+    for record in visual_data:
+        if not isinstance(record, dict):
+            continue
+        sid = record.get("scene_id")
+        if sid is None:
+            frame = record.get("frame_path") or record.get("filepath")
+            if frame is None:
+                continue
+            sid = frame_to_scene.get(Path(str(frame)).name)
+        if sid is None:
+            continue
+        by_scene.setdefault(scene_id_key(sid), record)
+    return by_scene
+
+
 def load_metadata(
     metadata_dir: Path,
 ) -> tuple[list[Any], dict[Any, Any], dict[Any, Any], dict[Any, Any]]:
@@ -80,7 +126,7 @@ def load_metadata(
     overrides = load_overrides(metadata_dir)
 
     desc_by_scene = canonical_description(descriptions)
-    vis_by_scene = {scene_id_key(v["scene_id"]): v for v in visual_data if "scene_id" in v}
+    vis_by_scene = _visual_by_scene(visual_data, frame_to_scene_index(kf_meta))
     tag_index = normalize_tag_index(merge_tag_index(llm_tags, annotations, overrides))
 
     return kf_meta, desc_by_scene, vis_by_scene, tag_index

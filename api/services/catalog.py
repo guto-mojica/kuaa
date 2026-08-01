@@ -123,7 +123,8 @@ def build_cards(
         vis = vis_by_scene.get(sid, {})
         env = vis.get("environment", {})
         env_parts = [p for p in [env.get("location", ""), env.get("time_of_day", "")] if p]
-        num_people = vis.get("num_faces")
+        # Detector rows nest the count under ``face_detection``, never top-level.
+        num_people = (vis.get("face_detection") or vis).get("num_faces")
 
         # Description one-liner
         desc = desc_by_scene.get(sid, {})
