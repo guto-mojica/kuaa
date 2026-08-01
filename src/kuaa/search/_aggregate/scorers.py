@@ -9,12 +9,14 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from kuaa.retrieval.tokenize import tokenize
 from kuaa.scene_ids import scene_id_key
+from kuaa.search._aggregate.coco_aliases import with_coco_aliases
 
 _SCENE_ID_FROM_PATH_RE = re.compile(r"Scene-(\d+)", flags=re.IGNORECASE)
 
@@ -25,8 +27,18 @@ _SCENE_ID_FROM_PATH_RE = re.compile(r"Scene-(\d+)", flags=re.IGNORECASE)
 _AddFn = Callable[[Any, float], None]
 
 
-def _scene_id_from_visual_record(record: dict[str, Any]) -> int | None:
-    """Best-effort scene id extraction for visual-analysis rows."""
+def _scene_id_from_visual_record(
+    record: dict[str, Any], frame_to_scene: dict[str, Any] | None = None
+) -> int | None:
+    """Best-effort scene id extraction for visual-analysis rows.
+
+    Resolution order: an explicit ``scene_id`` on the record, then the
+    ``keyframes_metadata.json`` manifest (``frame_to_scene``), then the legacy
+    ``Scene-NNN`` filename regex. No record on disk actually carries a
+    ``scene_id``, so the manifest is the leg that does the work; the regex is
+    kept only for partial metadata dirs where the manifest is unavailable, and
+    it matches just one of the two live naming conventions.
+    """
     sid = record.get("scene_id")
     if sid is not None:
         try:
@@ -34,6 +46,13 @@ def _scene_id_from_visual_record(record: dict[str, Any]) -> int | None:
         except (TypeError, ValueError):
             return None
     frame_path = str(record.get("frame_path") or record.get("filepath") or "")
+    if frame_to_scene:
+        mapped = frame_to_scene.get(Path(frame_path).name)
+        if mapped is not None:
+            try:
+                return int(mapped)
+            except (TypeError, ValueError):
+                return None
     match = _SCENE_ID_FROM_PATH_RE.search(frame_path)
     if match:
         return int(match.group(1))
@@ -138,15 +157,23 @@ def _score_descriptions(
 
 
 def _score_visual_rows(
-    add: _AddFn, query_tokens: list[str], visual_rows: list[dict[str, Any]]
+    add: _AddFn,
+    query_tokens: list[str],
+    visual_rows: list[dict[str, Any]],
+    frame_to_scene: dict[str, Any] | None = None,
 ) -> None:
     """Fold detector ``object_detection`` class hits into the accumulator.
 
     Per-object class matches add a flat weight; ``class_counts`` matches scale
     by the (clamped) detected count, capped at the description-tier ceiling.
+
+    Query tokens are matched against both the raw detector class and its
+    Portuguese alias (see :data:`_PT_TO_COCO`), because the detector emits
+    English COCO labels while the interface language is pt-BR.
     """
+    query_tokens = with_coco_aliases(query_tokens)
     for row in visual_rows:
-        sid = _scene_id_from_visual_record(row)
+        sid = _scene_id_from_visual_record(row, frame_to_scene)
         if sid is None:
             continue
         obj = row.get("object_detection")
@@ -192,8 +219,15 @@ class MetadataScorer:
         descriptions: list[dict[str, Any]],
         tag_index: dict[str, Any],
         visual_rows: list[dict[str, Any]],
+        frame_to_scene: dict[str, Any] | None = None,
     ) -> dict[int, float]:
-        """Return exact metadata/object match scores keyed by scene id."""
+        """Return exact metadata/object match scores keyed by scene id.
+
+        ``frame_to_scene`` is the ``keyframes_metadata.json`` frame → scene
+        manifest (see :func:`kuaa.library.frame_to_scene_index`). Without it the
+        visual-analysis rows cannot be attributed to a scene for most films and
+        the object leg of this scorer contributes nothing.
+        """
         query_tokens = tokenize(query)
         if not query_tokens or len(query_tokens) > 4:
             return {}
@@ -211,7 +245,7 @@ class MetadataScorer:
 
         _score_tags(add, query_tokens, tag_index)
         _score_descriptions(add, query_tokens, descriptions)
-        _score_visual_rows(add, query_tokens, visual_rows)
+        _score_visual_rows(add, query_tokens, visual_rows, frame_to_scene)
         return scores
 
 

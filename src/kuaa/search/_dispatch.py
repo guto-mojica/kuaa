@@ -143,6 +143,9 @@ def find(
         bm25_b=bm25_b,
     )
 
+    # ``raw_k`` mirrors search_hybrid's own 4x keyframe-density widening.
+    metadata_ranked = _load_metadata_ranked(film, query.text, top_k * 4) if mode == "hybrid" else []
+
     with timed("find.text") as t:
         df = search_hybrid(
             index,
@@ -156,6 +159,7 @@ def find(
             sem_w=weights.sem_w,
             bm25_w=weights.bm25_w,
             rrf_k=weights.rrf_k,
+            metadata_ranked=metadata_ranked,
         )
     result = _df_to_result(
         df,
@@ -176,6 +180,41 @@ def find(
     return result
 
 
+def _load_metadata_ranked(film: Any, query_text: str, limit: int) -> list[tuple[int, float]]:
+    """Rank this film's scenes by exact lexical metadata match, best first.
+
+    Gives single-film search the tags / descriptions / detected-objects signal
+    that cross-film ``aggregate`` already had. The scorer is deliberately
+    short-query-only (it returns ``{}`` above four tokens), so on a long
+    natural-language query this is an empty list and fusion stays two-way.
+
+    ``limit`` truncates the list the same way ``aggregate._score_film`` caps its
+    own metadata list at ``raw_k`` — fusion is rank-based, so an unbounded tail
+    of weak matches would otherwise contribute ranks the cross-film path does
+    not have.
+
+    Returns ``[]`` for a film with no ``metadata_dir``, which is what the
+    duck-typed test doubles pass.
+    """
+    metadata_dir = getattr(film, "metadata_dir", None)
+    if metadata_dir is None:
+        return []
+    from kuaa.annotations.descriptions import load_canonical_descriptions
+    from kuaa.library import frame_to_scene_index, load_json, load_tag_index
+    from kuaa.search._aggregate.scorers import MetadataScorer
+
+    kf_meta = load_json(metadata_dir / "keyframes_metadata.json") or []
+    visual_rows = load_json(metadata_dir / "visual_analysis.json") or []
+    scores = MetadataScorer().score(
+        query=query_text,
+        descriptions=load_canonical_descriptions(metadata_dir),
+        tag_index=load_tag_index(metadata_dir) or {},
+        visual_rows=visual_rows if isinstance(visual_rows, list) else [],
+        frame_to_scene=frame_to_scene_index(kf_meta if isinstance(kf_meta, list) else []),
+    )
+    return sorted(scores.items(), key=lambda pair: pair[1], reverse=True)[:limit]
+
+
 def _attach_descriptions(result: SearchResult, film: Any) -> SearchResult:
     """Fill empty ``Hit.description`` from the film's ``scene_descriptions.json``.
 
@@ -184,26 +223,26 @@ def _attach_descriptions(result: SearchResult, film: Any) -> SearchResult:
     The cross-encoder reranker scores ``(query, description)`` pairs — without
     this it would score against ``""`` and produce a meaningless reordering
     (this is exactly what confounded the WS-4 rerank ablation). Loaded lazily
-    and only when reranking; keyed by ``scene_id`` (first row wins). A missing
+    and only when reranking, via the shared canonical loader so the reranker
+    scores the same text BM25 indexed and the Scenes tab displays. A missing
     ``metadata_dir`` or file leaves descriptions untouched, so callers that
     already populated them keep working unchanged.
     """
     metadata_dir = getattr(film, "metadata_dir", None)
     if metadata_dir is None or not result.hits:
         return result
-    from kuaa.library import load_json
+    from kuaa.annotations.descriptions import load_canonical_descriptions
 
-    raw = load_json(metadata_dir / "scene_descriptions.json") or []
-    if not isinstance(raw, list):
-        return result
     by_scene: dict[int, str] = {}
-    for entry in raw:
-        try:
-            sid = int(entry.get("scene_id"))
-        except (AttributeError, TypeError, ValueError):
+    for entry in load_canonical_descriptions(metadata_dir):
+        raw_sid = entry.get("scene_id")
+        if raw_sid is None:
             continue
-        if sid not in by_scene:
-            by_scene[sid] = str(entry.get("description") or "")
+        try:
+            sid = int(raw_sid)
+        except (TypeError, ValueError):
+            continue
+        by_scene[sid] = str(entry.get("description") or "")
     hits = [
         (
             replace(h, description=by_scene[h.scene_id])

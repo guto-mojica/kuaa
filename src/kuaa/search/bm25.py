@@ -43,6 +43,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from kuaa.annotations.descriptions import load_canonical_descriptions
 from kuaa.library.metadata import load_tag_index
 from kuaa.retrieval.bm25 import BM25Index
 from kuaa.retrieval.tokenize import get_tokenizer
@@ -106,14 +107,16 @@ def _cached_bm25_index(
     normalisation across both tag files within the search package).
     """
     md = Path(metadata_dir)
-    descriptions_path = md / "scene_descriptions.json"
-    descriptions: list[dict] = []
-    if descriptions_path.exists():
-        try:
-            data = json.loads(descriptions_path.read_text())
-            descriptions = data if isinstance(data, list) else []
-        except json.JSONDecodeError:
-            logger.warning("BM25: malformed %s; using empty descriptions", descriptions_path)
+    # One canonical record per scene. Indexing the raw rows would key the
+    # corpus by whichever of the scene's N keyframe captions came last in the
+    # file, discarding the rest.
+    try:
+        descriptions = load_canonical_descriptions(md)
+    except json.JSONDecodeError:
+        logger.warning(
+            "BM25: malformed %s; using empty descriptions", md / "scene_descriptions.json"
+        )
+        descriptions = []
 
     # Merged LLM ⊕ manual tag index (raw, un-normalised) — the same
     # shape the old api.services.catalog.load_tag_index produced.

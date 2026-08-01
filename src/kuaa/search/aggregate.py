@@ -32,10 +32,12 @@ from typing import Any
 
 import numpy as np
 
+from kuaa.annotations.descriptions import load_canonical_descriptions
 from kuaa.config import Settings
 from kuaa.library import (
     FilmContext,
     derive_fps,
+    frame_to_scene_index,
     load_json,
     load_tag_index,
 )
@@ -180,6 +182,7 @@ class _FilmArtifacts:
     descriptions: list[dict[str, Any]]
     tag_index: dict[str, Any]
     visual_rows: list[dict[str, Any]]
+    frame_to_scene: dict[str, Any]
 
 
 def _load_film_artifacts(ctx: FilmContext) -> _FilmArtifacts:
@@ -190,14 +193,14 @@ def _load_film_artifacts(ctx: FilmContext) -> _FilmArtifacts:
     """
     kf_meta_data = load_json(ctx.metadata_dir / "keyframes_metadata.json") or []
     kf_meta = kf_meta_data if isinstance(kf_meta_data, list) else []
-    descriptions_data = load_json(ctx.metadata_dir / "scene_descriptions.json") or []
     visual_data = load_json(ctx.metadata_dir / "visual_analysis.json") or []
     return _FilmArtifacts(
         fps=derive_fps(kf_meta),
         meta_by_scene={e["scene_id"]: e for e in kf_meta if "scene_id" in e},
-        descriptions=descriptions_data if isinstance(descriptions_data, list) else [],
+        descriptions=load_canonical_descriptions(ctx.metadata_dir),
         tag_index=load_tag_index(ctx.metadata_dir) or {},
         visual_rows=visual_data if isinstance(visual_data, list) else [],
+        frame_to_scene=frame_to_scene_index(kf_meta),
     )
 
 
@@ -280,6 +283,7 @@ def _score_film(sctx: _ScoringContext, cand: CandidateFilm, film: Any) -> _FilmS
             descriptions=art.descriptions,
             tag_index=art.tag_index,
             visual_rows=art.visual_rows,
+            frame_to_scene=art.frame_to_scene,
         )
         if sctx.retriever_mode == "hybrid"
         else {}

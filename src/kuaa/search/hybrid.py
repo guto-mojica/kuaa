@@ -36,6 +36,7 @@ import pandas as pd
 
 from kuaa.config import Settings
 from kuaa.retrieval.hybrid import DEFAULT_RRF_K, fuse_rrf, resolve_weights
+from kuaa.search._aggregate.fusion import fuse_global_rrf
 from kuaa.search.cache import SearchIndex
 from kuaa.search.clip import search_text
 
@@ -91,6 +92,7 @@ def search_hybrid(
     sem_w: float,
     bm25_w: float,
     rrf_k: int = DEFAULT_RRF_K,
+    metadata_ranked: list[tuple[int, float]] | None = None,
 ) -> pd.DataFrame:
     """Dispatch text search across one of three retrieval pipelines.
 
@@ -105,6 +107,12 @@ def search_hybrid(
             ``"clip"`` and BM25 wasn't loaded (cheap skip).
         retriever_mode: one of ``"clip" | "bm25" | "hybrid"``.
         sem_w, bm25_w: only consulted in ``"hybrid"`` mode.
+        metadata_ranked: optional ``[(scene_id, score)]`` lexical
+            metadata ranking (tags / descriptions / detected objects). When
+            supplied and non-empty in ``"hybrid"`` mode it joins the fusion as
+            a third list, matching how cross-film ``aggregate`` already ranks.
+            Omitting it (the default) keeps the two-way fusion byte-identical
+            for every existing caller.
         min_similarity: cosine floor for the CLIP path. Applied only on
             ``"clip"`` mode and on the CLIP side of ``"hybrid"`` (where
             it pre-filters before RRF). Not applied on ``"bm25"`` mode —
@@ -162,7 +170,23 @@ def search_hybrid(
     )
     bm25_hits = bm25.query(query, top_k=raw_k)
 
-    fused = fuse_rrf(clip_ranked, bm25_hits, sem_w=sem_w, bm25_w=bm25_w, k_rrf=rrf_k)[:top_k]
+    if metadata_ranked:
+        # Same weighting the cross-film path uses: exact lexical metadata takes
+        # the majority share, and CLIP/BM25 split the remainder in the
+        # configured sem/bm25 proportion. See aggregate._dispatch_ranked.
+        metadata_w = 0.65
+        residual_w = 1.0 - metadata_w
+        retrieval_total = max(float(sem_w) + float(bm25_w), 1e-12)
+        fused = fuse_global_rrf(
+            [
+                (metadata_ranked, metadata_w),
+                (clip_ranked, residual_w * float(sem_w) / retrieval_total),
+                (bm25_hits, residual_w * float(bm25_w) / retrieval_total),
+            ],
+            k_rrf=rrf_k,
+        )[:top_k]
+    else:
+        fused = fuse_rrf(clip_ranked, bm25_hits, sem_w=sem_w, bm25_w=bm25_w, k_rrf=rrf_k)[:top_k]
 
     return _fused_to_dataframe(
         fused, clip_df, index, tags, tag_index, top_k, best_row_by_sid=best_row_by_sid
