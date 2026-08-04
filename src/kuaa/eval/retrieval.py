@@ -4,9 +4,12 @@ Supports three retriever modes:
 
   * ``clip`` — the original semantic search via ``SemanticSearch.by_text``.
   * ``bm25`` — pure BM25 over Moondream descriptions + merged tag index.
-  * ``hybrid`` — weighted RRF fusion of the above (mirrors ``search_hybrid``
-    in ``api/services/search.py``). Defaults to the same RRF constant the
-    web UI uses (``kuaa.retrieval.hybrid.DEFAULT_RRF_K``).
+  * ``hybrid`` — the SHIPPED 3-way fusion: CLIP + BM25 + the exact-lexical
+    metadata list, with the same arithmetic ``kuaa.search.hybrid.search_hybrid``
+    runs in production (metadata takes ``metadata_w``; CLIP/BM25 split the
+    residual). ``metadata_w=0.0`` collapses it to the plain 2-way sem/bm25
+    RRF — that is the ablation arm isolating the metadata signal's
+    contribution, not the shipped hybrid.
 
 The harness dedupes ranked output by ``scene_id`` keeping the first
 occurrence (= highest similarity / fused score) so every mode is compared
@@ -28,7 +31,12 @@ from kuaa.eval.datasets import EvaluationDataset
 from kuaa.eval.metrics import RetrievalResult, evaluate_query, summarize_results
 from kuaa.eval.slates import ModalQuery, generate_slate
 from kuaa.reproducibility import seed_everything
-from kuaa.retrieval.hybrid import DEFAULT_RRF_K, fuse_rrf, resolve_weights
+from kuaa.retrieval.hybrid import (
+    DEFAULT_RRF_K,
+    fuse_rrf,
+    resolve_metadata_w,
+    resolve_weights,
+)
 from kuaa.scene_ids import scene_id_key
 
 logger = logging.getLogger(__name__)
@@ -322,13 +330,36 @@ def _hybrid_rank(
     sem_w: float,
     bm25_w: float,
     k_rrf: int,
+    metadata_ranked: list[tuple[int, float]] | None = None,
+    metadata_w: float = 0.0,
 ) -> list[dict[str, Any]]:
-    """RRF fusion of CLIP + BM25, then scene-deduped."""
+    """RRF fusion of CLIP + BM25 (+ the metadata list), then scene-deduped.
+
+    When ``metadata_ranked`` is non-empty and ``metadata_w > 0`` the fusion is
+    the production 3-way arithmetic (verbatim from
+    ``kuaa.search.hybrid.search_hybrid``): metadata takes ``metadata_w`` and
+    CLIP/BM25 split the residual by their normalised weights. Otherwise the
+    plain 2-way sem/bm25 RRF — the ablation arm, not the shipped hybrid.
+    """
     clip_rows = _clip_rank(searcher, kf_df, query_text, raw_k=raw_k)
     bm25_hits = bm25.query(query_text, top_k=raw_k) if bm25.model is not None else []
 
     clip_pairs = [(int(r["scene_id"]), float(r["similarity"])) for r in clip_rows]
-    fused = fuse_rrf(clip_pairs, bm25_hits, sem_w=sem_w, bm25_w=bm25_w, k_rrf=k_rrf)
+    if metadata_ranked and metadata_w > 0:
+        from kuaa.search._aggregate.fusion import fuse_global_rrf
+
+        residual_w = 1.0 - metadata_w
+        retrieval_total = max(float(sem_w) + float(bm25_w), 1e-12)
+        fused = fuse_global_rrf(
+            [
+                (metadata_ranked, metadata_w),
+                (clip_pairs, residual_w * float(sem_w) / retrieval_total),
+                (bm25_hits, residual_w * float(bm25_w) / retrieval_total),
+            ],
+            k_rrf=k_rrf,
+        )
+    else:
+        fused = fuse_rrf(clip_pairs, bm25_hits, sem_w=sem_w, bm25_w=bm25_w, k_rrf=k_rrf)
 
     # Build a sid -> clip_row lookup so fused rows inherit filepath when CLIP
     # surfaced them; otherwise fall back to first-keyframe per sid.
@@ -365,6 +396,7 @@ def run_retrieval_eval(
     sem_w: float = 0.5,
     bm25_w: float = 0.5,
     k_rrf: int = DEFAULT_RRF_K,
+    metadata_w: float | None = None,
     seed: int = 0,
 ) -> RetrievalRun:
     """Evaluate text queries against one of three retrievers.
@@ -375,6 +407,10 @@ def run_retrieval_eval(
             Clamped to ``[0, 1]``; if both are 0, falls back to (0.5, 0.5).
         k_rrf: Reciprocal Rank Fusion rank-shift constant. Defaults to
             ``kuaa.retrieval.hybrid.DEFAULT_RRF_K`` (60).
+        metadata_w: hybrid-only — the exact-lexical metadata list's fusion
+            share. ``None`` (default) resolves ``cfg.search.hybrid_metadata_w``
+            so the ``hybrid`` row measures the SHIPPED 3-way fusion; ``0.0``
+            disables the leg (the 2-way ablation arm).
     """
 
     if top_k < 1:
@@ -419,6 +455,9 @@ def run_retrieval_eval(
 
     if retriever == "hybrid":
         sem_w, bm25_w = resolve_weights(sem_w=sem_w, bm25_w=bm25_w, defaults=(0.5, 0.5))
+        if metadata_w is None:
+            metadata_w = resolve_metadata_w(cfg)
+        metadata_w = min(max(float(metadata_w), 0.0), 1.0)
 
     # Pull a wider candidate set than top_k so post-dedup we still have
     # `top_k` distinct scenes (mirrors `search_text` 4× widening).
@@ -440,12 +479,25 @@ def run_retrieval_eval(
             )
         else:
             assert searcher is not None and kf_df is not None
+            # Same third list production passes (kuaa.search.hybrid) — built
+            # per query off the film's metadata dir; empty above four tokens.
+            metadata_ranked: list[tuple[int, float]] = []
+            if metadata_w:
+                from types import SimpleNamespace
+
+                from kuaa.search.hybrid import load_metadata_ranked
+
+                metadata_ranked = load_metadata_ranked(
+                    SimpleNamespace(metadata_dir=metadata_dir), query.text, raw_k
+                )
             ranked_rows = _hybrid_rank(
                 searcher,
                 bm25,
                 kf_df,
                 query.text,
                 raw_k=raw_k,
+                metadata_ranked=metadata_ranked,
+                metadata_w=float(metadata_w or 0.0),
                 sem_w=sem_w,
                 bm25_w=bm25_w,
                 k_rrf=k_rrf,
@@ -487,6 +539,7 @@ def run_retrieval_eval(
         context["sem_w"] = sem_w
         context["bm25_w"] = bm25_w
         context["k_rrf"] = k_rrf
+        context["metadata_w"] = float(metadata_w or 0.0)
 
     return RetrievalRun(
         dataset=dataset,

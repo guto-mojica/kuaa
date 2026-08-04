@@ -112,6 +112,10 @@ search:
   # retriever=hybrid.
   hybrid_sem_w: 0.70
   hybrid_bm25_w: 0.30
+  # Weight of the exact-lexical metadata list (tags / descriptions / detected
+  # objects) when it joins hybrid fusion as a third list; CLIP/BM25 split the
+  # 1-x residual by their normalised sem/bm25 weights. 0.0 disables the leg.
+  hybrid_metadata_w: 0.65
   hybrid_enabled: true        # M2 default (Plan 4 of 8) — was: false
   bm25:
     k1: 1.5                    # BM25 saturation

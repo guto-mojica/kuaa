@@ -41,7 +41,7 @@ from kuaa.library import (
     load_json,
     load_tag_index,
 )
-from kuaa.retrieval.hybrid import DEFAULT_RRF_K
+from kuaa.retrieval.hybrid import DEFAULT_METADATA_W, DEFAULT_RRF_K, resolve_metadata_w
 from kuaa.scene_ids import normalize_tag_index, scene_id_key
 from kuaa.search._aggregate.film_filter import CandidateFilm, FilmFilter
 from kuaa.search._aggregate.fusion import fuse_global_rrf as _fuse_rrf_many
@@ -348,14 +348,16 @@ def _dispatch_ranked(
     sem_w: float,
     bm25_w: float,
     rrf_k: int,
+    metadata_w: float = DEFAULT_METADATA_W,
 ) -> _GlobalList:
     """Build the unified ``ranked`` list from the three global lists (Phase 3).
 
     ``"clip"`` / ``"bm25"`` surface their global list as-is. ``"hybrid"``
-    fuses via weighted RRF: when a metadata signal exists it carries a fixed
-    0.65 weight and the CLIP/BM25 residual is split by their normalised
-    sem/bm25 weights; otherwise it is the plain two-way sem/bm25 RRF. All
-    weighting arithmetic is verbatim from the pre-C1 Phase-3 dispatch.
+    fuses via weighted RRF: when a metadata signal exists it carries the
+    ``metadata_w`` share (``cfg.search.hybrid_metadata_w``, default 0.65) and
+    the CLIP/BM25 residual is split by their normalised sem/bm25 weights;
+    otherwise it is the plain two-way sem/bm25 RRF. All weighting arithmetic
+    is verbatim from the pre-C1 Phase-3 dispatch.
 
     Global RRF (over the cross-film-concatenated lists) is deliberate: the
     pre-decomposition implementation ran per-film RRF and then sorted across
@@ -369,8 +371,7 @@ def _dispatch_ranked(
     if retriever_mode == "bm25":
         return global_bm25
     # "hybrid"
-    if global_metadata:
-        metadata_w = 0.65
+    if global_metadata and metadata_w > 0:
         residual_w = 1.0 - metadata_w
         retrieval_total = max(float(sem_w) + float(bm25_w), 1e-12)
         return _fuse_rrf_many(
@@ -588,6 +589,7 @@ def aggregate_search(
         sem_w=sem_w,
         bm25_w=bm25_w,
         rrf_k=rrf_k,
+        metadata_w=resolve_metadata_w(cfg),
     )
 
     # Phase 4: materialise hit dicts. Keys are already unique

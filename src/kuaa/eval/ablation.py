@@ -17,15 +17,17 @@ structurally-zero rhyme row blended into the average.
 
 Rows:
 
-================  ==========================================================  =====
-row               how                                                         proxy
-================  ==========================================================  =====
-``CLIP``          :func:`run_retrieval_eval` (SigLIP2 default index)          HY
-``BM25``          :func:`run_retrieval_eval` ``retriever="bm25"``             HY
-``hybrid``        :func:`run_retrieval_eval` ``retriever="hybrid"``           HY
-``hybrid+rerank`` production ``find(mode="hybrid", rerank=...)`` ± C5         HY
-``multilingual``  C8: OpenCLIP index vs the SigLIP2 ``CLIP`` row              HY
-================  ==========================================================  =====
+===================  ==========================================================  =====
+row                  how                                                         proxy
+===================  ==========================================================  =====
+``CLIP``             :func:`run_retrieval_eval` (SigLIP2 default index)          HY
+``BM25``             :func:`run_retrieval_eval` ``retriever="bm25"``             HY
+``hybrid``           :func:`run_retrieval_eval` ``retriever="hybrid"`` — the     HY
+                     SHIPPED 3-way fusion (CLIP + BM25 + metadata leg)
+``hybrid-metadata``  same, ``metadata_w=0.0`` — isolates the metadata signal     HY
+``hybrid+rerank``    production ``find(mode="hybrid", rerank=...)`` ± C5         HY
+``multilingual``     C8: OpenCLIP index vs the SigLIP2 ``CLIP`` row              HY
+===================  ==========================================================  =====
 
 The reranker only scores **text** queries (it reads ``query.text``), which is
 the common set, so the rerank delta is well-defined. The rerank row uses the
@@ -97,6 +99,11 @@ class AblationRowConfig:
         rerank: when ``True`` the row applies the C5 cross-encoder on top of a
             ``find``-based hybrid base (only meaningful with
             ``retriever == "hybrid"``).
+        metadata_w: hybrid-only — the exact-lexical metadata list's fusion
+            share, forwarded to :func:`run_retrieval_eval`. ``None`` (default)
+            resolves ``cfg.search.hybrid_metadata_w`` so the ``hybrid`` row
+            measures the shipped 3-way fusion; ``0.0`` disables the leg (the
+            signal-level ablation arm).
         pending_reason: when set, the row is rendered ``pending (<reason>)`` and
             :func:`run_ablation` does not attempt to compute it. Used for a row
             whose backend is not wired (e.g. ``"C5"`` / ``"C8"``).
@@ -106,6 +113,7 @@ class AblationRowConfig:
     retriever: str
     proxy: str = "HY"
     rerank: bool = False
+    metadata_w: float | None = None
     pending_reason: str | None = None
 
 
@@ -198,11 +206,15 @@ class AblationTable:
 # Default row configs.
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Full set (rerank row REAL — uses production find ± C5).
+# Full set (rerank row REAL — uses production find ± C5). The ``hybrid`` row
+# measures the SHIPPED 3-way fusion (metadata_w=None → cfg default);
+# ``hybrid-metadata`` is identical except the metadata leg is off, so the
+# delta between the two isolates the signal's contribution.
 DEFAULT_ABLATION_CONFIGS: tuple[AblationRowConfig, ...] = (
     AblationRowConfig(name="CLIP", retriever="clip", proxy="HY"),
     AblationRowConfig(name="BM25", retriever="bm25", proxy="HY"),
     AblationRowConfig(name="hybrid", retriever="hybrid", proxy="HY"),
+    AblationRowConfig(name="hybrid-metadata", retriever="hybrid", proxy="HY", metadata_w=0.0),
     AblationRowConfig(name="hybrid+rerank", retriever="hybrid", proxy="HY", rerank=True),
     AblationRowConfig(name="multilingual", retriever="multilingual", proxy="HY"),
 )
@@ -214,6 +226,7 @@ DEFAULT_ABLATION_CONFIGS_NO_RERANK: tuple[AblationRowConfig, ...] = (
     AblationRowConfig(name="CLIP", retriever="clip", proxy="HY"),
     AblationRowConfig(name="BM25", retriever="bm25", proxy="HY"),
     AblationRowConfig(name="hybrid", retriever="hybrid", proxy="HY"),
+    AblationRowConfig(name="hybrid-metadata", retriever="hybrid", proxy="HY", metadata_w=0.0),
     AblationRowConfig(
         name="hybrid+rerank", retriever="hybrid", proxy="HY", rerank=True, pending_reason="C5"
     ),
@@ -222,6 +235,11 @@ DEFAULT_ABLATION_CONFIGS_NO_RERANK: tuple[AblationRowConfig, ...] = (
 
 # Footnotes attached to the rendered table when the matching row is present.
 _ROW_FOOTNOTES: dict[str, str] = {
+    "hybrid-metadata": (
+        "Identical to `hybrid` except the exact-lexical metadata leg "
+        "(tags / descriptions / detected objects) is disabled (`metadata_w=0`) — "
+        "the delta to the `hybrid` row isolates that signal's contribution."
+    ),
     "hybrid+rerank": (
         'Rerank delta is measured on the production `find(mode="hybrid")` base '
         "(± the C5 bge-reranker-v2-m3 cross-encoder), which is a different hybrid "
@@ -395,12 +413,15 @@ def _run_text_retriever_row(
     library_dir: Path,
     slug: str,
     retriever: str,
+    metadata_w: float | None = None,
     seed: int,
 ) -> dict[str, float | int]:
     """CLIP / BM25 / hybrid / multilingual row via :func:`run_retrieval_eval`.
 
     ``multilingual`` switches the cfg to the OpenCLIP index + text encoder; the
-    others use the configured (SigLIP2) default. Returns the ``RetrievalRun``
+    others use the configured (SigLIP2) default. ``metadata_w`` (hybrid rows
+    only) forwards the row's metadata-leg share — ``None`` = shipped default,
+    ``0.0`` = the signal-level ablation arm. Returns the ``RetrievalRun``
     metrics dict.
     """
     if retriever == "multilingual":
@@ -415,6 +436,7 @@ def _run_text_retriever_row(
         config_path=None,
         top_k=10,
         retriever=effective,
+        metadata_w=metadata_w,
         seed=seed,
     )
     return run.metrics
@@ -572,6 +594,7 @@ def run_ablation(
                 retriever=row_cfg.retriever,
                 proxy=row_cfg.proxy,
                 rerank=row_cfg.rerank,
+                metadata_w=row_cfg.metadata_w,
                 pending_reason=reason,
             )
             rows.append((failed, None))
@@ -600,7 +623,13 @@ def _dispatch_row(
         return _run_rerank_row(cfg, dataset, library_dir=library_dir, slug=slug, seed=seed)
     if retriever in ("clip", "bm25", "hybrid", "multilingual"):
         return _run_text_retriever_row(
-            cfg, dataset, library_dir=library_dir, slug=slug, retriever=retriever, seed=seed
+            cfg,
+            dataset,
+            library_dir=library_dir,
+            slug=slug,
+            retriever=retriever,
+            metadata_w=row_cfg.metadata_w,
+            seed=seed,
         )
     raise EvalError(f"unknown ablation retriever {retriever!r}")
 

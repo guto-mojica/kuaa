@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, cast
 from api.contexts import SearchContext
 from api.services.catalog import keyframe_url  # noqa: F401  — used by routes
 from kuaa.library import FilmContext
+from kuaa.retrieval.hybrid import resolve_metadata_w
 
 # Cross-encoder rerank verb (Task 3.1). Aliased so tests can monkeypatch
 # ``api.services.search.search_rerank`` without bypassing the wrapper.
@@ -214,9 +215,6 @@ def dispatch_text_search(
         result_df = search_text(index, q, tags, tag_index, top_k, min_sim)
     else:
         bm25 = _get_bm25_index_for_ctx(ctx)
-        # Same third fusion list ``find()`` passes (``raw_k`` = 4x widening) —
-        # without it this route silently ran 2-way fusion while the public
-        # verb ran 3-way, and the same query ranked differently per route.
         metadata_ranked = load_metadata_ranked(ctx, q, top_k * 4) if retriever == "hybrid" else []
         result_df = search_hybrid(
             index,
@@ -231,6 +229,7 @@ def dispatch_text_search(
             bm25_w=bw,
             rrf_k=rrf_k,
             metadata_ranked=metadata_ranked,
+            metadata_w=resolve_metadata_w(cfg),
         )
 
     return result_df, False

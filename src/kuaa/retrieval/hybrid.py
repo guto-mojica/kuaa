@@ -17,6 +17,29 @@ from collections.abc import Iterable
 # Public so tests can pin the constant.
 DEFAULT_RRF_K: int = 60
 
+# Majority share of the exact-lexical metadata list in 3-way hybrid fusion
+# (tags / descriptions / detected objects vs the CLIP+BM25 residual). The
+# single source of truth — ``cfg.search.hybrid_metadata_w`` defaults to it,
+# and ``search_hybrid`` / ``aggregate._dispatch_ranked`` / the eval harness
+# all resolve through it.
+DEFAULT_METADATA_W: float = 0.65
+
+
+def resolve_metadata_w(cfg: object | None) -> float:
+    """Resolve the metadata fusion share from ``cfg.search.hybrid_metadata_w``.
+
+    Duck-typed so unit-test configs without a ``search`` section (and callers
+    with ``cfg=None``) fall back to :data:`DEFAULT_METADATA_W`. Clamped to
+    ``[0, 1]``; ``0.0`` disables the metadata leg entirely.
+    """
+    search = getattr(cfg, "search", None)
+    raw = getattr(search, "hybrid_metadata_w", DEFAULT_METADATA_W)
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return DEFAULT_METADATA_W
+    return min(max(value, 0.0), 1.0)
+
 
 def fuse_rrf(
     list_a: Iterable[tuple[int, float]],

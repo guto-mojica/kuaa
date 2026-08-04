@@ -35,7 +35,12 @@ import numpy as np
 import pandas as pd
 
 from kuaa.config import Settings
-from kuaa.retrieval.hybrid import DEFAULT_RRF_K, fuse_rrf, resolve_weights
+from kuaa.retrieval.hybrid import (
+    DEFAULT_METADATA_W,
+    DEFAULT_RRF_K,
+    fuse_rrf,
+    resolve_weights,
+)
 from kuaa.search._aggregate.fusion import fuse_global_rrf
 from kuaa.search.cache import SearchIndex
 from kuaa.search.clip import search_text
@@ -93,6 +98,7 @@ def search_hybrid(
     bm25_w: float,
     rrf_k: int = DEFAULT_RRF_K,
     metadata_ranked: list[tuple[int, float]] | None = None,
+    metadata_w: float = DEFAULT_METADATA_W,
 ) -> pd.DataFrame:
     """Dispatch text search across one of three retrieval pipelines.
 
@@ -113,6 +119,10 @@ def search_hybrid(
             a third list, matching how cross-film ``aggregate`` already ranks.
             Omitting it (the default) keeps the two-way fusion byte-identical
             for every existing caller.
+        metadata_w: the metadata list's fusion share (``cfg.search.
+            hybrid_metadata_w``); CLIP/BM25 split the ``1-x`` residual by
+            their normalised sem/bm25 weights. ``0.0`` disables the leg even
+            when ``metadata_ranked`` is supplied.
         min_similarity: cosine floor for the CLIP path. Applied only on
             ``"clip"`` mode and on the CLIP side of ``"hybrid"`` (where
             it pre-filters before RRF). Not applied on ``"bm25"`` mode —
@@ -170,11 +180,10 @@ def search_hybrid(
     )
     bm25_hits = bm25.query(query, top_k=raw_k)
 
-    if metadata_ranked:
+    if metadata_ranked and metadata_w > 0:
         # Same weighting the cross-film path uses: exact lexical metadata takes
         # the majority share, and CLIP/BM25 split the remainder in the
         # configured sem/bm25 proportion. See aggregate._dispatch_ranked.
-        metadata_w = 0.65
         residual_w = 1.0 - metadata_w
         retrieval_total = max(float(sem_w) + float(bm25_w), 1e-12)
         fused = fuse_global_rrf(

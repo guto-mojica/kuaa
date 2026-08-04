@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -190,3 +191,48 @@ def test_run_ablation_produces_real_proxy_numbers() -> None:
     md = table.to_markdown()
     assert "Jeca Tatu" in md
     assert "pending (" in md  # the rerank (and/or any unwired) row
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Signal-level ablation plumbing — hermetic (no retrieval).
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def test_default_configs_carry_the_metadata_ablation_arm() -> None:
+    """Both default row sets pair the shipped ``hybrid`` row (metadata_w=None →
+    cfg default) with a ``hybrid-metadata`` arm (metadata_w=0.0) so the delta
+    isolates the metadata signal."""
+    from kuaa.eval.ablation import (
+        DEFAULT_ABLATION_CONFIGS,
+        DEFAULT_ABLATION_CONFIGS_NO_RERANK,
+    )
+
+    for configs in (DEFAULT_ABLATION_CONFIGS, DEFAULT_ABLATION_CONFIGS_NO_RERANK):
+        by_name = {c.name: c for c in configs}
+        assert by_name["hybrid"].metadata_w is None
+        assert by_name["hybrid-metadata"].metadata_w == 0.0
+        assert by_name["hybrid-metadata"].retriever == "hybrid"
+
+
+def test_dispatch_row_forwards_metadata_w(monkeypatch, tmp_path: Path) -> None:
+    """``_dispatch_row`` forwards the row's ``metadata_w`` into
+    ``run_retrieval_eval`` for both the shipped and the ablated hybrid rows."""
+    import kuaa.eval.ablation as ablation_mod
+    from kuaa.eval.ablation import _dispatch_row
+
+    seen: list[float | None] = []
+
+    def _fake_run(cfg, dataset, *, config_path, top_k, retriever, metadata_w, seed):
+        seen.append(metadata_w)
+        return SimpleNamespace(metrics={"recall_at_5": 1.0})
+
+    monkeypatch.setattr(ablation_mod, "run_retrieval_eval", _fake_run)
+    monkeypatch.setattr(ablation_mod, "_scope_cfg_to_film", lambda cfg, lib, slug: cfg)
+
+    for row in (
+        AblationRowConfig(name="hybrid", retriever="hybrid"),
+        AblationRowConfig(name="hybrid-metadata", retriever="hybrid", metadata_w=0.0),
+    ):
+        _dispatch_row(None, None, row, library_dir=tmp_path, slug="x", seed=0)
+
+    assert seen == [None, 0.0]

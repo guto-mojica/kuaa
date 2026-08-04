@@ -23,6 +23,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from kuaa.retrieval.hybrid import DEFAULT_METADATA_W
+
 
 class _Section(BaseModel):
     """Base for every config section: reject unknown keys, allow dot-access.
@@ -152,6 +154,9 @@ class SearchCfg(_Section):
     top_k_default: int = 9
     hybrid_sem_w: float = 0.70
     hybrid_bm25_w: float = 0.30
+    # Weight of the exact-lexical metadata list in 3-way hybrid fusion;
+    # CLIP/BM25 split the 1-x residual by their normalised sem/bm25 weights.
+    hybrid_metadata_w: float = DEFAULT_METADATA_W
     hybrid_enabled: bool = True
     bm25: Bm25Cfg
     rerank_enabled: bool = False

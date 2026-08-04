@@ -35,6 +35,7 @@ from dataclasses import replace
 from typing import Any
 
 from kuaa.config import Settings
+from kuaa.retrieval.hybrid import resolve_metadata_w
 from kuaa.search.cache import load_index
 from kuaa.search.clip import search_image
 from kuaa.search.hybrid import load_metadata_ranked, search_hybrid
@@ -160,6 +161,7 @@ def find(
             bm25_w=weights.bm25_w,
             rrf_k=weights.rrf_k,
             metadata_ranked=metadata_ranked,
+            metadata_w=resolve_metadata_w(cfg),
         )
     result = _df_to_result(
         df,
