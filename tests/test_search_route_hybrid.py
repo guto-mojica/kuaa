@@ -174,10 +174,15 @@ def test_search_route_bm25_uses_real_description_corpus(indexed_search_client) -
 
 
 def test_search_route_hybrid_with_weights_changes_result_order(indexed_search_client) -> None:
+    """The query is deliberately >4 tokens: the lexical metadata leg is
+    short-query-only, so a long query keeps fusion two-way and the pin stays
+    about sem_w/bm25_w flowing through. (A short query like ``menina`` now
+    surfaces the lexical winner regardless of weights — parity with ``find()``.)
+    """
     resp = indexed_search_client.get(
         "/api/search",
         params={
-            "q": "menina",
+            "q": "menina sozinha perto de uma janela",
             "retriever": "hybrid",
             "sem_w": 1.0,
             "bm25_w": 0.0,
@@ -210,12 +215,16 @@ def test_search_route_unknown_retriever_falls_back_to_default(client, caplog) ->
 
 
 def test_search_route_clamps_out_of_range_weights(indexed_search_client, caplog) -> None:
-    """``sem_w=2`` and ``bm25_w=-0.5`` get clamped to ``(1.0, 0.0)`` (still valid)."""
+    """``sem_w=2`` and ``bm25_w=-0.5`` get clamped to ``(1.0, 0.0)`` (still valid).
+
+    Long query for the same reason as the weights test above — keep the
+    short-query-only metadata leg out so the clamped weights decide top-1.
+    """
     with caplog.at_level(logging.INFO, logger="api.routes.search"):
         resp = indexed_search_client.get(
             "/api/search",
             params={
-                "q": "menina",
+                "q": "menina sozinha perto de uma janela",
                 "retriever": "hybrid",
                 "sem_w": 2.0,
                 "bm25_w": -0.5,

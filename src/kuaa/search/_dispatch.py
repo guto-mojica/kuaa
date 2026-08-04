@@ -37,7 +37,7 @@ from typing import Any
 from kuaa.config import Settings
 from kuaa.search.cache import load_index
 from kuaa.search.clip import search_image
-from kuaa.search.hybrid import search_hybrid
+from kuaa.search.hybrid import load_metadata_ranked, search_hybrid
 from kuaa.search.rerank import rerank as _rerank
 from kuaa.search.types import (
     Filters,
@@ -144,7 +144,7 @@ def find(
     )
 
     # ``raw_k`` mirrors search_hybrid's own 4x keyframe-density widening.
-    metadata_ranked = _load_metadata_ranked(film, query.text, top_k * 4) if mode == "hybrid" else []
+    metadata_ranked = load_metadata_ranked(film, query.text, top_k * 4) if mode == "hybrid" else []
 
     with timed("find.text") as t:
         df = search_hybrid(
@@ -178,41 +178,6 @@ def find(
         result = _attach_descriptions(result, film)
         result = _rerank(result, model=rerank_model)
     return result
-
-
-def _load_metadata_ranked(film: Any, query_text: str, limit: int) -> list[tuple[int, float]]:
-    """Rank this film's scenes by exact lexical metadata match, best first.
-
-    Gives single-film search the tags / descriptions / detected-objects signal
-    that cross-film ``aggregate`` already had. The scorer is deliberately
-    short-query-only (it returns ``{}`` above four tokens), so on a long
-    natural-language query this is an empty list and fusion stays two-way.
-
-    ``limit`` truncates the list the same way ``aggregate._score_film`` caps its
-    own metadata list at ``raw_k`` — fusion is rank-based, so an unbounded tail
-    of weak matches would otherwise contribute ranks the cross-film path does
-    not have.
-
-    Returns ``[]`` for a film with no ``metadata_dir``, which is what the
-    duck-typed test doubles pass.
-    """
-    metadata_dir = getattr(film, "metadata_dir", None)
-    if metadata_dir is None:
-        return []
-    from kuaa.annotations.descriptions import load_canonical_descriptions
-    from kuaa.library import frame_to_scene_index, load_json, load_tag_index
-    from kuaa.search._aggregate.scorers import MetadataScorer
-
-    kf_meta = load_json(metadata_dir / "keyframes_metadata.json") or []
-    visual_rows = load_json(metadata_dir / "visual_analysis.json") or []
-    scores = MetadataScorer().score(
-        query=query_text,
-        descriptions=load_canonical_descriptions(metadata_dir),
-        tag_index=load_tag_index(metadata_dir) or {},
-        visual_rows=visual_rows if isinstance(visual_rows, list) else [],
-        frame_to_scene=frame_to_scene_index(kf_meta if isinstance(kf_meta, list) else []),
-    )
-    return sorted(scores.items(), key=lambda pair: pair[1], reverse=True)[:limit]
 
 
 def _attach_descriptions(result: SearchResult, film: Any) -> SearchResult:

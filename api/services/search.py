@@ -87,6 +87,7 @@ from kuaa.search.display import (
 # slim route imports HTTP-input normalisation from this layer rather
 # than reaching into ``kuaa.search.hybrid`` directly.
 from kuaa.search.hybrid import (  # noqa: F401
+    load_metadata_ranked,
     resolve_retriever_args,
     search_hybrid,
 )
@@ -213,6 +214,10 @@ def dispatch_text_search(
         result_df = search_text(index, q, tags, tag_index, top_k, min_sim)
     else:
         bm25 = _get_bm25_index_for_ctx(ctx)
+        # Same third fusion list ``find()`` passes (``raw_k`` = 4x widening) —
+        # without it this route silently ran 2-way fusion while the public
+        # verb ran 3-way, and the same query ranked differently per route.
+        metadata_ranked = load_metadata_ranked(ctx, q, top_k * 4) if retriever == "hybrid" else []
         result_df = search_hybrid(
             index,
             bm25=bm25,
@@ -225,6 +230,7 @@ def dispatch_text_search(
             sem_w=sw,
             bm25_w=bw,
             rrf_k=rrf_k,
+            metadata_ranked=metadata_ranked,
         )
 
     return result_df, False
