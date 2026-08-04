@@ -8,7 +8,10 @@ domain packs, limitations, next steps), see [`CASE_STUDY.md`](CASE_STUDY.md).
 
 - Local video processing pipeline:
   - FFmpeg/FFprobe video inspection,
-  - PySceneDetect scene detection and keyframe extraction (reads the video directly),
+  - pluggable frame-source backends behind a shared `FrameSource` Protocol:
+    PySceneDetect scene detection and keyframe extraction (reads the video
+    directly, default), or a folder of still images cataloged as
+    single-frame scenes,
   - visual analysis,
   - visual embeddings,
   - local Moondream 2 scene descriptions.
@@ -142,7 +145,18 @@ Implemented:
 - `archive` domain pack as the default; `media_broadcast` as the first
   adjacent industry pack, including its own eval query set
   (`data/eval/media_broadcast_queries.yaml`).
+- `generative` domain pack extends past film-archive vocabulary entirely,
+  pairing with the `FrameSource` seam (`directory_stills` backend) to
+  catalog generated-image corpora without pipeline changes.
 - Current archive demo preserved as the default domain.
+
+Future derivation (not implemented/evaluated):
+
+- An `underwater` domain pack draft (`config/domains/underwater.yaml`)
+  retunes prompts for ROV/inspection footage. It loads and passes schema
+  tests but has not been run end-to-end against real footage, has no eval
+  query set, and is not part of any launch surface — see
+  `docs/DOMAIN_PACKS.md`, "Future derivation: underwater/ROV".
 
 Remaining release tasks:
 

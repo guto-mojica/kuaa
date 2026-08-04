@@ -47,7 +47,11 @@ def process(
     video: Annotated[
         Path,
         typer.Argument(
-            exists=True, dir_okay=False, readable=True, help="Caminho do arquivo de vídeo."
+            exists=True,
+            dir_okay=True,
+            readable=True,
+            help="Caminho do arquivo de vídeo, ou de uma pasta de imagens "
+            "(requer models.frame_source: directory_stills na config).",
         ),
     ],
     slug: Annotated[
@@ -85,6 +89,15 @@ def process(
         enabled = resolve_steps(steps)
         for step in _STEP_FULL_NAMES:
             setattr(cfg.pipeline.steps, step, step in enabled)
+
+    if video.is_dir() and cfg.models.frame_source != "directory_stills":
+        typer.echo(
+            f"✗ Erro: '{video}' é uma pasta, mas models.frame_source está "
+            f"'{cfg.models.frame_source}'. Defina frame_source: directory_stills "
+            "na config para catalogar uma pasta de imagens.",
+            err=True,
+        )
+        raise typer.Exit(1)
 
     final_slug = slugify(slug) if slug else slugify(Path(video).stem)
 

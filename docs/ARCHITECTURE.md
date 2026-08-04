@@ -76,7 +76,9 @@ Processing modules:
 - `src/kuaa/data_prep.py`: FFprobe video inspection (`kuaa info`) and frame
   quality analysis.
 - `src/kuaa/scene_detector.py`: scene detection and keyframe extraction
-  (reads the video directly via PySceneDetect).
+  (reads the video directly via PySceneDetect). Wrapped by the
+  `video_scenedetect` frame-source backend rather than called directly by
+  the pipeline — see "Frame-source backend architecture" below.
 - `src/kuaa/visual_analyzer.py`: facade that composes injected visual backends.
 - `src/kuaa/embeddings.py`: visual embedding generation/search helpers.
 - `src/kuaa/annotations/`: manual annotation storage, scene assembly, and
@@ -129,6 +131,36 @@ roles instead of importing concrete model classes directly. That makes future
 ONNX, quantized, fine-tuned, or domain-specific backends possible without
 rewriting the orchestration layer. See `docs/PROTOCOL_OPTION.md` for the
 rationale behind this design.
+
+## Frame-source backend architecture
+
+The same registry pattern applies on the input side. Keyframe *production* —
+not just the model backends that consume keyframes — is a typed Protocol:
+`FrameSource` (`src/kuaa/models/base.py`) defines a single
+`produce(source, *, keyframes_dir, metadata_path, cuts_path) ->
+KeyframeManifest` method. Concrete backends live under
+`src/kuaa/models/frame_source/` and are selected by
+`kuaa.models.registry.get_frame_source()` via the `models.frame_source`
+config key.
+
+| Config value | Implementation | Source |
+|---|---|---|
+| `video_scenedetect` (default) | `src/kuaa/models/frame_source/video_scenedetect.py` | Video file; wraps `SceneDetector` byte-identically to the pre-seam inline pipeline step |
+| `directory_stills` | `src/kuaa/models/frame_source/directory_stills.py` | Folder of images; each becomes a synthetic single-frame "scene" |
+
+`_step_scene_detection` in `src/kuaa/pipeline.py` delegates to the configured
+backend instead of importing `SceneDetector` directly. Both backends emit the
+same `KeyframeManifest` (`metadata_path`, `keyframes`, `keyframes_dir`,
+`stats`), so every downstream step — visual analysis, embeddings,
+description, search, rhymes — is unchanged regardless of which backend
+produced the keyframes. `directory_stills` unlocks cataloguing non-temporal
+image corpora (e.g. generated-image sets); it has no cut boundaries, so it
+does not write `scene_cuts.json`, and the Pre-processing review tab stays
+video-only.
+
+The `kuaa process` CLI accepts a directory as well as a video file; passing
+a folder with `models.frame_source` still set to `video_scenedetect` fails
+with a clear error rather than an obscure PySceneDetect crash.
 
 ## Web application
 

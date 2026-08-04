@@ -131,6 +131,58 @@ class SceneDescriber(Protocol):
         ...
 
 
+class KeyframeManifest(TypedDict, total=False):
+    """Result of a :class:`FrameSource.produce` call.
+
+    A frame source turns some *source* (a video file, a folder of stills,
+    …) into the canonical downstream contract: a directory of 8-bit RGB
+    ``*.jpg`` keyframes plus a ``keyframes_metadata.json`` whose rows carry
+    ``scene_id`` / ``keyframe_id`` (``scene_NNNN_kf_KK``) / ``filepath`` /
+    ``start_time_s`` / ``end_time_s`` / ``duration_s`` / ``start_frame`` /
+    ``end_frame``. The keys below mirror the ``output`` dict the pipeline's
+    ``scene_detection`` step has always exposed, so both orchestrators
+    (``run`` / ``run_steps``) keep reading it unchanged.
+    """
+
+    metadata_path: Path
+    keyframes: list[Path]
+    keyframes_dir: Path
+    stats: dict
+
+
+@runtime_checkable
+class FrameSource(Protocol):
+    """Produces keyframes + ``keyframes_metadata.json`` from a source.
+
+    This is the input-side seam mirroring the output-side model Protocols:
+    the pipeline selects a backend by config (``models.frame_source``) via
+    :func:`kuaa.models.registry.get_frame_source` and never imports a
+    concrete backend. The default ``video_scenedetect`` backend wraps
+    PySceneDetect (byte-identical to the historical inline path); the
+    ``directory_stills`` backend globs a folder of images into synthetic
+    single-frame scenes so everything downstream (visual analysis,
+    embeddings, description, search, rhymes) works unchanged on still sets.
+    """
+
+    def produce(
+        self,
+        source: str | Path,
+        *,
+        keyframes_dir: Path,
+        metadata_path: Path,
+        cuts_path: Path | None = None,
+    ) -> KeyframeManifest:
+        """Extract keyframes under ``keyframes_dir`` and write the manifest.
+
+        Writes 8-bit RGB ``*.jpg`` keyframes into ``keyframes_dir`` and the
+        ``keyframes_metadata.json`` manifest at ``metadata_path``. When
+        ``cuts_path`` is given a backend *may* also persist an authoritative
+        cut set there (video sources do; still sources have no cuts and
+        ignore it). Returns a :class:`KeyframeManifest`.
+        """
+        ...
+
+
 @runtime_checkable
 class EnvironmentClassifier(Protocol):
     """Heuristic or model-based environment classification.

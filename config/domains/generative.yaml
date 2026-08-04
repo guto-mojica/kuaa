@@ -1,0 +1,139 @@
+id: generative
+label: Generative image sets
+description: >
+  Catalog folders of generated stills (Stable-Diffusion / Flux and similar)
+  as a provenance-tracked, searchable asset library. Designed to pair with
+  the directory_stills frame source: each image is a single-frame scene, so
+  SigLIP search, visual-rhyme dedup, and auto-tagging apply directly.
+
+metadata_fields:
+  - name: description
+    label: Description
+    type: text
+    required: true
+    help: One or two sentences describing the visible subject and scene.
+  - name: subject
+    label: Main subject
+    type: short_text
+    required: false
+  - name: style
+    label: Visual style
+    type: short_text
+    required: false
+    help: e.g. photorealistic, oil painting, anime, 3d render, concept art.
+  - name: medium
+    label: Medium
+    type: enum
+    values: [photo, illustration, painting, 3d-render, pixel-art, sketch, unknown]
+    required: false
+  - name: color_palette
+    label: Color palette
+    type: short_text
+    required: false
+  - name: objects
+    label: Notable objects
+    type: list
+    item_type: string
+    required: false
+  - name: artifacts
+    label: Generation artifacts
+    type: text
+    required: false
+    help: Visible flaws such as extra fingers, warped text, or none.
+  - name: tags
+    label: Search tags
+    type: tag_list
+    required: false
+
+prompt_templates:
+  description:
+    prompt: "Describe this image in one or two sentences. Focus on the main subject, action, and setting."
+    max_new_tokens: 80
+  subject:
+    prompt: "What is the main subject of this image? Answer in a short phrase."
+    max_new_tokens: 20
+  style:
+    prompt: "What is the visual style? Answer with a short phrase such as photorealistic, oil painting, anime, 3d render, or concept art."
+    max_new_tokens: 20
+  medium:
+    prompt: "What medium does this image imitate? Answer with one word: photo, illustration, painting, 3d-render, pixel-art, sketch, or unknown."
+    max_new_tokens: 12
+  color_palette:
+    prompt: "Describe the dominant colors in 2-4 words. Example: warm earth tones, cool blues."
+    max_new_tokens: 20
+  objects:
+    prompt: "List the most notable objects in this image, comma-separated. Maximum 6 items."
+    max_new_tokens: 40
+  artifacts:
+    prompt: "Are there visible generation artifacts such as extra fingers, warped text, or distorted faces? Summarize briefly or answer none."
+    max_new_tokens: 40
+
+taxonomy:
+  medium:
+    - photo
+    - illustration
+    - painting
+    - 3d-render
+    - pixel-art
+    - sketch
+    - unknown
+  common_tags:
+    - photorealistic
+    - illustration
+    - portrait
+    - landscape
+    - character
+    - concept-art
+    - has-artifacts
+    - clean
+
+filters:
+  - name: medium
+    label: Medium
+    source: _raw_responses.medium
+    type: enum
+  - name: style
+    label: Style
+    source: _raw_responses.style
+    type: text_contains
+  - name: artifacts
+    label: Artifacts
+    source: _raw_responses.artifacts
+    type: text_contains
+  - name: tags
+    label: Tags
+    source: tags
+    type: tag_multi_select
+
+export_mapping:
+  scene_id: scene_id
+  keyframe_id: keyframe_id
+  keyframe_path: keyframe_path
+  description: description
+  subject: _raw_responses.subject
+  style: _raw_responses.style
+  medium: _raw_responses.medium
+  color_palette: _raw_responses.color_palette
+  objects: objects
+  artifacts: _raw_responses.artifacts
+  tags: tags
+
+sample_outputs:
+  - scene_id: 1
+    description: "A close-up portrait of a woman with freckles in soft daylight."
+    subject: "woman portrait"
+    style: photorealistic
+    medium: photo
+    color_palette: "warm skin tones"
+    objects: [face, hair]
+    artifacts: "none"
+    tags: [photorealistic, portrait, clean]
+  - scene_id: 2
+    description: "A neon-lit cyberpunk alley rendered in a stylized 3d look."
+    subject: "cyberpunk alley"
+    style: concept art
+    medium: 3d-render
+    color_palette: "cool neon blues and magentas"
+    objects: [signage, puddle, stairs]
+    artifacts: "warped text on signage"
+    tags: [concept-art, landscape, has-artifacts]

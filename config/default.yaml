@@ -227,6 +227,10 @@ models:
   # GPU needs a from-source CUDA build — see docs/GPU_LLAMA_CPP_CUDA_BUILD.md).
   scene_describer: moondream_transformers  # moondream_transformers | moondream_gguf
   environment_classifier: opencv_heuristic # opencv_heuristic
+  # Input-side seam: how keyframes are produced. `video_scenedetect` (default)
+  # runs PySceneDetect on a video; `directory_stills` catalogs a folder of
+  # images as single-frame scenes (generative/still corpora).
+  frame_source: video_scenedetect          # video_scenedetect | directory_stills
 
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 pipeline:
