@@ -27,7 +27,6 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
   `pybabel extract` varre apenas `templates/**.html` (ver `web/babel.cfg`) —
   então todas as entradas ficaram obsoletas nos catálogos e o modal em pt-BR
   caía para o inglês. Restaurados como literais `_()` no template.
-
 - **Referências a documentos e planos inexistentes removidas de todo o repo.**
   O commit `68bbb22` ("public launch cleanup") removeu material interno da
   árvore versionada, mas as referências a ele permaneceram em docs, docstrings,
