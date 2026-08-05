@@ -26,7 +26,6 @@ row                  how                                                        
                      SHIPPED 3-way fusion (CLIP + BM25 + metadata leg)
 ``hybrid-metadata``  same, ``metadata_w=0.0`` — isolates the metadata signal     HY
 ``hybrid+rerank``    production ``find(mode="hybrid", rerank=...)`` ± C5         HY
-``multilingual``     C8: OpenCLIP index vs the SigLIP2 ``CLIP`` row              HY
 ===================  ==========================================================  =====
 
 The reranker only scores **text** queries (it reads ``query.text``), which is
@@ -37,12 +36,11 @@ production :func:`kuaa.search.find` for *both* its hybrid base
 two different hybrid implementations, so the table footnote states the rerank
 delta is measured on ``find``'s hybrid, not on the harness hybrid row.
 
-The ``multilingual`` row is the C8 backend comparison: it re-runs the CLIP path
-against the on-disk OpenCLIP index (``keyframe_embeddings.clip_openclip.npy`` +
-``index_mapping.clip_openclip.json``, both present per film) with the
-``clip_openclip`` text encoder, so the delta to the SigLIP2 ``CLIP`` row shows
-the multilingual upgrade's effect on the (PT/EN) query mix. Both indexes exist
-on disk, so the switch is a config-copy mutation — no fragile plumbing.
+A ``multilingual`` / C8 row (OpenCLIP baseline vs the SigLIP2 default) was
+removed 2026-08-04: it assumed on-disk ``.clip_openclip`` artefacts that no
+commit in this repo's history ever produced for any film, so the row only
+ever rendered ``pending (EvalError)``. Re-add it if/when a real OpenCLIP
+index is generated and the comparison is actually wanted.
 
 Layering: this is core (``kuaa.*``); it MUST NOT import ``api.*``
 (import-linter). The reranker (:func:`kuaa.search.rerank.rerank` via
@@ -78,12 +76,6 @@ _METRIC_COLUMNS: tuple[tuple[str, str], ...] = (
     ("ndcg_at_10", "nDCG@10"),
 )
 
-# On-disk OpenCLIP (C8 baseline) index filenames — present per film alongside
-# the SigLIP2 default. Mirrors the ``.clip_openclip`` suffix the M3 SigLIP2
-# rollout left for rollback.
-_OPENCLIP_EMB_FILENAME = "keyframe_embeddings.clip_openclip.npy"
-_OPENCLIP_MAP_FILENAME = "index_mapping.clip_openclip.json"
-
 
 @dataclass(frozen=True)
 class AblationRowConfig:
@@ -91,8 +83,7 @@ class AblationRowConfig:
 
     Attributes:
         name: published row label (e.g. ``"hybrid+rerank"``).
-        retriever: which retriever mechanism to run —
-            ``"clip" | "bm25" | "hybrid" | "multilingual"``.
+        retriever: which retriever mechanism to run — ``"clip" | "bm25" | "hybrid"``.
         proxy: the proxy signal used for the row's labels — ``"KI" | "PR" |
             "HY"`` (the whole launch table is ``"HY"``; the field exists so a
             future mixed table can segregate tiers).
@@ -106,7 +97,7 @@ class AblationRowConfig:
             signal-level ablation arm).
         pending_reason: when set, the row is rendered ``pending (<reason>)`` and
             :func:`run_ablation` does not attempt to compute it. Used for a row
-            whose backend is not wired (e.g. ``"C5"`` / ``"C8"``).
+            whose backend is not wired (e.g. ``"C5"``).
     """
 
     name: str
@@ -216,7 +207,6 @@ DEFAULT_ABLATION_CONFIGS: tuple[AblationRowConfig, ...] = (
     AblationRowConfig(name="hybrid", retriever="hybrid", proxy="HY"),
     AblationRowConfig(name="hybrid-metadata", retriever="hybrid", proxy="HY", metadata_w=0.0),
     AblationRowConfig(name="hybrid+rerank", retriever="hybrid", proxy="HY", rerank=True),
-    AblationRowConfig(name="multilingual", retriever="multilingual", proxy="HY"),
 )
 
 # No-rerank variant — the rerank row is pending (C5) so the table is produced
@@ -230,7 +220,6 @@ DEFAULT_ABLATION_CONFIGS_NO_RERANK: tuple[AblationRowConfig, ...] = (
     AblationRowConfig(
         name="hybrid+rerank", retriever="hybrid", proxy="HY", rerank=True, pending_reason="C5"
     ),
-    AblationRowConfig(name="multilingual", retriever="multilingual", proxy="HY"),
 )
 
 # Footnotes attached to the rendered table when the matching row is present.
@@ -245,12 +234,6 @@ _ROW_FOOTNOTES: dict[str, str] = {
         "(± the C5 bge-reranker-v2-m3 cross-encoder), which is a different hybrid "
         "implementation from the harness `hybrid` row above — compare the rerank "
         "row to the `find` hybrid base it sits on, not to the harness `hybrid` row."
-    ),
-    "multilingual": (
-        "C8 baseline: the CLIP path re-run against the on-disk OpenCLIP index "
-        "(`keyframe_embeddings.clip_openclip.npy`) with the `clip_openclip` text "
-        "encoder. The delta to the SigLIP2 `CLIP` row is the multilingual "
-        "upgrade's effect on the PT/EN query mix."
     ),
 }
 
@@ -355,22 +338,6 @@ def _scope_cfg_to_film(cfg: Settings, library_dir: Path, slug: str) -> Settings:
     return scoped
 
 
-def _scope_cfg_openclip(cfg: Settings, library_dir: Path, slug: str) -> Settings:
-    """Like :func:`_scope_cfg_to_film` but switched to the OpenCLIP index.
-
-    Points the embeddings filename/mapping at the ``.clip_openclip`` artefacts
-    and the image-embedder backend at ``clip_openclip`` so ``run_retrieval_eval``
-    loads the OpenCLIP keyframe matrix AND encodes the query text with the
-    matching OpenCLIP text tower (dim-compatible 512-d). Both files exist on disk
-    per film (the M3 SigLIP2 rollout kept them for rollback).
-    """
-    scoped = _scope_cfg_to_film(cfg, library_dir, slug)
-    scoped.embeddings.filename = _OPENCLIP_EMB_FILENAME
-    scoped.embeddings.mapping_filename = _OPENCLIP_MAP_FILENAME
-    scoped.models.image_embedder = "clip_openclip"
-    return scoped
-
-
 def _primary_film_slug(library_dir: Path, queries: list[ModalQuery]) -> str:
     """Pick the corpus film for the text rows: the largest indexed film.
 
@@ -416,26 +383,20 @@ def _run_text_retriever_row(
     metadata_w: float | None = None,
     seed: int,
 ) -> dict[str, float | int]:
-    """CLIP / BM25 / hybrid / multilingual row via :func:`run_retrieval_eval`.
+    """CLIP / BM25 / hybrid row via :func:`run_retrieval_eval`.
 
-    ``multilingual`` switches the cfg to the OpenCLIP index + text encoder; the
-    others use the configured (SigLIP2) default. ``metadata_w`` (hybrid rows
+    Uses the configured (SigLIP2) default index. ``metadata_w`` (hybrid rows
     only) forwards the row's metadata-leg share — ``None`` = shipped default,
     ``0.0`` = the signal-level ablation arm. Returns the ``RetrievalRun``
     metrics dict.
     """
-    if retriever == "multilingual":
-        scoped = _scope_cfg_openclip(cfg, library_dir, slug)
-        effective = "clip"
-    else:
-        scoped = _scope_cfg_to_film(cfg, library_dir, slug)
-        effective = retriever
+    scoped = _scope_cfg_to_film(cfg, library_dir, slug)
     run: RetrievalRun = run_retrieval_eval(
         scoped,
         dataset,
         config_path=None,
         top_k=10,
-        retriever=effective,
+        retriever=retriever,
         metadata_w=metadata_w,
         seed=seed,
     )
@@ -621,7 +582,7 @@ def _dispatch_row(
     retriever = row_cfg.retriever
     if row_cfg.rerank:
         return _run_rerank_row(cfg, dataset, library_dir=library_dir, slug=slug, seed=seed)
-    if retriever in ("clip", "bm25", "hybrid", "multilingual"):
+    if retriever in ("clip", "bm25", "hybrid"):
         return _run_text_retriever_row(
             cfg,
             dataset,

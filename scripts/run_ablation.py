@@ -3,10 +3,10 @@
 
 Runs :func:`kuaa.eval.ablation.run_ablation` over the 15 text queries in
 ``data/eval/m3_full_queries.yaml`` (the common HY-labelled set) and writes the
-result as an **M4 section** of ``docs/EVALUATION_RESULTS.md``, preserving the
-existing M2 section. The M4 block is delimited by HTML comment markers
-(``<!-- M4 ABLATION START -->`` / ``<!-- M4 ABLATION END -->``) so re-runs
-replace only that block — the M2 ablation above it is never touched.
+result as an **M4 section** of ``docs/EVALUATION_RESULTS.md``. The M4 block is
+delimited by HTML comment markers (``<!-- M4 ABLATION START -->`` /
+``<!-- M4 ABLATION END -->``) so re-runs replace only that block — any other
+content in the doc (above or below the markers) is left untouched.
 
 Every published cell is a REAL proxy number computed on the demo corpus, or a
 literal ``pending (...)`` for a row whose backend is not wired. Under
@@ -58,7 +58,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--out",
         default=str(DEFAULT_OUT),
-        help="Markdown doc whose M4 section to write/replace (preserves M2).",
+        help="Markdown doc whose M4 section to write/replace (other content untouched).",
     )
     parser.add_argument("--seed", type=int, default=0, help="PRNG seed (default 0).")
     rerank = parser.add_mutually_exclusive_group()
@@ -112,19 +112,14 @@ def _build_m4_section(table_md: str, *, with_rerank: bool, seed: int, queries: P
         "Retriever-variant ablation on a **common query set with the same proxy "
         "labels** (apples-to-apples). This is the launch ablation: it is producible "
         "with **zero human grades** and every cell is either a real proxy number or "
-        "an honest `pending (...)`. The numbers **supersede the M2 OpenCLIP table "
-        "above** as the current-tree (SigLIP2) result; the M2 section is retained "
-        "for provenance.",
+        "an honest `pending (...)`.",
         "",
         table_md,
         "",
         "**Reading the numbers** (proxy / HY, not human-graded):",
         "",
-        "- **Hybrid beats CLIP-only here** (the multi-film, larger-corpus result the "
-        "M2 note predicted) — RRF fusion of SigLIP2 + BM25 edges CLIP on R@5 and MRR.",
-        "- **The multilingual upgrade matters.** The OpenCLIP baseline (`multilingual` "
-        "row, C8) trails the SigLIP2 `CLIP` row on every metric on this PT/EN query "
-        "mix — evidence for the SigLIP2-multilingual swap.",
+        "- **Hybrid beats CLIP-only here** — RRF fusion of SigLIP2 + BM25 edges "
+        "CLIP on R@5 and MRR.",
         "",
         "Reproduce:",
         "",
@@ -152,7 +147,7 @@ def _merge_into_doc(doc_path: Path, m4_section: str) -> None:
 
     If the doc already has the M4 markers, the block between them is replaced.
     Otherwise the section is appended (with a leading blank-line separator).
-    The M2 ablation content above the markers is never modified.
+    Content outside the markers (before or after) is never modified.
     """
     if doc_path.exists():
         existing = doc_path.read_text(encoding="utf-8")

@@ -31,7 +31,7 @@ from kuaa.eval.ablation import (
 )
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
-_JECA_CLIP = _REPO_ROOT / "data/library/jeca_tatu/embeddings/keyframe_embeddings.npy"
+_JECA_CLIP = _REPO_ROOT / "data/library/jeca_tatu_1959/embeddings/keyframe_embeddings.npy"
 _M3_QUERIES = _REPO_ROOT / "data/eval/m3_full_queries.yaml"
 _LIBRARY_DIR = _REPO_ROOT / "data/library"
 
@@ -116,7 +116,7 @@ def test_table_to_markdown_is_a_valid_pipe_table() -> None:
         (AblationRowConfig(name="CLIP", retriever="clip", proxy="HY"), metrics),
         (
             AblationRowConfig(
-                name="multilingual", retriever="clip", proxy="HY", pending_reason="C8"
+                name="unwired-example", retriever="clip", proxy="HY", pending_reason="not wired"
             ),
             None,
         ),
