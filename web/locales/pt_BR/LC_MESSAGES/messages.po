@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kuaa-ai 0.3.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-07-05 14:16-0300\n"
+"POT-Creation-Date: 2026-08-04 23:47-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pt_BR\n"
@@ -27,20 +27,20 @@ msgstr "KUAA"
 # ── Navigation / chrome ───────────────────────────────────────────────
 #: web/templates/base.html:126 web/templates/partials/_help_overlay.html:75
 #: web/templates/partials/_topbar.html:67
-#: web/templates/partials/about_modal.html:182
+#: web/templates/partials/about_modal.html:196
 #: web/templates/partials/search.html:194
 msgid "Search"
 msgstr "Buscar"
 
 #: web/templates/base.html:127 web/templates/partials/_help_overlay.html:76
 #: web/templates/partials/_topbar.html:68
-#: web/templates/partials/about_modal.html:183
+#: web/templates/partials/about_modal.html:197
 msgid "Scenes"
 msgstr "Cenas"
 
 #: web/templates/base.html:128 web/templates/partials/_help_overlay.html:77
 #: web/templates/partials/_topbar.html:69
-#: web/templates/partials/about_modal.html:184
+#: web/templates/partials/about_modal.html:198
 #: web/templates/partials/scenes_inspector.html:145
 msgid "Annotate"
 msgstr "Anotar"
@@ -52,14 +52,14 @@ msgstr "Pré-processamento"
 
 #: web/templates/base.html:130 web/templates/partials/_help_overlay.html:79
 #: web/templates/partials/_topbar.html:72
-#: web/templates/partials/about_modal.html:186
+#: web/templates/partials/about_modal.html:200
 #: web/templates/partials/processing.html:36
 #: web/templates/partials/processing_job.html:51
 msgid "Processing"
 msgstr "Processamento"
 
 #: web/templates/base.html:131 web/templates/partials/_help_overlay.html:78
-#: web/templates/partials/about_modal.html:185
+#: web/templates/partials/about_modal.html:199
 #: web/templates/partials/rimas.html:36
 msgid "Visual rhymes"
 msgstr "Rimas visuais"
@@ -351,8 +351,8 @@ msgid "This film is already in the library."
 msgstr "Um filme com este nome já está no acervo."
 
 #: web/templates/partials/_help_overlay.html:64
-#: web/templates/partials/about_modal.html:178
-#: web/templates/partials/about_modal.html:180
+#: web/templates/partials/about_modal.html:192
+#: web/templates/partials/about_modal.html:194
 msgid "Keyboard shortcuts"
 msgstr "Atalhos de teclado"
 
@@ -360,7 +360,7 @@ msgstr "Atalhos de teclado"
 #: web/templates/partials/_toast_host.html:28
 #: web/templates/partials/about_modal.html:63
 #: web/templates/partials/about_modal.html:64
-#: web/templates/partials/about_modal.html:218
+#: web/templates/partials/about_modal.html:232
 msgid "Close"
 msgstr "Fechar"
 
@@ -374,12 +374,12 @@ msgstr "Universal"
 
 #: web/templates/partials/_help_overlay.html:98
 #: web/templates/partials/_palette.html:55
-#: web/templates/partials/about_modal.html:187
+#: web/templates/partials/about_modal.html:201
 msgid "Command palette"
 msgstr "Paleta de comandos"
 
 #: web/templates/partials/_help_overlay.html:99
-#: web/templates/partials/about_modal.html:188
+#: web/templates/partials/about_modal.html:202
 msgid "This help"
 msgstr "Esta ajuda"
 
@@ -590,11 +590,31 @@ msgstr "faixa temporal"
 msgid "Models"
 msgstr "Modelos"
 
-#: web/templates/partials/about_modal.html:154
+#: web/templates/partials/about_modal.html:135
+msgid "Visual embedding"
+msgstr "Embedding visual"
+
+#: web/templates/partials/about_modal.html:136
+msgid "Scene description"
+msgstr "Descrição de cenas"
+
+#: web/templates/partials/about_modal.html:137
+msgid "Object detection"
+msgstr "Detecção de objetos"
+
+#: web/templates/partials/about_modal.html:138
+msgid "Face detection"
+msgstr "Detecção de faces"
+
+#: web/templates/partials/about_modal.html:139
+msgid "Reranking (opt-in)"
+msgstr "Reordenação (opcional)"
+
+#: web/templates/partials/about_modal.html:168
 msgid "Stack"
 msgstr "Stack"
 
-#: web/templates/partials/about_modal.html:202
+#: web/templates/partials/about_modal.html:216
 msgid "Credits"
 msgstr "Créditos"
 

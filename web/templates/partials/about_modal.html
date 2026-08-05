@@ -124,6 +124,20 @@
                     <span>{{ _('Models') }}</span>
                     <span class="ct">{{ models|length }}</span>
                 </div>
+                {# Model roles come from api/services/_about_data.py as plain
+                   data, so `pybabel extract` (which scans templates/**.html
+                   only — see web/babel.cfg) never sees them and every role
+                   went obsolete in the catalogs. Restating them here as
+                   literal `_()` calls puts them back in the .pot and keeps
+                   the PT modal from falling back to English. Add a line here
+                   whenever a model card gains a new role. #}
+                {% set role_i18n = {
+                    'Visual embedding': _('Visual embedding'),
+                    'Scene description': _('Scene description'),
+                    'Object detection': _('Object detection'),
+                    'Face detection': _('Face detection'),
+                    'Reranking (opt-in)': _('Reranking (opt-in)'),
+                } %}
                 <div class="ab-models">
                     {% for m in models %}
                         <div class="ab-model">
@@ -132,7 +146,7 @@
                                 <div class="name">
                                     {{ m.name }}{% if m.version %}<span class="ver">{{ m.version }}</span>{% endif %}
                                 </div>
-                                <div class="role"><b>{{ _(m.role) }}</b></div>
+                                <div class="role"><b>{{ role_i18n.get(m.role, m.role) }}</b></div>
                             </div>
                             <div class="org">
                                 <span class="by">{{ m.org }}</span>

@@ -9,7 +9,7 @@
 [![CI](https://github.com/guto-mojica/kuaa/actions/workflows/ci.yml/badge.svg)](https://github.com/guto-mojica/kuaa/actions/workflows/ci.yml)
 [![Licença: MIT](https://img.shields.io/badge/Licença-MIT-amber.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://python.org)
-[![Versão](https://img.shields.io/badge/versão-0.9.1-blue.svg)](CHANGELOG.md)
+[![Versão](https://img.shields.io/badge/versão-0.10.0-blue.svg)](CHANGELOG.md)
 
 ---
 
@@ -22,9 +22,10 @@ KUAA allows users to search hours of audiovisual material by visual content and 
 The system features a modular retrieval stack where every component runs locally (no API keys required):
 
 *   **Multimodal Search:** Powered by `SigLIP2` for dense image/text embeddings, with fallback support for OpenCLIP.
-*   **Hybrid Retrieval:** Combines **BM25** (lexical) over LLM-generated descriptions and tags with **dense scores** via Reciprocal Rank Fusion (RRF).
-*   **Visual Discovery:** Implements **kNN** over keyframe embeddings, diversified by **Maximal Marginal Relevance (MMR)** to find "visually similar" scenes across different films.
-*   **Smart Reranking:** Includes a `BAAI/bge-reranker-v2-m3` cross-encoder (currently opt-in) to refine results where high precision is required.
+*   **Hybrid Retrieval:** Up to three signals fused by weighted Reciprocal Rank Fusion (RRF) — **dense** SigLIP2 similarity, **BM25** lexical scoring over generated descriptions and tags, and an **exact-lexical metadata leg** over curator tags, descriptions and detected objects. The metadata leg is deliberately short-query-only (it stands down past four tokens, where a natural-language query is better served by the dense and BM25 sides), so long queries fuse two-way. When it does fire it carries the largest share by default (`search.hybrid_metadata_w: 0.65`) and the residual is split between the other two.
+*   **Curation Feeds Retrieval:** Tags and descriptions written in the **Annotate** tab flow straight into the BM25 and metadata legs, so human correction measurably improves ranking rather than only decorating the UI.
+*   **Visual Discovery:** The **Rimas Visuais** (visual rhymes) tab runs **kNN** over keyframe embeddings, diversified by **Maximal Marginal Relevance (MMR)**, to surface visually similar scenes across different films.
+*   **Smart Reranking:** Includes a `BAAI/bge-reranker-v2-m3` cross-encoder (opt-in, off by default — see [`docs/RERANKER_DECISION.md`](docs/RERANKER_DECISION.md)) to refine results where high precision is required.
 
 ### The Technical Stack
 | Component | Model / Technology | Role |
@@ -32,8 +33,10 @@ The system features a modular retrieval stack where every component runs locally
 | **Image Embedding** | `google/siglip2-large-patch16-256` | Multilingual vision-language search |
 | **Reranker** | `BAAI/bge-reranker-v2-m3` | Re-ranking for high-precision queries (Opt-in) |
 | **Scene Description** | Moondream 2 | Local Vision-Language Model (VLM) |
-| **Object Detection** | YOLOv8 | Identifying objects and scene elements |
+| **Object Detection** | YOLOv8n | Identifying objects and scene elements |
 | **Face Detection** | MTCNN | Facial detection & crowd counting |
+
+Every identifier above mirrors `kuaa.models.manifest`, the single source of truth for model identity; the About modal renders the same set.
 
 ### What makes it "Production-Ready"?
 *   **Privacy by Design:** Designed for institutional use where data sovereignty is non-negotiable.
@@ -90,8 +93,12 @@ uv run kuaa serve --config config/demo.yaml
 *kuaa* — inspirado no termo Guarani para "conhecimento" — é uma ferramenta de código aberto para processar vídeos e gerar automaticamente um catálogo pesquisável com:
 
 - **Segmentação de cenas** & **Análise visual** (rostos, objetos, ambiente).
+- **Pré-processamento revisável:** uma aba dedicada mostra os cortes detectados numa linha do tempo de filmstrip, onde o curador corrige as fronteiras (dividir/juntar) antes das etapas pesadas rodarem.
 - **Descrições em linguagem natural** via modelos de visão locais.
-- **Busca semântica híbrida** (texto + imagem) sem necessidade de conexão com a internet.
+- **Busca semântica híbrida** (texto + imagem) sem necessidade de conexão com a internet: fusão RRF ponderada entre o sinal denso (SigLIP2), o BM25 sobre descrições e tags, e uma perna de metadados léxico-exatos sobre tags, descrições e objetos detectados. A perna de metadados atua apenas em consultas curtas (até quatro tokens); acima disso a fusão volta a ser de dois sinais.
+- **Curadoria que alimenta a busca:** tags e descrições escritas na aba Anotar entram nas pernas BM25 e de metadados — a correção humana melhora o ranqueamento, não apenas a interface.
+- **Rimas Visuais:** kNN sobre embeddings de keyframes, diversificado por MMR, para encontrar cenas visualmente semelhantes entre filmes diferentes.
+- **Exportação:** JSON/CSV para bases arquivísticas e EDL (CMX 3600) para montagem em ilha de edição.
 
 ---
 
@@ -99,10 +106,11 @@ uv run kuaa serve --config config/demo.yaml
 
 O sistema é modularizado para facilitar a manutenção e a substituição de componentes:
 
-1.  **Detecção de Cenas:** PySceneDetect lê o vídeo diretamente via FFmpeg e extrai keyframes representativos por cena.
-2.  **Processamento:** Pipeline sequencial que gera embeddings (SigLIP) e descrições (Moondream).
-3.  **Indexação:** Motor de busca combinando BM25 e buscas densas.
+1.  **Detecção de Cenas:** PySceneDetect lê o vídeo diretamente via FFmpeg e extrai keyframes representativos por cena. A lista de cortes fica em `scene_cuts.json` e pode ser revisada na aba de Pré-processamento antes de seguir.
+2.  **Processamento:** Pipeline sequencial que gera embeddings (SigLIP2) e descrições (Moondream 2).
+3.  **Indexação:** Motor de busca que funde três sinais por RRF ponderado — denso (SigLIP2), BM25 e metadados léxico-exatos.
 4.  **Interface:** Desenvolvida com FastAPI + HTMX, focada em usabilidade para usuários não-técnicos.
+5.  **Proveniência:** cada execução grava um `run_manifest.json` com configuração, backends de modelo e resultado de cada etapa.
 
 *Diagrama completo a seguir.*
 
@@ -112,10 +120,13 @@ flowchart TD
     SC --> VIS[Análise Visual: YOLOv8/MTCNN]
     SC --> EMB[Embeddings: SigLIP2]
     SC --> LLM[Descrições: Moondream 2]
-    EMB & LLM & VIS --> RET[Motor de Busca Híbrida]
+    EMB & LLM & VIS --> RET[Motor de Busca Híbrida: RRF de 3 sinais]
+    ANO[Aba Anotar: tags e descrições do curador] --> RET
     RET --> RES[Resultados Rankeados]
-    RES --> EXP[Exportação JSON/CSV]
+    RET -. opcional .-> RR[Reordenação: bge-reranker-v2-m3]
+    RES --> EXP[Exportação JSON/CSV/EDL]
     RES --> UI[Interface Web FastAPI/HTMX]
+    EMB --> RIM[Rimas Visuais: kNN + MMR]
 ```
 
 ---
@@ -124,10 +135,11 @@ flowchart TD
 
 | Modelo | Tarefa | Detalhes |
 |---|---|---|
-| **SigLIP 2** | Embeddings Visuais | Multilíngue, robusto para busca semântica. |
-| **Moondream 2** | Descrição de Cenas | Modelo leve e eficiente para descrições em texto. |
+| **SigLIP 2** | Embeddings Visuais | Multilíngue, robusto para busca semântica (Apache-2.0). |
+| **Moondream 2** | Descrição de Cenas | Modelo leve e eficiente para descrições em texto (Apache-2.0). |
 | **YOLOv8n** | Objetos | Detecção rápida (Atenção à licença AGPL-3.0). |
-| **MTCNN** | Faces | Detecção facial — contagem de presença humana, sem reconhecimento de identidade. |
+| **MTCNN** | Faces | Detecção facial — contagem de presença humana, sem reconhecimento de identidade (MIT). |
+| **bge-reranker-v2-m3** | Reordenação | Cross-encoder opcional, desligado por padrão (Apache-2.0). |
 
 ---
 

@@ -148,7 +148,7 @@ uv sync --extra web       # só a interface FastAPI + HTMX
 **Verificar instalação:**
 ```bash
 uv run python -c "import kuaa; print(kuaa.__version__)"
-# Deve imprimir: 0.9.1
+# Deve imprimir: 0.10.0
 ```
 
 ---

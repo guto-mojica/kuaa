@@ -14,8 +14,11 @@ from typing import Any
 def model_attributions() -> list[dict[str, Any]]:
     """Return the model-attribution cards rendered in the About modal.
 
-    Order follows the pipeline: visual embedding (CLIP), scene description
-    (Moondream), object detection (YOLO), then face detection (MTCNN). Each
+    Order follows the pipeline: visual embedding (SigLIP2), scene description
+    (Moondream), object detection (YOLO), face detection (MTCNN), then the
+    opt-in reranker (bge). Identifiers and licenses must match the cards in
+    ``kuaa.models.manifest`` — that module is the single source of truth for
+    model identity, and this list is the human-facing mirror of it. Each
     entry has:
 
       * ``key``    — one- or two-char badge text (drives the coloured
@@ -34,14 +37,14 @@ def model_attributions() -> list[dict[str, Any]]:
     """
     return [
         {
-            "key": "C",
+            "key": "S",
             "color": "",
-            "name": "openai/clip-vit-large-patch14",
-            "version": "L/14",
+            "name": "google/siglip2-large-patch16-256",
+            "version": "L/16",
             "role": "Visual embedding",
-            "org": "OpenAI",
-            "lic": "MIT",
-            "repo_url": "https://github.com/openai/CLIP",
+            "org": "Google",
+            "lic": "Apache-2",
+            "repo_url": "https://github.com/google-research/big_vision",
         },
         {
             "key": "M",
@@ -56,8 +59,8 @@ def model_attributions() -> list[dict[str, Any]]:
         {
             "key": "Y",
             "color": "green",
-            "name": "ultralytics/yolov8m",
-            "version": "v8m",
+            "name": "ultralytics/yolov8n",
+            "version": "v8n",
             "role": "Object detection",
             "org": "Ultralytics",
             "lic": "AGPL-3",
@@ -72,6 +75,16 @@ def model_attributions() -> list[dict[str, Any]]:
             "org": "facenet-pytorch",
             "lic": "MIT",
             "repo_url": "https://github.com/timesler/facenet-pytorch",
+        },
+        {
+            "key": "B",
+            "color": "yellow",
+            "name": "BAAI/bge-reranker-v2-m3",
+            "version": "v2-m3",
+            "role": "Reranking (opt-in)",
+            "org": "BAAI",
+            "lic": "Apache-2",
+            "repo_url": "https://github.com/FlagOpen/FlagEmbedding",
         },
     ]
 
@@ -88,7 +101,8 @@ def tech_stack() -> list[dict[str, Any]]:
         {"label": "Python 3.10+", "kind": ""},
         {"label": "FastAPI", "kind": "ac"},
         {"label": "Jinja2", "kind": "ac"},
-        {"label": "HTMX 1.9", "kind": "ac"},
+        {"label": "HTMX 2.0", "kind": "ac"},
+        {"label": "Alpine.js 3.14", "kind": "ac"},
         {"label": "PyTorch", "kind": "yellow"},
         {"label": "NumPy", "kind": ""},
         {"label": "FFmpeg", "kind": "pink"},
@@ -108,7 +122,7 @@ def credits_list() -> list[dict[str, Any]]:
         {"role": "Engineering", "name": "Augusto mojica Santos", "dim": False},
         {
             "role": "AI integration",
-            "name": "moondream, openai, ultralytics (model authors)",
+            "name": "google, moondream, ultralytics, BAAI (model authors)",
             "dim": True,
         },
         {"role": "Funding", "name": "—", "dim": True},

@@ -89,14 +89,15 @@ def test_about_modal_renders_model_attributions(client):
     """Every model in the project pipeline gets its own attribution card."""
     r = client.get("/api/about")
     assert r.status_code == 200, r.text[:500]
-    # Four attribution cards present (one per pipeline model).
-    assert r.text.count('class="ab-model"') == 4
+    # One card per pipeline model, plus the opt-in reranker.
+    assert r.text.count('class="ab-model"') == 5
     # Identifiable model names appear (covers both name and badge text).
     body = r.text.lower()
     assert "moondream" in body
-    assert "clip" in body
+    assert "siglip2" in body
     assert "yolov8" in body
     assert "mtcnn" in body
+    assert "bge-reranker" in body
 
 
 def test_about_modal_stats_grid(client):

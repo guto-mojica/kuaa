@@ -155,12 +155,13 @@ def test_about_modal_and_page_share_credits(raw_client):
     modal = raw_client.get("/api/about").text
     page = raw_client.get("/about").text
     # Model attribution cards: badge keys + repo identifiers cover the
-    # full pipeline list (CLIP / Moondream / YOLO / MTCNN).
+    # full pipeline list (SigLIP2 / Moondream / YOLO / MTCNN / reranker).
     for needle in (
         "moondream2",
-        "clip-vit-large",
-        "yolov8m",
+        "siglip2-large",
+        "yolov8n",
         "mtcnn",
+        "bge-reranker",
         "Models",
     ):
         assert needle in modal, f"modal missing: {needle}"

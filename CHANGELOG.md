@@ -10,7 +10,23 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ## [Não lançado]
 
+## [0.10.0] - 2026-08-05
+
 ### Corrigido
+
+- **Modal Sobre mostrava modelos errados.** O card de embedding visual
+  anunciava `openai/clip-vit-large-patch14` (OpenAI, MIT) desde antes da
+  virada para SigLIP2 — o padrão real é `google/siglip2-large-patch16-256`
+  (Google, Apache-2.0). O card de objetos dizia `yolov8m`; o backend carrega
+  `yolov8n.pt`. A pilha anunciava HTMX 1.9 com HTMX 2.0.4 vendorizado, e não
+  citava o Alpine.js 3.14.9 que a página carrega. O reranker
+  `BAAI/bge-reranker-v2-m3` não aparecia. Os identificadores agora espelham
+  `kuaa.models.manifest`, a fonte única de identidade de modelo.
+- **Rótulos de função dos modelos não traduziam.** Eles vinham de
+  `_about_data.py` como dados e passavam por `_()` só em tempo de render, mas
+  `pybabel extract` varre apenas `templates/**.html` (ver `web/babel.cfg`) —
+  então todas as entradas ficaram obsoletas nos catálogos e o modal em pt-BR
+  caía para o inglês. Restaurados como literais `_()` no template.
 
 - **Referências a documentos e planos inexistentes removidas de todo o repo.**
   O commit `68bbb22` ("public launch cleanup") removeu material interno da
@@ -34,6 +50,13 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ### Alterado
 
+- Versão 0.9.1 → 0.10.0 (`pyproject.toml`, `src/kuaa/__init__.py`, `uv.lock`,
+  `SETUP.md`, README, páginas do site EN/pt-BR).
+- README documenta a fusão de três sinais (denso ⊕ BM25 ⊕ metadados
+  léxico-exatos), incluindo a atuação da perna de metadados apenas em
+  consultas curtas, e registra que tags e descrições da aba Anotar alimentam
+  o ranqueamento. Resumo em português ampliado para cobrir Pré-processamento,
+  Rimas Visuais e exportação EDL.
 - **`api/routes/preprocess.py` isento do teto de 182/150 linhas**
   (`scripts/check_loc_budget.py`), que estava vermelho na `main`. O módulo
   concentra o disparo do job de detecção, os endpoints de edição de cortes em
