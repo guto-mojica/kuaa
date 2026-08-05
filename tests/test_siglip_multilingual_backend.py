@@ -1,9 +1,8 @@
 """SigLIP-multilingual backend smoke test (skipped without HF deps).
 
-The SigLIP-multilingual backend is a
-drop-in alternative to ``OpenClipEmbedder`` exposed via
-``cfg.models.image_embedder = "siglip_multilingual"``. The default stays
-``clip_openclip`` — flipping is the responsibility of Task 4.2/4.3.
+The SigLIP-multilingual backend is a drop-in alternative to
+``OpenClipEmbedder``, selected by ``cfg.models.image_embedder``. It is the
+shipped default: ``config/default.yaml`` sets ``siglip_multilingual``.
 
 These tests never download the ~2 GB SigLIP weights:
 

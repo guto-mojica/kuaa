@@ -61,7 +61,7 @@ def test_cfg_default_is_threaded_when_explicit_none(monkeypatch, tmp_path):
 
 def test_fallback_when_cfg_lacks_retrieval_rhymes(monkeypatch, tmp_path):
     """A cfg without retrieval.rhymes should fall through to hard defaults
-    (0.5 / 30) — keeps the service usable before Task 3.3 lands the config block."""
+    (0.5 / 30) — keeps the service usable on a config with no rhymes block."""
     from types import SimpleNamespace
 
     from api.services.rhymes_service import build_rimas_context

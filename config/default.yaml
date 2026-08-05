@@ -135,7 +135,7 @@ search:
   # Modality gates (each toggles its chip on/off in the Buscar tab).
   image_enabled: true         # existing image-similarity search
 
-# ── Retrieval (Month-2/3 reranker + fusion/rhymes knobs) ─────────────────────
+# ── Retrieval (reranker + fusion/rhymes knobs) ───────────────────────────────
 # Separate from ``search:`` because ``search:`` owns UI-surfaced display knobs
 # (chips, modality gates, k defaults) while ``retrieval:`` owns the deeper
 # scoring-pipeline knobs that the cfg-aware service wrappers read at dispatch

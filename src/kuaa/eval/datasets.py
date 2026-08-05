@@ -168,8 +168,8 @@ def load_dataset(path: str | Path) -> EvaluationDataset:
 def load_queries(root: Path, run_id: str) -> list[dict[str, Any]]:
     """Load the curated query list for the run. Empty when missing.
 
-    Task 33 ships the seeded queries file; until then this returns
-    ``[]`` and the /eval page renders an empty-state queue.
+    Returns ``[]`` when the run has no queries file, and the /eval page
+    renders an empty-state queue. Seed one with ``kuaa eval seed``.
     """
 
     queries_path = root / f"{run_id}.queries.json"

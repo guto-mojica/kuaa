@@ -133,9 +133,9 @@ def build_rimas_context(
     cross_film_only = True if cross_film is None else bool(cross_film)
 
     # Resolve MMR kwargs: explicit > cfg.retrieval.rhymes.{diversity,k_candidates}
-    # > hard defaults. Task 3.3 lands the cfg block; until then the getattr-chain
-    # falls through to the hard defaults (0.5 / 30) which match the plan's spec
-    # defaults.
+    # > hard defaults. ``retrieval.rhymes`` ships in config/default.yaml; the
+    # getattr-chain stays defensive so an older config still falls through to
+    # the hard defaults (0.5 / 30).
     rhymes_cfg = getattr(getattr(cfg, "retrieval", None), "rhymes", None)
     if lambda_diversity is None:
         lambda_diversity = float(getattr(rhymes_cfg, "diversity", 0.5))
