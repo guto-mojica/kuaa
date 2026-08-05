@@ -8,12 +8,21 @@ the current ordering still matches, so ``?retriever=clip`` keeps reproducing
 the legacy ranking.
 
 Environment caveat: this test does *not* use the hermetic ``tmp_config``
-fixture — the snapshot is meaningful only against a real indexed
-library (the maintainer's local Jeca Tatu install at minimum). On CI /
-fresh checkouts with no indexed films the test SKIPs cleanly via
-:func:`api.services.search.has_indexed_films`. The pinned snapshot
-captures behavior against the maintainer's local catalogue at the time
-of capture (commit-pinned).
+fixture — the snapshot is meaningful only against a real indexed library.
+On CI / fresh checkouts the test SKIPs cleanly.
+
+Scoped to ONE film (``?film=jeca_tatu_1959``) on purpose. Without a
+``film`` param ``/api/search`` runs the cross-film aggregate, whose global
+ranking is re-shuffled by *any* library change — registering a new film or
+re-embedding an existing one invalidated the snapshot wholesale (it was
+re-pinned four times between 2026-05-23 and 2026-06-07 for exactly that
+reason, each time with zero overlap rather than a small drift). Pinning a
+single film means only that film's own index can move the ordering, so a
+failure here points at retrieval behaviour instead of corpus composition.
+
+Consequence: the skip guard checks for *this* film specifically, not for
+"any indexed film" — on a machine with a different library the test must
+bow out rather than fail.
 """
 
 from __future__ import annotations
@@ -29,11 +38,14 @@ from fastapi.testclient import TestClient
 
 from api.deps import get_config
 from api.server import app
-from api.services.search import has_indexed_films
 
 logger = logging.getLogger(__name__)
 
 SNAPSHOT_PATH: Path = Path(__file__).parent / "fixtures" / "hybrid_search_regression.json"
+
+# The single film this snapshot is pinned against. Changing it invalidates
+# the fixture — regenerate with UPDATE_HYBRID_SNAPSHOT=1 in the same commit.
+SNAPSHOT_FILM = "jeca_tatu_1959"
 
 # Queries chosen to cover three behavior buckets:
 #  - semantic-strong (CLIP should excel)
@@ -42,30 +54,43 @@ SNAPSHOT_PATH: Path = Path(__file__).parent / "fixtures" / "hybrid_search_regres
 # The route default has since flipped to ``retriever=hybrid``, so calling
 # ``/api/search?q=...`` now returns hybrid-fused output. The snapshot was
 # captured against the earlier pure-CLIP path, so we pin ``retriever=clip``
-# explicitly here — the route short-circuits that to the legacy
-# ``search_text`` path, reproducing the snapshot exactly.
+# explicitly here. With ``?film=`` set this reaches the per-film
+# ``search_text`` branch in ``api.services.search`` (``retriever == "clip"``),
+# which never consults the BM25 or metadata legs — so hybrid-side changes
+# cannot move these numbers.
 # ``reranker_enabled=false`` pins these to the pre-rerank CLIP ordering. The
 # reranker default is now profile-aware (``auto`` → GPU-on), so without this
 # the snapshot would reorder on a GPU box and defeat the regression-pin intent.
 SNAPSHOT_QUERIES: list[dict] = [
-    {"q": "menina chorando", "top_k": 9, "retriever": "clip", "reranker_enabled": "false"},
-    {"q": "1959", "top_k": 9, "retriever": "clip", "reranker_enabled": "false"},
-    {"q": "homem na rua", "top_k": 9, "retriever": "clip", "reranker_enabled": "false"},
+    {"q": q, "top_k": 9, "retriever": "clip", "reranker_enabled": "false", "film": SNAPSHOT_FILM}
+    for q in ("menina chorando", "1959", "homem na rua")
 ]
 
 
-def _has_indexed_films_available() -> bool:
-    """Probe the real (non-hermetic) config for indexed films.
+def _snapshot_film_indexed() -> bool:
+    """``True`` iff :data:`SNAPSHOT_FILM` is registered with an OK index.
 
-    Returns ``False`` (so the test SKIPs) on any error — a fresh
-    checkout with no models / no embeddings should never error the
-    suite, just bow out.
+    Deliberately narrower than ``has_indexed_films``: the snapshot pins one
+    specific film, so a machine holding a *different* indexed library must
+    SKIP rather than fail. Returns ``False`` (so the test SKIPs) on any
+    error — a fresh checkout with no models / no embeddings should never
+    error the suite, just bow out.
     """
     try:
+        from kuaa.library import FilmContext
+        from kuaa.search.cache import load_index
+
         cfg = get_config()
-        return has_indexed_films(cfg)
+        ctx = FilmContext.for_film(cfg, SNAPSHOT_FILM)
+        index = load_index(
+            ctx,
+            mapping_filename=cfg.embeddings.mapping_filename,
+            embeddings_filename=cfg.embeddings.filename,
+            cfg=cfg,
+        )
+        return bool(index.ok)
     except Exception:  # noqa: BLE001 — defensive: any failure → skip
-        logger.debug("has_indexed_films probe failed; treating as no films", exc_info=True)
+        logger.debug("%s index probe failed; skipping", SNAPSHOT_FILM, exc_info=True)
         return False
 
 
@@ -95,11 +120,11 @@ def _run_query(client: TestClient, query: dict) -> list[int]:
 
 
 @pytest.mark.skipif(
-    not _has_indexed_films_available(),
-    reason="no indexed films in test env; snapshot requires real catalogue",
+    not _snapshot_film_indexed(),
+    reason=f"{SNAPSHOT_FILM} not indexed in this env; snapshot requires its real index",
 )
 def test_prehybrid_snapshot_matches_or_updates(regression_client: TestClient) -> None:
-    """Capture or assert the pre-hybrid ``/api/search`` ranking.
+    """Capture or assert the pre-hybrid ``/api/search`` ranking for one film.
 
     Set ``UPDATE_HYBRID_SNAPSHOT=1`` to regenerate the snapshot against
     the current code. Without the env var the test asserts the
