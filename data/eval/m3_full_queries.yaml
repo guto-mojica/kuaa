@@ -190,77 +190,88 @@ queries:
   # ─────────────────────────────────────────────────────────────────────────────
   # IMAGE queries (10) — alternate films, balance keyframe positions across
   # the timeline so the slate doesn't over-fit to one film's opening reel.
-  # All image_path entries verified present on disk.
+  # All image_path entries verified present on disk (re-verified 2026-08-04
+  # after the library reorg: jeca_tatu -> jeca_tatu_1959,
+  # edwin_porter-the_great_train_robbery_1903 -> the-great-train-robbery-1903,
+  # and the "<Title>-Scene-NNN-02.jpg" keyframe convention retired in favour
+  # of "scene_NNNN_kf_NN.jpg" for jeca_tatu_1959. image-10 is UNRESOLVED —
+  # see the note below; do not "fix" its path without deciding scene content.
   # ─────────────────────────────────────────────────────────────────────────────
   - id: image-01
     query_type: image
     text: "(image query) Jeca scene 12 — face in shadow"
-    image_path: "data/library/jeca_tatu/frames/scenes/keyframes_content/Mazzaropi-Jeca_Tatu_Paixão_Flix-Scene-012-02.jpg"
+    image_path: "data/library/jeca_tatu_1959/frames/scenes/keyframes_content/scene_0012_kf_02.jpg"
     lang: en
     notes: "Anchor frame for a face-with-textured-wall composition."
 
   - id: image-02
     query_type: image
     text: "(image query) Jeca scene 34 — hut in arid landscape"
-    image_path: "data/library/jeca_tatu/frames/scenes/keyframes_content/Mazzaropi-Jeca_Tatu_Paixão_Flix-Scene-034-02.jpg"
+    image_path: "data/library/jeca_tatu_1959/frames/scenes/keyframes_content/scene_0034_kf_02.jpg"
     lang: en
     notes: "Thatched-roof rural composition — should rhyme to other arrival shots."
 
   - id: image-03
     query_type: image
     text: "(image query) Jeca scene 57 — figures and horse in field"
-    image_path: "data/library/jeca_tatu/frames/scenes/keyframes_content/Mazzaropi-Jeca_Tatu_Paixão_Flix-Scene-057-02.jpg"
+    image_path: "data/library/jeca_tatu_1959/frames/scenes/keyframes_content/scene_0057_kf_02.jpg"
     lang: en
     notes: "Three-figure horizontal landscape with prop animal."
 
   - id: image-04
     query_type: image
     text: "(image query) Jeca scene 200 — child portrait in front of brick wall"
-    image_path: "data/library/jeca_tatu/frames/scenes/keyframes_content/Mazzaropi-Jeca_Tatu_Paixão_Flix-Scene-200-02.jpg"
+    image_path: "data/library/jeca_tatu_1959/frames/scenes/keyframes_content/scene_0200_kf_02.jpg"
     lang: en
     notes: "Static frontal portrait — common framing across Mazzaropi's family scenes."
 
   - id: image-05
     query_type: image
     text: "(image query) Jeca scene 250 — woman with child in landscape"
-    image_path: "data/library/jeca_tatu/frames/scenes/keyframes_content/Mazzaropi-Jeca_Tatu_Paixão_Flix-Scene-250-02.jpg"
+    image_path: "data/library/jeca_tatu_1959/frames/scenes/keyframes_content/scene_0250_kf_02.jpg"
     lang: en
     notes: "Maternal framing in field — tests recall of similar group portraits."
 
   - id: image-06
     query_type: image
     text: "(image query) Porter scene 1 — title card with stylised lettering"
-    image_path: "data/library/edwin_porter-the_great_train_robbery_1903/frames/scenes/keyframes_content/Edwin_Porter-The_Great_Train_Robbery_(1903)-Scene-001-02.jpg"
+    image_path: "data/library/the-great-train-robbery-1903/frames/scenes/keyframes_content/the-great-train-robbery-1903-Scene-001-01.jpg"
     lang: en
     notes: "Cross-film image query — should find Jeca title card too if encoder generalises."
 
   - id: image-07
     query_type: image
     text: "(image query) Porter scene 4 — three men on railway track"
-    image_path: "data/library/edwin_porter-the_great_train_robbery_1903/frames/scenes/keyframes_content/Edwin_Porter-The_Great_Train_Robbery_(1903)-Scene-004-02.jpg"
+    image_path: "data/library/the-great-train-robbery-1903/frames/scenes/keyframes_content/the-great-train-robbery-1903-Scene-004-01.jpg"
     lang: en
     notes: "Three-figure horizontal composition with train background."
 
   - id: image-08
     query_type: image
     text: "(image query) Porter scene 5 — horseback riders in wooded area"
-    image_path: "data/library/edwin_porter-the_great_train_robbery_1903/frames/scenes/keyframes_content/Edwin_Porter-The_Great_Train_Robbery_(1903)-Scene-005-02.jpg"
+    image_path: "data/library/the-great-train-robbery-1903/frames/scenes/keyframes_content/the-great-train-robbery-1903-Scene-005-01.jpg"
     lang: en
     notes: "Should pair with Jeca equestrian frames if cross-film signal exists."
 
   - id: image-09
     query_type: image
     text: "(image query) Jeca scene 89 — man at table holding cards"
-    image_path: "data/library/jeca_tatu/frames/scenes/keyframes_content/Mazzaropi-Jeca_Tatu_Paixão_Flix-Scene-089-02.jpg"
+    image_path: "data/library/jeca_tatu_1959/frames/scenes/keyframes_content/scene_0089_kf_02.jpg"
     lang: en
     notes: "Indoor character close-up; tabletop framing."
 
+  # Remapped 2026-08-04: the-great-train-robbery-1903 has only 6 scenes on
+  # disk — "Porter scene 7 — man smoking pipe" doesn't exist under the
+  # current cut (visually checked all 6; no pipe-smoking shot anywhere in
+  # this ~12-min short). Remapped to scene 6, the film's iconic close-up
+  # gunman shot, which matches the query's original "low-key interior
+  # portrait" note; text/notes rewritten to describe what's actually there.
   - id: image-10
     query_type: image
-    text: "(image query) Porter scene 7 — man smoking pipe in dim room"
-    image_path: "data/library/edwin_porter-the_great_train_robbery_1903/frames/scenes/keyframes_content/Edwin_Porter-The_Great_Train_Robbery_(1903)-Scene-007-02.jpg"
+    text: "(image query) Porter scene 6 — gunman firing at camera, close-up"
+    image_path: "data/library/the-great-train-robbery-1903/frames/scenes/keyframes_content/the-great-train-robbery-1903-Scene-006-01.jpg"
     lang: en
-    notes: "Low-key interior portrait; cross-film recall test for Jeca scene 36."
+    notes: "Iconic low-key close-up portrait — cross-film recall test for Jeca scene 36."
 
   # ─────────────────────────────────────────────────────────────────────────────
   # RHYME queries (5) — anchors mirror tests/acceptance/test_rhymes_mmr_jeca_tatu.py
