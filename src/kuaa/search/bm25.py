@@ -16,7 +16,7 @@ Public verbs:
     tunables (``stopwords_lang``, ``k1``, ``b``). The thin shim in
     ``api/services/search.py::_get_bm25_index_for_ctx`` reads
     ``cfg.search.bm25`` and forwards.
-  * :func:`reindex_bm25` — public M2/P1 verb: drop the BM25 slot for a
+  * :func:`reindex_bm25` — public verb: drop the BM25 slot for a
     film. ``ctx`` is duck-typed (must expose ``metadata_dir``). Today
     the cache is module-wide, so this clears every slot; a per-slug
     refinement can land in a follow-up without changing this signature.

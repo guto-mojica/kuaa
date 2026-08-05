@@ -17,4 +17,4 @@ def test_bm25_defaults_loaded() -> None:
 
 def test_hybrid_enabled_default_flipped() -> None:
     cfg = load_config()
-    assert cfg.search.hybrid_enabled is True, "M2 default flip: hybrid retrieval must default ON"
+    assert cfg.search.hybrid_enabled is True, "hybrid retrieval must default ON"

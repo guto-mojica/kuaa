@@ -969,8 +969,8 @@ def test_search_timeline_renders_when_scene_and_film_selected(client, seed_metad
     The seeded fixture writes two scenes (351, 352) with start/end
     times, so the timeline builder resolves a positive runtime, emits
     one ``.seg`` per scene, marks the selected scene as ``.sel`` and
-    flags it as a match (M1 simplification: only the selected scene
-    counts as a match until M2 wires the full per-film match set).
+    flags it as a match (simplification: only the selected scene
+    counts as a match; the full per-film match set is not computed).
 
     Also asserts the right-pane inspector co-renders on the same page
     (the timeline builder populates ``selected_scene`` + ``selected_film``

@@ -214,11 +214,11 @@ local em cada máquina. O `.gitignore` já está configurado para isso.
 Com o ambiente virtual ativado e dependências instaladas:
 
 ```bash
-# Demo público M1 com artefatos pré-computados
+# Demo público com artefatos pré-computados
 uv run python scripts/prepare_demo.py --download
 uv run kuaa serve --config config/demo.yaml
 
-# Avaliação M2 do índice demo preparado
+# Avaliação do índice demo preparado
 uv run python scripts/run_eval.py --config config/demo.yaml \
   --queries data/eval/archive_demo_queries.yaml \
   --output-dir data/eval/reports

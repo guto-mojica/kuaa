@@ -2,7 +2,7 @@
 
 The tab partial wants more than ``{films, step_defs, jobs}``:
 
-  * ``initial_log_lines`` — empty for M1 (the SSE stream feeds them
+  * ``initial_log_lines`` — always empty (the SSE stream feeds them
     live); the route layer may later seed a tail of the rotating
     in-memory log buffer.
   * ``stats`` — aggregate counts (frames / scenes / embeddings /

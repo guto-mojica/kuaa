@@ -23,8 +23,8 @@ The service deliberately does NOT raise on unresolvable anchors. The UX
 contract is "show the empty state, never crash"; the route stays
 200-only for both the page and the HTMX fragment.
 
-Future M3 swap
---------------
+Future backend swap
+-------------------
 The context shape exposed here (``anchor_film``, ``anchor_scene``, ``echoes``,
 ``k``, ``mmr_lambda``, ``threshold``) is intended to stay stable as the Rimas
 backend evolves. The current branch runs cross-film visual kNN with optional
@@ -175,7 +175,7 @@ def build_rimas_context(
     # inspector's "Por que esta rima" / "Why this rhyme" card renders the
     # full bar chart from the prototype instead of a single cosine row.
     # The values are deterministic per (anchor, echo) pair so they don't
-    # flicker across reloads; until the M3 multi-encoder reranker lands,
+    # flicker across reloads; absent a real multi-encoder reranker,
     # the components (composition / semantic / colour) are synthesized
     # around the real CLIP cosine score — flagged in the docstring of
     # _signals_for_pair so future readers don't confuse them with real

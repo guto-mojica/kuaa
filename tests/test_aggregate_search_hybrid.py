@@ -7,7 +7,7 @@ name shadows the submodule in the ``kuaa.search`` package namespace.
 Task D2 — the per-film fan-out branches on ``retriever_mode``:
 
   * ``"clip"``   — inline cosine over the per-film CLIP index, identical
-    to pre-M2 behaviour (regression pin).
+    to the pre-hybrid behaviour (regression pin).
   * ``"bm25"``   — per-film ``BM25Index.query`` results, tag-filtered.
   * ``"hybrid"`` — RRF of the two with ``sem_w`` / ``bm25_w`` weights.
 
@@ -171,7 +171,7 @@ def two_film_library_cfg(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> obj
 
 
 def test_aggregate_clip_mode_regression(two_film_library_cfg: object) -> None:
-    """``retriever_mode="clip"`` reproduces the pre-M2 ordering exactly.
+    """``retriever_mode="clip"`` reproduces the pre-hybrid ordering exactly.
 
     Pin: calling ``aggregate_search`` with explicit ``retriever_mode="clip"``
     must produce byte-identical hits to the legacy default-kwarg path.

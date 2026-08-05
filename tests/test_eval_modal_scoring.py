@@ -133,7 +133,7 @@ def test_default_relevance_empty_case_returns_empty_but_keeps_method_label():
 
 
 def test_default_relevance_hypothesis_drops_nonpositive_grades(monkeypatch):
-    """M3 guard: a labelled query with no positive grade falls back to flat 1.0.
+    """Guard: a labelled query with no positive grade falls back to flat 1.0.
 
     Otherwise ``ndcg_at_k`` raises a *bare* ValueError that the CLI's
     EvalError/FileNotFoundError handler would not catch.

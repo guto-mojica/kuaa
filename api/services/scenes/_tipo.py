@@ -1,8 +1,4 @@
-"""Scene tipo classifier + display constants.
-
-Extracted verbatim from ``api/services/scenes_service.py`` (lines ~62–102,
-645–668) during the A1 decomposition (WS-2 Task 2).
-"""
+"""Scene tipo classifier + display constants."""
 
 from __future__ import annotations
 

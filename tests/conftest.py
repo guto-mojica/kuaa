@@ -150,7 +150,7 @@ def tmp_config(tmp_path, monkeypatch):
         cfg.eval.root = str(eval_root_dir)
 
     # Pin the image-embedder backend to the OpenClip baseline for hermetic
-    # tests. Default.yaml flipped to ``siglip_multilingual`` in M3
+    # tests. Default.yaml now ships ``siglip_multilingual``
     # pre-flight Task 4.2; that backend lazily loads ~2 GB of SigLIP2
     # weights via HuggingFace on first call. Every existing test fixture
     # monkeypatches ``kuaa.models.clip.openclip.OpenClipEmbedder``

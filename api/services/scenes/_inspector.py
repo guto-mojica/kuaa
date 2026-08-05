@@ -1,8 +1,4 @@
-"""Inspector context builder — right ``.b-rp`` / ``.c-rp`` pane.
-
-Extracted verbatim from ``api/services/scenes_service.py`` (lines ~105–300)
-during the A1 decomposition (WS-2 Task 2).
-"""
+"""Inspector context builder — right ``.b-rp`` / ``.c-rp`` pane."""
 
 from __future__ import annotations
 
@@ -201,7 +197,7 @@ def build_inspector_context(
         # Pin overlay coords — reserved for the pin-persistence backend.
         # ``None`` hides the .pin span in the template.
         "pin": None,
-        # Per-modality signal breakdown — wired by M2 hybrid retrieval.
+        # Per-modality signal breakdown — not wired yet.
         # ``None`` hides the .b-sigs block regardless of the config flag.
         "signals": None,
         # "Described … ago" label — populated when the description carries

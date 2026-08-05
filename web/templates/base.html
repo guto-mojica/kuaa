@@ -63,7 +63,7 @@
     <script>window.RERANK_DEFAULT = {{ 'true' if reranker_default else 'false' }};</script>
     <script src="{{ request.url_for('static', path='js/mojica.js') }}" defer></script>
     {# Alpine.js — client-only state sprinkles: chip toggles, panel
-       visibility, modal close, file-input filename, M2 Hybrid Search
+       visibility, modal close, file-input filename, hybrid-search
        knob popovers + tag chips on Buscar, Cenas Appearance / Fields /
        Group / Sort popovers. Alpine's MutationObserver picks up DOM
        nodes inserted by htmx swaps automatically, so no extra wiring

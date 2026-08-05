@@ -1,4 +1,4 @@
-"""Proxy-first ablation table — the WS-4 portfolio centrepiece (E2b).
+"""Proxy-first retriever-variant ablation table.
 
 This module produces a retriever-variant ablation table that is **publishable
 with zero human grades**. Every row is scored on a *common query set* with the
@@ -6,8 +6,8 @@ with zero human grades**. Every row is scored on a *common query set* with the
 column, and any backend that is not wired renders a literal ``pending (...)``
 cell — never a fabricated or zero number.
 
-Design (spec §6 E2)
--------------------
+Design
+------
 The common query set is the **15 text queries** from
 ``data/eval/m3_full_queries.yaml``; every one carries the maintainer's
 pre-curator hypothesis (``relevant_scene_ids`` / ``relevance``), so
@@ -25,7 +25,7 @@ row                  how                                                        
 ``hybrid``           :func:`run_retrieval_eval` ``retriever="hybrid"`` — the     HY
                      SHIPPED 3-way fusion (CLIP + BM25 + metadata leg)
 ``hybrid-metadata``  same, ``metadata_w=0.0`` — isolates the metadata signal     HY
-``hybrid+rerank``    production ``find(mode="hybrid", rerank=...)`` ± C5         HY
+``hybrid+rerank``    production ``find(mode="hybrid", rerank=...)``               HY
 ===================  ==========================================================  =====
 
 The reranker only scores **text** queries (it reads ``query.text``), which is
@@ -36,7 +36,7 @@ production :func:`kuaa.search.find` for *both* its hybrid base
 two different hybrid implementations, so the table footnote states the rerank
 delta is measured on ``find``'s hybrid, not on the harness hybrid row.
 
-A ``multilingual`` / C8 row (OpenCLIP baseline vs the SigLIP2 default) was
+A ``multilingual`` row (OpenCLIP baseline vs the SigLIP2 default) was
 removed 2026-08-04: it assumed on-disk ``.clip_openclip`` artefacts that no
 commit in this repo's history ever produced for any film, so the row only
 ever rendered ``pending (EvalError)``. Re-add it if/when a real OpenCLIP
@@ -87,7 +87,7 @@ class AblationRowConfig:
         proxy: the proxy signal used for the row's labels — ``"KI" | "PR" |
             "HY"`` (the whole launch table is ``"HY"``; the field exists so a
             future mixed table can segregate tiers).
-        rerank: when ``True`` the row applies the C5 cross-encoder on top of a
+        rerank: when ``True`` the row applies the cross-encoder reranker on top of a
             ``find``-based hybrid base (only meaningful with
             ``retriever == "hybrid"``).
         metadata_w: hybrid-only — the exact-lexical metadata list's fusion
@@ -97,7 +97,9 @@ class AblationRowConfig:
             signal-level ablation arm).
         pending_reason: when set, the row is rendered ``pending (<reason>)`` and
             :func:`run_ablation` does not attempt to compute it. Used for a row
-            whose backend is not wired (e.g. ``"C5"``).
+            whose backend is not wired — the reason is printed verbatim into
+            the published table, so make it a phrase a reader can act on
+            (e.g. ``"rerank off"``), not an internal ticket code.
     """
 
     name: str
@@ -140,8 +142,9 @@ class AblationTable:
             ]
         return [
             "**Proxy methodology.** These are **proxy metrics**, not human-graded "
-            "ground truth — they upgrade to human-validated numbers when curator "
-            "grades land (WS-4 E5). Every row below is scored on a common query "
+            "ground truth — they upgrade to human-validated numbers once curator "
+            "grades are recorded in the admin `/eval` grading UI and passed back "
+            "via `run_ablation.py --grades`. Every row below is scored on a common query "
             "set with the **same** proxy labels, so the comparison is "
             "apples-to-apples. Proxy signals:",
             "",
@@ -197,7 +200,7 @@ class AblationTable:
 # Default row configs.
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Full set (rerank row REAL — uses production find ± C5). The ``hybrid`` row
+# Full set (rerank row REAL — uses production find ± the reranker). The ``hybrid`` row
 # measures the SHIPPED 3-way fusion (metadata_w=None → cfg default);
 # ``hybrid-metadata`` is identical except the metadata leg is off, so the
 # delta between the two isolates the signal's contribution.
@@ -209,7 +212,7 @@ DEFAULT_ABLATION_CONFIGS: tuple[AblationRowConfig, ...] = (
     AblationRowConfig(name="hybrid+rerank", retriever="hybrid", proxy="HY", rerank=True),
 )
 
-# No-rerank variant — the rerank row is pending (C5) so the table is produced
+# No-rerank variant — the rerank row is left pending so the table is produced
 # without paying the cross-encoder cost (and the committed --no-rerank doc is
 # honest about which rows are real).
 DEFAULT_ABLATION_CONFIGS_NO_RERANK: tuple[AblationRowConfig, ...] = (
@@ -218,7 +221,11 @@ DEFAULT_ABLATION_CONFIGS_NO_RERANK: tuple[AblationRowConfig, ...] = (
     AblationRowConfig(name="hybrid", retriever="hybrid", proxy="HY"),
     AblationRowConfig(name="hybrid-metadata", retriever="hybrid", proxy="HY", metadata_w=0.0),
     AblationRowConfig(
-        name="hybrid+rerank", retriever="hybrid", proxy="HY", rerank=True, pending_reason="C5"
+        name="hybrid+rerank",
+        retriever="hybrid",
+        proxy="HY",
+        rerank=True,
+        pending_reason="rerank off",
     ),
 )
 
@@ -231,7 +238,7 @@ _ROW_FOOTNOTES: dict[str, str] = {
     ),
     "hybrid+rerank": (
         'Rerank delta is measured on the production `find(mode="hybrid")` base '
-        "(± the C5 bge-reranker-v2-m3 cross-encoder), which is a different hybrid "
+        "(± the bge-reranker-v2-m3 cross-encoder), which is a different hybrid "
         "implementation from the harness `hybrid` row above — compare the rerank "
         "row to the `find` hybrid base it sits on, not to the harness `hybrid` row."
     ),
@@ -414,7 +421,7 @@ def _run_rerank_row(
     """hybrid+rerank row — production ``find(mode="hybrid", rerank=True)``.
 
     Scores each text query against the per-film index with the production
-    retrieval path so the cross-encoder (C5) reorders the hybrid top-N. The
+    retrieval path so the cross-encoder reranker reorders the hybrid top-N. The
     base is ``find``'s hybrid (NOT the harness ``hybrid`` row) — see the
     table footnote. Built from ``kuaa.search`` only (no api import).
     """

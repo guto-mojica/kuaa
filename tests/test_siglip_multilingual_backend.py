@@ -1,6 +1,6 @@
 """SigLIP-multilingual backend smoke test (skipped without HF deps).
 
-Task 4.1 of the M3 pre-flight plan. The SigLIP-multilingual backend is a
+The SigLIP-multilingual backend is a
 drop-in alternative to ``OpenClipEmbedder`` exposed via
 ``cfg.models.image_embedder = "siglip_multilingual"``. The default stays
 ``clip_openclip`` — flipping is the responsibility of Task 4.2/4.3.

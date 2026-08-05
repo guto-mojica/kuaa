@@ -77,7 +77,7 @@ def test_find_rhymes_lambda_half_diversifies_top_n(tmp_path: Path) -> None:
 
 
 def test_find_rhymes_backward_compat_default_args(tmp_path: Path) -> None:
-    """Calling find_rhymes without the new kwargs reproduces the M1
+    """Calling find_rhymes without the new kwargs reproduces the original
     stub behaviour (pure kNN, top_n=8)."""
     lib = _make_library(tmp_path)
     out = find_rhymes(

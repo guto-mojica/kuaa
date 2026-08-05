@@ -82,7 +82,12 @@ src/kuaa/      AI core. HTTP-agnostic logic. Cleanly importable.
   eval/                Eval-set datasets + grades + IAA / κ metrics.
   retrieval/           BM25Index + RRF fusion primitives.
   models/              Protocol-typed model backends + registry.
+  exporters/           Domain-aware JSON/CSV catalog export.
+  commands/            CLI subcommands behind the `kuaa` entrypoint.
+  config/              Settings loader + schema for default.yaml / local.yaml.
 api/                 Thin HTTP layer. Each route calls src/kuaa/ and returns JSON or HTML.
+  services/scenes/     Cenas tab context builders; a package, not a module, to
+                       stay inside the 250-line services LOC budget.
 web/templates/       Jinja2. base.html + partials/ for HTMX fragments.
 web/static/          CSS, vendored htmx.min.js, icons.
 web/locales/         pt_BR and en, managed by Babel.

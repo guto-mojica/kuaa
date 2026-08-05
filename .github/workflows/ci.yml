@@ -1,7 +1,8 @@
 # KUAA — Continuous Integration
 #
-# Seven jobs: lint (strict), test-smoke (fast/model-free), test-heavy (full matrix),
-# typecheck (mypy, blocking), security (bandit + pip-audit), build (sdist/wheel), benchmark (smoke).
+# Eight jobs: lint (strict), docs (public-docs gate), test-smoke (fast/model-free),
+# test-heavy (full matrix), typecheck (mypy, blocking), security (bandit + pip-audit),
+# build (sdist/wheel), benchmark (smoke).
 #
 # Install strategy: we use the `full` extra + `dev` group. Why not a lighter
 # extra like `[search]`?  Several tests import `kuaa.models.describer.*`
@@ -20,7 +21,7 @@
 # 3.11 (covered by .python-version locally) and 3.13 (transformers/torch lag).
 # OS: ubuntu-latest only. Portfolio repo; macOS/Windows runners cost 10x+.
 #
-# Mypy is now a blocking gate (T2 / WS-5): zero errors on src+api enforced.
+# Mypy is a blocking gate: zero errors on src+api enforced.
 
 name: CI
 
@@ -64,6 +65,21 @@ jobs:
 
       - name: Ruff (format check)
         run: uv run ruff format --check .
+
+  docs:
+    name: Docs (public package gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Pure-stdlib check: no project install needed.
+      - name: Public docs package (headings, links, placeholders)
+        run: python scripts/check_launch_package.py
 
   test-smoke:
     name: Tests — smoke (model-free)
@@ -158,9 +174,9 @@ jobs:
           python-version: "3.12"
 
       # bandit and pip-audit run via uvx (ephemeral — fetched on the fly,
-      # no project dependency, no uv.lock change). This is the reconciliation
-      # from the implementation plan: avoids adding bandit/pip-audit to the
-      # dev group while the lockfile has an unrelated in-flight prune.
+      # no project dependency, no uv.lock change). Keeping them out of the dev
+      # group means a security-tool version bump never churns the lockfile.
+      # The justfile `sec` recipe runs the same two commands locally.
       - name: Bandit (SAST, MEDIUM+ severity)
         # -c reads [tool.bandit] from pyproject.toml for exclude_dirs + skips.
         # -ll = MEDIUM+ only; Low findings are documented false-positives in
@@ -219,10 +235,9 @@ jobs:
     name: Benchmark (retrieval latency, smoke)
     # This job is intentionally non-blocking when no index is present.
     # CI runners have no Jeca Tatu artefacts; the job emits a ::notice:: and
-    # exits 0 in that case.  It runs for real only on self-hosted runners (or
-    # future CI that restores a cached demo bundle via scripts/prepare_demo.py).
-    # When WS-4 E6 ships its smoke entry, swap the bench_retrieval.py step for
-    # the E6 smoke command and drop the prepare_demo.py download step.
+    # exits 0 in that case.  It runs for real only on self-hosted runners, or
+    # on any runner where scripts/prepare_demo.py successfully restores the
+    # demo bundle (hosting-dependent — see docs/DEMO_DATA.md).
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -246,10 +261,11 @@ jobs:
         run: uv sync --extra full --group dev
 
       # Best-effort: try to fetch the demo index bundle (Jeca Tatu artefacts).
-      # scripts/prepare_demo.py is a future helper (WS-4 / E6 scope); if it
-      # does not exist yet the step silently sets have_index=0 and the bench
-      # skips cleanly.  This step never hard-fails; it records availability
-      # in a step output so the bench step can be conditioned on it.
+      # The download depends on the release ZIP being reachable at the URL in
+      # data/demo/manifest.json, so it is allowed to fail: on any failure the
+      # step sets have_index=0 and the bench skips cleanly.  This step never
+      # hard-fails; it records availability in a step output so the bench step
+      # can be conditioned on it.
       - name: Prepare demo index (best-effort)
         id: demo
         run: |
@@ -262,7 +278,7 @@ jobs:
             fi
           else
             echo "have_index=0" >> "$GITHUB_OUTPUT"
-            echo "::notice::prepare_demo.py not found (E6 not yet shipped); benchmark runs as a no-op pass"
+            echo "::notice::prepare_demo.py not found; benchmark runs as a no-op pass"
           fi
 
       # Run the smoke bench.  When an index IS present (have_index=1) this

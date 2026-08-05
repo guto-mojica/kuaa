@@ -50,27 +50,18 @@ been removed.
 
 ## Public baseline
 
-Goal: make the project legible to recruiters, team leads, and open-source
-visitors.
+Goal: make the project legible to team leads and open-source visitors.
 
-Planned work:
+Done:
 
-- English-first README pass.
-- Screenshots and architecture diagram.
-- Public project brief.
-- Model inventory and license notes.
-- Offline/privacy documentation.
-- Roadmap and issue breakdown.
-
-Status:
-
-- Project brief: drafted.
-- Architecture doc: drafted.
-- Model inventory: drafted.
-- Privacy/offline notes: drafted.
-- Task breakdown: drafted.
-- README discovery links: added.
-- Full English-first README opening: completed first pass.
+- English-first README opening and discovery links.
+- Project brief (`PROJECT_BRIEF.md`).
+- Architecture doc (`ARCHITECTURE.md`), including a Mermaid pipeline/retrieval
+  diagram.
+- Model inventory and license notes (`MODEL_INVENTORY.md`).
+- Offline/privacy documentation (`PRIVACY_OFFLINE.md`).
+- UI screenshots, published with the GitHub Pages site under `site/`.
+- This roadmap.
 
 ## Reproducible demo
 
@@ -84,9 +75,8 @@ Implemented:
 - Demo manifest added at `data/demo/manifest.json`, with per-artifact
   checksums and a release URL already filled in (not placeholders).
 - Demo preparation/validation script added at `scripts/prepare_demo.py`.
-- Demo docs added: `docs/DEMO.md`, `docs/DEMO_DATA.md`, and demo verification
-  notes.
-- Populated UI screenshots captured under `docs/` (Scenes, Annotate,
+- Demo docs added: `docs/DEMO.md` and `docs/DEMO_DATA.md`.
+- Populated UI screenshots captured under `site/` (Scenes, Annotate,
   Processing, Search, Add-film, scene-detail).
 
 Remaining release tasks:
@@ -198,39 +188,33 @@ Deferred (not part of this phase):
 - Reranker dispatcher plumbing and per-modality eval scoring beyond the
   text-only report path.
 
-## Launch package
+## Public docs package
 
-Goal: turn the repo into public career-transition evidence.
+Goal: keep the reader-facing docs accurate and publish-ready.
 
 Implemented:
 
 - Case study (`docs/CASE_STUDY.md`) ties the problem, constraints,
   architecture, evaluation, domain packs, production signals, limitations, and
   next steps together.
-- Launch-package verifier (`scripts/check_launch_package.py` +
-  `tests/test_launch_package.py`) checks that required public docs exist and
-  still avoid unfilled placeholders before release.
+- Public-docs verifier (`scripts/check_launch_package.py` +
+  `tests/test_launch_package.py`) checks that `CASE_STUDY.md`,
+  `PROJECT_BRIEF.md`, `DEMO.md`, and `DEMO_DATA.md` keep their headings and
+  promised links and carry no placeholder tokens. It runs in CI as the `docs`
+  job.
 
-Still pending (confirmed missing by running the verifier today):
-
-- Launch plan covering the public posts (origin, demo, evaluation, domain
-  adaptation, architecture/production signals).
-- Short general-audience demo video script and longer technical walkthrough
-  outline.
-- Resume bullets, LinkedIn featured-project copy, and recruiter-facing project
-  summary.
-- GitHub release notes draft covering demo artifacts, verification commands,
-  known limits, and the final publish checklist.
+Scope note: launch-marketing and career material (launch plan, demo video
+script, resume/LinkedIn copy) is **not** part of this repository. It was removed
+from the tracked tree in `chore(repo): public launch cleanup` and is gitignored.
+Do not add it back or reference it from public docs.
 
 Remaining release tasks:
 
-- Write the launch plan, demo video script, resume bullets, and release notes
-  draft listed above so the launch-package verifier passes.
 - Publish the final demo artifact ZIP and confirm it is reachable at the
   manifest's release URL.
-- Run final evaluation and copy metrics into release notes.
-- Capture the two demo videos (short and technical walkthrough).
-- Add final export and `run_manifest.json` excerpts to release notes.
+- Run the final evaluation against that bundle and cite the metrics in the
+  release notes.
+- Add final export and `run_manifest.json` excerpts to the release notes.
 - Complete live reranker dispatcher wiring before exposing a Buscar Rerank
   control.
 - Tag the public release after automated and manual release gates pass.
@@ -297,4 +281,5 @@ Success criteria:
 - **Whisper dialogue transcription** — per-scene speech-to-text
   (faster-whisper) feeding a second BM25 lexical surface and a transcript view
   in the scene inspector. Prototyped in May 2026 and then removed from `main`
-  to keep the v1.0 surface focused. Deferred to the v0.8-rc landmark.
+  to keep the v1.0 surface focused. No target version; it returns only if the
+  text-retrieval story needs a second lexical surface.

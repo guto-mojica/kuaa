@@ -152,8 +152,19 @@ Service modules under `api/services/` back these routes: `catalog.py`
 (metadata loading, card construction, tag filtering), `search.py` (index
 loading/validation, text/image search orchestration), `annotations.py`
 (annotation read/write), `chrome_service.py` (topbar/left-pane context),
-`scenes_service.py`, `rhymes_service.py`, `eval_service.py`, and
+`rhymes_service.py`, `eval_service.py`, `about_service.py`,
+`library_admin.py`/`library_render.py`, `palette_service.py`,
+`preprocess_render.py`, and
 `processing_service.py`/`processing_stats.py`/`processing_render.py`.
+
+The Scenes tab outgrew a single module and is a package, `api/services/scenes/`:
+`_cards.py` (Cenas grid context) with `_grouping.py` (pure grouping/sorting) and
+`_film_grid.py` (library traversal, card conversion), `_inspector.py` (right
+pane), `_timeline.py` (bottom timeline), and `_tipo.py` (scene-type classifier
+and display constants). The package `__init__.py` is the public surface; the
+underscore modules are implementation detail. Splitting it this way is what
+keeps each module under the 250-line services budget that
+`scripts/check_loc_budget.py` enforces.
 
 Templates and assets:
 

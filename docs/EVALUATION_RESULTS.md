@@ -1,13 +1,13 @@
-<!-- M4 ABLATION START -->
+<!-- ABLATION START -->
 
-## M4 — Multi-modal proxy ablation (SigLIP2 default)
+## Retriever-variant proxy ablation (SigLIP2 default)
 
 **Run date:** 2026-08-04 — `scripts/run_ablation.py` (no-rerank (rerank row pending), seed=0).
 **Query set:** `m3_full_queries.yaml` — the 15 text queries (common set).
 
 Retriever-variant ablation on a **common query set with the same proxy labels** (apples-to-apples). This is the launch ablation: it is producible with **zero human grades** and every cell is either a real proxy number or an honest `pending (...)`.
 
-**Proxy methodology.** These are **proxy metrics**, not human-graded ground truth — they upgrade to human-validated numbers when curator grades land (WS-4 E5). Every row below is scored on a common query set with the **same** proxy labels, so the comparison is apples-to-apples. Proxy signals:
+**Proxy methodology.** These are **proxy metrics**, not human-graded ground truth — they upgrade to human-validated numbers once curator grades are recorded in the admin `/eval` grading UI and passed back via `run_ablation.py --grades`. Every row below is scored on a common query set with the **same** proxy labels, so the comparison is apples-to-apples. Proxy signals:
 
 - **HY (Hypothesis)** — the maintainer's pre-curator `relevant_scene_ids` / `relevance` from the query file. Best-guess relevant scenes recorded before any grading session.
 - **KI (Known-Item)** — the single anchor scene a query came from (image keyframe / rhyme anchor). Not used in this table.
@@ -22,10 +22,10 @@ Retriever-variant ablation on a **common query set with the same proxy labels** 
 | BM25 | HY | 0.111 | 0.156 | 0.119 | 0.110 |
 | hybrid | HY | 0.111 | 0.111 | 0.120 | 0.094 |
 | hybrid-metadata | HY | 0.111 | 0.111 | 0.120 | 0.094 |
-| hybrid+rerank | HY | pending (C5) | pending (C5) | pending (C5) | pending (C5) |
+| hybrid+rerank | HY | pending (rerank off) | pending (rerank off) | pending (rerank off) | pending (rerank off) |
 
 > **hybrid-metadata.** Identical to `hybrid` except the exact-lexical metadata leg (tags / descriptions / detected objects) is disabled (`metadata_w=0`) — the delta to the `hybrid` row isolates that signal's contribution.
-> **hybrid+rerank.** Rerank delta is measured on the production `find(mode="hybrid")` base (± the C5 bge-reranker-v2-m3 cross-encoder), which is a different hybrid implementation from the harness `hybrid` row above — compare the rerank row to the `find` hybrid base it sits on, not to the harness `hybrid` row.
+> **hybrid+rerank.** Rerank delta is measured on the production `find(mode="hybrid")` base (± the bge-reranker-v2-m3 cross-encoder), which is a different hybrid implementation from the harness `hybrid` row above — compare the rerank row to the `find` hybrid base it sits on, not to the harness `hybrid` row.
 
 **Reading the numbers** (proxy / HY, not human-graded):
 
@@ -40,4 +40,4 @@ uv run python scripts/run_ablation.py \
   --out docs/EVALUATION_RESULTS.md
 ```
 
-<!-- M4 ABLATION END -->
+<!-- ABLATION END -->

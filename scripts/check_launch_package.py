@@ -1,5 +1,16 @@
 #!/usr/bin/env python3
-"""Validate the M5 public launch documentation package."""
+"""Validate the public documentation package.
+
+Gates the reader-facing docs a visitor is pointed at from ``README.md``: each
+must exist, keep its load-bearing headings, still link the docs it promises,
+and carry no unresolved placeholder token. Run by the ``docs`` job in
+``.github/workflows/ci.yml``.
+
+Scope note: this checks the docs that ship in the public tree. Internal
+planning material (agent specs, conversation logs, career copy) was removed
+from the tracked tree in ``chore(repo): public launch cleanup`` and is
+gitignored; it is deliberately not gated here.
+"""
 
 from __future__ import annotations
 
@@ -16,7 +27,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 @dataclass(frozen=True)
 class DocRequirement:
-    """Required launch document structure."""
+    """Required public-document structure."""
 
     path: str
     headings: tuple[str, ...]
@@ -25,7 +36,7 @@ class DocRequirement:
 
 @dataclass
 class LaunchCheckResult:
-    """Result of a launch-package validation run."""
+    """Result of a public-docs validation run."""
 
     checked_docs: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
@@ -61,78 +72,40 @@ DEFAULT_REQUIREMENTS: tuple[DocRequirement, ...] = (
             "EVALUATION.md",
             "DOMAIN_PACKS.md",
             "OPERATIONS.md",
-            "RELEASE_VERIFICATION.md",
         ),
     ),
     DocRequirement(
-        path="docs/LAUNCH_PLAN.md",
+        path="docs/PROJECT_BRIEF.md",
         headings=(
-            "# Launch plan",
-            "## Launch sequence",
-            "## Asset map",
-            "## Post 1: origin and problem",
-            "## Post 2: demo",
-            "## Post 3: evaluation",
-            "## Post 4: domain adaptation",
-            "## Post 5: architecture and production signals",
-            "## Final launch checklist",
-        ),
-        required_links=(
-            "CASE_STUDY.md",
-            "DEMO_VIDEO_SCRIPT.md",
-            "RELEASE_VERIFICATION.md",
+            "# Project brief",
+            "## Summary",
+            "## Problem",
+            "## Current capabilities",
+            "## What this project is not",
+            "## Next proof points",
         ),
     ),
     DocRequirement(
-        path="docs/DEMO_VIDEO_SCRIPT.md",
+        path="docs/DEMO.md",
         headings=(
-            "# Demo video scripts",
-            "## Preflight",
-            "## Two-minute demo",
-            "## Eight-to-ten-minute technical walkthrough",
-            "## Recording checklist",
-        ),
-        required_links=(
-            "CASE_STUDY.md",
-            "DEMO_DATA.md",
-            "EVALUATION.md",
-            "RELEASE_VERIFICATION.md",
-        ),
-    ),
-    DocRequirement(
-        path="docs/RELEASE_NOTES_DRAFT.md",
-        headings=(
-            "# Release notes draft: public demo launch",
-            "## Demo quickstart",
-            "## Demo artifact",
-            "## Evaluation",
-            "## Exports",
-            "## Run manifest",
-            "## Verification",
-            "## Known limits",
+            "# Reproducible Demo",
+            "## Five-Minute Quickstart",
+            "## Runtime Layout",
+            "## Full Processing Path",
+            "## Two-minute walkthrough",
         ),
         required_links=(
             "DEMO_DATA.md",
-            "RELEASE_VERIFICATION.md",
+            "EVALUATION.md",
         ),
     ),
     DocRequirement(
-        path="docs/RESUME_BULLETS.md",
+        path="docs/DEMO_DATA.md",
         headings=(
-            "# Resume and hiring copy",
-            "## One-line project summary",
-            "## Resume bullets: applied ML engineer",
-            "## Resume bullets: backend/platform engineer",
-            "## Resume bullets: product-minded AI engineer",
-            "## LinkedIn featured project blurb",
-            "## Interview talking points",
-            "## Claims to avoid until final release verification",
-        ),
-        required_links=(
-            "CASE_STUDY.md",
-            "ARCHITECTURE.md",
-            "EVALUATION.md",
-            "DOMAIN_PACKS.md",
+            "# Demo Data",
+            "## Primary Demo Source",
+            "## Artifact Policy",
+            "## Updating The Demo Bundle",
         ),
     ),
 )
@@ -154,9 +127,9 @@ def _read_text(path: Path, result: LaunchCheckResult) -> str | None:
     try:
         return path.read_text(encoding="utf-8")
     except FileNotFoundError:
-        result.errors.append(f"Missing required launch doc: {path}")
+        result.errors.append(f"Missing required public doc: {path}")
     except OSError as exc:
-        result.errors.append(f"Could not read launch doc {path}: {exc}")
+        result.errors.append(f"Could not read public doc {path}: {exc}")
     return None
 
 
@@ -195,7 +168,7 @@ def check_launch_package(
     root: str | Path = REPO_ROOT,
     requirements: Iterable[DocRequirement] = DEFAULT_REQUIREMENTS,
 ) -> LaunchCheckResult:
-    """Check required M5 launch docs, sections, links, and placeholder tokens."""
+    """Check required public docs, sections, links, and placeholder tokens."""
     result = LaunchCheckResult()
     root_path = Path(root)
     for requirement in requirements:
@@ -204,7 +177,7 @@ def check_launch_package(
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Validate M5 launch-package docs.")
+    parser = argparse.ArgumentParser(description="Validate the public docs package.")
     parser.add_argument(
         "--root",
         default=str(REPO_ROOT),
@@ -225,9 +198,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         print(json.dumps(result.to_dict(), indent=2, sort_keys=True))
     elif result.ok:
-        print(f"Launch package check passed ({len(result.checked_docs)} docs).")
+        print(f"Public docs check passed ({len(result.checked_docs)} docs).")
     else:
-        print("Launch package check failed:", file=sys.stderr)
+        print("Public docs check failed:", file=sys.stderr)
         for error in result.errors:
             print(f"- {error}", file=sys.stderr)
 

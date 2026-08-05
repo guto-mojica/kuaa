@@ -39,7 +39,7 @@ class _CenasContextRequired(TypedDict):
     active_filter_count: int
     no_data: bool
     available_tags: list[str]
-    # Legacy flat-list retained for backward-compat while Phase 3 cleanup lands.
+    # Legacy flat-list retained for backward-compat with older callers.
     cards: list[dict[str, Any]]
     # Active filter state echoed back for full-page navigation preservation.
     query: str

@@ -1,10 +1,9 @@
-"""E2E published a11y gate (U5) — ZERO serious/critical axe violations.
+"""E2E published a11y gate — ZERO serious/critical axe violations.
 
-This is the enforcing half of the U5 accessibility audit. ``docs/ACCESSIBILITY.md``
-is the human-readable conformance statement; this module is the executable gate
-that keeps the statement true: it injects axe-core 4.10.2 (vendored, pinned, no
-network) into a real headless-Chromium render of every shipped surface and
-asserts axe reports no ``serious`` or ``critical`` violation on any of them.
+This module is both the accessibility conformance statement and the gate that
+keeps it true: it injects axe-core 4.10.2 (vendored, pinned, no network) into a
+real headless-Chromium render of every shipped surface and asserts axe reports
+no ``serious`` or ``critical`` violation on any of them.
 
 Surfaces covered (the spec's "5 tabs + the modals"):
   * the four main tabs   — ``/search`` ``/scenes`` ``/annotate`` ``/rimas``;
@@ -15,17 +14,16 @@ Surfaces covered (the spec's "5 tabs + the modals"):
 
 Why serious/critical only: those two impact tiers are the WCAG-blocking
 failures (missing names, ARIA-contract breaks, sub-threshold contrast,
-keyboard-inaccessible regions). ``minor``/``moderate`` findings are tracked as
-polish in ACCESSIBILITY.md's "known limitations" but are not release-gating, so
-pinning the gate at serious+critical keeps it meaningful and stable. The audit
-that informed the fixes drove every surface to ZERO total violations; this gate
-is set at the documented serious/critical bar so a future low-severity finding
-(e.g. a new moderate heading-order nit) doesn't spuriously red the build while a
-real regression still trips it immediately.
+keyboard-inaccessible regions). ``minor``/``moderate`` findings are treated as
+polish and are not release-gating, so pinning the gate at serious+critical keeps
+it meaningful and stable. The audit that informed the fixes drove every surface
+to ZERO total violations; the gate sits at the serious/critical bar so a future
+low-severity finding (e.g. a new moderate heading-order nit) doesn't spuriously
+red the build while a real regression still trips it immediately.
 
-The before→after counts (the U5 fix landed all of these at 0) are recorded in
-``docs/ACCESSIBILITY.md``. Re-run locally with ``just e2e`` (or
-``uv run pytest -m e2e -q``).
+Playwright is NOT installed in CI — this is a local/manual gate. Run it with
+``just e2e``, which installs the optional ``e2e`` dependency group; a plain
+``uv run pytest -m e2e`` in a standard dev env has no ``page`` fixture.
 """
 
 from __future__ import annotations

@@ -13,7 +13,7 @@ supporting 50+ languages including Portuguese. It outputs L2-normalised
 stored in the library.
 
 No additional package dependency: ``sentence-transformers`` is already in the
-``full`` extra (added for the cross-encoder reranker in M2).
+``full`` extra (added for the cross-encoder reranker).
 """
 
 from __future__ import annotations

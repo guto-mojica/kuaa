@@ -101,7 +101,7 @@ def _get_embedder(cfg: Settings) -> Any:
     loading the real model.
 
     Dispatch honours ``cfg.models.image_embedder`` so the SigLIP-multilingual
-    backend (M3 pre-flight Task 4.2 flip) returns a SigLIP encoder whose
+    backend (the shipped default) returns a SigLIP encoder whose
     output dim matches the on-disk index, instead of the previous hardcoded
     ``OpenClipEmbedder()`` which 500'd on dim mismatch against a 1024-dim
     SigLIP index.

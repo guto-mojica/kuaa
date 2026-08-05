@@ -1,19 +1,22 @@
-"""Failure-surfacing for the WS-4 eval harness (E4).
+"""Failure-surfacing for the retrieval eval harness.
 
 Picks the worst-scoring queries from a multi-retriever text eval and renders a
 structured markdown stub per case — the per-retriever first-relevant ranks, the
 top *non-relevant* results each carrying the REAL Moondream caption the
 retriever saw, and empty ``Hypothesis`` / ``Mitigation`` anchors for a human to
-fill from that evidence. The discipline mirrors the existing
-``docs/FAILURE_ANALYSIS.md`` M2 cases: every cited rank and every cited caption
-is real; nothing is paraphrased or invented.
+fill from that evidence. The governing discipline: every cited rank and every
+cited caption is real; nothing is paraphrased or invented.
 
 This module is the pure core. It consumes per-query *records* — already
 projected dicts (see :func:`worst_queries`) — and never touches a model or an
-index itself. The CLI (``scripts/analyze_failures.py``) runs the real
-retrievers, builds the records (enriching the top-wrong rows with the on-disk
-Moondream descriptions, since the text path's ``top_results`` carry no
-``description`` key), and writes the rendered stubs into the M4 block of the doc.
+index itself. A caller supplies the records: it runs the real retrievers and
+enriches the top-wrong rows with the on-disk Moondream descriptions, since the
+text path's ``top_results`` carry no ``description`` key. The rendered stubs are
+then reviewed by hand.
+
+No driver script ships in this repo — the analysis is ad-hoc and its output is
+not a tracked artefact. :func:`worst_queries` documents the record shape, and
+``tests/test_eval_failures.py`` exercises it with hand-built fakes.
 
 Layering: core (``kuaa.*``); MUST NOT import ``api.*`` (import-linter).
 """
@@ -61,7 +64,7 @@ class FailureCase:
 
         The section carries (1) a metrics/ranks block — the ``by`` metric value
         plus the per-retriever first-relevant rank (``None`` shown as an em
-        dash, matching the M2 cases' ``"—"`` convention), (2) the top-wrong
+        dash, by the ``"—"`` convention), (2) the top-wrong
         list with each scene's id and its EXACT Moondream caption (or the
         :data:`NO_DESCRIPTION` sentinel when none is on disk), (3) the
         missing-relevant scene ids, and (4) empty ``**Hypothesis:**`` /

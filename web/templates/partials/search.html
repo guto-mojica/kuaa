@@ -248,7 +248,7 @@
                 @click="open = !open"
                 :aria-expanded="open ? 'true' : 'false'"
                 aria-haspopup="dialog">
-          {# a11y/robustness (U5 carry-in, T5 M1): the ``hybrid:`` value
+          {# a11y/robustness: the ``hybrid:`` value
              interpolates a TRANSLATED string into a JS object literal inside a
              double-quoted ``x-text`` attribute. A hand-rolled single-quoted
              literal (``'{{ _("Híbrido") }}'``) is the exact bug class that broke

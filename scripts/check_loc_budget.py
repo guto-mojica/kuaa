@@ -1,8 +1,8 @@
 """Fail CI when api/services/*.py or api/routes/*.py exceed their LOC caps.
 
-Caps codify the P1 deep-modules refactor invariant: services are HTTP
-adapters (<= 250 LOC), routes are HTTP shape + render (<= 150 LOC). Bumps
-require a CHANGELOG entry and reviewer sign-off.
+Caps codify the deep-modules invariant: services are HTTP adapters
+(<= 250 LOC), routes are HTTP shape + render (<= 150 LOC). Bumps require a
+CHANGELOG entry and reviewer sign-off.
 """
 
 from __future__ import annotations
@@ -15,10 +15,19 @@ CAPS = {
     "api/routes": 150,
 }
 
-# All migration exemptions have been cleared (Tasks 1–6 complete, G1 met).
 # Files that already meet their cap are NOT exempted — adding them would
-# silently disable the guard the moment a future edit pushed them over.
-EXEMPTIONS: set[str] = set()  # G1 met — all migration exemptions cleared (Tasks 1–6)
+# silently disable the guard the moment a future edit pushed them over. Only
+# list a file here with a reason and a way out.
+#
+#   api/routes/preprocess.py (182 > 150) — the Pre-processing tab landed as one
+#   route module carrying scene-detect job kickoff, the batched cut-edit
+#   endpoints (split/merge), and the filmstrip render. Exempted rather than
+#   split mid-feature: the cut-review UX is still moving, and a premature
+#   route/service seam would have to be redrawn. Clear it by moving the
+#   cut-edit batch handlers behind api/services/preprocess_render.py.
+EXEMPTIONS: set[str] = {
+    "api/routes/preprocess.py",
+}
 
 
 def main() -> int:

@@ -33,7 +33,7 @@ def enrich_hits_with_film_metadata(
 
     Missing data is benign — ``description`` falls back to ``""`` and
     ``tags`` to ``[]``, both of which the template handles. ``pin_count``
-    is always 0 today; the persistence layer for pins lands later in M1.
+    is always 0 today; pin persistence is not implemented.
 
     Relocated from ``api/routes/search.py`` (T15). The helpers
     (``load_json``, ``load_tag_index``, ``FilmContext``) live under

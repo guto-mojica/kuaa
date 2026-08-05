@@ -1,9 +1,7 @@
-"""Cenas grid (``.c-cp``) context builder — Task 15.
+"""Cenas grid (``.c-cp``) context builder.
 
-Extracted verbatim from ``api/services/scenes_service.py`` (lines ~514–1051)
-during the A1 decomposition (WS-2 Task 2). The private grouping/sorting
-helpers live in ``_grouping.py``; the per-film traversal + card-conversion
-helpers live in ``_film_grid.py``.
+The pure grouping/sorting helpers live in ``_grouping.py``; the per-film
+traversal + card-conversion helpers live in ``_film_grid.py``.
 """
 
 from __future__ import annotations

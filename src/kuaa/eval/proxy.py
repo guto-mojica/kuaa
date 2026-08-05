@@ -7,8 +7,8 @@ one of three proxy signals, returning the signal's name alongside the labels so 
 consumer (E2b's runner) can segregate rows by honesty tier and never blend them
 into a single misleading average.
 
-The three proxy signals (spec §6 E2)
--------------------------------------
+The three proxy signals
+-----------------------
 **KI — Known-Item.** For a query with an unambiguous single correct scene. The
 correct item is the *anchor scene the query came from*: for an ``image`` query
 that is the scene whose keyframe is the query image (parsed from the keyframe

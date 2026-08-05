@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
-"""Generate the proxy-first multi-modal ablation table (WS-4 E2b).
+"""Generate the proxy-first retriever-variant ablation table.
 
 Runs :func:`kuaa.eval.ablation.run_ablation` over the 15 text queries in
 ``data/eval/m3_full_queries.yaml`` (the common HY-labelled set) and writes the
-result as an **M4 section** of ``docs/EVALUATION_RESULTS.md``. The M4 block is
-delimited by HTML comment markers (``<!-- M4 ABLATION START -->`` /
-``<!-- M4 ABLATION END -->``) so re-runs replace only that block — any other
-content in the doc (above or below the markers) is left untouched.
+result into ``docs/EVALUATION_RESULTS.md``. The generated block is delimited by
+HTML comment markers (``<!-- ABLATION START -->`` / ``<!-- ABLATION END -->``)
+so re-runs replace only that block — any other content in the doc (above or
+below the markers) is left untouched.
 
 Every published cell is a REAL proxy number computed on the demo corpus, or a
 literal ``pending (...)`` for a row whose backend is not wired. Under
-``--no-rerank`` the cross-encoder row is ``pending (C5)``; ``--with-rerank``
-fills it by running the production ``find(mode="hybrid", rerank=True)`` path.
+``--no-rerank`` the cross-encoder row is ``pending (rerank off)``;
+``--with-rerank`` fills it by running the production
+``find(mode="hybrid", rerank=True)`` path.
 
 Usage::
 
@@ -37,8 +38,8 @@ DEFAULT_LIBRARY = REPO_ROOT / "data" / "library"
 DEFAULT_OUT = REPO_ROOT / "docs" / "EVALUATION_RESULTS.md"
 DEFAULT_CONFIG = REPO_ROOT / "config" / "default.yaml"
 
-_M4_START = "<!-- M4 ABLATION START -->"
-_M4_END = "<!-- M4 ABLATION END -->"
+_ABLATION_START = "<!-- ABLATION START -->"
+_ABLATION_END = "<!-- ABLATION END -->"
 
 
 def project_path(value: str | Path) -> Path:
@@ -58,7 +59,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--out",
         default=str(DEFAULT_OUT),
-        help="Markdown doc whose M4 section to write/replace (other content untouched).",
+        help="Markdown doc whose ablation section to write/replace (other content untouched).",
     )
     parser.add_argument("--seed", type=int, default=0, help="PRNG seed (default 0).")
     rerank = parser.add_mutually_exclusive_group()
@@ -66,19 +67,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--with-rerank",
         dest="with_rerank",
         action="store_true",
-        help="Compute the hybrid+rerank row via the production find() path (C5).",
+        help="Compute the hybrid+rerank row via the production find() path.",
     )
     rerank.add_argument(
         "--no-rerank",
         dest="with_rerank",
         action="store_false",
-        help="Render the hybrid+rerank row as pending (C5) — the default.",
+        help="Render the hybrid+rerank row as pending — the default.",
     )
     parser.set_defaults(with_rerank=False)
     parser.add_argument(
         "--print-only",
         action="store_true",
-        help="Print the M4 markdown to stdout without touching the doc.",
+        help="Print the ablation markdown to stdout without touching the doc.",
     )
     parser.add_argument(
         "--grades",
@@ -95,15 +96,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _build_m4_section(table_md: str, *, with_rerank: bool, seed: int, queries: Path) -> str:
-    """Wrap the rendered ablation table in the delimited M4 doc section."""
-    mode = (
-        "with-rerank (C5 cross-encoder live)" if with_rerank else "no-rerank (rerank row pending)"
-    )
+def _build_ablation_section(table_md: str, *, with_rerank: bool, seed: int, queries: Path) -> str:
+    """Wrap the rendered ablation table in the delimited doc section."""
+    mode = "with-rerank (cross-encoder live)" if with_rerank else "no-rerank (rerank row pending)"
     lines = [
-        _M4_START,
+        _ABLATION_START,
         "",
-        "## M4 — Multi-modal proxy ablation (SigLIP2 default)",
+        "## Retriever-variant proxy ablation (SigLIP2 default)",
         "",
         f"**Run date:** {date.today().isoformat()} — `scripts/run_ablation.py` "
         f"({mode}, seed={seed}).",
@@ -130,7 +129,7 @@ def _build_m4_section(table_md: str, *, with_rerank: bool, seed: int, queries: P
         "  --out docs/EVALUATION_RESULTS.md",
         "```",
         "",
-        _M4_END,
+        _ABLATION_END,
     ]
     return "\n".join(lines)
 
@@ -142,10 +141,10 @@ def _rel(path: Path) -> str:
         return str(path)
 
 
-def _merge_into_doc(doc_path: Path, m4_section: str) -> None:
-    """Write the M4 section into ``doc_path``, preserving everything else.
+def _merge_into_doc(doc_path: Path, ablation_section: str) -> None:
+    """Write the ablation section into ``doc_path``, preserving everything else.
 
-    If the doc already has the M4 markers, the block between them is replaced.
+    If the doc already has the ablation markers, the block between them is replaced.
     Otherwise the section is appended (with a leading blank-line separator).
     Content outside the markers (before or after) is never modified.
     """
@@ -154,13 +153,13 @@ def _merge_into_doc(doc_path: Path, m4_section: str) -> None:
     else:
         existing = ""
 
-    if _M4_START in existing and _M4_END in existing:
-        head, _, rest = existing.partition(_M4_START)
-        _, _, tail = rest.partition(_M4_END)
-        merged = head.rstrip() + "\n\n" + m4_section + tail.rstrip() + "\n"
+    if _ABLATION_START in existing and _ABLATION_END in existing:
+        head, _, rest = existing.partition(_ABLATION_START)
+        _, _, tail = rest.partition(_ABLATION_END)
+        merged = head.rstrip() + "\n\n" + ablation_section + tail.rstrip() + "\n"
     else:
         sep = "\n\n---\n\n" if existing.strip() else ""
-        merged = existing.rstrip() + sep + m4_section + "\n"
+        merged = existing.rstrip() + sep + ablation_section + "\n"
 
     doc_path.write_text(merged, encoding="utf-8")
 
@@ -240,7 +239,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     table_md = table.to_markdown()
-    m4_section = _build_m4_section(
+    ablation_section = _build_ablation_section(
         table_md, with_rerank=args.with_rerank, seed=args.seed, queries=queries_path
     )
 
@@ -258,11 +257,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.print_only:
         print()
-        print(m4_section)
+        print(ablation_section)
         return 0
 
-    _merge_into_doc(out_path, m4_section)
-    print(f"\nWrote M4 ablation section to {out_path}")
+    _merge_into_doc(out_path, ablation_section)
+    print(f"\nWrote ablation section to {out_path}")
     return 0
 
 

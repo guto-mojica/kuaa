@@ -53,7 +53,7 @@ def _mock_result(
 
 
 # Nine canonical candidates spanning the test fixture films. Reused across
-# every seeded query — the M3 curator work replaces them with real search
+# every seeded query — curator review replaces them with real search
 # results once the multi-film library migration lands.
 _PLACEHOLDER_RESULTS_OUTDOOR_DIALOG: list[dict[str, Any]] = [
     _mock_result(

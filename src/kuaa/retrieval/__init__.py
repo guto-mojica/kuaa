@@ -1,6 +1,6 @@
 """Retrieval primitives: tokenizer, corpus builder, BM25, fusion.
 
-This package contains the data-layer pieces of M2 Hybrid Search. None of
+This package contains the data-layer pieces of hybrid search. None of
 these modules import FastAPI, Jinja, or any web-layer concern — they are
 plain functions/classes that take inputs and return outputs.
 

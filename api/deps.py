@@ -190,9 +190,9 @@ def toast_trigger(
 ) -> None:
     """Attach an ``HX-Trigger`` header so the client pushes a toast.
 
-    Phase 7 / Task 26 ships the client-side ToastBus (see
-    ``web/static/js/mojica.js``). Any route can call this helper to
-    surface a notification on the next HTMX response:
+    The client-side ToastBus lives in ``web/static/js/mojica.js``. Any
+    route can call this helper to surface a notification on the next
+    HTMX response:
 
     .. code-block:: python
 

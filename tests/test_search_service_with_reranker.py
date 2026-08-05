@@ -1,6 +1,6 @@
 """The /api/search service dispatcher applies the reranker after retrieval.
 
-Covers Task 3.2 of the M3 pre-flight plan: ``api.services.search.apply_reranker``
+Covers ``api.services.search.apply_reranker``
 reads ``cfg.retrieval.reranker.{enabled,model,top_k_in}`` (with defaults when
 the block is absent) and either short-circuits (``enabled=False``) or forwards
 to :func:`kuaa.search.rerank` via the patchable ``search_rerank`` symbol.

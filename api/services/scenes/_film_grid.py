@@ -1,10 +1,9 @@
 """Per-film metadata loading and card-conversion helpers for the Cenas grid.
 
-Peeled from ``api/services/scenes/_cards.py`` (which was itself extracted
-from ``api/services/scenes_service.py``) during the A1 decomposition (WS-2
-Task 2). Contains the library-traversal loop, runtime formatting, and the
-``_card_to_scene`` shape conversion — all the I/O-adjacent helpers that
-``build_cenas_context`` delegates to.
+The I/O-adjacent half of ``_cards.py``: the library-traversal loop, runtime
+formatting, and the ``_card_to_scene`` shape conversion that
+``build_cenas_context`` delegates to. Kept separate from ``_grouping.py``,
+which stays pure.
 
 Public names: ``_format_runtime_hm``, ``_build_groups_by_film``.
 """

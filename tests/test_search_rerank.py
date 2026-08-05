@@ -1,6 +1,6 @@
 """Cross-encoder reranker tests.
 
-Fills in the M2 stub at :func:`kuaa.search.rerank.rerank`.
+Covers :func:`kuaa.search.rerank.rerank`.
 Tests use the documented ``model='noop'`` escape hatch + an injected
 stub model (via ``_load_reranker`` monkeypatch) to avoid HF downloads.
 """
@@ -21,7 +21,7 @@ rerank_mod = sys.modules["kuaa.search.rerank"]
 
 
 def _make_result(hits: list[Hit], query_text: str = "anything") -> SearchResult:
-    """Build a SearchResult with the M3 typed shape used by ``kuaa.search``."""
+    """Build a SearchResult with the typed shape used by ``kuaa.search``."""
     return SearchResult(
         hits=hits,
         mode="clip",
@@ -133,7 +133,7 @@ def test_rerank_custom_model_id_passed_to_loader(monkeypatch) -> None:
 
 
 def test_rerank_default_resolves_to_bge_v2_m3(monkeypatch) -> None:
-    """``model='default'`` resolves to the M3 default cross-encoder id."""
+    """``model='default'`` resolves to the default cross-encoder id."""
     seen: dict[str, str] = {}
 
     class _Stub:

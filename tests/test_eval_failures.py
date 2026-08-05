@@ -1,12 +1,11 @@
-"""Hermetic unit tests for the failure-surfacing tool (E4).
+"""Hermetic unit tests for the failure-surfacing tool.
 
 These cover the pure logic of ``kuaa.eval.failures`` — the
 ``worst_queries`` selector (ordering + FailureCase construction) and the
 ``FailureCase.to_markdown_stub`` renderer (real-description citation +
-metrics/ranks block) — WITHOUT loading any model or real index. The GPU
-end-to-end acceptance (``scripts/analyze_failures.py`` over the live SigLIP2
-library) is run by hand and its output pasted into ``docs/FAILURE_ANALYSIS.md``;
-this file is the CI-without-index half.
+metrics/ranks block) — WITHOUT loading any model or real index. Running the
+selector over a live SigLIP2 library is an ad-hoc, by-hand exercise with no
+driver script in this repo; this file is the CI-without-index half.
 
 A per-query *record* is the structure ``worst_queries`` consumes — a dict the
 CLI builds by grouping each query's ``RetrievalResult`` across the three text

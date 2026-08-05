@@ -1,8 +1,4 @@
-"""Bottom timeline (``.b-tl``) context builder — Task 13.
-
-Extracted verbatim from ``api/services/scenes_service.py`` (lines ~303–511)
-during the A1 decomposition (WS-2 Task 2).
-"""
+"""Bottom timeline (``.b-tl``) context builder for the Cenas tab."""
 
 from __future__ import annotations
 
@@ -142,14 +138,14 @@ def build_timeline_context(
       * ``query`` — verbatim string the timeline links propagate back
         into ``/search`` for state preservation.
 
-    **Known simplifications (M1 scope):**
+    **Known simplifications:**
 
       1. ``is_match`` is only set for the currently selected scene.
          A full match set requires re-running the per-film search for
          the query, which would double the cost of a full-page nav and
-         the timeline's match highlights are cosmetic. M2's hybrid
-         retrieval layer will pre-compute the per-film match set and
-         pass it through here.
+         the timeline's match highlights are cosmetic. Wiring this
+         properly means pre-computing the per-film match set in the
+         retrieval layer and passing it through here.
       2. ``runtime_s`` derives from the last keyframe's ``end_time_s``;
          the ``Film`` dataclass has no runtime field. This is a tight
          lower bound (the actual video may extend a few seconds past
@@ -190,8 +186,8 @@ def build_timeline_context(
             runtime_s = end
             break
 
-    # M1 simplification: highlight only the selected scene as a "match"
-    # — the full per-film match set is M2's hybrid retrieval territory.
+    # Simplification: highlight only the selected scene as a "match" —
+    # computing the full per-film match set belongs in the retrieval layer.
     match_ids: set[int] = {scene_id}
 
     scenes_for_timeline = _build_scenes_for_timeline(

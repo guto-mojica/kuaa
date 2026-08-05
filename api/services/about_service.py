@@ -61,8 +61,8 @@ def about_stats(cfg) -> dict[str, Any]:
     added / processed / deleted live).
 
     Runtime is currently best-effort: ``Film`` does not carry a runtime
-    field, so the runtime cell displays ``"—"``. M2/M3 will add per-film
-    duration to the registry; this builder will then populate it.
+    field, so the runtime cell displays ``"—"``. Once the registry carries
+    a per-film duration, this builder will populate it.
     """
     library_dir = Path(cfg.paths.library_dir)
     films = library.scan_library(library_dir)

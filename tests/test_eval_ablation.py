@@ -63,7 +63,7 @@ def test_table_marks_proxy_method_and_pending_rows() -> None:
                 retriever="hybrid",
                 proxy="HY",
                 rerank=True,
-                pending_reason="C5",
+                pending_reason="rerank off",
             ),
             None,  # pending — no metrics
         ),
@@ -80,7 +80,7 @@ def test_table_marks_proxy_method_and_pending_rows() -> None:
     assert "KI" in md and "PR" in md and "HY" in md
     assert "Jeca Tatu" in md
     assert "proxy" in md.lower()
-    assert "curator" in md.lower()  # "upgrades to human-validated when curator grades land"
+    assert "curator" in md.lower()  # banner promises the upgrade path to human grades
 
     # A `Proxy` column header.
     assert "Proxy" in md
@@ -92,11 +92,11 @@ def test_table_marks_proxy_method_and_pending_rows() -> None:
     assert "nDCG@10" in md
 
     # The pending row renders the literal `pending (` cell, NOT a number/zero.
-    assert "pending (C5)" in md
+    assert "pending (rerank off)" in md
     # The pending row must NOT have leaked a fabricated 0.000 into its cells.
     pending_line = next(ln for ln in md.splitlines() if "hybrid+rerank" in ln)
     assert "0.000" not in pending_line
-    assert "pending (C5)" in pending_line
+    assert "pending (rerank off)" in pending_line
 
     # Real rows render their numbers to 3 dp.
     clip_line = next(ln for ln in md.splitlines() if ln.strip().startswith("| CLIP"))

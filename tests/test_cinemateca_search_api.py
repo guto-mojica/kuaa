@@ -4,7 +4,7 @@ The 4 public verbs (``find``, ``aggregate``, ``reindex_bm25``, ``rerank``)
 and the 7 public types (``Filters``, ``Hit``, ``HybridWeights``, ``Query``,
 ``SearchMode``, ``SearchResult``, ``UploadRejected``) together form the
 T13-locked public API. These tests pin that surface — every caller written
-against it (the slim service in T14, future M2 / M3 work) sees what is
+against it (the slim service, and any future work) sees what is
 asserted here. Implementation details (DataFrame columns, lazy attribute
 reads, BM25-tunable resolution) are deliberately exercised through the
 public surface only.

@@ -1,4 +1,4 @@
-"""HTTP-layer tests for the M2 hybrid-search dispatch.
+"""HTTP-layer tests for the hybrid-search dispatch.
 
 These tests confirm ``/api/search`` routes correctly through the three
 retrieval modes (``clip`` / ``bm25`` / ``hybrid``), validates inputs
@@ -202,7 +202,7 @@ def test_search_route_default_retriever_is_hybrid(client, caplog) -> None:
     assert resp.status_code == 200
     # ``api_search`` emits the canonical mode/weights line every request;
     # the substring ``retriever=hybrid`` is the regression pin that hybrid
-    # is the M2 default (and that FastAPI did NOT silently drop the param).
+    # is the shipped default (and that FastAPI did NOT silently drop the param).
     assert any("retriever=hybrid" in r.getMessage() for r in caplog.records)
 
 

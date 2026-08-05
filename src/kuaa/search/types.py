@@ -44,7 +44,7 @@ class Query:
 
 @dataclass(frozen=True)
 class HybridWeights:
-    """RRF fusion weights. Same defaults as the M2 hybrid search."""
+    """RRF fusion weights. Defaults match the original hybrid search."""
 
     sem_w: float = 0.70
     bm25_w: float = 0.30

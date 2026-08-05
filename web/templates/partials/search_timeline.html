@@ -25,9 +25,9 @@
    unconditionally — the full-page initial render (no ``?scene=&film=``
    params) produces no .b-tl chrome, exactly like Task 12's inspector.
 
-   Known M1 limitations (documented in the service):
+   Known limitations (documented in the service):
      * ``is_match`` is only True for the currently selected scene; the
-       full per-film match set lands with M2 hybrid retrieval.
+       full per-film match set is not computed here.
      * ``runtime_tc`` derives from the last scene's ``end_time_s`` —
        a tight lower bound, indistinguishable in practice from the real
        video runtime for tick-density purposes.

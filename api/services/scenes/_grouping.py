@@ -1,8 +1,7 @@
 """Scene grouping and sorting primitives for the Cenas grid.
 
-Peeled from ``api/services/scenes/_cards.py`` (which was itself extracted
-from ``api/services/scenes_service.py``) during the A1 decomposition (WS-2
-Task 2). Contains the pure grouping/sorting logic with no I/O.
+The pure half of ``_cards.py``: grouping and sorting logic with no I/O. The
+file-reading counterparts live in ``_film_grid.py``.
 
 Public names: ``_VALID_GROUPS``, ``_VALID_SORTS``, ``_sort_scenes``,
 ``_regroup``.

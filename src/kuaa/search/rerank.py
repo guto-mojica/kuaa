@@ -1,6 +1,6 @@
 """Cross-encoder reranker — bge-reranker-v2-m3 by default.
 
-Fills in the M2 stub. ``model='noop'`` remains a passthrough escape
+``model='noop'`` remains a passthrough escape
 hatch (wider tests + UI flows that want to disable rerank without
 changing config rely on it). ``model='default'`` resolves to
 ``BAAI/bge-reranker-v2-m3``; any other string is treated as an HF model

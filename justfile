@@ -32,15 +32,15 @@ e2e:
 cov:
     uv run pytest -m "not e2e" -q --cov-report=term-missing
 
-# Lint + format check.
+# Lint + format check (mirrors the CI `lint` job).
 lint:
     uv run ruff check .
-    uv run black --check .
+    uv run ruff format --check .
 
 # Auto-fix lint + format.
 fmt:
     uv run ruff check --fix .
-    uv run black .
+    uv run ruff format .
 
 # Static types (blocking gate — must be zero).
 type:
@@ -56,12 +56,16 @@ guards:
     uv run python scripts/check_loc_budget.py
     uv run lint-imports
 
+# Public docs gate: headings, promised links, placeholder tokens.
+docs:
+    uv run python scripts/check_launch_package.py
+
 # The whole local gate set, fast→slow.
-check: lint type smoke guards
+check: lint type docs smoke guards
 
 # Run the app (FastAPI + HTMX) on 127.0.0.1:8501.
 serve:
-    uv run cinemateca serve
+    uv run kuaa serve
 
 # Retrieval eval (clip/bm25/hybrid) on the default config.
 eval:
@@ -76,6 +80,5 @@ build:
     uv build
 
 # Clean-checkout reproducible-run verification (the no-Docker gate).
-# Script added in T10 (scripts/verify_fresh_run.sh).
 verify:
     bash scripts/verify_fresh_run.sh

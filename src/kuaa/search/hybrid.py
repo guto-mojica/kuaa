@@ -130,7 +130,8 @@ def search_hybrid(
 
     Mode behaviour:
         * ``"clip"`` — delegates to :func:`search_text` unchanged.
-          Regression pin for pre-M2 ordering.
+          Regression pin for the pre-hybrid ordering (see
+          ``tests/test_search_regression_snapshot.py``).
         * ``"bm25"`` — runs BM25 only, formats the result the same way
           ``search_text`` would (mapping back to the index's metadata).
         * ``"hybrid"`` — runs both, fuses by weighted RRF, returns

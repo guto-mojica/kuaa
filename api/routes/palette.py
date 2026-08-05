@@ -1,4 +1,4 @@
-"""Command-palette search endpoint (Phase 7 / Task 27).
+"""Command-palette search endpoint (⌘K).
 
 The palette is JS-driven (see ``web/static/js/palette.js``). The client
 opens an overlay on ⌘K / Ctrl+K, debounces user input, and calls this

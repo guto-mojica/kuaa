@@ -19,7 +19,7 @@ Scope note (2026-05-25):
         when the pool has multiple keyframes per scene — confirms the
         diversification mechanism is doing real work.
     The cross-film distinct-film diversification assertion will be added
-    in a future M3.5 task once a 3rd film is registered. See
+    in a future task once a 3rd film is registered. See
     docs/archive/rhymes_acceptance_2026-05-25.md.
 
     Real-data finding documented during this acceptance run: the

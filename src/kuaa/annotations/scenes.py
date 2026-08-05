@@ -7,7 +7,7 @@ the template context.
 The underscore-prefixed helpers from the service (_resolve_selected_film,
 _scene_list_with_fallback) lose the underscore here — they become public
 helpers of the package because the service file is no longer the sole
-caller; M3+ rerank work may want them too.
+caller; future rerank work may want them too.
 """
 
 from __future__ import annotations

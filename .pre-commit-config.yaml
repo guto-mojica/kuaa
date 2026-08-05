@@ -3,8 +3,8 @@
 # Install once with:  uv run pre-commit install
 # Run on all files:   uv run pre-commit run --all-files
 #
-# Scope mirrors the CI `lint` job (ruff + black) plus basic file hygiene
-# and bandit SAST.
+# Scope mirrors the CI `lint` job (ruff check + ruff format) plus basic file
+# hygiene and bandit SAST.
 # Mypy is intentionally NOT here — too slow on import-heavy modules.
 
 repos:
@@ -24,11 +24,10 @@ repos:
     hooks:
       - id: ruff
         args: [--fix]
-
-  - repo: https://github.com/psf/black
-    rev: 24.10.0
-    hooks:
-      - id: black
+      # Formatter of record — same tool and settings as the CI `lint` job's
+      # `ruff format --check .` step. Black is deliberately not used: two
+      # formatters over one tree fight each other.
+      - id: ruff-format
 
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.10

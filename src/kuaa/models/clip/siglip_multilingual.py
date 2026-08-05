@@ -20,9 +20,10 @@ out of the box. The original SigLIP only ships multilingual at the
 base size; the "large + multilingual" combination lives in the SigLIP2
 namespace. Override via ``cfg.embeddings.model_id`` for experimentation.
 
-Task 4.1 of the M3 pre-flight plan ships only the backend + registry
-wiring; the default stays ``clip_openclip`` until Task 4.2 (smoke
-validation) and Task 4.3 (library re-embed) flip it.
+This backend is the shipped default: ``config/default.yaml`` sets
+``models.image_embedder: siglip_multilingual``. Switch back to
+``clip_openclip`` only alongside a full library re-embed — the on-disk
+index dimension must match the encoder.
 """
 
 from __future__ import annotations

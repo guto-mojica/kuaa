@@ -37,8 +37,8 @@ def enrich_rhyme(
     between the registry walk and the call collapse to empty url/timecode so
     the template can render a placeholder card.
 
-    M1 leaves ``reason`` empty — the M3 reranker is expected to surface
-    a one-line caption explaining why the rhyme was picked; the key is
+    ``reason`` is left empty — a future reranker would surface a one-line
+    caption explaining why the rhyme was picked; the key is
     reserved here so the template's ``{{ e.reason }}`` reads do not
     silently fall to Jinja-Undefined.
     """
@@ -71,7 +71,7 @@ def enrich_rhyme(
         "keyframe_url": img_url,
         "score": float(rhyme.score),
         "timecode": timecode,
-        # Reserved for the M3 reranker's per-hit explanation.
+        # Reserved for a future reranker's per-hit explanation.
         "reason": "",
     }
 
@@ -111,8 +111,8 @@ def signals_for_pair(
 
     Components other than visual/fused are deterministically derived from
     the (anchor, echo) scene-id pair via a seeded numpy Generator so the
-    bars stay stable across reloads. Replace when the M3 multi-encoder
-    reranker lands.
+    bars stay stable across reloads. Replace with real per-component
+    scores if a multi-encoder reranker lands.
     """
     if anchor_data is None or selected_echo is None:
         return []

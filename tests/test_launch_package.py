@@ -1,15 +1,16 @@
+"""Tests for the public-docs gate (``scripts/check_launch_package.py``).
+
+The first test runs the real requirement set against this checkout, so it
+fails the build when a gated doc loses a heading, drops a promised link, or
+gains a placeholder token. The rest exercise each failure mode against
+synthetic docs in ``tmp_path``.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from scripts import check_launch_package
-
-_ALL_LAUNCH_DOCS_PRESENT = all(
-    (check_launch_package.REPO_ROOT / req.path).exists()
-    for req in check_launch_package.DEFAULT_REQUIREMENTS
-)
 
 
 def _requirement() -> check_launch_package.DocRequirement:
@@ -26,16 +27,14 @@ def _write_launch_doc(root: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-@pytest.mark.skipif(
-    not _ALL_LAUNCH_DOCS_PRESENT,
-    reason="local-only launch docs not present — run this test locally before launch",
-)
-def test_current_launch_package_passes():
+def test_current_public_docs_package_passes():
     result = check_launch_package.check_launch_package()
 
     assert result.ok, result.errors
     assert "docs/CASE_STUDY.md" in result.checked_docs
-    assert "docs/LAUNCH_PLAN.md" in result.checked_docs
+    assert "docs/PROJECT_BRIEF.md" in result.checked_docs
+    assert "docs/DEMO.md" in result.checked_docs
+    assert "docs/DEMO_DATA.md" in result.checked_docs
 
 
 def test_launch_check_reports_missing_doc(tmp_path):
@@ -45,7 +44,7 @@ def test_launch_check_reports_missing_doc(tmp_path):
     )
 
     assert not result.ok
-    assert any("Missing required launch doc" in error for error in result.errors)
+    assert any("Missing required public doc" in error for error in result.errors)
 
 
 def test_launch_check_reports_missing_heading(tmp_path):

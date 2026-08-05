@@ -84,8 +84,8 @@ def find_rhymes(
             constraint for the Rimas Visuais tab. When ``False``, same-film
             scenes compete too (the anchor scene itself is still excluded).
         lambda_diversity: λ ∈ [0, 1] passed to MMR rerank. Default 1.0 keeps
-            the M1 stub behaviour (pure kNN — MMR is skipped entirely).
-            Service-layer default in M3 is 0.5.
+            the original behaviour (pure kNN — MMR is skipped entirely).
+            The service layer passes 0.5.
         k_candidates: kNN pool size BEFORE MMR rerank. None (default) →
             ``max(top_n * 3, 30)`` when MMR is active; ignored otherwise.
         min_score: Minimum cosine similarity a candidate must reach to enter

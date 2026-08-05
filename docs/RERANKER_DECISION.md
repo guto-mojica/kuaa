@@ -12,7 +12,7 @@ fork" below.
 
 ## Decision
 
-Ship with the cross-encoder reranker (`BAAI/bge-reranker-v2-m3`, the C5
+Ship with the cross-encoder reranker (`BAAI/bge-reranker-v2-m3`, the `rerank`
 verb in `kuaa.search.rerank`) **off by default**. The first-stage retriever
 (SigLIP2 visual ⊕ BM25 hybrid via RRF) is the production ranking.
 
@@ -95,7 +95,7 @@ Two ways to make the two stages cooperate, plus the exit option:
   signal (condition #1). Heavier (VLM inference per candidate; gate to small
   candidate sets) but the architecturally honest answer for a *visual* archive.
 - **C — Remove entirely.** If neither A nor B clears the acceptance bar, delete the
-  C5 verb, the config block, and the UI affordance rather than ship dead capability.
+  `rerank` verb, the config block, and the UI affordance rather than ship dead capability.
 
 The **first-stage pool widening** (fetch `max(top_k+offset, top_k_in)` when
 rerank is on; see `api/services/_search_render.py`) is the prerequisite for A
@@ -124,7 +124,7 @@ Re-flip `retrieval.reranker.enabled` to `auto`/`true` only when **all** hold:
 ## What ships
 
 - `config/default.yaml` → `retrieval.reranker.enabled: false`.
-- The C5 reranker verb, the typed `SearchResult` rerank boundary, the per-request
+- The `rerank` verb, the typed `SearchResult` rerank boundary, the per-request
   `?reranker_enabled=` override, and the first-stage widening all remain in place.
 - The Buscar UI rerank toggle remains; it seeds *off* and is an explicit opt-in.
 
@@ -137,7 +137,7 @@ Re-flip `retrieval.reranker.enabled` to `auto`/`true` only when **all** hold:
 - Forward plan: retrieval depth — deepening the first-stage candidate pool
   ahead of trying fork A or B — is tracked as future work, not yet written up
   as a standalone roadmap doc.
-- Code: `kuaa/search/rerank.py` (the C5 verb), `api/services/_search_rerank.py`
+- Code: `kuaa/search/rerank.py` (the `rerank` verb), `api/services/_search_rerank.py`
   (config-aware wrapper + typed boundary), `api/services/_search_render.py`
   (first-stage widening), `kuaa/search/_dispatch.py` (`_attach_descriptions()`,
   the core-path description fix referenced in point 0 above).

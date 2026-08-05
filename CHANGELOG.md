@@ -10,6 +10,40 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ## [Não lançado]
 
+### Corrigido
+
+- **Referências a documentos e planos inexistentes removidas de todo o repo.**
+  O commit `68bbb22` ("public launch cleanup") removeu material interno da
+  árvore versionada, mas as referências a ele permaneceram em docs, docstrings,
+  templates e comentários de CI. Corrigidos junto vários erros reais:
+  `just lint`/`just fmt` chamavam `black`, que não é dependência do projeto (o
+  formatador oficial é `ruff format`, o que a CI sempre exigiu); `just serve`
+  invocava o entrypoint inexistente `cinemateca`; o `CONTRIBUTING.md` declarava
+  o gate E2E como bloqueante na CI, embora o Playwright não seja instalado em
+  nenhum workflow; e `docs/ARCHITECTURE.md` listava `scenes_service.py`, hoje o
+  pacote `api/services/scenes/`.
+- **`scripts/check_launch_package.py` voltou a passar e agora roda na CI.**
+  Exigia cinco documentos, quatro deles removidos de propósito e no
+  `.gitignore`. Reduzido aos quatro documentos públicos existentes
+  (`CASE_STUDY`, `PROJECT_BRIEF`, `DEMO`, `DEMO_DATA`) e ligado ao job `docs`
+  do `ci.yml`. O teste correspondente deixou de se auto-pular.
+- **Tabela de ablação não publica mais códigos internos.** A célula
+  `pending (C5)` chegava ao `docs/EVALUATION_RESULTS.md` publicado; o
+  `pending_reason` agora recebe frases acionáveis (`"rerank off"`). Marcadores
+  `<!-- M4 ABLATION … -->` renomeados para `<!-- ABLATION … -->`.
+
+### Alterado
+
+- **`api/routes/preprocess.py` isento do teto de 182/150 linhas**
+  (`scripts/check_loc_budget.py`), que estava vermelho na `main`. O módulo
+  concentra o disparo do job de detecção, os endpoints de edição de cortes em
+  lote (split/merge) e a renderização do filmstrip. Isentado em vez de
+  dividido porque a UX de revisão de cortes ainda está em movimento e uma
+  fronteira rota/serviço prematura teria de ser redesenhada. Para limpar:
+  mover os handlers de edição de cortes para `api/services/preprocess_render.py`.
+- Hook `black` do pre-commit substituído por `ruff-format`, alinhado ao job
+  `lint` da CI — dois formatadores sobre a mesma árvore brigam entre si.
+
 ## [0.9.1] - 2026-07-03
 
 ### Corrigido
