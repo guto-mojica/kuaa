@@ -290,7 +290,7 @@
           <line x1="6.5" y1="19" x2="17.5" y2="19"/>
         </svg>
         <h3>Multimodal e híbrido</h3>
-        <p>Consulte por texto ou por imagem. Embeddings densos do SigLIP2 fundidos com busca lexical BM25 através de Reciprocal Rank Fusion.</p>
+        <p>Consulte por texto ou por imagem. O sinal denso do SigLIP2, o BM25 lexical e uma perna de metadados léxico-exatos se fundem por Reciprocal Rank Fusion ponderada.</p>
       </div>
       <div class="pillar">
         <!-- filmstrip segment: the product's own icon motif -->
@@ -314,10 +314,10 @@
           <line x1="2" y1="21" x2="22" y2="21"/>
         </svg>
         <h3>Humano no processo</h3>
-        <p>O modelo escreve uma primeira passada pesquisável; curadores a corrigem. As edições manuais são armazenadas separadamente e medidas como um sinal de qualidade.</p>
+        <p>O modelo escreve uma primeira passada pesquisável; curadores a corrigem. As correções alimentam diretamente as pernas de ranqueamento BM25 e de metadados, não apenas a exibição.</p>
       </div>
     </div>
-    <p style="margin-top:2rem"><span class="mono">busca híbrida texto + imagem · bm25 + denso · fusão rrf · edições manuais armazenadas separadamente</span></p>
+    <p style="margin-top:2rem"><span class="mono">busca híbrida texto + imagem · denso + bm25 + metadados · fusão rrf · curadoria alimenta o ranqueamento</span></p>
   </div>
 </section>
 
@@ -347,7 +347,7 @@
         <span class="tag">Busca híbrida</span>
         <h3>Descreva uma cena, ou cole uma imagem.</h3>
         <p>Uma única caixa de busca cobre consultas por texto e por imagem de referência. A ponderação entre as pontuações semântica e lexical é ajustável, e o reranker é opcional.</p>
-        <span class="mono">HYBRID · sem 0.70 / bm25 0.30 · rerank off</span>
+        <span class="mono">HYBRID · denso + bm25 + metadados · fusão rrf · rerank off</span>
       </div>
       <figure><img src="../search.jpg" alt="Interface de busca do KUAA com controles de recuperação híbrida" loading="lazy"></figure>
     </div>
