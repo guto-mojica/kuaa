@@ -616,7 +616,7 @@
           <line x1="10.2" y1="7.2" x2="5.8" y2="17"/><line x1="13.8" y1="7.2" x2="18.2" y2="17"/><line x1="6.5" y1="19" x2="17.5" y2="19"/>
         </svg>
         <h3 class="layer-over">Multimodal &amp; hybrid</h3>
-        <p class="layer-over">Query by text or by image. Dense SigLIP2 embeddings fused with BM25 lexical search through Reciprocal Rank Fusion.</p>
+        <p class="layer-over">Query by text or by image. Dense SigLIP2, BM25 lexical, and an exact-lexical metadata leg fuse through weighted Reciprocal Rank Fusion.</p>
       </div>
       <div class="block p-pill2">
         <svg class="pi layer-under" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.6">
@@ -633,10 +633,10 @@
           <rect x="2" y="5" width="18" height="12" rx="2"/><polyline points="6,11 9,14 14.5,8.5"/><line x1="2" y1="21" x2="22" y2="21"/>
         </svg>
         <h3 class="layer-over">Human-in-the-loop</h3>
-        <p class="layer-over">The model writes a searchable first pass; curators correct it. Manual edits are stored apart and measured as a quality signal.</p>
+        <p class="layer-over">The model writes a searchable first pass; curators correct it. Corrections feed straight back into the BM25 and metadata ranking legs, not just the display.</p>
       </div>
       <div class="block bare p-probtag">
-        <span class="mono layer-over">hybrid text + image · bm25 + dense · rrf fusion · manual edits stored separately</span>
+        <span class="mono layer-over">hybrid text + image · dense + bm25 + metadata · rrf fusion · curation feeds ranking</span>
       </div>
 
       <!-- ===================== PIPELINE ===================== -->
@@ -686,7 +686,7 @@
         <span class="tag layer-over">Hybrid search</span>
         <h3 class="layer-over">Describe a scene, or paste an image.</h3>
         <p class="tour-caption layer-over">One search box spans text and reference-image queries. Weighting is tunable; the reranker is opt-in.</p>
-        <span class="mono layer-over" style="margin-top:.6rem">HYBRID · sem 0.70 / bm25 0.30 · rerank off</span>
+        <span class="mono layer-over" style="margin-top:.6rem">HYBRID · dense + bm25 + metadata · rrf fusion · rerank off</span>
       </div>
       <div class="block frame p-tourf1 layer-under" data-label="search.jpg placeholder"></div>
 
