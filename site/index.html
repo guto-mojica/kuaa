@@ -31,38 +31,111 @@
     --ink:#ecebf5;
     --ink-dim:#9b9ab2;
     --ink-faint:#6b6a82;
-    --maxw:1080px;
+    --maxw:1180px;
     --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
     --display:'Space Grotesk',system-ui,sans-serif;
     --body:'Inter',system-ui,sans-serif;
+    --cell-gap:14px;
+    --cell-radius:16px;
+    /* z-stack: single page graph sits between under/over text */
+    --z-under:1;
+    --z-graph:2;
+    --z-over:3;
   }
 
   *{box-sizing:border-box}
-  html{scroll-behavior:smooth}
+  html{scroll-behavior:smooth;overflow-x:clip}
   body{
     margin:0;background:var(--bg);color:var(--ink);
     font-family:var(--body);font-size:17px;line-height:1.65;
-    -webkit-font-smoothing:antialiased;
-    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;overflow-x:clip;
   }
   a{color:var(--violet);text-decoration:none}
   a:hover{text-decoration:underline}
   .wrap{max-width:var(--maxw);margin:0 auto;padding:0 1.5rem}
 
-  /* ---- shared type ---- */
   .eyebrow{
     font-family:var(--mono);font-size:.72rem;letter-spacing:.18em;
     text-transform:uppercase;color:var(--ink-faint);
-    display:flex;align-items:center;gap:.6rem;margin:0 0 1.1rem;
+    display:flex;align-items:center;gap:.6rem;margin:0 0 .8rem;
   }
   .eyebrow::before{content:"";width:26px;height:1px;background:var(--violet-deep)}
   h2{
     font-family:var(--display);font-weight:600;font-size:clamp(1.7rem,3.4vw,2.4rem);
-    line-height:1.1;letter-spacing:-.02em;margin:0 0 1rem;color:var(--ink);
+    line-height:1.1;letter-spacing:-.02em;margin:0 0 .8rem;color:var(--ink);
   }
-  section{padding:5.5rem 0;border-top:1px solid var(--line)}
 
-  /* ---- top nav ---- */
+  /* =====================================================================
+     WHOLE-PAGE BENTO
+     The entire page body is ONE asymmetric grid (.page-bento). Every content
+     unit is a block placed on that single grid with deliberately uneven
+     column/row spans, so no two rows share the same rhythm. A SINGLE graph
+     (.page-graph) sits over all of it as a FREE layer: straight-line edges
+     that bleed past the page edges into "outer space", NOT constrained by the
+     boundaries or relations of the blocks beneath. Text layers under/over
+     that one graph via z-index.
+     ===================================================================== */
+  .page{position:relative;padding:2.4rem 0 3rem;overflow:visible}
+  .page .wrap{position:relative;overflow:visible}
+
+  /* The graph is a FREE layer. It sits at content width but its SVG has
+     overflow:visible and uses off-canvas coordinates, so its straight lines
+     spill past the page edges into "outer space" without widening the
+     document (no horizontal scroll). It is not clipped to the page and not
+     constrained by the boundaries or relations of the blocks beneath it. */
+  .page-graph{
+    position:absolute;
+    top:-120px; left:0; right:0;
+    width:100%; height:calc(100% + 240px);
+    pointer-events:none;z-index:var(--z-graph);overflow:visible;
+    opacity:.26;
+  }
+
+  .page-bento{
+    position:relative;display:grid;
+    grid-template-columns:repeat(12,1fr);
+    grid-auto-rows:minmax(58px,auto);
+    gap:var(--cell-gap);
+    grid-auto-flow:dense;
+  }
+
+  .block{
+    position:relative;background:var(--panel);
+    border:1px solid var(--line);border-radius:var(--cell-radius);
+    padding:1.4rem 1.5rem;overflow:hidden;
+    display:flex;flex-direction:column;justify-content:flex-end;
+  }
+  .block.pad-lg{padding:1.8rem 1.9rem}
+  .block.bare{background:transparent;border:none;padding:1rem 0}
+  .block.soft{background:var(--bg-soft)}
+  .block > *{position:relative}
+
+  /* the single graph's under/over layering, used across the whole page */
+  .layer-under{z-index:var(--z-under)}
+  .layer-over{z-index:var(--z-over)}
+
+  /* image-frame placeholder */
+  .frame{
+    background:repeating-linear-gradient(45deg,#14141f 0 10px,#12121b 10px 20px);
+    border:1px dashed var(--line);padding:0;
+  }
+  .frame::after{
+    content:attr(data-label);position:absolute;inset:0;display:flex;
+    align-items:center;justify-content:center;font-family:var(--mono);font-size:.72rem;
+    letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);z-index:var(--z-under);
+  }
+
+  .mono{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint);
+    background:var(--bg-soft);border:1px solid var(--line);border-radius:7px;
+    padding:.35rem .6rem;display:inline-block}
+  .block.bare .mono{background:var(--bg-soft)}
+  .tag{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--violet);margin-bottom:.55rem;display:block}
+  .block h3{font-family:var(--display);font-size:1.2rem;font-weight:600;margin:0 0 .5rem;letter-spacing:-.01em}
+  .block p{color:var(--ink-dim);font-size:.95rem;margin:0}
+  .block .pi{width:34px;height:34px;margin-bottom:.8rem}
+
+  /* ---- top nav (outside the bento) ---- */
   header.nav{
     position:sticky;top:0;z-index:50;
     backdrop-filter:blur(12px);background:rgba(12,12,17,.72);
@@ -109,124 +182,199 @@
   .nav .ghost:hover{border-color:var(--violet-deep);text-decoration:none}
   @media(max-width:680px){.nav-links{display:none}}
 
-  /* ---- hero ---- */
-  .hero{position:relative;padding:6rem 0 5rem;border-top:none;overflow:hidden}
-  .hero-graph{position:absolute;inset:0;width:100%;height:100%;opacity:.55;
-    pointer-events:none;z-index:0}
-  .hero .wrap{position:relative;z-index:1}
-  .hero h1{
-    font-family:var(--display);font-weight:700;
-    font-size:clamp(2.5rem,6.4vw,4.6rem);line-height:1.02;letter-spacing:-.03em;
-    margin:0 0 1.4rem;max-width:14ch;
-  }
-  .hero h1 .accent{
-    background:linear-gradient(100deg,var(--violet) 0%,var(--violet-deep) 100%);
-    -webkit-background-clip:text;background-clip:text;color:transparent;
-  }
-  .hero .lede{font-size:1.22rem;color:var(--ink-dim);max-width:46ch;margin:0 0 2.2rem}
-  .hero .guarani{font-family:var(--mono);font-size:.8rem;color:var(--ink-faint);
-    letter-spacing:.04em;margin-bottom:1.6rem}
-  .hero .guarani b{color:var(--violet);font-weight:500}
-  .cta-row{display:flex;gap:.9rem;flex-wrap:wrap;align-items:center}
+  /* buttons */
+  .cta-row{display:flex;gap:.7rem;flex-wrap:wrap;align-items:center}
   .btn{
-    font-family:var(--mono);font-size:.85rem;font-weight:500;
-    padding:.78rem 1.4rem;border-radius:9px;display:inline-flex;align-items:center;gap:.5rem;
+    font-family:var(--mono);font-size:.82rem;font-weight:500;
+    padding:.7rem 1.2rem;border-radius:9px;display:inline-flex;align-items:center;gap:.5rem;
     transition:transform .15s ease, box-shadow .15s ease;
   }
   .btn:hover{text-decoration:none;transform:translateY(-1px)}
-  .btn-primary{background:var(--violet-deep);color:#fff;
-    box-shadow:0 8px 24px -10px var(--violet-deep)}
+  .btn-primary{background:var(--violet-deep);color:#fff;box-shadow:0 8px 24px -10px var(--violet-deep)}
   .btn-primary:hover{box-shadow:0 12px 30px -10px var(--violet-deep)}
   .btn-ghost{border:1px solid var(--line);color:var(--ink)}
   .btn-ghost:hover{border-color:var(--violet)}
 
-  .hero-meta{display:flex;gap:2rem;flex-wrap:wrap;margin-top:3rem;
-    font-family:var(--mono);font-size:.78rem;color:var(--ink-faint)}
-  .hero-meta b{display:block;font-size:1.45rem;color:var(--ink);font-weight:500;
+  /* =====================================================================
+     BLOCK PLACEMENTS ON THE SINGLE 12-COL GRID
+     We control COLUMN start+span (irregular: 5/7, 4/3/5, 8/4, 3/3/3/3…) and
+     a ROW SPAN for the tall blocks, but we do NOT hardcode row *lines* —
+     grid-auto-flow:dense packs blocks as they come, so variable text height
+     never forces overlaps. Reading order = source order.
+     ===================================================================== */
+
+  /* --- hero cluster --- */
+  .p-hero    {grid-column:1 / span 7; grid-row:span 3; min-height:300px; overflow:visible}
+  .p-guarani {grid-column:8 / span 5}
+  .p-cta     {grid-column:8 / span 5}
+  .p-herokey {grid-column:8 / span 5; grid-row:span 2; min-height:170px}
+  .p-lede    {grid-column:1 / span 4; grid-row:span 2}
+  .p-meta    {grid-column:5 / span 3; grid-row:span 2}
+  .p-htag    {grid-column:1 / span 7}
+
+  .p-hero .hero-brand{display:flex;align-items:center;gap:.7rem;margin-bottom:1.2rem}
+  .p-hero .hero-brand img{width:40px;height:40px;display:block}
+  .p-hero .hero-brand span{font-family:var(--display);font-weight:700;font-size:1.3rem;letter-spacing:.05em}
+  .p-hero h1{
+    font-family:var(--display);font-weight:700;
+    font-size:clamp(2.1rem,4.6vw,3.6rem);line-height:1.03;letter-spacing:-.03em;
+    margin:0;max-width:15ch;
+  }
+  .p-hero h1 .accent{
+    background:linear-gradient(100deg,var(--violet) 0%,var(--violet-deep) 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .p-guarani{justify-content:center}
+  .p-guarani .g-k{font-family:var(--mono);font-size:.8rem;color:var(--ink-faint);letter-spacing:.04em;margin:0}
+  .p-guarani .g-k b{color:var(--violet);font-weight:500}
+  .p-cta{justify-content:center}
+  .p-lede .lede{font-size:1rem;color:var(--ink-dim);margin:0}
+  .p-meta{flex-direction:row;gap:1.2rem;justify-content:flex-start;align-items:flex-end;flex-wrap:wrap;
+    font-family:var(--mono);font-size:.72rem;color:var(--ink-faint)}
+  .p-meta .stat b{display:block;font-size:1.25rem;color:var(--ink);font-weight:500;
     font-family:var(--display);letter-spacing:-.01em}
 
-  /* ---- intro statement ---- */
-  .statement p{font-size:clamp(1.25rem,2.6vw,1.6rem);line-height:1.5;
-    max-width:32ch;font-family:var(--display);font-weight:400;color:var(--ink);}
-  .statement .grid{display:grid;grid-template-columns:1.2fr 1fr;gap:3rem;align-items:start}
-  .statement .side{font-size:.98rem;color:var(--ink-dim)}
-  .statement .side p{font-family:var(--body);font-size:.98rem;max-width:none;color:var(--ink-dim)}
-  @media(max-width:760px){.statement .grid{grid-template-columns:1fr;gap:1.5rem}}
+  /* --- problem + pillars --- */
+  .p-probhead{grid-column:1 / span 12; align-items:flex-start}
+  .p-problead{grid-column:1 / span 5; grid-row:span 3}
+  .p-probside{grid-column:6 / span 7; grid-row:span 3}
+  .p-pill1   {grid-column:1 / span 5; grid-row:span 2}
+  .p-pill2   {grid-column:6 / span 3; grid-row:span 2}
+  .p-pill3   {grid-column:9 / span 4; grid-row:span 3}
+  .p-probtag {grid-column:1 / span 12; align-items:flex-start}
+  .p-problead .big{font-size:clamp(1.25rem,2.4vw,1.6rem);line-height:1.45;
+    font-family:var(--display);font-weight:400;color:var(--ink);margin:0}
+  .p-probside p{margin:0 0 .9rem}
+  .p-probside p:last-child{margin:0}
 
-  /* ---- pillars ---- */
-  .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;margin-top:2.5rem}
-  .pillar{background:var(--panel);border:1px solid var(--line);border-radius:14px;
-    padding:1.6rem 1.5rem;transition:border-color .2s ease}
-  .pillar:hover{border-color:var(--violet-deep)}
-  .pillar .pi{width:34px;height:34px;margin-bottom:1rem}
-  .pillar h3{font-family:var(--display);font-size:1.1rem;font-weight:600;margin:0 0 .5rem}
-  .pillar p{font-size:.92rem;color:var(--ink-dim);margin:0}
-  @media(max-width:760px){.pillars{grid-template-columns:1fr}}
+  /* --- pipeline : steps sized by COST/EFFORT within the run, not equal thirds.
+     Scene detection = full source decode (heavy, wide + tall).
+     Visual analysis = YOLO+MTCNN per keyframe (light — narrow, short).
+     Embeddings      = SigLIP2 per keyframe (moderate).
+     LLM descriptions= Moondream text gen per keyframe (heaviest — widest/tallest). */
+  .p-pipehead{grid-column:1 / span 7; grid-row:span 2; align-items:flex-start}
+  .p-pipelede{grid-column:8 / span 5; grid-row:span 2}
+  .p-step1   {grid-column:1 / span 4; grid-row:span 3}   /* heavy I/O */
+  .p-step2   {grid-column:5 / span 2; grid-row:span 2}   /* light */
+  .p-step3   {grid-column:7 / span 3; grid-row:span 3}   /* moderate */
+  .p-step4   {grid-column:10 / span 3; grid-row:span 4}  /* heaviest */
+  .p-pipetag {grid-column:1 / span 8; align-items:flex-start}
+  .step .cost{display:flex;align-items:center;gap:.5rem;margin-top:.7rem;
+    font-family:var(--mono);font-size:.64rem;letter-spacing:.08em;color:var(--ink-faint);text-transform:uppercase}
+  .cost-bar{flex:1;height:3px;border-radius:2px;background:var(--line);overflow:hidden;position:relative}
+  .cost-bar>i{position:absolute;inset:0 auto 0 0;border-radius:2px;
+    background:linear-gradient(90deg,var(--violet-deep),var(--orange))}
+  .step-n{font-family:var(--mono);font-size:.72rem;color:var(--ink-faint);letter-spacing:.1em}
+  .step-bar{height:3px;border-radius:2px;background:linear-gradient(90deg,var(--violet-deep),var(--violet));
+    margin:.55rem 0 .75rem;width:100%}
+  .block h4{font-family:var(--display);font-size:1rem;font-weight:600;margin:0 0 .4rem}
+  .block .step-p{font-size:.84rem;color:var(--ink-dim);margin:0;line-height:1.45}
 
-  /* ---- pipeline ---- */
-  .pipe{display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;margin-top:2.5rem}
-  .step{background:var(--bg-soft);border:1px solid var(--line);border-radius:11px;
-    padding:1.2rem 1rem;position:relative}
-  .step .n{font-family:var(--mono);font-size:.72rem;color:var(--ink-faint);
-    letter-spacing:.1em}
-  .step .bar{height:3px;border-radius:2px;background:linear-gradient(90deg,var(--violet-deep),var(--violet));
-    margin:.7rem 0 .9rem;width:100%}
-  .step h4{font-family:var(--display);font-size:.98rem;font-weight:600;margin:0 0 .4rem}
-  .step p{font-size:.8rem;color:var(--ink-dim);margin:0;line-height:1.45}
-  @media(max-width:880px){.pipe{grid-template-columns:1fr 1fr}}
-  @media(max-width:480px){.pipe{grid-template-columns:1fr}}
+  /* --- tour : frames + captions interlocked, uneven.
+     Each caption/frame pair shares a row span so they align side-by-side
+     and dense flow keeps the alternating left/right rhythm. --- */
+  .p-tourhead{grid-column:1 / span 12; align-items:flex-start}
+  .p-tourt1  {grid-column:1 / span 4; grid-row:span 3}
+  .p-tourf1  {grid-column:5 / span 8; grid-row:span 3; min-height:210px}
+  .p-tourf2  {grid-column:1 / span 5; grid-row:span 3; min-height:210px}
+  .p-tourt2  {grid-column:6 / span 7; grid-row:span 3}
+  .p-tourt3  {grid-column:1 / span 6; grid-row:span 3}
+  .p-tourf3  {grid-column:7 / span 6; grid-row:span 3; min-height:230px}
+  .p-tourf4  {grid-column:1 / span 6; grid-row:span 3; min-height:200px}
+  .p-tourt4  {grid-column:7 / span 6; grid-row:span 3}
+  .p-tourt5  {grid-column:1 / span 5; grid-row:span 3}
+  .p-tourf5  {grid-column:6 / span 7; grid-row:span 3; min-height:180px}
+  .p-tourt6  {grid-column:1 / span 5; align-items:flex-start}
+  .tour-caption{font-size:.9rem}
 
-  /* ---- showcase ---- */
-  .shot{display:grid;grid-template-columns:1fr 1fr;gap:2.5rem;align-items:center;
-    margin-bottom:4.5rem}
-  .shot:last-child{margin-bottom:0}
-  .shot.flip .shot-text{order:2}
-  .shot-text .tag{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;
-    text-transform:uppercase;color:var(--violet);margin-bottom:.7rem;display:block}
-  .shot-text h3{font-family:var(--display);font-size:1.5rem;font-weight:600;
-    margin:0 0 .8rem;letter-spacing:-.01em}
-  .shot-text p{color:var(--ink-dim);font-size:.98rem;margin:0 0 .8rem}
-  .mono{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint);
-    background:var(--bg-soft);border:1px solid var(--line);border-radius:7px;
-    padding:.35rem .6rem;display:inline-block}
-  .shot figure{margin:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;
-    background:#000;box-shadow:0 24px 60px -30px rgba(0,0,0,.9)}
-  .shot figure img{width:100%;display:block}
-  @media(max-width:820px){
-    .shot{grid-template-columns:1fr;gap:1.2rem;margin-bottom:3.5rem}
-    .shot.flip .shot-text{order:0}
-  }
-
-  /* ---- stack table ---- */
-  .stack{width:100%;border-collapse:collapse;margin-top:2rem;font-size:.92rem}
-  .stack th,.stack td{text-align:left;padding:.95rem 1rem;border-bottom:1px solid var(--line)}
-  .stack th{font-family:var(--mono);font-size:.7rem;letter-spacing:.12em;
+  /* --- stack --- */
+  .p-stackhead{grid-column:1 / span 7; align-items:flex-start}
+  .p-stacknote{grid-column:8 / span 5; grid-row:span 2; justify-content:flex-start}
+  .p-stacktbl {grid-column:1 / span 7; grid-row:span 5}
+  .p-stackexp {grid-column:8 / span 5; grid-row:span 3; align-items:flex-start}
+  .stack{width:100%;border-collapse:collapse;font-size:.88rem}
+  .stack th,.stack td{text-align:left;padding:.72rem .8rem;border-bottom:1px solid var(--line)}
+  .stack tr:last-child td{border-bottom:none}
+  .stack th{font-family:var(--mono);font-size:.66rem;letter-spacing:.12em;
     text-transform:uppercase;color:var(--ink-faint);font-weight:500}
-  .stack td.model{font-family:var(--mono);font-size:.85rem;color:var(--violet)}
+  .stack td.model{font-family:var(--mono);font-size:.8rem;color:var(--violet)}
   .stack td.role{color:var(--ink-dim)}
-  .stack tr:hover td{background:var(--bg-soft)}
   @media(max-width:620px){.stack .hide-sm{display:none}}
+  .p-stacknote p{font-size:.92rem}
+  .p-stackexp p{font-size:.9rem;margin:0 0 .7rem}
 
-  /* ---- status / honesty note ---- */
-  .status{background:linear-gradient(160deg,var(--panel),var(--bg-soft));
-    border:1px solid var(--line);border-radius:16px;padding:2.2rem;
-    display:grid;grid-template-columns:auto 1fr;gap:1.6rem;align-items:start}
-  .status .dot{width:11px;height:11px;border-radius:50%;background:var(--yellow);
-    margin-top:.55rem;box-shadow:0 0 0 4px rgba(255,214,10,.15)}
-  .status h3{font-family:var(--display);font-size:1.25rem;margin:0 0 .6rem;font-weight:600}
-  .status p{color:var(--ink-dim);font-size:.95rem;margin:0 0 .8rem}
-  .status .ver{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint)}
-  @media(max-width:560px){.status{grid-template-columns:1fr;padding:1.6rem}}
+  /* --- go deeper --- */
+  .p-deephead{grid-column:1 / span 12; align-items:flex-start}
+  .p-deep1{grid-column:1 / span 5; grid-row:span 2}
+  .p-deep2{grid-column:6 / span 7; grid-row:span 3}
+  .p-deep3{grid-column:1 / span 5; grid-row:span 2}
+  .p-deep4{grid-column:6 / span 3; grid-row:span 2}
+  .p-deep5{grid-column:9 / span 4; grid-row:span 2}
+  .deep-link{font-family:var(--display);font-size:1.05rem;font-weight:600;margin:0 0 .4rem}
 
-  /* ---- footer ---- */
-  footer{border-top:1px solid var(--line);padding:3rem 0 4rem;color:var(--ink-faint);
-    font-size:.85rem}
+  /* --- status --- */
+  .p-statdot {grid-column:1 / span 1; grid-row:span 3; align-items:center;justify-content:flex-start}
+  .p-statmain{grid-column:2 / span 7; grid-row:span 3}
+  .p-statver {grid-column:9 / span 4; grid-row:span 3; justify-content:center}
+  .status-dot{width:11px;height:11px;border-radius:50%;background:var(--yellow);
+    box-shadow:0 0 0 4px rgba(255,214,10,.15)}
+  .p-statmain p{font-size:.92rem;margin:0 0 .8rem}
+  .p-statver .ver{font-family:var(--mono);font-size:.76rem;color:var(--ink-faint);line-height:1.6}
+
+  /* ---- footer (outside bento) ---- */
+  footer{border-top:1px solid var(--line);padding:3rem 0 4rem;color:var(--ink-faint);font-size:.85rem}
   footer .frow{display:flex;justify-content:space-between;gap:1.5rem;flex-wrap:wrap;align-items:center}
   footer .brand-sm{display:flex;align-items:center;gap:.55rem;font-family:var(--display);
     color:var(--ink-dim);font-weight:600}
   footer .brand-sm img{width:22px;height:22px}
   footer a{color:var(--ink-dim)}
   .lic{font-family:var(--mono);font-size:.74rem}
+
+  /* =====================================================================
+     RESPONSIVE — the one grid reflows.
+     At <=900px: collapse to 6 cols and let dense auto-flow repack, with a
+     handful of explicit spans kept for the anchor blocks.
+     At <=560px: single column, natural document order, graph dimmed.
+     ===================================================================== */
+  @media(max-width:900px){
+    .page-bento{grid-template-columns:repeat(6,1fr);grid-auto-rows:minmax(56px,auto)}
+    /* clear ALL desktop row/col placements so items flow in source order */
+    .page-bento > .block{grid-column:auto / span 6;grid-row:auto}
+    /* then re-impose a few uneven spans that still read well at 6 cols */
+    .p-hero{grid-column:1 / span 6;min-height:260px}
+    .p-guarani{grid-column:1 / span 3}
+    .p-cta{grid-column:4 / span 3}
+    .p-herokey{grid-column:1 / span 6;min-height:150px}
+    .p-lede{grid-column:1 / span 4}
+    .p-meta{grid-column:1 / span 6}
+    .p-htag{grid-column:1 / span 6}
+    .p-problead{grid-column:1 / span 6}
+    .p-probside{grid-column:1 / span 6}
+    .p-pill1{grid-column:1 / span 3}
+    .p-pill2{grid-column:4 / span 3}
+    .p-pill3{grid-column:1 / span 6}
+    .p-step1{grid-column:1 / span 3}
+    .p-step2{grid-column:4 / span 3}
+    .p-step3{grid-column:1 / span 3}
+    .p-step4{grid-column:4 / span 3}
+    .p-tourt1,.p-tourt2,.p-tourt3,.p-tourt4,.p-tourt5{grid-column:1 / span 6}
+    .p-tourf1,.p-tourf2,.p-tourf3,.p-tourf4,.p-tourf5{grid-column:1 / span 6;min-height:190px}
+    .p-stacknote{grid-column:1 / span 6}
+    .p-stacktbl{grid-column:1 / span 6}
+    .p-deep1{grid-column:1 / span 3}
+    .p-deep2{grid-column:4 / span 3}
+    .p-deep3{grid-column:1 / span 3}
+    .p-deep4{grid-column:4 / span 3}
+    .p-deep5{grid-column:1 / span 6}
+    .p-statdot{grid-column:1 / span 1}
+    .p-statmain{grid-column:2 / span 5}
+    .p-statver{grid-column:1 / span 6}
+  }
+  @media(max-width:560px){
+    .page-bento{grid-template-columns:1fr;grid-auto-rows:auto;grid-auto-flow:row}
+    .page-bento > .block{grid-column:1 / -1 !important;grid-row:auto !important;min-height:auto}
+    .page-graph{opacity:.32}
+  }
 
   @media(prefers-reduced-motion:reduce){
     *{animation:none!important;transition:none!important}
@@ -263,240 +411,385 @@
 </header>
 
 <a id="top"></a>
-<section class="hero">
-  <!-- signature: cross-film "visual rhyme" graph, the icon motif -->
-  <svg class="hero-graph" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-    <defs>
-      <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0" stop-color="#ffd60a"/><stop offset="1" stop-color="#ff9500"/>
-      </linearGradient>
-    </defs>
-    <g stroke="url(#edge)" stroke-width="1.4" opacity=".5" fill="none">
-      <line x1="220" y1="180" x2="520" y2="300"/>
-      <line x1="520" y1="300" x2="430" y2="520"/>
-      <line x1="520" y1="300" x2="820" y2="210"/>
-      <line x1="820" y1="210" x2="1010" y2="360"/>
-      <line x1="430" y1="520" x2="730" y2="560"/>
-      <line x1="730" y1="560" x2="1010" y2="360"/>
-      <line x1="220" y1="180" x2="120" y2="420"/>
-    </g>
-    <g fill="#ffd60a">
-      <circle cx="520" cy="300" r="7"><animate attributeName="r" values="7;9;7" dur="4s" repeatCount="indefinite"/></circle>
-      <circle cx="220" cy="180" r="5"/>
-      <circle cx="430" cy="520" r="6"/>
-      <circle cx="820" cy="210" r="5"/>
-      <circle cx="730" cy="560" r="5"/>
-      <circle cx="120" cy="420" r="4"/>
-    </g>
-    <g fill="#ff9500">
-      <circle cx="1010" cy="360" r="6"><animate attributeName="opacity" values=".6;1;.6" dur="3.5s" repeatCount="indefinite"/></circle>
-    </g>
-  </svg>
 
+<!-- =========================================================================
+     THE WHOLE PAGE IS ONE BENTO GRID.
+     One .page-graph overlays the entire grid and bleeds continuously through
+     every block, crossing former section boundaries. Anchors (#what, #pipeline,
+     #tour, #stack, #deeper, #status) are attached to the relevant head blocks
+     so the nav still jumps correctly.
+   ========================================================================== -->
+<div class="page">
   <div class="wrap">
-    <p class="guarani">kuaa · <b>"to know"</b> in Guaraní</p>
-    <h1>Search the <span class="accent">moments</span> buried in a film archive.</h1>
-    <p class="lede">Turns raw video files into a searchable, human-reviewable scene catalog. Runs on one machine — models, processing, and storage all local.</p>
-    <div class="cta-row">
-      <a class="btn btn-primary" href="https://github.com/guto-mojica/kuaa" target="_blank" rel="noopener">Read the code</a>
-      <a class="btn btn-ghost" href="#tour">See it running</a>
-    </div>
-    <p style="margin-top:1.8rem"><span class="mono">offline · cpu / mps / cuda · no api keys · no sent frames</span></p>
-  </div>
-</section>
 
-<section id="what" class="statement">
-  <div class="wrap">
-    <p class="eyebrow">The problem</p>
-    <div class="grid">
-      <p>A film has a title and a date. The thing a researcher actually wants — a crowd, a train station, a night interior — is buried inside the footage.</p>
-      <div class="side">
-        <p>Manual scene cataloging is slow. Fully automated cataloging isn't reliable enough to trust. KUAA runs a fast AI first pass to make material discoverable, then keeps curators in the loop to correct and confirm.</p>
-        <p>Built around the constraints real archives live with — privacy, degraded black-and-white footage, sparse metadata, and the need to trace every result back to the config and models that produced it.</p>
+    <!-- SINGLE continuous graph over the whole page, drawn as KUAA's OPERATING
+         LOGIC rather than a trace of the pipeline steps: a query enters and
+         FORKS into two retrieval branches (dense embeddings + lexical BM25),
+         which FUSE (RRF); a rerank LOOP feeds back; results fan out as a
+         TREE of scenes; a visual-rhyme kNN loop closes on itself; a
+         human-in-the-loop correction FORK writes back to the index; and
+         FILE ACCESS / THROUGHPUT taps run down the side (source → keyframes →
+         index → export). ALL edges are STRAIGHT lines (no curves), and the
+         layer bleeds past the page into outer space — it is not clipped to the
+         page and not constrained by the blocks beneath it. Nodes are rendered
+         as counter-scaled ellipses so they stay perfectly round despite the
+         non-uniform stretch. -->
+    <svg class="page-graph" viewBox="0 0 1200 3200" preserveAspectRatio="none" aria-hidden="true" data-graph>
+      <defs>
+        <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#ffd60a"/><stop offset="1" stop-color="#ff9500"/>
+        </linearGradient>
+      </defs>
+
+      <!-- ==== EDGES: STRAIGHT segments only (no curves anywhere). Some lines
+           run past the design canvas (x<0, x>1200, y<0) so the graph bleeds
+           into "outer space" — it is a free layer, not clipped to the page and
+           not constrained by the block boundaries beneath it. ==== -->
+      <g stroke="url(#edge)" stroke-width="1.3" fill="none" stroke-linecap="butt">
+        <!-- a line enters from outer space (off the top-left) into the query -->
+        <line x1="-160" y1="-60" x2="250" y2="150"/>
+        <!-- QUERY enters (hero) and forks into two retrieval branches -->
+        <line x1="250" y1="150" x2="470" y2="300"/>                 <!-- query -> fork -->
+        <line x1="470" y1="300" x2="470" y2="560"/>                 <!-- fork -> dense branch -->
+        <line x1="470" y1="300" x2="900" y2="560"/>                 <!-- fork -> lexical branch -->
+        <!-- the two branches FUSE (RRF) lower down -->
+        <line x1="470" y1="560" x2="690" y2="760"/>                 <!-- dense -> fuse -->
+        <line x1="900" y1="560" x2="690" y2="760"/>                 <!-- lexical -> fuse -->
+        <!-- rerank LOOP: fuse -> rerank -> straight back-edge to fuse -->
+        <line x1="690" y1="760" x2="820" y2="1040"/>               <!-- fuse -> rerank -->
+        <line x1="820" y1="1040" x2="690" y2="760" opacity=".7"/>  <!-- rerank loop back (straight) -->
+        <!-- one lexical line overshoots off the right edge into outer space -->
+        <line x1="900" y1="560" x2="1360" y2="430"/>
+        <!-- results TREE: fuse fans out into scene branches -->
+        <line x1="690" y1="760" x2="300" y2="1180"/>               <!-- -> scene branch A -->
+        <line x1="300" y1="1180" x2="380" y2="1460"/>              <!-- A -> child -->
+        <line x1="300" y1="1180" x2="560" y2="1480"/>              <!-- A -> child -->
+        <line x1="820" y1="1040" x2="780" y2="1480"/>              <!-- rerank -> scene branch B -->
+        <!-- VISUAL-RHYME kNN loop — straight there-and-back (closes on itself) -->
+        <line x1="780" y1="1480" x2="860" y2="1860"/>              <!-- scene -> rhyme -->
+        <line x1="860" y1="1860" x2="780" y2="1480" opacity=".7"/> <!-- rhyme kNN loop back -->
+        <line x1="860" y1="1860" x2="460" y2="2140"/>              <!-- rhyme -> neighbor -->
+        <!-- a rhyme edge shoots off the right edge into outer space -->
+        <line x1="860" y1="1860" x2="1400" y2="1980"/>
+        <!-- HUMAN-IN-THE-LOOP correction fork: straight write-back to the index -->
+        <line x1="460" y1="2140" x2="800" y2="2360"/>              <!-- neighbor -> curator -->
+        <line x1="800" y1="2360" x2="460" y2="2140" opacity=".7"/> <!-- correction writes back -->
+        <!-- results settle -> stack (fusion/eval) -> deeper -> status -->
+        <line x1="800" y1="2360" x2="620" y2="2620"/>              <!-- -> eval/fusion node -->
+        <line x1="620" y1="2620" x2="560" y2="2900"/>              <!-- -> deeper -->
+        <line x1="560" y1="2900" x2="980" y2="3040"/>              <!-- -> status/export -->
+        <!-- final export line leaves the page into outer space (off bottom-right) -->
+        <line x1="980" y1="3040" x2="1380" y2="3260"/>
+
+        <!-- FILE ACCESS / THROUGHPUT spine down the left margin (straight),
+             entering and leaving the page in outer space -->
+        <line x1="120" y1="-80" x2="120" y2="330"/>                <!-- from outer space -> source -->
+        <line x1="120" y1="330" x2="120" y2="860"/>                <!-- source -> keyframes -->
+        <line x1="120" y1="860" x2="120" y2="1560"/>              <!-- keyframes -> index -->
+        <line x1="120" y1="1560" x2="120" y2="2600"/>            <!-- index -> export sink -->
+        <line x1="120" y1="2600" x2="-140" y2="3320"/>          <!-- export sink -> outer space -->
+        <!-- throughput taps from the spine into the flow (straight) -->
+        <line x1="120" y1="860" x2="470" y2="560" opacity=".55"/> <!-- keyframes feed embeddings -->
+        <line x1="120" y1="1560" x2="300" y2="1180" opacity=".55"/><!-- index feeds results -->
+      </g>
+
+      <!-- ==== NODES ==== rendered by JS as true circles (see data-nodes) ==== -->
+      <g data-nodes></g>
+    </svg>
+
+    <script>
+      /* The graph lives in a FIXED 1200×3200 design space and the SVG stretches
+         to fill the page (preserveAspectRatio="none"). Stretching is fine for
+         the organic flow PATHS, but it would squash circles into ovals — so the
+         nodes are drawn here as <ellipse> whose rx/ry are counter-scaled to the
+         live stretch ratio, making them render as TRUE circles at any size.
+         Node kinds map to KUAA's logic roles (query/fork/fuse/loop/tree/human/
+         file/sink) and size reads as importance. */
+      (function(){
+        var svg = document.querySelector('[data-graph]');
+        var host = svg.querySelector('[data-nodes]');
+        var DESIGN_W = 1200, DESIGN_H = 3200;
+        var NS = 'http://www.w3.org/2000/svg';
+        var YELLOW='#ffd60a', ORANGE='#ff9500';
+        // x, y, r(px, on screen), kind, pulse?
+        var NODES = [
+          [250,150, 6,'q',   1],   // query enters
+          [470,300, 9,'fork',1],   // retrieval fork — decision point, biggest
+          [470,560, 6,'branch',0], // dense-embedding branch
+          [900,560, 6,'branch',0], // lexical BM25 branch
+          [690,760, 8,'fuse',1],   // RRF fusion
+          [820,1040,6,'loop',0],   // rerank loop
+          [300,1180,5,'tree',0],   // scene branch A
+          [380,1460,4,'tree',0],
+          [560,1480,4,'tree',0],
+          [780,1480,6,'tree',0],   // scene branch B
+          [860,1860,8,'loop',1],   // visual-rhyme kNN — motif home, pulses
+          [460,2140,5,'tree',0],   // neighbor
+          [800,2360,6,'human',0],  // curator correction (writes back)
+          [620,2620,5,'fuse',0],   // eval / fusion of manual+AI layers
+          [560,2900,5,'tree',0],   // deeper
+          [120,330, 5,'file',0],   // source video
+          [120,860, 5,'file',0],   // keyframes
+          [120,1560,5,'file',0],   // index store
+          [120,2600,4,'sink',0],   // export sink
+          [980,3040,5,'sink',1]    // export / status
+        ];
+        function color(k){ return (k==='file'||k==='sink'||k==='human') ? ORANGE : YELLOW; }
+        var els = NODES.map(function(n){
+          var e=document.createElementNS(NS,'ellipse');
+          e.setAttribute('cx',n[0]); e.setAttribute('cy',n[1]);
+          e.setAttribute('fill',color(n[3]));
+          e._r=n[2];
+          if(n[4]){
+            var a=document.createElementNS(NS,'animate');
+            a.setAttribute('attributeName','opacity');
+            a.setAttribute('values','.5;1;.5');
+            a.setAttribute('dur','3.6s'); a.setAttribute('repeatCount','indefinite');
+            e.appendChild(a);
+          }
+          host.appendChild(e); return e;
+        });
+        function sync(){
+          var rect=svg.getBoundingClientRect();
+          if(!rect.width||!rect.height) return;
+          // design units -> screen px on each axis
+          var sx=rect.width/DESIGN_W, sy=rect.height/DESIGN_H;
+          if(!sx||!sy) return;
+          // to render radius r (px) round, ellipse rx/ry in design-units must be
+          // r/sx and r/sy so both map back to the same r px on screen.
+          els.forEach(function(e){
+            e.setAttribute('rx',(e._r/sx).toFixed(2));
+            e.setAttribute('ry',(e._r/sy).toFixed(2));
+          });
+        }
+        window.addEventListener('load',sync);
+        window.addEventListener('resize',sync);
+        var grid=document.querySelector('.page-bento');
+        if(window.ResizeObserver&&grid){ new ResizeObserver(sync).observe(grid); }
+        sync();
+      })();
+    </script>
+
+    <div class="page-bento">
+
+      <!-- ===================== HERO ===================== -->
+      <div class="block pad-lg p-hero">
+        <div class="hero-brand layer-under"><img src="icon_Ks.png" alt=""><span>KUAA</span></div>
+        <h1 class="layer-under">Search the <span class="accent">moments</span> buried in a film archive.</h1>
       </div>
-    </div>
+      <div class="block p-guarani">
+        <p class="g-k layer-over">kuaa · <b>"to know"</b> in Guaraní</p>
+      </div>
+      <div class="block p-cta">
+        <div class="cta-row layer-over">
+          <a class="btn btn-primary" href="https://github.com/guto-mojica/kuaa" target="_blank" rel="noopener">Read the code</a>
+          <a class="btn btn-ghost" href="#tour">See it running</a>
+        </div>
+      </div>
+      <div class="block frame p-herokey layer-under" data-label="keyframe placeholder"></div>
+      <div class="block p-lede">
+        <p class="lede layer-under">Turns raw video files into a searchable, human-reviewable scene catalog. Runs on one machine — models, processing, and storage all local.</p>
+      </div>
+      <div class="block soft p-meta">
+        <div class="stat layer-over"><b>405</b> scenes</div>
+        <div class="stat layer-over"><b>1h30m</b> runtime</div>
+        <div class="stat layer-over"><b>100%</b> local</div>
+      </div>
+      <div class="block bare p-htag">
+        <span class="mono layer-over">offline · cpu / mps / cuda · no api keys · no sent frames</span>
+      </div>
 
-    <div class="pillars">
-      <div class="pillar">
-        <!-- three connected nodes: the visual-rhyme graph motif -->
-        <svg class="pi" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.6">
-          <circle cx="12" cy="5" r="2.5"/>
-          <circle cx="4" cy="19" r="2.5"/>
-          <circle cx="20" cy="19" r="2.5"/>
-          <line x1="10.2" y1="7.2" x2="5.8" y2="17"/>
-          <line x1="13.8" y1="7.2" x2="18.2" y2="17"/>
-          <line x1="6.5" y1="19" x2="17.5" y2="19"/>
+      <!-- ===================== PROBLEM + PILLARS ===================== -->
+      <div class="block bare p-probhead" id="what">
+        <p class="eyebrow layer-over">The problem</p>
+      </div>
+      <div class="block pad-lg p-problead">
+        <p class="big layer-under">A film has a title and a date. The thing a researcher actually wants — a crowd, a train station, a night interior — is buried inside the footage.</p>
+      </div>
+      <div class="block p-probside">
+        <p class="layer-over">Manual scene cataloging is slow. Fully automated cataloging isn't reliable enough to trust. KUAA runs a fast AI first pass to make material discoverable, then keeps curators in the loop to correct and confirm.</p>
+        <p class="layer-over">Built around the constraints real archives live with — privacy, degraded black-and-white footage, sparse metadata, and the need to trace every result back to the config and models that produced it.</p>
+      </div>
+      <div class="block p-pill1">
+        <svg class="pi layer-over" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.6">
+          <circle cx="12" cy="5" r="2.5"/><circle cx="4" cy="19" r="2.5"/><circle cx="20" cy="19" r="2.5"/>
+          <line x1="10.2" y1="7.2" x2="5.8" y2="17"/><line x1="13.8" y1="7.2" x2="18.2" y2="17"/><line x1="6.5" y1="19" x2="17.5" y2="19"/>
         </svg>
-        <h3>Multimodal &amp; hybrid</h3>
-        <p>Query by text or by image. Dense SigLIP2 embeddings fused with BM25 lexical search through Reciprocal Rank Fusion.</p>
+        <h3 class="layer-over">Multimodal &amp; hybrid</h3>
+        <p class="layer-over">Query by text or by image. Dense SigLIP2 embeddings fused with BM25 lexical search through Reciprocal Rank Fusion.</p>
       </div>
-      <div class="pillar">
-        <!-- filmstrip segment: the product's own icon motif -->
-        <svg class="pi" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.6">
+      <div class="block p-pill2">
+        <svg class="pi layer-under" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.6">
           <rect x="7" y="2" width="10" height="20" rx="2"/>
-          <rect x="9.5" y="6" width="5" height="3.5" rx="1"/>
-          <rect x="9.5" y="14.5" width="5" height="3.5" rx="1"/>
-          <circle cx="8.5" cy="7.75" r="0.7" fill="#a78bfa" stroke="none"/>
-          <circle cx="15.5" cy="7.75" r="0.7" fill="#a78bfa" stroke="none"/>
-          <circle cx="8.5" cy="16.25" r="0.7" fill="#a78bfa" stroke="none"/>
-          <circle cx="15.5" cy="16.25" r="0.7" fill="#a78bfa" stroke="none"/>
+          <rect x="9.5" y="6" width="5" height="3.5" rx="1"/><rect x="9.5" y="14.5" width="5" height="3.5" rx="1"/>
+          <circle cx="8.5" cy="7.75" r="0.7" fill="#a78bfa" stroke="none"/><circle cx="15.5" cy="7.75" r="0.7" fill="#a78bfa" stroke="none"/>
+          <circle cx="8.5" cy="16.25" r="0.7" fill="#a78bfa" stroke="none"/><circle cx="15.5" cy="16.25" r="0.7" fill="#a78bfa" stroke="none"/>
         </svg>
-        <h3>Local-first</h3>
-        <p>Everything runs on one machine. Data sovereignty for institutions that can't expose sensitive material — no API keys required.</p>
+        <h3 class="layer-under">Local-first</h3>
+        <p class="layer-under">Everything runs on one machine. Data sovereignty for institutions that can't expose sensitive material — no API keys required.</p>
       </div>
-      <div class="pillar">
-        <!-- keyframe with checkmark: curator annotating a scene -->
-        <svg class="pi" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.6">
-          <rect x="2" y="5" width="18" height="12" rx="2"/>
-          <polyline points="6,11 9,14 14.5,8.5"/>
-          <line x1="2" y1="21" x2="22" y2="21"/>
+      <div class="block p-pill3">
+        <svg class="pi layer-over" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.6">
+          <rect x="2" y="5" width="18" height="12" rx="2"/><polyline points="6,11 9,14 14.5,8.5"/><line x1="2" y1="21" x2="22" y2="21"/>
         </svg>
-        <h3>Human-in-the-loop</h3>
-        <p>The model writes a searchable first pass; curators correct it. Manual edits are stored apart and measured as a quality signal.</p>
+        <h3 class="layer-over">Human-in-the-loop</h3>
+        <p class="layer-over">The model writes a searchable first pass; curators correct it. Manual edits are stored apart and measured as a quality signal.</p>
       </div>
-    </div>
-    <p style="margin-top:2rem"><span class="mono">hybrid text + image · bm25 + dense · rrf fusion · manual edits stored separately</span></p>
-  </div>
-</section>
+      <div class="block bare p-probtag">
+        <span class="mono layer-over">hybrid text + image · bm25 + dense · rrf fusion · manual edits stored separately</span>
+      </div>
 
-<section id="pipeline">
-  <div class="wrap">
-    <p class="eyebrow">The pipeline · four steps</p>
-    <h2>From a raw <code style="font-family:var(--mono);font-size:.85em;color:var(--violet)">.mp4</code> to an indexed catalog.</h2>
-    <p style="color:var(--ink-dim);max-width:52ch;margin:0">Each run is sequential and traceable. A <span style="font-family:var(--mono);font-size:.85em;color:var(--ink)">run_manifest.json</span> records the input, config hash, and model backends behind every piece of metadata.</p>
-    <div class="pipe">
-      <div class="step"><span class="n">01</span><div class="bar"></div><h4>Scene detection</h4><p>PySceneDetect reads the source directly, finds cut boundaries, and stores a representative keyframe per scene.</p></div>
-      <div class="step"><span class="n">02</span><div class="bar"></div><h4>Visual analysis</h4><p>YOLOv8 and MTCNN detect objects, faces, and coarse environment labels.</p></div>
-      <div class="step"><span class="n">03</span><div class="bar"></div><h4>Embeddings</h4><p>SigLIP2 image embeddings are indexed with scene and keyframe mapping.</p></div>
-      <div class="step"><span class="n">04</span><div class="bar"></div><h4>LLM descriptions</h4><p>Moondream 2 writes a local scene description and tags for each keyframe.</p></div>
-    </div>
-    <p style="margin-top:2rem"><span class="mono">run_manifest.json · config hash + model backend recorded per run</span></p>
-  </div>
-</section>
+      <!-- ===================== PIPELINE ===================== -->
+      <div class="block bare p-pipehead" id="pipeline">
+        <p class="eyebrow layer-over">The pipeline · four steps</p>
+        <h2 class="layer-over">From a raw <code style="font-family:var(--mono);font-size:.85em;color:var(--violet)">.mp4</code> to an indexed catalog.</h2>
+      </div>
+      <div class="block bare p-pipelede">
+        <p class="layer-over" style="color:var(--ink-dim);margin:0">Each run is sequential and traceable. A <span style="font-family:var(--mono);font-size:.85em;color:var(--ink)">run_manifest.json</span> records input, config hash, and model backends.</p>
+      </div>
+      <div class="block step p-step1">
+        <span class="step-n layer-under">01</span><div class="step-bar layer-under"></div>
+        <h4 class="layer-under">Scene detection</h4>
+        <p class="step-p layer-under">PySceneDetect decodes the source directly, finds every cut boundary, and stores a representative keyframe per scene.</p>
+        <div class="cost layer-under">cost <span class="cost-bar"><i style="width:80%"></i></span> I/O-bound</div>
+      </div>
+      <div class="block step p-step2">
+        <span class="step-n layer-over">02</span><div class="step-bar layer-over"></div>
+        <h4 class="layer-over">Visual analysis</h4>
+        <p class="step-p layer-over">YOLOv8 + MTCNN per keyframe.</p>
+        <div class="cost layer-over">cost <span class="cost-bar"><i style="width:35%"></i></span> light</div>
+      </div>
+      <div class="block step p-step3">
+        <span class="step-n layer-under">03</span><div class="step-bar layer-under"></div>
+        <h4 class="layer-under">Embeddings</h4>
+        <p class="step-p layer-under">SigLIP2 image embeddings, indexed with scene and keyframe mapping.</p>
+        <div class="cost layer-under">cost <span class="cost-bar"><i style="width:55%"></i></span> GPU/MPS</div>
+      </div>
+      <div class="block step p-step4">
+        <span class="step-n layer-over">04</span><div class="step-bar layer-over"></div>
+        <h4 class="layer-over">LLM descriptions</h4>
+        <p class="step-p layer-over">Moondream 2 generates a local scene description and tags for every keyframe — the longest-running stage of the run, one forward pass per frame.</p>
+        <div class="cost layer-over">cost <span class="cost-bar"><i style="width:100%"></i></span> heaviest</div>
+      </div>
+      <div class="block bare p-pipetag">
+        <span class="mono layer-over">run_manifest.json · config hash + model backend recorded per run</span>
+      </div>
 
-<section id="tour">
-  <div class="wrap">
-    <p class="eyebrow">A walk through the app</p>
-    <h2>What it actually looks like.</h2>
-    <p style="color:var(--ink-dim);max-width:50ch;margin:0 0 3.5rem">Screenshots from a real run over <em>Jeca Tatu</em> (1959), a public-domain Brazilian film — 405 detected scenes across a 90-minute runtime.</p>
+      <!-- ===================== TOUR ===================== -->
+      <div class="block bare p-tourhead" id="tour">
+        <p class="eyebrow layer-over">A walk through the app</p>
+        <h2 class="layer-over">What it actually looks like.</h2>
+        <p class="layer-over" style="color:var(--ink-dim);max-width:56ch;margin:0">Screenshots from a real run over <em>Jeca Tatu</em> (1959), a public-domain Brazilian film — 405 detected scenes across a 90-minute runtime.</p>
+      </div>
 
-    <div class="shot">
-      <div class="shot-text">
-        <span class="tag">Hybrid search</span>
-        <h3>Describe a scene, or paste an image.</h3>
-        <p>One search box spans text and reference-image queries. The weighting between semantic and lexical scores is tunable, and the reranker is opt-in.</p>
-        <span class="mono">HYBRID · sem 0.70 / bm25 0.30 · rerank off</span>
+      <div class="block p-tourt1">
+        <span class="tag layer-over">Hybrid search</span>
+        <h3 class="layer-over">Describe a scene, or paste an image.</h3>
+        <p class="tour-caption layer-over">One search box spans text and reference-image queries. Weighting is tunable; the reranker is opt-in.</p>
+        <span class="mono layer-over" style="margin-top:.6rem">HYBRID · sem 0.70 / bm25 0.30 · rerank off</span>
       </div>
-      <figure><img src="search.jpg" alt="KUAA search interface with hybrid retrieval controls" loading="lazy"></figure>
-    </div>
+      <div class="block frame p-tourf1 layer-under" data-label="search.jpg placeholder"></div>
 
-    <div class="shot flip">
-      <div class="shot-text">
-        <span class="tag">Scene catalog</span>
-        <h3>Every cut, typed and browsable.</h3>
-        <p>Detected scenes land in a grid with timecodes and a coarse type — exterior, interior, title card, transition. Collections group them for fast review.</p>
-        <span class="mono">405 scenes · 1 film · 1h 30m runtime</span>
+      <div class="block frame p-tourf2 layer-under" data-label="scenes.jpg placeholder"></div>
+      <div class="block p-tourt2">
+        <span class="tag layer-over">Scene catalog</span>
+        <h3 class="layer-over">Every cut, typed and browsable.</h3>
+        <p class="tour-caption layer-over">Detected scenes land in a grid with timecodes and a coarse type — exterior, interior, title card, transition. Collections group them for fast review.</p>
+        <span class="mono layer-over" style="margin-top:.6rem">405 scenes · 1 film · 1h 30m runtime</span>
       </div>
-      <figure><img src="scenes.jpg" alt="KUAA scene grid showing 405 detected scenes from Jeca Tatu 1959" loading="lazy"></figure>
-    </div>
 
-    <div class="shot">
-      <div class="shot-text">
-        <span class="tag">Scene inspector · visual rhymes</span>
-        <h3>Find the same shot, across films.</h3>
-        <p>Open any scene to see its keyframe, tags, and description — then jump to <em>Find visual rhymes</em>: a kNN search over keyframe embeddings, diversified with Maximal Marginal Relevance. This is the motif in the logo.</p>
-        <span class="mono">scene 004 · indexed · exterior</span>
+      <div class="block p-tourt3">
+        <span class="tag layer-under">Scene inspector · visual rhymes</span>
+        <h3 class="layer-under">Find the same shot, across films.</h3>
+        <p class="tour-caption layer-under">Open any scene to see its keyframe, tags, and description — then jump to <em>Find visual rhymes</em>: a kNN search over keyframe embeddings, diversified with Maximal Marginal Relevance. This is the motif in the logo.</p>
+        <span class="mono layer-under" style="margin-top:.6rem">scene 004 · indexed · exterior</span>
       </div>
-      <figure><img src="scene-detail.jpg" alt="KUAA scene detail panel with tags, description and Find visual rhymes action" loading="lazy"></figure>
-    </div>
+      <div class="block frame p-tourf3 layer-under" data-label="scene-detail.jpg placeholder"></div>
 
-    <div class="shot flip">
-      <div class="shot-text">
-        <span class="tag">Human-in-the-loop</span>
-        <h3>Correct the AI without erasing it.</h3>
-        <p>Curators add normalized manual tags and prune wrong AI tags from search — while the original model output is always kept. The two layers merge at read time.</p>
-        <span class="mono">description · moondream-2</span>
+      <div class="block frame p-tourf4 layer-under" data-label="annotate.jpg placeholder"></div>
+      <div class="block p-tourt4">
+        <span class="tag layer-over">Human-in-the-loop</span>
+        <h3 class="layer-over">Correct the AI without erasing it.</h3>
+        <p class="tour-caption layer-over">Curators add normalized manual tags and prune wrong AI tags from search — while the original model output is always kept. The two layers merge at read time.</p>
+        <span class="mono layer-over" style="margin-top:.6rem">description · moondream-2</span>
       </div>
-      <figure><img src="annotate.jpg" alt="KUAA annotation view with manual tags and AI tags side by side" loading="lazy"></figure>
-    </div>
 
-    <div class="shot">
-      <div class="shot-text">
-        <span class="tag">Processing</span>
-        <h3>Watch the run, step by step.</h3>
-        <p>A live SSE log streams each stage with resource use and running counts — frames, scenes, embeddings, descriptions, faces, objects — so a long local job stays legible.</p>
-        <span class="mono">step 1 / 4 · scene_detection — start</span>
+      <div class="block p-tourt5">
+        <span class="tag layer-over">Processing</span>
+        <h3 class="layer-over">Watch the run, step by step.</h3>
+        <p class="tour-caption layer-over">A live SSE log streams each stage with resource use and running counts — frames, scenes, embeddings, descriptions, faces, objects — so a long local job stays legible.</p>
       </div>
-      <figure><img src="processing.jpg" alt="KUAA processing view with live log and per-step progress" loading="lazy"></figure>
-    </div>
-  </div>
-</section>
+      <div class="block frame p-tourf5 layer-under" data-label="processing.jpg placeholder"></div>
+      <div class="block bare p-tourt6">
+        <span class="mono layer-over">step 1 / 4 · scene_detection — start</span>
+      </div>
 
-<section id="stack">
-  <div class="wrap">
-    <p class="eyebrow">Under the hood</p>
-    <h2>The model stack.</h2>
-    <p style="color:var(--ink-dim);max-width:50ch;margin:0">Backends are swapped through typed Protocols, so a model role can change without rewriting the pipeline.</p>
-    <table class="stack">
-      <thead><tr><th>Component</th><th>Model</th><th class="hide-sm">Role</th></tr></thead>
-      <tbody>
-        <tr><td>Image embedding</td><td class="model">google/siglip2-large-patch16-256</td><td class="role hide-sm">Multilingual vision-language search</td></tr>
-        <tr><td>Reranker</td><td class="model">BAAI/bge-reranker-v2-m3</td><td class="role hide-sm">High-precision re-ranking (opt-in)</td></tr>
-        <tr><td>Scene description</td><td class="model">Moondream 2</td><td class="role hide-sm">Local vision-language descriptions</td></tr>
-        <tr><td>Object detection</td><td class="model">YOLOv8</td><td class="role hide-sm">Objects &amp; scene elements (AGPL-3.0)</td></tr>
-        <tr><td>Face detection</td><td class="model">MTCNN</td><td class="role hide-sm">Presence counting — no identity recognition</td></tr>
-      </tbody>
-    </table>
-    <p style="color:var(--ink-dim);font-size:.92rem;margin-top:1.6rem">
-      Retrieval is measured, not asserted — the eval path reports Recall@5, Recall@10, MRR and nDCG@10 over a fixed query set, plus manual-correction stats. Selections export as JSON, CSV, or a CMX&nbsp;3600 EDL you can drop straight into an NLE.
-    </p>
-    <p style="margin-top:1rem"><span class="mono">recall@5 · recall@10 · mrr · ndcg@10 · export: json / csv / cmx 3600 edl</span></p>
-  </div>
-</section>
+      <!-- ===================== STACK ===================== -->
+      <div class="block bare p-stackhead" id="stack">
+        <p class="eyebrow layer-over">Under the hood</p>
+        <h2 class="layer-over">The model stack.</h2>
+      </div>
+      <div class="block p-stacknote">
+        <p class="layer-over" style="color:var(--ink-dim);margin:0">Backends are swapped through typed Protocols, so a model role can change without rewriting the pipeline.</p>
+      </div>
+      <div class="block pad-lg p-stacktbl">
+        <table class="stack layer-under">
+          <thead><tr><th>Component</th><th>Model</th><th class="hide-sm">Role</th></tr></thead>
+          <tbody>
+            <tr><td>Image embedding</td><td class="model">google/siglip2-large-patch16-256</td><td class="role hide-sm">Multilingual vision-language search</td></tr>
+            <tr><td>Reranker</td><td class="model">BAAI/bge-reranker-v2-m3</td><td class="role hide-sm">High-precision re-ranking (opt-in)</td></tr>
+            <tr><td>Scene description</td><td class="model">Moondream 2</td><td class="role hide-sm">Local vision-language descriptions</td></tr>
+            <tr><td>Object detection</td><td class="model">YOLOv8</td><td class="role hide-sm">Objects &amp; scene elements (AGPL-3.0)</td></tr>
+            <tr><td>Face detection</td><td class="model">MTCNN</td><td class="role hide-sm">Presence counting — no identity recognition</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="block bare p-stackexp">
+        <p class="layer-over">Retrieval is measured, not asserted — Recall@5, Recall@10, MRR and nDCG@10 over a fixed query set, plus manual-correction stats. Selections export as JSON, CSV, or a CMX&nbsp;3600 EDL you can drop into an NLE.</p>
+        <span class="mono layer-over">recall@5 · recall@10 · mrr · ndcg@10 · export: json / csv / cmx 3600 edl</span>
+      </div>
 
-<section id="deeper">
-  <div class="wrap">
-    <p class="eyebrow">Read more</p>
-    <h2>Go deeper.</h2>
-    <p style="color:var(--ink-dim);max-width:52ch;margin:0">Five focused pages for technical reviewers: how the system is built, what it won't do, how it measures itself, and how it stays auditable.</p>
-    <div class="pillars">
-      <div class="pillar">
-        <h3><a href="architecture.html">Architecture →</a></h3>
-        <p>The batch pipeline, the FastAPI + HTMX web app, the pluggable model registry, and the artifact contracts between them.</p>
+      <!-- ===================== GO DEEPER ===================== -->
+      <div class="block bare p-deephead" id="deeper">
+        <p class="eyebrow layer-over">Read more</p>
+        <h2 class="layer-over">Go deeper.</h2>
+        <p class="layer-over" style="color:var(--ink-dim);max-width:58ch;margin:0">Five focused pages for technical reviewers: how the system is built, what it won't do, how it measures itself, and how it stays auditable.</p>
       </div>
-      <div class="pillar">
-        <h3><a href="constraints.html">Constraints →</a></h3>
-        <p>Privacy and offline operation, run-level traceability, and treating AI output as reviewable, not authoritative.</p>
+      <div class="block p-deep1">
+        <p class="deep-link layer-under"><a href="architecture.html">Architecture →</a></p>
+        <p class="layer-under">The batch pipeline, the FastAPI + HTMX web app, the pluggable model registry, and the artifact contracts between them.</p>
       </div>
-      <div class="pillar">
-        <h3><a href="domain_packs.html">Domain packs →</a></h3>
-        <p>How the same engine is retargeted to a different media workflow through configuration, not code.</p>
+      <div class="block p-deep2">
+        <p class="deep-link layer-over"><a href="constraints.html">Constraints →</a></p>
+        <p class="layer-over">Privacy and offline operation, run-level traceability, and treating AI output as reviewable, not authoritative.</p>
       </div>
-      <div class="pillar">
-        <h3><a href="evaluation.html">Evaluation →</a></h3>
-        <p>A fixed query set, standard IR metrics, and correction stats that quantify what human review adds.</p>
+      <div class="block p-deep3">
+        <p class="deep-link layer-under"><a href="domain_packs.html">Domain packs →</a></p>
+        <p class="layer-under">How the same engine is retargeted to a different media workflow through configuration, not code.</p>
       </div>
-      <div class="pillar">
-        <h3><a href="run_provenance.html">Run provenance →</a></h3>
-        <p>The run manifest every execution writes, and why it makes the catalog auditable.</p>
+      <div class="block p-deep4">
+        <p class="deep-link layer-over"><a href="evaluation.html">Evaluation →</a></p>
+        <p class="layer-over">A fixed query set, standard IR metrics, and correction stats that quantify what human review adds.</p>
       </div>
-    </div>
-  </div>
-</section>
+      <div class="block p-deep5">
+        <p class="deep-link layer-under"><a href="run_provenance.html">Run provenance →</a></p>
+        <p class="layer-under">The run manifest every execution writes, and why it makes the catalog auditable.</p>
+      </div>
 
-<section id="status">
-  <div class="wrap">
-    <div class="status">
-      <div class="dot"></div>
-      <div>
+      <!-- ===================== STATUS ===================== -->
+      <div class="block p-statdot" id="status"><div class="status-dot"></div></div>
+      <div class="block pad-lg p-statmain">
         <h3>Honest status</h3>
         <p>KUAA is local-first and single-user by design. The public demo runs on Library of Congress footage, not private institutional data. Generated descriptions are treated as reviewable first-pass metadata — useful, but not authoritative catalog records.</p>
         <p>The processing pipeline, retrieval engine, annotation, evaluation runner, exports, and run manifests are implemented and tested. Final published metrics and the demo artifact bundle are a release step in progress.</p>
+      </div>
+      <div class="block p-statver">
         <span class="ver">v0.10.0 · MIT (YOLOv8 component AGPL-3.0) · model licenses need review before institutional deployment</span>
       </div>
+
     </div>
   </div>
-</section>
+</div>
 
 <footer>
   <div class="wrap frow">
