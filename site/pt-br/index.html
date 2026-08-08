@@ -125,6 +125,10 @@
     letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);z-index:var(--z-under);
   }
 
+  /* real screenshot frame — fills the block, no padding */
+  .block.shot{padding:0;background:#000}
+  .block.shot img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
+
   .mono{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint);
     background:var(--bg-soft);border:1px solid var(--line);border-radius:7px;
     padding:.35rem .6rem;display:inline-block}
@@ -688,9 +692,9 @@
         <p class="tour-caption layer-over">Uma única caixa de busca cobre consultas por texto e por imagem de referência. A ponderação é ajustável; o reranker é opcional.</p>
         <span class="mono layer-over" style="margin-top:.6rem">HYBRID · denso + bm25 + metadados · fusão rrf · rerank off</span>
       </div>
-      <div class="block frame p-tourf1 layer-under" data-label="search.jpg placeholder"></div>
+      <div class="block shot p-tourf1 layer-under"><img src="../search.jpg" alt="Interface de busca do KUAA com controles de recuperação híbrida" loading="lazy"></div>
 
-      <div class="block frame p-tourf2 layer-under" data-label="scenes.jpg placeholder"></div>
+      <div class="block shot p-tourf2 layer-under"><img src="../scenes.jpg" alt="Grade de cenas do KUAA mostrando 405 cenas detectadas de Jeca Tatu 1959" loading="lazy"></div>
       <div class="block p-tourt2">
         <span class="tag layer-over">Catálogo de cenas</span>
         <h3 class="layer-over">Cada corte, tipado e navegável.</h3>
@@ -704,9 +708,9 @@
         <p class="tour-caption layer-under">Abra qualquer cena para ver seu keyframe, tags e descrição — depois vá para <em>Encontrar rimas visuais</em>: uma busca kNN sobre embeddings de keyframe, diversificada com Maximal Marginal Relevance. Esse é o motivo por trás do logotipo.</p>
         <span class="mono layer-under" style="margin-top:.6rem">cena 004 · indexada · exterior</span>
       </div>
-      <div class="block frame p-tourf3 layer-under" data-label="scene-detail.jpg placeholder"></div>
+      <div class="block shot p-tourf3 layer-under"><img src="../scene-detail.jpg" alt="Painel de detalhes de cena do KUAA com tags, descrição e ação Encontrar rimas visuais" loading="lazy"></div>
 
-      <div class="block frame p-tourf4 layer-under" data-label="annotate.jpg placeholder"></div>
+      <div class="block shot p-tourf4 layer-under"><img src="../annotate.jpg" alt="Tela de anotação do KUAA com tags manuais e tags de IA lado a lado" loading="lazy"></div>
       <div class="block p-tourt4">
         <span class="tag layer-over">Humano no processo</span>
         <h3 class="layer-over">Corrija a IA sem apagá-la.</h3>
@@ -719,7 +723,7 @@
         <h3 class="layer-over">Acompanhe a execução, etapa por etapa.</h3>
         <p class="tour-caption layer-over">Um log SSE ao vivo transmite cada etapa com uso de recursos e contagens em execução — frames, cenas, embeddings, descrições, rostos, objetos — para que uma execução local longa continue legível.</p>
       </div>
-      <div class="block frame p-tourf5 layer-under" data-label="processing.jpg placeholder"></div>
+      <div class="block shot p-tourf5 layer-under"><img src="../processing.jpg" alt="Tela de processamento do KUAA com log ao vivo e progresso por etapa" loading="lazy"></div>
       <div class="block bare p-tourt6">
         <span class="mono layer-over">step 1 / 4 · scene_detection — start</span>
       </div>

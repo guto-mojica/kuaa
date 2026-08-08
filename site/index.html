@@ -125,6 +125,10 @@
     letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);z-index:var(--z-under);
   }
 
+  /* real screenshot frame — fills the block, no padding */
+  .block.shot{padding:0;background:#000}
+  .block.shot img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
+
   .mono{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint);
     background:var(--bg-soft);border:1px solid var(--line);border-radius:7px;
     padding:.35rem .6rem;display:inline-block}
@@ -688,9 +692,9 @@
         <p class="tour-caption layer-over">One search box spans text and reference-image queries. Weighting is tunable; the reranker is opt-in.</p>
         <span class="mono layer-over" style="margin-top:.6rem">HYBRID · dense + bm25 + metadata · rrf fusion · rerank off</span>
       </div>
-      <div class="block frame p-tourf1 layer-under" data-label="search.jpg placeholder"></div>
+      <div class="block shot p-tourf1 layer-under"><img src="search.jpg" alt="KUAA search interface with hybrid retrieval controls" loading="lazy"></div>
 
-      <div class="block frame p-tourf2 layer-under" data-label="scenes.jpg placeholder"></div>
+      <div class="block shot p-tourf2 layer-under"><img src="scenes.jpg" alt="KUAA scene grid showing 405 detected scenes from Jeca Tatu (1959)" loading="lazy"></div>
       <div class="block p-tourt2">
         <span class="tag layer-over">Scene catalog</span>
         <h3 class="layer-over">Every cut, typed and browsable.</h3>
@@ -704,9 +708,9 @@
         <p class="tour-caption layer-under">Open any scene to see its keyframe, tags, and description — then jump to <em>Find visual rhymes</em>: a kNN search over keyframe embeddings, diversified with Maximal Marginal Relevance. This is the motif in the logo.</p>
         <span class="mono layer-under" style="margin-top:.6rem">scene 004 · indexed · exterior</span>
       </div>
-      <div class="block frame p-tourf3 layer-under" data-label="scene-detail.jpg placeholder"></div>
+      <div class="block shot p-tourf3 layer-under"><img src="scene-detail.jpg" alt="KUAA scene detail panel with tags, description, and Find visual rhymes action" loading="lazy"></div>
 
-      <div class="block frame p-tourf4 layer-under" data-label="annotate.jpg placeholder"></div>
+      <div class="block shot p-tourf4 layer-under"><img src="annotate.jpg" alt="KUAA annotation screen with manual and AI tags side by side" loading="lazy"></div>
       <div class="block p-tourt4">
         <span class="tag layer-over">Human-in-the-loop</span>
         <h3 class="layer-over">Correct the AI without erasing it.</h3>
@@ -719,7 +723,7 @@
         <h3 class="layer-over">Watch the run, step by step.</h3>
         <p class="tour-caption layer-over">A live SSE log streams each stage with resource use and running counts — frames, scenes, embeddings, descriptions, faces, objects — so a long local job stays legible.</p>
       </div>
-      <div class="block frame p-tourf5 layer-under" data-label="processing.jpg placeholder"></div>
+      <div class="block shot p-tourf5 layer-under"><img src="processing.jpg" alt="KUAA processing screen with live log and step progress" loading="lazy"></div>
       <div class="block bare p-tourt6">
         <span class="mono layer-over">step 1 / 4 · scene_detection — start</span>
       </div>
