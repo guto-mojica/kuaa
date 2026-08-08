@@ -31,38 +31,111 @@
     --ink:#ecebf5;
     --ink-dim:#9b9ab2;
     --ink-faint:#6b6a82;
-    --maxw:1080px;
+    --maxw:1180px;
     --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
     --display:'Space Grotesk',system-ui,sans-serif;
     --body:'Inter',system-ui,sans-serif;
+    --cell-gap:14px;
+    --cell-radius:16px;
+    /* z-stack: single page graph sits between under/over text */
+    --z-under:1;
+    --z-graph:2;
+    --z-over:3;
   }
 
   *{box-sizing:border-box}
-  html{scroll-behavior:smooth}
+  html{scroll-behavior:smooth;overflow-x:clip}
   body{
     margin:0;background:var(--bg);color:var(--ink);
     font-family:var(--body);font-size:17px;line-height:1.65;
-    -webkit-font-smoothing:antialiased;
-    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;overflow-x:clip;
   }
   a{color:var(--violet);text-decoration:none}
   a:hover{text-decoration:underline}
   .wrap{max-width:var(--maxw);margin:0 auto;padding:0 1.5rem}
 
-  /* ---- shared type ---- */
   .eyebrow{
     font-family:var(--mono);font-size:.72rem;letter-spacing:.18em;
     text-transform:uppercase;color:var(--ink-faint);
-    display:flex;align-items:center;gap:.6rem;margin:0 0 1.1rem;
+    display:flex;align-items:center;gap:.6rem;margin:0 0 .8rem;
   }
   .eyebrow::before{content:"";width:26px;height:1px;background:var(--violet-deep)}
   h2{
     font-family:var(--display);font-weight:600;font-size:clamp(1.7rem,3.4vw,2.4rem);
-    line-height:1.1;letter-spacing:-.02em;margin:0 0 1rem;color:var(--ink);
+    line-height:1.1;letter-spacing:-.02em;margin:0 0 .8rem;color:var(--ink);
   }
-  section{padding:5.5rem 0;border-top:1px solid var(--line)}
 
-  /* ---- top nav ---- */
+  /* =====================================================================
+     WHOLE-PAGE BENTO
+     The entire page body is ONE asymmetric grid (.page-bento). Every content
+     unit is a block placed on that single grid with deliberately uneven
+     column/row spans, so no two rows share the same rhythm. A SINGLE graph
+     (.page-graph) sits over all of it as a FREE layer: straight-line edges
+     that bleed past the page edges into "outer space", NOT constrained by the
+     boundaries or relations of the blocks beneath. Text layers under/over
+     that one graph via z-index.
+     ===================================================================== */
+  .page{position:relative;padding:2.4rem 0 3rem;overflow:visible}
+  .page .wrap{position:relative;overflow:visible}
+
+  /* The graph is a FREE layer. It sits at content width but its SVG has
+     overflow:visible and uses off-canvas coordinates, so its straight lines
+     spill past the page edges into "outer space" without widening the
+     document (no horizontal scroll). It is not clipped to the page and not
+     constrained by the boundaries or relations of the blocks beneath it. */
+  .page-graph{
+    position:absolute;
+    top:-120px; left:0; right:0;
+    width:100%; height:calc(100% + 240px);
+    pointer-events:none;z-index:var(--z-graph);overflow:visible;
+    opacity:.26;
+  }
+
+  .page-bento{
+    position:relative;display:grid;
+    grid-template-columns:repeat(12,1fr);
+    grid-auto-rows:minmax(58px,auto);
+    gap:var(--cell-gap);
+    grid-auto-flow:dense;
+  }
+
+  .block{
+    position:relative;background:var(--panel);
+    border:1px solid var(--line);border-radius:var(--cell-radius);
+    padding:1.4rem 1.5rem;overflow:hidden;
+    display:flex;flex-direction:column;justify-content:flex-end;
+  }
+  .block.pad-lg{padding:1.8rem 1.9rem}
+  .block.bare{background:transparent;border:none;padding:1rem 0}
+  .block.soft{background:var(--bg-soft)}
+  .block > *{position:relative}
+
+  /* the single graph's under/over layering, used across the whole page */
+  .layer-under{z-index:var(--z-under)}
+  .layer-over{z-index:var(--z-over)}
+
+  /* image-frame placeholder */
+  .frame{
+    background:repeating-linear-gradient(45deg,#14141f 0 10px,#12121b 10px 20px);
+    border:1px dashed var(--line);padding:0;
+  }
+  .frame::after{
+    content:attr(data-label);position:absolute;inset:0;display:flex;
+    align-items:center;justify-content:center;font-family:var(--mono);font-size:.72rem;
+    letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);z-index:var(--z-under);
+  }
+
+  .mono{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint);
+    background:var(--bg-soft);border:1px solid var(--line);border-radius:7px;
+    padding:.35rem .6rem;display:inline-block}
+  .block.bare .mono{background:var(--bg-soft)}
+  .tag{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--violet);margin-bottom:.55rem;display:block}
+  .block h3{font-family:var(--display);font-size:1.2rem;font-weight:600;margin:0 0 .5rem;letter-spacing:-.01em}
+  .block p{color:var(--ink-dim);font-size:.95rem;margin:0}
+  .block .pi{width:34px;height:34px;margin-bottom:.8rem}
+
+  /* ---- top nav (outside the bento) ---- */
   header.nav{
     position:sticky;top:0;z-index:50;
     backdrop-filter:blur(12px);background:rgba(12,12,17,.72);
@@ -73,9 +146,35 @@
   .brand{display:flex;align-items:center;gap:.6rem;font-family:var(--display);
     font-weight:700;font-size:1.15rem;letter-spacing:.04em;color:var(--ink)}
   .brand img{width:30px;height:30px;display:block}
-  .nav-links{display:flex;gap:1.6rem;font-size:.9rem}
+  .nav-links{display:flex;align-items:center;gap:1.6rem;font-size:.9rem}
   .nav-links a{color:var(--ink-dim)}
   .nav-links a:hover{color:var(--ink);text-decoration:none}
+  .nav-item{position:relative}
+  .nav-trigger{
+    background:none;border:none;padding:0;margin:0;cursor:pointer;
+    font:inherit;font-family:inherit;font-size:.9rem;color:var(--ink-dim);
+    display:flex;align-items:center;gap:.3rem;
+  }
+  .nav-trigger:hover{color:var(--ink)}
+  .nav-trigger .chev{font-size:.6rem;transition:transform .15s ease}
+  .nav-item:hover .nav-trigger .chev,
+  .nav-item.open .nav-trigger .chev{transform:rotate(180deg)}
+  .nav-dropdown{
+    position:absolute;top:100%;left:50%;transform:translateX(-50%);
+    padding-top:.7rem;opacity:0;visibility:hidden;pointer-events:none;
+    transition:opacity .15s ease;
+  }
+  .nav-item:hover .nav-dropdown,
+  .nav-item.open .nav-dropdown{opacity:1;visibility:visible;pointer-events:auto}
+  .nav-dropdown-inner{
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:.4rem;min-width:180px;box-shadow:0 14px 30px rgba(0,0,0,.45);
+  }
+  .nav-dropdown-inner a{
+    display:block;padding:.5rem .65rem;border-radius:6px;
+    font-size:.86rem;color:var(--ink-dim);white-space:nowrap;
+  }
+  .nav-dropdown-inner a:hover{background:rgba(255,255,255,.05);color:var(--ink);text-decoration:none}
   .nav .ghost{
     font-family:var(--mono);font-size:.8rem;border:1px solid var(--line);
     padding:.4rem .85rem;border-radius:7px;color:var(--ink);
@@ -83,124 +182,199 @@
   .nav .ghost:hover{border-color:var(--violet-deep);text-decoration:none}
   @media(max-width:680px){.nav-links{display:none}}
 
-  /* ---- hero ---- */
-  .hero{position:relative;padding:6rem 0 5rem;border-top:none;overflow:hidden}
-  .hero-graph{position:absolute;inset:0;width:100%;height:100%;opacity:.55;
-    pointer-events:none;z-index:0}
-  .hero .wrap{position:relative;z-index:1}
-  .hero h1{
-    font-family:var(--display);font-weight:700;
-    font-size:clamp(2.5rem,6.4vw,4.6rem);line-height:1.02;letter-spacing:-.03em;
-    margin:0 0 1.4rem;max-width:14ch;
-  }
-  .hero h1 .accent{
-    background:linear-gradient(100deg,var(--violet) 0%,var(--violet-deep) 100%);
-    -webkit-background-clip:text;background-clip:text;color:transparent;
-  }
-  .hero .lede{font-size:1.22rem;color:var(--ink-dim);max-width:46ch;margin:0 0 2.2rem}
-  .hero .guarani{font-family:var(--mono);font-size:.8rem;color:var(--ink-faint);
-    letter-spacing:.04em;margin-bottom:1.6rem}
-  .hero .guarani b{color:var(--violet);font-weight:500}
-  .cta-row{display:flex;gap:.9rem;flex-wrap:wrap;align-items:center}
+  /* buttons */
+  .cta-row{display:flex;gap:.7rem;flex-wrap:wrap;align-items:center}
   .btn{
-    font-family:var(--mono);font-size:.85rem;font-weight:500;
-    padding:.78rem 1.4rem;border-radius:9px;display:inline-flex;align-items:center;gap:.5rem;
+    font-family:var(--mono);font-size:.82rem;font-weight:500;
+    padding:.7rem 1.2rem;border-radius:9px;display:inline-flex;align-items:center;gap:.5rem;
     transition:transform .15s ease, box-shadow .15s ease;
   }
   .btn:hover{text-decoration:none;transform:translateY(-1px)}
-  .btn-primary{background:var(--violet-deep);color:#fff;
-    box-shadow:0 8px 24px -10px var(--violet-deep)}
+  .btn-primary{background:var(--violet-deep);color:#fff;box-shadow:0 8px 24px -10px var(--violet-deep)}
   .btn-primary:hover{box-shadow:0 12px 30px -10px var(--violet-deep)}
   .btn-ghost{border:1px solid var(--line);color:var(--ink)}
   .btn-ghost:hover{border-color:var(--violet)}
 
-  .hero-meta{display:flex;gap:2rem;flex-wrap:wrap;margin-top:3rem;
-    font-family:var(--mono);font-size:.78rem;color:var(--ink-faint)}
-  .hero-meta b{display:block;font-size:1.45rem;color:var(--ink);font-weight:500;
+  /* =====================================================================
+     BLOCK PLACEMENTS ON THE SINGLE 12-COL GRID
+     We control COLUMN start+span (irregular: 5/7, 4/3/5, 8/4, 3/3/3/3…) and
+     a ROW SPAN for the tall blocks, but we do NOT hardcode row *lines* —
+     grid-auto-flow:dense packs blocks as they come, so variable text height
+     never forces overlaps. Reading order = source order.
+     ===================================================================== */
+
+  /* --- hero cluster --- */
+  .p-hero    {grid-column:1 / span 7; grid-row:span 3; min-height:300px; overflow:visible}
+  .p-guarani {grid-column:8 / span 5}
+  .p-cta     {grid-column:8 / span 5}
+  .p-herokey {grid-column:8 / span 5; grid-row:span 2; min-height:170px}
+  .p-lede    {grid-column:1 / span 4; grid-row:span 2}
+  .p-meta    {grid-column:5 / span 3; grid-row:span 2}
+  .p-htag    {grid-column:1 / span 7}
+
+  .p-hero .hero-brand{display:flex;align-items:center;gap:.7rem;margin-bottom:1.2rem}
+  .p-hero .hero-brand img{width:40px;height:40px;display:block}
+  .p-hero .hero-brand span{font-family:var(--display);font-weight:700;font-size:1.3rem;letter-spacing:.05em}
+  .p-hero h1{
+    font-family:var(--display);font-weight:700;
+    font-size:clamp(2.1rem,4.6vw,3.6rem);line-height:1.03;letter-spacing:-.03em;
+    margin:0;max-width:15ch;
+  }
+  .p-hero h1 .accent{
+    background:linear-gradient(100deg,var(--violet) 0%,var(--violet-deep) 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .p-guarani{justify-content:center}
+  .p-guarani .g-k{font-family:var(--mono);font-size:.8rem;color:var(--ink-faint);letter-spacing:.04em;margin:0}
+  .p-guarani .g-k b{color:var(--violet);font-weight:500}
+  .p-cta{justify-content:center}
+  .p-lede .lede{font-size:1rem;color:var(--ink-dim);margin:0}
+  .p-meta{flex-direction:row;gap:1.2rem;justify-content:flex-start;align-items:flex-end;flex-wrap:wrap;
+    font-family:var(--mono);font-size:.72rem;color:var(--ink-faint)}
+  .p-meta .stat b{display:block;font-size:1.25rem;color:var(--ink);font-weight:500;
     font-family:var(--display);letter-spacing:-.01em}
 
-  /* ---- intro statement ---- */
-  .statement p{font-size:clamp(1.25rem,2.6vw,1.6rem);line-height:1.5;
-    max-width:32ch;font-family:var(--display);font-weight:400;color:var(--ink);}
-  .statement .grid{display:grid;grid-template-columns:1.2fr 1fr;gap:3rem;align-items:start}
-  .statement .side{font-size:.98rem;color:var(--ink-dim)}
-  .statement .side p{font-family:var(--body);font-size:.98rem;max-width:none;color:var(--ink-dim)}
-  @media(max-width:760px){.statement .grid{grid-template-columns:1fr;gap:1.5rem}}
+  /* --- problem + pillars --- */
+  .p-probhead{grid-column:1 / span 12; align-items:flex-start}
+  .p-problead{grid-column:1 / span 5; grid-row:span 3}
+  .p-probside{grid-column:6 / span 7; grid-row:span 3}
+  .p-pill1   {grid-column:1 / span 5; grid-row:span 2}
+  .p-pill2   {grid-column:6 / span 3; grid-row:span 2}
+  .p-pill3   {grid-column:9 / span 4; grid-row:span 3}
+  .p-probtag {grid-column:1 / span 12; align-items:flex-start}
+  .p-problead .big{font-size:clamp(1.25rem,2.4vw,1.6rem);line-height:1.45;
+    font-family:var(--display);font-weight:400;color:var(--ink);margin:0}
+  .p-probside p{margin:0 0 .9rem}
+  .p-probside p:last-child{margin:0}
 
-  /* ---- pillars ---- */
-  .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;margin-top:2.5rem}
-  .pillar{background:var(--panel);border:1px solid var(--line);border-radius:14px;
-    padding:1.6rem 1.5rem;transition:border-color .2s ease}
-  .pillar:hover{border-color:var(--violet-deep)}
-  .pillar .pi{width:34px;height:34px;margin-bottom:1rem}
-  .pillar h3{font-family:var(--display);font-size:1.1rem;font-weight:600;margin:0 0 .5rem}
-  .pillar p{font-size:.92rem;color:var(--ink-dim);margin:0}
-  @media(max-width:760px){.pillars{grid-template-columns:1fr}}
+  /* --- pipeline : steps sized by COST/EFFORT within the run, not equal thirds.
+     Scene detection = full source decode (heavy, wide + tall).
+     Visual analysis = YOLO+MTCNN per keyframe (light — narrow, short).
+     Embeddings      = SigLIP2 per keyframe (moderate).
+     LLM descriptions= Moondream text gen per keyframe (heaviest — widest/tallest). */
+  .p-pipehead{grid-column:1 / span 7; grid-row:span 2; align-items:flex-start}
+  .p-pipelede{grid-column:8 / span 5; grid-row:span 2}
+  .p-step1   {grid-column:1 / span 4; grid-row:span 3}   /* heavy I/O */
+  .p-step2   {grid-column:5 / span 2; grid-row:span 2}   /* light */
+  .p-step3   {grid-column:7 / span 3; grid-row:span 3}   /* moderate */
+  .p-step4   {grid-column:10 / span 3; grid-row:span 4}  /* heaviest */
+  .p-pipetag {grid-column:1 / span 8; align-items:flex-start}
+  .step .cost{display:flex;align-items:center;gap:.5rem;margin-top:.7rem;
+    font-family:var(--mono);font-size:.64rem;letter-spacing:.08em;color:var(--ink-faint);text-transform:uppercase}
+  .cost-bar{flex:1;height:3px;border-radius:2px;background:var(--line);overflow:hidden;position:relative}
+  .cost-bar>i{position:absolute;inset:0 auto 0 0;border-radius:2px;
+    background:linear-gradient(90deg,var(--violet-deep),var(--orange))}
+  .step-n{font-family:var(--mono);font-size:.72rem;color:var(--ink-faint);letter-spacing:.1em}
+  .step-bar{height:3px;border-radius:2px;background:linear-gradient(90deg,var(--violet-deep),var(--violet));
+    margin:.55rem 0 .75rem;width:100%}
+  .block h4{font-family:var(--display);font-size:1rem;font-weight:600;margin:0 0 .4rem}
+  .block .step-p{font-size:.84rem;color:var(--ink-dim);margin:0;line-height:1.45}
 
-  /* ---- pipeline ---- */
-  .pipe{display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;margin-top:2.5rem}
-  .step{background:var(--bg-soft);border:1px solid var(--line);border-radius:11px;
-    padding:1.2rem 1rem;position:relative}
-  .step .n{font-family:var(--mono);font-size:.72rem;color:var(--ink-faint);
-    letter-spacing:.1em}
-  .step .bar{height:3px;border-radius:2px;background:linear-gradient(90deg,var(--violet-deep),var(--violet));
-    margin:.7rem 0 .9rem;width:100%}
-  .step h4{font-family:var(--display);font-size:.98rem;font-weight:600;margin:0 0 .4rem}
-  .step p{font-size:.8rem;color:var(--ink-dim);margin:0;line-height:1.45}
-  @media(max-width:880px){.pipe{grid-template-columns:1fr 1fr}}
-  @media(max-width:480px){.pipe{grid-template-columns:1fr}}
+  /* --- tour : frames + captions interlocked, uneven.
+     Each caption/frame pair shares a row span so they align side-by-side
+     and dense flow keeps the alternating left/right rhythm. --- */
+  .p-tourhead{grid-column:1 / span 12; align-items:flex-start}
+  .p-tourt1  {grid-column:1 / span 4; grid-row:span 3}
+  .p-tourf1  {grid-column:5 / span 8; grid-row:span 3; min-height:210px}
+  .p-tourf2  {grid-column:1 / span 5; grid-row:span 3; min-height:210px}
+  .p-tourt2  {grid-column:6 / span 7; grid-row:span 3}
+  .p-tourt3  {grid-column:1 / span 6; grid-row:span 3}
+  .p-tourf3  {grid-column:7 / span 6; grid-row:span 3; min-height:230px}
+  .p-tourf4  {grid-column:1 / span 6; grid-row:span 3; min-height:200px}
+  .p-tourt4  {grid-column:7 / span 6; grid-row:span 3}
+  .p-tourt5  {grid-column:1 / span 5; grid-row:span 3}
+  .p-tourf5  {grid-column:6 / span 7; grid-row:span 3; min-height:180px}
+  .p-tourt6  {grid-column:1 / span 5; align-items:flex-start}
+  .tour-caption{font-size:.9rem}
 
-  /* ---- showcase ---- */
-  .shot{display:grid;grid-template-columns:1fr 1fr;gap:2.5rem;align-items:center;
-    margin-bottom:4.5rem}
-  .shot:last-child{margin-bottom:0}
-  .shot.flip .shot-text{order:2}
-  .shot-text .tag{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;
-    text-transform:uppercase;color:var(--violet);margin-bottom:.7rem;display:block}
-  .shot-text h3{font-family:var(--display);font-size:1.5rem;font-weight:600;
-    margin:0 0 .8rem;letter-spacing:-.01em}
-  .shot-text p{color:var(--ink-dim);font-size:.98rem;margin:0 0 .8rem}
-  .mono{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint);
-    background:var(--bg-soft);border:1px solid var(--line);border-radius:7px;
-    padding:.35rem .6rem;display:inline-block}
-  .shot figure{margin:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;
-    background:#000;box-shadow:0 24px 60px -30px rgba(0,0,0,.9)}
-  .shot figure img{width:100%;display:block}
-  @media(max-width:820px){
-    .shot{grid-template-columns:1fr;gap:1.2rem;margin-bottom:3.5rem}
-    .shot.flip .shot-text{order:0}
-  }
-
-  /* ---- stack table ---- */
-  .stack{width:100%;border-collapse:collapse;margin-top:2rem;font-size:.92rem}
-  .stack th,.stack td{text-align:left;padding:.95rem 1rem;border-bottom:1px solid var(--line)}
-  .stack th{font-family:var(--mono);font-size:.7rem;letter-spacing:.12em;
+  /* --- stack --- */
+  .p-stackhead{grid-column:1 / span 7; align-items:flex-start}
+  .p-stacknote{grid-column:8 / span 5; grid-row:span 2; justify-content:flex-start}
+  .p-stacktbl {grid-column:1 / span 7; grid-row:span 5}
+  .p-stackexp {grid-column:8 / span 5; grid-row:span 3; align-items:flex-start}
+  .stack{width:100%;border-collapse:collapse;font-size:.88rem}
+  .stack th,.stack td{text-align:left;padding:.72rem .8rem;border-bottom:1px solid var(--line)}
+  .stack tr:last-child td{border-bottom:none}
+  .stack th{font-family:var(--mono);font-size:.66rem;letter-spacing:.12em;
     text-transform:uppercase;color:var(--ink-faint);font-weight:500}
-  .stack td.model{font-family:var(--mono);font-size:.85rem;color:var(--violet)}
+  .stack td.model{font-family:var(--mono);font-size:.8rem;color:var(--violet)}
   .stack td.role{color:var(--ink-dim)}
-  .stack tr:hover td{background:var(--bg-soft)}
   @media(max-width:620px){.stack .hide-sm{display:none}}
+  .p-stacknote p{font-size:.92rem}
+  .p-stackexp p{font-size:.9rem;margin:0 0 .7rem}
 
-  /* ---- status / honesty note ---- */
-  .status{background:linear-gradient(160deg,var(--panel),var(--bg-soft));
-    border:1px solid var(--line);border-radius:16px;padding:2.2rem;
-    display:grid;grid-template-columns:auto 1fr;gap:1.6rem;align-items:start}
-  .status .dot{width:11px;height:11px;border-radius:50%;background:var(--yellow);
-    margin-top:.55rem;box-shadow:0 0 0 4px rgba(255,214,10,.15)}
-  .status h3{font-family:var(--display);font-size:1.25rem;margin:0 0 .6rem;font-weight:600}
-  .status p{color:var(--ink-dim);font-size:.95rem;margin:0 0 .8rem}
-  .status .ver{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint)}
-  @media(max-width:560px){.status{grid-template-columns:1fr;padding:1.6rem}}
+  /* --- go deeper --- */
+  .p-deephead{grid-column:1 / span 12; align-items:flex-start}
+  .p-deep1{grid-column:1 / span 5; grid-row:span 2}
+  .p-deep2{grid-column:6 / span 7; grid-row:span 3}
+  .p-deep3{grid-column:1 / span 5; grid-row:span 2}
+  .p-deep4{grid-column:6 / span 3; grid-row:span 2}
+  .p-deep5{grid-column:9 / span 4; grid-row:span 2}
+  .deep-link{font-family:var(--display);font-size:1.05rem;font-weight:600;margin:0 0 .4rem}
 
-  /* ---- footer ---- */
-  footer{border-top:1px solid var(--line);padding:3rem 0 4rem;color:var(--ink-faint);
-    font-size:.85rem}
+  /* --- status --- */
+  .p-statdot {grid-column:1 / span 1; grid-row:span 3; align-items:center;justify-content:flex-start}
+  .p-statmain{grid-column:2 / span 7; grid-row:span 3}
+  .p-statver {grid-column:9 / span 4; grid-row:span 3; justify-content:center}
+  .status-dot{width:11px;height:11px;border-radius:50%;background:var(--yellow);
+    box-shadow:0 0 0 4px rgba(255,214,10,.15)}
+  .p-statmain p{font-size:.92rem;margin:0 0 .8rem}
+  .p-statver .ver{font-family:var(--mono);font-size:.76rem;color:var(--ink-faint);line-height:1.6}
+
+  /* ---- footer (outside bento) ---- */
+  footer{border-top:1px solid var(--line);padding:3rem 0 4rem;color:var(--ink-faint);font-size:.85rem}
   footer .frow{display:flex;justify-content:space-between;gap:1.5rem;flex-wrap:wrap;align-items:center}
   footer .brand-sm{display:flex;align-items:center;gap:.55rem;font-family:var(--display);
     color:var(--ink-dim);font-weight:600}
   footer .brand-sm img{width:22px;height:22px}
   footer a{color:var(--ink-dim)}
   .lic{font-family:var(--mono);font-size:.74rem}
+
+  /* =====================================================================
+     RESPONSIVE — the one grid reflows.
+     At <=900px: collapse to 6 cols and let dense auto-flow repack, with a
+     handful of explicit spans kept for the anchor blocks.
+     At <=560px: single column, natural document order, graph dimmed.
+     ===================================================================== */
+  @media(max-width:900px){
+    .page-bento{grid-template-columns:repeat(6,1fr);grid-auto-rows:minmax(56px,auto)}
+    /* clear ALL desktop row/col placements so items flow in source order */
+    .page-bento > .block{grid-column:auto / span 6;grid-row:auto}
+    /* then re-impose a few uneven spans that still read well at 6 cols */
+    .p-hero{grid-column:1 / span 6;min-height:260px}
+    .p-guarani{grid-column:1 / span 3}
+    .p-cta{grid-column:4 / span 3}
+    .p-herokey{grid-column:1 / span 6;min-height:150px}
+    .p-lede{grid-column:1 / span 4}
+    .p-meta{grid-column:1 / span 6}
+    .p-htag{grid-column:1 / span 6}
+    .p-problead{grid-column:1 / span 6}
+    .p-probside{grid-column:1 / span 6}
+    .p-pill1{grid-column:1 / span 3}
+    .p-pill2{grid-column:4 / span 3}
+    .p-pill3{grid-column:1 / span 6}
+    .p-step1{grid-column:1 / span 3}
+    .p-step2{grid-column:4 / span 3}
+    .p-step3{grid-column:1 / span 3}
+    .p-step4{grid-column:4 / span 3}
+    .p-tourt1,.p-tourt2,.p-tourt3,.p-tourt4,.p-tourt5{grid-column:1 / span 6}
+    .p-tourf1,.p-tourf2,.p-tourf3,.p-tourf4,.p-tourf5{grid-column:1 / span 6;min-height:190px}
+    .p-stacknote{grid-column:1 / span 6}
+    .p-stacktbl{grid-column:1 / span 6}
+    .p-deep1{grid-column:1 / span 3}
+    .p-deep2{grid-column:4 / span 3}
+    .p-deep3{grid-column:1 / span 3}
+    .p-deep4{grid-column:4 / span 3}
+    .p-deep5{grid-column:1 / span 6}
+    .p-statdot{grid-column:1 / span 1}
+    .p-statmain{grid-column:2 / span 5}
+    .p-statver{grid-column:1 / span 6}
+  }
+  @media(max-width:560px){
+    .page-bento{grid-template-columns:1fr;grid-auto-rows:auto;grid-auto-flow:row}
+    .page-bento > .block{grid-column:1 / -1 !important;grid-row:auto !important;min-height:auto}
+    .page-graph{opacity:.32}
+  }
 
   @media(prefers-reduced-motion:reduce){
     *{animation:none!important;transition:none!important}
@@ -218,6 +392,18 @@
       <a href="#pipeline">Pipeline</a>
       <a href="#tour">Tour</a>
       <a href="#stack">Stack</a>
+      <div class="nav-item">
+        <button class="nav-trigger" type="button" aria-haspopup="true" aria-expanded="false">Aprofunde-se <span class="chev">▾</span></button>
+        <div class="nav-dropdown">
+          <div class="nav-dropdown-inner">
+            <a href="architecture.html">Arquitetura</a>
+            <a href="constraints.html">Restrições</a>
+            <a href="domain_packs.html">Pacotes de domínio</a>
+            <a href="evaluation.html">Avaliação</a>
+            <a href="run_provenance.html">Proveniência da execução</a>
+          </div>
+        </div>
+      </div>
     </nav>
     <a class="ghost" href="https://github.com/guto-mojica/kuaa" target="_blank" rel="noopener">Ver no GitHub →</a>
     <a class="ghost" href="../index.html">EN</a>
@@ -225,240 +411,385 @@
 </header>
 
 <a id="top"></a>
-<section class="hero">
-  <!-- signature: cross-film "visual rhyme" graph, the icon motif -->
-  <svg class="hero-graph" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-    <defs>
-      <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0" stop-color="#ffd60a"/><stop offset="1" stop-color="#ff9500"/>
-      </linearGradient>
-    </defs>
-    <g stroke="url(#edge)" stroke-width="1.4" opacity=".5" fill="none">
-      <line x1="220" y1="180" x2="520" y2="300"/>
-      <line x1="520" y1="300" x2="430" y2="520"/>
-      <line x1="520" y1="300" x2="820" y2="210"/>
-      <line x1="820" y1="210" x2="1010" y2="360"/>
-      <line x1="430" y1="520" x2="730" y2="560"/>
-      <line x1="730" y1="560" x2="1010" y2="360"/>
-      <line x1="220" y1="180" x2="120" y2="420"/>
-    </g>
-    <g fill="#ffd60a">
-      <circle cx="520" cy="300" r="7"><animate attributeName="r" values="7;9;7" dur="4s" repeatCount="indefinite"/></circle>
-      <circle cx="220" cy="180" r="5"/>
-      <circle cx="430" cy="520" r="6"/>
-      <circle cx="820" cy="210" r="5"/>
-      <circle cx="730" cy="560" r="5"/>
-      <circle cx="120" cy="420" r="4"/>
-    </g>
-    <g fill="#ff9500">
-      <circle cx="1010" cy="360" r="6"><animate attributeName="opacity" values=".6;1;.6" dur="3.5s" repeatCount="indefinite"/></circle>
-    </g>
-  </svg>
 
+<!-- =========================================================================
+     THE WHOLE PAGE IS ONE BENTO GRID.
+     One .page-graph overlays the entire grid and bleeds continuously through
+     every block, crossing former section boundaries. Anchors (#what, #pipeline,
+     #tour, #stack, #deeper, #status) are attached to the relevant head blocks
+     so the nav still jumps correctly.
+   ========================================================================== -->
+<div class="page">
   <div class="wrap">
-    <p class="guarani">kuaa · <b>"saber"</b> em guarani</p>
-    <h1>Busque os <span class="accent">momentos</span> enterrados em um acervo de filmes.</h1>
-    <p class="lede">Transforma arquivos de vídeo brutos em um catálogo de cenas pesquisável e revisável por humanos. Roda em uma única máquina — modelos, processamento e armazenamento totalmente locais.</p>
-    <div class="cta-row">
-      <a class="btn btn-primary" href="https://github.com/guto-mojica/kuaa" target="_blank" rel="noopener">Ler o código</a>
-      <a class="btn btn-ghost" href="#tour">Ver funcionando</a>
-    </div>
-    <p style="margin-top:1.8rem"><span class="mono">offline · cpu / mps / cuda · sem chaves de api · nenhum frame enviado</span></p>
-  </div>
-</section>
 
-<section id="what" class="statement">
-  <div class="wrap">
-    <p class="eyebrow">O problema</p>
-    <div class="grid">
-      <p>Um filme tem um título e uma data. O que um pesquisador realmente quer — uma multidão, uma estação de trem, um interior noturno — está enterrado dentro da filmagem.</p>
-      <div class="side">
-        <p>Catalogar cenas manualmente é lento. A catalogação totalmente automatizada ainda não é confiável o bastante. O KUAA roda uma primeira passada rápida de IA para tornar o material descobrível, e mantém curadores no processo para corrigir e confirmar.</p>
-        <p>Construído em torno das restrições que os acervos reais enfrentam — privacidade, filmagens em preto e branco degradadas, metadados escassos, e a necessidade de rastrear cada resultado até a configuração e os modelos que o produziram.</p>
+    <!-- SINGLE continuous graph over the whole page, drawn as KUAA's OPERATING
+         LOGIC rather than a trace of the pipeline steps: a query enters and
+         FORKS into two retrieval branches (dense embeddings + lexical BM25),
+         which FUSE (RRF); a rerank LOOP feeds back; results fan out as a
+         TREE of scenes; a visual-rhyme kNN loop closes on itself; a
+         human-in-the-loop correction FORK writes back to the index; and
+         FILE ACCESS / THROUGHPUT taps run down the side (source → keyframes →
+         index → export). ALL edges are STRAIGHT lines (no curves), and the
+         layer bleeds past the page into outer space — it is not clipped to the
+         page and not constrained by the blocks beneath it. Nodes are rendered
+         as counter-scaled ellipses so they stay perfectly round despite the
+         non-uniform stretch. -->
+    <svg class="page-graph" viewBox="0 0 1200 3200" preserveAspectRatio="none" aria-hidden="true" data-graph>
+      <defs>
+        <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#ffd60a"/><stop offset="1" stop-color="#ff9500"/>
+        </linearGradient>
+      </defs>
+
+      <!-- ==== EDGES: STRAIGHT segments only (no curves anywhere). Some lines
+           run past the design canvas (x<0, x>1200, y<0) so the graph bleeds
+           into "outer space" — it is a free layer, not clipped to the page and
+           not constrained by the block boundaries beneath it. ==== -->
+      <g stroke="url(#edge)" stroke-width="1.3" fill="none" stroke-linecap="butt">
+        <!-- a line enters from outer space (off the top-left) into the query -->
+        <line x1="-160" y1="-60" x2="250" y2="150"/>
+        <!-- QUERY enters (hero) and forks into two retrieval branches -->
+        <line x1="250" y1="150" x2="470" y2="300"/>                 <!-- query -> fork -->
+        <line x1="470" y1="300" x2="470" y2="560"/>                 <!-- fork -> dense branch -->
+        <line x1="470" y1="300" x2="900" y2="560"/>                 <!-- fork -> lexical branch -->
+        <!-- the two branches FUSE (RRF) lower down -->
+        <line x1="470" y1="560" x2="690" y2="760"/>                 <!-- dense -> fuse -->
+        <line x1="900" y1="560" x2="690" y2="760"/>                 <!-- lexical -> fuse -->
+        <!-- rerank LOOP: fuse -> rerank -> straight back-edge to fuse -->
+        <line x1="690" y1="760" x2="820" y2="1040"/>               <!-- fuse -> rerank -->
+        <line x1="820" y1="1040" x2="690" y2="760" opacity=".7"/>  <!-- rerank loop back (straight) -->
+        <!-- one lexical line overshoots off the right edge into outer space -->
+        <line x1="900" y1="560" x2="1360" y2="430"/>
+        <!-- results TREE: fuse fans out into scene branches -->
+        <line x1="690" y1="760" x2="300" y2="1180"/>               <!-- -> scene branch A -->
+        <line x1="300" y1="1180" x2="380" y2="1460"/>              <!-- A -> child -->
+        <line x1="300" y1="1180" x2="560" y2="1480"/>              <!-- A -> child -->
+        <line x1="820" y1="1040" x2="780" y2="1480"/>              <!-- rerank -> scene branch B -->
+        <!-- VISUAL-RHYME kNN loop — straight there-and-back (closes on itself) -->
+        <line x1="780" y1="1480" x2="860" y2="1860"/>              <!-- scene -> rhyme -->
+        <line x1="860" y1="1860" x2="780" y2="1480" opacity=".7"/> <!-- rhyme kNN loop back -->
+        <line x1="860" y1="1860" x2="460" y2="2140"/>              <!-- rhyme -> neighbor -->
+        <!-- a rhyme edge shoots off the right edge into outer space -->
+        <line x1="860" y1="1860" x2="1400" y2="1980"/>
+        <!-- HUMAN-IN-THE-LOOP correction fork: straight write-back to the index -->
+        <line x1="460" y1="2140" x2="800" y2="2360"/>              <!-- neighbor -> curator -->
+        <line x1="800" y1="2360" x2="460" y2="2140" opacity=".7"/> <!-- correction writes back -->
+        <!-- results settle -> stack (fusion/eval) -> deeper -> status -->
+        <line x1="800" y1="2360" x2="620" y2="2620"/>              <!-- -> eval/fusion node -->
+        <line x1="620" y1="2620" x2="560" y2="2900"/>              <!-- -> deeper -->
+        <line x1="560" y1="2900" x2="980" y2="3040"/>              <!-- -> status/export -->
+        <!-- final export line leaves the page into outer space (off bottom-right) -->
+        <line x1="980" y1="3040" x2="1380" y2="3260"/>
+
+        <!-- FILE ACCESS / THROUGHPUT spine down the left margin (straight),
+             entering and leaving the page in outer space -->
+        <line x1="120" y1="-80" x2="120" y2="330"/>                <!-- from outer space -> source -->
+        <line x1="120" y1="330" x2="120" y2="860"/>                <!-- source -> keyframes -->
+        <line x1="120" y1="860" x2="120" y2="1560"/>              <!-- keyframes -> index -->
+        <line x1="120" y1="1560" x2="120" y2="2600"/>            <!-- index -> export sink -->
+        <line x1="120" y1="2600" x2="-140" y2="3320"/>          <!-- export sink -> outer space -->
+        <!-- throughput taps from the spine into the flow (straight) -->
+        <line x1="120" y1="860" x2="470" y2="560" opacity=".55"/> <!-- keyframes feed embeddings -->
+        <line x1="120" y1="1560" x2="300" y2="1180" opacity=".55"/><!-- index feeds results -->
+      </g>
+
+      <!-- ==== NODES ==== rendered by JS as true circles (see data-nodes) ==== -->
+      <g data-nodes></g>
+    </svg>
+
+    <script>
+      /* The graph lives in a FIXED 1200×3200 design space and the SVG stretches
+         to fill the page (preserveAspectRatio="none"). Stretching is fine for
+         the organic flow PATHS, but it would squash circles into ovals — so the
+         nodes are drawn here as <ellipse> whose rx/ry are counter-scaled to the
+         live stretch ratio, making them render as TRUE circles at any size.
+         Node kinds map to KUAA's logic roles (query/fork/fuse/loop/tree/human/
+         file/sink) and size reads as importance. */
+      (function(){
+        var svg = document.querySelector('[data-graph]');
+        var host = svg.querySelector('[data-nodes]');
+        var DESIGN_W = 1200, DESIGN_H = 3200;
+        var NS = 'http://www.w3.org/2000/svg';
+        var YELLOW='#ffd60a', ORANGE='#ff9500';
+        // x, y, r(px, on screen), kind, pulse?
+        var NODES = [
+          [250,150, 6,'q',   1],   // query enters
+          [470,300, 9,'fork',1],   // retrieval fork — decision point, biggest
+          [470,560, 6,'branch',0], // dense-embedding branch
+          [900,560, 6,'branch',0], // lexical BM25 branch
+          [690,760, 8,'fuse',1],   // RRF fusion
+          [820,1040,6,'loop',0],   // rerank loop
+          [300,1180,5,'tree',0],   // scene branch A
+          [380,1460,4,'tree',0],
+          [560,1480,4,'tree',0],
+          [780,1480,6,'tree',0],   // scene branch B
+          [860,1860,8,'loop',1],   // visual-rhyme kNN — motif home, pulses
+          [460,2140,5,'tree',0],   // neighbor
+          [800,2360,6,'human',0],  // curator correction (writes back)
+          [620,2620,5,'fuse',0],   // eval / fusion of manual+AI layers
+          [560,2900,5,'tree',0],   // deeper
+          [120,330, 5,'file',0],   // source video
+          [120,860, 5,'file',0],   // keyframes
+          [120,1560,5,'file',0],   // index store
+          [120,2600,4,'sink',0],   // export sink
+          [980,3040,5,'sink',1]    // export / status
+        ];
+        function color(k){ return (k==='file'||k==='sink'||k==='human') ? ORANGE : YELLOW; }
+        var els = NODES.map(function(n){
+          var e=document.createElementNS(NS,'ellipse');
+          e.setAttribute('cx',n[0]); e.setAttribute('cy',n[1]);
+          e.setAttribute('fill',color(n[3]));
+          e._r=n[2];
+          if(n[4]){
+            var a=document.createElementNS(NS,'animate');
+            a.setAttribute('attributeName','opacity');
+            a.setAttribute('values','.5;1;.5');
+            a.setAttribute('dur','3.6s'); a.setAttribute('repeatCount','indefinite');
+            e.appendChild(a);
+          }
+          host.appendChild(e); return e;
+        });
+        function sync(){
+          var rect=svg.getBoundingClientRect();
+          if(!rect.width||!rect.height) return;
+          // design units -> screen px on each axis
+          var sx=rect.width/DESIGN_W, sy=rect.height/DESIGN_H;
+          if(!sx||!sy) return;
+          // to render radius r (px) round, ellipse rx/ry in design-units must be
+          // r/sx and r/sy so both map back to the same r px on screen.
+          els.forEach(function(e){
+            e.setAttribute('rx',(e._r/sx).toFixed(2));
+            e.setAttribute('ry',(e._r/sy).toFixed(2));
+          });
+        }
+        window.addEventListener('load',sync);
+        window.addEventListener('resize',sync);
+        var grid=document.querySelector('.page-bento');
+        if(window.ResizeObserver&&grid){ new ResizeObserver(sync).observe(grid); }
+        sync();
+      })();
+    </script>
+
+    <div class="page-bento">
+
+      <!-- ===================== HERO ===================== -->
+      <div class="block pad-lg p-hero">
+        <div class="hero-brand layer-under"><img src="../icon_Ks.png" alt=""><span>KUAA</span></div>
+        <h1 class="layer-under">Busque os <span class="accent">momentos</span> enterrados em um acervo de filmes.</h1>
       </div>
-    </div>
+      <div class="block p-guarani">
+        <p class="g-k layer-over">kuaa · <b>"saber"</b> em guarani</p>
+      </div>
+      <div class="block p-cta">
+        <div class="cta-row layer-over">
+          <a class="btn btn-primary" href="https://github.com/guto-mojica/kuaa" target="_blank" rel="noopener">Ler o código</a>
+          <a class="btn btn-ghost" href="#tour">Ver funcionando</a>
+        </div>
+      </div>
+      <div class="block frame p-herokey layer-under" data-label="keyframe placeholder"></div>
+      <div class="block p-lede">
+        <p class="lede layer-under">Transforma arquivos de vídeo brutos em um catálogo de cenas pesquisável e revisável por humanos. Roda em uma única máquina — modelos, processamento e armazenamento totalmente locais.</p>
+      </div>
+      <div class="block soft p-meta">
+        <div class="stat layer-over"><b>405</b> cenas</div>
+        <div class="stat layer-over"><b>1h30</b> de duração</div>
+        <div class="stat layer-over"><b>100%</b> local</div>
+      </div>
+      <div class="block bare p-htag">
+        <span class="mono layer-over">offline · cpu / mps / cuda · sem chaves de api · nenhum frame enviado</span>
+      </div>
 
-    <div class="pillars">
-      <div class="pillar">
-        <!-- three connected nodes: the visual-rhyme graph motif -->
-        <svg class="pi" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.6">
-          <circle cx="12" cy="5" r="2.5"/>
-          <circle cx="4" cy="19" r="2.5"/>
-          <circle cx="20" cy="19" r="2.5"/>
-          <line x1="10.2" y1="7.2" x2="5.8" y2="17"/>
-          <line x1="13.8" y1="7.2" x2="18.2" y2="17"/>
-          <line x1="6.5" y1="19" x2="17.5" y2="19"/>
+      <!-- ===================== PROBLEM + PILLARS ===================== -->
+      <div class="block bare p-probhead" id="what">
+        <p class="eyebrow layer-over">O problema</p>
+      </div>
+      <div class="block pad-lg p-problead">
+        <p class="big layer-under">Um filme tem um título e uma data. O que um pesquisador realmente quer — uma multidão, uma estação de trem, um interior noturno — está enterrado dentro da filmagem.</p>
+      </div>
+      <div class="block p-probside">
+        <p class="layer-over">Catalogar cenas manualmente é lento. A catalogação totalmente automatizada ainda não é confiável o bastante. O KUAA roda uma primeira passada rápida de IA para tornar o material descobrível, e mantém curadores no processo para corrigir e confirmar.</p>
+        <p class="layer-over">Construído em torno das restrições que os acervos reais enfrentam — privacidade, filmagens em preto e branco degradadas, metadados escassos, e a necessidade de rastrear cada resultado até a configuração e os modelos que o produziram.</p>
+      </div>
+      <div class="block p-pill1">
+        <svg class="pi layer-over" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.6">
+          <circle cx="12" cy="5" r="2.5"/><circle cx="4" cy="19" r="2.5"/><circle cx="20" cy="19" r="2.5"/>
+          <line x1="10.2" y1="7.2" x2="5.8" y2="17"/><line x1="13.8" y1="7.2" x2="18.2" y2="17"/><line x1="6.5" y1="19" x2="17.5" y2="19"/>
         </svg>
-        <h3>Multimodal e híbrido</h3>
-        <p>Consulte por texto ou por imagem. O sinal denso do SigLIP2, o BM25 lexical e uma perna de metadados léxico-exatos se fundem por Reciprocal Rank Fusion ponderada.</p>
+        <h3 class="layer-over">Multimodal e híbrido</h3>
+        <p class="layer-over">Consulte por texto ou por imagem. O sinal denso do SigLIP2, o BM25 lexical e uma perna de metadados léxico-exatos se fundem por Reciprocal Rank Fusion ponderada.</p>
       </div>
-      <div class="pillar">
-        <!-- filmstrip segment: the product's own icon motif -->
-        <svg class="pi" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.6">
+      <div class="block p-pill2">
+        <svg class="pi layer-under" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.6">
           <rect x="7" y="2" width="10" height="20" rx="2"/>
-          <rect x="9.5" y="6" width="5" height="3.5" rx="1"/>
-          <rect x="9.5" y="14.5" width="5" height="3.5" rx="1"/>
-          <circle cx="8.5" cy="7.75" r="0.7" fill="#a78bfa" stroke="none"/>
-          <circle cx="15.5" cy="7.75" r="0.7" fill="#a78bfa" stroke="none"/>
-          <circle cx="8.5" cy="16.25" r="0.7" fill="#a78bfa" stroke="none"/>
-          <circle cx="15.5" cy="16.25" r="0.7" fill="#a78bfa" stroke="none"/>
+          <rect x="9.5" y="6" width="5" height="3.5" rx="1"/><rect x="9.5" y="14.5" width="5" height="3.5" rx="1"/>
+          <circle cx="8.5" cy="7.75" r="0.7" fill="#a78bfa" stroke="none"/><circle cx="15.5" cy="7.75" r="0.7" fill="#a78bfa" stroke="none"/>
+          <circle cx="8.5" cy="16.25" r="0.7" fill="#a78bfa" stroke="none"/><circle cx="15.5" cy="16.25" r="0.7" fill="#a78bfa" stroke="none"/>
         </svg>
-        <h3>Local-first</h3>
-        <p>Tudo roda em uma única máquina. Soberania de dados para instituições que não podem expor material sensível — sem necessidade de chaves de API.</p>
+        <h3 class="layer-under">Local-first</h3>
+        <p class="layer-under">Tudo roda em uma única máquina. Soberania de dados para instituições que não podem expor material sensível — sem necessidade de chaves de API.</p>
       </div>
-      <div class="pillar">
-        <!-- keyframe with checkmark: curator annotating a scene -->
-        <svg class="pi" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.6">
-          <rect x="2" y="5" width="18" height="12" rx="2"/>
-          <polyline points="6,11 9,14 14.5,8.5"/>
-          <line x1="2" y1="21" x2="22" y2="21"/>
+      <div class="block p-pill3">
+        <svg class="pi layer-over" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.6">
+          <rect x="2" y="5" width="18" height="12" rx="2"/><polyline points="6,11 9,14 14.5,8.5"/><line x1="2" y1="21" x2="22" y2="21"/>
         </svg>
-        <h3>Humano no processo</h3>
-        <p>O modelo escreve uma primeira passada pesquisável; curadores a corrigem. As correções alimentam diretamente as pernas de ranqueamento BM25 e de metadados, não apenas a exibição.</p>
+        <h3 class="layer-over">Humano no processo</h3>
+        <p class="layer-over">O modelo escreve uma primeira passada pesquisável; curadores a corrigem. As correções alimentam diretamente as pernas de ranqueamento BM25 e de metadados, não apenas a exibição.</p>
       </div>
-    </div>
-    <p style="margin-top:2rem"><span class="mono">busca híbrida texto + imagem · denso + bm25 + metadados · fusão rrf · curadoria alimenta o ranqueamento</span></p>
-  </div>
-</section>
+      <div class="block bare p-probtag">
+        <span class="mono layer-over">busca híbrida texto + imagem · denso + bm25 + metadados · fusão rrf · curadoria alimenta o ranqueamento</span>
+      </div>
 
-<section id="pipeline">
-  <div class="wrap">
-    <p class="eyebrow">O pipeline · quatro etapas</p>
-    <h2>De um <code style="font-family:var(--mono);font-size:.85em;color:var(--violet)">.mp4</code> bruto a um catálogo indexado.</h2>
-    <p style="color:var(--ink-dim);max-width:52ch;margin:0">Cada execução é sequencial e rastreável. Um <span style="font-family:var(--mono);font-size:.85em;color:var(--ink)">run_manifest.json</span> registra a entrada, o hash de configuração e os backends de modelo por trás de cada metadado.</p>
-    <div class="pipe">
-      <div class="step"><span class="n">01</span><div class="bar"></div><h4>Detecção de cenas</h4><p>O PySceneDetect lê a origem diretamente, encontra os limites de corte e armazena um keyframe representativo por cena.</p></div>
-      <div class="step"><span class="n">02</span><div class="bar"></div><h4>Análise visual</h4><p>O YOLOv8 e o MTCNN detectam objetos, rostos e rótulos aproximados de ambiente.</p></div>
-      <div class="step"><span class="n">03</span><div class="bar"></div><h4>Embeddings</h4><p>Os embeddings de imagem do SigLIP2 são indexados com o mapeamento de cena e keyframe.</p></div>
-      <div class="step"><span class="n">04</span><div class="bar"></div><h4>Descrições por LLM</h4><p>O Moondream 2 escreve uma descrição local de cena e tags para cada keyframe.</p></div>
-    </div>
-    <p style="margin-top:2rem"><span class="mono">run_manifest.json · hash de configuração + backend de modelo registrado por execução</span></p>
-  </div>
-</section>
+      <!-- ===================== PIPELINE ===================== -->
+      <div class="block bare p-pipehead" id="pipeline">
+        <p class="eyebrow layer-over">O pipeline · quatro etapas</p>
+        <h2 class="layer-over">De um <code style="font-family:var(--mono);font-size:.85em;color:var(--violet)">.mp4</code> bruto a um catálogo indexado.</h2>
+      </div>
+      <div class="block bare p-pipelede">
+        <p class="layer-over" style="color:var(--ink-dim);margin:0">Cada execução é sequencial e rastreável. Um <span style="font-family:var(--mono);font-size:.85em;color:var(--ink)">run_manifest.json</span> registra a entrada, o hash de configuração e os backends de modelo.</p>
+      </div>
+      <div class="block step p-step1">
+        <span class="step-n layer-under">01</span><div class="step-bar layer-under"></div>
+        <h4 class="layer-under">Detecção de cenas</h4>
+        <p class="step-p layer-under">O PySceneDetect decodifica a origem diretamente, encontra cada limite de corte e armazena um keyframe representativo por cena.</p>
+        <div class="cost layer-under">custo <span class="cost-bar"><i style="width:80%"></i></span> limitado por E/S</div>
+      </div>
+      <div class="block step p-step2">
+        <span class="step-n layer-over">02</span><div class="step-bar layer-over"></div>
+        <h4 class="layer-over">Análise visual</h4>
+        <p class="step-p layer-over">YOLOv8 + MTCNN por keyframe.</p>
+        <div class="cost layer-over">custo <span class="cost-bar"><i style="width:35%"></i></span> leve</div>
+      </div>
+      <div class="block step p-step3">
+        <span class="step-n layer-under">03</span><div class="step-bar layer-under"></div>
+        <h4 class="layer-under">Embeddings</h4>
+        <p class="step-p layer-under">Embeddings de imagem do SigLIP2, indexados com o mapeamento de cena e keyframe.</p>
+        <div class="cost layer-under">custo <span class="cost-bar"><i style="width:55%"></i></span> GPU/MPS</div>
+      </div>
+      <div class="block step p-step4">
+        <span class="step-n layer-over">04</span><div class="step-bar layer-over"></div>
+        <h4 class="layer-over">Descrições por LLM</h4>
+        <p class="step-p layer-over">O Moondream 2 gera uma descrição local de cena e tags para cada keyframe — a etapa mais longa da execução, um forward pass por frame.</p>
+        <div class="cost layer-over">custo <span class="cost-bar"><i style="width:100%"></i></span> mais pesado</div>
+      </div>
+      <div class="block bare p-pipetag">
+        <span class="mono layer-over">run_manifest.json · hash de configuração + backend de modelo registrado por execução</span>
+      </div>
 
-<section id="tour">
-  <div class="wrap">
-    <p class="eyebrow">Um tour pelo aplicativo</p>
-    <h2>Como ele realmente se parece.</h2>
-    <p style="color:var(--ink-dim);max-width:50ch;margin:0 0 3.5rem">Capturas de tela de uma execução real sobre <em>Jeca Tatu</em> (1959), um filme brasileiro de domínio público — 405 cenas detectadas ao longo de 90 minutos de duração.</p>
+      <!-- ===================== TOUR ===================== -->
+      <div class="block bare p-tourhead" id="tour">
+        <p class="eyebrow layer-over">Um tour pelo aplicativo</p>
+        <h2 class="layer-over">Como ele realmente se parece.</h2>
+        <p class="layer-over" style="color:var(--ink-dim);max-width:56ch;margin:0">Capturas de tela de uma execução real sobre <em>Jeca Tatu</em> (1959), um filme brasileiro de domínio público — 405 cenas detectadas ao longo de 90 minutos de duração.</p>
+      </div>
 
-    <div class="shot">
-      <div class="shot-text">
-        <span class="tag">Busca híbrida</span>
-        <h3>Descreva uma cena, ou cole uma imagem.</h3>
-        <p>Uma única caixa de busca cobre consultas por texto e por imagem de referência. A ponderação entre as pontuações semântica e lexical é ajustável, e o reranker é opcional.</p>
-        <span class="mono">HYBRID · denso + bm25 + metadados · fusão rrf · rerank off</span>
+      <div class="block p-tourt1">
+        <span class="tag layer-over">Busca híbrida</span>
+        <h3 class="layer-over">Descreva uma cena, ou cole uma imagem.</h3>
+        <p class="tour-caption layer-over">Uma única caixa de busca cobre consultas por texto e por imagem de referência. A ponderação é ajustável; o reranker é opcional.</p>
+        <span class="mono layer-over" style="margin-top:.6rem">HYBRID · denso + bm25 + metadados · fusão rrf · rerank off</span>
       </div>
-      <figure><img src="../search.jpg" alt="Interface de busca do KUAA com controles de recuperação híbrida" loading="lazy"></figure>
-    </div>
+      <div class="block frame p-tourf1 layer-under" data-label="search.jpg placeholder"></div>
 
-    <div class="shot flip">
-      <div class="shot-text">
-        <span class="tag">Catálogo de cenas</span>
-        <h3>Cada corte, tipado e navegável.</h3>
-        <p>As cenas detectadas caem em uma grade com timecodes e um tipo aproximado — exterior, interior, cartela de título, transição. Coleções as agrupam para uma revisão rápida.</p>
-        <span class="mono">405 cenas · 1 filme · 1h30 de duração</span>
+      <div class="block frame p-tourf2 layer-under" data-label="scenes.jpg placeholder"></div>
+      <div class="block p-tourt2">
+        <span class="tag layer-over">Catálogo de cenas</span>
+        <h3 class="layer-over">Cada corte, tipado e navegável.</h3>
+        <p class="tour-caption layer-over">As cenas detectadas caem em uma grade com timecodes e um tipo aproximado — exterior, interior, cartela de título, transição. Coleções as agrupam para uma revisão rápida.</p>
+        <span class="mono layer-over" style="margin-top:.6rem">405 cenas · 1 filme · 1h30 de duração</span>
       </div>
-      <figure><img src="../scenes.jpg" alt="Grade de cenas do KUAA mostrando 405 cenas detectadas de Jeca Tatu 1959" loading="lazy"></figure>
-    </div>
 
-    <div class="shot">
-      <div class="shot-text">
-        <span class="tag">Inspetor de cena · rimas visuais</span>
-        <h3>Encontre o mesmo plano, entre filmes.</h3>
-        <p>Abra qualquer cena para ver seu keyframe, tags e descrição — depois vá para <em>Encontrar rimas visuais</em>: uma busca kNN sobre embeddings de keyframe, diversificada com Maximal Marginal Relevance. Esse é o motivo por trás do logotipo.</p>
-        <span class="mono">cena 004 · indexada · exterior</span>
+      <div class="block p-tourt3">
+        <span class="tag layer-under">Inspetor de cena · rimas visuais</span>
+        <h3 class="layer-under">Encontre o mesmo plano, entre filmes.</h3>
+        <p class="tour-caption layer-under">Abra qualquer cena para ver seu keyframe, tags e descrição — depois vá para <em>Encontrar rimas visuais</em>: uma busca kNN sobre embeddings de keyframe, diversificada com Maximal Marginal Relevance. Esse é o motivo por trás do logotipo.</p>
+        <span class="mono layer-under" style="margin-top:.6rem">cena 004 · indexada · exterior</span>
       </div>
-      <figure><img src="../scene-detail.jpg" alt="Painel de detalhes de cena do KUAA com tags, descrição e ação Encontrar rimas visuais" loading="lazy"></figure>
-    </div>
+      <div class="block frame p-tourf3 layer-under" data-label="scene-detail.jpg placeholder"></div>
 
-    <div class="shot flip">
-      <div class="shot-text">
-        <span class="tag">Humano no processo</span>
-        <h3>Corrija a IA sem apagá-la.</h3>
-        <p>Curadores adicionam tags manuais normalizadas e removem tags incorretas da IA da busca — enquanto a saída original do modelo é sempre preservada. As duas camadas se combinam no momento da leitura.</p>
-        <span class="mono">descrição · moondream-2</span>
+      <div class="block frame p-tourf4 layer-under" data-label="annotate.jpg placeholder"></div>
+      <div class="block p-tourt4">
+        <span class="tag layer-over">Humano no processo</span>
+        <h3 class="layer-over">Corrija a IA sem apagá-la.</h3>
+        <p class="tour-caption layer-over">Curadores adicionam tags manuais normalizadas e removem tags incorretas da IA da busca — enquanto a saída original do modelo é sempre preservada. As duas camadas se combinam no momento da leitura.</p>
+        <span class="mono layer-over" style="margin-top:.6rem">descrição · moondream-2</span>
       </div>
-      <figure><img src="../annotate.jpg" alt="Tela de anotação do KUAA com tags manuais e tags de IA lado a lado" loading="lazy"></figure>
-    </div>
 
-    <div class="shot">
-      <div class="shot-text">
-        <span class="tag">Processamento</span>
-        <h3>Acompanhe a execução, etapa por etapa.</h3>
-        <p>Um log SSE ao vivo transmite cada etapa com uso de recursos e contagens em execução — frames, cenas, embeddings, descrições, rostos, objetos — para que uma execução local longa continue legível.</p>
-        <span class="mono">step 1 / 4 · scene_detection — start</span>
+      <div class="block p-tourt5">
+        <span class="tag layer-over">Processamento</span>
+        <h3 class="layer-over">Acompanhe a execução, etapa por etapa.</h3>
+        <p class="tour-caption layer-over">Um log SSE ao vivo transmite cada etapa com uso de recursos e contagens em execução — frames, cenas, embeddings, descrições, rostos, objetos — para que uma execução local longa continue legível.</p>
       </div>
-      <figure><img src="../processing.jpg" alt="Tela de processamento do KUAA com log ao vivo e progresso por etapa" loading="lazy"></figure>
-    </div>
-  </div>
-</section>
+      <div class="block frame p-tourf5 layer-under" data-label="processing.jpg placeholder"></div>
+      <div class="block bare p-tourt6">
+        <span class="mono layer-over">step 1 / 4 · scene_detection — start</span>
+      </div>
 
-<section id="stack">
-  <div class="wrap">
-    <p class="eyebrow">Por baixo dos panos</p>
-    <h2>O stack de modelos.</h2>
-    <p style="color:var(--ink-dim);max-width:50ch;margin:0">Os backends são trocados através de Protocols tipados, para que o papel de um modelo possa mudar sem reescrever o pipeline.</p>
-    <table class="stack">
-      <thead><tr><th>Componente</th><th>Modelo</th><th class="hide-sm">Papel</th></tr></thead>
-      <tbody>
-        <tr><td>Embedding de imagem</td><td class="model">google/siglip2-large-patch16-256</td><td class="role hide-sm">Busca multilíngue de visão e linguagem</td></tr>
-        <tr><td>Reranker</td><td class="model">BAAI/bge-reranker-v2-m3</td><td class="role hide-sm">Reordenação de alta precisão (opcional)</td></tr>
-        <tr><td>Descrição de cena</td><td class="model">Moondream 2</td><td class="role hide-sm">Descrições locais de visão e linguagem</td></tr>
-        <tr><td>Detecção de objetos</td><td class="model">YOLOv8</td><td class="role hide-sm">Objetos e elementos de cena (AGPL-3.0)</td></tr>
-        <tr><td>Detecção de rostos</td><td class="model">MTCNN</td><td class="role hide-sm">Contagem de presença — sem reconhecimento de identidade</td></tr>
-      </tbody>
-    </table>
-    <p style="color:var(--ink-dim);font-size:.92rem;margin-top:1.6rem">
-      A recuperação é medida, não afirmada — o caminho de avaliação reporta Recall@5, Recall@10, MRR e nDCG@10 sobre um conjunto fixo de consultas, além de estatísticas de correção manual. As seleções são exportadas como JSON, CSV, ou uma EDL CMX&nbsp;3600 que você pode importar direto em uma NLE.
-    </p>
-    <p style="margin-top:1rem"><span class="mono">recall@5 · recall@10 · mrr · ndcg@10 · exportação: json / csv / cmx 3600 edl</span></p>
-  </div>
-</section>
+      <!-- ===================== STACK ===================== -->
+      <div class="block bare p-stackhead" id="stack">
+        <p class="eyebrow layer-over">Por baixo dos panos</p>
+        <h2 class="layer-over">O stack de modelos.</h2>
+      </div>
+      <div class="block p-stacknote">
+        <p class="layer-over" style="color:var(--ink-dim);margin:0">Os backends são trocados através de Protocols tipados, para que o papel de um modelo possa mudar sem reescrever o pipeline.</p>
+      </div>
+      <div class="block pad-lg p-stacktbl">
+        <table class="stack layer-under">
+          <thead><tr><th>Componente</th><th>Modelo</th><th class="hide-sm">Papel</th></tr></thead>
+          <tbody>
+            <tr><td>Embedding de imagem</td><td class="model">google/siglip2-large-patch16-256</td><td class="role hide-sm">Busca multilíngue de visão e linguagem</td></tr>
+            <tr><td>Reranker</td><td class="model">BAAI/bge-reranker-v2-m3</td><td class="role hide-sm">Reordenação de alta precisão (opcional)</td></tr>
+            <tr><td>Descrição de cena</td><td class="model">Moondream 2</td><td class="role hide-sm">Descrições locais de visão e linguagem</td></tr>
+            <tr><td>Detecção de objetos</td><td class="model">YOLOv8</td><td class="role hide-sm">Objetos e elementos de cena (AGPL-3.0)</td></tr>
+            <tr><td>Detecção de rostos</td><td class="model">MTCNN</td><td class="role hide-sm">Contagem de presença — sem reconhecimento de identidade</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="block bare p-stackexp">
+        <p class="layer-over">A recuperação é medida, não afirmada — Recall@5, Recall@10, MRR e nDCG@10 sobre um conjunto fixo de consultas, além de estatísticas de correção manual. As seleções são exportadas como JSON, CSV, ou uma EDL CMX&nbsp;3600 que você pode importar direto em uma NLE.</p>
+        <span class="mono layer-over">recall@5 · recall@10 · mrr · ndcg@10 · exportação: json / csv / cmx 3600 edl</span>
+      </div>
 
-<section id="deeper">
-  <div class="wrap">
-    <p class="eyebrow">Leia mais</p>
-    <h2>Aprofunde-se.</h2>
-    <p style="color:var(--ink-dim);max-width:52ch;margin:0">Cinco páginas focadas para revisores técnicos: como o sistema é construído, o que ele não faz, como ele se mede, e como permanece auditável.</p>
-    <div class="pillars">
-      <div class="pillar">
-        <h3><a href="architecture.html">Arquitetura →</a></h3>
-        <p>O pipeline em lote, o aplicativo web FastAPI + HTMX, o registro de modelos plugável, e os contratos de artefatos entre eles.</p>
+      <!-- ===================== GO DEEPER ===================== -->
+      <div class="block bare p-deephead" id="deeper">
+        <p class="eyebrow layer-over">Leia mais</p>
+        <h2 class="layer-over">Aprofunde-se.</h2>
+        <p class="layer-over" style="color:var(--ink-dim);max-width:58ch;margin:0">Cinco páginas focadas para revisores técnicos: como o sistema é construído, o que ele não faz, como ele se mede, e como permanece auditável.</p>
       </div>
-      <div class="pillar">
-        <h3><a href="constraints.html">Restrições →</a></h3>
-        <p>Privacidade e operação offline, rastreabilidade em nível de execução, e tratar a saída da IA como revisável, não como autoridade.</p>
+      <div class="block p-deep1">
+        <p class="deep-link layer-under"><a href="architecture.html">Arquitetura →</a></p>
+        <p class="layer-under">O pipeline em lote, o aplicativo web FastAPI + HTMX, o registro de modelos plugável, e os contratos de artefatos entre eles.</p>
       </div>
-      <div class="pillar">
-        <h3><a href="domain_packs.html">Pacotes de domínio →</a></h3>
-        <p>Como o mesmo motor é redirecionado para um fluxo de trabalho de mídia diferente através de configuração, não de código.</p>
+      <div class="block p-deep2">
+        <p class="deep-link layer-over"><a href="constraints.html">Restrições →</a></p>
+        <p class="layer-over">Privacidade e operação offline, rastreabilidade em nível de execução, e tratar a saída da IA como revisável, não como autoridade.</p>
       </div>
-      <div class="pillar">
-        <h3><a href="evaluation.html">Avaliação →</a></h3>
-        <p>Um conjunto fixo de consultas, métricas padrão de recuperação de informação, e estatísticas de correção que quantificam o que a revisão humana adiciona.</p>
+      <div class="block p-deep3">
+        <p class="deep-link layer-under"><a href="domain_packs.html">Pacotes de domínio →</a></p>
+        <p class="layer-under">Como o mesmo motor é redirecionado para um fluxo de trabalho de mídia diferente através de configuração, não de código.</p>
       </div>
-      <div class="pillar">
-        <h3><a href="run_provenance.html">Proveniência da execução →</a></h3>
-        <p>O manifesto de execução que toda execução escreve, e por que isso torna o catálogo auditável.</p>
+      <div class="block p-deep4">
+        <p class="deep-link layer-over"><a href="evaluation.html">Avaliação →</a></p>
+        <p class="layer-over">Um conjunto fixo de consultas, métricas padrão de recuperação de informação, e estatísticas de correção que quantificam o que a revisão humana adiciona.</p>
       </div>
-    </div>
-  </div>
-</section>
+      <div class="block p-deep5">
+        <p class="deep-link layer-under"><a href="run_provenance.html">Proveniência da execução →</a></p>
+        <p class="layer-under">O manifesto de execução que toda execução escreve, e por que isso torna o catálogo auditável.</p>
+      </div>
 
-<section id="status">
-  <div class="wrap">
-    <div class="status">
-      <div class="dot"></div>
-      <div>
+      <!-- ===================== STATUS ===================== -->
+      <div class="block p-statdot" id="status"><div class="status-dot"></div></div>
+      <div class="block pad-lg p-statmain">
         <h3>Status honesto</h3>
         <p>O KUAA é local-first e de usuário único por design. A demo pública roda sobre filmagens da Library of Congress, não sobre dados institucionais privados. As descrições geradas são tratadas como metadados de primeira passada revisáveis — úteis, mas não registros de catálogo com autoridade final.</p>
         <p>O pipeline de processamento, o motor de recuperação, a anotação, o executor de avaliação, as exportações e os manifestos de execução estão implementados e testados. As métricas finais publicadas e o pacote de artefatos da demo são uma etapa de lançamento em andamento.</p>
+      </div>
+      <div class="block p-statver">
         <span class="ver">v0.10.0 · MIT (componente YOLOv8 sob AGPL-3.0) · as licenças de modelos precisam de revisão antes de uma implantação institucional</span>
       </div>
+
     </div>
   </div>
-</section>
+</div>
 
 <footer>
   <div class="wrap frow">
@@ -467,5 +798,32 @@
   </div>
 </footer>
 
+<script>
+(function(){
+  document.querySelectorAll('.nav-item').forEach(function(item){
+    var trigger = item.querySelector('.nav-trigger');
+    if(!trigger) return;
+    trigger.addEventListener('click', function(e){
+      e.stopPropagation();
+      var isOpen = item.classList.toggle('open');
+      trigger.setAttribute('aria-expanded', String(isOpen));
+    });
+  });
+  document.addEventListener('click', function(){
+    document.querySelectorAll('.nav-item.open').forEach(function(item){
+      item.classList.remove('open');
+      item.querySelector('.nav-trigger').setAttribute('aria-expanded', 'false');
+    });
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      document.querySelectorAll('.nav-item.open').forEach(function(item){
+        item.classList.remove('open');
+        item.querySelector('.nav-trigger').setAttribute('aria-expanded', 'false');
+      });
+    }
+  });
+})();
+</script>
 </body>
 </html>
