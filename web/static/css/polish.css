@@ -451,4 +451,10 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .b-card:hover, .scenecard:hover { transform: none; }
+  /* The tab-swap entrance was unguarded: every pane animated opacity 0→1
+     plus a 2px rise on load and on every HTMX tab swap, for users who
+     asked the OS for no motion. It also meant text spent 220ms at partial
+     opacity — genuinely lower contrast while it ran, and enough to trip an
+     axe audit that samples before the animation settles. */
+  .ch-body > *:not(.ch-lp) { animation: none; }
 }

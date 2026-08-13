@@ -217,6 +217,30 @@ def wait_for_alpine(page: Any, *, timeout: int = 5000) -> None:
     )
 
 
+def wait_for_animations(page: Any, *, timeout: int = 3000) -> None:
+    """Block until every running CSS animation/transition has finished.
+
+    Required before a colour-contrast audit. The chrome plays a 220ms
+    entrance on each pane (``p-fade-in`` in polish.css, opacity 0→1), and an
+    audit that samples mid-flight measures BLENDED colours: axe reported
+    e.g. fg #8374cc on bg #1f1e2d (ratio 4.16) for text that is
+    #8B7BD8-on-#171B22 (4.87) once settled. At partial opacity *any*
+    element fails contrast, including fully compliant text, so sampling
+    early tests the animation rather than the design and yields four
+    reproducible false positives (/search, /rimas, palette, help overlay).
+
+    ``getAnimations()`` covers CSS animations AND transitions. Finished
+    promises are individually caught: a cancelled animation rejects, and one
+    cancellation must not fail the wait.
+    """
+    page.wait_for_function(
+        """() => Promise.all(
+              document.getAnimations().map((a) => a.finished.catch(() => {}))
+           ).then(() => true)""",
+        timeout=timeout,
+    )
+
+
 def run_axe(page: Any, axe_source: str, *, context: Any = None) -> list[dict[str, Any]]:
     """Inject axe-core into ``page`` and return its violations list.
 
