@@ -11,8 +11,24 @@
     would remove yellow; a pending split draws a red marker at its position
     inside the scene it would divide) plus a row in the pending-changes list
     below. Only "Apply changes" triggers the real (now partial) rebuild. -#}
-<div id="pp-filmstrip" class="pp-filmstrip">
-{% if not filmstrip or not filmstrip.has_scenes %}
+{#- pp_watch (set by build_preprocess_context / render_filmstrip_fragment)
+    is true while a job of any kind — not just a Pre-processing-only run —
+    still has scene_detection open for this film. Polling here (rather than
+    only reacting to this tab's own SSE stream) is what makes the filmstrip
+    populate right after scene_detection finishes even when it ran as step 1
+    of a full "add film" pipeline job, instead of waiting for the whole
+    pipeline. Self-terminating: once a poll returns has_scenes=true, pp_watch
+    is re-evaluated false and the swapped-in fragment carries no polling
+    attributes, so it stops on its own without a separate "stop" signal. -#}
+{%- set pp_empty = not filmstrip or not filmstrip.has_scenes -%}
+<div id="pp-filmstrip" class="pp-filmstrip"
+     {% if pp_watch and pp_empty %}
+     hx-get="/api/preprocess/filmstrip?film={{ pp_slug }}"
+     hx-trigger="every 5s"
+     hx-target="#pp-filmstrip"
+     hx-swap="outerHTML"
+     {% endif %}>
+{% if pp_empty %}
   <div class="pp-empty">
     <span class="pp-empty__glyph">{{ icon('preproc', 26) }}</span>
     <p class="pp-empty__text">{{ _("No scenes yet. Run scene detection to review its cuts here.") }}</p>

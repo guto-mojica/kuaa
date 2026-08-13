@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import sys
 from contextlib import asynccontextmanager
@@ -46,6 +47,39 @@ from kuaa.library import keyframe_url, load_json, scan_library
 
 logger = logging.getLogger(__name__)
 
+# asyncio only holds a WEAK reference to a scheduled Task — with nothing
+# else keeping it alive, the event loop is free to garbage-collect the
+# warm-up task mid-run (most likely right after a --reload restart, while
+# the interpreter is still churning through fresh imports), silently
+# dropping it with no exception logged anywhere. This set is that "else".
+_background_tasks: set[asyncio.Task] = set()
+
+
+def _warm_image_embedder(cfg: Any) -> None:
+    """Eagerly load the configured image-embedding backend once, at boot.
+
+    ``SiglipMultilingualEmbedder`` (the shipped default) defers its ~10s
+    ``AutoModel.from_pretrained`` call from construction to the FIRST
+    ``encode_text``/``encode_image_single`` call (see
+    ``kuaa.models.clip.siglip_multilingual._load_model``). The loaded
+    instance itself is cached process-wide
+    (``kuaa.models.registry._image_embedder_cache``), so this cost is
+    paid once per process either way — but without a warm-up, "once per
+    process" lands on whichever user's search happens to be first, and
+    reads as a ~10s hang. ``kuaa serve`` defaults ``--reload`` to True,
+    so during dev that is not "once ever", it is "once per file-watch
+    restart". Warming here puts the cost in the startup log instead.
+    Failures are logged, not raised — the lazy load still works
+    correctly as a fallback on the first real query.
+    """
+    try:
+        from kuaa.models.registry import get_image_embedder
+
+        embedder = get_image_embedder(cfg)
+        embedder.encode_text("")
+    except Exception:
+        logger.exception("Image embedder warm-up failed; first search will pay the load cost")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -63,6 +97,14 @@ async def lifespan(app: FastAPI):
         logger.info("Serving media from %s", data_dir)
     else:
         logger.warning("data_dir not found — keyframe images will not be served: %s", data_dir)
+    # Fire-and-forget: runs in a worker thread so startup (and --reload
+    # cycles) stay snappy rather than blocking on a ~10s model load. A
+    # search that lands before this finishes just pays the cost live, same
+    # as today — this can only make the common case better, never worse.
+    # Held in _background_tasks (see comment above) so it isn't GC'd mid-run.
+    warm_task = asyncio.create_task(asyncio.to_thread(_warm_image_embedder, cfg))
+    _background_tasks.add(warm_task)
+    warm_task.add_done_callback(_background_tasks.discard)
     yield
 
 
@@ -244,7 +286,14 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     # building tab_ctx so slug-aware builders (search) can scope their
     # tag vocabulary to the active film, AND before building the chrome
     # context so the LeftPane marks the .ch-film.active row correctly.
-    _raw_slug = request.query_params.get("film") or request.cookies.get("active_film") or None
+    # Search is the library-wide entry point: it opens at aggregate scope
+    # unless a film is named explicitly in the URL (e.g. a deep link from
+    # Scenes via the topbar's slug carry-over). Every other tab still falls
+    # back to the active_film cookie for cross-tab continuity — but Search
+    # inheriting the last film Processing/Pre-processing touched is exactly
+    # what threw users into a random film's scope on a bare "Search" click.
+    _cookie_slug = request.cookies.get("active_film") if active_tab != "search" else None
+    _raw_slug = request.query_params.get("film") or _cookie_slug or None
     # Normalise to lowercase (all registered slugs are lowercase via slugify)
     # and validate against the library directory so a stale cookie or wrong-
     # cased slug doesn't propagate a ValueError into every service call.
