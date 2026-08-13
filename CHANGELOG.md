@@ -10,6 +10,45 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ## [Não lançado]
 
+### Alterado
+
+- **LOC budget agora cobre todo o `api/`, por prefixo mais específico.**
+  `scripts/check_loc_budget.py` usava `glob("*.py")` em `api/services` e
+  `api/routes`, o que cobria apenas o primeiro nível. Na prática os maiores
+  módulos da camada HTTP eram justamente os únicos sem medição:
+  `api/jobs.py` (1076 linhas), `api/server.py` (498), `api/deps.py` (371) e
+  todo o pacote `api/services/scenes/` (1154 linhas em 7 arquivos) ficavam
+  fora do guard — enquanto o docstring de `api/services/scenes/__init__.py`
+  afirmava que o split existia para respeitar um budget que nunca era
+  verificado ali.
+
+  O guard passou a percorrer `api/**/*.py` e resolver o cap pelo prefixo
+  mais específico, de modo que cada arquivo tem exatamente um cap e pacotes
+  aninhados não escapam:
+
+  | Prefixo | Cap | Papel |
+  |---|---:|---|
+  | `api/routes/*` | 150 | shape HTTP + render |
+  | `api/services/**` | 250 | adapters HTTP (inclui pacotes aninhados) |
+  | `api/*` | 600 | app assembly / DI / orquestração de jobs |
+
+  Cobertura foi de 37 para 53 módulos. Os caps de `routes` e `services`
+  **não** mudaram de valor — a correção é de alcance, não de folga. O tier
+  `api/*` é novo: `server.py`, `deps.py` e `jobs.py` são infraestrutura, não
+  adapters de request, e um cap de 250 nunca fez sentido para eles.
+
+  `api/jobs.py` entra como exemption documentada (com saída registrada:
+  mover o registry de jobs e a máquina de estados para `src/kuaa/`, que são
+  HTTP-agnósticos, deixando aqui só o adapter SSE). A exemption pré-existente
+  de `api/routes/preprocess.py` permanece inalterada.
+
+  Nota para revisão futura: quatro arquivos estão exatamente no cap
+  (`_search_rerank.py`, `catalog.py` e `rhymes_service.py` em 250/250;
+  `routes/library.py` em 150/150), e `api/services/_annotate_curation.py`
+  existe apenas para caber no limite. Isso sugere que o cap de 250 está
+  apertado para o trabalho real, mas afrouxá-lo é decisão separada e
+  deliberada — não foi feita aqui.
+
 ## [0.10.0] - 2026-08-05
 
 ### Corrigido

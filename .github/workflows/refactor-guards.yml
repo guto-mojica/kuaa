@@ -3,7 +3,10 @@ name: refactor-guards
 # Enforces the P1 deep-modules refactor invariants on every PR that touches
 # the layered code (or the guard scripts themselves):
 #
-#   1. LOC budget: api/services/*.py ≤ 250, api/routes/*.py ≤ 150.
+#   1. LOC budget, by most-specific prefix so nested packages cannot escape:
+#        api/routes/*    ≤ 150   (HTTP shape + render)
+#        api/services/** ≤ 250   (HTTP adapters, incl. nested packages)
+#        api/*           ≤ 600   (app assembly / DI / job orchestration)
 #      Exemptions are listed explicitly in scripts/check_loc_budget.py;
 #      lifting one requires a CHANGELOG entry + reviewer sign-off.
 #   2. Layer contracts (import-linter):
@@ -42,7 +45,7 @@ jobs:
           python-version-file: ".python-version"
       - name: Install dev deps
         run: uv sync --extra full --group dev
-      - name: LOC budget (api/services ≤ 250, api/routes ≤ 150)
+      - name: LOC budget (routes ≤ 150, services ≤ 250, api/* ≤ 600)
         run: uv run python scripts/check_loc_budget.py
       - name: import-linter (layer contracts)
         run: uv run lint-imports
