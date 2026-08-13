@@ -136,22 +136,13 @@ def _get_search_index(cfg: Settings, slug: str) -> SearchIndex:
 def _get_bm25_index_for_ctx_with_cfg(cfg: Settings, ctx: FilmContext) -> Any:
     """Load + cache the BM25 index for one film.
 
-    Resolves ``cfg.search.bm25`` tunables (``stopwords_lang`` / ``k1`` /
-    ``b``) directly from the supplied ``cfg`` object — no ``api.deps``
+    Resolves every ``cfg.search.bm25`` tunable through the shared
+    :func:`~kuaa.search.bm25.resolve_bm25_kwargs` — no ``api.deps``
     dependency needed because aggregate callers already hold ``cfg``.
     """
-    from kuaa.search.bm25 import bm25_index_for_ctx
+    from kuaa.search.bm25 import bm25_index_for_ctx, resolve_bm25_kwargs
 
-    bm25_cfg = getattr(cfg.search, "bm25", None) if hasattr(cfg, "search") else None
-    stopwords_lang = getattr(bm25_cfg, "stopwords_lang", None) if bm25_cfg else None
-    k1 = float(getattr(bm25_cfg, "k1", 1.5)) if bm25_cfg else 1.5
-    b = float(getattr(bm25_cfg, "b", 0.75)) if bm25_cfg else 0.75
-    return bm25_index_for_ctx(
-        ctx,
-        stopwords_lang=stopwords_lang,
-        k1=k1,
-        b=b,
-    )
+    return bm25_index_for_ctx(ctx, **resolve_bm25_kwargs(cfg))
 
 
 def has_indexed_films(cfg: Settings) -> bool:
@@ -589,7 +580,7 @@ def aggregate_search(
         sem_w=sem_w,
         bm25_w=bm25_w,
         rrf_k=rrf_k,
-        metadata_w=resolve_metadata_w(cfg),
+        metadata_w=resolve_metadata_w(cfg, query),
     )
 
     # Phase 4: materialise hit dicts. Keys are already unique

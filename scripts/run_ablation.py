@@ -117,8 +117,30 @@ def _build_ablation_section(table_md: str, *, with_rerank: bool, seed: int, quer
         "",
         "**Reading the numbers** (proxy / HY, not human-graded):",
         "",
-        "- **Hybrid beats CLIP-only here** — RRF fusion of SigLIP2 + BM25 edges "
-        "CLIP on R@5 and MRR.",
+        "- **Treat differences here as noise unless they are large.** This is 15 "
+        "queries scored against the maintainer's pre-curator *hypothesis* labels, "
+        "with roughly three relevant scenes each out of ~450. Every retriever "
+        "lands near nDCG@10 ≈ 0.08, where one query's movement swings the third "
+        "decimal. The table is a wiring check — it tells you a leg is connected "
+        "and roughly not harmful — not a quality ranking.",
+        "",
+        "- **It cannot see the PT/EN gap at all.** 8 of the 15 text queries are "
+        "Portuguese, and the labels were authored against what the system used to "
+        "return. Before the bilingual index expansion those PT queries retrieved "
+        "*nothing* from BM25; they now retrieve plausible scenes, which these "
+        "labels neither reward nor penalise. Use `scripts/check_pt_parity.py` for "
+        "that axis.",
+        "",
+        "- **`hybrid` vs `hybrid-metadata` is finally a real comparison.** The two "
+        "rows were byte-identical for as long as they shipped, because the "
+        "metadata scorer bailed out on any query over 4 tokens and so returned `{}` "
+        "on 13 of these 15 queries — the ablation was subtracting a leg that was "
+        "already absent.",
+        "",
+        "- **Nothing here measures short object queries**, which is the case the "
+        "metadata leg exists for. Its fusion share now tapers with query length "
+        "(`kuaa.retrieval.hybrid.effective_metadata_w`); this slate only exercises "
+        "the long end of that taper.",
         "",
         "Reproduce:",
         "",

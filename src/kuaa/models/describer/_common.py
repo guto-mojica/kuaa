@@ -13,6 +13,8 @@ import re
 
 import pandas as pd
 
+from kuaa.errors import is_error_response
+
 PROMPTS: dict[str, tuple[str, int]] = {
     #                prompt                                          max_new_tokens
     "description": (
@@ -113,7 +115,7 @@ def _parse_num_people(text: str) -> int:
 
 def _parse_objects(text: str) -> list[str]:
     """Converte a string de objetos em lista normalizada (máx. 6 itens)."""
-    if not text or text.startswith("ERROR"):
+    if not text or is_error_response(text):
         return []
     parts = re.split(r"[,;.]+", text)
     stopwords = {"a", "an", "the", "some", "and", "with"}
@@ -167,6 +169,10 @@ def build_metadata(row: pd.Series, raw: dict) -> dict:
     num_people = _parse_num_people(raw.get("people_and_action", ""))
     objects = _parse_objects(raw.get("objects", ""))
     setting = raw.get("setting", "").strip().lower()
+    if is_error_response(setting):
+        # ``setting`` is kebab-cased straight into the tag vocabulary by
+        # ``_generate_tags``, with no other filter between it and the index.
+        setting = ""
 
     parsed = {
         "location": location,

@@ -17,28 +17,88 @@ from collections.abc import Iterable
 # Public so tests can pin the constant.
 DEFAULT_RRF_K: int = 60
 
-# Majority share of the exact-lexical metadata list in 3-way hybrid fusion
-# (tags / descriptions / detected objects vs the CLIP+BM25 residual). The
-# single source of truth — ``cfg.search.hybrid_metadata_w`` defaults to it,
-# and ``search_hybrid`` / ``aggregate._dispatch_ranked`` / the eval harness
-# all resolve through it.
+# Share of the exact-lexical metadata list in 3-way hybrid fusion (tags /
+# descriptions / detected objects vs the CLIP+BM25 residual). The single
+# source of truth — ``cfg.search.hybrid_metadata_w`` defaults to it, and
+# ``search_hybrid`` / ``aggregate._dispatch_ranked`` / the eval harness all
+# resolve through it.
+#
+# This is the ceiling, applied to *short* queries. See
+# :func:`effective_metadata_w` for why it tapers.
 DEFAULT_METADATA_W: float = 0.65
 
+# The metadata share for long natural-language queries. Derived from a sweep
+# on ``m3_text_queries`` (15 queries, 4-7 terms each) once the leg actually
+# started firing: nDCG@10 ran 0.073 at w<=0.10, 0.067 at 0.20-0.35, and 0.042
+# at 0.50-0.65 — monotonically against the leg.
+LONG_QUERY_METADATA_W: float = 0.15
 
-def resolve_metadata_w(cfg: object | None) -> float:
+# Query lengths (in scored terms) that bracket the taper.
+_SHORT_QUERY_TERMS: int = 2
+_LONG_QUERY_TERMS: int = 5
+
+
+def effective_metadata_w(base_w: float, query_terms: int) -> float:
+    """Scale the metadata fusion share by how long the query is.
+
+    The exact-lexical leg exists to rescue *short object queries* — the
+    scorer's own docstring says so: for ``dog``, an exact tag or detector
+    class is stronger evidence than a weak visual cosine. At that length it
+    earns a majority share, and a synthetic worst case (CLIP ranking 58
+    wrong scenes above the two tagged ones) shows it genuinely needs one.
+
+    On long natural-language queries the same weight is actively harmful,
+    because a partial lexical overlap is weak evidence that nonetheless
+    outranks a good dense match. The original code encoded this intuition
+    as a hard ``len(query_tokens) > 4 -> return {}`` bail-out, which threw
+    the leg away entirely rather than turning it down — and, because the
+    leg was then inert on almost every real query, left its 0.65 weight
+    unmeasured for as long as it shipped.
+
+    Tapering keeps both properties: full strength where the evidence is
+    strong, :data:`LONG_QUERY_METADATA_W` where it is not.
+
+    Args:
+        base_w: the configured ceiling (``cfg.search.hybrid_metadata_w``).
+        query_terms: number of scored query terms.
+
+    Returns:
+        The share to use, never above ``base_w``.
+    """
+    floor = min(base_w, LONG_QUERY_METADATA_W)
+    if query_terms <= _SHORT_QUERY_TERMS:
+        return base_w
+    if query_terms >= _LONG_QUERY_TERMS:
+        return floor
+    span = (query_terms - _SHORT_QUERY_TERMS) / (_LONG_QUERY_TERMS - _SHORT_QUERY_TERMS)
+    return base_w + (floor - base_w) * span
+
+
+def resolve_metadata_w(cfg: object | None, query: str | None = None) -> float:
     """Resolve the metadata fusion share from ``cfg.search.hybrid_metadata_w``.
 
     Duck-typed so unit-test configs without a ``search`` section (and callers
     with ``cfg=None``) fall back to :data:`DEFAULT_METADATA_W`. Clamped to
     ``[0, 1]``; ``0.0`` disables the metadata leg entirely.
+
+    When ``query`` is supplied the configured value is treated as a ceiling
+    and tapered by query length — see :func:`effective_metadata_w`. Callers
+    that omit it get the untapered ceiling, which is the right default for
+    a caller that has no query in hand.
     """
     search = getattr(cfg, "search", None)
     raw = getattr(search, "hybrid_metadata_w", DEFAULT_METADATA_W)
     try:
         value = float(raw)
     except (TypeError, ValueError):
-        return DEFAULT_METADATA_W
-    return min(max(value, 0.0), 1.0)
+        value = DEFAULT_METADATA_W
+    base = min(max(value, 0.0), 1.0)
+    if query is None:
+        return base
+    # Imported here: kuaa.search depends on kuaa.retrieval, not the reverse.
+    from kuaa.search._aggregate.scorers import build_query_terms
+
+    return effective_metadata_w(base, len(build_query_terms(query)))
 
 
 def fuse_rrf(
@@ -72,15 +132,20 @@ def fuse_rrf(
     """
     ranks_a: dict[int, int] = {sid: rank for rank, (sid, _) in enumerate(list_a, start=1)}
     ranks_b: dict[int, int] = {sid: rank for rank, (sid, _) in enumerate(list_b, start=1)}
-    all_sids = set(ranks_a) | set(ranks_b)
-    fused: list[tuple[int, float]] = []
-    for sid in all_sids:
-        score = 0.0
-        if sid in ranks_a:
-            score += sem_w / (k_rrf + ranks_a[sid])
-        if sid in ranks_b:
-            score += bm25_w / (k_rrf + ranks_b[sid])
-        fused.append((sid, score))
+    # Accumulate into an insertion-ordered dict rather than iterating a set.
+    # A set loses insertion order, so equal fused scores used to break on
+    # int-hash bucket order — and with k_rrf=60 near-ties are common (ranks
+    # 1 and 2 differ by only 1.6%), making the top of the result list
+    # unstable for reasons unrelated to relevance. Seeding from list_a then
+    # list_b makes ties break by first-seen leg, matching fuse_global_rrf.
+    scores: dict[int, float] = {}
+    for sid in (*ranks_a, *ranks_b):
+        scores.setdefault(sid, 0.0)
+    for sid, rank in ranks_a.items():
+        scores[sid] += sem_w / (k_rrf + rank)
+    for sid, rank in ranks_b.items():
+        scores[sid] += bm25_w / (k_rrf + rank)
+    fused = list(scores.items())
     fused.sort(key=lambda pair: pair[1], reverse=True)
     return fused
 

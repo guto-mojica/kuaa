@@ -146,8 +146,9 @@ class Bm25Cfg(_Section):
     b: float = 0.75
     stopwords_lang: str | None = None
     rrf_k: int = 60
-    tokenizer: str = "regex"  # "regex" (default, unchanged) | "multilingual" (PT-aware, opt-in)
+    tokenizer: str = "regex"  # "regex" (conservative) | "multilingual" (PT-aware)
     tag_boost: int = 1  # per-surface weight on tags surface (>1 lifts curator tags; 1 = neutral)
+    bilingual: bool = False  # index-time EN→PT expansion (see kuaa.retrieval.bilingual)
 
 
 class SearchCfg(_Section):

@@ -68,6 +68,7 @@ class BM25Index:
         k1: float = 1.5,
         b: float = 0.75,
         tag_boost: int = 1,
+        bilingual: bool = False,
     ) -> BM25Index:
         """Build a BM25 index.
 
@@ -80,6 +81,8 @@ class BM25Index:
                 ``stopwords_lang`` is ignored.
             k1: BM25 saturation parameter.
             b: BM25 length-normalisation parameter.
+            bilingual: Append Portuguese surface forms for the English
+                content of each document (see :mod:`kuaa.retrieval.bilingual`).
         """
         _tok: Tokenizer = (
             tokenizer if tokenizer is not None else RegexTokenizer(stopwords_lang=stopwords_lang)
@@ -90,6 +93,7 @@ class BM25Index:
             stopwords_lang=stopwords_lang,
             tokenizer=_tok,
             tag_boost=tag_boost,
+            bilingual=bilingual,
         )
         if not docs:
             return cls(scene_ids=[], model=None, stopwords_lang=stopwords_lang, tokenizer=_tok)

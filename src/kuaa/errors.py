@@ -8,6 +8,8 @@ these (keeping their names as aliases) in a follow-up step of this task.
 
 from __future__ import annotations
 
+import re
+
 
 class KuaaError(Exception):
     """Base for every domain error. Carries a stable ``code``.
@@ -112,3 +114,26 @@ __all__ = [
     "ArtefactError",
     "http_status_for",
 ]
+
+
+# Backend failures are captured as strings and flow into the same fields as
+# real answers, so an exception can end up indexed as scene content. This
+# actually happened: every scene of ``the-great-train-robbery-1903`` carries
+# the tag ``error:-passed-cpu-tensor-to-mps-op``, an MPS device error that
+# became a searchable BM25 term. The pre-existing ``startswith("ERROR")``
+# check missed it because the backend emitted lowercase ``Error:``.
+_ERROR_RE = re.compile(
+    r"^\s*(error|erro|exception|traceback|runtimeerror|valueerror|notimplementederror)\b"
+    r"|^\s*<[a-z_]*error",
+    flags=re.IGNORECASE,
+)
+
+
+def is_error_response(text: str) -> bool:
+    """True when a model response is a captured failure, not an answer.
+
+    Guards every free-text field that reaches the tag vocabulary. Matching
+    is case-insensitive and anchored at the start, so a caption that merely
+    mentions the word "error" mid-sentence is still indexed.
+    """
+    return bool(text) and bool(_ERROR_RE.search(text))
