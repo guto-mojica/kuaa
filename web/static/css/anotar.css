@@ -257,7 +257,7 @@
 /* Right comments pane — .a-rp-mount is the HTMX swap wrapper; it must carry
    the fixed width so swaps preserve the column width. */
 .a-rp-mount {
-  width: 380px; flex-shrink: 0;
+  width: var(--rp-w, 380px); flex-shrink: 0;
   overflow: hidden; display: flex; flex-direction: column;
 }
 

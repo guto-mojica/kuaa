@@ -189,7 +189,7 @@
 
 /* RIGHT PANE */
 .b-rp {
-  width: 380px; flex-shrink: 0;
+  width: var(--rp-w, 380px); flex-shrink: 0;
   border-left: 1px solid var(--c-border); background: var(--c-panel);
   display: flex; flex-direction: column; overflow: hidden;
 }
@@ -524,7 +524,7 @@
    `.fx-empty` (0,1,0), so the pane stays exactly 380px as before. */
 .b-rp.b-rp-empty {
   border-left: 1px solid var(--c-border); background: var(--c-panel);
-  flex: 0 0 380px;
+  flex: 0 0 var(--rp-w, 380px);
 }
 
 /* ─── Tag-filter section height cap ──────────────────────────────────────
@@ -690,9 +690,15 @@
 }
 
 .knob-popover .popover {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
+  /* fixed, not absolute: an absolute panel is a box-tree descendant of
+     .b-cp's overflow:hidden and gets clipped at the pane edge (same
+     mechanism as the old data-tip tooltip). mojica.js pins it under its
+     toggle with viewport coordinates one rAF after Alpine opens it; the
+     off-screen left here only parks the panel for the pre-measure frame so
+     it never flashes at the viewport corner. */
+  position: fixed;
+  top: 0;
+  left: -9999px;
   z-index: var(--z-popover-raised);
   min-width: 220px;
   padding: 10px 12px;

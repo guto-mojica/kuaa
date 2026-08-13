@@ -377,7 +377,7 @@
 
 /* RIGHT PANE — Active step detail */
 .p-rp {
-  width: 380px; flex-shrink: 0;
+  width: var(--rp-w, 380px); flex-shrink: 0;
   border-left: 1px solid var(--c-border); background: var(--c-panel);
   display: flex; flex-direction: column; overflow: hidden;
 }

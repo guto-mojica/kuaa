@@ -134,6 +134,15 @@
        controls converge on this. */
     --focus-ring: 0 0 0 3px var(--c-accent-bg);
 
+    /* === Pane widths (resizable columns) ===
+       Consumed by chrome.css (.ch-body grid tracks) and every per-tab
+       inspector (.b-rp/.c-rp/.r-rp/.a-rp/.p-rp width). mojica.js
+       pane-resize overrides these on <html> style when the user drags a
+       column handle (persisted under the mojica:layout localStorage key);
+       these are the defaults and the dblclick-reset targets. */
+    --lp-w: 248px;
+    --rp-w: 380px;
+
     /* === Legacy aliases — keep until v0.3 tests retire === */
     --c-bg-base:        var(--c-bg);
     --c-bg-raised:      var(--c-raised);

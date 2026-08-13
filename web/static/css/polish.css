@@ -98,41 +98,74 @@
 }
 .a-keyframe .pin { animation: p-pin-pulse 2.4s ease-in-out infinite; }
 
-/* ─── Tooltip (pure CSS via data-tip) ────────────────────────────────── */
-.fx-app [data-tip] { position: relative; }
-.fx-app [data-tip]::after {
-  content: attr(data-tip);
-  position: absolute;
-  bottom: calc(100% + 6px); left: 50%;
-  transform: translateX(-50%) translateY(4px);
+/* ─── Tooltip (data-tip → JS-positioned fixed bubble) ────────────────── */
+/* The old pure-CSS ::after tooltip positioned absolutely against the
+ * trigger, which made it a box-tree descendant of every overflow clip box
+ * above it (.pp-cp overflow-y:auto, .ch-main/.ch-body overflow:hidden).
+ * Overflow clipping is applied by the box tree, not the stacking context,
+ * so z-index:1000 could never rescue it — the bubble was cut at the column
+ * edge. The bubble is now a single reusable element appended to <body>,
+ * position:fixed against the viewport (immune to ancestor clipping), and
+ * placed by the fx-tooltip block in mojica.js (flip + clamp at edges).
+ * Same visual tokens as the old ::after; nowrap dropped for a max-width so
+ * long help texts wrap instead of spanning the whole viewport. */
+.fx-tip-bubble {
+  position: fixed;
+  max-width: 36ch;
   padding: 4px 8px; border-radius: 4px;
   background: #050608; color: var(--c-text);
   font-family: var(--font-sans); font-size: 11px; font-weight: 500;
-  white-space: nowrap;
+  line-height: 1.45;
   border: 1px solid var(--c-border-2);
   box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-  opacity: 0; pointer-events: none;
-  transition: opacity var(--dur-fast), transform var(--dur-fast);
-  transition-delay: 0s;
+  pointer-events: none;
   z-index: var(--z-tooltip);
   letter-spacing: -0.005em;
+  opacity: 0;
+  transition: opacity var(--dur-fast);
 }
-.fx-app [data-tip][data-tip-pos="bottom"]::after {
-  bottom: auto; top: calc(100% + 6px);
-  transform: translateX(-50%) translateY(-4px);
+.fx-tip-bubble.on { opacity: 1; transition-delay: .35s; }
+
+/* ─── Visible scroll affordance (columns/panes) ──────────────────────── */
+/* macOS overlay scrollbars hide until a scroll gesture starts, so the
+ * library pane and the metadata/description inspectors gave no visual cue
+ * that more content exists below the fold — descriptions read as "cut
+ * off". Styling the scrollbar opts out of overlay rendering in
+ * Chrome/Safari (::-webkit-scrollbar) and thins + colors it in Firefox
+ * (scrollbar-width/color), so any scrollable column shows a resting thumb. */
+.fx-app * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--c-border-2) transparent;
 }
-.fx-app [data-tip][data-tip-pos="right"]::after {
-  bottom: auto; top: 50%; left: calc(100% + 6px);
-  transform: translateY(-50%) translateX(-4px);
+.fx-app ::-webkit-scrollbar { width: 8px; height: 8px; }
+.fx-app ::-webkit-scrollbar-track { background: transparent; }
+.fx-app ::-webkit-scrollbar-thumb {
+  background: var(--c-border-2);
+  border-radius: 4px;
 }
-.fx-app [data-tip]:hover::after {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-  transition-delay: .35s;
+.fx-app ::-webkit-scrollbar-thumb:hover { background: var(--c-faint); }
+
+/* ─── pane-resize handles (injected by mojica.js) ────────────────────── */
+/* 6px hit strip kept fully INSIDE the pane edge — the panes are
+ * overflow:hidden, so a half-out strip would be clipped. Drag or use
+ * Arrow keys / Home / End; Enter or double-click resets to the default. */
+.pane-handle {
+  position: absolute; top: 0; width: 6px; bottom: 0;
+  cursor: col-resize;
+  z-index: var(--z-raised);
+  background: transparent;
+  touch-action: none;
 }
-.fx-app [data-tip][data-tip-pos="right"]:hover::after {
-  transform: translateY(-50%) translateX(0);
+.pane-handle--right { right: 0; }
+.pane-handle--left  { left: 0; }
+.pane-handle:hover,
+.pane-handle:focus-visible { background: var(--c-accent-bg); }
+.pane-handle:focus-visible {
+  outline: 2px solid var(--c-accent-dim);
+  outline-offset: -2px;
 }
+/* Positioning parents for the injected handles. */
+.ch-lp, .b-rp, .c-rp, .r-rp, .p-rp, .a-rp-mount, .ch-right { position: relative; }
 
 /* ─── Command palette ────────────────────────────────────────────────── */
 /* The [hidden] override below restores the HTML attribute's semantics —

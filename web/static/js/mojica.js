@@ -882,3 +882,264 @@ window.downloadSelectionEdl = function () {
     syncOfflineBadge();
   }
 })();
+
+// ─── fx-tooltip: JS-positioned fixed bubble for [data-tip] ──────────────
+// Replaces the old pure-CSS [data-tip]::after tooltip, which positioned
+// absolutely against the trigger and was therefore clipped by every
+// overflow ancestor between the badge and the viewport (.pp-cp's
+// overflow-y:auto, .ch-main/.ch-body overflow:hidden). A single reusable
+// bubble is appended to <body> and placed with position:fixed viewport
+// coordinates — box-tree clipping can no longer touch it. Styling lives
+// in polish.css (.fx-tip-bubble); this block only measures and places.
+(function () {
+  'use strict';
+
+  var GAP = 6;         // px between anchor and bubble
+  var EDGE = 8;        // min px between bubble and viewport edge
+  var bubble = null;   // lazily created singleton
+  var anchor = null;   // element currently described
+
+  function ensureBubble() {
+    if (bubble) return bubble;
+    bubble = document.createElement('div');
+    bubble.className = 'fx-tip-bubble';
+    bubble.id = 'fx-tip-bubble';
+    bubble.setAttribute('role', 'tooltip');
+    bubble.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(bubble);
+    return bubble;
+  }
+
+  function show(el) {
+    var text = el.getAttribute('data-tip');
+    if (!text) return;
+    var b = ensureBubble();
+    anchor = el;
+    b.textContent = text;
+    // Paint off-screen first so offsetWidth/Height measure the wrapped size.
+    b.style.left = '-9999px';
+    b.style.top = '0px';
+    b.setAttribute('aria-hidden', 'false');
+    el.setAttribute('aria-describedby', 'fx-tip-bubble');
+    var r = el.getBoundingClientRect();
+    var bw = b.offsetWidth, bh = b.offsetHeight;
+    // Above-center by default; flip below when there is no headroom.
+    var top = r.top - bh - GAP;
+    if (top < EDGE) top = r.bottom + GAP;
+    var left = r.left + r.width / 2 - bw / 2;
+    left = Math.max(EDGE, Math.min(left, window.innerWidth - bw - EDGE));
+    b.style.left = left + 'px';
+    b.style.top = top + 'px';
+    b.classList.add('on');
+  }
+
+  function hide() {
+    if (!bubble) return;
+    bubble.classList.remove('on');
+    bubble.setAttribute('aria-hidden', 'true');
+    if (anchor) { anchor.removeAttribute('aria-describedby'); anchor = null; }
+  }
+
+  // mouseenter/leave don't bubble — delegate via pointerover/out + closest().
+  document.addEventListener('pointerover', function (e) {
+    var el = e.target && e.target.closest && e.target.closest('[data-tip]');
+    if (el && el !== anchor) show(el);
+  });
+  document.addEventListener('pointerout', function (e) {
+    if (!anchor) return;
+    var to = e.relatedTarget;
+    if (!to || !(anchor.contains(to))) hide();
+  });
+  document.addEventListener('focusin', function (e) {
+    var el = e.target && e.target.closest && e.target.closest('[data-tip]');
+    if (el) show(el);
+  });
+  document.addEventListener('focusout', function () { hide(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') hide();
+  }, true);
+  // Any ancestor scrolling detaches the anchor rect — just dismiss.
+  document.addEventListener('scroll', function () { hide(); }, true);
+  document.body.addEventListener('htmx:beforeSwap', function () { hide(); });
+})();
+
+// ─── knob-popover placement: escape the .b-cp overflow clip ────────────
+// The retrieval-knob popovers (.knob-popover .popover on Buscar + Rimas)
+// keep their Alpine open/close state, but the panel itself is switched to
+// position:fixed (buscar.css) so the .b-cp overflow:hidden ancestor can't
+// clip it near the pane edges. Alpine flips x-show on click; one rAF later
+// the panel is measurable and we pin it under its toggle, clamped to the
+// viewport. Light-dismiss and focus behaviour are untouched (the e2e
+// popover-not-a-focus-trap contract stays green).
+(function () {
+  'use strict';
+
+  var EDGE = 8;
+
+  function place(pop, toggle) {
+    var r = toggle.getBoundingClientRect();
+    var pw = pop.offsetWidth, ph = pop.offsetHeight;
+    var top = r.bottom + 6;
+    if (top + ph > window.innerHeight - EDGE) top = Math.max(EDGE, r.top - ph - 6);
+    var left = Math.max(EDGE, Math.min(r.left, window.innerWidth - pw - EDGE));
+    pop.style.top = top + 'px';
+    pop.style.left = left + 'px';
+  }
+
+  document.addEventListener('click', function (e) {
+    var toggle = e.target && e.target.closest && e.target.closest('.knob-toggle');
+    if (!toggle) return;
+    var wrap = toggle.closest('.knob-popover');
+    if (!wrap) return;
+    requestAnimationFrame(function () {
+      var pop = wrap.querySelector('.popover');
+      // x-show sets display:none when closed; only place a visible panel.
+      // (offsetParent is null for position:fixed even when visible, so
+      // check computed display instead.)
+      if (pop && window.getComputedStyle(pop).display !== 'none') place(pop, toggle);
+    });
+  });
+})();
+
+// ─── pane-resize: draggable column widths for the 3-pane chrome ─────────
+// The shell grid (.ch-body) and every per-tab inspector resolve their
+// widths through --lp-w / --rp-w (defaults in main.css :root). This block
+// injects a 6px handle on the LeftPane's right edge and the active
+// right-pane's left edge, drags them with pointer capture, persists the
+// result, and exposes the standard separator keyboard interface
+// (role="separator", Arrow keys, Home/End, Enter=reset). Handles are
+// JS-injected — they are useless without JS, and keeping them out of the
+// templates keeps the byte-level HTML snapshots and the i18n template
+// scan untouched. NOTE: the handle aria-labels below are intentionally
+// English-only — the i18n gate covers Jinja templates; localizing JS
+// strings is out of scope for this layer (same as existing JS strings).
+(function () {
+  'use strict';
+
+  var KEY = 'mojica:layout';
+  var PANES = {
+    lp: { prop: '--lp-w', min: 180, max: 400, dflt: 248, edge: 'right',
+          find: function () { return document.querySelector('.ch-lp'); },
+          label: 'Resize library pane' },
+    rp: { prop: '--rp-w', min: 300, max: 560, dflt: 380, edge: 'left',
+          find: function () {
+            return document.querySelector('.b-rp, .c-rp, .r-rp, .p-rp, .a-rp-mount, .ch-right');
+          },
+          label: 'Resize inspector pane' }
+  };
+  var STEP = 16; // px per arrow-key press
+
+  function load() {
+    try {
+      var raw = window.localStorage && window.localStorage.getItem(KEY);
+      var p = raw ? JSON.parse(raw) : null;
+      return (p && typeof p === 'object') ? p : {};
+    } catch (e) { return {}; }
+  }
+  function save(snap) {
+    try {
+      if (window.localStorage) window.localStorage.setItem(KEY, JSON.stringify(snap));
+    } catch (e) { /* best-effort */ }
+  }
+
+  function clamp(cfg, px) { return Math.max(cfg.min, Math.min(cfg.max, Math.round(px))); }
+
+  function apply(id, px) {
+    var cfg = PANES[id];
+    if (px == null) {
+      document.documentElement.style.removeProperty(cfg.prop);
+    } else {
+      document.documentElement.style.setProperty(cfg.prop, clamp(cfg, px) + 'px');
+    }
+    var snap = load();
+    if (px == null) { delete snap[id]; } else { snap[id] = clamp(cfg, px); }
+    save(snap);
+  }
+
+  function current(id) {
+    var cfg = PANES[id];
+    var v = getComputedStyle(document.documentElement).getPropertyValue(cfg.prop);
+    var n = parseFloat(v);
+    return Number.isFinite(n) ? n : cfg.dflt;
+  }
+
+  function syncAria(handle, id) {
+    handle.setAttribute('aria-valuenow', String(Math.round(current(id))));
+  }
+
+  function makeHandle(id) {
+    var cfg = PANES[id];
+    var h = document.createElement('div');
+    h.className = 'pane-handle pane-handle--' + cfg.edge;
+    h.setAttribute('data-pane', id);
+    h.setAttribute('role', 'separator');
+    h.setAttribute('aria-orientation', 'vertical');
+    h.setAttribute('aria-label', cfg.label);
+    h.setAttribute('aria-valuemin', String(cfg.min));
+    h.setAttribute('aria-valuemax', String(cfg.max));
+    h.setAttribute('tabindex', '0');
+    syncAria(h, id);
+
+    var startX = 0, startW = 0, dragging = false;
+    h.addEventListener('pointerdown', function (e) {
+      dragging = true;
+      startX = e.clientX;
+      startW = current(id);
+      h.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    h.addEventListener('pointermove', function (e) {
+      if (!dragging) return;
+      var dx = e.clientX - startX;
+      // Left pane grows to the right; right pane grows to the LEFT.
+      apply(id, id === 'lp' ? startW + dx : startW - dx);
+      syncAria(h, id);
+    });
+    h.addEventListener('pointerup', function () { dragging = false; });
+    h.addEventListener('pointercancel', function () { dragging = false; });
+    h.addEventListener('dblclick', function () { apply(id, null); syncAria(h, id); });
+    h.addEventListener('keydown', function (e) {
+      var w = current(id), grow = (id === 'lp') ? 1 : -1;
+      if (e.key === 'ArrowRight')      apply(id, w + STEP * grow);
+      else if (e.key === 'ArrowLeft')  apply(id, w - STEP * grow);
+      else if (e.key === 'Home')       apply(id, PANES[id].min);
+      else if (e.key === 'End')        apply(id, PANES[id].max);
+      else if (e.key === 'Enter')      apply(id, null);
+      else return;
+      e.preventDefault();
+      syncAria(h, id);
+    });
+    return h;
+  }
+
+  function inject() {
+    for (var id in PANES) {
+      if (!Object.prototype.hasOwnProperty.call(PANES, id)) continue;
+      var pane = PANES[id].find();
+      if (!pane || pane.querySelector(':scope > .pane-handle')) continue;
+      pane.appendChild(makeHandle(id));
+    }
+  }
+
+  function init() {
+    var stored = load();
+    for (var id in PANES) {
+      if (Object.prototype.hasOwnProperty.call(stored, id)) {
+        var n = stored[id];
+        if (typeof n === 'number' && Number.isFinite(n)) {
+          document.documentElement.style.setProperty(PANES[id].prop, clamp(PANES[id], n) + 'px');
+        }
+      }
+    }
+    inject();
+    // Tab swaps replace the right pane inside #ch-main — re-inject after
+    // every settle (idempotent: guarded by the :scope > .pane-handle check).
+    document.body.addEventListener('htmx:afterSettle', inject);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
