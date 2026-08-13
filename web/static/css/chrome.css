@@ -15,10 +15,22 @@
   padding: 0 18px;
   border-bottom: 1px solid var(--c-border); background: var(--c-panel);
 }
+/* The MARK sets this row's height, and that is the intended order: the mark is
+   the identity, so it is sized for legibility (44px — its glyph has interior
+   detail that mushes below ~36px) and the row is then padded tightly around it.
+   Sizing it down to buy vertical space is a false economy; the space comes from
+   ``line-height: 1`` on .brand .n and .tab instead.
+
+   That leading is where the bar's old emptiness actually lived: .fx-app sets
+   line-height 1.5 globally, so the wordmark carried a 31.5px box for 21px of
+   text and each tab label a 22.25px box for 13.5px — ~17px of the bar was
+   leading around text, not content. Dropping it to 1 on these two rules paid
+   for a LARGER mark and a shorter bar at the same time. Chrome text that is
+   deliberately single-line does not want prose leading. */
 .ch-top .l {
   grid-row: 1;
   display: flex; align-items: center; gap: 12px;
-  padding: 9px 0 7px;
+  padding: 2px 0;
 }
 
 /* ─── Offline status badge (U11) ──────────────────────────────────────
@@ -54,14 +66,15 @@
    height revealed it. */
 .ch-top .brand {
   display: flex; align-items: center; gap: 12px;
-  padding: 4px 10px; border-radius: 8px; cursor: pointer;
+  padding: 2px 10px; border-radius: 8px; cursor: pointer;
   text-decoration: none;
 }
 .ch-top .brand:hover { background: var(--c-hover); }
 .ch-top .brand .n {
-  font-weight: 700; font-size: 21px; color: var(--c-text); letter-spacing: 0.07em;
+  font-weight: 700; font-size: 30px; line-height: 1;
+  color: var(--c-text); letter-spacing: 0.07em;
 }
-.ch-top .div { width: 1px; height: 28px; background: var(--c-border); }
+.ch-top .div { width: 1px; height: 26px; background: var(--c-border); }
 .ch-top .crumb {
   display: flex; align-items: center; gap: 8px;
   font-size: 13.5px; color: var(--c-text-2);
@@ -108,8 +121,8 @@
 body[data-active-tab="anotar"] .ch-top .tabs { margin-left: 0; }
 .ch-top .tab {
   display: flex; align-items: center; gap: 8px;
-  padding: 8px 16px 9px; border-radius: 8px 8px 0 0;
-  font-size: 13.5px; color: var(--c-text-2); cursor: pointer;
+  padding: 6px 16px 7px; border-radius: 8px 8px 0 0;
+  font-size: 13.5px; line-height: 1; color: var(--c-text-2); cursor: pointer;
   font-weight: 500; letter-spacing: -0.003em;
   border: 1px solid transparent; background: transparent;
   white-space: nowrap;
@@ -412,7 +425,10 @@ body[data-active-tab="anotar"] .ch-top .tabs { margin-left: 0; }
 @media (max-width: 1280px) {
   .ch-body.with-right { grid-template-columns: 248px 1fr 320px; }
   .ch-body.compact-lp.with-right { grid-template-columns: 1fr 320px; }
-  .ch-top { gap: 12px; padding: 0 12px; }
+  /* column-gap, NOT the gap shorthand: gap would also overwrite the base
+     rule's ``row-gap: 0`` and reopen a 12px gutter between the identity and
+     tab rows, making the bar TALLER below 1280px than above it. */
+  .ch-top { column-gap: 12px; padding: 0 12px; }
   .ch-top .crumb { font-size: 12.5px; gap: 6px; }
   .ch-top .crumb .ver { font-size: 10.5px; padding: 1px 6px; }
 }
@@ -461,6 +477,10 @@ body[data-active-tab="anotar"] .ch-top .tabs { margin-left: 0; }
   }
   .ch-top .crumb { display: none; }
   .ch-top .brand .n { display: none; }
+  /* The wordmark hides here, so the mark alone sets the row height — at its
+     desktop 44px the phone bar would end up TALLER than the desktop one while
+     eating a much shorter viewport. 32px still resolves the glyph's detail. */
+  .ch-top .brand img { width: 32px; height: 32px; }
   .ch-body,
   .ch-body.with-right { grid-template-columns: 1fr; }
   .ch-body.compact-lp,
