@@ -136,7 +136,7 @@
   border-right: 1px solid var(--c-border); background: var(--c-panel);
   display: flex; flex-direction: column; overflow: hidden;
 }
-.ch-lp .scroll { flex: 1; overflow-y: auto; padding-bottom: 8px; }
+.ch-lp .scroll { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 8px; }
 .ch-lp .filter {
   margin: 12px 12px 6px; padding: 6px 10px;
   background: var(--c-bg); border: 1px solid var(--c-border);

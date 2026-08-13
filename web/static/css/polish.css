@@ -213,7 +213,7 @@
   color: var(--c-muted); background: var(--c-raised);
 }
 
-.cp-list { flex: 1; overflow-y: auto; padding: 6px 0; }
+.cp-list { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 0; }
 .cp-group {
   padding: 8px 18px 4px;
   font-family: var(--font-mono); font-size: 9.5px;
@@ -308,7 +308,7 @@
 .kh-head .close:hover { background: var(--c-hover); color: var(--c-text); }
 
 .kh-body {
-  flex: 1; overflow-y: auto; padding: 18px 22px 22px;
+  flex: 1; min-height: 0; overflow-y: auto; padding: 18px 22px 22px;
   display: grid; grid-template-columns: 1fr 1fr; gap: 8px 28px;
   align-content: start;
 }

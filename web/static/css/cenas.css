@@ -233,7 +233,7 @@
   font-weight: 600;
 }
 .c-rp .head .r { display: flex; align-items: center; gap: 2px; }
-.c-rp .inner { padding: 16px 18px 18px; overflow-y: auto; flex: 1; }
+.c-rp .inner { padding: 16px 18px 18px; overflow-y: auto; flex: 1; min-height: 0; }
 /* Empty-state variant: drop the asymmetric padding and become a flex column
    so the nested ``.fx-empty`` (flex:1) centers across the full inspector
    height instead of clinging to the top. */

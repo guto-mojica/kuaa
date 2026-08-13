@@ -293,7 +293,7 @@
 .r-rp .head .r { color: var(--c-muted); }
 
 .r-rp .inner,
-.r-rp-inner { padding: 16px 18px 18px; overflow-y: auto; flex: 1; }
+.r-rp-inner { padding: 16px 18px 18px; overflow-y: auto; flex: 1; min-height: 0; }
 
 /* Pair comparison */
 .r-pair {

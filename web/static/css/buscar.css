@@ -218,7 +218,7 @@
 .b-rp .htabs .ic { background: transparent; border: none; color: var(--c-muted); cursor: pointer; padding: 6px; border-radius: 4px; }
 .b-rp .htabs .ic:hover { background: var(--c-hover); color: var(--c-text); }
 
-.b-rp .inner { padding: 14px 16px 18px; overflow-y: auto; flex: 1; }
+.b-rp .inner { padding: 14px 16px 18px; overflow-y: auto; flex: 1; min-height: 0; }
 
 /* big insp kf with pin */
 .b-rp .insp-kf {
