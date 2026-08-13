@@ -120,6 +120,48 @@
   min-height: 0; overflow: hidden;
 }
 .ch-right > * { flex: 1; min-height: 0; }
+
+/* ─── #right-pane: the per-tab inspector HTMX target ─────────────────────
+   Tabs mount their inspector in one of two shapes:
+
+     Processing / Rimas  <aside class="p-rp" id="right-pane">   — class ON the
+                         flex item, so the pane IS the stretched box. Fine.
+     Scenes / Buscar     <div class="rp-slot">
+                           <aside id="right-pane">
+                             <section class="c-rp">            — two plain
+                         blocks between the flex line and the styled pane.
+
+   The second shape is deliberate: `.rp-slot` is the positioning context for
+   the overlaid loading skeleton, and the bare aside is a neutral target so
+   hx-swap="innerHTML" can replace the inner <section> without destroying it.
+   The cost is that NEITHER wrapper passed a height down. `.rp-slot` is a
+   stretched flex item of .tab-panel (definite height), but it is a plain
+   block, so #right-pane sized to its content, so .c-rp / .b-rp sized to
+   THEIR content — and the pane's own `.inner`
+   (flex:1; min-height:0; overflow-y:auto) had no constrained parent to
+   shrink against. Result: no scrollbar at any pane width, with the
+   description tail and the inspector's action buttons clipped away by
+   .ch-main's overflow:hidden. Widening the column could never fix it.
+
+   So both levels have to conduct the height. `.rp-slot` becomes a flex
+   container (the skeleton is position:absolute, so it stays out of flow and
+   is unaffected); #right-pane becomes a flex COLUMN and hands the pane
+   flex:1. The pane is targeted by class rather than a `> *` selector on
+   purpose: the Scenes aside can also hold an empty hx-trigger="load"
+   self-loader div, and a greedy `> *` would make that div a flex sibling
+   and split the height with it. Left as flex:0 auto it stays 0-height.
+
+   Harmless for the Processing/Rimas shape: `.p-rp` / `.r-rp` already
+   declare display:flex + flex-direction:column + flex-shrink:0, and the
+   `> .c-rp` / `> .b-rp` child rules simply do not match there.
+
+   Guarded by tests/e2e/test_pane_scroll_interaction.py, which MEASURES the
+   rendered boxes — this bug was "fixed" twice from static CSS reading
+   before a browser showed the wrapper chain was the real culprit. */
+.rp-slot { display: flex; }
+#right-pane { display: flex; flex-direction: column; min-height: 0; flex-shrink: 0; }
+#right-pane > .c-rp,
+#right-pane > .b-rp { flex: 1; min-height: 0; }
 .ch-body.compact-lp {
   grid-template-columns: 1fr;
 }
