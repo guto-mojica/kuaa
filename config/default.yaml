@@ -206,6 +206,31 @@ retrieval:
                            # M3.5 refinement where the slider rules ≠ the
                            # service-default ``k``.
 
+# ── Movimento (estatísticas de fluxo óptico por cena) ────────────────────────
+# Purely additive: `kuaa motion run` reads scene_cuts.json + the source video
+# and writes metadata/scene_motion.json. Nothing else is invalidated, and a
+# film without the artefact behaves exactly as before.
+#
+# This is the only signal in the system that is not derived from a single
+# still frame. SigLIP, YOLOv8, MTCNN and Moondream all consume one JPEG, so
+# downstream of scene_cuts.json a static tableau and a whip pan are
+# indistinguishable — on jeca_tatu_1959 the median shot is 7.3s, the p90 is
+# 25.2s and the longest is 186.4s, all represented by three stills.
+#
+# Motion does NOT feed the describer. llm_description is a sibling of
+# visual_analysis and embeddings (all depend only on scene_detection, none
+# consumes another's output); making it depend on motion would invert that,
+# force a full LLM re-run, and hand a still-image VLM a claim it cannot
+# verify. Motion enters retrieval directly, as tags on the existing tag
+# surface (plano-estatico / camera-panoramica / movimento-de-cena / …).
+motion:
+  sample_fps: 4.0          # frames per second actually decoded. Camera moves
+                           # and subject action are low-frequency relative to
+                           # frame rate; ~4fps captures both at a fraction of
+                           # the decode cost.
+  max_pairs_per_scene: 24  # cost cap on long takes — a 186s tableau does not
+                           # need 700 flow fields to be called static.
+
 # ── Rimas Visuais (cross-film visual rhymes) ─────────────────────────────────
 # Knobs for the Rimas tab's cross-film kNN/MMR over visual keyframe embeddings.
 # The Rimas route honors `retrieval.rhymes.*` for live MMR controls; this block

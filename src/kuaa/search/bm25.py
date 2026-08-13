@@ -45,6 +45,7 @@ from typing import Any
 
 from kuaa.annotations.descriptions import load_canonical_descriptions
 from kuaa.library.metadata import load_tag_index
+from kuaa.motion.io import MOTION_FILENAME, load_motion_tag_index
 from kuaa.retrieval.bm25 import BM25Index
 from kuaa.retrieval.tokenize import get_tokenizer
 from kuaa.search._cache_core import StatCache
@@ -82,6 +83,7 @@ def _cached_bm25_index(
     scene_tags_stamp: tuple[int, int],
     manual_annotations_stamp: tuple[int, int],
     tag_overrides_stamp: tuple[int, int],
+    motion_stamp: tuple[int, int],
     stopwords_lang: str | None,
     k1: float,
     b: float,
@@ -102,6 +104,8 @@ def _cached_bm25_index(
       * ``tag_overrides.json`` — curator AI-tag suppressions (STR keys);
         ``load_tag_index`` filters suppressed pairs out of the merged
         index, so a write here must rebuild the corpus too.
+      * ``scene_motion.json`` — optical-flow motion tags (optional; absent
+        for films whose motion pass has not run).
 
     Tag merge semantics come from :func:`kuaa.search._tag_index.load_tag_index`
     (the shared loader — single source of truth for scene_id
@@ -122,6 +126,14 @@ def _cached_bm25_index(
     # Merged LLM ⊕ manual tag index (raw, un-normalised) — the same
     # shape the old api.services.catalog.load_tag_index produced.
     tag_index = load_tag_index(md) or {}
+
+    # Motion tags (`plano-estatico`, `camera-panoramica`, `movimento-intenso`)
+    # join through the same tag surface rather than a parallel path. Absent
+    # for any film whose motion pass has not run, which is the common case —
+    # ``load_motion_tag_index`` returns {} and the corpus is unchanged.
+    for tag, sids in load_motion_tag_index(md).items():
+        tag_index.setdefault(tag, [])
+        tag_index[tag] = list(tag_index[tag]) + [s for s in sids if s not in tag_index[tag]]
 
     tokenizer = get_tokenizer(tokenizer_name)
     return BM25Index.build(
@@ -159,8 +171,12 @@ def bm25_index_for_dir(
     t_stamp = _file_stamp(metadata_dir / "scene_tags.json")
     m_stamp = _file_stamp(metadata_dir / "manual_annotations.json")
     o_stamp = _file_stamp(metadata_dir / "tag_overrides.json")
+    # Motion tags are part of the corpus, so the motion artefact has to be
+    # part of the signature — otherwise a completed motion pass would not
+    # show up in search until the process restarted.
+    mo_stamp = _file_stamp(metadata_dir / MOTION_FILENAME)
 
-    # 4-source combined signature for StatCache (flat int tuple).
+    # 5-source combined signature for StatCache (flat int tuple).
     sig: tuple[int, ...] = (
         d_stamp[0],
         d_stamp[1],
@@ -170,6 +186,8 @@ def bm25_index_for_dir(
         m_stamp[1],
         o_stamp[0],
         o_stamp[1],
+        mo_stamp[0],
+        mo_stamp[1],
     )
 
     # Slug = immediate parent dir name (data/library/<slug>/metadata/ → slug).
@@ -192,6 +210,7 @@ def bm25_index_for_dir(
             t_stamp,
             m_stamp,
             o_stamp,
+            mo_stamp,
             stopwords_lang,
             k1,
             b,

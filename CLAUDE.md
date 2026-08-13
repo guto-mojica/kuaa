@@ -60,6 +60,8 @@ These words have fixed meaning in code, URLs, translation keys, and UI.
 | Corte | Cut | A detected scene boundary; the authoritative cut list lives in `scene_cuts.json` |
 | Rimas | Rhymes | Cross-film visual similarity matches (Rimas Visuais tab) |
 | Âncora | Anchor | The scene whose visual rhymes are being explored |
+| Interpolação | Interpolation | Retrieval at points *between* two anchors — the space neither would surface alone |
+| Movimento | Motion | Per-scene optical-flow statistics (camera vs subject) |
 
 Terms to avoid:
 
@@ -78,7 +80,10 @@ src/kuaa/      AI core. HTTP-agnostic logic. Cleanly importable.
   library/             Registry + scan + FilmContext + per-film metadata loaders.
   preprocess/          Scene-cut review: cut-list load/edit (split/merge) + filmstrip view model.
   annotations/         Manual tags + descriptions + annotate-tab scene builders.
-  rhymes/              Cross-film visual-rhyme algorithm + enrichment.
+  rhymes/              Cross-film visual-rhyme algorithm + enrichment, plus
+                       interpolate.py (retrieval between two anchors).
+  motion/              Per-scene optical-flow statistics — the only signal
+                       not derived from a single still frame.
   eval/                Eval-set datasets + grades + IAA / κ metrics.
   retrieval/           BM25Index + RRF fusion primitives.
   models/              Protocol-typed model backends + registry.
@@ -150,6 +155,10 @@ uv run pytest tests/test_smoke.py -v
 # Single-film pipeline
 uv run kuaa process data/raw/myvideo.mp4
 uv run kuaa process data/raw/myvideo.mp4 --steps scenes,embeddings
+
+# Motion (optional, purely additive — writes scene_motion.json)
+uv run kuaa motion run
+uv run kuaa motion run --only <slug> --overwrite
 
 # Library operations
 uv run kuaa library list

@@ -184,6 +184,14 @@ class RetrievalCfg(_Section):
     rhymes: RhymesRetrievalCfg
 
 
+# ── motion ───────────────────────────────────────────────────────────────────
+class MotionCfg(_Section):
+    # Frames per second decoded for optical flow (not every frame).
+    sample_fps: float = 4.0
+    # Cost cap on long takes.
+    max_pairs_per_scene: int = 24
+
+
 # ── rimas ────────────────────────────────────────────────────────────────────
 class RimasCfg(_Section):
     top_n: int = 8
@@ -276,6 +284,7 @@ class Settings(_Section):
     embeddings: EmbeddingsCfg
     search: SearchCfg
     retrieval: RetrievalCfg
+    motion: MotionCfg
     rimas: RimasCfg
     collaboration: CollaborationCfg
     llm: LlmCfg

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import typer
 
-from kuaa.commands import config_cmd, eval_cmd, library, process
+from kuaa.commands import config_cmd, eval_cmd, library, motion, process
 
 app = typer.Typer(
     name="kuaa",
@@ -71,6 +71,7 @@ def serve(
 app.add_typer(library.app, name="library")
 app.add_typer(config_cmd.app, name="config")
 app.add_typer(eval_cmd.app, name="eval")
+app.add_typer(motion.app, name="motion")
 
 # Backward-compat aliases for the old _resolve_steps / _print_banner used in
 # any external script that imported from __main__ directly.
