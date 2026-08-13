@@ -47,6 +47,13 @@ from kuaa.library import keyframe_url, load_json, scan_library
 
 logger = logging.getLogger(__name__)
 
+# asyncio only holds a WEAK reference to a scheduled Task — with nothing
+# else keeping it alive, the event loop is free to garbage-collect the
+# warm-up task mid-run (most likely right after a --reload restart, while
+# the interpreter is still churning through fresh imports), silently
+# dropping it with no exception logged anywhere. This set is that "else".
+_background_tasks: set[asyncio.Task] = set()
+
 
 def _warm_image_embedder(cfg: Any) -> None:
     """Eagerly load the configured image-embedding backend once, at boot.
@@ -94,7 +101,10 @@ async def lifespan(app: FastAPI):
     # cycles) stay snappy rather than blocking on a ~10s model load. A
     # search that lands before this finishes just pays the cost live, same
     # as today — this can only make the common case better, never worse.
-    asyncio.create_task(asyncio.to_thread(_warm_image_embedder, cfg))
+    # Held in _background_tasks (see comment above) so it isn't GC'd mid-run.
+    warm_task = asyncio.create_task(asyncio.to_thread(_warm_image_embedder, cfg))
+    _background_tasks.add(warm_task)
+    warm_task.add_done_callback(_background_tasks.discard)
     yield
 
 

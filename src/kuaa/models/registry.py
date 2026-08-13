@@ -17,6 +17,7 @@ are the public contract; callers must not rely on concrete backend types.
 
 from __future__ import annotations
 
+import threading
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -32,6 +33,15 @@ if TYPE_CHECKING:
 
 
 _image_embedder_cache: dict[tuple[str, str | None], Any] = {}
+# Guards the check-then-set below. Without it, two threads racing the
+# same cache miss (e.g. the app-startup warm-up thread and a real
+# request landing in the same window) both pass the "not cached" check,
+# both construct+load a full model, and the second write silently
+# discards the first — doubling load cost/memory exactly when startup
+# should be lightest. A held lock across the (possibly ~10s) load also
+# makes any thread arriving mid-load simply wait for the same cached
+# instance instead of duplicating it.
+_image_embedder_lock = threading.Lock()
 
 
 def _name(cfg: Settings, attr: str) -> str:
@@ -56,37 +66,44 @@ def reset_caches() -> None:
     monkey-patch the underlying backend classes should call this in setup
     so the cache returns a fresh build.
     """
-    _image_embedder_cache.clear()
+    with _image_embedder_lock:
+        _image_embedder_cache.clear()
 
 
 def get_image_embedder(cfg: Settings, device=None) -> ImageEmbedder:
     """Return the configured image-embedding backend.
 
     Provenance: see ModelCard via ``model_card(cfg, "image_embedder")``.
+
+    Thread-safe: the cache check, construction, and store all happen under
+    ``_image_embedder_lock``, so two callers racing the same cache miss
+    (e.g. an app-startup warm-up thread and a real request) block on each
+    other instead of each constructing — and loading — their own instance.
     """
     name = _name(cfg, "image_embedder")
     key = (name, _device_key(device))
-    cached = _image_embedder_cache.get(key)
-    if cached is not None:
-        return cached
-    if name == "clip_openclip":
-        from kuaa.models.clip.openclip import OpenClipEmbedder
+    with _image_embedder_lock:
+        cached = _image_embedder_cache.get(key)
+        if cached is not None:
+            return cached
+        if name == "clip_openclip":
+            from kuaa.models.clip.openclip import OpenClipEmbedder
 
-        instance: ImageEmbedder = OpenClipEmbedder(cfg, device)
-    elif name == "clip_mclip":
-        from kuaa.models.clip.mclip import MClipEmbedder
+            instance: ImageEmbedder = OpenClipEmbedder(cfg, device)
+        elif name == "clip_mclip":
+            from kuaa.models.clip.mclip import MClipEmbedder
 
-        instance = MClipEmbedder(cfg, device)
-    elif name == "siglip_multilingual":
-        from kuaa.models.clip.siglip_multilingual import (
-            SiglipMultilingualEmbedder,
-        )
+            instance = MClipEmbedder(cfg, device)
+        elif name == "siglip_multilingual":
+            from kuaa.models.clip.siglip_multilingual import (
+                SiglipMultilingualEmbedder,
+            )
 
-        instance = SiglipMultilingualEmbedder(cfg, device)
-    else:
-        raise ValueError(f"Unknown image_embedder: {name!r}")
-    _image_embedder_cache[key] = instance
-    return instance
+            instance = SiglipMultilingualEmbedder(cfg, device)
+        else:
+            raise ValueError(f"Unknown image_embedder: {name!r}")
+        _image_embedder_cache[key] = instance
+        return instance
 
 
 def get_face_detector(cfg: Settings, device=None) -> FaceDetector:

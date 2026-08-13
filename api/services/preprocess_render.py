@@ -46,26 +46,29 @@ def _scene_detection_pending(cfg, slug: str) -> bool:
     finishes and the tab happens to reload. This checks job progress directly,
     independent of that surface split, so :func:`render_filmstrip_fragment`'s
     caller can decide whether to keep polling for freshly detected cuts.
-    Matches by resolved raw-video path, falling back to bare filename like
-    :func:`api.services.processing_render._derive_slug` does.
+    Job-to-slug matching is delegated to :func:`_derive_slug` (same
+    resolved-path-then-bare-filename tolerance used everywhere else a job's
+    video_path needs a slug) rather than reimplemented here.
     """
-    film = next((f for f in scan_library(Path(cfg.paths.library_dir)) if f.slug == slug), None)
-    if film is None:
-        return False
     for job in active_jobs():
         if not job.video_path:
             continue
-        jp = Path(job.video_path)
-        try:
-            same_path = film.raw_path.resolve() == jp.resolve()
-        except (OSError, RuntimeError):
-            same_path = False
-        if not same_path and film.raw_path.name != jp.name:
+        if _derive_slug(cfg, Path(job.video_path), fallback="") != slug:
             continue
         sd_step = next((s for s in job.steps if s.name == "scene_detection"), None)
         if sd_step is not None and sd_step.state not in ("done", "skipped", "error"):
             return True
     return False
+
+
+def _pp_watch(cfg, slug: str | None) -> bool:
+    """The ``pp_watch`` value both preprocess-context builders below share.
+
+    Single spelling of "should the filmstrip keep polling" so
+    :func:`build_preprocess_context` and :func:`render_filmstrip_fragment`
+    can't drift into two different guards for the same question.
+    """
+    return _scene_detection_pending(cfg, slug) if slug else False
 
 
 def _filmstrip_for(cfg, slug: str | None) -> tuple[dict[str, Any] | None, str, str]:
@@ -112,7 +115,7 @@ def build_preprocess_context(slug: str | None) -> dict[str, Any]:
             "pp_title": title,
             "pp_video_url": video_url,
             "pp_fps": filmstrip["fps"] if filmstrip else 24.0,
-            "pp_watch": _scene_detection_pending(cfg, slug) if slug else False,
+            "pp_watch": _pp_watch(cfg, slug),
         }
     )
     return base
@@ -160,9 +163,14 @@ def render_filmstrip_fragment(request, slug: str):
     """
     cfg = get_config()
     filmstrip, title, _video = _filmstrip_for(cfg, slug)
-    watch = bool(slug) and _scene_detection_pending(cfg, slug)
     return templates.TemplateResponse(
         request,
         "partials/preprocess_filmstrip.html",
-        make_ctx(request, filmstrip=filmstrip, pp_slug=slug, pp_title=title, pp_watch=watch),
+        make_ctx(
+            request,
+            filmstrip=filmstrip,
+            pp_slug=slug,
+            pp_title=title,
+            pp_watch=_pp_watch(cfg, slug),
+        ),
     )

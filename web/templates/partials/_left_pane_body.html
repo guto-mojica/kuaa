@@ -37,13 +37,17 @@
    Scenes and Search both have a real aggregate (no-film) view, so from
    Search this stays on Search instead of jumping to Scenes — Annotate,
    Pre-processing, Processing and Rimas have no aggregate mode, so they
-   keep falling back to Scenes as before. #}
-{% set aa_on_search = legacy_active_tab == 'search' %}
+   keep falling back to Scenes as before. Bound once here (rather than
+   repeating the ternary at every href/hx-get/hx-push-url below) so the
+   sidebar's film links can't drift out of sync with each other. #}
+{% set aa_route = 'search' if legacy_active_tab == 'search' else 'scenes' %}
+{% set aa_page = '/' ~ aa_route %}
+{% set aa_tab = '/tab/' ~ aa_route %}
 <a class="ch-film{% if not current_slug %} active{% endif %} ch-film--all"
-   href="{{ '/search' if aa_on_search else '/scenes' }}"
-   hx-get="{{ '/tab/search' if aa_on_search else '/tab/scenes' }}"
+   href="{{ aa_page }}"
+   hx-get="{{ aa_tab }}"
    hx-target="#ch-main"
-   hx-push-url="{{ '/search' if aa_on_search else '/scenes' }}"
+   hx-push-url="{{ aa_page }}"
    hx-on:click="document.querySelectorAll('.ch-lp .ch-film').forEach(el=>el.classList.remove('active')); this.classList.add('active');">
   <span class="arr">{{ icon('chev-d' if not current_slug else 'chev-r', 12) }}</span>
   <span class="ico">{{ icon('film-strip', 14) }}</span>
@@ -61,12 +65,12 @@
          mirror of the "All films" tab-aware fix above. Every other tab keeps
          routing through Scenes, matching the "All films" fallback. #}
       <a class="ch-film{% if is_active %} active{% endif %}{% if sel %} has-sel{% endif %}{% if is_proc %} proc{% endif %}"
-         href="{{ '/search' if aa_on_search else '/scenes' }}?film={{ film.slug }}"
+         href="{{ aa_page }}?film={{ film.slug }}"
          data-slug="{{ film.slug }}"
          title="{{ film.title }}"
-         hx-get="{{ '/tab/search' if aa_on_search else '/tab/scenes' }}?film={{ film.slug }}"
+         hx-get="{{ aa_tab }}?film={{ film.slug }}"
          hx-target="#ch-main"
-         hx-push-url="{{ '/search' if aa_on_search else '/scenes' }}?film={{ film.slug }}"
+         hx-push-url="{{ aa_page }}?film={{ film.slug }}"
          hx-on:click="document.querySelectorAll('.ch-lp .ch-film').forEach(el=>el.classList.remove('active')); this.classList.add('active');">
         <span class="arr">{{ icon('chev-d' if is_active else 'chev-r', 12) }}</span>
         <span class="ico">{{ icon('proc' if is_proc else 'film', 14) }}</span>

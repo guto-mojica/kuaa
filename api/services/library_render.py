@@ -9,7 +9,7 @@ from __future__ import annotations
 from fastapi import Request
 from fastapi.responses import HTMLResponse
 
-from api.deps import get_config, make_ctx
+from api.deps import get_config, infer_active_tab, make_ctx
 from api.services.chrome_service import build_chrome_context
 from api.templates import templates
 
@@ -41,6 +41,13 @@ def chrome_filter_ctx(request: Request, q: str = "", current_slug: str | None = 
     bag is built so the unfiltered ``library_state`` and runtime stats
     (rendered in the footer of the parent ``_left_pane.html``) are
     unchanged — only the films list inside ``.scroll`` is narrowed.
+
+    Also sets ``legacy_active_tab`` via :func:`infer_active_tab` — this
+    endpoint (and ``/api/library/remove``, which shares this builder) is
+    only ever reached via HTMX, so ``render_page()`` never ran to set it
+    directly. Without it, ``_left_pane_body.html``'s Search-stays-on-Search
+    behaviour silently reverted to the Scenes fallback the moment a user
+    typed into the sidebar filter box or removed a film while on Search.
     """
     cfg = get_config()
     chrome = build_chrome_context(cfg, current_slug=current_slug)
@@ -49,7 +56,7 @@ def chrome_filter_ctx(request: Request, q: str = "", current_slug: str | None = 
         chrome["films"] = [
             f for f in chrome["films"] if needle in f.title.lower() or needle in f.slug.lower()
         ]
-    return make_ctx(request, **chrome)
+    return make_ctx(request, legacy_active_tab=infer_active_tab(request), **chrome)
 
 
 def tree_response(request: Request) -> HTMLResponse:

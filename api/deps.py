@@ -108,6 +108,42 @@ def film_slug_query(
     return slug if slug in registry else None
 
 
+# Path prefix -> the EN tab key render_page() would pass as active_tab.
+# Mirrors the routes registered in api/server.py (/search, /scenes, ...).
+_TAB_PATH_PREFIXES: tuple[tuple[str, str], ...] = (
+    ("/search", "search"),
+    ("/scenes", "scenes"),
+    ("/annotate", "annotate"),
+    ("/pre-processing", "preprocessing"),
+    ("/processing", "processing"),
+    ("/rimas", "rimas"),
+)
+
+
+def infer_active_tab(request: Request) -> str:
+    """Best-effort "which tab is the browser currently on" for fragment routes.
+
+    Routes reached only via HTMX (the sidebar filter box, film removal, …)
+    never receive an explicit ``active_tab`` — only ``render_page()``'s
+    full-page GETs know it directly. htmx sends the browser's current URL
+    on every request as the ``HX-Current-URL`` header; this reads that
+    header and maps its path onto the same tab keys ``render_page`` uses. A
+    plain (non-HTMX) request or an unrecognised path returns ``""``, which
+    every ``legacy_active_tab == "<tab>"`` check downstream treats as "no
+    tab-specific behaviour", matching the pre-existing default.
+    """
+    from urllib.parse import urlsplit
+
+    current_url = request.headers.get("hx-current-url", "")
+    if not current_url:
+        return ""
+    path = urlsplit(current_url).path
+    for prefix, tab in _TAB_PATH_PREFIXES:
+        if path == prefix or path.startswith(prefix + "/"):
+            return tab
+    return ""
+
+
 def request_gettext(request: Request):
     """Return the locale-bound ``gettext`` callable for this request.
 
