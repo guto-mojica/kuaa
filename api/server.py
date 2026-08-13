@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import sys
 from contextlib import asynccontextmanager
@@ -47,6 +48,32 @@ from kuaa.library import keyframe_url, load_json, scan_library
 logger = logging.getLogger(__name__)
 
 
+def _warm_image_embedder(cfg: Any) -> None:
+    """Eagerly load the configured image-embedding backend once, at boot.
+
+    ``SiglipMultilingualEmbedder`` (the shipped default) defers its ~10s
+    ``AutoModel.from_pretrained`` call from construction to the FIRST
+    ``encode_text``/``encode_image_single`` call (see
+    ``kuaa.models.clip.siglip_multilingual._load_model``). The loaded
+    instance itself is cached process-wide
+    (``kuaa.models.registry._image_embedder_cache``), so this cost is
+    paid once per process either way — but without a warm-up, "once per
+    process" lands on whichever user's search happens to be first, and
+    reads as a ~10s hang. ``kuaa serve`` defaults ``--reload`` to True,
+    so during dev that is not "once ever", it is "once per file-watch
+    restart". Warming here puts the cost in the startup log instead.
+    Failures are logged, not raised — the lazy load still works
+    correctly as a fallback on the first real query.
+    """
+    try:
+        from kuaa.models.registry import get_image_embedder
+
+        embedder = get_image_embedder(cfg)
+        embedder.encode_text("")
+    except Exception:
+        logger.exception("Image embedder warm-up failed; first search will pay the load cost")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     cfg = get_config()
@@ -63,6 +90,11 @@ async def lifespan(app: FastAPI):
         logger.info("Serving media from %s", data_dir)
     else:
         logger.warning("data_dir not found — keyframe images will not be served: %s", data_dir)
+    # Fire-and-forget: runs in a worker thread so startup (and --reload
+    # cycles) stay snappy rather than blocking on a ~10s model load. A
+    # search that lands before this finishes just pays the cost live, same
+    # as today — this can only make the common case better, never worse.
+    asyncio.create_task(asyncio.to_thread(_warm_image_embedder, cfg))
     yield
 
 
