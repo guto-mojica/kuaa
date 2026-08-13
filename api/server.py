@@ -244,7 +244,14 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
     # building tab_ctx so slug-aware builders (search) can scope their
     # tag vocabulary to the active film, AND before building the chrome
     # context so the LeftPane marks the .ch-film.active row correctly.
-    _raw_slug = request.query_params.get("film") or request.cookies.get("active_film") or None
+    # Search is the library-wide entry point: it opens at aggregate scope
+    # unless a film is named explicitly in the URL (e.g. a deep link from
+    # Scenes via the topbar's slug carry-over). Every other tab still falls
+    # back to the active_film cookie for cross-tab continuity — but Search
+    # inheriting the last film Processing/Pre-processing touched is exactly
+    # what threw users into a random film's scope on a bare "Search" click.
+    _cookie_slug = request.cookies.get("active_film") if active_tab != "search" else None
+    _raw_slug = request.query_params.get("film") or _cookie_slug or None
     # Normalise to lowercase (all registered slugs are lowercase via slugify)
     # and validate against the library directory so a stale cookie or wrong-
     # cased slug doesn't propagate a ValueError into every service call.

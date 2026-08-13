@@ -373,6 +373,26 @@
           </label>
         </div>
       </div>
+
+      {# Scope indicator — the only place inside Buscar itself that shows
+         (and lets you leave) a per-film search scope. Picking a specific
+         film still happens from the sidebar's film list, which stays on
+         Search when a film row is clicked from here; this pill is the way
+         back to the library-wide aggregate without touching the sidebar. #}
+      {% set scoped_film = films_by_id.get(current_slug) if (films_by_id and current_slug) else None %}
+      <span class="knob scope-indicator">
+        <span class="k">{{ _("Scope") }}</span>
+        {% if scoped_film %}
+          <a class="v acc"
+             href="/search"
+             hx-get="/tab/search"
+             hx-target="#ch-main"
+             hx-push-url="/search"
+             title="{{ _('Switch to library-wide search') }}">{{ scoped_film.title|truncate(24) }}</a>
+        {% else %}
+          <span class="v">{{ _("Library-wide") }}</span>
+        {% endif %}
+      </span>
     </div>
   </div>
 

@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from api.deps import get_config, make_ctx
+from api.jobs import active_jobs
 from api.services.processing_render import _derive_slug, build_processing_context
 from api.templates import templates
 from kuaa.library import FilmContext, scan_library
@@ -32,6 +33,39 @@ def film_video_path(cfg, slug: str) -> Path | None:
         if film.slug == slug:
             return film.raw_path if film.raw_path.exists() else None
     return None
+
+
+def _scene_detection_pending(cfg, slug: str) -> bool:
+    """True while an active job of ANY kind still has scene_detection open for ``slug``.
+
+    ``build_processing_context(surface="preprocess")`` only lists
+    ``is_preprocess_only`` jobs (its ``jobs`` key drives the SSE job card), so a
+    scene_detection step that runs as step 1 of a full "add film" pipeline job
+    is invisible to that filter — the Pre-processing tab then never repaints
+    the filmstrip until the *entire* pipeline (visual/embeddings/llm too)
+    finishes and the tab happens to reload. This checks job progress directly,
+    independent of that surface split, so :func:`render_filmstrip_fragment`'s
+    caller can decide whether to keep polling for freshly detected cuts.
+    Matches by resolved raw-video path, falling back to bare filename like
+    :func:`api.services.processing_render._derive_slug` does.
+    """
+    film = next((f for f in scan_library(Path(cfg.paths.library_dir)) if f.slug == slug), None)
+    if film is None:
+        return False
+    for job in active_jobs():
+        if not job.video_path:
+            continue
+        jp = Path(job.video_path)
+        try:
+            same_path = film.raw_path.resolve() == jp.resolve()
+        except (OSError, RuntimeError):
+            same_path = False
+        if not same_path and film.raw_path.name != jp.name:
+            continue
+        sd_step = next((s for s in job.steps if s.name == "scene_detection"), None)
+        if sd_step is not None and sd_step.state not in ("done", "skipped", "error"):
+            return True
+    return False
 
 
 def _filmstrip_for(cfg, slug: str | None) -> tuple[dict[str, Any] | None, str, str]:
@@ -78,6 +112,7 @@ def build_preprocess_context(slug: str | None) -> dict[str, Any]:
             "pp_title": title,
             "pp_video_url": video_url,
             "pp_fps": filmstrip["fps"] if filmstrip else 24.0,
+            "pp_watch": _scene_detection_pending(cfg, slug) if slug else False,
         }
     )
     return base
@@ -117,11 +152,17 @@ def build_preprocess_start_response(request, cfg, video_path: Path, cookie_slug:
 
 
 def render_filmstrip_fragment(request, slug: str):
-    """Render just the filmstrip fragment for ``slug`` (post-detect refresh)."""
+    """Render just the filmstrip fragment for ``slug`` (post-detect refresh).
+
+    Also re-evaluates ``pp_watch`` so a self-polling fragment (see
+    ``preprocess_filmstrip.html``) stops re-fetching once scene_detection has
+    actually finished, instead of polling for the lifetime of the tab.
+    """
     cfg = get_config()
     filmstrip, title, _video = _filmstrip_for(cfg, slug)
+    watch = bool(slug) and _scene_detection_pending(cfg, slug)
     return templates.TemplateResponse(
         request,
         "partials/preprocess_filmstrip.html",
-        make_ctx(request, filmstrip=filmstrip, pp_slug=slug, pp_title=title),
+        make_ctx(request, filmstrip=filmstrip, pp_slug=slug, pp_title=title, pp_watch=watch),
     )
