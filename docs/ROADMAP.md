@@ -283,3 +283,21 @@ Success criteria:
   in the scene inspector. Prototyped in May 2026 and then removed from `main`
   to keep the v1.0 surface focused. No target version; it returns only if the
   text-retrieval story needs a second lexical surface.
+- **Vector database (sqlite-vec / LanceDB)** — assessed 2026-08-12 and
+  deliberately deferred. The library currently holds roughly 6.5k keyframe
+  vectors (about 1.3k per film × 5 films) at 512 dimensions: ~13 MB, which
+  in-memory NumPy dot products search in microseconds, with mtime-keyed
+  `StatCache` handling invalidation. A vector DB solves problems this scale
+  does not have, and migrating would invalidate every film's on-disk
+  embedding artefact (`keyframe_embeddings.npy` + `index_mapping.json`),
+  which per `CLAUDE.md` requires maintainer sign-off. Revisit when any of
+  these appear: the library passes roughly 50–100 films (~100k+ vectors,
+  where per-film index loading dominates cross-film queries); the UI needs
+  metadata filtering *inside* the query (tag / film / timecode predicates
+  pushed into the scan rather than post-filtering results); or cross-film
+  search needs server-side pagination. Start with **sqlite-vec** — a single
+  vendorable extension, no server process, consistent with the offline
+  constraint. **LanceDB** only if columnar faceting or hybrid keyword+vector
+  in one engine becomes a core UI feature. What it would unlock: facet counts
+  beside results, paginated result sets, and combined tag+similarity queries
+  in one round trip.

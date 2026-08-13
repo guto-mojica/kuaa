@@ -91,6 +91,31 @@
 {%- endmacro %}
 
 
+{#- ── add_film_trigger ───────────────────────────────────────────────
+    THE Add-film entry point. One element type, one label treatment,
+    everywhere the gesture appears (LeftPane header, Processing header,
+    empty states). Before this macro the app had four diverging triggers
+    (button.fx-btn w/ inline style, icon-only button.add, a non-button
+    div.tree-node, plus a duplicate #add-film-zone) — same gesture, four
+    looks. Every caller now renders the same button and the form always
+    lands in a source-appropriate zone.
+
+    Args:
+      label  — visible text (already translated; callers pass _('Add film'))
+      source — 'left-pane' (default) | 'processing'; forwarded to the
+               form GET and selects the swap zone.
+      target — override the swap zone (defaults per source).
+-#}
+{% macro add_film_trigger(label, source='left-pane', target=None) -%}
+{%- set zone = target or ('#proc-add-film-zone' if source == 'processing' else '#add-film-zone') -%}
+<button class="fx-btn ghost sm" type="button"
+        title="{{ label }}" aria-label="{{ label }}"
+        hx-get="/api/library/add-form{% if source != 'left-pane' %}?source={{ source }}{% endif %}"
+        hx-target="{{ zone }}"
+        hx-swap="innerHTML">{{ icon('plus', 10) }} {{ label }}</button>
+{%- endmacro %}
+
+
 {#- ── pill ──────────────────────────────────────────────────────────
     Small label pill (.pill family). Includes the optional left "dot"
     used in /eval row chips.

@@ -22,13 +22,26 @@
       hx-swap="innerHTML"
       {% endif %}>
     <input type="hidden" name="source" value="{{ src }}">
+    {# ``list=`` + the server-rendered <datalist> below give the path field
+       near-picker UX: the browser suggests unregistered videos found in
+       cfg.paths.raw_dir as the operator types. A native file dialog cannot
+       replace this field — browsers never expose server-side paths, and the
+       add flow symlinks a file already on the server's disk (uploading a
+       multi-GB video the server already has would be pointless). Absolute
+       paths outside raw_dir still work as free text. #}
     <input class="filter-input{% if has_error %} is-error{% endif %}"
            type="text"
            name="video_path"
-           placeholder="{{ _('Absolute path or filename in raw dir') }}"
+           list="raw-dir-files"
+           placeholder="{{ _('Filename in raw dir (suggested below) or absolute path') }}"
            required
            autofocus
            {% if has_error %}aria-invalid="true" aria-describedby="add-film-error"{% else %}aria-invalid="false"{% endif %}>
+    <datalist id="raw-dir-files">
+      {% for name in raw_files | default([]) %}
+      <option value="{{ name }}"></option>
+      {% endfor %}
+    </datalist>
     <input class="filter-input"
            type="text"
            name="title"
@@ -39,16 +52,18 @@
       {% include "partials/_field_error.html" %}
     {% endwith %}
     <div class="add-film-form__actions">
-        <button type="submit" class="tree-node tree-node--add">{{ _("Add") }}</button>
+        <button type="submit" class="fx-btn primary sm">{{ _("Add film") }}</button>
+        {# Both Cancels are real <button>s — the left-pane one was a
+           non-focusable div, invisible to keyboard users. #}
         {% if src == "processing" %}
-        <button type="button" class="tree-node"
+        <button type="button" class="fx-btn ghost sm"
                 onclick="document.getElementById('proc-add-film-zone').innerHTML=''">
             {{ _("Cancel") }}</button>
         {% else %}
-        <div class="tree-node"
-             hx-get="/api/library/tree"
-             hx-target="#lp-scroll"
-             hx-swap="innerHTML">{{ _("Cancel") }}</div>
+        <button type="button" class="fx-btn ghost sm"
+                hx-get="/api/library/tree"
+                hx-target="#lp-scroll"
+                hx-swap="innerHTML">{{ _("Cancel") }}</button>
         {% endif %}
     </div>
 </form>

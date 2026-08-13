@@ -99,7 +99,9 @@
             <span class="lang">{{ q.lang or 'pt' }}</span>
             <span class="src">{{ q.source or 'manual' }}</span>
           </div>
-          <div class="text">{{ q.text }}</div>
+          {# title= recovers the full query past the 2-line clamp
+             (eval.css .ev-q .text). #}
+          <div class="text" title="{{ q.text }}">{{ q.text }}</div>
           <div class="progress">
             <span class="pips">
               {% for i in range(candidate_count) %}

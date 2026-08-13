@@ -74,3 +74,34 @@ def test_remove_film_route_unknown_slug_is_idempotent(tmp_config, client) -> Non
     response = client.post("/api/library/remove/nonexistent_slug")
 
     assert response.status_code == 200, response.text
+
+
+def test_list_raw_videos_filters_non_videos_and_registered(tmp_config) -> None:
+    """``list_raw_videos`` offers only unregistered video files from raw_dir.
+
+    Unit-level counterpart to the datalist form test: the suggestion list is
+    what replaces a native file dialog (which cannot supply a server path),
+    so it must not offer junk (non-video files) or dead ends (films already
+    in the library).
+    """
+    from api.services.library_admin import list_raw_videos
+    from kuaa.library import load_registry, register_film
+
+    raw_dir = Path(tmp_config.paths.raw_dir)
+    library_dir = Path(tmp_config.paths.library_dir)
+    for name in ("b_second.mp4", "a_first.mov", "taken.avi"):
+        (raw_dir / name).write_bytes(b"\x00")
+    (raw_dir / "readme.md").write_bytes(b"text")
+    (raw_dir / "subdir").mkdir(exist_ok=True)
+    register_film(library_dir, slug="taken", title="Taken", year=None, raw_filename="taken.avi")
+
+    out = list_raw_videos(raw_dir, load_registry(library_dir))
+
+    assert out == ["a_first.mov", "b_second.mp4"], "sorted, video-only, unregistered only"
+
+
+def test_list_raw_videos_missing_dir_is_empty(tmp_path) -> None:
+    """An absent raw_dir yields no suggestions instead of raising."""
+    from api.services.library_admin import list_raw_videos
+
+    assert list_raw_videos(tmp_path / "nope", {}) == []

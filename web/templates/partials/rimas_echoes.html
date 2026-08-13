@@ -42,7 +42,9 @@
         </div>
         <div class="body">
           {% if e.reason %}
-            <p class="reason">{{ e.reason }}</p>
+            {# title= recovers the full text past the 2-line clamp
+               (rimas.css .r-echo .reason). #}
+            <p class="reason" title="{{ e.reason }}">{{ e.reason }}</p>
           {% endif %}
           <div class="footrow">
             <span class="info">{{ _('Scene %(n)s') % {'n': '%03d'|format(e.scene_id)} }}</span>

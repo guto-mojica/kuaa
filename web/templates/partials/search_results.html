@@ -89,7 +89,11 @@
           </div>
           <span class="yr">{% if f and f.year %}{{ f.year }}{% endif %}</span>
         </div>
-        <p class="desc">{{ r.description or _("No description yet.") }}</p>
+        {# title= is the recovery path for the 2-line clamp (buscar.css .desc):
+           the card shows two lines, the tooltip shows the whole description.
+           Chosen over releasing the clamp on hover, which would shift every
+           other card in the grid. #}
+        <p class="desc" title="{{ r.description or _('No description yet.') }}">{{ r.description or _("No description yet.") }}</p>
         <div class="footrow">
           <div class="tags">
             {% set tag_list = r.tags or [] %}

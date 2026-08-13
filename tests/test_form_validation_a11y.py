@@ -156,6 +156,48 @@ def test_add_film_clean_form_has_no_error_but_keeps_describedby_target(client) -
     assert "field-error is-error" not in html
 
 
+def test_add_film_form_suggests_raw_dir_videos(tmp_config, client) -> None:
+    """The path field is wired to a datalist of unregistered raw-dir videos.
+
+    A browser file dialog cannot supply a server-side path, so the datalist is
+    the picker affordance: it must list video files sitting in raw_dir, skip
+    non-video files, and skip films already registered.
+    """
+    raw_dir = Path(tmp_config.paths.raw_dir)
+    library_dir = Path(tmp_config.paths.library_dir)
+    (raw_dir / "unadded.mp4").write_bytes(b"\x00")
+    (raw_dir / "notes.txt").write_bytes(b"not a video")
+    (raw_dir / "already.mkv").write_bytes(b"\x00")
+    register_film(
+        library_dir, slug="already", title="Already", year=None, raw_filename="already.mkv"
+    )
+
+    html = client.get("/api/library/add-form").text
+    field = re.search(r"<input[^>]*name=\"video_path\"[^>]*>", html)
+    assert field and 'list="raw-dir-files"' in field.group(0)
+    assert 'id="raw-dir-files"' in html
+    assert '<option value="unadded.mp4">' in html
+    assert "notes.txt" not in html, "non-video file offered as a suggestion"
+    assert "already.mkv" not in html, "already-registered film offered as a suggestion"
+
+
+def test_add_film_error_rerender_keeps_suggestions(tmp_config, client) -> None:
+    """A failed submit re-renders the form WITH the datalist still populated.
+
+    The error path builds its own context; if it skipped the raw-dir lookup the
+    operator would lose the suggestions exactly when they mistyped a path.
+    """
+    (Path(tmp_config.paths.raw_dir) / "unadded.mp4").write_bytes(b"\x00")
+    r = client.post(
+        "/api/library/add",
+        data={"video_path": "/definitely/not/here.mp4", "title": ""},
+        headers={"HX-Request": "true"},
+    )
+    assert r.status_code == 200
+    assert 'id="raw-dir-files"' in r.text
+    assert '<option value="unadded.mp4">' in r.text
+
+
 # ── Search query ───────────────────────────────────────────────────────
 
 
