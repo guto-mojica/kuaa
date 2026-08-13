@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, Response
 
 from api.deps import film_slug_query, get_config, make_ctx, request_gettext, toast_trigger
 from api.services.library_admin import register_and_symlink, resolve_video_path
-from api.services.library_render import add_form_ctx, chrome_filter_ctx, library_ctx
+from api.services.library_render import chrome_filter_ctx, library_ctx
 from api.services.processing_render import processing_tab_response
 from api.templates import templates
 from kuaa.errors import IndexMissing
@@ -51,7 +51,7 @@ async def api_library_select(
 @router.get("/api/library/add-form", response_class=HTMLResponse)
 async def api_library_add_form(request: Request, source: str = "left-pane") -> HTMLResponse:
     return templates.TemplateResponse(
-        request, "partials/add_film_form.html", add_form_ctx(request, source=source)
+        request, "partials/add_film_form.html", make_ctx(request, source=source)
     )
 
 
@@ -82,7 +82,7 @@ async def api_library_add(
             return processing_tab_response(
                 request, error_message=_ERROR_MESSAGES.get(error_key, error_key), sub=sub
             )
-        ctx = add_form_ctx(request, source=source, error_key=error_key)
+        ctx = make_ctx(request, source=source, error_key=error_key)
         return templates.TemplateResponse(request, "partials/add_film_form.html", ctx)
 
     if not video.exists():

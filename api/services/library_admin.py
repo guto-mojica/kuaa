@@ -29,27 +29,6 @@ def resolve_video_path(video_path_str: str, raw_dir_str: str) -> Path:
     return video
 
 
-def list_raw_videos(raw_dir: Path, registry: dict[str, dict]) -> list[str]:
-    """List video filenames in ``raw_dir`` not yet registered as films.
-
-    Feeds the add-film form's ``<datalist>`` so the path field suggests
-    what is actually available instead of asking the operator to remember
-    filenames. Bare names only (the form's resolver joins them onto
-    ``raw_dir``); files whose name matches any registry entry's
-    ``raw_filename`` are omitted. Empty when the directory is absent.
-    """
-    from kuaa.library.registry import _VIDEO_EXTENSIONS
-
-    if not raw_dir.is_dir():
-        return []
-    taken = {entry.get("raw_filename") for entry in registry.values()}
-    return sorted(
-        p.name
-        for p in raw_dir.iterdir()
-        if p.is_file() and p.suffix.lower() in _VIDEO_EXTENSIONS and p.name not in taken
-    )
-
-
 def register_and_symlink(
     library_dir: Path,
     video: Path,

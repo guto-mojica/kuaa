@@ -59,25 +59,6 @@ def chrome_filter_ctx(request: Request, q: str = "", current_slug: str | None = 
     return make_ctx(request, legacy_active_tab=infer_active_tab(request), **chrome)
 
 
-def add_form_ctx(request: Request, source: str = "left-pane", error_key: str = "") -> dict:
-    """Build the add-film form context, including the raw-dir datalist.
-
-    ``raw_files`` feeds the form's ``<datalist>`` so the path field
-    suggests unregistered videos already sitting in ``cfg.paths.raw_dir``.
-    Shared by the form GET and the add route's error re-render so
-    suggestions survive a failed submit.
-    """
-    from pathlib import Path
-
-    from api.services.library_admin import list_raw_videos
-    from kuaa.library import load_registry
-
-    cfg = get_config()
-    raw_files = list_raw_videos(Path(cfg.paths.raw_dir), load_registry(Path(cfg.paths.library_dir)))
-    extra = {"error_key": error_key} if error_key else {}
-    return make_ctx(request, source=source, raw_files=raw_files, **extra)
-
-
 def tree_response(request: Request) -> HTMLResponse:
     """Return the legacy library_tree partial with an unfiltered context."""
     return templates.TemplateResponse(

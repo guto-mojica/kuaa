@@ -22,26 +22,19 @@
       hx-swap="innerHTML"
       {% endif %}>
     <input type="hidden" name="source" value="{{ src }}">
-    {# ``list=`` + the server-rendered <datalist> below give the path field
-       near-picker UX: the browser suggests unregistered videos found in
-       cfg.paths.raw_dir as the operator types. A native file dialog cannot
-       replace this field — browsers never expose server-side paths, and the
-       add flow symlinks a file already on the server's disk (uploading a
-       multi-GB video the server already has would be pointless). Absolute
-       paths outside raw_dir still work as free text. #}
+    {# Plain text input, deliberately. A browser file dialog cannot hand the
+       server a path, and the add flow symlinks a file already on the server's
+       own disk. A raw-dir <datalist> was tried here and removed: it neither
+       eased navigating storage nor changed what operators actually typed —
+       absolute paths were already the common case, and the suggestion list
+       only covered one directory. #}
     <input class="filter-input{% if has_error %} is-error{% endif %}"
            type="text"
            name="video_path"
-           list="raw-dir-files"
-           placeholder="{{ _('Filename in raw dir (suggested below) or absolute path') }}"
+           placeholder="{{ _('Absolute path or filename in raw dir') }}"
            required
            autofocus
            {% if has_error %}aria-invalid="true" aria-describedby="add-film-error"{% else %}aria-invalid="false"{% endif %}>
-    <datalist id="raw-dir-files">
-      {% for name in raw_files | default([]) %}
-      <option value="{{ name }}"></option>
-      {% endfor %}
-    </datalist>
     <input class="filter-input"
            type="text"
            name="title"
