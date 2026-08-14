@@ -37,7 +37,7 @@ _ROWS_KEYS = {
 }
 
 
-def _two_row_stub(*, query, cfg, library_dir, k=9) -> list[dict[str, Any]]:
+def _two_row_stub(*, query, cfg, library_dir, k=9, **kw) -> list[dict[str, Any]]:
     """Stand-in for ``generate_slate``: two valid 9-key candidate rows."""
     return [
         {

@@ -85,13 +85,19 @@ def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
     # needs grader_name, and the IAA + compare-mode helpers below also
     # need it to pick "the other annotator". Cookie-driven when a
     # request is provided; falls back to "anon" for direct callers (tests).
+    # Blind by default for a pooled run: its rows already arrive shuffled with
+    # score blanked, and the point of building it that way is that the grader
+    # cannot read the retriever's opinion off the page. An explicit cookie
+    # still wins in both directions — this only moves the default.
+    pooled_run = any(q.get("pool_variants") for q in queries)
     grader_name = "anon"
-    blind_mode = False
+    blind_mode = pooled_run
     compare_mode = False
     token = os.getenv("EVAL_ADMIN_TOKEN", "")
     if request is not None:
         grader_name = request.cookies.get("grader", "anon")
-        blind_mode = request.cookies.get("eval_blind", "") == "1"
+        blind_cookie = request.cookies.get("eval_blind", "")
+        blind_mode = blind_cookie == "1" if blind_cookie else pooled_run
         compare_mode = request.cookies.get("eval_compare", "") == "1"
         token = request.cookies.get("eval_admin") or request.query_params.get("token") or token
 

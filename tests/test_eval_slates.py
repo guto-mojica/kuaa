@@ -19,6 +19,7 @@ Two concerns are covered:
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -219,8 +220,10 @@ def test_generate_slate_dispatches_rhyme_to_find_rhymes(tmp_path: Path, monkeypa
     assert len(rows) == 2
     for r in rows:
         assert set(r.keys()) == _ROWS_KEYS
-    assert rows[0]["scene_id"] == 4
-    assert rows[0]["film_slug"] == "porter"
+    # Order is not asserted: rhyme rows are blinded like every other modality,
+    # so presentation order carries no retrieval signal. Membership is the
+    # contract here — see the blinding tests below for the ordering rules.
+    assert {(r["film_slug"], r["scene_id"]) for r in rows} == {("porter", 4), ("porter", 2)}
     # Anchor parsed correctly and cross_film_only honoured.
     assert captured["anchor_slug"] == "jeca_tatu"
     assert captured["anchor_scene_id"] == 12
@@ -275,7 +278,7 @@ def test_generate_slate_text_scopes_search_to_film_slug(tmp_path, monkeypatch):
 
     called: list[str] = []
 
-    def fake_find(q: Query, *, film, mode, top_k, cfg):
+    def fake_find(q: Query, *, film, mode, top_k, cfg, **kw):
         called.append(film.slug)
         return SearchResult(
             hits=[Hit(scene_id=1, score=0.9, keyframe_path="")],
@@ -302,15 +305,20 @@ def test_generate_slate_text_scopes_search_to_film_slug(tmp_path, monkeypatch):
     )
 
     # Scoped: only "beta" is searched, so it can't be crowded out by "alpha".
+    # Once per retriever variant now that the pool spans all of them.
     called.clear()
     rows = generate_slate(query=q, cfg=_cfg(), library_dir=tmp_path, k=5, film_slug="beta")
-    assert called == ["beta"]
+    assert set(called) == {"beta"}
+    assert len(called) == len(slates.POOL_VARIANTS)
     assert rows and all(r["film_slug"] == "beta" for r in rows)
+    # Every variant proposed the same scene, so it dedupes to one row.
+    assert len(rows) == 1
 
-    # Unscoped (default): both films searched (the pre-fix global behaviour).
+    # Unscoped (default): both films searched, still once per variant each.
     called.clear()
     generate_slate(query=q, cfg=_cfg(), library_dir=tmp_path, k=5)
-    assert called == ["alpha", "beta"]
+    assert set(called) == {"alpha", "beta"}
+    assert len(called) == 2 * len(slates.POOL_VARIANTS)
 
 
 # ── text / image find path (cross-film, registry-free) ──────────────────────
@@ -373,21 +381,36 @@ def test_generate_slate_dispatches_text_to_find(tmp_path: Path, monkeypatch):
         relevance={},
         notes=None,
     )
-    rows = generate_slate(query=q, cfg=_cfg(), library_dir=tmp_path, k=9)
+    rows = generate_slate(query=q, cfg=_cfg(), library_dir=tmp_path, k=9, blind_rows=False)
 
-    # find called once per (unregistered) film, always in clip mode with text.
+    # find called once per (unregistered) film, per retriever variant.
     assert {c["slug"] for c in captured} == {"film_a", "film_b"}
-    assert all(c["mode"] == "clip" and c["is_text"] for c in captured)
-    # Non-empty rows, all 9 keys, descending score, BOTH films present (merge).
+    assert all(c["is_text"] for c in captured)
+    # The pool spans every variant, not just CLIP — that is the whole point.
+    assert {c["mode"] for c in captured} == {"clip", "bm25", "hybrid"}
+    # Deduped by (film, scene): the same 4 scenes, however many variants
+    # proposed them. Rows keep the 9-key contract plus the ``pool`` sidecar.
     assert len(rows) == 4
     for r in rows:
-        assert set(r.keys()) == _ROWS_KEYS
-    scores = [r["score"] for r in rows]
-    assert scores == sorted(scores, reverse=True)
+        assert set(r.keys()) == _ROWS_KEYS | {"pool"}
     assert {r["film_slug"] for r in rows} == {"film_a", "film_b"}
-    # Top hit is film_a/10 (0.9); the films interleave below it.
-    assert (rows[0]["film_slug"], rows[0]["scene_id"]) == ("film_a", 10)
-    assert (rows[1]["film_slug"], rows[1]["scene_id"]) == ("film_b", 20)
+    assert {(r["film_slug"], r["scene_id"]) for r in rows} == {
+        ("film_a", 10),
+        ("film_a", 11),
+        ("film_b", 20),
+        ("film_b", 21),
+    }
+    # Every variant that proposed a scene is recorded against it, with the
+    # rank it proposed at — this is what makes per-leg scoring possible.
+    top = next(r for r in rows if (r["film_slug"], r["scene_id"]) == ("film_a", 10))
+    assert set(top["pool"]) == {
+        "clip",
+        "bm25",
+        "hybrid",
+        "hybrid_no_metadata",
+        "hybrid_rerank",
+    }
+    assert all(rank == 1 for rank in top["pool"].values()), "0.9 leads every variant"
 
 
 def test_generate_slate_dispatches_image_to_find(tmp_path: Path, monkeypatch):
@@ -420,13 +443,184 @@ def test_generate_slate_dispatches_image_to_find(tmp_path: Path, monkeypatch):
         relevance={},
         notes=None,
     )
-    rows = generate_slate(query=q, cfg=_cfg(), library_dir=tmp_path, k=9)
+    rows = generate_slate(query=q, cfg=_cfg(), library_dir=tmp_path, k=9, blind_rows=False)
 
     # find was called with an image Query (image_path set, text None) in clip mode.
     assert captured["image_path"] == img.resolve()
     assert captured["text"] is None
+    # Image queries are NOT pooled: find forces CLIP for them whatever mode
+    # says, so there is no competing retriever to union with.
     assert captured["mode"] == "clip"
     assert len(rows) == 2
     for r in rows:
         assert set(r.keys()) == _ROWS_KEYS
     assert rows[0]["score"] >= rows[1]["score"]
+
+
+# ── pooling + blinding ──────────────────────────────────────────────────────
+#
+# Relevance judgments are only valid for the system that produced the pool
+# they were drawn from. A CLIP-only slate yields labels biased against BM25,
+# hybrid and the reranker — the exact comparisons the eval exists to make —
+# so the pool spans every retriever and the presentation reveals none of them.
+
+
+def _text_query(qid: str = "text-01") -> ModalQuery:
+    return ModalQuery(
+        id=qid,
+        query_type="text",
+        text="cavaleiro no campo",
+        image_path=None,
+        anchor=None,
+        w=None,
+        lang="pt",
+        relevant_scene_ids=(),
+        relevance={},
+        notes=None,
+    )
+
+
+def _pool_env(monkeypatch, per_variant: dict[str, list[tuple[int, float]]]):
+    """Stub ``find`` so each retriever mode returns its own hit list."""
+    import kuaa.eval.slates as slates
+
+    def _fake_find(query, *, film, mode, top_k, cfg, rerank=False, **kw):
+        key = f"{mode}_rerank" if rerank else mode
+        hits = per_variant.get(key, per_variant.get(mode, []))
+        return _search_result([_hit(sid, score, film.slug) for sid, score in hits])
+
+    monkeypatch.setattr(slates, "find", _fake_find)
+    monkeypatch.setattr(slates, "_iter_films", lambda lib: ["film_a"])
+    monkeypatch.setattr(slates, "_ctx_for", lambda lib, slug: SimpleNamespace(slug=slug))
+
+
+def test_pool_is_the_union_of_every_variant(tmp_path, monkeypatch):
+    """A scene only BM25 proposes must still reach the grader."""
+    _pool_env(
+        monkeypatch,
+        {
+            "clip": [(1, 0.9)],
+            "bm25": [(2, 0.8)],
+            "hybrid": [(1, 0.7), (3, 0.6)],
+        },
+    )
+    rows = generate_slate(
+        query=_text_query(), cfg=_cfg(), library_dir=tmp_path, k=9, blind_rows=False
+    )
+    assert {r["scene_id"] for r in rows} == {1, 2, 3}
+
+
+def test_pool_dedupes_and_keeps_every_proposing_rank(tmp_path, monkeypatch):
+    """One row per scene, carrying the rank each variant proposed it at."""
+    _pool_env(
+        monkeypatch,
+        {
+            "clip": [(1, 0.9), (2, 0.5)],
+            "bm25": [(2, 0.8)],
+            "hybrid": [(2, 0.7)],
+        },
+    )
+    rows = generate_slate(
+        query=_text_query(), cfg=_cfg(), library_dir=tmp_path, k=9, blind_rows=False
+    )
+    scene_2 = next(r for r in rows if r["scene_id"] == 2)
+    assert len([r for r in rows if r["scene_id"] == 2]) == 1, "deduped by (film, scene)"
+    assert scene_2["pool"]["clip"] == 2, "CLIP ranked it second"
+    assert scene_2["pool"]["bm25"] == 1, "BM25 ranked it first"
+    assert scene_2["pool"]["hybrid"] == 1
+
+
+def test_metadata_leg_is_disabled_for_its_own_variant(tmp_path, monkeypatch):
+    """hybrid_no_metadata must actually hand find a config that says so."""
+    import kuaa.eval.slates as slates
+
+    seen: list[float] = []
+
+    def _fake_find(query, *, film, mode, top_k, cfg, rerank=False, **kw):
+        if mode == "hybrid":
+            seen.append(cfg.search.hybrid_metadata_w)
+        return _search_result([])
+
+    monkeypatch.setattr(slates, "find", _fake_find)
+    monkeypatch.setattr(slates, "_iter_films", lambda lib: ["film_a"])
+    monkeypatch.setattr(slates, "_ctx_for", lambda lib, slug: SimpleNamespace(slug=slug))
+
+    cfg = _cfg()
+    cfg.search = SimpleNamespace(hybrid_metadata_w=0.65)
+    generate_slate(query=_text_query(), cfg=cfg, library_dir=tmp_path, k=9)
+    assert 0.0 in seen, "the no-metadata variant must zero the leg"
+    assert any(w != 0.0 for w in seen), "the plain hybrid variant must not"
+
+
+def test_blinding_blanks_the_score(tmp_path, monkeypatch):
+    """rows.html renders score as a number and a bar — both leak confidence."""
+    _pool_env(monkeypatch, {"clip": [(1, 0.9), (2, 0.5)]})
+    rows = generate_slate(query=_text_query(), cfg=_cfg(), library_dir=tmp_path, k=9)
+    assert rows and all(r["score"] is None for r in rows)
+
+
+def test_blinding_is_deterministic_per_query(tmp_path, monkeypatch):
+    """A grader resuming a run must not meet a reshuffled queue."""
+    _pool_env(monkeypatch, {"clip": [(i, 1.0 - i / 10) for i in range(1, 9)]})
+    kw = dict(cfg=_cfg(), library_dir=tmp_path, k=9, blind_seed="run-1")
+    first = generate_slate(query=_text_query(), **kw)
+    again = generate_slate(query=_text_query(), **kw)
+    assert [r["scene_id"] for r in first] == [r["scene_id"] for r in again]
+
+
+def test_blinding_differs_across_queries(tmp_path, monkeypatch):
+    """Same candidates, different query — position must not become a habit."""
+    _pool_env(monkeypatch, {"clip": [(i, 1.0 - i / 10) for i in range(1, 9)]})
+    kw = dict(cfg=_cfg(), library_dir=tmp_path, k=9, blind_seed="run-1")
+    a = generate_slate(query=_text_query("text-01"), **kw)
+    b = generate_slate(query=_text_query("text-02"), **kw)
+    assert [r["scene_id"] for r in a] != [r["scene_id"] for r in b]
+
+
+def test_blinding_does_not_preserve_retriever_order(tmp_path, monkeypatch):
+    """Position must not be readable as the system's opinion."""
+    _pool_env(monkeypatch, {"clip": [(i, 1.0 - i / 100) for i in range(1, 13)]})
+    ordered = generate_slate(
+        query=_text_query(), cfg=_cfg(), library_dir=tmp_path, k=12, blind_rows=False
+    )
+    blinded = generate_slate(
+        query=_text_query(), cfg=_cfg(), library_dir=tmp_path, k=12, blind_seed="run-1"
+    )
+    assert [r["scene_id"] for r in ordered] != [r["scene_id"] for r in blinded]
+    assert {r["scene_id"] for r in ordered} == {r["scene_id"] for r in blinded}
+
+
+def test_blinding_keeps_the_pool_provenance(tmp_path, monkeypatch):
+    """Blinding hides provenance from the GRADER, not from the scorer."""
+    _pool_env(monkeypatch, {"clip": [(1, 0.9)], "bm25": [(1, 0.4)]})
+    rows = generate_slate(query=_text_query(), cfg=_cfg(), library_dir=tmp_path, k=9)
+    # Only the variants that actually proposed the scene are recorded — the
+    # hybrid legs returned nothing for it here, and must not be credited.
+    assert rows[0]["pool"] == {"clip": 1, "bm25": 1}
+
+
+def test_pooled_run_defaults_to_blind_in_the_ui(tmp_path, monkeypatch):
+    """A pooled run must not need a cookie to hide the retriever's opinion."""
+    from api.services.eval_service import build_eval_context
+
+    root = tmp_path / "eval"
+    root.mkdir()
+    (root / "pooled.queries.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "text-01",
+                    "text": "cavaleiro",
+                    "pool_variants": ["clip", "bm25"],
+                    "results": [],
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    cfg = SimpleNamespace(
+        eval=SimpleNamespace(root=str(root), run_id="pooled"),
+        paths=SimpleNamespace(library_dir=str(tmp_path / "library")),
+    )
+    ctx = build_eval_context(cfg)
+    assert ctx["blind_mode"] is True, "pooled runs are blind unless told otherwise"
