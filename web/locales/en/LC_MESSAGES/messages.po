@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kuaa-ai 0.3.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-04 23:47-0300\n"
+"POT-Creation-Date: 2026-08-14 17:17-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -55,7 +55,7 @@ msgstr "Processing"
 #: web/templates/base.html:130 web/templates/partials/_help_overlay.html:79
 #: web/templates/partials/_topbar.html:72
 #: web/templates/partials/about_modal.html:200
-#: web/templates/partials/processing.html:36
+#: web/templates/partials/processing.html:37
 #: web/templates/partials/processing_job.html:51
 msgid "Processing"
 msgstr "Processing"
@@ -98,39 +98,43 @@ msgstr ""
 msgid "Eval"
 msgstr ""
 
-#: web/templates/eval/layout.html:106
-msgid "anon"
+#: web/templates/eval/layout.html:113
+msgid "your name"
 msgstr ""
 
-#: web/templates/eval/layout.html:123
+#: web/templates/eval/layout.html:114
+msgid "Grader name — identifies your judgments in the agreement metrics"
+msgstr ""
+
+#: web/templates/eval/layout.html:134
 msgid "grade"
 msgstr ""
 
-#: web/templates/eval/layout.html:124
+#: web/templates/eval/layout.html:135
 msgid "skip"
 msgstr ""
 
-#: web/templates/eval/layout.html:125
+#: web/templates/eval/layout.html:136
 msgid "nav"
 msgstr ""
 
-#: web/templates/eval/layout.html:126
+#: web/templates/eval/layout.html:137
 msgid "save & advance"
 msgstr ""
 
-#: web/templates/eval/layout.html:127
+#: web/templates/eval/layout.html:138
 msgid "export"
 msgstr ""
 
-#: web/templates/eval/layout.html:128
+#: web/templates/eval/layout.html:139
 msgid "help"
 msgstr ""
 
-#: web/templates/eval/layout.html:131
+#: web/templates/eval/layout.html:142
 msgid "row"
 msgstr ""
 
-#: web/templates/eval/layout.html:133
+#: web/templates/eval/layout.html:144
 msgid "session"
 msgstr ""
 
@@ -242,15 +246,15 @@ msgstr ""
 msgid "Conflict"
 msgstr ""
 
-#: web/templates/eval/queue.html:116
+#: web/templates/eval/queue.html:118
 msgid "No queries seeded for this run."
 msgstr ""
 
-#: web/templates/eval/queue.html:123
+#: web/templates/eval/queue.html:125
 msgid "Blind mode"
 msgstr ""
 
-#: web/templates/eval/queue.html:128
+#: web/templates/eval/queue.html:130
 msgid "Compare annotator"
 msgstr ""
 
@@ -304,7 +308,7 @@ msgstr ""
 
 #: web/templates/eval/rows.html:100
 #: web/templates/partials/scenes_inspector.html:134
-#: web/templates/partials/search_results.html:92
+#: web/templates/partials/search_results.html:96
 msgid "No description yet."
 msgstr ""
 
@@ -431,41 +435,40 @@ msgstr ""
 msgid "Language"
 msgstr ""
 
-#: web/templates/partials/_left_pane_body.html:25
+#: web/templates/partials/_left_pane_body.html:26
 msgid "Library · Films"
 msgstr ""
 
-#: web/templates/partials/_left_pane_body.html:29
-#: web/templates/partials/_left_pane_body.html:30
-#: web/templates/partials/_left_pane_body.html:33
+#: web/templates/partials/_left_pane_body.html:27
+#: web/templates/partials/_left_pane_body.html:105
+#: web/templates/partials/add_film_form.html:48
 #: web/templates/partials/library_tree.html:57
-#: web/templates/partials/processing.html:43
-#: web/templates/partials/processing.html:44
+#: web/templates/partials/processing.html:45
 msgid "Add film"
 msgstr ""
 
-#: web/templates/partials/_left_pane_body.html:45
+#: web/templates/partials/_left_pane_body.html:48
 #, fuzzy
 msgid "All films"
 msgstr "Film"
 
-#: web/templates/partials/_left_pane_body.html:80
+#: web/templates/partials/_left_pane_body.html:86
 #: web/templates/partials/annotate.html:97
 #, python-format
 msgid "scene %(n)s"
 msgstr ""
 
-#: web/templates/partials/_left_pane_body.html:86
-#: web/templates/partials/_left_pane_body.html:87
+#: web/templates/partials/_left_pane_body.html:92
+#: web/templates/partials/_left_pane_body.html:93
 msgid "Remove film"
 msgstr "Remove film"
 
-#: web/templates/partials/_left_pane_body.html:95
-#: web/templates/partials/library_tree.html:49
+#: web/templates/partials/_left_pane_body.html:101
+#: web/templates/partials/library_tree.html:50
 msgid "No films in library"
 msgstr "No films in library"
 
-#: web/templates/partials/_left_pane_body.html:108
+#: web/templates/partials/_left_pane_body.html:117
 msgid "Collections"
 msgstr ""
 
@@ -615,21 +618,16 @@ msgstr ""
 msgid "Credits"
 msgstr ""
 
-#: web/templates/partials/add_film_form.html:28
+#: web/templates/partials/add_film_form.html:34
 msgid "Absolute path or filename in raw dir"
 msgstr ""
 
-#: web/templates/partials/add_film_form.html:35
+#: web/templates/partials/add_film_form.html:41
 msgid "Title (optional)"
 msgstr ""
 
-#: web/templates/partials/add_film_form.html:42
-#: web/templates/partials/annotate_tags.html:39
-msgid "Add"
-msgstr ""
-
-#: web/templates/partials/add_film_form.html:46
-#: web/templates/partials/add_film_form.html:51
+#: web/templates/partials/add_film_form.html:54
+#: web/templates/partials/add_film_form.html:59
 #: web/templates/partials/annotate_desc_edit.html:19
 #: web/templates/partials/preprocess_job.html:29
 #: web/templates/partials/processing_job.html:67
@@ -789,7 +787,7 @@ msgstr ""
 #: web/templates/partials/annotate_props.html:41
 #: web/templates/partials/inspector_properties.html:46
 #: web/templates/partials/scenes_inspector.html:101
-#: web/templates/partials/search.html:597
+#: web/templates/partials/search.html:617
 msgid "Tags"
 msgstr ""
 
@@ -826,7 +824,7 @@ msgstr ""
 
 #: web/templates/partials/annotate_scene.html:89
 #: web/templates/partials/rimas.html:204
-#: web/templates/partials/rimas_echoes.html:48
+#: web/templates/partials/rimas_echoes.html:50
 #: web/templates/partials/scenes_inspector.html:64
 #: web/templates/partials/search_inspector.html:101
 #: web/templates/partials/search_timeline.html:67
@@ -902,6 +900,10 @@ msgstr ""
 #: web/templates/partials/annotate_tags.html:32
 #: web/templates/partials/scenes_inspector.html:129
 msgid "Description"
+msgstr ""
+
+#: web/templates/partials/annotate_tags.html:39
+msgid "Add"
 msgstr ""
 
 #: web/templates/partials/annotate_tags.html:45
@@ -982,12 +984,12 @@ msgstr "Entire library"
 
 #: web/templates/partials/home.html:14 web/templates/partials/rimas.html:40
 #: web/templates/partials/rimas.html:238 web/templates/partials/scenes.html:452
-#: web/templates/partials/search.html:402
+#: web/templates/partials/search.html:422
 msgid "films"
 msgstr ""
 
 #: web/templates/partials/home.html:30
-#: web/templates/partials/preprocess_filmstrip.html:23
+#: web/templates/partials/preprocess_filmstrip.html:39
 #: web/templates/partials/processing_stats.html:19
 #: web/templates/partials/scenes.html:449
 #: web/templates/partials/search_timeline.html:45
@@ -1019,7 +1021,7 @@ msgid "Current tags"
 msgstr ""
 
 #: web/templates/partials/inspector_properties.html:20
-#: web/templates/partials/preprocess_filmstrip.html:117
+#: web/templates/partials/preprocess_filmstrip.html:133
 #: web/templates/partials/scenes.html:519
 msgid "Scene"
 msgstr "Scene"
@@ -1028,24 +1030,24 @@ msgstr "Scene"
 msgid "Director"
 msgstr ""
 
-#: web/templates/partials/library_tree.html:7
+#: web/templates/partials/library_tree.html:8
 #, python-format
 msgid "Library processed · %(n)d scenes"
 msgstr "Library processed · %(n)d scenes"
 
-#: web/templates/partials/library_tree.html:12
+#: web/templates/partials/library_tree.html:13
 msgid "Not yet processed"
 msgstr "Not yet processed"
 
-#: web/templates/partials/library_tree.html:17
+#: web/templates/partials/library_tree.html:18
 msgid "No source video"
 msgstr "No source video"
 
-#: web/templates/partials/library_tree.html:21
+#: web/templates/partials/library_tree.html:22
 msgid "Search index missing"
 msgstr "Search index missing"
 
-#: web/templates/partials/library_tree.html:43
+#: web/templates/partials/library_tree.html:44
 #: web/templates/partials/remove_film_confirm.html:2
 msgid "Remove"
 msgstr "Remove"
@@ -1139,7 +1141,7 @@ msgid "Detection log"
 msgstr "Scene detection"
 
 #: web/templates/partials/preprocess.html:140
-#: web/templates/partials/processing.html:197
+#: web/templates/partials/processing.html:195
 msgid "Waiting for events…"
 msgstr ""
 
@@ -1173,77 +1175,77 @@ msgid ""
 "unavailable. The detected cuts are shown below."
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:18
+#: web/templates/partials/preprocess_filmstrip.html:34
 msgid "No scenes yet. Run scene detection to review its cuts here."
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:24
+#: web/templates/partials/preprocess_filmstrip.html:40
 msgid "avg"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:25
+#: web/templates/partials/preprocess_filmstrip.html:41
 #, fuzzy
 msgid "median"
 msgstr "Embeddings"
 
-#: web/templates/partials/preprocess_filmstrip.html:26
+#: web/templates/partials/preprocess_filmstrip.html:42
 msgid "shortest"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:27
+#: web/templates/partials/preprocess_filmstrip.html:43
 msgid "longest"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:29
+#: web/templates/partials/preprocess_filmstrip.html:45
 msgid "hand-edited"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:35
+#: web/templates/partials/preprocess_filmstrip.html:51
 msgid "Rebuilding keyframes… this can take a while for long films."
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:46
+#: web/templates/partials/preprocess_filmstrip.html:62
 #, python-format
 msgid "%(n)s pending change(s)"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:50
+#: web/templates/partials/preprocess_filmstrip.html:66
 msgid "Rebuild only the checked changes"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:56
+#: web/templates/partials/preprocess_filmstrip.html:72
 msgid "Apply changes"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:59
+#: web/templates/partials/preprocess_filmstrip.html:75
 msgid "Discard every staged change"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:63
+#: web/templates/partials/preprocess_filmstrip.html:79
 msgid "Discard"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:79
+#: web/templates/partials/preprocess_filmstrip.html:95
 #, python-format
 msgid "Merge at %(tc)s"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:81
+#: web/templates/partials/preprocess_filmstrip.html:97
 #, python-format
 msgid "Split at %(tc)s"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:91
+#: web/templates/partials/preprocess_filmstrip.html:107
 #, fuzzy
 msgid "Detected scenes"
 msgstr "Back online"
 
-#: web/templates/partials/preprocess_filmstrip.html:100
-#: web/templates/partials/preprocess_filmstrip.html:101
+#: web/templates/partials/preprocess_filmstrip.html:116
+#: web/templates/partials/preprocess_filmstrip.html:117
 msgid "Merge with previous scene"
 msgstr ""
 
-#: web/templates/partials/preprocess_filmstrip.html:114
+#: web/templates/partials/preprocess_filmstrip.html:130
 msgid "Jump the player to this scene"
 msgstr ""
 
@@ -1267,52 +1269,52 @@ msgstr "Processing"
 msgid "Pre-processing cancelled"
 msgstr "Processing"
 
-#: web/templates/partials/processing.html:37
+#: web/templates/partials/processing.html:38
 msgid "active"
 msgstr ""
 
-#: web/templates/partials/processing.html:82
+#: web/templates/partials/processing.html:80
 msgid "No video files found in the raw directory."
 msgstr "No video files found in the raw directory."
 
-#: web/templates/partials/processing.html:93
+#: web/templates/partials/processing.html:91
 msgid "All steps"
 msgstr ""
 
-#: web/templates/partials/processing.html:105
+#: web/templates/partials/processing.html:103
 msgid "Start processing"
 msgstr "Start processing"
 
-#: web/templates/partials/processing.html:108
+#: web/templates/partials/processing.html:106
 msgid "Starting…"
 msgstr "Starting…"
 
-#: web/templates/partials/processing.html:120
+#: web/templates/partials/processing.html:118
 msgid "+ Queue"
 msgstr ""
 
-#: web/templates/partials/processing.html:123
+#: web/templates/partials/processing.html:121
 msgid "Queuing…"
 msgstr ""
 
-#: web/templates/partials/processing.html:140
+#: web/templates/partials/processing.html:138
 msgid "No active jobs."
 msgstr "No active jobs."
 
-#: web/templates/partials/processing.html:177
+#: web/templates/partials/processing.html:175
 msgid "Log · SSE"
 msgstr ""
 
-#: web/templates/partials/processing.html:182
-#: web/templates/partials/processing.html:183
+#: web/templates/partials/processing.html:180
+#: web/templates/partials/processing.html:181
 msgid "Download log"
 msgstr ""
 
-#: web/templates/partials/processing.html:187
+#: web/templates/partials/processing.html:185
 msgid "auto-scroll"
 msgstr ""
 
-#: web/templates/partials/processing.html:229
+#: web/templates/partials/processing.html:227
 msgid "Step detail appears here while a film is processing."
 msgstr ""
 
@@ -1537,11 +1539,11 @@ msgstr ""
 msgid "Keyframe"
 msgstr ""
 
-#: web/templates/partials/rimas_echoes.html:49
+#: web/templates/partials/rimas_echoes.html:51
 msgid "open"
 msgstr ""
 
-#: web/templates/partials/rimas_echoes.html:55
+#: web/templates/partials/rimas_echoes.html:57
 msgid "No visual rhymes yet — process more films to populate the index."
 msgstr ""
 
@@ -1610,7 +1612,7 @@ msgid "Comfortable"
 msgstr ""
 
 #: web/templates/partials/scenes.html:133
-#: web/templates/partials/search.html:451
+#: web/templates/partials/search.html:471
 msgid "Compact"
 msgstr ""
 
@@ -1835,39 +1837,52 @@ msgstr "Rerank"
 msgid "Cross-encoder rerank"
 msgstr ""
 
-#: web/templates/partials/search.html:397
+#: web/templates/partials/search.html:384
+#, fuzzy
+msgid "Scope"
+msgstr "Scene"
+
+#: web/templates/partials/search.html:391
+msgid "Switch to library-wide search"
+msgstr ""
+
+#: web/templates/partials/search.html:393
+msgid "Library-wide"
+msgstr ""
+
+#: web/templates/partials/search.html:417
 msgid "results"
 msgstr ""
 
-#: web/templates/partials/search.html:407
+#: web/templates/partials/search.html:427
 msgid "No results."
 msgstr "No results."
 
-#: web/templates/partials/search.html:413
+#: web/templates/partials/search.html:433
 msgid "Type a query to search"
 msgstr ""
 
-#: web/templates/partials/search.html:428
+#: web/templates/partials/search.html:448
 msgid "Result layout"
 msgstr ""
 
-#: web/templates/partials/search.html:435
+#: web/templates/partials/search.html:455
 msgid "Grid"
 msgstr ""
 
-#: web/templates/partials/search.html:443
+#: web/templates/partials/search.html:463
 msgid "List"
 msgstr ""
 
-#: web/templates/partials/search.html:524
+#: web/templates/partials/search.html:544
 msgid "Drop an image here or click to choose"
 msgstr "Drop an image here or click to choose"
 
-#: web/templates/partials/search.html:525
+#: web/templates/partials/search.html:545
 msgid "Search by visual similarity · PNG, JPG, WebP"
 msgstr "Search by visual similarity · PNG, JPG, WebP"
 
-#: web/templates/partials/search.html:533
+#: web/templates/partials/search.html:553
 msgid "Click or drop to replace"
 msgstr "Click or drop to replace"
 
@@ -2232,5 +2247,8 @@ msgstr ""
 #~ "Scrub to the exact cut, then "
 #~ "split. Click any keyframe to jump "
 #~ "the player there."
+#~ msgstr ""
+
+#~ msgid "anon"
 #~ msgstr ""
 

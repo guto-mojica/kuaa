@@ -383,3 +383,46 @@ def test_eval_page_shows_seeded_queries(client, monkeypatch, tmp_path):
     )
     # The first seeded query's text should appear in the queue pane.
     assert "duas pessoas conversando" in html
+
+
+def test_eval_header_grader_field_is_editable(client, monkeypatch, tmp_path):
+    """The header carries an input that writes the ``grader`` cookie.
+
+    The cookie keys inter-annotator agreement and defaults to ``anon``.
+    Before this field the only way to set it was the browser console, so
+    every grading pass landed under one annotator and the agreement panel
+    had nothing to compare.
+    """
+
+    monkeypatch.setenv("EVAL_ADMIN_TOKEN", "test-token")
+    import api.services.eval_service as eval_service
+
+    monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
+    monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
+
+    r = client.get("/eval?token=test-token")
+    assert r.status_code == 200, r.text
+    html = r.text
+    assert 'class="grader-name"' in html, "grader input missing from the eval header"
+    # Bound to the Alpine handler that writes the cookie and reloads.
+    assert "setGrader($el.value)" in html
+    # Unset grader renders an empty field rather than the literal "anon",
+    # so the placeholder prompts for a name instead of looking answered.
+    field = html[html.index('class="grader-name"') :][:400]
+    assert 'value=""' in field, f"expected an empty grader field, got: {field[:200]}"
+    assert "anon" not in field
+
+
+def test_eval_header_grader_field_prefilled_from_cookie(client, monkeypatch, tmp_path):
+    """A grader who already identified themselves sees their name, not a blank."""
+
+    monkeypatch.setenv("EVAL_ADMIN_TOKEN", "test-token")
+    import api.services.eval_service as eval_service
+
+    monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
+    monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
+
+    client.cookies.set("grader", "guto")
+    r = client.get("/eval?token=test-token")
+    assert r.status_code == 200, r.text
+    assert 'value="guto"' in r.text

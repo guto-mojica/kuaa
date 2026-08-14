@@ -120,6 +120,15 @@
   display: flex; align-items: center; justify-content: center;
   font-family: var(--font-mono); font-size: 10px; font-weight: 700; color: #fff;
 }
+/* Sits inside the .me pill and reads as the label it replaced until focused. */
+.ev-top .me .grader-name {
+  width: 104px; padding: 0; border: 0; background: transparent;
+  font-family: inherit; font-size: inherit; color: inherit;
+  border-bottom: 1px solid transparent;
+}
+.ev-top .me .grader-name::placeholder { color: var(--c-muted); }
+.ev-top .me .grader-name:hover { border-bottom-color: var(--c-border); }
+.ev-top .me .grader-name:focus { outline: none; border-bottom-color: var(--c-accent); }
 
 /* ───── BODY ────────────────────────────────────────────────────────── */
 .ev-body { display: grid; grid-template-columns: 286px 1fr 388px; overflow: hidden; min-height: 0; }
