@@ -1,0 +1,367 @@
+dataset: corpus01
+version: 1
+label_status: ungraded_pool_pending
+source:
+  name: "KUAA corpus01 eval set"
+  identifier: "corpus01"
+  year: 2026
+  notes: >
+    Query set for the corpus01 library: Brazilian public-domain archive
+    (1931-1964) plus two fiction/animation features. Authored AFTER the corpus
+    was indexed, against films that are actually present — see
+    data/eval/README.md for why that ordering matters.
+
+    NO relevant_scene_ids / relevance fields. These queries exist to be graded
+    against a POOLED candidate set (kuaa eval slate), and a hypothesis label
+    authored from what the system already returns is only valid for the system
+    that returned it. Grading supersedes them.
+
+    Design axes, each deliberate:
+
+    * QUERY LENGTH. hybrid_metadata_w tapers with length
+      (kuaa.retrieval.hybrid.effective_metadata_w): the exact-lexical leg earns
+      a majority share on short object queries and measurably hurts long
+      natural-language ones. The previous m3_full set was 4-7 terms
+      throughout, so it never exercised the end the leg exists for. Here
+      `len` is tracked explicitly: short (1-2 terms) and long (6+).
+
+    * LANGUAGE. PT is the primary use case. The BM25 corpus is English (the
+      describer prompts are English) and kuaa.retrieval.bilingual expands it at
+      index time. PT/EN pairs carry matching ids (pt-NN / en-NN) so the gap is
+      measurable directly off the graded run instead of needing a side script.
+
+    * DISCRIMINATION. Several concepts live in more than one film on purpose —
+      urban streets appear in band_of_outsiders, chronopolis_1982 and the
+      Brazilian city documentaries; water in Jangada and Limites no rio Branco.
+      A query with one obvious home cannot separate a good retriever from a
+      lucky one.
+
+    * SURFACE. Some queries target what only a caption knows (mood, framing,
+      lighting), some what only a tag or detector knows (a named object), some
+      both. A set that leans on one surface scores the fusion by accident.
+
+queries:
+
+  # ── SHORT object queries (1-2 terms) ───────────────────────────────────────
+  # The end of the taper the metadata leg exists for and has never been
+  # measured at. Deliberately terse: an exact tag or detector class should be
+  # stronger evidence here than a weak visual cosine.
+
+  - id: pt-01
+    query_type: text
+    text: "robô"
+    lang: pt
+    notes: "Short/object. Robots are unique to chronopolis_1982 — near-known-item."
+  - id: en-01
+    query_type: text
+    text: "robot"
+    lang: en
+    notes: "EN pair of pt-01."
+
+  - id: pt-02
+    query_type: text
+    text: "chapéu"
+    lang: pt
+    notes: "Short/object. Hats across band_of_outsiders and the 1930s-40s docs."
+  - id: en-02
+    query_type: text
+    text: "hat"
+    lang: en
+    notes: "EN pair of pt-02."
+
+  - id: pt-03
+    query_type: text
+    text: "escada"
+    lang: pt
+    notes: "Short/object. Staircases in sinfonia_cigarro and chronopolis interiors."
+  - id: en-03
+    query_type: text
+    text: "staircase"
+    lang: en
+    notes: "EN pair of pt-03."
+
+  - id: pt-04
+    query_type: text
+    text: "barco"
+    lang: pt
+    notes: "Short/object. Jangada and Limites no rio Branco both — discriminating."
+  - id: en-04
+    query_type: text
+    text: "boat"
+    lang: en
+    notes: "EN pair of pt-04."
+
+  - id: pt-05
+    query_type: text
+    text: "multidão"
+    lang: pt
+    notes: "Short/object. Newsreel crowds vs incidental street groups."
+  - id: en-05
+    query_type: text
+    text: "crowd"
+    lang: en
+    notes: "EN pair of pt-05."
+
+  - id: pt-06
+    query_type: text
+    text: "cigarro"
+    lang: pt
+    notes: "Short/object. Near-known-item for sinfonia_cigarro_1949."
+  - id: en-06
+    query_type: text
+    text: "cigarette"
+    lang: en
+    notes: "EN pair of pt-06."
+
+  - id: pt-07
+    query_type: text
+    text: "carro"
+    lang: pt
+    notes: "Short/object. Cars in band_of_outsiders and period street footage."
+  - id: en-07
+    query_type: text
+    text: "car"
+    lang: en
+    notes: "EN pair of pt-07."
+
+  - id: pt-08
+    query_type: text
+    text: "porta"
+    lang: pt
+    notes: "Short/object. Doors are chronopolis's most frequent structure tag."
+  - id: en-08
+    query_type: text
+    text: "door"
+    lang: en
+    notes: "EN pair of pt-08."
+
+  - id: pt-09
+    query_type: text
+    text: "rio"
+    lang: pt
+    notes: "Short/object. Amazon river vs the bridge/river scene in band_of_outsiders."
+  - id: en-09
+    query_type: text
+    text: "river"
+    lang: en
+    notes: "EN pair of pt-09."
+
+  - id: pt-10
+    query_type: text
+    text: "peixe"
+    lang: pt
+    notes: "Short/object. Fishing in Jangada; may have no support elsewhere."
+  - id: en-10
+    query_type: text
+    text: "fish"
+    lang: en
+    notes: "EN pair of pt-10."
+
+  # ── MEDIUM queries (3-5 terms) ─────────────────────────────────────────────
+  # The band where neither leg dominates by construction.
+
+  - id: pt-11
+    query_type: text
+    text: "rua urbana movimentada"
+    lang: pt
+    notes: "Streets appear in at least four films — pure discrimination test."
+  - id: en-11
+    query_type: text
+    text: "busy urban street"
+    lang: en
+    notes: "EN pair of pt-11."
+
+  - id: pt-12
+    query_type: text
+    text: "cena noturna com luz artificial"
+    lang: pt
+    notes: "Night is chronopolis-dominant (207 scenes tagged noite)."
+  - id: en-12
+    query_type: text
+    text: "night scene with artificial light"
+    lang: en
+    notes: "EN pair of pt-12."
+
+  - id: pt-13
+    query_type: text
+    text: "homem de terno sozinho"
+    lang: pt
+    notes: "Combines an object with a people-count tag (pessoa-unica)."
+  - id: en-13
+    query_type: text
+    text: "lone man in a suit"
+    lang: en
+    notes: "EN pair of pt-13."
+
+  - id: pt-14
+    query_type: text
+    text: "parede geométrica futurista"
+    lang: pt
+    notes: "chronopolis known-item; tests whether PT reaches an EN-captioned corpus."
+  - id: en-14
+    query_type: text
+    text: "futuristic geometric wall"
+    lang: en
+    notes: "EN pair of pt-14."
+
+  - id: pt-15
+    query_type: text
+    text: "trabalhadores no campo"
+    lang: pt
+    notes: "Rural labour — Brazilian docs plus band_of_outsiders rural-field tags."
+  - id: en-15
+    query_type: text
+    text: "workers in a field"
+    lang: en
+    notes: "EN pair of pt-15."
+
+  - id: pt-16
+    query_type: text
+    text: "texto sobreposto na imagem"
+    lang: pt
+    notes: "Intertitles/subtitles — band_of_outsiders tags text-overlay 26 times."
+  - id: en-16
+    query_type: text
+    text: "text overlaid on the image"
+    lang: en
+    notes: "EN pair of pt-16."
+
+  - id: pt-17
+    query_type: text
+    text: "duas pessoas conversando"
+    lang: pt
+    notes: "duas-pessoas is a frequent tag in both features — high-competition."
+  - id: en-17
+    query_type: text
+    text: "two people talking"
+    lang: en
+    notes: "EN pair of pt-17."
+
+  - id: pt-18
+    query_type: text
+    text: "vista aérea da cidade"
+    lang: pt
+    notes: "City documentaries; framing is caption-only knowledge."
+  - id: en-18
+    query_type: text
+    text: "aerial view of the city"
+    lang: en
+    notes: "EN pair of pt-18."
+
+  # ── LONG natural-language queries (6+ terms) ───────────────────────────────
+  # Where the metadata leg is demonstrably harmful and the dense leg should
+  # carry the result. The only band the previous eval set covered.
+
+  - id: pt-19
+    query_type: text
+    text: "um homem parado numa ponte olhando o rio calmo ao longe"
+    lang: pt
+    notes: "Long/NL. Close paraphrase of a real band_of_outsiders scene."
+  - id: en-19
+    query_type: text
+    text: "a man standing on a bridge looking out at the calm river"
+    lang: en
+    notes: "EN pair of pt-19."
+
+  - id: pt-20
+    query_type: text
+    text: "duas figuras robóticas sentadas diante de uma porta escura e geométrica"
+    lang: pt
+    notes: "Long/NL. Close paraphrase of a real chronopolis scene."
+  - id: en-20
+    query_type: text
+    text: "two robotic figures seated before a large dark geometric door"
+    lang: en
+    notes: "EN pair of pt-20."
+
+  - id: pt-21
+    query_type: text
+    text: "uma mulher em frente a um quadro-negro segurando papéis numa sala"
+    lang: pt
+    notes: "Long/NL. Classroom scene; chalkboard appears in more than one film."
+  - id: en-21
+    query_type: text
+    text: "a woman in front of a chalkboard holding papers in a room"
+    lang: en
+    notes: "EN pair of pt-21."
+
+  - id: pt-22
+    query_type: text
+    text: "pescadores empurrando uma jangada para o mar ao amanhecer"
+    lang: pt
+    notes: "Long/NL. Jangada_1949; 'jangada' is domain vocabulary, not generic."
+  - id: en-22
+    query_type: text
+    text: "fishermen pushing a raft out to sea at dawn"
+    lang: en
+    notes: "EN pair of pt-22."
+
+  - id: pt-23
+    query_type: text
+    text: "barco subindo um rio largo cercado de floresta densa"
+    lang: pt
+    notes: "Long/NL. Limites no rio Branco; competes with pt-22 on water."
+  - id: en-23
+    query_type: text
+    text: "a boat travelling up a wide river surrounded by dense forest"
+    lang: en
+    notes: "EN pair of pt-23."
+
+  - id: pt-24
+    query_type: text
+    text: "multidão reunida numa cerimônia oficial com autoridades"
+    lang: pt
+    notes: "Long/NL. Cine-jornal newsreel; ceremony is caption-level knowledge."
+  - id: en-24
+    query_type: text
+    text: "a crowd gathered at an official ceremony with dignitaries"
+    lang: en
+    notes: "EN pair of pt-24."
+
+  - id: pt-25
+    query_type: text
+    text: "plano fechado de uma parede texturizada com uma grade retangular"
+    lang: pt
+    notes: "Long/NL. Close paraphrase of a real chronopolis scene; no people."
+  - id: en-25
+    query_type: text
+    text: "close-up of a textured wall with a rectangular grid vent"
+    lang: en
+    notes: "EN pair of pt-25."
+
+  # ── MOOD / COMPOSITION (caption-only surface) ──────────────────────────────
+  # No tag or detector class carries these. If the lexical legs score well
+  # here, something is wrong with the labels, not the retriever.
+
+  - id: pt-26
+    query_type: text
+    text: "atmosfera solitária e melancólica"
+    lang: pt
+    notes: "Mood. Nothing in the tag vocabulary encodes this."
+  - id: en-26
+    query_type: text
+    text: "lonely melancholic atmosphere"
+    lang: en
+    notes: "EN pair of pt-26."
+
+  - id: pt-27
+    query_type: text
+    text: "composição simétrica com ponto de fuga central"
+    lang: pt
+    notes: "Composition. Caption-only; tests the dense leg in isolation."
+  - id: en-27
+    query_type: text
+    text: "symmetrical composition with a central vanishing point"
+    lang: en
+    notes: "EN pair of pt-27."
+
+  - id: pt-28
+    query_type: text
+    text: "silhueta contra fundo claro"
+    lang: pt
+    notes: "Lighting/contrast; B&W corpus makes this genuinely ambiguous."
+  - id: en-28
+    query_type: text
+    text: "silhouette against a bright background"
+    lang: en
+    notes: "EN pair of pt-28."
