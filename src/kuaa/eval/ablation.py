@@ -8,9 +8,8 @@ cell — never a fabricated or zero number.
 
 Design
 ------
-The common query set is the **15 text queries** from
-``data/eval/m3_full_queries.yaml``; every one carries the maintainer's
-pre-curator hypothesis (``relevant_scene_ids`` / ``relevance``), so
+The common query set must carry the maintainer's pre-curator hypothesis
+(``relevant_scene_ids`` / ``relevance``) on every text query, so
 :func:`kuaa.eval.proxy.proxy_labels` returns ``"HY"`` for all of them and
 the whole table is **one honesty tier** — no tautological pseudo-relevance, no
 structurally-zero rhyme row blended into the average.

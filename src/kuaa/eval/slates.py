@@ -1,6 +1,7 @@
 """Per-modality slate generation for the eval grading UI (E3a).
 
-Given one parsed query from ``data/eval/m3_full_queries.yaml``, this module
+Given one parsed query from a query set (``data/eval/corpus01_queries.yaml``
+is the current one), this module
 calls the *real* retrieval backend for that modality and returns candidate
 rows in the exact 9-key contract the ``/eval`` rows template renders (see
 :func:`kuaa.eval.seed._mock_result` — the same shape, produced live
@@ -121,7 +122,7 @@ _DEFAULT_RHYME_K_CANDIDATES = 30
 
 @dataclass(frozen=True)
 class ModalQuery:
-    """One parsed query from ``m3_full_queries.yaml``.
+    """One parsed query from a query-set YAML.
 
     Fields not applicable to a given ``query_type`` are ``None`` / empty:
     ``text`` is absent on rhyme queries; ``image_path`` only on image;
@@ -143,7 +144,7 @@ class ModalQuery:
 
 
 def load_modal_queries(path: Path, *, only_types: set[str] | None = None) -> list[ModalQuery]:
-    """Load + validate ``m3_full_queries.yaml`` into a list of :class:`ModalQuery`.
+    """Load + validate a query-set YAML into a list of :class:`ModalQuery`.
 
     The YAML's top-level dict carries a ``queries:`` list; each entry is
     mapped to a :class:`ModalQuery` and validated per ``query_type``:

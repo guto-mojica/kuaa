@@ -28,9 +28,11 @@ DEFAULT_RRF_K: int = 60
 DEFAULT_METADATA_W: float = 0.65
 
 # The metadata share for long natural-language queries. Derived from a sweep
-# on ``m3_text_queries`` (15 queries, 4-7 terms each) once the leg actually
-# started firing: nDCG@10 ran 0.073 at w<=0.10, 0.067 at 0.20-0.35, and 0.042
-# at 0.50-0.65 — monotonically against the leg.
+# over a 15-query text set of 4-7 terms each, once the leg actually started
+# firing: nDCG@10 ran 0.073 at w<=0.10, 0.067 at 0.20-0.35, and 0.042 at
+# 0.50-0.65 — monotonically against the leg. That set covered only the long
+# end, which is why the taper's short end rests on the leg's purpose rather
+# than on measurement.
 LONG_QUERY_METADATA_W: float = 0.15
 
 # Query lengths (in scored terms) that bracket the taper.
