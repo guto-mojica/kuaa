@@ -12,19 +12,17 @@ import logging
 import shutil
 import time
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import pandas as pd
 
 from kuaa.config import Settings
-from kuaa.errors import ModelError
 from kuaa.models.base import SceneDescriptionRecord
 from kuaa.models.describer._common import (
     DEFAULT_MAX_CONSECUTIVE_DEGENERATE,
-    DEGENERACY_ABORT_HINT,
     PROMPTS,
     build_metadata,
-    degenerate_fields,
+    run_describe_batch,
 )
 from kuaa.models.describer.domain_prompts import prompts_from_config
 from kuaa.models.manifest import ModelCard, get_card
@@ -160,102 +158,19 @@ class MoondreamGGUFDescriber:
     ) -> list[SceneDescriptionRecord]:
         """Describe all rows; resume from ``existing_results`` if provided.
 
-        RESUME-BUG FIX (mirrors transformers_hf.py): error rows are NOT
-        counted as processed — they are dropped so reprocessing can produce
-        a good result; good rows are preserved verbatim, not rebuilt.
+        Resume, degeneracy and checkpoint policy live in
+        :func:`kuaa.models.describer._common.run_describe_batch` so they cannot
+        drift between backends — which is exactly what happened before: this
+        loop wrote the tag index alongside periodic checkpoints and the
+        transformers loop did not.
         """
-        # RESUME-BUG FIX: error rows are NOT counted as processed — they are
-        # dropped so reprocessing can produce a good result (mirror pipeline.py:332).
-        existing = list(existing_results or [])
-        processed_ids = {r["scene_id"] for r in existing if "error" not in r}
-        all_results = [r for r in existing if "error" not in r]
-        to_process = keyframes_df[~keyframes_df["scene_id"].isin(processed_ids)].reset_index(
-            drop=True
+        return run_describe_batch(
+            self,
+            keyframes_df,
+            existing_results,
+            checkpoint_path,
+            label="GGUF",
         )
-        if self.process_limit:
-            to_process = to_process.head(self.process_limit)
-
-        logger.info(
-            "LLM(GGUF): %d a processar (%d já ok, %d total)",
-            len(to_process),
-            len(processed_ids),
-            len(keyframes_df),
-        )
-
-        consecutive_degenerate = 0
-        for count, (_, row) in enumerate(to_process.iterrows(), start=1):
-            scene_id = row.get("scene_id", -1)
-            try:
-                raw = {}
-                self._load_model()
-                for field, (prompt, mx) in self.prompts.items():
-                    try:
-                        raw[field] = self._answer(row["filepath"], prompt, mx)
-                    except Exception as e:  # noqa: BLE001
-                        raw[field] = f"ERROR: {e}"
-                bad_fields = degenerate_fields(raw)
-                meta = build_metadata(row, raw)
-                all_results.append(cast(SceneDescriptionRecord, meta))
-                if bad_fields:
-                    consecutive_degenerate += 1
-                    logger.error(
-                        "cena %s [%d/%d]: saída degenerada em %s — cena descartada "
-                        "(%d consecutiva[s])",
-                        meta.get("scene_id"),
-                        count,
-                        len(to_process),
-                        ", ".join(bad_fields),
-                        consecutive_degenerate,
-                    )
-                else:
-                    consecutive_degenerate = 0
-                    logger.info(
-                        "cena %s [%d/%d]: %s | tags=%s",
-                        meta.get("scene_id"),
-                        count,
-                        len(to_process),
-                        str(meta.get("description", ""))[:70],
-                        meta.get("tags", []),
-                    )
-            except Exception as e:  # noqa: BLE001 - whole-frame failure
-                all_results.append(
-                    {
-                        "scene_id": int(scene_id),
-                        "keyframe_path": str(row["filepath"]),
-                        "error": str(e),
-                        "tags": [],
-                        "objects": [],
-                    }
-                )
-                logger.error("Erro cena %s: %s", scene_id, e)
-
-            # Circuit breaker before the periodic checkpoint so the abort path
-            # owns the final write (0 disables the breaker). Mirrors
-            # transformers_hf.py — the two loops must not drift.
-            if (
-                self.max_consecutive_degenerate > 0
-                and consecutive_degenerate >= self.max_consecutive_degenerate
-            ):
-                if checkpoint_path:
-                    self._save_json(all_results, checkpoint_path)
-                    logger.info("Checkpoint antes de abortar: %d/%d", count, len(to_process))
-                raise ModelError(
-                    f"{consecutive_degenerate} cenas consecutivas com saída "
-                    f"degenerada (última: cena {scene_id}, {count}/{len(to_process)}). "
-                    f"{DEGENERACY_ABORT_HINT}"
-                )
-
-            if checkpoint_path and count % self.checkpoint_interval == 0:
-                self._save_json(all_results, checkpoint_path)
-                tags_path = checkpoint_path.parent / self.tags_filename
-                tag_idx = self.build_tag_index(all_results)
-                with open(tags_path, "w", encoding="utf-8") as _tf:
-                    import json as _json
-
-                    _json.dump(tag_idx, _tf, indent=2, ensure_ascii=False)
-                logger.info("Checkpoint: %d/%d", count, len(to_process))
-
-        return all_results
 
     @staticmethod
     def build_tag_index(results: list[SceneDescriptionRecord]) -> dict[str, list[str]]:

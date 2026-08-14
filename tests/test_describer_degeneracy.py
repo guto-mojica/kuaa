@@ -332,3 +332,66 @@ def test_abort_message_names_the_likely_cause(monkeypatch):
         backend.describe_batch(_df(10))
     assert "MPS" in str(exc.value)
     assert "Restart the process" in str(exc.value)
+
+
+# ── checkpoint coherence ────────────────────────────────────────────────────
+#
+# The tag index is derived from the descriptions. If a checkpoint writes one
+# without the other, a resumed-then-consumed run indexes a generation that no
+# longer exists — and the BM25 tags surface is built straight from that file,
+# so nothing downstream can detect the skew. Both backends used to get this
+# wrong in different ways: gguf wrote tags on the periodic checkpoint but not
+# on the abort path, transformers_hf never wrote them at all.
+
+
+def _read_checkpoint_pair(ckpt, tags):
+    import json
+
+    return json.loads(ckpt.read_text()), json.loads(tags.read_text())
+
+
+def test_periodic_checkpoint_writes_the_tag_index(monkeypatch, tmp_path):
+    backend = _backend_with(monkeypatch, _RecordingModel())
+    backend.checkpoint_interval = 2
+    ckpt = tmp_path / "scene_descriptions.json"
+    tags = tmp_path / backend.tags_filename
+
+    backend.describe_batch(_df(4), checkpoint_path=ckpt)
+
+    assert tags.exists(), "tag index must be written beside every checkpoint"
+    saved, tag_index = _read_checkpoint_pair(ckpt, tags)
+    tagged = {sid for sids in tag_index.values() for sid in sids}
+    assert tagged == {str(r["scene_id"]) for r in saved if "error" not in r}
+
+
+def test_abort_checkpoint_writes_the_tag_index(monkeypatch, tmp_path):
+    """The abort path is a checkpoint too — it must not skip the derived file."""
+    backend = _backend_with(monkeypatch, _DegenerateModel(healthy_first=2))
+    ckpt = tmp_path / "scene_descriptions.json"
+    tags = tmp_path / backend.tags_filename
+
+    with pytest.raises(ModelError):
+        backend.describe_batch(_df(50), checkpoint_path=ckpt)
+
+    assert tags.exists(), "aborting must not leave descriptions without their index"
+    saved, tag_index = _read_checkpoint_pair(ckpt, tags)
+    good = {str(r["scene_id"]) for r in saved if "error" not in r}
+    tagged = {sid for sids in tag_index.values() for sid in sids}
+    assert tagged == good, "index and descriptions must be the same generation"
+
+
+def test_tag_index_never_outlives_a_stale_generation(monkeypatch, tmp_path):
+    """A pre-existing index from an older run is overwritten, not left behind."""
+    import json
+
+    ckpt = tmp_path / "scene_descriptions.json"
+    tags = tmp_path / "scene_tags.json"
+    tags.write_text(json.dumps({"ghost-tag": ["999"]}), encoding="utf-8")
+
+    backend = _backend_with(monkeypatch, _RecordingModel())
+    backend.checkpoint_interval = 1
+    backend.describe_batch(_df(2), checkpoint_path=ckpt)
+
+    tag_index = json.loads(tags.read_text())
+    assert "ghost-tag" not in tag_index
+    assert "999" not in {sid for sids in tag_index.values() for sid in sids}
