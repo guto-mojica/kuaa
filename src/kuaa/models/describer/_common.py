@@ -13,7 +13,7 @@ import re
 
 import pandas as pd
 
-from kuaa.errors import is_error_response
+from kuaa.errors import is_degenerate_response, is_unusable_response
 
 PROMPTS: dict[str, tuple[str, int]] = {
     #                prompt                                          max_new_tokens
@@ -44,6 +44,23 @@ PROMPTS: dict[str, tuple[str, int]] = {
         40,
     ),
 }
+
+
+#: Consecutive degenerate scenes tolerated before a describe run is aborted.
+#: One bad frame (a title card, a black frame) can plausibly produce one
+#: strange answer; three in a row means the backend stopped working, not that
+#: the footage got harder. Shared by every backend so the abort policy does
+#: not drift between them. Overridable via ``llm.max_consecutive_degenerate``.
+DEFAULT_MAX_CONSECUTIVE_DEGENERATE = 3
+
+#: Operator-facing explanation attached to the abort error.
+DEGENERACY_ABORT_HINT = (
+    "The describer is emitting repetition loops instead of answers. On Apple "
+    "MPS this is what device memory exhaustion looks like — command buffers "
+    "return garbage before they return an error. Restart the process (a "
+    "long-lived server accumulates model weights across films; the accelerator "
+    "allocator does not return them to the OS) and describe one film per run."
+)
 
 
 LOCATION_MAP = {
@@ -115,7 +132,7 @@ def _parse_num_people(text: str) -> int:
 
 def _parse_objects(text: str) -> list[str]:
     """Converte a string de objetos em lista normalizada (máx. 6 itens)."""
-    if not text or is_error_response(text):
+    if not text or is_unusable_response(text):
         return []
     parts = re.split(r"[,;.]+", text)
     stopwords = {"a", "an", "the", "some", "and", "with"}
@@ -158,8 +175,47 @@ def _generate_tags(parsed: dict) -> list[str]:
     return sorted(tags)
 
 
+def _scene_provenance(row: pd.Series) -> dict:
+    """Scene-level fields, carried by good and error rows alike."""
+    return {
+        "scene_id": int(row.get("scene_id", -1)),
+        "keyframe_id": str(row.get("keyframe_id", "")),
+        "keyframe_path": str(row.get("filepath", "")),
+        "start_time_s": float(row["start_time_s"]) if "start_time_s" in row.index else None,
+        "end_time_s": float(row["end_time_s"]) if "end_time_s" in row.index else None,
+        "duration_s": float(row["duration_s"]) if "duration_s" in row.index else None,
+    }
+
+
+def degenerate_fields(raw: dict) -> list[str]:
+    """Names of the prompt fields in *raw* that came back as repetition loops."""
+    return sorted(f for f, text in raw.items() if is_degenerate_response(str(text)))
+
+
 def build_metadata(row: pd.Series, raw: dict) -> dict:
-    """Former LLMDescriber._build_metadata (self removed; logic identical)."""
+    """Assemble one scene record from the raw per-prompt answers.
+
+    Returns an **error row** (``error`` set, no ``description``, empty
+    ``tags``) when any prompt came back as a repetition loop. The trigger is
+    deliberately one field, not all six: degeneracy at these thresholds means
+    the decoder was pinned by a device-level fault, so the answers that still
+    look plausible are not trustworthy either. Dropping the scene is
+    recoverable — ``describe_batch`` reprocesses error rows on resume —
+    whereas indexing it silently degrades every future query.
+    """
+    bad = degenerate_fields(raw)
+    if bad:
+        return {
+            **_scene_provenance(row),
+            "error": (
+                f"degenerate model output in {', '.join(bad)} — repetition loop, "
+                "not an answer (see kuaa.errors.is_degenerate_response)"
+            ),
+            "tags": [],
+            "objects": [],
+            "_raw_responses": raw,
+        }
+
     loc_raw = raw.get("location", "").lower().strip()
     location = LOCATION_MAP.get(loc_raw, "desconhecido")
 
@@ -169,7 +225,7 @@ def build_metadata(row: pd.Series, raw: dict) -> dict:
     num_people = _parse_num_people(raw.get("people_and_action", ""))
     objects = _parse_objects(raw.get("objects", ""))
     setting = raw.get("setting", "").strip().lower()
-    if is_error_response(setting):
+    if is_unusable_response(setting):
         # ``setting`` is kebab-cased straight into the tag vocabulary by
         # ``_generate_tags``, with no other filter between it and the index.
         setting = ""
@@ -183,14 +239,7 @@ def build_metadata(row: pd.Series, raw: dict) -> dict:
     }
     tags = _generate_tags(parsed)
 
-    scene_meta = {
-        "scene_id": int(row.get("scene_id", -1)),
-        "keyframe_id": str(row.get("keyframe_id", "")),
-        "keyframe_path": str(row.get("filepath", "")),
-        "start_time_s": float(row["start_time_s"]) if "start_time_s" in row.index else None,
-        "end_time_s": float(row["end_time_s"]) if "end_time_s" in row.index else None,
-        "duration_s": float(row["duration_s"]) if "duration_s" in row.index else None,
-    }
+    scene_meta = _scene_provenance(row)
 
     llm_meta = {
         "description": raw.get("description", "").strip(),

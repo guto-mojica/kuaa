@@ -270,6 +270,11 @@ llm:
   # middle = descrever só o keyframe canônico (do meio) de cada cena — o mesmo
   # que a UI exibe; all = descrever todos os keyframes (~3× mais lento)
   keyframes: middle
+  # Disjuntor: aborta o step após N cenas consecutivas com saída degenerada
+  # (loop de repetição — sinal de backend quebrado, não de cena difícil).
+  # 0 desliga. Um frame ruim pode gerar uma resposta estranha; três seguidas
+  # significam que o modelo parou de funcionar.
+  max_consecutive_degenerate: 3
   # GGUF GPU offload: -1 = todas as camadas na GPU (sem efeito num build
   # CPU-only do llama-cpp-python; aí roda em CPU). 0 = forçar CPU.
   gpu_layers: -1

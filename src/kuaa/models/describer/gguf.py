@@ -17,10 +17,14 @@ from typing import Any, cast
 import pandas as pd
 
 from kuaa.config import Settings
+from kuaa.errors import ModelError
 from kuaa.models.base import SceneDescriptionRecord
 from kuaa.models.describer._common import (
+    DEFAULT_MAX_CONSECUTIVE_DEGENERATE,
+    DEGENERACY_ABORT_HINT,
     PROMPTS,
     build_metadata,
+    degenerate_fields,
 )
 from kuaa.models.describer.domain_prompts import prompts_from_config
 from kuaa.models.manifest import ModelCard, get_card
@@ -51,6 +55,9 @@ class MoondreamGGUFDescriber:
             # -1 = offload every layer to GPU. Harmless on a CPU-only
             # llama-cpp-python build (no CUDA → it silently runs on CPU).
             self.n_gpu_layers = getattr(cfg.llm, "gpu_layers", -1)
+            self.max_consecutive_degenerate = getattr(
+                cfg.llm, "max_consecutive_degenerate", DEFAULT_MAX_CONSECUTIVE_DEGENERATE
+            )
             self.prompts = prompts_from_config(cfg)
         else:
             self.checkpoint_interval = 25
@@ -58,6 +65,7 @@ class MoondreamGGUFDescriber:
             self.descriptions_filename = "scene_descriptions.json"
             self.tags_filename = "scene_tags.json"
             self.n_gpu_layers = -1
+            self.max_consecutive_degenerate = DEFAULT_MAX_CONSECUTIVE_DEGENERATE
             self.prompts = dict(PROMPTS)
 
     def _warn_if_cpu_build(self) -> None:
@@ -174,7 +182,9 @@ class MoondreamGGUFDescriber:
             len(keyframes_df),
         )
 
+        consecutive_degenerate = 0
         for count, (_, row) in enumerate(to_process.iterrows(), start=1):
+            scene_id = row.get("scene_id", -1)
             try:
                 raw = {}
                 self._load_model()
@@ -183,27 +193,57 @@ class MoondreamGGUFDescriber:
                         raw[field] = self._answer(row["filepath"], prompt, mx)
                     except Exception as e:  # noqa: BLE001
                         raw[field] = f"ERROR: {e}"
+                bad_fields = degenerate_fields(raw)
                 meta = build_metadata(row, raw)
                 all_results.append(cast(SceneDescriptionRecord, meta))
-                logger.info(
-                    "cena %s [%d/%d]: %s | tags=%s",
-                    meta.get("scene_id"),
-                    count,
-                    len(to_process),
-                    str(meta.get("description", ""))[:70],
-                    meta.get("tags", []),
-                )
+                if bad_fields:
+                    consecutive_degenerate += 1
+                    logger.error(
+                        "cena %s [%d/%d]: saída degenerada em %s — cena descartada "
+                        "(%d consecutiva[s])",
+                        meta.get("scene_id"),
+                        count,
+                        len(to_process),
+                        ", ".join(bad_fields),
+                        consecutive_degenerate,
+                    )
+                else:
+                    consecutive_degenerate = 0
+                    logger.info(
+                        "cena %s [%d/%d]: %s | tags=%s",
+                        meta.get("scene_id"),
+                        count,
+                        len(to_process),
+                        str(meta.get("description", ""))[:70],
+                        meta.get("tags", []),
+                    )
             except Exception as e:  # noqa: BLE001 - whole-frame failure
                 all_results.append(
                     {
-                        "scene_id": int(row.get("scene_id", -1)),
+                        "scene_id": int(scene_id),
                         "keyframe_path": str(row["filepath"]),
                         "error": str(e),
                         "tags": [],
                         "objects": [],
                     }
                 )
-                logger.error("Erro cena %s: %s", row.get("scene_id"), e)
+                logger.error("Erro cena %s: %s", scene_id, e)
+
+            # Circuit breaker before the periodic checkpoint so the abort path
+            # owns the final write (0 disables the breaker). Mirrors
+            # transformers_hf.py — the two loops must not drift.
+            if (
+                self.max_consecutive_degenerate > 0
+                and consecutive_degenerate >= self.max_consecutive_degenerate
+            ):
+                if checkpoint_path:
+                    self._save_json(all_results, checkpoint_path)
+                    logger.info("Checkpoint antes de abortar: %d/%d", count, len(to_process))
+                raise ModelError(
+                    f"{consecutive_degenerate} cenas consecutivas com saída "
+                    f"degenerada (última: cena {scene_id}, {count}/{len(to_process)}). "
+                    f"{DEGENERACY_ABORT_HINT}"
+                )
 
             if checkpoint_path and count % self.checkpoint_interval == 0:
                 self._save_json(all_results, checkpoint_path)

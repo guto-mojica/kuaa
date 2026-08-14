@@ -217,6 +217,10 @@ class LlmCfg(_Section):
     # "middle" describes only the canonical middle keyframe per scene (the one
     # the UI shows); "all" describes every extracted keyframe (~3× slower).
     keyframes: Literal["middle", "all"] = "middle"
+    # Abort the describe run after this many consecutive scenes come back as
+    # repetition loops (a broken backend, not bad footage). 0 disables the
+    # breaker. See kuaa.models.describer.transformers_hf.
+    max_consecutive_degenerate: int = 3
     descriptions_filename: str = "scene_descriptions.json"
     tags_filename: str = "scene_tags.json"
 

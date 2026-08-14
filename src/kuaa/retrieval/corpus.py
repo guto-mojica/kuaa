@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping, Sequence
 
-from kuaa.errors import is_error_response
+from kuaa.errors import is_unusable_response
 from kuaa.retrieval.bilingual import expand_text
 from kuaa.retrieval.tokenize import RegexTokenizer, Tokenizer
 
@@ -68,6 +68,7 @@ def build_corpus(
     )
     boost = max(1, int(tag_boost))
     desc_by_sid: dict[int, str] = {}
+    dropped_descriptions = 0
     for entry in descriptions:
         sid = entry.get("scene_id")
         if sid is None:
@@ -76,7 +77,21 @@ def build_corpus(
             sid_int = int(sid)
         except (TypeError, ValueError):
             continue
-        desc_by_sid[sid_int] = str(entry.get("description") or "")
+        desc = str(entry.get("description") or "")
+        # Same defence in depth as the tag loop below. A pre-fix artefact can
+        # carry a repetition loop in a row that has no ``error`` key, so the
+        # describer's own gate never saw it — this is the last chance to keep
+        # it out of BM25.
+        if is_unusable_response(desc):
+            dropped_descriptions += 1
+            continue
+        desc_by_sid[sid_int] = desc
+    if dropped_descriptions:
+        logger.warning(
+            "build_corpus: dropped %d unusable description(s) — captured failure "
+            "or repetition loop written as content; re-run the llm step for this film",
+            dropped_descriptions,
+        )
 
     tags_by_sid: dict[int, list[str]] = {}
     dropped_error_tags: set[str] = set()
@@ -88,7 +103,9 @@ def build_corpus(
         # kebab-cased into the tag vocabulary and indexed as scene content.
         # ``the-great-train-robbery-1903`` still carries
         # ``error:-passed-cpu-tensor-to-mps-op`` on every one of its scenes.
-        if is_error_response(str(tag).replace("-", " ")):
+        # Repetition loops arrive the same way: the 2026-08-14 MPS-OOM run
+        # produced a single ``s-s-s-s-...`` tag several hundred words long.
+        if is_unusable_response(str(tag).replace("-", " ")):
             dropped_error_tags.add(str(tag))
             continue
         for sid in sids:
@@ -99,7 +116,7 @@ def build_corpus(
             tags_by_sid.setdefault(sid_int, []).append(str(tag))
     if dropped_error_tags:
         logger.warning(
-            "build_corpus: dropped %d error-shaped tag(s) from the index: %s — "
+            "build_corpus: dropped %d unusable tag(s) from the index: %s — "
             "the film's describer run failed and wrote the failure as content; "
             "re-run the llm step for it",
             len(dropped_error_tags),
