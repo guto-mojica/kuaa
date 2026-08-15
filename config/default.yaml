@@ -8,7 +8,7 @@ config_version: 1
 
 project:
   name: "KUAA"
-  version: "0.8.0rc1"   # keep in sync with pyproject.toml / kuaa.__version__
+  version: "0.10.0"   # keep in sync with pyproject.toml / kuaa.__version__
 
 # ── Domain pack ───────────────────────────────────────────────────────────────
 # Domain packs define prompts, metadata fields, filters, taxonomy, and export
@@ -43,7 +43,7 @@ hardware:
   device: "auto"
   force_cpu: false     # override de emergência — força CPU mesmo se GPU disponível
 
-# ── Detecção de cenas (NB02) ──────────────────────────────────────────────────
+# ── Detecção de cenas  ──────────────────────────────────────────────────
 scene_detection:
   detector: "adaptive"      # "content" ou "adaptive" — adaptive é mais robusto para filmes P&B de arquivo
   # ContentDetector
@@ -55,7 +55,7 @@ scene_detection:
   keyframes_per_scene: 3    # 1=frame do meio; 3=início/meio/fim
   keyframe_height: 480      # altura dos keyframes salvos (0 = resolução original)
 
-# ── Análise visual (NB03) ─────────────────────────────────────────────────────
+# ── Análise visual  ─────────────────────────────────────────────────────
 visual_analysis:
   # Detecção facial (MTCNN)
   face_detection:
@@ -73,7 +73,7 @@ visual_analysis:
     brightness_threshold: 100   # limiar dia/noite (escala 0-255)
     edge_density_threshold: 0.05  # limiar interno/externo
 
-# ── Embeddings e busca (NB04) ────────────────────────────────────────────────
+# ── Embeddings e busca ────────────────────────────────────────────────
 embeddings:
   model: "ViT-B-32"         # modelo CLIP open_clip
   pretrained: "openai"
@@ -260,7 +260,7 @@ collaboration:
   demo_threads_enabled: false
 
 
-# ── Descrição LLM (NB05) ──────────────────────────────────────────────────────
+# ── Descrição LLM  ──────────────────────────────────────────────────────
 llm:
   model_id: "vikhyatk/moondream2"
   revision: "2025-01-09"
