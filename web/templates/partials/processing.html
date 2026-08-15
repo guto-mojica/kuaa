@@ -1,4 +1,5 @@
 {% from "partials/_icons.html" import icon %}
+{% from "partials/_macros.html" import add_film_trigger %}
 {% from "partials/_step_labels.html" import step_label with context %}
 
 {#- Processamento tab — Mojica redesign (Task 24).
@@ -37,14 +38,11 @@
         {% if jobs %}<span class="pip">{{ jobs | length }} {{ _("active") }}</span>{% endif %}
       </h1>
 
-      {#- Add-film: same button + zone pattern as the left-pane Library·Films "+". -#}
+      {#- Add-film: the one shared trigger (see _macros.html add_film_trigger).
+          Previously an icon-only button.add — same gesture as the left pane
+          but a different look; now identical everywhere. -#}
       <div class="p-add-film">
-        <button class="add" type="button"
-                title="{{ _('Add film') }}"
-                aria-label="{{ _('Add film') }}"
-                hx-get="/api/library/add-form?source=processing"
-                hx-target="#proc-add-film-zone"
-                hx-swap="innerHTML">{{ icon('plus', 12) }}</button>
+        {{ add_film_trigger(_('Add film'), source='processing') }}
         <div id="proc-add-film-zone"></div>
       </div>
 

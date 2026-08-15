@@ -257,7 +257,7 @@
 /* Right comments pane — .a-rp-mount is the HTMX swap wrapper; it must carry
    the fixed width so swaps preserve the column width. */
 .a-rp-mount {
-  width: 380px; flex-shrink: 0;
+  width: var(--rp-w, 380px); flex-shrink: 0;
   overflow: hidden; display: flex; flex-direction: column;
 }
 
@@ -330,7 +330,7 @@
 }
 .a-rp .subhead .r { display: flex; align-items: center; gap: 2px; color: var(--c-muted); }
 
-.a-thread { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 16px; }
+.a-thread { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 16px; }
 
 .a-com {
   display: grid; grid-template-columns: 30px 1fr; gap: 10px;

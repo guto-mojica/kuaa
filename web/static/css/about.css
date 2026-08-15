@@ -161,7 +161,7 @@
 .ab-head p .ac { color: var(--c-accent); }
 
 /* ─── BODY — scrollable ───────────────────────────────────────────── */
-.ab-body { overflow-y: auto; padding: 22px 28px 24px; flex: 1; }
+.ab-body { overflow-y: auto; padding: 22px 28px 24px; flex: 1; min-height: 0; }
 
 /* ─── STATS STRIP ─────────────────────────────────────────────────── */
 .ab-stats {

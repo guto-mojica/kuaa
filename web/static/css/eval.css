@@ -120,6 +120,15 @@
   display: flex; align-items: center; justify-content: center;
   font-family: var(--font-mono); font-size: 10px; font-weight: 700; color: #fff;
 }
+/* Sits inside the .me pill and reads as the label it replaced until focused. */
+.ev-top .me .grader-name {
+  width: 104px; padding: 0; border: 0; background: transparent;
+  font-family: inherit; font-size: inherit; color: inherit;
+  border-bottom: 1px solid transparent;
+}
+.ev-top .me .grader-name::placeholder { color: var(--c-muted); }
+.ev-top .me .grader-name:hover { border-bottom-color: var(--c-border); }
+.ev-top .me .grader-name:focus { outline: none; border-bottom-color: var(--c-accent); }
 
 /* ───── BODY ────────────────────────────────────────────────────────── */
 .ev-body { display: grid; grid-template-columns: 286px 1fr 388px; overflow: hidden; min-height: 0; }
@@ -162,7 +171,7 @@
 }
 .ev-lp .lpf-tabs .t.on .ct { background: var(--c-accent-dim); color: var(--c-text); }
 
-.ev-q-list { flex: 1; overflow-y: auto; padding: 4px 0 8px; }
+.ev-q-list { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 0 8px; }
 .ev-q {
   display: grid; grid-template-columns: 18px 1fr;
   gap: 9px; align-items: start;
@@ -329,7 +338,7 @@
 .ev-cp .legend .chip.sk { background: var(--c-raised); color: var(--c-muted); }
 
 /* ROWS */
-.ev-rows { flex: 1; overflow-y: auto; padding: 0 12px 18px; }
+.ev-rows { flex: 1; min-height: 0; overflow-y: auto; padding: 0 12px 18px; }
 .ev-row {
   display: grid;
   grid-template-columns: 38px 192px 88px 1fr 78px;
@@ -497,7 +506,7 @@
 }
 .ev-rp .head .acts { display: flex; gap: 2px; color: var(--c-muted); }
 
-.ev-rp .inner { padding: 14px 16px 16px; overflow-y: auto; flex: 1; }
+.ev-rp .inner { padding: 14px 16px 16px; overflow-y: auto; flex: 1; min-height: 0; }
 
 /* Big metric cards row */
 .ev-bigmets {

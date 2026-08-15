@@ -15,6 +15,8 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping, Sequence
 
+from kuaa.errors import is_unusable_response
+from kuaa.retrieval.bilingual import expand_text
 from kuaa.retrieval.tokenize import RegexTokenizer, Tokenizer
 
 logger = logging.getLogger(__name__)
@@ -27,6 +29,7 @@ def build_corpus(
     stopwords_lang: str | None = None,
     tokenizer: Tokenizer | None = None,
     tag_boost: int = 1,
+    bilingual: bool = False,
 ) -> list[tuple[int, list[str]]]:
     """Build ``[(scene_id, tokens), …]`` for a single film.
 
@@ -48,6 +51,11 @@ def build_corpus(
             ``1`` (the default) is byte-identical to flat concatenation —
             the curated-tag surface is cleaned by the Phase-1 suppression
             layer, and this lever lifts what remains. Values < 1 clamp to 1.
+        bilingual: When True, append the Portuguese surface forms implied
+            by each document's English content (see
+            :mod:`kuaa.retrieval.bilingual`). The describer writes English
+            captions and tags, so without this a Portuguese query has
+            nothing to match. Additive — English recall is unchanged.
 
     Returns:
         Sorted-by-scene_id list of ``(scene_id, tokens)``. Scenes with
@@ -60,6 +68,7 @@ def build_corpus(
     )
     boost = max(1, int(tag_boost))
     desc_by_sid: dict[int, str] = {}
+    dropped_descriptions = 0
     for entry in descriptions:
         sid = entry.get("scene_id")
         if sid is None:
@@ -68,11 +77,36 @@ def build_corpus(
             sid_int = int(sid)
         except (TypeError, ValueError):
             continue
-        desc_by_sid[sid_int] = str(entry.get("description") or "")
+        desc = str(entry.get("description") or "")
+        # Same defence in depth as the tag loop below. A pre-fix artefact can
+        # carry a repetition loop in a row that has no ``error`` key, so the
+        # describer's own gate never saw it — this is the last chance to keep
+        # it out of BM25.
+        if is_unusable_response(desc):
+            dropped_descriptions += 1
+            continue
+        desc_by_sid[sid_int] = desc
+    if dropped_descriptions:
+        logger.warning(
+            "build_corpus: dropped %d unusable description(s) — captured failure "
+            "or repetition loop written as content; re-run the llm step for this film",
+            dropped_descriptions,
+        )
 
     tags_by_sid: dict[int, list[str]] = {}
+    dropped_error_tags: set[str] = set()
     for tag, sids in tag_index.items():
         if not isinstance(sids, (list, tuple, set)):
+            continue
+        # Defence in depth for artefacts written before the describer learned
+        # to reject captured failures: a swallowed backend exception could be
+        # kebab-cased into the tag vocabulary and indexed as scene content.
+        # ``the-great-train-robbery-1903`` still carries
+        # ``error:-passed-cpu-tensor-to-mps-op`` on every one of its scenes.
+        # Repetition loops arrive the same way: the 2026-08-14 MPS-OOM run
+        # produced a single ``s-s-s-s-...`` tag several hundred words long.
+        if is_unusable_response(str(tag).replace("-", " ")):
+            dropped_error_tags.add(str(tag))
             continue
         for sid in sids:
             try:
@@ -80,6 +114,14 @@ def build_corpus(
             except (TypeError, ValueError):
                 continue
             tags_by_sid.setdefault(sid_int, []).append(str(tag))
+    if dropped_error_tags:
+        logger.warning(
+            "build_corpus: dropped %d unusable tag(s) from the index: %s — "
+            "the film's describer run failed and wrote the failure as content; "
+            "re-run the llm step for it",
+            len(dropped_error_tags),
+            sorted(dropped_error_tags),
+        )
 
     all_sids = sorted(set(desc_by_sid) | set(tags_by_sid))
     docs: list[tuple[int, list[str]]] = []
@@ -98,6 +140,14 @@ def build_corpus(
         tag_tokens = _tok.tokenize(tags_text) if tags_text else []
         tokens = desc_tokens + tag_tokens * boost
         text = " ".join(part for part in (desc, tags_text) if part).strip()
+        if bilingual and text:
+            # Append the PT surface forms implied by the English content, so a
+            # Portuguese query has Portuguese to match. Routed through the same
+            # tokenizer as everything else, so folding/stemming apply uniformly.
+            # Strictly additive: no English token is removed, so no English
+            # query loses a hit.
+            pt_tokens = _tok.tokenize(expand_text(text))
+            tokens = tokens + pt_tokens
         if not tokens:
             # Distinguish two empty-token shapes:
             #   * text itself was empty (no desc + no tags) — silently

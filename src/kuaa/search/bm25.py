@@ -45,6 +45,7 @@ from typing import Any
 
 from kuaa.annotations.descriptions import load_canonical_descriptions
 from kuaa.library.metadata import load_tag_index
+from kuaa.motion.io import MOTION_FILENAME, load_motion_tag_index
 from kuaa.retrieval.bm25 import BM25Index
 from kuaa.retrieval.tokenize import get_tokenizer
 from kuaa.search._cache_core import StatCache
@@ -68,10 +69,10 @@ def _file_stamp(path: Path) -> tuple[int, int]:
 
 # ── Outer StatCache (slug-keyed so clear_film works) ──────────────────────────
 # Key: (slug, str(metadata_dir), stopwords_lang_or_empty, k1_str, b_str,
-#       tokenizer_name, tag_boost_str)
+#       tokenizer_name, tag_boost_str, bilingual_str)
 # First component is the film slug so clear_film(slug) invalidates exactly one
 # film's BM25 slot without touching other films.
-_BM25_CACHE: StatCache[tuple[str, str, str, str, str, str, str], BM25Index] = StatCache()
+_BM25_CACHE: StatCache[tuple[str, str, str, str, str, str, str, str], BM25Index] = StatCache()
 
 
 # ── Inner lru_cache loader (kept for back-compat: cache_info().currsize) ──────
@@ -82,11 +83,13 @@ def _cached_bm25_index(
     scene_tags_stamp: tuple[int, int],
     manual_annotations_stamp: tuple[int, int],
     tag_overrides_stamp: tuple[int, int],
+    motion_stamp: tuple[int, int],
     stopwords_lang: str | None,
     k1: float,
     b: float,
     tokenizer_name: str = "regex",
     tag_boost: int = 1,
+    bilingual: bool = False,
 ) -> BM25Index:
     """Build a BM25 index for the given (already-stamped) metadata dir.
 
@@ -101,6 +104,8 @@ def _cached_bm25_index(
       * ``tag_overrides.json`` — curator AI-tag suppressions (STR keys);
         ``load_tag_index`` filters suppressed pairs out of the merged
         index, so a write here must rebuild the corpus too.
+      * ``scene_motion.json`` — optical-flow motion tags (optional; absent
+        for films whose motion pass has not run).
 
     Tag merge semantics come from :func:`kuaa.search._tag_index.load_tag_index`
     (the shared loader — single source of truth for scene_id
@@ -122,6 +127,14 @@ def _cached_bm25_index(
     # shape the old api.services.catalog.load_tag_index produced.
     tag_index = load_tag_index(md) or {}
 
+    # Motion tags (`plano-estatico`, `camera-panoramica`, `movimento-intenso`)
+    # join through the same tag surface rather than a parallel path. Absent
+    # for any film whose motion pass has not run, which is the common case —
+    # ``load_motion_tag_index`` returns {} and the corpus is unchanged.
+    for tag, sids in load_motion_tag_index(md).items():
+        tag_index.setdefault(tag, [])
+        tag_index[tag] = list(tag_index[tag]) + [s for s in sids if s not in tag_index[tag]]
+
     tokenizer = get_tokenizer(tokenizer_name)
     return BM25Index.build(
         descriptions=descriptions,
@@ -131,6 +144,7 @@ def _cached_bm25_index(
         k1=k1,
         b=b,
         tag_boost=tag_boost,
+        bilingual=bilingual,
     )
 
 
@@ -142,6 +156,7 @@ def bm25_index_for_dir(
     b: float,
     tokenizer_name: str = "regex",
     tag_boost: int = 1,
+    bilingual: bool = False,
 ) -> BM25Index:
     """Load (cached) BM25 index for a metadata directory.
 
@@ -149,14 +164,19 @@ def bm25_index_for_dir(
     falls through to the inner ``_cached_bm25_index`` (lru_cache). Any
     write to any source file invalidates both layers automatically.
     ``stopwords_lang`` / ``k1`` / ``b`` / ``tokenizer_name`` / ``tag_boost``
-    participate in the key so a config change reloads correctly.
+    / ``bilingual`` participate in the key so a config change reloads
+    correctly.
     """
     d_stamp = _file_stamp(metadata_dir / "scene_descriptions.json")
     t_stamp = _file_stamp(metadata_dir / "scene_tags.json")
     m_stamp = _file_stamp(metadata_dir / "manual_annotations.json")
     o_stamp = _file_stamp(metadata_dir / "tag_overrides.json")
+    # Motion tags are part of the corpus, so the motion artefact has to be
+    # part of the signature — otherwise a completed motion pass would not
+    # show up in search until the process restarted.
+    mo_stamp = _file_stamp(metadata_dir / MOTION_FILENAME)
 
-    # 4-source combined signature for StatCache (flat int tuple).
+    # 5-source combined signature for StatCache (flat int tuple).
     sig: tuple[int, ...] = (
         d_stamp[0],
         d_stamp[1],
@@ -166,6 +186,8 @@ def bm25_index_for_dir(
         m_stamp[1],
         o_stamp[0],
         o_stamp[1],
+        mo_stamp[0],
+        mo_stamp[1],
     )
 
     # Slug = immediate parent dir name (data/library/<slug>/metadata/ → slug).
@@ -178,6 +200,7 @@ def bm25_index_for_dir(
         str(b),
         tokenizer_name,
         str(tag_boost),
+        str(bilingual),
     )
 
     def _load() -> BM25Index:
@@ -187,14 +210,44 @@ def bm25_index_for_dir(
             t_stamp,
             m_stamp,
             o_stamp,
+            mo_stamp,
             stopwords_lang,
             k1,
             b,
             tokenizer_name,
             tag_boost,
+            bilingual,
         )
 
     return _BM25_CACHE.get_or_load(key=cache_key, signature=sig, loader=_load)
+
+
+def resolve_bm25_kwargs(cfg: Any) -> dict[str, Any]:
+    """Resolve every ``cfg.search.bm25`` tunable into loader kwargs.
+
+    The single source of truth for this mapping. It exists because the
+    three BM25 load sites had each grown their own copy and two of them
+    had silently fallen behind: the cross-film path
+    (:func:`kuaa.search.aggregate._get_bm25_index_for_ctx_with_cfg`) and
+    the public ``find()`` verb both dropped ``tokenizer`` and
+    ``tag_boost``, so the config knobs did nothing on the production
+    path. Worse, ``tokenizer_name`` is part of the index cache key, so
+    per-film and cross-film search could build two different indexes for
+    the same film.
+
+    Duck-typed on purpose: unit-test configs without a ``search`` section
+    (and ``cfg=None``) fall back to the shipped defaults.
+    """
+    search = getattr(cfg, "search", None)
+    bm25_cfg = getattr(search, "bm25", None) if search is not None else None
+    return {
+        "stopwords_lang": getattr(bm25_cfg, "stopwords_lang", None) if bm25_cfg else None,
+        "k1": float(getattr(bm25_cfg, "k1", 1.5)) if bm25_cfg else 1.5,
+        "b": float(getattr(bm25_cfg, "b", 0.75)) if bm25_cfg else 0.75,
+        "tokenizer_name": str(getattr(bm25_cfg, "tokenizer", "regex")) if bm25_cfg else "regex",
+        "tag_boost": int(getattr(bm25_cfg, "tag_boost", 1)) if bm25_cfg else 1,
+        "bilingual": bool(getattr(bm25_cfg, "bilingual", False)) if bm25_cfg else False,
+    }
 
 
 def bm25_index_for_ctx(
@@ -205,13 +258,13 @@ def bm25_index_for_ctx(
     b: float,
     tokenizer_name: str = "regex",
     tag_boost: int = 1,
+    bilingual: bool = False,
 ) -> BM25Index:
     """Load BM25 index for a film context (duck-typed).
 
     ``ctx`` must expose ``metadata_dir``. The BM25 tunables are passed
-    explicitly so this module stays free of any ``api.*`` import — the
-    call-site shim in ``api/services/search.py`` resolves them from
-    ``cfg.search.bm25`` and forwards.
+    explicitly so this module stays free of any ``api.*`` import — call
+    sites resolve them via :func:`resolve_bm25_kwargs` and forward.
     """
     return bm25_index_for_dir(
         metadata_dir=ctx.metadata_dir,
@@ -220,6 +273,7 @@ def bm25_index_for_ctx(
         b=b,
         tokenizer_name=tokenizer_name,
         tag_boost=tag_boost,
+        bilingual=bilingual,
     )
 
 

@@ -33,11 +33,13 @@ from kuaa.eval.slates import ModalQuery, generate_slate
 from kuaa.reproducibility import seed_everything
 from kuaa.retrieval.hybrid import (
     DEFAULT_RRF_K,
+    effective_metadata_w,
     fuse_rrf,
     resolve_metadata_w,
     resolve_weights,
 )
 from kuaa.scene_ids import scene_id_key
+from kuaa.search._aggregate.scorers import build_query_terms
 
 logger = logging.getLogger(__name__)
 
@@ -201,24 +203,27 @@ def _load_tag_index(metadata_dir: Path) -> dict[str, list[int]]:
 def _build_bm25_index(cfg, metadata_dir: Path):
     """Construct a per-film ``BM25Index`` from on-disk artefacts.
 
-    Tries to honour ``cfg.search.bm25`` if present (k1, b, stopwords_lang);
-    falls back to BM25Okapi defaults.
+    Honours every ``cfg.search.bm25`` tunable through the shared
+    :func:`~kuaa.search.bm25.resolve_bm25_kwargs`. Resolving them here by
+    hand is how this harness ended up scoring a *different index* from the
+    one the application serves: it silently dropped ``tokenizer`` and
+    ``bilingual``, so an ablation run measured the English-only corpus
+    while production searched the bilingual one.
     """
     from kuaa.retrieval.bm25 import BM25Index
+    from kuaa.retrieval.tokenize import get_tokenizer
+    from kuaa.search.bm25 import resolve_bm25_kwargs
 
-    bm25_cfg = getattr(getattr(cfg, "search", None), "bm25", None)
-    k1 = float(getattr(bm25_cfg, "k1", 1.5)) if bm25_cfg else 1.5
-    b = float(getattr(bm25_cfg, "b", 0.75)) if bm25_cfg else 0.75
-    stopwords_lang = getattr(bm25_cfg, "stopwords_lang", None) if bm25_cfg else None
+    kwargs = resolve_bm25_kwargs(cfg)
+    tokenizer = get_tokenizer(kwargs.pop("tokenizer_name"))
 
     descriptions = _load_descriptions(metadata_dir)
     tag_index = _load_tag_index(metadata_dir)
     return BM25Index.build(
         descriptions=descriptions,
         tag_index=tag_index,
-        stopwords_lang=stopwords_lang,
-        k1=k1,
-        b=b,
+        tokenizer=tokenizer,
+        **kwargs,
     )
 
 
@@ -456,6 +461,8 @@ def run_retrieval_eval(
     if retriever == "hybrid":
         sem_w, bm25_w = resolve_weights(sem_w=sem_w, bm25_w=bm25_w, defaults=(0.5, 0.5))
         if metadata_w is None:
+            # Ceiling only: the per-query taper is applied inside the loop,
+            # where the query text is in hand.
             metadata_w = resolve_metadata_w(cfg)
         metadata_w = min(max(float(metadata_w), 0.0), 1.0)
 
@@ -480,7 +487,7 @@ def run_retrieval_eval(
         else:
             assert searcher is not None and kf_df is not None
             # Same third list production passes (kuaa.search.hybrid) — built
-            # per query off the film's metadata dir; empty above four tokens.
+            # per query off the film's metadata dir.
             metadata_ranked: list[tuple[int, float]] = []
             if metadata_w:
                 from types import SimpleNamespace
@@ -490,6 +497,11 @@ def run_retrieval_eval(
                 metadata_ranked = load_metadata_ranked(
                     SimpleNamespace(metadata_dir=metadata_dir), query.text, raw_k
                 )
+            # Taper by query length exactly as production does, so the harness
+            # measures the shipped weighting rather than the ceiling.
+            query_metadata_w = effective_metadata_w(
+                float(metadata_w or 0.0), len(build_query_terms(query.text))
+            )
             ranked_rows = _hybrid_rank(
                 searcher,
                 bm25,
@@ -497,7 +509,7 @@ def run_retrieval_eval(
                 query.text,
                 raw_k=raw_k,
                 metadata_ranked=metadata_ranked,
-                metadata_w=float(metadata_w or 0.0),
+                metadata_w=query_metadata_w,
                 sem_w=sem_w,
                 bm25_w=bm25_w,
                 k_rrf=k_rrf,

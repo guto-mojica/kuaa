@@ -12,15 +12,17 @@ import logging
 import shutil
 import time
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import pandas as pd
 
 from kuaa.config import Settings
 from kuaa.models.base import SceneDescriptionRecord
 from kuaa.models.describer._common import (
+    DEFAULT_MAX_CONSECUTIVE_DEGENERATE,
     PROMPTS,
     build_metadata,
+    run_describe_batch,
 )
 from kuaa.models.describer.domain_prompts import prompts_from_config
 from kuaa.models.manifest import ModelCard, get_card
@@ -51,6 +53,9 @@ class MoondreamGGUFDescriber:
             # -1 = offload every layer to GPU. Harmless on a CPU-only
             # llama-cpp-python build (no CUDA → it silently runs on CPU).
             self.n_gpu_layers = getattr(cfg.llm, "gpu_layers", -1)
+            self.max_consecutive_degenerate = getattr(
+                cfg.llm, "max_consecutive_degenerate", DEFAULT_MAX_CONSECUTIVE_DEGENERATE
+            )
             self.prompts = prompts_from_config(cfg)
         else:
             self.checkpoint_interval = 25
@@ -58,6 +63,7 @@ class MoondreamGGUFDescriber:
             self.descriptions_filename = "scene_descriptions.json"
             self.tags_filename = "scene_tags.json"
             self.n_gpu_layers = -1
+            self.max_consecutive_degenerate = DEFAULT_MAX_CONSECUTIVE_DEGENERATE
             self.prompts = dict(PROMPTS)
 
     def _warn_if_cpu_build(self) -> None:
@@ -152,70 +158,19 @@ class MoondreamGGUFDescriber:
     ) -> list[SceneDescriptionRecord]:
         """Describe all rows; resume from ``existing_results`` if provided.
 
-        RESUME-BUG FIX (mirrors transformers_hf.py): error rows are NOT
-        counted as processed — they are dropped so reprocessing can produce
-        a good result; good rows are preserved verbatim, not rebuilt.
+        Resume, degeneracy and checkpoint policy live in
+        :func:`kuaa.models.describer._common.run_describe_batch` so they cannot
+        drift between backends — which is exactly what happened before: this
+        loop wrote the tag index alongside periodic checkpoints and the
+        transformers loop did not.
         """
-        # RESUME-BUG FIX: error rows are NOT counted as processed — they are
-        # dropped so reprocessing can produce a good result (mirror pipeline.py:332).
-        existing = list(existing_results or [])
-        processed_ids = {r["scene_id"] for r in existing if "error" not in r}
-        all_results = [r for r in existing if "error" not in r]
-        to_process = keyframes_df[~keyframes_df["scene_id"].isin(processed_ids)].reset_index(
-            drop=True
+        return run_describe_batch(
+            self,
+            keyframes_df,
+            existing_results,
+            checkpoint_path,
+            label="GGUF",
         )
-        if self.process_limit:
-            to_process = to_process.head(self.process_limit)
-
-        logger.info(
-            "LLM(GGUF): %d a processar (%d já ok, %d total)",
-            len(to_process),
-            len(processed_ids),
-            len(keyframes_df),
-        )
-
-        for count, (_, row) in enumerate(to_process.iterrows(), start=1):
-            try:
-                raw = {}
-                self._load_model()
-                for field, (prompt, mx) in self.prompts.items():
-                    try:
-                        raw[field] = self._answer(row["filepath"], prompt, mx)
-                    except Exception as e:  # noqa: BLE001
-                        raw[field] = f"ERROR: {e}"
-                meta = build_metadata(row, raw)
-                all_results.append(cast(SceneDescriptionRecord, meta))
-                logger.info(
-                    "cena %s [%d/%d]: %s | tags=%s",
-                    meta.get("scene_id"),
-                    count,
-                    len(to_process),
-                    str(meta.get("description", ""))[:70],
-                    meta.get("tags", []),
-                )
-            except Exception as e:  # noqa: BLE001 - whole-frame failure
-                all_results.append(
-                    {
-                        "scene_id": int(row.get("scene_id", -1)),
-                        "keyframe_path": str(row["filepath"]),
-                        "error": str(e),
-                        "tags": [],
-                        "objects": [],
-                    }
-                )
-                logger.error("Erro cena %s: %s", row.get("scene_id"), e)
-
-            if checkpoint_path and count % self.checkpoint_interval == 0:
-                self._save_json(all_results, checkpoint_path)
-                tags_path = checkpoint_path.parent / self.tags_filename
-                tag_idx = self.build_tag_index(all_results)
-                with open(tags_path, "w", encoding="utf-8") as _tf:
-                    import json as _json
-
-                    _json.dump(tag_idx, _tf, indent=2, ensure_ascii=False)
-                logger.info("Checkpoint: %d/%d", count, len(to_process))
-
-        return all_results
 
     @staticmethod
     def build_tag_index(results: list[SceneDescriptionRecord]) -> dict[str, list[str]]:

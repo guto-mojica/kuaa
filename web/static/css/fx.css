@@ -27,12 +27,18 @@
 .fx-app, .fx-app * { box-sizing: border-box; }
 
 /* ─── APP SHELL ─────────────────────────────────────────────────────────────
-   Body wrapper. Defines the two-row grid (52px chrome + 1fr workspace),
-   global typography, and font-feature opt-ins. CSS variables are inherited
-   from :root in main.css, so this block only carries layout/typography. */
+   Body wrapper. Defines the two-row grid (chrome + 1fr workspace), global
+   typography, and font-feature opt-ins. CSS variables are inherited from
+   :root in main.css, so this block only carries layout/typography.
+
+   The chrome row is ``auto``, not a literal: it used to be a hard 52px,
+   which silently CLIPPED the topbar the moment ``.ch-top`` grew past it —
+   the two-row bar rendered its 108px of content into a 52px slot and the
+   tab row vanished. Height now belongs to ``.ch-top`` alone (chrome.css),
+   so the bar can change without a second number needing to agree. */
 .fx-app {
   display: grid;
-  grid-template-rows: 52px 1fr;
+  grid-template-rows: auto 1fr;
   height: 100vh; width: 100vw;
   background: var(--c-bg); color: var(--c-text);
   font-family: var(--font-sans); font-size: 13px; line-height: 1.5;

@@ -19,18 +19,12 @@
 
    Context (see _left_pane.html docstring for full list). #}
 {% from "partials/_icons.html" import icon %}
+{% from "partials/_macros.html" import add_film_trigger %}
 
 {# ── Films section ──────────────────────────────────────────────── #}
 <div class="fx-ph">
   <span>{{ _('Library · Films') }}</span>
-  <button class="fx-btn ghost"
-          style="font-size: 11px; padding: 3px 8px; gap: 4px;"
-          type="button"
-          title="{{ _('Add film') }}"
-          aria-label="{{ _('Add film') }}"
-          hx-get="/api/library/add-form"
-          hx-target="#add-film-zone"
-          hx-swap="innerHTML">{{ icon('plus', 10) }} {{ _('Add film') }}</button>
+  {{ add_film_trigger(_('Add film')) }}
 </div>
 
 {# "All films" clears the film filter and shows the library-wide aggregate.
@@ -106,6 +100,9 @@
   <p class="tree-empty" style="padding: 8px 14px; color: var(--c-muted); font-size: 12px;">
     {{ _('No films in library') }}
   </p>
+  {# Empty library is an invitation to act, not just a statement — offer
+     the gesture right where the films would appear. #}
+  <div style="padding: 0 14px 8px;">{{ add_film_trigger(_('Add film')) }}</div>
 {% endif %}
 
 {# Phase-1 keeps the legacy add-film slot so the existing /api/library/add-form

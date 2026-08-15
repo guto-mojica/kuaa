@@ -82,7 +82,7 @@ async def api_library_add(
             return processing_tab_response(
                 request, error_message=_ERROR_MESSAGES.get(error_key, error_key), sub=sub
             )
-        ctx = make_ctx(request, error_key=error_key)
+        ctx = make_ctx(request, source=source, error_key=error_key)
         return templates.TemplateResponse(request, "partials/add_film_form.html", ctx)
 
     if not video.exists():

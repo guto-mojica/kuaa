@@ -85,7 +85,10 @@ Processing modules:
   metadata helpers.
 - `src/kuaa/search/`: CLIP/SigLIP, BM25, hybrid, aggregate, upload, cache, and
   rerank primitives.
-- `src/kuaa/rhymes/`: cross-film visual-rhyme search and enrichment.
+- `src/kuaa/rhymes/`: cross-film visual-rhyme search and enrichment, plus
+  `interpolate.py` — retrieval at points *between* two anchors.
+- `src/kuaa/motion/`: per-scene optical-flow statistics. The only signal in
+  the system not derived from a single still frame.
 - `src/kuaa/eval/`: evaluation datasets, grades, metrics, and paths.
 - `src/kuaa/scene_ids.py`: scene-id normalization helpers.
 
@@ -208,6 +211,7 @@ directories.
 | `data/library/<slug>/metadata/scene_descriptions.json` | scene describer backend | scenes/search/annotate UI |
 | `data/library/<slug>/metadata/scene_tags.json` | scene describer backend | tag filtering/search |
 | `data/library/<slug>/metadata/manual_annotations.json` | annotation service | tag merge, annotate/scenes/search UI |
+| `data/library/<slug>/metadata/scene_motion.json` | `kuaa motion run` (optional) | BM25 tag surface, facet filters |
 | `data/metadata/run_manifest.json` | pipeline/web worker | provenance, operations |
 
 ## Configuration

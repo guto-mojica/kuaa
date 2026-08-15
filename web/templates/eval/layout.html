@@ -101,9 +101,20 @@
       <span class="bar" style="--p: {{ ((graded_count * 100 // queries|length) if queries else 0) }}%;"></span>
       <span>{{ '%d%%'|format((graded_count * 100 // queries|length) if queries else 0) }}</span>
     </div>
+    {# Grader identity. Editable because the `grader` cookie is what tells two
+       grading passes apart, and it defaults to "anon" — a default that merges
+       every pass into one annotator and leaves the agreement panel with
+       nothing to compare. The keyboard router ignores keys while an input has
+       focus, so typing a name here cannot register a grade. #}
     <div class="me">
       <span class="av">{{ grader_initials or 'AN' }}</span>
-      <span>{{ grader_name or _('anon') }}</span>
+      <input class="grader-name" type="text"
+             value="{{ grader_name if grader_name and grader_name != 'anon' else '' }}"
+             placeholder="{{ _('your name') }}"
+             title="{{ _('Grader name — identifies your judgments in the agreement metrics') }}"
+             maxlength="40" autocomplete="off" spellcheck="false"
+             @change="setGrader($el.value)"
+             @keydown.enter="$el.blur()">
     </div>
   </header>
 

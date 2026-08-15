@@ -32,7 +32,7 @@ from typing import Any
 
 import pytest
 
-from .conftest import run_axe, wait_for_alpine
+from .conftest import run_axe, wait_for_alpine, wait_for_animations
 
 pytestmark = pytest.mark.e2e
 
@@ -61,7 +61,13 @@ def _explain(violations: list[dict[str, Any]]) -> str:
 
 
 def _assert_axe_clean(page: Any, axe_source: str, *, surface: str) -> None:
-    """Run axe on the current page state and assert zero serious/critical."""
+    """Run axe on the current page state and assert zero serious/critical.
+
+    Waits for the chrome's entrance animation to settle first — auditing
+    mid-fade measures blended colours and fails compliant text (see
+    ``conftest.wait_for_animations``).
+    """
+    wait_for_animations(page)
     violations = run_axe(page, axe_source)
     blocking = _blocking(violations)
     assert not blocking, (

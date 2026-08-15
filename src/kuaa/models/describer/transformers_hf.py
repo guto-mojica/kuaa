@@ -21,15 +21,17 @@ import logging
 import shutil
 import time
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import pandas as pd
 
 from kuaa.config import Settings
 from kuaa.models.base import SceneDescriptionRecord
 from kuaa.models.describer._common import (
+    DEFAULT_MAX_CONSECUTIVE_DEGENERATE,
     PROMPTS,
     build_metadata,
+    run_describe_batch,
 )
 from kuaa.models.describer.domain_prompts import prompts_from_config
 from kuaa.models.manifest import ModelCard, get_card
@@ -55,6 +57,9 @@ class MoondreamTransformersDescriber:
         self._tokenizer: Any = None
         self._enc_cache: tuple[str, object] | None = None
         self._device = device
+        # Whether the loaded revision honours a per-call token cap. Probed at
+        # load time and demoted on first failure; see ``_answer``.
+        self._token_cap_supported = True
         if cfg is not None and getattr(cfg, "llm", None) is not None:
             self.model_id = cfg.llm.model_id
             self.revision = cfg.llm.revision
@@ -62,6 +67,11 @@ class MoondreamTransformersDescriber:
             self.process_limit = cfg.llm.process_limit
             self.descriptions_filename = cfg.llm.descriptions_filename
             self.tags_filename = cfg.llm.tags_filename
+            self.max_consecutive_degenerate = getattr(
+                cfg.llm,
+                "max_consecutive_degenerate",
+                DEFAULT_MAX_CONSECUTIVE_DEGENERATE,
+            )
             self.prompts = prompts_from_config(cfg)
         else:
             self.model_id = "vikhyatk/moondream2"
@@ -70,6 +80,7 @@ class MoondreamTransformersDescriber:
             self.process_limit = None
             self.descriptions_filename = "scene_descriptions.json"
             self.tags_filename = "scene_tags.json"
+            self.max_consecutive_degenerate = DEFAULT_MAX_CONSECUTIVE_DEGENERATE
             self.prompts = dict(PROMPTS)
 
     def _warn_if_cpu_torch(self) -> None:
@@ -132,6 +143,14 @@ class MoondreamTransformersDescriber:
             device_map=self._device if self._device is not None else "cpu",
         )
         self._model.eval()
+        self._token_cap_supported = hasattr(self._model, "query")
+        if not self._token_cap_supported:
+            logger.warning(
+                "Revisão %s não expõe query(settings=...) — o teto de tokens por "
+                "prompt NÃO será aplicado e cada resposta pode ir até o limite "
+                "interno do modelo (512). Prefira a revisão 2025-01-09.",
+                self.revision,
+            )
         logger.info("✓ Moondream 2 carregado em %.1fs", time.time() - t0)
 
     def _encode(self, image_path):
@@ -145,6 +164,12 @@ class MoondreamTransformersDescriber:
             return self._enc_cache[1]
         from PIL import Image
 
+        # Drop the previous frame's encoding *before* allocating the next.
+        # An EncodedImage owns a static KV cache of
+        # n_layers(24) x 2 x n_heads(32) x max_context(2048) x head_dim(64)
+        # in fp16 = 384 MiB. Assigning the new tuple first would hold both
+        # alive across the allocation and double the peak for no reason.
+        self._enc_cache = None
         img = (
             Image.open(image_path)
             .convert("RGB")
@@ -154,12 +179,78 @@ class MoondreamTransformersDescriber:
         self._enc_cache = (key, enc)
         return enc
 
+    def release(self) -> None:
+        """Drop the model and hand its device memory back to the allocator.
+
+        Necessary because the accelerator caching allocators (MPS and CUDA
+        alike) keep freed blocks in their own pool: dropping the last Python
+        reference to a 3.7 GB fp16 Moondream returns nothing to the OS on its
+        own. In a long-lived ``kuaa serve`` process that describes several
+        films, each film's describer stacked on the previous one's retained
+        blocks until the GPU had nothing left — the 2026-08-14 MPS OOM.
+
+        Idempotent, and safe to call on a describer that never loaded.
+        """
+        had_model = self._model is not None
+        self._enc_cache = None
+        self._model = None
+        self._tokenizer = None
+        if not had_model:
+            return
+        import gc
+
+        gc.collect()
+        try:
+            import torch
+
+            if torch.backends.mps.is_available():
+                torch.mps.empty_cache()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except Exception:  # noqa: BLE001 - reclaiming memory must never fail a run
+            logger.debug("empty_cache falhou; seguindo", exc_info=True)
+
     def _answer(self, image_path, prompt: str, max_tokens: int) -> str:
-        """One image+prompt -> stripped model text (encoder cached per frame)."""
+        """One image+prompt -> stripped model text (encoder cached per frame).
+
+        Routes through ``query(settings={"max_tokens": N})`` because
+        ``answer_question`` **silently ignores** ``max_new_tokens`` on the
+        2025-01-09 remote code — it forwards to ``query`` with no settings,
+        so every prompt ran to ``DEFAULT_MAX_TOKENS`` (512). The sibling
+        ``generate`` says so in its own docstring: "tokenizer, max_new_takens,
+        and kwargs are ignored."
+
+        That made the whole ``PROMPTS`` budget (190 tokens/scene) dead config
+        and let a single runaway generation cost 16x its cap in time and KV
+        cache. ``answer_question`` stays as the fallback for revisions that
+        predate ``query`` — but loudly, and only once.
+        """
         enc = self._encode(image_path)
+        if self._token_cap_supported:
+            # Resolved by name rather than called directly so an AttributeError
+            # raised *inside* query() is never mistaken for "query is missing".
+            query = getattr(self._model, "query", None)
+            if query is None:
+                self._demote_token_cap("revisão não expõe query()")
+            else:
+                try:
+                    answer = query(enc, prompt, settings={"max_tokens": max_tokens})
+                    return str(answer["answer"]).strip()
+                except (NotImplementedError, TypeError, KeyError) as e:
+                    self._demote_token_cap(repr(e))
         return self._model.answer_question(
             enc, prompt, self._tokenizer, max_new_tokens=max_tokens
         ).strip()
+
+    def _demote_token_cap(self, reason: str) -> None:
+        """Fall back to the uncapped path — once, and loudly."""
+        self._token_cap_supported = False
+        logger.warning(
+            "query(settings=...) indisponível (%s) — caindo para answer_question, "
+            "que IGNORA o teto de tokens nesta revisão; respostas podem ir até 512 "
+            "tokens. Prefira a revisão 2025-01-09.",
+            reason,
+        )
 
     def describe(self, image_path) -> dict:
         """Return full metadata dict for a single keyframe."""
@@ -184,59 +275,22 @@ class MoondreamTransformersDescriber:
         RESUME-BUG FIX (mirrors gguf.py): error rows are NOT counted as
         processed — they are dropped so reprocessing can produce a good
         result; good rows are preserved verbatim, not rebuilt.
+
+        Aborts with :class:`~kuaa.errors.ModelError` after
+        ``max_consecutive_degenerate`` scenes come back as repetition loops,
+        checkpointing first so the good rows survive and resume picks up from
+        them. Without this the 2026-08-14 run spent 6.5 hours producing one
+        usable scene out of twenty before the GPU failed hard.
+
+        Always releases the model on the way out — see :meth:`release`.
         """
-        existing = list(existing_results or [])
-        processed_ids = {r["scene_id"] for r in existing if "error" not in r}
-        all_results = [r for r in existing if "error" not in r]
-        to_process = keyframes_df[~keyframes_df["scene_id"].isin(processed_ids)].reset_index(
-            drop=True
+        return run_describe_batch(
+            self,
+            keyframes_df,
+            existing_results,
+            checkpoint_path,
+            label="transformers",
         )
-        if self.process_limit:
-            to_process = to_process.head(self.process_limit)
-
-        logger.info(
-            "LLM(transformers): %d a processar (%d já ok, %d total)",
-            len(to_process),
-            len(processed_ids),
-            len(keyframes_df),
-        )
-
-        for count, (_, row) in enumerate(to_process.iterrows(), start=1):
-            try:
-                raw = {}
-                self._load_model()
-                for field, (prompt, mx) in self.prompts.items():
-                    try:
-                        raw[field] = self._answer(row["filepath"], prompt, mx)
-                    except Exception as e:  # noqa: BLE001
-                        raw[field] = f"ERROR: {e}"
-                meta = build_metadata(row, raw)
-                all_results.append(cast(SceneDescriptionRecord, meta))
-                logger.info(
-                    "cena %s [%d/%d]: %s | tags=%s",
-                    meta.get("scene_id"),
-                    count,
-                    len(to_process),
-                    str(meta.get("description", ""))[:70],
-                    meta.get("tags", []),
-                )
-            except Exception as e:  # noqa: BLE001 - whole-frame failure
-                all_results.append(
-                    {
-                        "scene_id": int(row.get("scene_id", -1)),
-                        "keyframe_path": str(row["filepath"]),
-                        "error": str(e),
-                        "tags": [],
-                        "objects": [],
-                    }
-                )
-                logger.error("Erro cena %s: %s", row.get("scene_id"), e)
-
-            if checkpoint_path and count % self.checkpoint_interval == 0:
-                self._save_json(all_results, checkpoint_path)
-                logger.info("Checkpoint: %d/%d", count, len(to_process))
-
-        return all_results
 
     @staticmethod
     def build_tag_index(results: list[SceneDescriptionRecord]) -> dict[str, list[str]]:

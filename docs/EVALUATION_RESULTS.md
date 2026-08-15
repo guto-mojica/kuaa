@@ -1,8 +1,10 @@
+
+
 <!-- ABLATION START -->
 
 ## Retriever-variant proxy ablation (SigLIP2 default)
 
-**Run date:** 2026-08-04 — `scripts/run_ablation.py` (no-rerank (rerank row pending), seed=0).
+**Run date:** 2026-08-13 — `scripts/run_ablation.py` (no-rerank (rerank row pending), seed=0).
 **Query set:** `m3_full_queries.yaml` — the 15 text queries (common set).
 
 Retriever-variant ablation on a **common query set with the same proxy labels** (apples-to-apples). This is the launch ablation: it is producible with **zero human grades** and every cell is either a real proxy number or an honest `pending (...)`.
@@ -19,9 +21,9 @@ Retriever-variant ablation on a **common query set with the same proxy labels** 
 | Retriever | Proxy | Recall@5 | Recall@10 | MRR | nDCG@10 |
 | --- | --- | ---: | ---: | ---: | ---: |
 | CLIP | HY | 0.067 | 0.089 | 0.080 | 0.077 |
-| BM25 | HY | 0.111 | 0.156 | 0.119 | 0.110 |
-| hybrid | HY | 0.111 | 0.111 | 0.120 | 0.094 |
-| hybrid-metadata | HY | 0.111 | 0.111 | 0.120 | 0.094 |
+| BM25 | HY | 0.089 | 0.089 | 0.090 | 0.075 |
+| hybrid | HY | 0.067 | 0.089 | 0.083 | 0.073 |
+| hybrid-metadata | HY | 0.089 | 0.089 | 0.096 | 0.076 |
 | hybrid+rerank | HY | pending (rerank off) | pending (rerank off) | pending (rerank off) | pending (rerank off) |
 
 > **hybrid-metadata.** Identical to `hybrid` except the exact-lexical metadata leg (tags / descriptions / detected objects) is disabled (`metadata_w=0`) — the delta to the `hybrid` row isolates that signal's contribution.
@@ -29,7 +31,13 @@ Retriever-variant ablation on a **common query set with the same proxy labels** 
 
 **Reading the numbers** (proxy / HY, not human-graded):
 
-- **Hybrid beats CLIP-only here** — RRF fusion of SigLIP2 + BM25 edges CLIP on R@5 and MRR.
+- **Treat differences here as noise unless they are large.** This is 15 queries scored against the maintainer's pre-curator *hypothesis* labels, with roughly three relevant scenes each out of ~450. Every retriever lands near nDCG@10 ≈ 0.08, where one query's movement swings the third decimal. The table is a wiring check — it tells you a leg is connected and roughly not harmful — not a quality ranking.
+
+- **It cannot see the PT/EN gap at all.** 8 of the 15 text queries are Portuguese, and the labels were authored against what the system used to return. Before the bilingual index expansion those PT queries retrieved *nothing* from BM25; they now retrieve plausible scenes, which these labels neither reward nor penalise. Use `scripts/check_pt_parity.py` for that axis.
+
+- **`hybrid` vs `hybrid-metadata` is finally a real comparison.** The two rows were byte-identical for as long as they shipped, because the metadata scorer bailed out on any query over 4 tokens and so returned `{}` on 13 of these 15 queries — the ablation was subtracting a leg that was already absent.
+
+- **Nothing here measures short object queries**, which is the case the metadata leg exists for. Its fusion share now tapers with query length (`kuaa.retrieval.hybrid.effective_metadata_w`); this slate only exercises the long end of that taper.
 
 Reproduce:
 

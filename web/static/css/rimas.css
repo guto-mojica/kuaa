@@ -273,7 +273,7 @@
 
 /* RIGHT PANE — Why this matches */
 .r-rp {
-  width: 380px; flex-shrink: 0;
+  width: var(--rp-w, 380px); flex-shrink: 0;
   border-left: 1px solid var(--c-border); background: var(--c-panel);
   display: flex; flex-direction: column; overflow: hidden;
 }
@@ -293,7 +293,7 @@
 .r-rp .head .r { color: var(--c-muted); }
 
 .r-rp .inner,
-.r-rp-inner { padding: 16px 18px 18px; overflow-y: auto; flex: 1; }
+.r-rp-inner { padding: 16px 18px 18px; overflow-y: auto; flex: 1; min-height: 0; }
 
 /* Pair comparison */
 .r-pair {

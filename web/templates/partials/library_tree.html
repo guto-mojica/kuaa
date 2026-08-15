@@ -1,4 +1,5 @@
 {% from "partials/_icons.html" import icon %}
+{% from "partials/_macros.html" import add_film_trigger %}
 {% if library_state %}
 <div class="library-state" id="library-state">
     {% if library_state.is_processed %}
@@ -49,11 +50,9 @@
     <p class="tree-empty">{{ _("No films in library") }}</p>
 {% endif %}
 
-<div id="add-film-zone">
-    <div class="tree-node tree-node--add"
-         hx-get="/api/library/add-form"
-         hx-target="#add-film-zone"
-         hx-swap="innerHTML">
-        + {{ _("Add film") }}
-    </div>
-</div>
+{# Legacy sidebar (served only by /api/library/filter — never rendered
+   alongside the LeftPane chrome, so this zone id does not collide with
+   _left_pane_body.html's in any live DOM). Trigger unified onto the
+   shared add_film_trigger macro. #}
+{{ add_film_trigger(_('Add film')) }}
+<div id="add-film-zone"></div>

@@ -1,11 +1,37 @@
 /* ─── TOPBAR ────────────────────────────────────────────────────────── */
+/* Two rows: an IDENTITY row (mark + wordmark + breadcrumb + offline chip)
+   and a TAB row seated on the bar's bottom edge.
+
+   Before, both lived on one 52px line and the tabs were a pill group
+   floating in the middle of it — a segmented control that read as chrome
+   detached from the work. Splitting the bar gives the mark and the tab
+   labels room to breathe, and seating the tab row ON the bottom edge is
+   what lets the active tab merge into the pane below it (see
+   ``.ch-top .tab.on``): tab and canvas become one continuous area instead
+   of two bands divided by a rule. */
 .ch-top {
-  display: grid; grid-template-columns: auto 1fr auto;
-  align-items: center; gap: 18px;
-  padding: 0 16px;
+  display: grid; grid-template-rows: auto auto;
+  align-items: center; row-gap: 0;
+  padding: 0 18px;
   border-bottom: 1px solid var(--c-border); background: var(--c-panel);
 }
-.ch-top .l { display: flex; align-items: center; gap: 12px; }
+/* The MARK sets this row's height, and that is the intended order: the mark is
+   the identity, so it is sized for legibility (44px — its glyph has interior
+   detail that mushes below ~36px) and the row is then padded tightly around it.
+   Sizing it down to buy vertical space is a false economy; the space comes from
+   ``line-height: 1`` on .brand .n and .tab instead.
+
+   That leading is where the bar's old emptiness actually lived: .fx-app sets
+   line-height 1.5 globally, so the wordmark carried a 31.5px box for 21px of
+   text and each tab label a 22.25px box for 13.5px — ~17px of the bar was
+   leading around text, not content. Dropping it to 1 on these two rules paid
+   for a LARGER mark and a shorter bar at the same time. Chrome text that is
+   deliberately single-line does not want prose leading. */
+.ch-top .l {
+  grid-row: 1;
+  display: flex; align-items: center; gap: 12px;
+  padding: 2px 0;
+}
 
 /* ─── Offline status badge (U11) ──────────────────────────────────────
    Small amber chip that appears in the topbar's left region when
@@ -34,12 +60,21 @@
   padding: 0; margin: -1px; border: 0; overflow: hidden;
   clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
 }
-.ch-top .brand { display: flex; align-items: center; gap: 12px; padding: 6px 10px; border-radius: 8px; cursor: pointer; }
+/* text-decoration:none — the wordmark is an <a href="/">, so it carried the
+   UA underline all along. It was invisible only because the old hard 52px
+   shell row clipped the bottom of this line box; giving the bar its real
+   height revealed it. */
+.ch-top .brand {
+  display: flex; align-items: center; gap: 12px;
+  padding: 2px 10px; border-radius: 8px; cursor: pointer;
+  text-decoration: none;
+}
 .ch-top .brand:hover { background: var(--c-hover); }
 .ch-top .brand .n {
-  font-weight: 700; font-size: 18px; color: var(--c-text); letter-spacing: 0.04em;
+  font-weight: 700; font-size: 30px; line-height: 1;
+  color: var(--c-text); letter-spacing: 0.07em;
 }
-.ch-top .div { width: 1px; height: 28px; background: var(--c-border); }
+.ch-top .div { width: 1px; height: 26px; background: var(--c-border); }
 .ch-top .crumb {
   display: flex; align-items: center; gap: 8px;
   font-size: 13.5px; color: var(--c-text-2);
@@ -56,28 +91,57 @@
   border: 1px solid var(--c-border);
 }
 
-/* TABS — centered chip group, Frame.io style */
+/* TABS — folder tabs seated on the bar's bottom edge.
+   The active tab paints the CANVAS colour (--c-bg, what .b-cp / .c-cp /
+   .r-cp / .p-cp all paint) and re-paints the bar's 1px baseline in that
+   same colour underneath itself, so nothing separates the active tab from
+   the pane it opens — they are one surface. Inactive tabs stay flat on the
+   bar's panel. The group is centred, and the shell puts the canvas in the
+   middle of the viewport (--lp-w left, --rp-w right), so the merge lands
+   on canvas at every pane width, including after a drag-resize. */
 .ch-top .tabs {
-  display: flex; align-items: center; gap: 3px;
-  background: var(--c-raised); border-radius: 8px; padding: 4px;
-  justify-self: center;
+  grid-row: 2;
+  display: flex; align-items: flex-end; gap: 2px;
+  /* The strip STARTS where the canvas starts. Centring it in the viewport
+     (what this used to do) drifted it off the canvas — measured at 1440px it
+     spanned 335→1105 while the canvas ran 248→1060, so the outermost tab sat
+     above the right inspector and its merge landed on the wrong surface.
+     Anchoring to --lp-w keeps every tab over the canvas AND makes the strip
+     follow the library pane when the user drags it. The 18px subtracted is
+     .ch-top's own padding-left, so tab edge == canvas edge exactly. */
+  justify-self: start;
+  margin-left: calc(var(--lp-w, 248px) - 18px);
+  background: transparent; border-radius: 0; padding: 0;
+  /* Pull the row down onto the baseline so the active tab can cover it. */
+  margin-bottom: -1px;
+  position: relative; z-index: var(--z-raised);
 }
+/* Annotate runs compact (no library pane — .ch-body.compact-lp), so its
+   canvas starts at the viewport edge and the strip must too. */
+body[data-active-tab="anotar"] .ch-top .tabs { margin-left: 0; }
 .ch-top .tab {
   display: flex; align-items: center; gap: 8px;
-  padding: 7px 14px; border-radius: 6px;
-  font-size: 13.5px; color: var(--c-text-2); cursor: pointer;
+  padding: 6px 16px 7px; border-radius: 8px 8px 0 0;
+  font-size: 13.5px; line-height: 1; color: var(--c-text-2); cursor: pointer;
   font-weight: 500; letter-spacing: -0.003em;
-  border: none; background: transparent;
+  border: 1px solid transparent; background: transparent;
   white-space: nowrap;
   transition: background var(--dur-fast), color var(--dur-fast);
 }
-.ch-top .tab:hover { color: var(--c-text); }
+.ch-top .tab:hover { background: var(--c-raised); color: var(--c-text); }
 .ch-top .tab.on {
-  background: var(--c-hover); color: var(--c-text);
-  box-shadow: 0 1px 0 var(--c-border-2);
+  background: var(--c-bg); color: var(--c-text);
+  border-color: var(--c-border);
+  border-bottom-color: var(--c-bg);
+  box-shadow: none;
 }
 .ch-top .tab .ico { display: flex; align-items: center; opacity: 0.8; }
-.ch-top .tab.on .ico { opacity: 1; color: var(--c-accent); }
+/* --c-accent-text (== --c-accent-2 #A99CE5), NOT --c-accent: the brand
+   accent is 4.01:1 on --c-hover and 4.39:1 on --c-raised — under AA for
+   anything small — while the lighter alias clears 4.5:1 on every chrome
+   surface. Same reasoning the --c-accent-btn pair already documents for
+   white-text fills. */
+.ch-top .tab.on .ico { opacity: 1; color: var(--c-accent-text); }
 .ch-top .tab .pip {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 16px; padding: 0 5px; height: 16px; border-radius: 8px;
@@ -92,9 +156,13 @@
    markup the template never emits, and keeping them invites a later agent to
    re-add the faked controls. Do not reintroduce. */
 
-/* ─── BODY LAYOUT ───────────────────────────────────────────────────── */
+/* ─── BODY LAYOUT ───────────────────────────────────────────────────────
+   Pane widths resolve through --lp-w / --rp-w (declared with defaults in
+   main.css :root, overridden at runtime on <html> by mojica.js pane-resize
+   when the user drags a handle). Every per-tab inspector (.b-rp/.c-rp/…)
+   consumes the same --rp-w, so one drag resizes the column everywhere. */
 .ch-body {
-  display: grid; grid-template-columns: 248px 1fr;
+  display: grid; grid-template-columns: var(--lp-w, 248px) 1fr;
   flex: 1; min-height: 0; overflow: hidden;
 }
 .ch-main { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
@@ -116,14 +184,56 @@
   min-height: 0; overflow: hidden;
 }
 .ch-right > * { flex: 1; min-height: 0; }
+
+/* ─── #right-pane: the per-tab inspector HTMX target ─────────────────────
+   Tabs mount their inspector in one of two shapes:
+
+     Processing / Rimas  <aside class="p-rp" id="right-pane">   — class ON the
+                         flex item, so the pane IS the stretched box. Fine.
+     Scenes / Buscar     <div class="rp-slot">
+                           <aside id="right-pane">
+                             <section class="c-rp">            — two plain
+                         blocks between the flex line and the styled pane.
+
+   The second shape is deliberate: `.rp-slot` is the positioning context for
+   the overlaid loading skeleton, and the bare aside is a neutral target so
+   hx-swap="innerHTML" can replace the inner <section> without destroying it.
+   The cost is that NEITHER wrapper passed a height down. `.rp-slot` is a
+   stretched flex item of .tab-panel (definite height), but it is a plain
+   block, so #right-pane sized to its content, so .c-rp / .b-rp sized to
+   THEIR content — and the pane's own `.inner`
+   (flex:1; min-height:0; overflow-y:auto) had no constrained parent to
+   shrink against. Result: no scrollbar at any pane width, with the
+   description tail and the inspector's action buttons clipped away by
+   .ch-main's overflow:hidden. Widening the column could never fix it.
+
+   So both levels have to conduct the height. `.rp-slot` becomes a flex
+   container (the skeleton is position:absolute, so it stays out of flow and
+   is unaffected); #right-pane becomes a flex COLUMN and hands the pane
+   flex:1. The pane is targeted by class rather than a `> *` selector on
+   purpose: the Scenes aside can also hold an empty hx-trigger="load"
+   self-loader div, and a greedy `> *` would make that div a flex sibling
+   and split the height with it. Left as flex:0 auto it stays 0-height.
+
+   Harmless for the Processing/Rimas shape: `.p-rp` / `.r-rp` already
+   declare display:flex + flex-direction:column + flex-shrink:0, and the
+   `> .c-rp` / `> .b-rp` child rules simply do not match there.
+
+   Guarded by tests/e2e/test_pane_scroll_interaction.py, which MEASURES the
+   rendered boxes — this bug was "fixed" twice from static CSS reading
+   before a browser showed the wrapper chain was the real culprit. */
+.rp-slot { display: flex; }
+#right-pane { display: flex; flex-direction: column; min-height: 0; flex-shrink: 0; }
+#right-pane > .c-rp,
+#right-pane > .b-rp { flex: 1; min-height: 0; }
 .ch-body.compact-lp {
   grid-template-columns: 1fr;
 }
 .ch-body.with-right {
-  grid-template-columns: 248px 1fr 380px;
+  grid-template-columns: var(--lp-w, 248px) 1fr var(--rp-w, 380px);
 }
 .ch-body.compact-lp.with-right {
-  grid-template-columns: 1fr 380px;
+  grid-template-columns: 1fr var(--rp-w, 380px);
 }
 
 
@@ -132,7 +242,7 @@
   border-right: 1px solid var(--c-border); background: var(--c-panel);
   display: flex; flex-direction: column; overflow: hidden;
 }
-.ch-lp .scroll { flex: 1; overflow-y: auto; padding-bottom: 8px; }
+.ch-lp .scroll { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 8px; }
 .ch-lp .filter {
   margin: 12px 12px 6px; padding: 6px 10px;
   background: var(--c-bg); border: 1px solid var(--c-border);
@@ -315,7 +425,10 @@
 @media (max-width: 1280px) {
   .ch-body.with-right { grid-template-columns: 248px 1fr 320px; }
   .ch-body.compact-lp.with-right { grid-template-columns: 1fr 320px; }
-  .ch-top { gap: 12px; padding: 0 12px; }
+  /* column-gap, NOT the gap shorthand: gap would also overwrite the base
+     rule's ``row-gap: 0`` and reopen a 12px gutter between the identity and
+     tab rows, making the bar TALLER below 1280px than above it. */
+  .ch-top { column-gap: 12px; padding: 0 12px; }
   .ch-top .crumb { font-size: 12.5px; gap: 6px; }
   .ch-top .crumb .ver { font-size: 10.5px; padding: 1px 6px; }
 }
@@ -358,9 +471,16 @@
     grid-column: 1 / 3; grid-row: 2;
     justify-self: stretch; overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    /* The library pane folds away below 720px, so the canvas — and the tab
+       strip with it — starts at the viewport edge. */
+    margin-left: 0;
   }
   .ch-top .crumb { display: none; }
   .ch-top .brand .n { display: none; }
+  /* The wordmark hides here, so the mark alone sets the row height — at its
+     desktop 44px the phone bar would end up TALLER than the desktop one while
+     eating a much shorter viewport. 32px still resolves the glyph's detail. */
+  .ch-top .brand img { width: 32px; height: 32px; }
   .ch-body,
   .ch-body.with-right { grid-template-columns: 1fr; }
   .ch-body.compact-lp,

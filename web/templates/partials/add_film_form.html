@@ -22,6 +22,12 @@
       hx-swap="innerHTML"
       {% endif %}>
     <input type="hidden" name="source" value="{{ src }}">
+    {# Plain text input, deliberately. A browser file dialog cannot hand the
+       server a path, and the add flow symlinks a file already on the server's
+       own disk. A raw-dir <datalist> was tried here and removed: it neither
+       eased navigating storage nor changed what operators actually typed —
+       absolute paths were already the common case, and the suggestion list
+       only covered one directory. #}
     <input class="filter-input{% if has_error %} is-error{% endif %}"
            type="text"
            name="video_path"
@@ -39,16 +45,18 @@
       {% include "partials/_field_error.html" %}
     {% endwith %}
     <div class="add-film-form__actions">
-        <button type="submit" class="tree-node tree-node--add">{{ _("Add") }}</button>
+        <button type="submit" class="fx-btn primary sm">{{ _("Add film") }}</button>
+        {# Both Cancels are real <button>s — the left-pane one was a
+           non-focusable div, invisible to keyboard users. #}
         {% if src == "processing" %}
-        <button type="button" class="tree-node"
+        <button type="button" class="fx-btn ghost sm"
                 onclick="document.getElementById('proc-add-film-zone').innerHTML=''">
             {{ _("Cancel") }}</button>
         {% else %}
-        <div class="tree-node"
-             hx-get="/api/library/tree"
-             hx-target="#lp-scroll"
-             hx-swap="innerHTML">{{ _("Cancel") }}</div>
+        <button type="button" class="fx-btn ghost sm"
+                hx-get="/api/library/tree"
+                hx-target="#lp-scroll"
+                hx-swap="innerHTML">{{ _("Cancel") }}</button>
         {% endif %}
     </div>
 </form>

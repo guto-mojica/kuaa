@@ -6,7 +6,7 @@ Operational and analysis scripts. Two tiers.
 
 | Script | Role | Invoked by |
 |---|---|---|
-| `check_loc_budget.py` | LOC budget gate (services ≤250, routes ≤150) | `.github/workflows/refactor-guards.yml` |
+| `check_loc_budget.py` | LOC budget gate (routes ≤150, services ≤250, `api/*` ≤600; most-specific prefix wins) | `.github/workflows/refactor-guards.yml` |
 | `check_launch_package.py` | Public-docs gate: headings, promised links, zero placeholder tokens | `.github/workflows/ci.yml` (`docs` job), `just docs` |
 | `bench_retrieval.py` | Latency p50/p95/p99 per retriever | `.github/workflows/ci.yml` (`benchmark` job, non-blocking), `just bench` |
 | `run_eval.py` | Retrieval eval (clip/bm25/hybrid; `--all-modes`) | `just eval`; `SETUP.md` §7, `docs/EVALUATION.md` |

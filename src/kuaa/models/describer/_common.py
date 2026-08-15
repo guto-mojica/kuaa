@@ -9,9 +9,18 @@ regardless of the VLM engine.
 
 from __future__ import annotations
 
+import json
+import logging
 import re
+from pathlib import Path
+from typing import Protocol, cast, runtime_checkable
 
 import pandas as pd
+
+from kuaa.errors import ModelError, is_degenerate_response, is_unusable_response
+from kuaa.models.base import SceneDescriptionRecord
+
+logger = logging.getLogger(__name__)
 
 PROMPTS: dict[str, tuple[str, int]] = {
     #                prompt                                          max_new_tokens
@@ -42,6 +51,23 @@ PROMPTS: dict[str, tuple[str, int]] = {
         40,
     ),
 }
+
+
+#: Consecutive degenerate scenes tolerated before a describe run is aborted.
+#: One bad frame (a title card, a black frame) can plausibly produce one
+#: strange answer; three in a row means the backend stopped working, not that
+#: the footage got harder. Shared by every backend so the abort policy does
+#: not drift between them. Overridable via ``llm.max_consecutive_degenerate``.
+DEFAULT_MAX_CONSECUTIVE_DEGENERATE = 3
+
+#: Operator-facing explanation attached to the abort error.
+DEGENERACY_ABORT_HINT = (
+    "The describer is emitting repetition loops instead of answers. On Apple "
+    "MPS this is what device memory exhaustion looks like — command buffers "
+    "return garbage before they return an error. Restart the process (a "
+    "long-lived server accumulates model weights across films; the accelerator "
+    "allocator does not return them to the OS) and describe one film per run."
+)
 
 
 LOCATION_MAP = {
@@ -113,7 +139,7 @@ def _parse_num_people(text: str) -> int:
 
 def _parse_objects(text: str) -> list[str]:
     """Converte a string de objetos em lista normalizada (máx. 6 itens)."""
-    if not text or text.startswith("ERROR"):
+    if not text or is_unusable_response(text):
         return []
     parts = re.split(r"[,;.]+", text)
     stopwords = {"a", "an", "the", "some", "and", "with"}
@@ -156,8 +182,47 @@ def _generate_tags(parsed: dict) -> list[str]:
     return sorted(tags)
 
 
+def _scene_provenance(row: pd.Series) -> dict:
+    """Scene-level fields, carried by good and error rows alike."""
+    return {
+        "scene_id": int(row.get("scene_id", -1)),
+        "keyframe_id": str(row.get("keyframe_id", "")),
+        "keyframe_path": str(row.get("filepath", "")),
+        "start_time_s": float(row["start_time_s"]) if "start_time_s" in row.index else None,
+        "end_time_s": float(row["end_time_s"]) if "end_time_s" in row.index else None,
+        "duration_s": float(row["duration_s"]) if "duration_s" in row.index else None,
+    }
+
+
+def degenerate_fields(raw: dict) -> list[str]:
+    """Names of the prompt fields in *raw* that came back as repetition loops."""
+    return sorted(f for f, text in raw.items() if is_degenerate_response(str(text)))
+
+
 def build_metadata(row: pd.Series, raw: dict) -> dict:
-    """Former LLMDescriber._build_metadata (self removed; logic identical)."""
+    """Assemble one scene record from the raw per-prompt answers.
+
+    Returns an **error row** (``error`` set, no ``description``, empty
+    ``tags``) when any prompt came back as a repetition loop. The trigger is
+    deliberately one field, not all six: degeneracy at these thresholds means
+    the decoder was pinned by a device-level fault, so the answers that still
+    look plausible are not trustworthy either. Dropping the scene is
+    recoverable — ``describe_batch`` reprocesses error rows on resume —
+    whereas indexing it silently degrades every future query.
+    """
+    bad = degenerate_fields(raw)
+    if bad:
+        return {
+            **_scene_provenance(row),
+            "error": (
+                f"degenerate model output in {', '.join(bad)} — repetition loop, "
+                "not an answer (see kuaa.errors.is_degenerate_response)"
+            ),
+            "tags": [],
+            "objects": [],
+            "_raw_responses": raw,
+        }
+
     loc_raw = raw.get("location", "").lower().strip()
     location = LOCATION_MAP.get(loc_raw, "desconhecido")
 
@@ -167,6 +232,10 @@ def build_metadata(row: pd.Series, raw: dict) -> dict:
     num_people = _parse_num_people(raw.get("people_and_action", ""))
     objects = _parse_objects(raw.get("objects", ""))
     setting = raw.get("setting", "").strip().lower()
+    if is_unusable_response(setting):
+        # ``setting`` is kebab-cased straight into the tag vocabulary by
+        # ``_generate_tags``, with no other filter between it and the index.
+        setting = ""
 
     parsed = {
         "location": location,
@@ -177,14 +246,7 @@ def build_metadata(row: pd.Series, raw: dict) -> dict:
     }
     tags = _generate_tags(parsed)
 
-    scene_meta = {
-        "scene_id": int(row.get("scene_id", -1)),
-        "keyframe_id": str(row.get("keyframe_id", "")),
-        "keyframe_path": str(row.get("filepath", "")),
-        "start_time_s": float(row["start_time_s"]) if "start_time_s" in row.index else None,
-        "end_time_s": float(row["end_time_s"]) if "end_time_s" in row.index else None,
-        "duration_s": float(row["duration_s"]) if "duration_s" in row.index else None,
-    }
+    scene_meta = _scene_provenance(row)
 
     llm_meta = {
         "description": raw.get("description", "").strip(),
@@ -199,3 +261,179 @@ def build_metadata(row: pd.Series, raw: dict) -> dict:
     }
 
     return {**scene_meta, **llm_meta}
+
+
+# ── Shared describe_batch loop ────────────────────────────────────────────────
+
+
+@runtime_checkable
+class BatchBackend(Protocol):
+    """What :func:`run_describe_batch` needs from a describer backend.
+
+    Deliberately narrower than ``SceneDescriber``: the loop drives inference
+    and persistence but knows nothing about *how* a backend answers. A new
+    engine supplies ``_load_model`` and ``_answer`` and inherits the whole
+    resume / degeneracy / checkpoint policy for free.
+    """
+
+    prompts: dict[str, tuple[str, int]]
+    process_limit: int | None
+    checkpoint_interval: int
+    max_consecutive_degenerate: int
+    tags_filename: str
+
+    def _load_model(self) -> None: ...
+
+    def _answer(self, image_path: str, prompt: str, max_tokens: int) -> str: ...
+
+    def build_tag_index(self, results: list[SceneDescriptionRecord]) -> dict[str, list[str]]: ...
+
+    def _save_json(self, data: object, path: Path) -> None: ...
+
+
+def write_checkpoint(
+    backend: BatchBackend,
+    results: list[SceneDescriptionRecord],
+    checkpoint_path: Path,
+) -> None:
+    """Persist descriptions *and* the tag index derived from them.
+
+    Both files, always, at every checkpoint site. The tag index is derived
+    data: if it is older than the descriptions beside it, the BM25 tags
+    surface indexes a generation that no longer exists, and nothing downstream
+    can detect the skew.
+
+    This is stricter than either backend was. ``gguf`` wrote tags on the
+    periodic checkpoint but not on the abort path; ``transformers_hf`` never
+    wrote them at all. Both left a resumed-then-consumed run with a stale
+    index, so the invariant is enforced here rather than copied from whichever
+    backend happened to be closer to correct.
+    """
+    backend._save_json(results, checkpoint_path)
+    tags_path = checkpoint_path.parent / backend.tags_filename
+    tag_index = backend.build_tag_index(results)
+    tags_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(tags_path, "w", encoding="utf-8") as fh:
+        json.dump(tag_index, fh, indent=2, ensure_ascii=False)
+
+
+def run_describe_batch(
+    backend: BatchBackend,
+    keyframes_df: pd.DataFrame,
+    existing_results: list[SceneDescriptionRecord] | None = None,
+    checkpoint_path: Path | None = None,
+    *,
+    label: str,
+) -> list[SceneDescriptionRecord]:
+    """Describe every row of *keyframes_df*, resuming from *existing_results*.
+
+    Error rows are NOT counted as processed — they are dropped so reprocessing
+    can produce a good result, while good rows are preserved verbatim rather
+    than rebuilt.
+
+    Aborts with :class:`~kuaa.errors.ModelError` once
+    ``max_consecutive_degenerate`` scenes come back as repetition loops,
+    checkpointing first so the good rows survive and resume picks up from them.
+    Without that circuit breaker the 2026-08-14 run spent 6.5 hours producing
+    one usable scene out of twenty before the GPU failed hard.
+
+    ``label`` names the engine in the progress log only.
+
+    Backends that expose ``release()`` have it called on the way out, including
+    the abort path — a film's worth of weights must not outlive the step that
+    needed them. It is optional here because only ``transformers_hf`` defines
+    it today; promoting it to the ``SceneDescriber`` protocol is separate work.
+    """
+    existing = list(existing_results or [])
+    processed_ids = {r["scene_id"] for r in existing if "error" not in r}
+    all_results = [r for r in existing if "error" not in r]
+    to_process = keyframes_df[~keyframes_df["scene_id"].isin(processed_ids)].reset_index(drop=True)
+    if backend.process_limit:
+        to_process = to_process.head(backend.process_limit)
+
+    logger.info(
+        "LLM(%s): %d a processar (%d já ok, %d total)",
+        label,
+        len(to_process),
+        len(processed_ids),
+        len(keyframes_df),
+    )
+
+    consecutive_degenerate = 0
+    try:
+        for count, (_, row) in enumerate(to_process.iterrows(), start=1):
+            scene_id = row.get("scene_id", -1)
+            try:
+                raw: dict[str, str] = {}
+                backend._load_model()
+                for field, (prompt, max_tokens) in backend.prompts.items():
+                    try:
+                        raw[field] = backend._answer(row["filepath"], prompt, max_tokens)
+                    except Exception as e:  # noqa: BLE001 - per-field resilience
+                        raw[field] = f"ERROR: {e}"
+                # Read degeneracy from the raw answers rather than sniffing the
+                # error string build_metadata writes: the breaker and the record
+                # must agree on what happened, by construction.
+                bad_fields = degenerate_fields(raw)
+                meta = build_metadata(row, raw)
+                all_results.append(cast(SceneDescriptionRecord, meta))
+                if bad_fields:
+                    consecutive_degenerate += 1
+                    logger.error(
+                        "cena %s [%d/%d]: saída degenerada em %s — cena descartada "
+                        "(%d consecutiva[s])",
+                        meta.get("scene_id"),
+                        count,
+                        len(to_process),
+                        ", ".join(bad_fields),
+                        consecutive_degenerate,
+                    )
+                else:
+                    consecutive_degenerate = 0
+                    logger.info(
+                        "cena %s [%d/%d]: %s | tags=%s",
+                        meta.get("scene_id"),
+                        count,
+                        len(to_process),
+                        str(meta.get("description", ""))[:70],
+                        meta.get("tags", []),
+                    )
+            except Exception as e:  # noqa: BLE001 - whole-frame failure
+                all_results.append(
+                    cast(
+                        SceneDescriptionRecord,
+                        {
+                            "scene_id": int(scene_id),
+                            "keyframe_path": str(row["filepath"]),
+                            "error": str(e),
+                            "tags": [],
+                            "objects": [],
+                        },
+                    )
+                )
+                logger.error("Erro cena %s: %s", scene_id, e)
+
+            # Circuit breaker before the periodic checkpoint so the abort path
+            # owns the final write (0 disables the breaker).
+            if (
+                backend.max_consecutive_degenerate > 0
+                and consecutive_degenerate >= backend.max_consecutive_degenerate
+            ):
+                if checkpoint_path:
+                    write_checkpoint(backend, all_results, checkpoint_path)
+                    logger.info("Checkpoint antes de abortar: %d/%d", count, len(to_process))
+                raise ModelError(
+                    f"{consecutive_degenerate} cenas consecutivas com saída "
+                    f"degenerada (última: cena {scene_id}, {count}/{len(to_process)}). "
+                    f"{DEGENERACY_ABORT_HINT}"
+                )
+
+            if checkpoint_path and count % backend.checkpoint_interval == 0:
+                write_checkpoint(backend, all_results, checkpoint_path)
+                logger.info("Checkpoint: %d/%d", count, len(to_process))
+    finally:
+        release = getattr(backend, "release", None)
+        if callable(release):
+            release()
+
+    return all_results

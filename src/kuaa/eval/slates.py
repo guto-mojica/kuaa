@@ -1,6 +1,7 @@
 """Per-modality slate generation for the eval grading UI (E3a).
 
-Given one parsed query from ``data/eval/m3_full_queries.yaml``, this module
+Given one parsed query from a query set (``data/eval/corpus01_queries.yaml``
+is the current one), this module
 calls the *real* retrieval backend for that modality and returns candidate
 rows in the exact 9-key contract the ``/eval`` rows template renders (see
 :func:`kuaa.eval.seed._mock_result` — the same shape, produced live
@@ -16,17 +17,20 @@ and GPU acceptance are E3b.
 
 from __future__ import annotations
 
+import copy
 import logging
+import random
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any
+from types import SimpleNamespace
+from typing import Any, cast
 
 from kuaa.config import Settings
 from kuaa.errors import EvalError
 from kuaa.library import Library, derive_fps, keyframe_url, load_metadata, to_smpte
 from kuaa.rhymes import find_rhymes
 from kuaa.scene_ids import scene_id_key
-from kuaa.search import Query, find
+from kuaa.search import Query, SearchMode, find
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +51,69 @@ _ROW_KEYS = (
 
 _VALID_TYPES = frozenset({"text", "image", "rhyme"})
 
+
+@dataclass(frozen=True)
+class RetrieverVariant:
+    """One retriever configuration that contributes candidates to a pool.
+
+    ``cfg_overrides`` are applied to ``cfg.search`` for this call only — the
+    metadata leg has no ``find`` parameter, it is resolved from config by
+    ``kuaa.retrieval.hybrid.resolve_metadata_w``, so turning it off means
+    handing ``find`` a config that says so.
+    """
+
+    name: str
+    mode: SearchMode = "clip"
+    rerank: bool = False
+    cfg_overrides: dict[str, Any] = field(default_factory=dict)
+
+
+#: Stock CLIP, no overrides. The image path uses this directly: ``find``
+#: forces CLIP for image queries regardless of ``mode``, so pooling an image
+#: query across text retrievers would call five variants to get one answer.
+CLIP_ONLY = RetrieverVariant(name="clip")
+
+#: The retrievers a text pool spans — the same five the ablation table
+#: reports, so every row it compares had a chance to propose candidates.
+POOL_VARIANTS: tuple[RetrieverVariant, ...] = (
+    CLIP_ONLY,
+    RetrieverVariant(name="bm25", mode="bm25"),
+    RetrieverVariant(name="hybrid", mode="hybrid"),
+    RetrieverVariant(
+        name="hybrid_no_metadata", mode="hybrid", cfg_overrides={"hybrid_metadata_w": 0.0}
+    ),
+    RetrieverVariant(name="hybrid_rerank", mode="hybrid", rerank=True),
+)
+
+
+def _cfg_with(cfg: Any, **search_overrides: Any) -> Any:
+    """Read-through copy of ``cfg`` with ``cfg.search`` fields replaced.
+
+    Returns ``cfg`` untouched when there is nothing to override, so the common
+    path allocates nothing. Handles both the pydantic ``Settings`` and the
+    duck-typed ``SimpleNamespace`` configs the test suite passes.
+    """
+    if not search_overrides or cfg is None:
+        return cfg
+    search = getattr(cfg, "search", None)
+    if search is None:
+        # No section to copy — synthesise one. Returning cfg untouched here
+        # would make the override a silent no-op, so ``hybrid_no_metadata``
+        # would quietly be a second plain ``hybrid`` and the pool would look
+        # like it spanned five retrievers while spanning four.
+        new_cfg = copy.copy(cfg)
+        new_cfg.search = SimpleNamespace(**search_overrides)
+        return new_cfg
+    if hasattr(search, "model_copy") and hasattr(cfg, "model_copy"):
+        return cfg.model_copy(update={"search": search.model_copy(update=dict(search_overrides))})
+    new_search = copy.copy(search)
+    for key, value in search_overrides.items():
+        setattr(new_search, key, value)
+    new_cfg = copy.copy(cfg)
+    new_cfg.search = new_search
+    return new_cfg
+
+
 # Default rhymes knobs — used when cfg.retrieval.rhymes.* is absent (e.g. a
 # SimpleNamespace test cfg). Mirror config/default.yaml → retrieval.rhymes.
 _DEFAULT_RHYME_DIVERSITY = 0.5
@@ -55,7 +122,7 @@ _DEFAULT_RHYME_K_CANDIDATES = 30
 
 @dataclass(frozen=True)
 class ModalQuery:
-    """One parsed query from ``m3_full_queries.yaml``.
+    """One parsed query from a query-set YAML.
 
     Fields not applicable to a given ``query_type`` are ``None`` / empty:
     ``text`` is absent on rhyme queries; ``image_path`` only on image;
@@ -77,7 +144,7 @@ class ModalQuery:
 
 
 def load_modal_queries(path: Path, *, only_types: set[str] | None = None) -> list[ModalQuery]:
-    """Load + validate ``m3_full_queries.yaml`` into a list of :class:`ModalQuery`.
+    """Load + validate a query-set YAML into a list of :class:`ModalQuery`.
 
     The YAML's top-level dict carries a ``queries:`` list; each entry is
     mapped to a :class:`ModalQuery` and validated per ``query_type``:
@@ -342,6 +409,8 @@ def generate_slate(
     library_dir: Path,
     k: int = 9,
     film_slug: str | None = None,
+    blind_rows: bool = True,
+    blind_seed: str = "",
 ) -> list[CandidateRow]:
     """Generate a candidate slate for ``query`` by calling the real backend.
 
@@ -351,8 +420,13 @@ def generate_slate(
     ``k`` rows max). Films/scenes without metadata are rendered with safe
     defaults rather than raising.
 
-    Text and image queries both route through CLIP ``find``; rhyme calls its
-    dedicated primitive.
+    Text queries are **pooled** across every retriever variant (see
+    :func:`pool_candidates`); image queries are CLIP-only and rhyme calls its
+    dedicated primitive, neither having a competing retriever to union with.
+
+    ``blind_rows`` (default on) shuffles the result and blanks ``score`` — see
+    :func:`blind`. Pass ``blind_rows=False`` only for tooling that needs the
+    retriever's own ordering, never for anything a grader will see.
 
     ``film_slug`` scopes text/image search to a single film *before* the
     top-``k`` truncation. Without it the search merges all films and keeps the
@@ -373,9 +447,33 @@ def generate_slate(
     if helper is None:
         raise EvalError(f"cannot generate slate for unknown query_type {query.query_type!r}")
     load_meta = _film_meta_loader(cfg, library_dir)
-    return helper(
+    rows = helper(
         query=query, cfg=cfg, library_dir=library_dir, k=k, load_meta=load_meta, film_slug=film_slug
     )
+    return blind(rows, seed=f"{blind_seed}:{query.id}") if blind_rows else rows
+
+
+def blind(rows: list[CandidateRow], *, seed: str) -> list[CandidateRow]:
+    """Strip retrieval provenance from the *presentation* of ``rows``.
+
+    Two leaks, both in the data rather than the template:
+
+    * **Order.** Rows arrive in the proposing retriever's rank order, so
+      position *is* the system's opinion. A grader who reads position as a
+      hint grades the system instead of the scene.
+    * **Score.** ``rows.html`` renders ``score`` as a number and a progress
+      bar, which broadcasts the retriever's confidence.
+
+    The shuffle is seeded by ``(run, query)`` so a regenerated slate presents
+    in the same order — a grader resuming a run should not meet a reshuffled
+    queue — and so tests are deterministic.
+
+    ``pool`` survives untouched: the template ignores unknown keys, and it is
+    what makes per-leg scoring possible after grading.
+    """
+    shuffled = list(rows)
+    random.Random(seed).shuffle(shuffled)
+    return [{**row, "score": None} for row in shuffled]
 
 
 def _iter_films(library_dir: Path) -> list[str]:
@@ -402,23 +500,35 @@ def _iter_films(library_dir: Path) -> list[str]:
     return sorted(p.name for p in library_dir.iterdir() if p.is_dir())
 
 
-def _slate_find(*, q: Query, cfg, library_dir, k, load_meta, film_slug=None) -> list[CandidateRow]:
-    """CLIP ``find`` over ``q`` per film, merged by descending score.
+def _slate_find(
+    *, q: Query, cfg, library_dir, k, load_meta, film_slug=None, variant: RetrieverVariant | None
+) -> list[CandidateRow]:
+    """One retriever variant's ``find`` over ``q`` per film, merged by score.
 
-    Shared by the text and image dispatch paths — both call ``find`` in
-    CLIP mode and differ only in the :class:`Query` object built.
+    ``variant`` selects the retriever; ``None`` means CLIP with stock config,
+    which is what the image path wants (``find`` forces CLIP for image queries
+    regardless of ``mode``).
 
     ``film_slug`` restricts the search to that single film, so the top-``k``
     truncation happens within the scoped film rather than across the whole
-    library (review #3).
+    library.
     """
+    variant = variant or CLIP_ONLY
+    call_cfg = _cfg_with(cfg, **variant.cfg_overrides)
     rows: list[CandidateRow] = []
     slugs = [film_slug] if film_slug else _iter_films(library_dir)
     for slug in slugs:
         ctx = _ctx_for(library_dir, slug)
         if ctx is None:
             continue
-        result = find(q, film=ctx, mode="clip", top_k=k, cfg=cfg)
+        result = find(
+            q,
+            film=ctx,
+            mode=variant.mode,
+            top_k=k,
+            rerank=variant.rerank,
+            cfg=call_cfg,
+        )
         meta = load_meta(slug)
         for hit in result.hits:
             # Only hit.scene_id + hit.score are load-bearing here. Description,
@@ -433,20 +543,67 @@ def _slate_find(*, q: Query, cfg, library_dir, k, load_meta, film_slug=None) -> 
     return rows[:k]
 
 
+def pool_candidates(
+    *, q: Query, cfg, library_dir, k, load_meta, film_slug=None, variants=POOL_VARIANTS
+) -> list[CandidateRow]:
+    """Union every variant's top-``k``, keyed by (film, scene), ranks recorded.
+
+    Relevance judgments are only valid for the system that produced the pool
+    they were drawn from. Grading a CLIP-only slate yields labels that are
+    biased against BM25, hybrid and the reranker — exactly the comparisons the
+    eval exists to make — so the pool spans every retriever under comparison
+    and the judgments outlive any one of them.
+
+    Each row carries ``pool``: ``{variant_name: rank_it_proposed_at}``. That is
+    what makes per-leg scoring possible after grading; without it a graded pool
+    can only be scored as a whole.
+    """
+    pooled: dict[str, CandidateRow] = {}
+    for variant in variants:
+        rows = _slate_find(
+            q=q,
+            cfg=cfg,
+            library_dir=library_dir,
+            k=k,
+            load_meta=load_meta,
+            film_slug=film_slug,
+            variant=variant,
+        )
+        for rank, row in enumerate(rows, start=1):
+            key = f"{row['film_slug']}/{scene_id_key(row['scene_id'])}"
+            seen = pooled.get(key)
+            if seen is None:
+                row["pool"] = {variant.name: rank}
+                pooled[key] = row
+            else:
+                seen["pool"][variant.name] = rank
+    return list(pooled.values())
+
+
 def _slate_text(*, query, cfg, library_dir, k, load_meta, film_slug=None) -> list[CandidateRow]:
-    """Text query → CLIP ``find(Query.of_text(...))`` per film, merged."""
+    """Text query → the union of every retriever variant's top-``k``."""
     q = Query.of_text(query.text or "")
-    return _slate_find(
+    return pool_candidates(
         q=q, cfg=cfg, library_dir=library_dir, k=k, load_meta=load_meta, film_slug=film_slug
     )
 
 
 def _slate_image(*, query, cfg, library_dir, k, load_meta, film_slug=None) -> list[CandidateRow]:
-    """Image query → CLIP-only ``find(Query.image(...))`` per film, merged."""
+    """Image query → CLIP-only ``find(Query.image(...))`` per film, merged.
+
+    Not pooled: ``find`` forces CLIP for image queries whatever ``mode`` says,
+    so there is no competing retriever to union with.
+    """
     assert query.image_path is not None  # validated at load time
     q = Query.image(_resolve_image(query.image_path))
     return _slate_find(
-        q=q, cfg=cfg, library_dir=library_dir, k=k, load_meta=load_meta, film_slug=film_slug
+        q=q,
+        cfg=cfg,
+        library_dir=library_dir,
+        k=k,
+        load_meta=load_meta,
+        film_slug=film_slug,
+        variant=CLIP_ONLY,
     )
 
 
@@ -482,6 +639,64 @@ def _slate_rhyme(*, query, cfg, library_dir, k, load_meta, film_slug=None) -> li
     return rows[:k]
 
 
+# ── thin persistence ────────────────────────────────────────────────────────
+#
+# What a graded pool must pin is WHICH scenes were put in front of the grader
+# and which retriever proposed each — ``(film_slug, scene_id, pool)``. The
+# other six keys are presentation: they are re-read from per-film metadata by
+# the same builder that produced them, so persisting them costs an order of
+# magnitude in file size and pins a caption that was never the unit of
+# judgment. The grader judges the scene; the description is context that may
+# legitimately be regenerated under a stable pool.
+
+_THIN_KEYS = ("scene_id", "film_slug", "pool")
+
+
+def thin_rows(rows: list[CandidateRow]) -> list[dict]:
+    """Reduce candidate rows to the provenance the grades depend on.
+
+    Order is preserved because it is load-bearing: rows reach disk already
+    shuffled by :func:`blind`, and a grader resuming a run must meet the same
+    queue. ``score`` is dropped rather than carried as ``None`` — a blinded
+    row has none, and an unblinded one must not reach a grader.
+    """
+    out: list[dict] = []
+    for row in rows:
+        thin = {k: row[k] for k in _THIN_KEYS if k in row}
+        out.append(thin)
+    return out
+
+
+def hydrate_rows(rows: list[dict], *, cfg: Settings, library_dir: Path) -> list[CandidateRow]:
+    """Rebuild full rows-template rows from thin ones, preserving order.
+
+    A row that already carries the full key set passes through untouched, so
+    fat slates written before thinning — and the mock rows from
+    ``kuaa.eval.seed`` — keep rendering without a migration.
+
+    ``score`` is restored as ``None``: a persisted slate is a graded pool's
+    candidate list, and re-deriving a score here would hand the grader the
+    retriever's opinion that :func:`blind` exists to withhold.
+    """
+    load_meta = _film_meta_loader(cfg, library_dir)
+    out: list[CandidateRow] = []
+    for row in rows:
+        if set(row) >= set(_ROW_KEYS):
+            out.append(cast(CandidateRow, row))
+            continue
+        slug = str(row.get("film_slug", ""))
+        try:
+            scene_id = int(row.get("scene_id", 0))
+        except (TypeError, ValueError):
+            continue
+        full = _candidate_row(scene_id=scene_id, film_slug=slug, score=0.0, meta=load_meta(slug))
+        full["score"] = None
+        if "pool" in row:
+            full["pool"] = row["pool"]
+        out.append(full)
+    return out
+
+
 def _ctx_for(library_dir: Path, slug: str) -> _SlateFilmCtx | None:
     """Build a per-film context for CLIP ``find`` from derived paths.
 
@@ -513,5 +728,7 @@ __all__ = [
     "CandidateRow",
     "ModalQuery",
     "generate_slate",
+    "hydrate_rows",
     "load_modal_queries",
+    "thin_rows",
 ]

@@ -103,6 +103,28 @@
           this.$watch('currentRow', function () { self.scrollToCurrent(); });
         },
 
+        // ── Grader identity ─────────────────────────────────────────
+        // Writes the ``grader`` cookie the server reads on every grade
+        // (api/routes/eval.py) and keys inter-annotator agreement on.
+        // Nothing else in the UI writes it, and its "anon" default
+        // silently merges separate grading passes into one annotator.
+        //
+        // Reloads because the name reaches the page through the server
+        // context — header, initials, the per-grader resume point and
+        // the agreement panel all come from build_eval_context, not
+        // from this component.
+        setGrader: function (raw) {
+          var name = String(raw || '')
+            .replace(/[\x00-\x1f;,=]/g, ' ')  // control chars + cookie delimiters
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 40);
+          if (!name) return;
+          document.cookie =
+            'grader=' + name + '; path=/; max-age=31536000; samesite=lax';
+          window.location.reload();
+        },
+
         // ── Row cursor ──────────────────────────────────────────────
         countRows: function () {
           this.rowCount = rowEls().length;

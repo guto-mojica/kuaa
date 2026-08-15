@@ -142,6 +142,7 @@ def find(
         bm25_stopwords_lang=bm25_stopwords_lang,
         bm25_k1=bm25_k1,
         bm25_b=bm25_b,
+        cfg=cfg,
     )
 
     # ``raw_k`` mirrors search_hybrid's own 4x keyframe-density widening.
@@ -161,7 +162,7 @@ def find(
             bm25_w=weights.bm25_w,
             rrf_k=weights.rrf_k,
             metadata_ranked=metadata_ranked,
-            metadata_w=resolve_metadata_w(cfg),
+            metadata_w=resolve_metadata_w(cfg, query.text),
         )
     result = _df_to_result(
         df,
@@ -235,17 +236,22 @@ def _load_bm25_for_mode(
     bm25_stopwords_lang: str | None = None,
     bm25_k1: float = 1.5,
     bm25_b: float = 0.75,
+    cfg: Any = None,
 ):
     """Build the BM25 index for the film, or ``None`` for clip mode.
 
-    Tunables are received as kwargs (resolved by the caller from
-    ``cfg.search.bm25`` when available).  Defaults match the legacy
-    fallback path (``None / 1.5 / 0.75``) — no api.* import needed.
+    When ``cfg`` is supplied, every tunable is resolved through the shared
+    :func:`~kuaa.search.bm25.resolve_bm25_kwargs` so this path cannot drift
+    from the HTTP path again — notably ``tokenizer`` and ``tag_boost``,
+    which this function previously dropped on the floor. Without ``cfg``,
+    the explicit kwargs still apply (legacy ``None / 1.5 / 0.75``).
     """
     if mode == "clip":
         return None
-    from kuaa.search.bm25 import bm25_index_for_ctx
+    from kuaa.search.bm25 import bm25_index_for_ctx, resolve_bm25_kwargs
 
+    if cfg is not None:
+        return bm25_index_for_ctx(film, **resolve_bm25_kwargs(cfg))
     return bm25_index_for_ctx(
         film,
         stopwords_lang=bm25_stopwords_lang,

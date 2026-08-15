@@ -7,8 +7,6 @@ inputs alone.
 
 from __future__ import annotations
 
-import pytest
-
 from kuaa.retrieval.tokenize import tokenize
 
 
@@ -33,11 +31,20 @@ def test_stopwords_lang_none_keeps_all_tokens() -> None:
 
 
 def test_stopwords_lang_pt_removes_pt_stopwords() -> None:
-    pytest.importorskip("nltk", reason="nltk optional; skip if not installed")
     out = tokenize("filme de teste", stopwords_lang="pt")
     assert "de" not in out
     assert "filme" in out
     assert "teste" in out
+
+
+def test_normalisation_is_opt_in() -> None:
+    """Defaults stay lossless — accents and plurals survive untouched."""
+    assert tokenize("única cavalos") == ["única", "cavalos"]
+
+
+def test_fold_and_stem_flags() -> None:
+    assert tokenize("única", fold=True) == ["unica"]
+    assert tokenize("cavalos", fold=True, stem=True) == ["cavalo"]
 
 
 def test_empty_string_returns_empty_list() -> None:

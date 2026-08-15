@@ -257,7 +257,7 @@
   color: var(--c-muted); font-family: var(--font-mono); font-size: 10.5px;
 }
 .p-log .lines {
-  flex: 1; overflow-y: auto; padding: 10px 14px;
+  flex: 1; min-height: 0; overflow-y: auto; padding: 10px 14px;
   font-family: var(--font-mono); font-size: 11.5px; line-height: 1.5;
   color: var(--c-text-2);
 }
@@ -377,7 +377,7 @@
 
 /* RIGHT PANE — Active step detail */
 .p-rp {
-  width: 380px; flex-shrink: 0;
+  width: var(--rp-w, 380px); flex-shrink: 0;
   border-left: 1px solid var(--c-border); background: var(--c-panel);
   display: flex; flex-direction: column; overflow: hidden;
 }
@@ -417,7 +417,7 @@
 .p-rp .head .sub {
   font-size: 11.5px; color: var(--c-muted); margin-top: 3px;
 }
-.p-rp .inner { padding: 14px 16px 16px; overflow-y: auto; flex: 1; }
+.p-rp .inner { padding: 14px 16px 16px; overflow-y: auto; flex: 1; min-height: 0; }
 
 .p-rp .what { font-size: 12.5px; color: var(--c-text-2); line-height: 1.55; margin-bottom: 14px; }
 .p-rp .what b { color: var(--c-text); }

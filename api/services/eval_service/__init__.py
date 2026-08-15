@@ -1,9 +1,16 @@
-"""Service layer for the Eval-set-builder routes (Tasks 30–31).
+"""Service layer for the Eval-set-builder routes.
 
 ``_eval_root`` / ``_eval_run_id`` are intentionally module-level
 functions so test fixtures can monkeypatch them to a tmp_path / fixed
-run_id without constructing a full Config namespace. Admin gate
-``require_admin`` moved here from api/routes/eval.py (A2 Task 5).
+run_id without constructing a full Config namespace.
+
+A package rather than a module, for the same reason
+``api/services/scenes/`` is one: the file outgrew the 250-line
+``api/services/**`` budget. What stayed here is what the patchable seam
+reaches — every caller of ``_eval_root`` / ``_eval_run_id`` resolves them
+through this module's globals, so moving one out would put it beyond the
+reach of a fixture that patches this name. The two private submodules hold
+the parts that never call them.
 """
 
 from __future__ import annotations
@@ -11,6 +18,8 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from api.services.eval_service._admin import require_admin
+from api.services.eval_service._current_query import build_current_query_view
 from kuaa.eval.datasets import load_queries as _load_queries  # noqa: F401
 from kuaa.eval.grader_metrics import (
     annotator_summary as _annotator_summary,
@@ -22,7 +31,6 @@ from kuaa.eval.grader_metrics import (
     grader_initials as _grader_initials,  # noqa: F401
 )
 from kuaa.eval.grader_metrics import (
-    grades_for_current_grader,
     histogram,
     inversions,
     ndcg_at_k,
@@ -35,14 +43,13 @@ from kuaa.eval.grader_metrics import (
     kappa_quality_label as _kappa_quality_label,  # noqa: F401
 )
 from kuaa.eval.grader_metrics import (
-    other_grades_for_current as _other_grades_for_current,
+    other_grades_for_current as _other_grades_for_current,  # noqa: F401
 )
 from kuaa.eval.grader_metrics import (
     query_conflict_set as _query_conflict_set,
 )
 from kuaa.eval.grades import (
     EvalRun,
-    Grade,
     load_run,
     load_run_per_annotator,
 )
@@ -61,6 +68,8 @@ from kuaa.eval.paths import (  # noqa: F401
 from kuaa.eval.paths import (
     eval_run_id as _eval_run_id,
 )
+
+__all__ = ["build_eval_context", "compute_query_metrics", "require_admin"]
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
@@ -85,13 +94,19 @@ def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
     # needs grader_name, and the IAA + compare-mode helpers below also
     # need it to pick "the other annotator". Cookie-driven when a
     # request is provided; falls back to "anon" for direct callers (tests).
+    # Blind by default for a pooled run: its rows already arrive shuffled with
+    # score blanked, and the point of building it that way is that the grader
+    # cannot read the retriever's opinion off the page. An explicit cookie
+    # still wins in both directions — this only moves the default.
+    pooled_run = any(q.get("pool_variants") for q in queries)
     grader_name = "anon"
-    blind_mode = False
+    blind_mode = pooled_run
     compare_mode = False
     token = os.getenv("EVAL_ADMIN_TOKEN", "")
     if request is not None:
         grader_name = request.cookies.get("grader", "anon")
-        blind_mode = request.cookies.get("eval_blind", "") == "1"
+        blind_cookie = request.cookies.get("eval_blind", "")
+        blind_mode = blind_cookie == "1" if blind_cookie else pooled_run
         compare_mode = request.cookies.get("eval_compare", "") == "1"
         token = request.cookies.get("eval_admin") or request.query_params.get("token") or token
 
@@ -114,49 +129,15 @@ def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
     pending_count = max(0, len(queries) - graded_count)
     conflict_count = len(query_conflict_set)
 
-    grades_for_current: dict[str, Grade] = {}
-    grades_for_current_other: dict[str, Grade] = {}
-    metrics: dict[str, Any] = {
-        "p_at_3": 0.0,
-        "p_at_5": 0.0,
-        "ndcg_at_5": 0.0,
-        "inversions": 0,
-        "histogram": {},
-    }
-    result_count = 0
-    if current_query is not None:
-        cq_id = str(current_query.get("id", ""))
-        if cq_id:
-            # ``grades_for_current`` drives the .gb chip render in rows.html
-            # — it must show THIS grader's grade (keyed from ``per_annotator``),
-            # not the last-write-wins reduce of ``loaded.grades``. See
-            # ``grades_for_current_grader`` for the fallback semantics when the
-            # current grader has no per-annotator record yet.
-            grades_for_current = grades_for_current_grader(
-                per_annotator,
-                loaded.grades,
-                current_query_id=cq_id,
-                grader_name=grader_name,
-            )
-            # Compare-mode counterpart — same query, other annotator.
-            other_name = iaa.get("other", {}).get("name") if iaa.get("enabled") else None
-            grades_for_current_other = _other_grades_for_current(
-                per_annotator,
-                current_query_id=cq_id,
-                other_grader=other_name,
-            )
-            cq_grades = _grades_for_query(loaded, cq_id)
-            if cq_grades:
-                metrics = {
-                    "p_at_3": precision_at_k(cq_grades, 3),
-                    "p_at_5": precision_at_k(cq_grades, 5),
-                    "ndcg_at_5": ndcg_at_k(cq_grades, 5),
-                    "inversions": inversions(cq_grades),
-                    "histogram": histogram(cq_grades),
-                }
-        results = current_query.get("results")
-        if isinstance(results, list):
-            result_count = len(results)
+    # Hydrates current_query["results"] in place — see _current_query.
+    cq_view = build_current_query_view(
+        current_query,
+        cfg=cfg,
+        loaded=loaded,
+        per_annotator=per_annotator,
+        iaa=iaa,
+        grader_name=grader_name,
+    )
 
     return {
         # Data layer
@@ -172,16 +153,16 @@ def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
         "conflict_count": conflict_count,
         "query_conflict_set": query_conflict_set,
         "iaa": iaa,
-        "grades_for_current_other": grades_for_current_other,
-        "metrics": metrics,
-        "grades_for_current": grades_for_current,
+        "grades_for_current_other": cq_view["grades_for_current_other"],
+        "metrics": cq_view["metrics"],
+        "grades_for_current": cq_view["grades_for_current"],
         "grader_name": grader_name,
         "grader_initials": _initials(grader_name),
         "token": token,
         "blind_mode": blind_mode,
         "compare_mode": compare_mode,
         "current_row_scene_id": None,
-        "result_count": result_count,
+        "result_count": cq_view["result_count"],
         "session_elapsed": "00:00",
     }
 
@@ -219,25 +200,3 @@ def compute_query_metrics(cfg, *, query_id: str | None = None) -> dict[str, Any]
 
 # ``_underscored`` helpers above are re-exported from kuaa.eval.* at the top.
 # The ``as _underscored`` aliases preserve names that test fixtures monkeypatch.
-
-
-def require_admin(request) -> None:
-    """Raise HTTPException(403) unless the request bears a valid EVAL_ADMIN_TOKEN.
-
-    Moved from api/routes/eval.py (A2 Task 5). Acceptable to raise HTTP-shaped
-    exceptions here: the gate is tiny, reused, and A4 leaves it as-is.
-    """
-    from fastapi import HTTPException, status
-
-    expected = os.getenv("EVAL_ADMIN_TOKEN", "")
-    if not expected:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Eval set builder is disabled. Set EVAL_ADMIN_TOKEN to enable.",
-        )
-    token = request.cookies.get("eval_admin") or request.query_params.get("token") or ""
-    if token != expected:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Eval set builder requires a valid admin token.",
-        )

@@ -8,7 +8,7 @@ config_version: 1
 
 project:
   name: "KUAA"
-  version: "0.8.0rc1"   # keep in sync with pyproject.toml / kuaa.__version__
+  version: "0.10.0"   # keep in sync with pyproject.toml / kuaa.__version__
 
 # ── Domain pack ───────────────────────────────────────────────────────────────
 # Domain packs define prompts, metadata fields, filters, taxonomy, and export
@@ -43,7 +43,7 @@ hardware:
   device: "auto"
   force_cpu: false     # override de emergência — força CPU mesmo se GPU disponível
 
-# ── Detecção de cenas (NB02) ──────────────────────────────────────────────────
+# ── Detecção de cenas  ──────────────────────────────────────────────────
 scene_detection:
   detector: "adaptive"      # "content" ou "adaptive" — adaptive é mais robusto para filmes P&B de arquivo
   # ContentDetector
@@ -55,7 +55,7 @@ scene_detection:
   keyframes_per_scene: 3    # 1=frame do meio; 3=início/meio/fim
   keyframe_height: 480      # altura dos keyframes salvos (0 = resolução original)
 
-# ── Análise visual (NB03) ─────────────────────────────────────────────────────
+# ── Análise visual  ─────────────────────────────────────────────────────
 visual_analysis:
   # Detecção facial (MTCNN)
   face_detection:
@@ -73,7 +73,7 @@ visual_analysis:
     brightness_threshold: 100   # limiar dia/noite (escala 0-255)
     edge_density_threshold: 0.05  # limiar interno/externo
 
-# ── Embeddings e busca (NB04) ────────────────────────────────────────────────
+# ── Embeddings e busca ────────────────────────────────────────────────
 embeddings:
   model: "ViT-B-32"         # modelo CLIP open_clip
   pretrained: "openai"
@@ -102,7 +102,11 @@ embeddings:
 
 # ── Search UI / retrieval knobs (Mojica redesign) ────────────────────────────
 # Controls surfaced in the Buscar tab's `.knob` row and modality chips.
-# Hybrid, audio, image, fusion, and text rerank are live in the current branch.
+# Hybrid, image, and text rerank are live. There is NO audio modality anywhere
+# in the codebase — no CLAP/Whisper/librosa, no audio artefact, no audio leg —
+# and `fusion` here means RRF over the text legs, not visual↔audio fusion.
+# (The m3 eval slate documents `audio` / `fusion` query types in its header;
+# kuaa.eval.slates only accepts text/image/rhyme, so nothing implements them.)
 # Search-tab MMR display was removed; MMR lives in Rimas.
 search:
   # Default ``k`` (top-K) surfaced in the "k" knob.
@@ -115,14 +119,45 @@ search:
   # Weight of the exact-lexical metadata list (tags / descriptions / detected
   # objects) when it joins hybrid fusion as a third list; CLIP/BM25 split the
   # 1-x residual by their normalised sem/bm25 weights. 0.0 disables the leg.
-  hybrid_metadata_w: 0.65
+  #
+  # Lowered 0.65 -> 0.15. The old value was never evidence-based: the scorer
+  # bailed out on any query over 4 tokens, so on 13 of the 15 eval text
+  # queries the leg returned {} and its weight was inert — which is exactly
+  # why the `hybrid` and `hybrid-metadata` ablation rows came out
+  # byte-identical. With the leg actually firing, a sweep on m3_text_queries
+  # is monotonic against it (nDCG@10 0.073 at w=0.0-0.10, 0.067 at 0.20-0.35,
+  # 0.042 at 0.50-0.65), and short object queries — the case the leg was
+  # built for — rank identically at 0.15 and 0.65.
+  #
+  # Not set to 0.0: the eval slate contains no short object queries, so it
+  # cannot measure the leg's intended benefit, only its cost on long ones.
+  # Revisit once real curator grades exist; the proxy set is 15 queries with
+  # hypothesis labels and nDCG ~0.07, where a couple of queries' movement
+  # swamps any subtler effect.
+  hybrid_metadata_w: 0.15
   hybrid_enabled: true        # M2 default (Plan 4 of 8) — was: false
   bm25:
     k1: 1.5                    # BM25 saturation
     b: 0.75                    # length normalisation
-    stopwords_lang: null       # null = no stopword removal
+    stopwords_lang: null       # null = no stopword removal (the multilingual
+                               # tokenizer applies its own reduced PT list)
     rrf_k: 60                  # RRF rank-shift constant (Cormack et al.)
-    tokenizer: regex            # "regex" (default, unchanged behavior) | "multilingual" (PT-aware, opt-in via C6)
+    tokenizer: multilingual    # "regex" (conservative, accents+plurals literal)
+                               # | "multilingual" (PT-aware: reduced PT stopwords,
+                               # diacritic folding, regular-plural collapsing).
+                               # Default since the PT retrieval fix: the interface,
+                               # the curators and the queries are pt-BR, and `regex`
+                               # cannot match `única` against the `pessoa-unica` tag
+                               # the pipeline itself writes.
+    bilingual: true            # Index-time EN→PT expansion. The describer prompts
+                               # are English, so descriptions/objects/setting come
+                               # back English while queries are Portuguese —
+                               # measured, PT content queries returned ZERO BM25
+                               # hits on jeca_tatu_1959 while their EN equivalents
+                               # returned full result sets. This appends the PT
+                               # surface forms implied by each document's English
+                               # content (kuaa/retrieval/bilingual.py). Additive:
+                               # English recall is unchanged. Set false to A/B.
     tag_boost: 1               # per-surface weight on the tags surface (tag
                                # tokens repeated N× per BM25 doc). 1 = neutral,
                                # byte-identical to flat weighting; >1 lifts
@@ -171,6 +206,31 @@ retrieval:
                            # M3.5 refinement where the slider rules ≠ the
                            # service-default ``k``.
 
+# ── Movimento (estatísticas de fluxo óptico por cena) ────────────────────────
+# Purely additive: `kuaa motion run` reads scene_cuts.json + the source video
+# and writes metadata/scene_motion.json. Nothing else is invalidated, and a
+# film without the artefact behaves exactly as before.
+#
+# This is the only signal in the system that is not derived from a single
+# still frame. SigLIP, YOLOv8, MTCNN and Moondream all consume one JPEG, so
+# downstream of scene_cuts.json a static tableau and a whip pan are
+# indistinguishable — on jeca_tatu_1959 the median shot is 7.3s, the p90 is
+# 25.2s and the longest is 186.4s, all represented by three stills.
+#
+# Motion does NOT feed the describer. llm_description is a sibling of
+# visual_analysis and embeddings (all depend only on scene_detection, none
+# consumes another's output); making it depend on motion would invert that,
+# force a full LLM re-run, and hand a still-image VLM a claim it cannot
+# verify. Motion enters retrieval directly, as tags on the existing tag
+# surface (plano-estatico / camera-panoramica / movimento-de-cena / …).
+motion:
+  sample_fps: 4.0          # frames per second actually decoded. Camera moves
+                           # and subject action are low-frequency relative to
+                           # frame rate; ~4fps captures both at a fraction of
+                           # the decode cost.
+  max_pairs_per_scene: 24  # cost cap on long takes — a 186s tableau does not
+                           # need 700 flow fields to be called static.
+
 # ── Rimas Visuais (cross-film visual rhymes) ─────────────────────────────────
 # Knobs for the Rimas tab's cross-film kNN/MMR over visual keyframe embeddings.
 # The Rimas route honors `retrieval.rhymes.*` for live MMR controls; this block
@@ -200,7 +260,7 @@ collaboration:
   demo_threads_enabled: false
 
 
-# ── Descrição LLM (NB05) ──────────────────────────────────────────────────────
+# ── Descrição LLM  ──────────────────────────────────────────────────────
 llm:
   model_id: "vikhyatk/moondream2"
   revision: "2025-01-09"
@@ -210,6 +270,11 @@ llm:
   # middle = descrever só o keyframe canônico (do meio) de cada cena — o mesmo
   # que a UI exibe; all = descrever todos os keyframes (~3× mais lento)
   keyframes: middle
+  # Disjuntor: aborta o step após N cenas consecutivas com saída degenerada
+  # (loop de repetição — sinal de backend quebrado, não de cena difícil).
+  # 0 desliga. Um frame ruim pode gerar uma resposta estranha; três seguidas
+  # significam que o modelo parou de funcionar.
+  max_consecutive_degenerate: 3
   # GGUF GPU offload: -1 = todas as camadas na GPU (sem efeito num build
   # CPU-only do llama-cpp-python; aí roda em CPU). 0 = forçar CPU.
   gpu_layers: -1
@@ -220,9 +285,11 @@ llm:
 # ── Model backends (pluggable — see docs/PROTOCOL_OPTION.md) ──────────────────
 models:
   image_embedder: siglip_multilingual      # clip_openclip | siglip_multilingual
-  # ``siglip_multilingual`` lands as an opt-in alternative in M3 pre-flight
-  # Task 4.1. Default stays clip_openclip until Task 4.2 smoke validation
-  # on Jeca Tatu and Task 4.3 library-wide re-embed are user-gated through.
+  # ``siglip_multilingual`` IS the shipped default — every index on disk is
+  # 1024-dim SigLIP2 (google/siglip2-large-patch16-256). The previous comment
+  # here claimed "default stays clip_openclip", which contradicted the line
+  # above it. Switching back to clip_openclip (512-dim) requires a full
+  # library re-embed: the on-disk dimension must match the encoder.
   face_detector: mtcnn_pytorch             # mtcnn_pytorch
   object_detector: yolov8                  # yolov8
   # Default: keyless, offline Moondream 2 via HF transformers. GPU comes from

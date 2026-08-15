@@ -146,8 +146,9 @@ class Bm25Cfg(_Section):
     b: float = 0.75
     stopwords_lang: str | None = None
     rrf_k: int = 60
-    tokenizer: str = "regex"  # "regex" (default, unchanged) | "multilingual" (PT-aware, opt-in)
+    tokenizer: str = "regex"  # "regex" (conservative) | "multilingual" (PT-aware)
     tag_boost: int = 1  # per-surface weight on tags surface (>1 lifts curator tags; 1 = neutral)
+    bilingual: bool = False  # index-time EN→PT expansion (see kuaa.retrieval.bilingual)
 
 
 class SearchCfg(_Section):
@@ -183,6 +184,14 @@ class RetrievalCfg(_Section):
     rhymes: RhymesRetrievalCfg
 
 
+# ── motion ───────────────────────────────────────────────────────────────────
+class MotionCfg(_Section):
+    # Frames per second decoded for optical flow (not every frame).
+    sample_fps: float = 4.0
+    # Cost cap on long takes.
+    max_pairs_per_scene: int = 24
+
+
 # ── rimas ────────────────────────────────────────────────────────────────────
 class RimasCfg(_Section):
     top_n: int = 8
@@ -208,6 +217,10 @@ class LlmCfg(_Section):
     # "middle" describes only the canonical middle keyframe per scene (the one
     # the UI shows); "all" describes every extracted keyframe (~3× slower).
     keyframes: Literal["middle", "all"] = "middle"
+    # Abort the describe run after this many consecutive scenes come back as
+    # repetition loops (a broken backend, not bad footage). 0 disables the
+    # breaker. See kuaa.models.describer.transformers_hf.
+    max_consecutive_degenerate: int = 3
     descriptions_filename: str = "scene_descriptions.json"
     tags_filename: str = "scene_tags.json"
 
@@ -275,6 +288,7 @@ class Settings(_Section):
     embeddings: EmbeddingsCfg
     search: SearchCfg
     retrieval: RetrievalCfg
+    motion: MotionCfg
     rimas: RimasCfg
     collaboration: CollaborationCfg
     llm: LlmCfg

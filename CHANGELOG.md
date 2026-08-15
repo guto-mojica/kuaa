@@ -10,6 +10,105 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ## [Não lançado]
 
+### Corrigido
+
+- **Saída degenerada do describer não é mais indexada como conteúdo.**
+  Incidente de 2026-08-14: durante o lote noturno, o `kuaa serve` esgotou a
+  memória unificada do M1 Pro. Na MPS isso não levanta exceção — os command
+  buffers devolvem lixo antes de devolver erro. Os logits viraram ruído, o
+  argmax travou num único token, o EOS nunca chegou, e 19 cenas seguidas de
+  `chronopolis_1982` saíram como `"s. s. s. s. ..."` (centenas de tokens, uma
+  palavra distinta). A cena 1 saiu perfeita; da 2 em diante, nada.
+
+  Esse texto passava por `is_error_response` (não *começa* com palavra de
+  erro) e por todos os outros filtros: iria para `scene_descriptions.json`,
+  seria kebab-cased no vocabulário de tags e indexado como conteúdo BM25 —
+  a mesma falha já documentada em `retrieval/corpus.py` para
+  `the-great-train-robbery-1903`. Só não foi para o disco porque o
+  `checkpoint_interval` (25) era maior que o número de cenas alcançadas (20).
+
+  - `kuaa.errors` ganhou `is_degenerate_response` (dois braços: ≥8 tokens com
+    ≤3 palavras distintas; ≥20 tokens com razão de distintas <0,15) e
+    `is_unusable_response`, o portão único para texto livre a caminho do
+    índice. Limiares validados contra artefatos reais: zero falsos positivos
+    nas 1320 respostas cruas e 339 tags de `band_of_outsiders`, e as 19 cenas
+    degeneradas de `chronopolis_1982` capturadas.
+  - `build_metadata` devolve **linha de erro** quando qualquer campo vem
+    degenerado. Um campo travado significa falha de device, não pergunta
+    difícil — as respostas que ainda parecem plausíveis também não são
+    confiáveis. A cena é descartada e reprocessada no resume.
+  - `build_corpus` aplica o mesmo portão a descrições e tags, como defesa em
+    profundidade para artefatos escritos antes desta correção.
+
+- **`max_new_tokens` era config morta no describer transformers.**
+  No remote code da revisão 2025-01-09, `answer_question` aceita
+  `max_new_tokens` e nunca o usa — repassa para `query` sem `settings`, então
+  toda pergunta ia até `DEFAULT_MAX_TOKENS` (512). O próprio `generate` diz
+  isso no docstring: *"tokenizer, max_new_takens, and kwargs are ignored."*
+  Todo o orçamento de `PROMPTS` (190 tokens/cena) era ignorado, e uma geração
+  desgovernada custava 16x o seu teto em tempo e KV cache. `_answer` passou a
+  usar `query(settings={"max_tokens": N})`, com fallback ruidoso e único para
+  revisões anteriores ao `query`.
+
+### Adicionado
+
+- **Disjuntor de degeneração no `describe_batch`** (ambos os backends).
+  Após `llm.max_consecutive_degenerate` cenas consecutivas degeneradas
+  (padrão 3; 0 desliga), o step faz checkpoint das linhas boas e aborta com
+  `ModelError` explicando a causa provável. Sem isso, o lote de 2026-08-14
+  gastou 6,5 horas para produzir uma cena aproveitável em vinte antes de a
+  GPU falhar de vez.
+
+- **`MoondreamTransformersDescriber.release()`** — devolve os pesos ao
+  alocador e chama `torch.mps.empty_cache()` / `torch.cuda.empty_cache()`,
+  invocado no `finally` do `describe_batch` (inclusive no caminho de aborto).
+  Os alocadores de cache guardam blocos liberados no próprio pool: soltar a
+  última referência a um Moondream fp16 de 3,7 GB não devolve nada ao SO
+  sozinho. Num `kuaa serve` longevo que descreve vários filmes, cada
+  describer empilhava sobre os blocos retidos do anterior — foi assim que a
+  GPU acabou. `_encode` também descarta o `EncodedImage` anterior (KV cache
+  estático de 384 MiB) *antes* de alocar o próximo, em vez de manter os dois
+  vivos durante a alocação.
+
+### Alterado
+
+- **LOC budget agora cobre todo o `api/`, por prefixo mais específico.**
+  `scripts/check_loc_budget.py` usava `glob("*.py")` em `api/services` e
+  `api/routes`, o que cobria apenas o primeiro nível. Na prática os maiores
+  módulos da camada HTTP eram justamente os únicos sem medição:
+  `api/jobs.py` (1076 linhas), `api/server.py` (498), `api/deps.py` (371) e
+  todo o pacote `api/services/scenes/` (1154 linhas em 7 arquivos) ficavam
+  fora do guard — enquanto o docstring de `api/services/scenes/__init__.py`
+  afirmava que o split existia para respeitar um budget que nunca era
+  verificado ali.
+
+  O guard passou a percorrer `api/**/*.py` e resolver o cap pelo prefixo
+  mais específico, de modo que cada arquivo tem exatamente um cap e pacotes
+  aninhados não escapam:
+
+  | Prefixo | Cap | Papel |
+  |---|---:|---|
+  | `api/routes/*` | 150 | shape HTTP + render |
+  | `api/services/**` | 250 | adapters HTTP (inclui pacotes aninhados) |
+  | `api/*` | 600 | app assembly / DI / orquestração de jobs |
+
+  Cobertura foi de 37 para 53 módulos. Os caps de `routes` e `services`
+  **não** mudaram de valor — a correção é de alcance, não de folga. O tier
+  `api/*` é novo: `server.py`, `deps.py` e `jobs.py` são infraestrutura, não
+  adapters de request, e um cap de 250 nunca fez sentido para eles.
+
+  `api/jobs.py` entra como exemption documentada (com saída registrada:
+  mover o registry de jobs e a máquina de estados para `src/kuaa/`, que são
+  HTTP-agnósticos, deixando aqui só o adapter SSE). A exemption pré-existente
+  de `api/routes/preprocess.py` permanece inalterada.
+
+  Nota para revisão futura: quatro arquivos estão exatamente no cap
+  (`_search_rerank.py`, `catalog.py` e `rhymes_service.py` em 250/250;
+  `routes/library.py` em 150/150), e `api/services/_annotate_curation.py`
+  existe apenas para caber no limite. Isso sugere que o cap de 250 está
+  apertado para o trabalho real, mas afrouxá-lo é decisão separada e
+  deliberada — não foi feita aqui.
+
 ## [0.10.0] - 2026-08-05
 
 ### Corrigido

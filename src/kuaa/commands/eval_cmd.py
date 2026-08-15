@@ -11,7 +11,14 @@ import typer
 
 # Imported at module scope so tests can monkeypatch these names on the
 # eval_cmd module (the `slate` command calls them via the module binding).
-from kuaa.eval.slates import ModalQuery, generate_slate, load_modal_queries
+from kuaa.eval.slates import (
+    CLIP_ONLY,
+    POOL_VARIANTS,
+    ModalQuery,
+    generate_slate,
+    load_modal_queries,
+    thin_rows,
+)
 
 app = typer.Typer(
     name="eval",
@@ -71,6 +78,13 @@ def _slate_query_record(query: ModalQuery, rows: list[dict], *, k: int) -> dict:
         "candidate_count": len(rows),
         "latency_ms": None,
         "created_when": date.today().isoformat(),
+        # Which retrievers had a chance to propose candidates. A run graded
+        # against three variants is not comparable to one graded against five,
+        # and without this the file does not say which it was. Text queries
+        # are pooled; image and rhyme have no competing retriever.
+        "pool_variants": (
+            [v.name for v in POOL_VARIANTS] if query.query_type == "text" else [CLIP_ONLY.name]
+        ),
         "results": rows,
     }
 
@@ -131,8 +145,13 @@ def eval_slate(
 
     records: list[dict] = []
     for q in selected:
-        rows = generate_slate(query=q, cfg=cfg, library_dir=library_dir, k=k)
-        records.append(_slate_query_record(q, rows, k=k))
+        # blind_seed is the run id: a slate regenerated for the same run
+        # presents in the same order, so a grader resuming mid-run does not
+        # meet a reshuffled queue.
+        rows = generate_slate(query=q, cfg=cfg, library_dir=library_dir, k=k, blind_seed=run)
+        # Persist provenance only — the /eval page rehydrates presentation from
+        # per-film metadata. See kuaa.eval.slates.thin_rows.
+        records.append(_slate_query_record(q, thin_rows(rows), k=k))
 
     root.mkdir(parents=True, exist_ok=True)
     out_path = root / f"{run}.queries.json"

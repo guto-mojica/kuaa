@@ -156,6 +156,25 @@ def test_add_film_clean_form_has_no_error_but_keeps_describedby_target(client) -
     assert "field-error is-error" not in html
 
 
+def test_add_film_form_offers_no_raw_dir_datalist(tmp_config, client) -> None:
+    """The path field is a plain text input — no raw-dir suggestion list.
+
+    A <datalist> of unregistered raw-dir videos was tried and removed: it
+    neither eased navigating storage nor changed what operators typed, and
+    it only ever covered one directory while absolute paths were the common
+    case. This pins the removal so the idea is not quietly re-taken a third
+    time.
+    """
+    (Path(tmp_config.paths.raw_dir) / "unadded.mp4").write_bytes(b"\x00")
+
+    html = client.get("/api/library/add-form").text
+    field = re.search(r"<input[^>]*name=\"video_path\"[^>]*>", html)
+    assert field, "the path field must still render"
+    assert "list=" not in field.group(0)
+    assert "<datalist" not in html
+    assert "unadded.mp4" not in html
+
+
 # ── Search query ───────────────────────────────────────────────────────
 
 
