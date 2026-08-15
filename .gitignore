@@ -129,6 +129,7 @@ data/raw/_upload_*
 PORTFOLIO_FIXES.md
 FEATURE_PROOF.md
 preparation_to_presentation.md
+CTO-Review_KUAA.md
 
 # Internal developer docs — agent plans, conversation logs, resume material, etc.
 docs/superpowers/
@@ -164,10 +165,18 @@ desktop.ini
 ehthumbs.db
 Thumbs.db
 
+# Syncthing marker directory, written into any folder it syncs.
+.stfolder/
+
 # Design handoff bundle (reference material, not project source)
 claude_design/
 latest_claude_design_version/
 mojica_design_handoff.zip
+
+# Site/marketing working material — screenshots, page drafts, a static-site
+# bundle. Carries its own .git, so tracking it here would record a gitlink to a
+# repository this one does not contain rather than the files themselves.
+kuaa-content/
 
 # Heavy reference artifacts — untracked but kept locally (v0.8-rc cleanup).
 # Generated API analysis (3.3M) + retired Streamlit-era UI screenshots (3.7M):
