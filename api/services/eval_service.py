@@ -9,6 +9,7 @@ run_id without constructing a full Config namespace. Admin gate
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any
 
 from kuaa.eval.datasets import load_queries as _load_queries  # noqa: F401
@@ -61,6 +62,7 @@ from kuaa.eval.paths import (  # noqa: F401
 from kuaa.eval.paths import (
     eval_run_id as _eval_run_id,
 )
+from kuaa.eval.slates import hydrate_rows as _hydrate_rows
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
@@ -163,6 +165,15 @@ def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
         results = current_query.get("results")
         if isinstance(results, list):
             result_count = len(results)
+            # Slates persist provenance only (film_slug / scene_id / pool);
+            # presentation is re-read from per-film metadata here. Only the
+            # current query is hydrated — rows.html is the sole consumer, and
+            # doing all of them would re-read every film's metadata per render.
+            # A fat slate written before thinning passes through untouched.
+            library_dir = Path(
+                getattr(getattr(cfg, "paths", None), "library_dir", None) or "data/library"
+            )
+            current_query["results"] = _hydrate_rows(results, cfg=cfg, library_dir=library_dir)
 
     return {
         # Data layer

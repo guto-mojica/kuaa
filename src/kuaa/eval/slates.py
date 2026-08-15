@@ -23,7 +23,7 @@ import random
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 from kuaa.config import Settings
 from kuaa.errors import EvalError
@@ -639,6 +639,64 @@ def _slate_rhyme(*, query, cfg, library_dir, k, load_meta, film_slug=None) -> li
     return rows[:k]
 
 
+# ── thin persistence ────────────────────────────────────────────────────────
+#
+# What a graded pool must pin is WHICH scenes were put in front of the grader
+# and which retriever proposed each — ``(film_slug, scene_id, pool)``. The
+# other six keys are presentation: they are re-read from per-film metadata by
+# the same builder that produced them, so persisting them costs an order of
+# magnitude in file size and pins a caption that was never the unit of
+# judgment. The grader judges the scene; the description is context that may
+# legitimately be regenerated under a stable pool.
+
+_THIN_KEYS = ("scene_id", "film_slug", "pool")
+
+
+def thin_rows(rows: list[CandidateRow]) -> list[dict]:
+    """Reduce candidate rows to the provenance the grades depend on.
+
+    Order is preserved because it is load-bearing: rows reach disk already
+    shuffled by :func:`blind`, and a grader resuming a run must meet the same
+    queue. ``score`` is dropped rather than carried as ``None`` — a blinded
+    row has none, and an unblinded one must not reach a grader.
+    """
+    out: list[dict] = []
+    for row in rows:
+        thin = {k: row[k] for k in _THIN_KEYS if k in row}
+        out.append(thin)
+    return out
+
+
+def hydrate_rows(rows: list[dict], *, cfg: Settings, library_dir: Path) -> list[CandidateRow]:
+    """Rebuild full rows-template rows from thin ones, preserving order.
+
+    A row that already carries the full key set passes through untouched, so
+    fat slates written before thinning — and the mock rows from
+    ``kuaa.eval.seed`` — keep rendering without a migration.
+
+    ``score`` is restored as ``None``: a persisted slate is a graded pool's
+    candidate list, and re-deriving a score here would hand the grader the
+    retriever's opinion that :func:`blind` exists to withhold.
+    """
+    load_meta = _film_meta_loader(cfg, library_dir)
+    out: list[CandidateRow] = []
+    for row in rows:
+        if set(row) >= set(_ROW_KEYS):
+            out.append(cast(CandidateRow, row))
+            continue
+        slug = str(row.get("film_slug", ""))
+        try:
+            scene_id = int(row.get("scene_id", 0))
+        except (TypeError, ValueError):
+            continue
+        full = _candidate_row(scene_id=scene_id, film_slug=slug, score=0.0, meta=load_meta(slug))
+        full["score"] = None
+        if "pool" in row:
+            full["pool"] = row["pool"]
+        out.append(full)
+    return out
+
+
 def _ctx_for(library_dir: Path, slug: str) -> _SlateFilmCtx | None:
     """Build a per-film context for CLIP ``find`` from derived paths.
 
@@ -670,5 +728,7 @@ __all__ = [
     "CandidateRow",
     "ModalQuery",
     "generate_slate",
+    "hydrate_rows",
     "load_modal_queries",
+    "thin_rows",
 ]

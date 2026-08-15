@@ -17,6 +17,7 @@ from kuaa.eval.slates import (
     ModalQuery,
     generate_slate,
     load_modal_queries,
+    thin_rows,
 )
 
 app = typer.Typer(
@@ -148,7 +149,9 @@ def eval_slate(
         # presents in the same order, so a grader resuming mid-run does not
         # meet a reshuffled queue.
         rows = generate_slate(query=q, cfg=cfg, library_dir=library_dir, k=k, blind_seed=run)
-        records.append(_slate_query_record(q, rows, k=k))
+        # Persist provenance only — the /eval page rehydrates presentation from
+        # per-film metadata. See kuaa.eval.slates.thin_rows.
+        records.append(_slate_query_record(q, thin_rows(rows), k=k))
 
     root.mkdir(parents=True, exist_ok=True)
     out_path = root / f"{run}.queries.json"
