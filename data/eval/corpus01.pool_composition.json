@@ -1,0 +1,58 @@
+{
+  "run": "corpus01",
+  "query_count": 56,
+  "films": [
+    "aspectos_ib_1947",
+    "band_of_outsiders",
+    "chronopolis_1982",
+    "cidade_salvador_1939",
+    "cine_jornal_187_1943",
+    "coisas_nossas_1931",
+    "gemini_1964",
+    "jangada_1949",
+    "limites_rio_branco_1946",
+    "os_tiranos_1951",
+    "sinfonia_cigarro_1949"
+  ],
+  "missing_films": [],
+  "variants": [
+    {
+      "name": "clip",
+      "is_source": true,
+      "queries_contributed": 56,
+      "candidates_proposed": 616,
+      "unique_candidates": 228
+    },
+    {
+      "name": "bm25",
+      "is_source": true,
+      "queries_contributed": 52,
+      "candidates_proposed": 547,
+      "unique_candidates": 349
+    },
+    {
+      "name": "hybrid",
+      "is_source": false,
+      "queries_contributed": 56,
+      "candidates_proposed": 616,
+      "unique_candidates": 34
+    },
+    {
+      "name": "hybrid_no_metadata",
+      "is_source": false,
+      "queries_contributed": 56,
+      "candidates_proposed": 616,
+      "unique_candidates": 33
+    },
+    {
+      "name": "hybrid_rerank",
+      "is_source": false,
+      "queries_contributed": 56,
+      "candidates_proposed": 616,
+      "unique_candidates": 418
+    }
+  ],
+  "identical_pairs": [],
+  "failures": [],
+  "ok": true
+}
