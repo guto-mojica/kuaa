@@ -59,7 +59,7 @@ def test_table_marks_proxy_method_and_pending_rows() -> None:
         (AblationRowConfig(name="BM25", retriever="bm25", proxy="HY"), real_metrics),
         (
             AblationRowConfig(
-                name="hybrid+rerank",
+                name="hybrid_rerank",
                 retriever="hybrid",
                 proxy="HY",
                 rerank=True,
@@ -94,7 +94,7 @@ def test_table_marks_proxy_method_and_pending_rows() -> None:
     # The pending row renders the literal `pending (` cell, NOT a number/zero.
     assert "pending (rerank off)" in md
     # The pending row must NOT have leaked a fabricated 0.000 into its cells.
-    pending_line = next(ln for ln in md.splitlines() if "hybrid+rerank" in ln)
+    pending_line = next(ln for ln in md.splitlines() if "hybrid_rerank" in ln)
     assert "0.000" not in pending_line
     assert "pending (rerank off)" in pending_line
 
@@ -184,7 +184,7 @@ def test_run_ablation_produces_real_proxy_numbers() -> None:
         assert 0.0 <= r5 <= 1.0, f"{name} Recall@5 out of range: {r5}"
 
     # The rerank row is pending under the no-rerank config (its metrics are None).
-    rerank_metrics = by_name.get("hybrid+rerank")
+    rerank_metrics = by_name.get("hybrid_rerank")
     assert rerank_metrics is None, "rerank row must be pending under no-rerank config"
 
     # The whole table renders without raising and carries the banner.
@@ -200,7 +200,7 @@ def test_run_ablation_produces_real_proxy_numbers() -> None:
 
 def test_default_configs_carry_the_metadata_ablation_arm() -> None:
     """Both default row sets pair the shipped ``hybrid`` row (metadata_w=None →
-    cfg default) with a ``hybrid-metadata`` arm (metadata_w=0.0) so the delta
+    cfg default) with a ``hybrid_no_metadata`` arm (metadata_w=0.0) so the delta
     isolates the metadata signal."""
     from kuaa.eval.ablation import (
         DEFAULT_ABLATION_CONFIGS,
@@ -210,8 +210,18 @@ def test_default_configs_carry_the_metadata_ablation_arm() -> None:
     for configs in (DEFAULT_ABLATION_CONFIGS, DEFAULT_ABLATION_CONFIGS_NO_RERANK):
         by_name = {c.name: c for c in configs}
         assert by_name["hybrid"].metadata_w is None
-        assert by_name["hybrid-metadata"].metadata_w == 0.0
-        assert by_name["hybrid-metadata"].retriever == "hybrid"
+        assert by_name["hybrid_no_metadata"].metadata_w == 0.0
+        assert by_name["hybrid_no_metadata"].retriever == "hybrid"
+
+
+def test_ablation_rows_and_pool_variants_share_one_name_space() -> None:
+    """A graded pool records the POOL spelling of each variant. If the table
+    spells them differently, the join that scores the grades finds nothing —
+    and finds it silently."""
+    from kuaa.eval.ablation import DEFAULT_ABLATION_CONFIGS
+    from kuaa.eval.registry import POOL_VARIANTS
+
+    assert [c.name for c in DEFAULT_ABLATION_CONFIGS] == [v.name for v in POOL_VARIANTS]
 
 
 def test_dispatch_row_forwards_metadata_w(monkeypatch, tmp_path: Path) -> None:
@@ -231,7 +241,7 @@ def test_dispatch_row_forwards_metadata_w(monkeypatch, tmp_path: Path) -> None:
 
     for row in (
         AblationRowConfig(name="hybrid", retriever="hybrid"),
-        AblationRowConfig(name="hybrid-metadata", retriever="hybrid", metadata_w=0.0),
+        AblationRowConfig(name="hybrid_no_metadata", retriever="hybrid", metadata_w=0.0),
     ):
         _dispatch_row(None, None, row, library_dir=tmp_path, slug="x", seed=0)
 

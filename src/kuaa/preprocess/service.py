@@ -484,6 +484,95 @@ def _migrate_scene_id_overrides(ctx: FilmContext, old_to_new: dict[int, int]) ->
         annotations_overrides.save_overrides(ctx, _migrate(overrides))
 
 
+def _migrate_eval_grades(ctx: FilmContext, cfg: Settings, old_to_new: dict[int, int]) -> None:
+    """Relabel this film's grades in every eval run through ``old_to_new``.
+
+    Relevance judgments are the third per-scene artifact keyed by the scene
+    ordinal, alongside the two above — and the most expensive to lose, because
+    re-collecting one costs a human's attention rather than a re-run. They get
+    the same semantics: a scene that merely shifted is relabelled; a scene the
+    edit touched or orphaned is dropped.
+
+    Appended, never rewritten. The grade log is append-only and reduces
+    last-write-wins, so a migration is just another write: the pre-edit rows
+    stay on disk as history and the post-edit rows win the reduce. A grade
+    whose scene shifted is re-appended at the new ordinal. Every ordinal whose
+    meaning changed is also re-appended as
+    :data:`~kuaa.eval.grades.Grade.SKIP` unless another scene moved onto it —
+    deleting is not something an append-only log can do, and leaving the old
+    row to win the reduce would keep a judgment attached to whatever scene now
+    holds that number.
+
+    Grader identity is preserved so inter-annotator agreement still computes
+    over the migrated rows.
+
+    Best-effort by design: eval is optional infrastructure and a missing or
+    unreadable run must never fail a cut edit, which is the operator's actual
+    task. Failures are logged.
+    """
+    from kuaa.eval.grades import EvalRun, Grade, load_run_per_annotator, save_grade
+    from kuaa.eval.paths import eval_root
+
+    try:
+        root = eval_root(cfg)
+        runs = sorted(root.glob("*.jsonl")) if root.exists() else []
+    except Exception:  # noqa: BLE001 - eval is optional; never fail an edit for it
+        logger.debug("preprocess: no eval root to migrate grades in", exc_info=True)
+        return
+
+    prefix = f"{ctx.slug}/"
+    for jsonl in runs:
+        run = EvalRun(run_id=jsonl.stem, root=jsonl.parent)
+        try:
+            per_annotator = load_run_per_annotator(run)
+        except Exception:  # noqa: BLE001 - a malformed run is not this edit's problem
+            logger.warning("preprocess: could not read eval run %s — grades not migrated", jsonl)
+            continue
+
+        # Collect first, write second, and the order between the two writes is
+        # the whole correctness argument. Every key whose meaning changed is
+        # neutralised, then every relabelled grade is appended on top: an
+        # append-only log reduces last-write-wins, so a scene that both loses
+        # its own grade and receives another's must be neutralised FIRST.
+        # Interleaving by scene id would let the SKIP land on the grade that
+        # had just moved in.
+        stale: set[tuple[str, str, str]] = set()  # (query_id, old_key, grader)
+        moves: list[tuple[str, str, str, Grade]] = []  # (query_id, new_key, grader, grade)
+        for (query_id, scene_key), by_grader in sorted(per_annotator.items()):
+            if not scene_key.startswith(prefix):
+                continue
+            try:
+                old_sid = int(scene_key[len(prefix) :])
+            except ValueError:
+                continue
+            new_sid = old_to_new.get(old_sid)
+            if new_sid == old_sid:
+                continue  # scene kept its ordinal — its grade is still true
+            for grader, entry in sorted(by_grader.items()):
+                # The old key is stale whether the scene moved or vanished:
+                # after the edit that ordinal names a different scene.
+                stale.add((query_id, scene_key, grader))
+                if new_sid is not None:
+                    moves.append((query_id, f"{prefix}{new_sid}", grader, entry.grade))
+
+        targets = {(qid, key, grader) for qid, key, grader, _g in moves}
+        dropped = 0
+        for query_id, scene_key, grader in sorted(stale - targets):
+            save_grade(run, query_id=query_id, scene_id=scene_key, grader=grader, grade=Grade.SKIP)
+            dropped += 1
+        for query_id, new_key, grader, grade in moves:
+            save_grade(run, query_id=query_id, scene_id=new_key, grader=grader, grade=grade)
+
+        moved = len(moves)
+        if moved or dropped:
+            logger.info(
+                "preprocess: eval run %s — %d grade(s) relabelled, %d stale key(s) skipped",
+                run.run_id,
+                moved,
+                dropped,
+            )
+
+
 def apply_pending(ctx: FilmContext, *, cfg: Settings, video_path: Path) -> dict[str, Any]:
     """Apply the checked staged edits: partial rebuild + persist + invalidate.
 
@@ -601,6 +690,7 @@ def apply_pending(ctx: FilmContext, *, cfg: Settings, video_path: Path) -> dict[
         json.dump(rows, f, indent=2, ensure_ascii=False)
 
     _migrate_scene_id_overrides(ctx, old_to_new_scene_id)
+    _migrate_eval_grades(ctx, cfg, old_to_new_scene_id)
 
     write_cutset(final_cutset, cuts_path)
     _pending_path(ctx).unlink(missing_ok=True)

@@ -426,3 +426,101 @@ def test_eval_header_grader_field_prefilled_from_cookie(client, monkeypatch, tmp
     r = client.get("/eval?token=test-token")
     assert r.status_code == 200, r.text
     assert 'value="guto"' in r.text
+
+
+# ── Pool integrity: refuse to grade against a stale scene numbering ───────────
+
+
+def _write_pool_with_manifest(root, library_dir, slug: str, manifest_hash: str) -> None:
+    """A pool file pinned to one film's scene numbering."""
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "default.queries.json").write_text(
+        json.dumps(
+            {
+                "run": "default",
+                "scene_manifests": {slug: manifest_hash},
+                "queries": [
+                    {
+                        "id": "q1",
+                        "query_type": "text",
+                        "text": "x",
+                        "results": [{"scene_id": 1, "film_slug": slug, "pool": {"clip": 1}}],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def _seed_film_scenes(library_dir, slug: str, boundaries: dict[int, tuple[int, int]]) -> None:
+    meta = library_dir / slug / "metadata"
+    meta.mkdir(parents=True, exist_ok=True)
+    (meta / "keyframes_metadata.json").write_text(
+        json.dumps(
+            [
+                {"scene_id": sid, "start_frame": s, "end_frame": e}
+                for sid, (s, e) in sorted(boundaries.items())
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_eval_page_refuses_a_pool_whose_scene_numbering_moved(
+    client, tmp_config, monkeypatch, tmp_path
+):
+    """A cut edit renumbers every scene after the edited boundary.
+
+    Grading against the stale pool would not fail — it would record judgments
+    about the wrong scenes, and nothing downstream could tell. So the page
+    refuses and the operator regenerates the pool.
+    """
+    from kuaa.eval.scene_manifest import scene_manifest_hash
+
+    monkeypatch.setenv("EVAL_ADMIN_TOKEN", "test-token")
+    import api.services.eval_service as eval_service
+
+    eval_root = tmp_path / "eval"
+    monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: eval_root)
+    monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
+
+    library_dir = tmp_config.paths.library_dir
+    _seed_film_scenes(library_dir, "f", {1: (0, 100), 2: (100, 200)})
+    pinned = scene_manifest_hash(library_dir, "f")
+    _write_pool_with_manifest(eval_root, library_dir, "f", pinned)
+
+    assert client.get("/eval?token=test-token").status_code == 200
+
+    # A merge: the two scenes become one, and scene ids renumber.
+    _seed_film_scenes(library_dir, "f", {1: (0, 200)})
+
+    r = client.get("/eval?token=test-token")
+    assert r.status_code == 409
+    assert "scene numbering changed" in r.json()["detail"]
+
+    posted = client.post(
+        "/api/eval/grade?token=test-token",
+        data={"query_id": "q1", "scene_id": "f/1", "grade": "2"},
+    )
+    assert posted.status_code == 409, "an open session must not keep POSTing either"
+
+
+def test_eval_page_still_renders_a_pool_written_before_the_manifest(client, monkeypatch, tmp_path):
+    """A legacy bare-list pool carries no manifest and cannot be pinned now.
+
+    Refusing to grade every such pool would be worse than saying so in the log.
+    """
+    monkeypatch.setenv("EVAL_ADMIN_TOKEN", "test-token")
+    import api.services.eval_service as eval_service
+
+    eval_root = tmp_path / "eval"
+    eval_root.mkdir(parents=True, exist_ok=True)
+    (eval_root / "default.queries.json").write_text(
+        json.dumps([{"id": "q1", "query_type": "text", "text": "x", "results": []}]),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: eval_root)
+    monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
+
+    assert client.get("/eval?token=test-token").status_code == 200

@@ -165,6 +165,54 @@ def load_dataset(path: str | Path) -> EvaluationDataset:
     )
 
 
+@dataclass(frozen=True)
+class PoolFile:
+    """A ``<run>.queries.json`` — the candidates put in front of a grader.
+
+    ``scene_manifests`` pins each film's scene numbering at generation time;
+    see :mod:`kuaa.eval.scene_manifest` for why grades need it. It is empty
+    for a pool written before the manifest existed, and for the legacy
+    bare-list file shape.
+    """
+
+    queries: list[dict[str, Any]] = field(default_factory=list)
+    scene_manifests: dict[str, str] = field(default_factory=dict)
+
+
+def load_pool(root: Path, run_id: str) -> PoolFile:
+    """Read ``<root>/<run_id>.queries.json`` in either supported shape.
+
+    Two shapes are accepted, and both are current:
+
+    * a **mapping** with ``queries`` and (optionally) ``scene_manifests`` —
+      what ``kuaa eval slate`` writes now;
+    * a bare **list** of query records — every file written before the scene
+      manifest existed, including ``kuaa eval seed`` output.
+
+    A missing or unreadable file is an empty pool, not an error: the /eval
+    page renders an empty-state queue and the operator seeds one.
+    """
+    queries_path = root / f"{run_id}.queries.json"
+    if not queries_path.exists():
+        return PoolFile()
+    try:
+        raw = json.loads(queries_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return PoolFile()
+    if isinstance(raw, list):
+        return PoolFile(queries=raw)
+    if isinstance(raw, dict):
+        queries = raw.get("queries")
+        manifests = raw.get("scene_manifests")
+        return PoolFile(
+            queries=queries if isinstance(queries, list) else [],
+            scene_manifests={
+                str(k): str(v) for k, v in (manifests or {}).items() if isinstance(manifests, dict)
+            },
+        )
+    return PoolFile()
+
+
 def load_queries(root: Path, run_id: str) -> list[dict[str, Any]]:
     """Load the curated query list for the run. Empty when missing.
 
@@ -172,10 +220,4 @@ def load_queries(root: Path, run_id: str) -> list[dict[str, Any]]:
     renders an empty-state queue. Seed one with ``kuaa eval seed``.
     """
 
-    queries_path = root / f"{run_id}.queries.json"
-    if not queries_path.exists():
-        return []
-    try:
-        return json.loads(queries_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return []
+    return load_pool(root, run_id).queries

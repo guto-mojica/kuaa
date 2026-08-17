@@ -109,3 +109,81 @@ def test_resume_all_graded_falls_back_to_first(
     # No ungraded query → fall back to query 1 rather than None.
     assert ctx["current_query"] is not None
     assert str(ctx["current_query"]["id"]) == "1"
+
+
+# ── Free navigation + partial-progress resume ────────────────────────────────
+
+
+def _fake_request_q(grader: str, query: str) -> SimpleNamespace:
+    """A request carrying ``?query=<id>`` alongside the grader cookie."""
+    req = _fake_request(grader)
+    req.query_params.update({"query": query})
+    return req
+
+
+def test_explicit_query_param_wins_over_the_resume_rule(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """queue.html has always rendered ``?query=<id>`` links and nothing read them.
+
+    Clicking a query therefore re-ran the resume rule and landed wherever that
+    pointed — so the queue was decorative and the pane forward-only.
+    """
+    run_id = "r"
+    write_seed(tmp_path, run_id, count=5)
+
+    import api.services.eval_service as eval_service
+
+    monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
+    monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: run_id)
+    cfg = _make_cfg(tmp_path, run_id)
+
+    ctx = eval_service.build_eval_context(cfg, request=_fake_request_q("rg", "4"))
+    assert str(ctx["current_query"]["id"]) == "4", "an explicit ?query= must be honoured"
+
+
+def test_unknown_query_param_falls_back_to_the_resume_rule(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A stale bookmark must not render an empty pane."""
+    run_id = "r"
+    write_seed(tmp_path, run_id, count=3)
+
+    import api.services.eval_service as eval_service
+
+    monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
+    monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: run_id)
+    cfg = _make_cfg(tmp_path, run_id)
+
+    ctx = eval_service.build_eval_context(cfg, request=_fake_request_q("rg", "nope"))
+    assert ctx["current_query"] is not None
+    assert str(ctx["current_query"]["id"]) == "1"
+
+
+def test_resume_returns_to_a_partially_graded_query(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One judgment used to finish a query, stranding the other candidates.
+
+    A grading session is long enough that stopping mid-query is normal, and
+    the resume rule skipping past it meant those candidates could never be
+    reached again — the pane had no other way back.
+    """
+    run_id = "r"
+    write_seed(tmp_path, run_id, count=3)
+    run = EvalRun(run_id=run_id, root=tmp_path)
+
+    # Judge ONE of query 1's nine candidates, then stop.
+    first_sid = str(SAMPLE_QUERIES[0]["results"][0]["scene_id"])
+    save_grade(run, query_id="1", scene_id=first_sid, grader="rg", grade=Grade.RELEVANT)
+
+    import api.services.eval_service as eval_service
+
+    monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
+    monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: run_id)
+    cfg = _make_cfg(tmp_path, run_id)
+
+    ctx = eval_service.build_eval_context(cfg, request=_fake_request("rg"))
+    assert str(ctx["current_query"]["id"]) == "1", (
+        "a query with 1 of 9 judged is unfinished and must be resumed, not skipped"
+    )

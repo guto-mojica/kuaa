@@ -131,11 +131,16 @@
       <span class="mode">EVAL</span>
     </span>
     <div class="keys">
+      {# Every key listed here must have a branch in eval.js's onKey router.
+         'save & advance' and '⌘E export' were listed for as long as the pane
+         shipped and neither existed: grades save on the grade keypress, and
+         there is no export binding. A legend that names a control the app
+         does not have reads as a broken control, which is how it was read. #}
       <span class="k"><b>0/1/2/3</b>{{ _('grade') }}</span>
       <span class="k"><b>S</b>{{ _('skip') }}</span>
       <span class="k"><b>j/k</b>{{ _('nav') }}</span>
-      <span class="k"><b>⌘⏎</b>{{ _('save & advance') }}</span>
-      <span class="k"><b>⌘E</b>{{ _('export') }}</span>
+      <span class="k"><b>⌘⏎</b>{{ _('next row') }}</span>
+      <span class="k"><b>B/C</b>{{ _('blind / compare') }}</span>
       <span class="k"><b>?</b>{{ _('help') }}</span>
     </div>
     <div class="r">
@@ -145,6 +150,31 @@
       <span>v1.0.0</span>
     </div>
   </footer>
+
+  {# ── Shortcut overlay ('?') ──────────────────────────────────────
+     Mirrors the footer legend. Every entry here corresponds to a branch
+     in eval.js's onKey router; if you add a row, add the branch. #}
+  <div class="ev-help" x-show="help" x-cloak
+       @click="help = false"
+       role="dialog" aria-modal="true"
+       aria-label="{{ _('Keyboard shortcuts') }}">
+    <div class="panel" @click.stop>
+      <h2>{{ _('Keyboard shortcuts') }}</h2>
+      <dl>
+        <dt>0 1 2 3</dt><dd>{{ _('grade the focused row') }}</dd>
+        <dt>S</dt><dd>{{ _('skip — explicit “no opinion”, not “later”') }}</dd>
+        <dt>j / k</dt><dd>{{ _('move the row cursor down / up') }}</dd>
+        <dt>⌘⏎</dt><dd>{{ _('move to the next row (grades save on keypress)') }}</dd>
+        <dt>B</dt><dd>{{ _('blind mode — hide retriever scores') }}</dd>
+        <dt>C</dt><dd>{{ _('compare — show the other annotator’s grade') }}</dd>
+        <dt>?</dt><dd>{{ _('this panel') }}</dd>
+        <dt>{{ _('Esc') }}</dt><dd>{{ _('close') }}</dd>
+      </dl>
+      <p class="note">
+        {{ _('Click any query in the left queue to jump to it — including ones you have already started. Grades are saved the moment you press a key; re-grading a row simply overwrites it.') }}
+      </p>
+    </div>
+  </div>
 
   {# Toast host — the eval shell is standalone (does not extend
      base.html), so it mounts its own #toast-root. eval.js's

@@ -85,6 +85,9 @@
         currentRow: typeof opts.row === 'number' ? opts.row : 0,
         blind: !!opts.blind,
         compare: !!opts.compare,
+        // '?' toggles the shortcut overlay in layout.html. Not persisted —
+        // it is a reminder, not a preference.
+        help: false,
         rowCount: 0,
         token: readToken(),
 
@@ -379,6 +382,15 @@
           } else if (k === 'c' || k === 'C') {
             e.preventDefault();
             this.compare = !this.compare;
+          } else if (k === '?') {
+            // The footer has advertised '?' since the pane shipped and no
+            // branch ever handled it. Escape closes, matching every other
+            // dismissible surface in the app.
+            e.preventDefault();
+            this.help = !this.help;
+          } else if (k === 'Escape' && this.help) {
+            e.preventDefault();
+            this.help = false;
           }
         },
 

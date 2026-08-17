@@ -8,6 +8,8 @@ as an append-only JSONL log per run::
     {"query_id": "q1", "scene_id": "jeca/1", "grader": "rg",
      "grade": 2, "ts": "2026-05-20T18:42:00+00:00"}
 
+``scene_id`` is film-qualified — see :func:`grade_scene_key`.
+
 Append-only because re-grading the same (query, scene) pair is normal —
 keeping history lets us audit how a grader's opinion evolved and compute
 inter-annotator agreement across versions. ``load_run`` resolves the
@@ -44,6 +46,24 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import IntEnum
 from pathlib import Path
+from typing import Any
+
+
+def grade_scene_key(film_slug: Any, scene_id: Any) -> str:
+    """The ``scene_id`` half of a grade's ``(query_id, scene_id)`` key.
+
+    Film-qualified — ``"coisas_nossas_1931/45"`` — because ``scene_id`` alone
+    is only unique *within* a film. A pool spans the whole library, so two
+    films' scene 45 landed on the same grade key: grading one recorded a
+    judgment about the other, in the same query, silently. The shipped
+    ``corpus01`` pool has 104 such collisions across its 56 queries.
+
+    Falls back to the bare scene id when no slug is available (the seeded
+    single-film sample runs), which is what every row written before this
+    function existed already used.
+    """
+    slug = str(film_slug or "").strip()
+    return f"{slug}/{scene_id}" if slug else str(scene_id)
 
 
 class Grade(IntEnum):
@@ -287,27 +307,43 @@ def first_ungraded(
     per_annotator: dict[tuple[str, str], dict[str, GradeEntry]],
     grader_name: str,
 ) -> dict | None:
-    """Return the first query in ``queries`` that ``grader_name`` has not graded.
+    """Return the first query ``grader_name`` has not *finished* grading.
 
-    A query is graded by ``grader_name`` when at least one
-    ``(query_id, scene_id)`` entry in ``per_annotator`` carries
-    ``grader_name`` as a key. Returns ``None`` when the grader has graded
-    every query (or ``queries`` is empty) — the /eval context builder falls
-    back to ``queries[0]`` so a finished grader doesn't land on None.
+    Finished means every candidate judged: the grader's entry count for the
+    query has reached its ``candidate_count`` (falling back to ``len(results)``
+    when the count is absent). Returns ``None`` when every query is finished
+    (or ``queries`` is empty) — the /eval context builder falls back to
+    ``queries[0]`` so a finished grader doesn't land on None.
+
+    This used to treat *one* judgment as finishing a query, which made a
+    partially-graded query unreachable: the resume rule skipped past it and
+    the pane had no other way back, so stopping mid-query abandoned it
+    permanently. A grading session is long enough that stopping mid-query is
+    the normal case, not the exception.
 
     Drives the /eval session-resume landing row (open the page → first
-    unjudged query for the active grader). Extracted from the api service so
+    unfinished query for the active grader). Extracted from the api service so
     the resume rule lives next to the grade-loading primitives it reads.
     """
-    # Pre-compute the set of query_ids grader_name has touched to avoid
-    # an O(n²) inner scan.
-    graded_qids: set[str] = set()
+    # Pre-compute this grader's judgment count per query to avoid an O(n²)
+    # inner scan. Counting, not membership: partial progress must not read as
+    # completion.
+    graded_counts: dict[str, int] = {}
     for (qid, _sid), by_who in per_annotator.items():
         if grader_name in by_who:
-            graded_qids.add(str(qid))
+            graded_counts[str(qid)] = graded_counts.get(str(qid), 0) + 1
 
     for q in queries:
         qid = str(q.get("id", ""))
-        if qid and qid not in graded_qids:
+        if not qid:
+            continue
+        done = graded_counts.get(qid, 0)
+        expected = int(q.get("candidate_count") or len(q.get("results") or []) or 0)
+        if expected <= 0:
+            # Candidate count unknown — nothing to compare against, so keep
+            # the old rule: any judgment at all finishes the query.
+            if done == 0:
+                return q
+        elif done < expected:
             return q
     return None

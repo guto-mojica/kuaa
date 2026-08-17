@@ -67,13 +67,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--with-rerank",
         dest="with_rerank",
         action="store_true",
-        help="Compute the hybrid+rerank row via the production find() path.",
+        help="Compute the hybrid_rerank row via the production find() path.",
     )
     rerank.add_argument(
         "--no-rerank",
         dest="with_rerank",
         action="store_false",
-        help="Render the hybrid+rerank row as pending — the default.",
+        help="Render the hybrid_rerank row as pending — the default.",
     )
     parser.set_defaults(with_rerank=False)
     parser.add_argument(
@@ -131,7 +131,7 @@ def _build_ablation_section(table_md: str, *, with_rerank: bool, seed: int, quer
         "labels neither reward nor penalise. Use `scripts/check_pt_parity.py` for "
         "that axis.",
         "",
-        "- **`hybrid` vs `hybrid-metadata` is finally a real comparison.** The two "
+        "- **`hybrid` vs `hybrid_no_metadata` is finally a real comparison.** The two "
         "rows were byte-identical for as long as they shipped, because the "
         "metadata scorer bailed out on any query over 4 tokens and so returned `{}` "
         "on 13 of these 15 queries — the ablation was subtracting a leg that was "

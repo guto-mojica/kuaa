@@ -14,18 +14,22 @@ The common query set must carry the maintainer's pre-curator hypothesis
 the whole table is **one honesty tier** — no tautological pseudo-relevance, no
 structurally-zero rhyme row blended into the average.
 
-Rows:
+Rows come from :data:`kuaa.eval.registry.RETRIEVER_REGISTRY`, which is also
+what builds the graded pool. That is deliberate: grades persist the pool's
+spelling of a variant name, so a table that spelled the same rows ``CLIP`` /
+``hybrid-metadata`` / ``hybrid+rerank`` could not be joined to the grades meant
+to score it — and the join failed by finding nothing, not by raising.
 
-===================  ==========================================================  =====
-row                  how                                                         proxy
-===================  ==========================================================  =====
-``CLIP``             :func:`run_retrieval_eval` (SigLIP2 default index)          HY
-``BM25``             :func:`run_retrieval_eval` ``retriever="bm25"``             HY
-``hybrid``           :func:`run_retrieval_eval` ``retriever="hybrid"`` — the     HY
-                     SHIPPED 3-way fusion (CLIP + BM25 + metadata leg)
-``hybrid-metadata``  same, ``metadata_w=0.0`` — isolates the metadata signal     HY
-``hybrid+rerank``    production ``find(mode="hybrid", rerank=...)``               HY
-===================  ==========================================================  =====
+======================  =======================================================  =====
+row                     how                                                      proxy
+======================  =======================================================  =====
+``clip``                :func:`run_retrieval_eval` (SigLIP2 default index)       HY
+``bm25``                :func:`run_retrieval_eval` ``retriever="bm25"``          HY
+``hybrid``              :func:`run_retrieval_eval` ``retriever="hybrid"`` —      HY
+                        the SHIPPED 3-way fusion (CLIP + BM25 + metadata)
+``hybrid_no_metadata``  same, ``metadata_w=0.0`` — isolates the metadata leg     HY
+``hybrid_rerank``       production ``find(mode="hybrid", rerank=...)``           HY
+======================  =======================================================  =====
 
 The reranker only scores **text** queries (it reads ``query.text``), which is
 the common set, so the rerank delta is well-defined. The rerank row uses the
@@ -60,6 +64,7 @@ from kuaa.errors import EvalError
 from kuaa.eval.datasets import EvaluationDataset, QueryCase
 from kuaa.eval.metrics import evaluate_query, summarize_results
 from kuaa.eval.proxy import proxy_labels
+from kuaa.eval.registry import RETRIEVER_REGISTRY, RetrieverVariant
 from kuaa.eval.retrieval import RetrievalRun, run_retrieval_eval
 from kuaa.eval.slates import ModalQuery
 from kuaa.scene_ids import scene_id_key
@@ -81,7 +86,8 @@ class AblationRowConfig:
     """One row of the ablation table.
 
     Attributes:
-        name: published row label (e.g. ``"hybrid+rerank"``).
+        name: row label; the registry variant name, which is also the
+            spelling grades persist (e.g. ``"hybrid_rerank"``).
         retriever: which retriever mechanism to run — ``"clip" | "bm25" | "hybrid"``.
         proxy: the proxy signal used for the row's labels — ``"KI" | "PR" |
             "HY"`` (the whole launch table is ``"HY"``; the field exists so a
@@ -199,48 +205,49 @@ class AblationTable:
 # Default row configs.
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Full set (rerank row REAL — uses production find ± the reranker). The ``hybrid`` row
-# measures the SHIPPED 3-way fusion (metadata_w=None → cfg default);
-# ``hybrid-metadata`` is identical except the metadata leg is off, so the
+
+def _row_from_variant(
+    variant: RetrieverVariant, *, pending_reason: str | None = None
+) -> AblationRowConfig:
+    """One table row per registry variant, sharing the variant's name.
+
+    The name matters more than it looks. Grades persist the *pool* spelling of
+    a variant (``hybrid_no_metadata``); this table used to spell the same five
+    rows ``CLIP`` / ``hybrid-metadata`` / ``hybrid+rerank``. Joining a graded
+    pool to the table meant to score it found nothing under those names, and
+    nothing raised — the join just came up empty. One name-space, derived, so
+    the drift cannot come back on the next variant.
+    """
+    return AblationRowConfig(
+        name=variant.name,
+        retriever=variant.mode,
+        proxy="HY",
+        rerank=variant.rerank,
+        metadata_w=variant.metadata_w,
+        pending_reason=pending_reason,
+    )
+
+
+# Full set (rerank row REAL — uses production find ± the reranker). The ``hybrid``
+# row measures the SHIPPED 3-way fusion (metadata_w=None → cfg default);
+# ``hybrid_no_metadata`` is identical except the metadata leg is off, so the
 # delta between the two isolates the signal's contribution.
-DEFAULT_ABLATION_CONFIGS: tuple[AblationRowConfig, ...] = (
-    AblationRowConfig(name="CLIP", retriever="clip", proxy="HY"),
-    AblationRowConfig(name="BM25", retriever="bm25", proxy="HY"),
-    AblationRowConfig(name="hybrid", retriever="hybrid", proxy="HY"),
-    AblationRowConfig(name="hybrid-metadata", retriever="hybrid", proxy="HY", metadata_w=0.0),
-    AblationRowConfig(name="hybrid+rerank", retriever="hybrid", proxy="HY", rerank=True),
+DEFAULT_ABLATION_CONFIGS: tuple[AblationRowConfig, ...] = tuple(
+    _row_from_variant(v) for v in RETRIEVER_REGISTRY.values()
 )
 
 # No-rerank variant — the rerank row is left pending so the table is produced
 # without paying the cross-encoder cost (and the committed --no-rerank doc is
 # honest about which rows are real).
-DEFAULT_ABLATION_CONFIGS_NO_RERANK: tuple[AblationRowConfig, ...] = (
-    AblationRowConfig(name="CLIP", retriever="clip", proxy="HY"),
-    AblationRowConfig(name="BM25", retriever="bm25", proxy="HY"),
-    AblationRowConfig(name="hybrid", retriever="hybrid", proxy="HY"),
-    AblationRowConfig(name="hybrid-metadata", retriever="hybrid", proxy="HY", metadata_w=0.0),
-    AblationRowConfig(
-        name="hybrid+rerank",
-        retriever="hybrid",
-        proxy="HY",
-        rerank=True,
-        pending_reason="rerank off",
-    ),
+DEFAULT_ABLATION_CONFIGS_NO_RERANK: tuple[AblationRowConfig, ...] = tuple(
+    _row_from_variant(v, pending_reason="rerank off" if v.rerank else None)
+    for v in RETRIEVER_REGISTRY.values()
 )
 
 # Footnotes attached to the rendered table when the matching row is present.
+# Sourced from the registry so a variant's explanation lives with its definition.
 _ROW_FOOTNOTES: dict[str, str] = {
-    "hybrid-metadata": (
-        "Identical to `hybrid` except the exact-lexical metadata leg "
-        "(tags / descriptions / detected objects) is disabled (`metadata_w=0`) — "
-        "the delta to the `hybrid` row isolates that signal's contribution."
-    ),
-    "hybrid+rerank": (
-        'Rerank delta is measured on the production `find(mode="hybrid")` base '
-        "(± the bge-reranker-v2-m3 cross-encoder), which is a different hybrid "
-        "implementation from the harness `hybrid` row above — compare the rerank "
-        "row to the `find` hybrid base it sits on, not to the harness `hybrid` row."
-    ),
+    v.name: v.footnote for v in RETRIEVER_REGISTRY.values() if v.footnote
 }
 
 
@@ -417,7 +424,7 @@ def _run_rerank_row(
     slug: str,
     seed: int,
 ) -> dict[str, float | int]:
-    """hybrid+rerank row — production ``find(mode="hybrid", rerank=True)``.
+    """hybrid_rerank row — production ``find(mode="hybrid", rerank=True)``.
 
     Scores each text query against the per-film index with the production
     retrieval path so the cross-encoder reranker reorders the hybrid top-N. The

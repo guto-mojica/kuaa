@@ -15,6 +15,7 @@ from api.services.eval_service import (
     build_eval_context,
     compute_query_metrics,
     require_admin,
+    require_current_pool,
 )
 from api.templates import templates
 from kuaa.eval.grades import EvalRun, Grade, save_grade
@@ -55,6 +56,9 @@ def post_grade(
     cfg = get_config()
     run_root = _eval_svc._eval_root(cfg)
     run_id = _eval_svc._eval_run_id(cfg)
+    # The page checks this too, but a session left open across a cut edit
+    # would keep POSTing against the numbering it was rendered with.
+    require_current_pool(cfg, root=run_root, run_id=run_id)
     grader = request.cookies.get("grader", "anon")
 
     run = EvalRun(run_id=run_id, root=run_root)

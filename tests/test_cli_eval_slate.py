@@ -124,7 +124,12 @@ def test_eval_slate_writes_rows_contract(
     out_path = root / "t.queries.json"
     assert out_path.exists(), f"expected {out_path} written"
 
-    data = json.loads(out_path.read_text(encoding="utf-8"))
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    # The file is a mapping: the query list plus the scene-numbering manifest
+    # that pins every grade taken against it (kuaa.eval.scene_manifest).
+    assert isinstance(payload, dict)
+    assert "scene_manifests" in payload
+    data = payload["queries"]
     assert isinstance(data, list)
     assert len(data) == 1
 
@@ -145,6 +150,10 @@ def test_eval_slate_writes_rows_contract(
         assert "scene_id" in r and "film_slug" in r, f"row lost provenance: {sorted(r)}"
     # An image slate has one producer, so its rows carry no pool map.
     assert all("pool" not in r for r in first["results"])
+
+    # The composition report lands beside the pool, as a file — not a print.
+    report_path = root / "t.pool_composition.json"
+    assert report_path.exists(), "composition report must be an artifact, not stdout"
 
 
 def test_hydrate_restores_the_rows_contract(tmp_path: Path) -> None:
@@ -183,3 +192,7 @@ def test_hydrate_passes_through_a_fat_row(tmp_path: Path) -> None:
 
     out = hydrate_rows([dict(fat)], cfg=cfg, library_dir=tmp_path)
     assert out[0]["description"] == "a caption written at slate time"
+    # ...but the score is withheld on this path too. The passthrough used to
+    # return it intact while the docstring promised None — the one re-entry
+    # point where a stored score could reach the grading page.
+    assert out[0]["score"] is None

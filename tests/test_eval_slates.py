@@ -28,7 +28,12 @@ import numpy as np
 import pytest
 
 from kuaa.errors import EvalError
-from kuaa.eval.slates import ModalQuery, generate_slate, load_modal_queries
+from kuaa.eval.slates import (
+    ModalQuery,
+    generate_slate,
+    load_modal_queries,
+    rank_candidates,
+)
 
 # The nine keys every candidate row must carry so the rows template renders.
 _ROWS_KEYS = {
@@ -381,7 +386,7 @@ def test_generate_slate_dispatches_text_to_find(tmp_path: Path, monkeypatch):
         relevance={},
         notes=None,
     )
-    rows = generate_slate(query=q, cfg=_cfg(), library_dir=tmp_path, k=9, blind_rows=False)
+    rows = rank_candidates(query=q, cfg=_cfg(), library_dir=tmp_path, k=9)
 
     # find called once per (unregistered) film, per retriever variant.
     assert {c["slug"] for c in captured} == {"film_a", "film_b"}
@@ -443,7 +448,7 @@ def test_generate_slate_dispatches_image_to_find(tmp_path: Path, monkeypatch):
         relevance={},
         notes=None,
     )
-    rows = generate_slate(query=q, cfg=_cfg(), library_dir=tmp_path, k=9, blind_rows=False)
+    rows = rank_candidates(query=q, cfg=_cfg(), library_dir=tmp_path, k=9)
 
     # find was called with an image Query (image_path set, text None) in clip mode.
     assert captured["image_path"] == img.resolve()
@@ -504,9 +509,7 @@ def test_pool_is_the_union_of_every_variant(tmp_path, monkeypatch):
             "hybrid": [(1, 0.7), (3, 0.6)],
         },
     )
-    rows = generate_slate(
-        query=_text_query(), cfg=_cfg(), library_dir=tmp_path, k=9, blind_rows=False
-    )
+    rows = rank_candidates(query=_text_query(), cfg=_cfg(), library_dir=tmp_path, k=9)
     assert {r["scene_id"] for r in rows} == {1, 2, 3}
 
 
@@ -520,9 +523,7 @@ def test_pool_dedupes_and_keeps_every_proposing_rank(tmp_path, monkeypatch):
             "hybrid": [(2, 0.7)],
         },
     )
-    rows = generate_slate(
-        query=_text_query(), cfg=_cfg(), library_dir=tmp_path, k=9, blind_rows=False
-    )
+    rows = rank_candidates(query=_text_query(), cfg=_cfg(), library_dir=tmp_path, k=9)
     scene_2 = next(r for r in rows if r["scene_id"] == 2)
     assert len([r for r in rows if r["scene_id"] == 2]) == 1, "deduped by (film, scene)"
     assert scene_2["pool"]["clip"] == 2, "CLIP ranked it second"
@@ -580,9 +581,7 @@ def test_blinding_differs_across_queries(tmp_path, monkeypatch):
 def test_blinding_does_not_preserve_retriever_order(tmp_path, monkeypatch):
     """Position must not be readable as the system's opinion."""
     _pool_env(monkeypatch, {"clip": [(i, 1.0 - i / 100) for i in range(1, 13)]})
-    ordered = generate_slate(
-        query=_text_query(), cfg=_cfg(), library_dir=tmp_path, k=12, blind_rows=False
-    )
+    ordered = rank_candidates(query=_text_query(), cfg=_cfg(), library_dir=tmp_path, k=12)
     blinded = generate_slate(
         query=_text_query(), cfg=_cfg(), library_dir=tmp_path, k=12, blind_seed="run-1"
     )
@@ -624,3 +623,158 @@ def test_pooled_run_defaults_to_blind_in_the_ui(tmp_path, monkeypatch):
     )
     ctx = build_eval_context(cfg)
     assert ctx["blind_mode"] is True, "pooled runs are blind unless told otherwise"
+
+
+# ── the row must describe ONE moment, not three ─────────────────────────────
+
+
+def _kf_rows(scene_id: int, n: int, *, start: float, end: float) -> list[dict]:
+    """``n`` keyframe rows for one scene, as scene detection writes them.
+
+    Every row carries the SCENE's start/end — the per-keyframe timestamp is
+    not recorded — so which row wins decides the thumbnail and nothing else.
+    """
+    return [
+        {
+            "scene_id": scene_id,
+            "keyframe_id": f"scene_{scene_id:04d}_kf_{i:02d}",
+            "filepath": f"/srv/data/library/jeca/frames/scenes/keyframes_content/kf_{i:02d}.jpg",
+            "start_time_s": start,
+            "end_time_s": end,
+        }
+        for i in range(1, n + 1)
+    ]
+
+
+def test_representative_keyframe_is_the_middle_one():
+    """The describer runs on the middle keyframe (``llm.keyframes: middle``),
+    and ``build_scene_list`` / ``_grouped_scenes`` pick the middle as the
+    scene's representative frame. The slate row has to agree with both, or the
+    thumbnail shows a different moment than the description beside it."""
+    from kuaa.eval.slates import _representative_keyframes
+
+    picked = _representative_keyframes(_kf_rows(3, 3, start=21.9, end=53.4))
+    assert picked[3]["keyframe_id"] == "scene_0003_kf_02"
+
+
+def test_representative_keyframe_is_not_the_last_row_written():
+    """The regression itself: a dict comprehension over the rows is
+    last-write-wins, so it selected the frame nearest the END of the scene."""
+    from kuaa.eval.slates import _representative_keyframes
+
+    rows = _kf_rows(3, 3, start=21.9, end=53.4)
+    naive = {int(e["scene_id"]): e for e in rows}
+    assert naive[3]["keyframe_id"] == "scene_0003_kf_03", "pins what the bug did"
+    assert _representative_keyframes(rows)[3]["keyframe_id"] != naive[3]["keyframe_id"]
+
+
+def test_representative_keyframe_ignores_row_order():
+    """'Middle' must mean the middle of the scene, not of however the rows
+    happened to be written."""
+    from kuaa.eval.slates import _representative_keyframes
+
+    rows = _kf_rows(3, 3, start=21.9, end=53.4)
+    assert _representative_keyframes(list(reversed(rows)))[3]["keyframe_id"] == ("scene_0003_kf_02")
+
+
+def test_representative_keyframe_handles_a_single_keyframe_scene():
+    """Films predating the N-per-scene convention have one row per scene."""
+    from kuaa.eval.slates import _representative_keyframes
+
+    picked = _representative_keyframes(_kf_rows(5, 1, start=1.0, end=2.0))
+    assert picked[5]["keyframe_id"] == "scene_0005_kf_01"
+
+
+def test_candidate_row_thumbnail_is_the_described_frame():
+    """End to end: the row's thumbnail and its description are one moment."""
+    from kuaa.eval.slates import _candidate_row, _FilmMeta, _representative_keyframes
+
+    data_dir = Path("/srv/data").resolve()
+    meta = _FilmMeta(
+        title="Jeca",
+        year=1959,
+        fps=15.0,
+        kf_by_scene=_representative_keyframes(_kf_rows(3, 3, start=21.9, end=53.4)),
+        # scene_descriptions.json records WHICH keyframe was described.
+        desc_by_scene={"3": {"description": "a title card", "keyframe_id": "scene_0003_kf_02"}},
+        tags_by_scene={},
+        data_dir=data_dir,
+    )
+    row = _candidate_row(scene_id=3, film_slug="jeca", score=0.9, meta=meta)
+    assert row["keyframe_url"].endswith("kf_02.jpg")
+    assert row["description"] == "a title card"
+    # The stamp opens at the scene START — the convention every other KUAA
+    # surface uses (search results, rhymes). It is not the frame's own
+    # timestamp, and the metadata does not record one. The end and duration
+    # follow so the grader can see how much scene sits between the stamp and
+    # the mid-scene thumbnail above.
+    assert row["timecode"] == "00:00:21:13 – 00:00:53:06 (32s)"
+
+
+# ── scene timecode is a range, not just the opening stamp ───────────────────
+
+
+def test_scene_timecode_shows_start_end_and_duration():
+    """The row must show the scene's extent, not only where it opens.
+
+    The thumbnail is the middle keyframe and the stamp is the start, so on a
+    long scene they are legitimately seconds apart. Without the extent that
+    reads as the row being wrong, and the grader goes to the video file to
+    check — which is most of the cost of a grading session.
+    """
+    from kuaa.eval.slates import _scene_timecode
+
+    out = _scene_timecode(83.0, 111.0, 24.0)
+    assert out == "00:01:23:00 – 00:01:51:00 (28s)"
+
+
+def test_scene_timecode_keeps_a_decimal_on_short_scenes():
+    """A cut rounded to "0s" reads as broken metadata."""
+    from kuaa.eval.slates import _scene_timecode
+
+    assert _scene_timecode(0.0, 0.4, 24.0).endswith("(0.4s)")
+    assert _scene_timecode(0.0, 9.5, 24.0).endswith("(9.5s)")
+    assert _scene_timecode(0.0, 12.0, 24.0).endswith("(12s)")
+
+
+def test_scene_timecode_falls_back_to_the_start_when_the_end_is_unknown():
+    """An unknown extent must not render as a zero-length one."""
+    from kuaa.eval.slates import _scene_timecode
+
+    assert _scene_timecode(83.0, 0.0, 24.0) == "00:01:23:00"
+    assert _scene_timecode(83.0, 83.0, 24.0) == "00:01:23:00"
+
+
+def test_first_scene_gets_a_real_range_not_the_missing_metadata_default():
+    """Scene 1 starts at 0.0, which the old ``start_s > 0`` gate read as
+    "no metadata" — so the one scene every film has showed a bare
+    ``00:00:00`` while its siblings showed a stamp."""
+    from kuaa.eval.slates import _candidate_row, _FilmMeta
+
+    meta = _FilmMeta(
+        title="F",
+        year=1949,
+        fps=24.0,
+        kf_by_scene={1: {"scene_id": 1, "start_time_s": 0.0, "end_time_s": 30.0}},
+        desc_by_scene={},
+        tags_by_scene={},
+        data_dir=Path("/srv/data"),
+    )
+    row = _candidate_row(scene_id=1, film_slug="f", score=1.0, meta=meta)
+    assert row["timecode"] == "00:00:00:00 – 00:00:30:00 (30s)"
+
+
+def test_candidate_row_without_keyframe_metadata_keeps_the_safe_default():
+    from kuaa.eval.slates import _candidate_row, _FilmMeta
+
+    meta = _FilmMeta(
+        title="F",
+        year=0,
+        fps=24.0,
+        kf_by_scene={},
+        desc_by_scene={},
+        tags_by_scene={},
+        data_dir=Path("/srv/data"),
+    )
+    row = _candidate_row(scene_id=9, film_slug="f", score=1.0, meta=meta)
+    assert row["timecode"] == "00:00:00"

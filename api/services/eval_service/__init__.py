@@ -18,7 +18,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from api.services.eval_service._admin import require_admin
+from api.services.eval_service._admin import require_admin, require_current_pool
 from api.services.eval_service._current_query import build_current_query_view
 from kuaa.eval.datasets import load_queries as _load_queries  # noqa: F401
 from kuaa.eval.grader_metrics import (
@@ -69,7 +69,12 @@ from kuaa.eval.paths import (
     eval_run_id as _eval_run_id,
 )
 
-__all__ = ["build_eval_context", "compute_query_metrics", "require_admin"]
+__all__ = [
+    "build_eval_context",
+    "compute_query_metrics",
+    "require_admin",
+    "require_current_pool",
+]
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
@@ -84,6 +89,10 @@ def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
 
     run_root = _eval_root(cfg)
     run_id = _eval_run_id(cfg)
+    # Before anything is rendered: a pool whose films have been re-cut since
+    # generation numbers its scenes differently, so every grade taken against
+    # it would be recorded about the wrong scene.
+    require_current_pool(cfg, root=run_root, run_id=run_id)
     run = EvalRun(run_id=run_id, root=run_root)
     loaded = load_run(run)
     per_annotator = load_run_per_annotator(run)
@@ -103,16 +112,28 @@ def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
     blind_mode = pooled_run
     compare_mode = False
     token = os.getenv("EVAL_ADMIN_TOKEN", "")
+    requested_qid = ""
     if request is not None:
         grader_name = request.cookies.get("grader", "anon")
         blind_cookie = request.cookies.get("eval_blind", "")
         blind_mode = blind_cookie == "1" if blind_cookie else pooled_run
         compare_mode = request.cookies.get("eval_compare", "") == "1"
         token = request.cookies.get("eval_admin") or request.query_params.get("token") or token
+        requested_qid = str(request.query_params.get("query", "") or "")
 
-    current_query = _first_ungraded(queries, per_annotator, grader_name) or (
-        queries[0] if queries else None
-    )
+    # An explicit ``?query=`` wins over the resume rule. Every queue row in
+    # queue.html has rendered exactly that link since the pane shipped, and
+    # nothing read the parameter — so clicking a query silently re-ran the
+    # resume rule and landed you wherever it pointed. Combined with a resume
+    # rule that skipped any query with a single judgment on it, the queue was
+    # forward-only and a query left half-graded could not be reopened at all.
+    current_query = None
+    if requested_qid:
+        current_query = next((q for q in queries if str(q.get("id", "")) == requested_qid), None)
+    if current_query is None:
+        current_query = _first_ungraded(queries, per_annotator, grader_name) or (
+            queries[0] if queries else None
+        )
 
     annotator_count, iaa_kappa = _annotator_summary(per_annotator)
     grades_by_query = _grades_by_query(loaded)

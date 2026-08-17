@@ -18,8 +18,8 @@ and GPU acceptance are E3b.
 from __future__ import annotations
 
 import copy
+import hashlib
 import logging
-import random
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -27,10 +27,13 @@ from typing import Any, cast
 
 from kuaa.config import Settings
 from kuaa.errors import EvalError
+from kuaa.eval.registry import CLIP_ONLY, POOL_VARIANTS, RetrieverVariant
 from kuaa.library import Library, derive_fps, keyframe_url, load_metadata, to_smpte
+from kuaa.retrieval.hybrid import DEFAULT_RRF_K
 from kuaa.rhymes import find_rhymes
 from kuaa.scene_ids import scene_id_key
-from kuaa.search import Query, SearchMode, find
+from kuaa.search import Query, find
+from kuaa.search._aggregate.fusion import fuse_global_rrf
 
 logger = logging.getLogger(__name__)
 
@@ -52,38 +55,20 @@ _ROW_KEYS = (
 _VALID_TYPES = frozenset({"text", "image", "rhyme"})
 
 
-@dataclass(frozen=True)
-class RetrieverVariant:
-    """One retriever configuration that contributes candidates to a pool.
+def _known_search_keys(search: Any) -> set[str] | None:
+    """Field names ``search`` accepts, or ``None`` when they can't be known.
 
-    ``cfg_overrides`` are applied to ``cfg.search`` for this call only — the
-    metadata leg has no ``find`` parameter, it is resolved from config by
-    ``kuaa.retrieval.hybrid.resolve_metadata_w``, so turning it off means
-    handing ``find`` a config that says so.
+    Pydantic models declare ``model_fields``; the duck-typed namespaces the
+    test suite passes expose ``__dict__``. Anything else (a mock, a proxy)
+    returns ``None``, which the caller reads as "cannot validate here".
     """
-
-    name: str
-    mode: SearchMode = "clip"
-    rerank: bool = False
-    cfg_overrides: dict[str, Any] = field(default_factory=dict)
-
-
-#: Stock CLIP, no overrides. The image path uses this directly: ``find``
-#: forces CLIP for image queries regardless of ``mode``, so pooling an image
-#: query across text retrievers would call five variants to get one answer.
-CLIP_ONLY = RetrieverVariant(name="clip")
-
-#: The retrievers a text pool spans — the same five the ablation table
-#: reports, so every row it compares had a chance to propose candidates.
-POOL_VARIANTS: tuple[RetrieverVariant, ...] = (
-    CLIP_ONLY,
-    RetrieverVariant(name="bm25", mode="bm25"),
-    RetrieverVariant(name="hybrid", mode="hybrid"),
-    RetrieverVariant(
-        name="hybrid_no_metadata", mode="hybrid", cfg_overrides={"hybrid_metadata_w": 0.0}
-    ),
-    RetrieverVariant(name="hybrid_rerank", mode="hybrid", rerank=True),
-)
+    fields = getattr(type(search), "model_fields", None)
+    if isinstance(fields, dict):
+        return set(fields)
+    attrs = getattr(search, "__dict__", None)
+    if isinstance(attrs, dict):
+        return set(attrs)
+    return None
 
 
 def _cfg_with(cfg: Any, **search_overrides: Any) -> Any:
@@ -92,6 +77,15 @@ def _cfg_with(cfg: Any, **search_overrides: Any) -> Any:
     Returns ``cfg`` untouched when there is nothing to override, so the common
     path allocates nothing. Handles both the pydantic ``Settings`` and the
     duck-typed ``SimpleNamespace`` configs the test suite passes.
+
+    Every override key is checked against the settings model first.
+    ``model_copy(update=...)`` does **not** validate, so a typo'd key used to be
+    set silently and the variant quietly became a duplicate of the one it was
+    meant to differ from — the exact failure this function exists to prevent,
+    reintroduced by the mechanism chosen to implement it.
+
+    Raises:
+        EvalError: an override names a field ``cfg.search`` does not have.
     """
     if not search_overrides or cfg is None:
         return cfg
@@ -104,6 +98,15 @@ def _cfg_with(cfg: Any, **search_overrides: Any) -> Any:
         new_cfg = copy.copy(cfg)
         new_cfg.search = SimpleNamespace(**search_overrides)
         return new_cfg
+    known = _known_search_keys(search)
+    if known is not None:
+        unknown = sorted(set(search_overrides) - known)
+        if unknown:
+            raise EvalError(
+                f"unknown cfg.search override(s) {unknown} on {type(search).__name__} — "
+                f"a variant that overrides a field the config does not have is "
+                f"indistinguishable from the variant it was meant to differ from"
+            )
     if hasattr(search, "model_copy") and hasattr(cfg, "model_copy"):
         return cfg.model_copy(update={"search": search.model_copy(update=dict(search_overrides))})
     new_search = copy.copy(search)
@@ -259,6 +262,31 @@ def _resolve_image(image_path: Path) -> Path:
 # ── candidate-row builder ───────────────────────────────────────────────────
 
 
+def _scene_timecode(start_s: float, end_s: float, fps: float) -> str:
+    """``start – end (duration)`` for one scene; the start alone when unknown.
+
+    The row shows the scene's **extent**, not just where it opens, because a
+    grader comparing a description against a thumbnail needs to know how much
+    scene sits between them. The thumbnail is the middle keyframe and the
+    stamp is the start, so on a long scene they are legitimately seconds
+    apart — without the extent, that reads as the row being wrong and sends
+    the grader to the video file to check. Half this library's scenes run over
+    5s and the 90th percentile is 31s, so it is not a rare case.
+
+    Falls back to the bare start when ``end_s`` is missing or not after it:
+    an unknown extent must not be rendered as a zero-length one.
+    """
+    start = to_smpte(start_s, fps)
+    if end_s <= start_s:
+        return start
+    duration = end_s - start_s
+    # One decimal under 10s — a "0s" scene reads as broken metadata, and at
+    # this end of the range the fraction is the difference between a cut and
+    # a held shot.
+    length = f"{duration:.1f}s" if duration < 10 else f"{round(duration)}s"
+    return f"{start} – {to_smpte(end_s, fps)} ({length})"
+
+
 def _candidate_row(
     *,
     scene_id: int,
@@ -278,8 +306,15 @@ def _candidate_row(
     desc_entry = meta.desc_by_scene.get(key) or {}
     description = str(desc_entry.get("description", "")) if isinstance(desc_entry, dict) else ""
     kf_entry = meta.kf_by_scene.get(scene_id) or {}
-    start_s = float(kf_entry.get("start_time_s") or 0.0)
-    timecode = to_smpte(start_s, meta.fps) if start_s > 0 else "00:00:00"
+    timecode = (
+        _scene_timecode(
+            float(kf_entry.get("start_time_s") or 0.0),
+            float(kf_entry.get("end_time_s") or 0.0),
+            meta.fps,
+        )
+        if kf_entry
+        else "00:00:00"
+    )
     # Resolve the *real* served keyframe URL from the scene's stored filepath
     # (production layout: frames/scenes/keyframes_content/...), mirroring the
     # rhymes enricher. Falls back to "" when the scene has no on-disk keyframe
@@ -299,7 +334,10 @@ def _candidate_row(
     }
     # The 9-key contract is a self-checking invariant: every consumer
     # (the /eval rows template, E3b scoring) depends on exactly these keys.
-    assert set(row) == set(_ROW_KEYS), f"candidate row key drift: {sorted(row)}"
+    # A ``raise``, not an ``assert``: this is the sole enforcement of the
+    # contract, and ``python -O`` strips asserts.
+    if set(row) != set(_ROW_KEYS):
+        raise ValueError(f"candidate row key drift: {sorted(row)}")
     return row
 
 
@@ -344,6 +382,44 @@ def _empty_meta(slug: str, data_dir: Path) -> _FilmMeta:
     )
 
 
+def _representative_keyframes(kf_meta: list) -> dict[int, dict]:
+    """``scene_id -> the scene's MIDDLE keyframe row``.
+
+    Scene detection writes ``keyframes_per_scene`` rows per scene (3 by
+    default), and the middle one is this project's representative frame
+    everywhere it is chosen deliberately — ``annotations.scenes.
+    build_scene_list``, ``preprocess.service._grouped_scenes``, and the
+    describer itself (``llm.keyframes: middle``, so ``scene_descriptions``
+    describes ``scene_NNNN_kf_02``).
+
+    This map used to be a dict comprehension over every row, which is
+    last-write-wins: it selected ``kf_03``, near the END of the scene, while
+    the description beside it in the same row described ``kf_02``. Nothing
+    was inconsistent about the data — the row was assembling two different
+    moments and presenting them as one. A grader checking the thumbnail
+    against the description, or against the video at the row's timecode,
+    finds them a few seconds apart, and the gap scales with scene duration
+    (library median 4.7s, p90 31.5s), which is why it reads as intermittent.
+
+    Sorted by ``keyframe_id`` rather than trusting file order, so the
+    "middle" is the middle of the scene and not of however the rows happened
+    to be written.
+    """
+    groups: dict[int, list[dict]] = {}
+    for entry in kf_meta:
+        if not isinstance(entry, dict) or entry.get("scene_id") is None:
+            continue
+        try:
+            sid = int(entry["scene_id"])
+        except (TypeError, ValueError):
+            continue
+        groups.setdefault(sid, []).append(entry)
+    return {
+        sid: sorted(group, key=lambda e: str(e.get("keyframe_id", "")))[len(group) // 2]
+        for sid, group in groups.items()
+    }
+
+
 def _film_meta_loader(cfg: Settings, library_dir: Path):
     """Return a ``slug -> _FilmMeta`` memoised loader.
 
@@ -383,7 +459,7 @@ def _film_meta_loader(cfg: Settings, library_dir: Path):
         try:
             metadata_dir = library_dir / slug / "metadata"
             kf_meta, desc_by_scene, _vis, tag_index = load_metadata(metadata_dir)
-            kf_by_scene = {int(e["scene_id"]): e for e in kf_meta if "scene_id" in e}
+            kf_by_scene = _representative_keyframes(kf_meta)
             meta = replace(
                 meta,
                 fps=derive_fps(kf_meta),
@@ -402,31 +478,32 @@ def _film_meta_loader(cfg: Settings, library_dir: Path):
 # ── public dispatch ─────────────────────────────────────────────────────────
 
 
-def generate_slate(
+def rank_candidates(
     *,
     query: ModalQuery,
     cfg: Settings,
     library_dir: Path,
     k: int = 9,
     film_slug: str | None = None,
-    blind_rows: bool = True,
-    blind_seed: str = "",
 ) -> list[CandidateRow]:
-    """Generate a candidate slate for ``query`` by calling the real backend.
+    """Candidates for ``query`` in the retrieval system's own order, scores intact.
 
-    Dispatches on ``query.query_type`` to one of the ``_slate_*`` helpers,
-    each of which calls the production retrieval primitive for that modality
-    and maps the results into :data:`CandidateRow` dicts (descending score,
-    ``k`` rows max). Films/scenes without metadata are rendered with safe
-    defaults rather than raising.
+    This is the **measurement** surface. Dispatches on ``query.query_type`` to
+    one of the ``_slate_*`` helpers, each of which calls the production
+    retrieval primitive for that modality and maps the results into
+    :data:`CandidateRow` dicts (``k`` rows max). Films/scenes without metadata
+    are rendered with safe defaults rather than raising.
 
     Text queries are **pooled** across every retriever variant (see
     :func:`pool_candidates`); image queries are CLIP-only and rhyme calls its
     dedicated primitive, neither having a competing retriever to union with.
 
-    ``blind_rows`` (default on) shuffles the result and blanks ``score`` — see
-    :func:`blind`. Pass ``blind_rows=False`` only for tooling that needs the
-    retriever's own ordering, never for anything a grader will see.
+    Never hand the result to a grader — position is the system's opinion and
+    ``score`` is its confidence. :func:`generate_slate` is the grader-facing
+    surface, and it is blind by construction rather than by argument: a
+    boolean whose wrong value silently produces wrong numbers is not a safe
+    thing to own. (It did: every image and rhyme metric this project has
+    published was computed over a seeded shuffle.)
 
     ``film_slug`` scopes text/image search to a single film *before* the
     top-``k`` truncation. Without it the search merges all films and keeps the
@@ -447,10 +524,34 @@ def generate_slate(
     if helper is None:
         raise EvalError(f"cannot generate slate for unknown query_type {query.query_type!r}")
     load_meta = _film_meta_loader(cfg, library_dir)
-    rows = helper(
+    return helper(
         query=query, cfg=cfg, library_dir=library_dir, k=k, load_meta=load_meta, film_slug=film_slug
     )
-    return blind(rows, seed=f"{blind_seed}:{query.id}") if blind_rows else rows
+
+
+def generate_slate(
+    *,
+    query: ModalQuery,
+    cfg: Settings,
+    library_dir: Path,
+    k: int = 9,
+    film_slug: str | None = None,
+    blind_seed: str = "",
+) -> list[CandidateRow]:
+    """Generate a grader-facing candidate slate — always blinded.
+
+    :func:`rank_candidates` followed by :func:`blind`. There is no argument
+    that turns the blinding off; measurement tooling calls
+    :func:`rank_candidates` directly and says so at its call site.
+    """
+    rows = rank_candidates(query=query, cfg=cfg, library_dir=library_dir, k=k, film_slug=film_slug)
+    return blind(rows, seed=f"{blind_seed}:{query.id}")
+
+
+def _blind_order_key(row: CandidateRow, *, seed: str) -> bytes:
+    """Stable per-candidate sort key: hash of ``(seed, film_slug, scene_id)``."""
+    material = f"{seed}\x00{row.get('film_slug', '')}\x00{scene_id_key(row.get('scene_id', ''))}"
+    return hashlib.blake2b(material.encode("utf-8"), digest_size=16).digest()
 
 
 def blind(rows: list[CandidateRow], *, seed: str) -> list[CandidateRow]:
@@ -464,16 +565,19 @@ def blind(rows: list[CandidateRow], *, seed: str) -> list[CandidateRow]:
     * **Score.** ``rows.html`` renders ``score`` as a number and a progress
       bar, which broadcasts the retriever's confidence.
 
-    The shuffle is seeded by ``(run, query)`` so a regenerated slate presents
-    in the same order — a grader resuming a run should not meet a reshuffled
-    queue — and so tests are deterministic.
+    Order is a sort on a per-candidate hash of ``(seed, film_slug, scene_id)``,
+    not a shuffle of the list. Both give the same guarantee for an unchanged
+    pool — a grader resuming a run meets the same queue — but a list shuffle
+    repermutes *everything* when one candidate is added or removed, which
+    breaks that promise on exactly the edit that motivates it. Keying on the
+    candidate instead means a pool edit moves only the candidates it touched,
+    so a variant change can be re-graded as a diff rather than a full pass.
 
     ``pool`` survives untouched: the template ignores unknown keys, and it is
     what makes per-leg scoring possible after grading.
     """
-    shuffled = list(rows)
-    random.Random(seed).shuffle(shuffled)
-    return [{**row, "score": None} for row in shuffled]
+    ordered = sorted(rows, key=lambda row: _blind_order_key(row, seed=seed))
+    return [{**row, "score": None} for row in ordered]
 
 
 def _iter_films(library_dir: Path) -> list[str]:
@@ -500,10 +604,62 @@ def _iter_films(library_dir: Path) -> list[str]:
     return sorted(p.name for p in library_dir.iterdir() if p.is_dir())
 
 
+def _merge_across_films(
+    per_film: dict[str, list[CandidateRow]], *, k: int, rrf_k: int = DEFAULT_RRF_K
+) -> list[CandidateRow]:
+    """Interleave per-film ranked lists into one cross-film ranking.
+
+    Rank-based, via :func:`fuse_global_rrf` on ``(slug, scene_id)`` keys — the
+    same primitive and the same key the cross-film ``aggregate`` path uses.
+    Sorting a flat list by raw ``score`` instead is only defensible for CLIP:
+    BM25 scores carry per-film IDF and RRF fused scores are per-film rank
+    transforms, so neither is comparable between films. The previous sort made
+    the pool's cross-film membership a function of which film happened to
+    produce larger numbers.
+
+    Each film's list gets equal weight, which makes the result **round-robin
+    by sorted slug**: every film's rank-1 candidate scores ``1/(rrf_k+1)``, so
+    all rank-1s precede all rank-2s, and within a rank the stable sort
+    preserves the sorted-slug insertion order. That interleave is part of the
+    pool's semantics — it decides which candidates survive the ``k`` cut — so
+    it is specified here and pinned by test rather than left to emerge.
+
+    ``score`` on the returned rows stays the retriever's own value: it is
+    meaningful *within* a film and is what the measurement path reports.
+    Position, not score, is the cross-film ranking.
+
+    **``k`` must be at least the number of films.** Below that the cut lands
+    mid-rotation and the last-sorting slugs are dropped from every call — by
+    name, not by relevance. It is a property of ``k`` and the corpus rather
+    than of any retriever, so no per-variant check can see it;
+    :func:`kuaa.eval.composition.analyse_pool` checks it against the searched
+    film list and fails the run.
+
+    The interleave is deliberately blind to how strongly a film matched: a
+    query answered entirely by one film still gets one candidate per film at
+    each rank. That is the price of not comparing scores across films, and it
+    is why the ``pool`` rank values encode slug position rather than
+    confidence — they identify *which* variants proposed a scene, which is
+    what the composition report and per-leg recall need, and they are not a
+    per-variant ranking to score.
+    """
+    by_key: dict[str, CandidateRow] = {}
+    weighted: list[tuple[list[tuple[str, float]], float]] = []
+    for slug in sorted(per_film):
+        ranked: list[tuple[str, float]] = []
+        for row in per_film[slug]:
+            key = f"{slug}/{scene_id_key(row['scene_id'])}"
+            by_key[key] = row
+            ranked.append((key, float(row["score"])))
+        weighted.append((ranked, 1.0))
+    fused = fuse_global_rrf(weighted, k_rrf=rrf_k)
+    return [by_key[key] for key, _score in fused[:k]]
+
+
 def _slate_find(
     *, q: Query, cfg, library_dir, k, load_meta, film_slug=None, variant: RetrieverVariant | None
 ) -> list[CandidateRow]:
-    """One retriever variant's ``find`` over ``q`` per film, merged by score.
+    """One retriever variant's ``find`` over ``q`` per film, interleaved by rank.
 
     ``variant`` selects the retriever; ``None`` means CLIP with stock config,
     which is what the image path wants (``find`` forces CLIP for image queries
@@ -512,10 +668,16 @@ def _slate_find(
     ``film_slug`` restricts the search to that single film, so the top-``k``
     truncation happens within the scoped film rather than across the whole
     library.
+
+    Per-film order is ``find``'s own — which, for the rerank variant, is the
+    cross-encoder's order. The previous re-sort by ``hit.score`` discarded it
+    (``rerank`` writes ``Hit.rerank_score`` and leaves ``Hit.score`` alone),
+    so the reranked variant paid for a cross-encoder pass and then handed back
+    the ranking it started from.
     """
     variant = variant or CLIP_ONLY
     call_cfg = _cfg_with(cfg, **variant.cfg_overrides)
-    rows: list[CandidateRow] = []
+    per_film: dict[str, list[CandidateRow]] = {}
     slugs = [film_slug] if film_slug else _iter_films(library_dir)
     for slug in slugs:
         ctx = _ctx_for(library_dir, slug)
@@ -530,17 +692,25 @@ def _slate_find(
             cfg=call_cfg,
         )
         meta = load_meta(slug)
-        for hit in result.hits:
-            # Only hit.scene_id + hit.score are load-bearing here. Description,
-            # tags, year and timecode are re-read from per-film metadata in
-            # _candidate_row because Hit carries none of those (Hit.description
-            # exists but tags/year/timecode do not — see search.types.Hit), so
-            # we go to metadata for all four to keep the 9-key row consistent.
-            rows.append(
-                _candidate_row(scene_id=hit.scene_id, film_slug=slug, score=hit.score, meta=meta)
-            )
-    rows.sort(key=lambda r: r["score"], reverse=True)
-    return rows[:k]
+        # Only hit.scene_id + hit.score are load-bearing here. Description,
+        # tags, year and timecode are re-read from per-film metadata in
+        # _candidate_row because Hit carries none of those (Hit.description
+        # exists but tags/year/timecode do not — see search.types.Hit), so
+        # we go to metadata for all four to keep the 9-key row consistent.
+        per_film[slug] = [
+            _candidate_row(scene_id=hit.scene_id, film_slug=slug, score=hit.score, meta=meta)
+            for hit in result.hits
+        ]
+    return _merge_across_films(per_film, k=k, rrf_k=_rrf_k_from(cfg))
+
+
+def _rrf_k_from(cfg: Any) -> int:
+    """``cfg.search.bm25.rrf_k`` when present, else the shipped default."""
+    bm25_cfg = getattr(getattr(cfg, "search", None), "bm25", None)
+    try:
+        return int(getattr(bm25_cfg, "rrf_k", DEFAULT_RRF_K))
+    except (TypeError, ValueError):
+        return DEFAULT_RRF_K
 
 
 def pool_candidates(
@@ -557,6 +727,12 @@ def pool_candidates(
     Each row carries ``pool``: ``{variant_name: rank_it_proposed_at}``. That is
     what makes per-leg scoring possible after grading; without it a graded pool
     can only be scored as a whole.
+
+    Output order is dict insertion order: every variant's candidates in the
+    order :func:`_merge_across_films` produced them, variants in registry
+    order, each candidate held at the position of the *first* variant to
+    propose it. That is load-bearing — it is the order :func:`blind` is handed
+    and the order a truncated pool would keep — so it is pinned by test.
     """
     pooled: dict[str, CandidateRow] = {}
     for variant in variants:
@@ -670,19 +846,22 @@ def thin_rows(rows: list[CandidateRow]) -> list[dict]:
 def hydrate_rows(rows: list[dict], *, cfg: Settings, library_dir: Path) -> list[CandidateRow]:
     """Rebuild full rows-template rows from thin ones, preserving order.
 
-    A row that already carries the full key set passes through untouched, so
-    fat slates written before thinning — and the mock rows from
-    ``kuaa.eval.seed`` — keep rendering without a migration.
+    A row that already carries the full key set passes through with its
+    ``score`` blanked, so fat slates written before thinning — and the mock
+    rows from ``kuaa.eval.seed`` — keep rendering without a migration.
 
-    ``score`` is restored as ``None``: a persisted slate is a graded pool's
-    candidate list, and re-deriving a score here would hand the grader the
-    retriever's opinion that :func:`blind` exists to withhold.
+    ``score`` is ``None`` on **every** returned row, whichever path it took: a
+    persisted slate is a graded pool's candidate list, and a score here is the
+    retriever's opinion that :func:`blind` exists to withhold. The fat-row
+    passthrough used to return ``score`` intact while this docstring promised
+    otherwise — the one re-entry point where a stored score could reach the
+    page.
     """
     load_meta = _film_meta_loader(cfg, library_dir)
     out: list[CandidateRow] = []
     for row in rows:
         if set(row) >= set(_ROW_KEYS):
-            out.append(cast(CandidateRow, row))
+            out.append(cast(CandidateRow, {**row, "score": None}))
             continue
         slug = str(row.get("film_slug", ""))
         try:
@@ -725,10 +904,15 @@ def _ctx_for(library_dir: Path, slug: str) -> _SlateFilmCtx | None:
 
 
 __all__ = [
+    "CLIP_ONLY",
+    "POOL_VARIANTS",
     "CandidateRow",
     "ModalQuery",
+    "RetrieverVariant",
     "generate_slate",
     "hydrate_rows",
     "load_modal_queries",
+    "pool_candidates",
+    "rank_candidates",
     "thin_rows",
 ]
