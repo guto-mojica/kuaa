@@ -194,9 +194,19 @@ skips = ["B101", "B110", "B404", "B603"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --tb=short --strict-markers"
+# Markers are EXCLUSIONS, not an opt-in allowlist. The fast gate is
+# `-m "not heavy and not e2e"`, so a new test is in it by default and nobody
+# has to remember to add it.
+#
+# That inversion is the point. The gate used to be `-m smoke`, an opt-in that
+# two files ever opted into: 23 of ~1300 tests, ~2% of the suite, while
+# `heavy` — the marker that was supposed to carve out the expensive half —
+# was applied to nothing at all. The measurement that fixed it: with torch,
+# transformers, ultralytics, llama_cpp, facenet and open_clip blocked at
+# import, the whole suite still COLLECTS and only five tests fail. Those five
+# are marked `heavy`; everything else runs on a `web`-extra install in ~41s.
 markers = [
-    "smoke: fast, model-free tests; the default CI gate (no torch/transformers weights).",
-    "heavy: requires the `full` extra / model wheels (mocked weights ok, real imports needed).",
+    "heavy: needs real model wheels at runtime (the `full` extra); excluded from the fast gate.",
     "acceptance: runs against real on-disk demo artefacts (Jeca Tatu); skipped when absent.",
     "e2e: browser-driven Playwright tests (a11y + UI render smoke).",
 ]

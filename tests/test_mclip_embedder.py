@@ -83,6 +83,7 @@ def test_encode_text_raises_on_missing_sentence_transformers():
             emb.encode_text("x")
 
 
+@pytest.mark.heavy
 def test_load_mclip_uses_correct_model_name():
     """SentenceTransformer is constructed with _ST_MODEL_NAME."""
     emb = MClipEmbedder(cfg=None, device=None)
