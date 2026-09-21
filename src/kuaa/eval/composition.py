@@ -84,11 +84,10 @@ class CompositionReport:
     identical_pairs: list[tuple[str, str]] = field(default_factory=list)
     #: Human-readable reasons the pool is not fit to grade. Empty == fit.
     failures: list[str] = field(default_factory=list)
-    #: Films seen, sorted — the interleave in ``_merge_across_films`` is
-    #: round-robin by sorted slug, so the slug list is part of pool semantics.
+    #: Films that reached at least one pool, sorted.
     films: list[str] = field(default_factory=list)
-    #: Films the generator searched that never reached a pool. Non-empty means
-    #: ``k`` fell below the film count and the cut excluded them by name.
+    #: Films the generator searched that never reached a pool: no variant
+    #: ranked any of their scenes into its top ``k`` for any query.
     missing_films: list[str] = field(default_factory=list)
 
     @property
@@ -177,14 +176,13 @@ def analyse_pool(
     ``rhyme``: there is nothing to span, so an empty audit is the correct
     outcome rather than a failure.
 
-    ``library_films`` is every slug the generator searched. Films that were
-    searched and never surfaced are a failure, because the cross-film merge
-    interleaves round-robin by sorted slug: with ``k`` below the film count,
-    the cut lands mid-rotation and the last-sorting films are excluded from
-    every query in the run, alphabetically rather than by relevance. That is a
-    property of ``k`` and the corpus, not of any retriever, so no per-variant
-    check can see it — which is exactly why it belongs here rather than in an
-    operator's memory of what ``--k`` should be.
+    ``library_films`` is every slug the generator searched. A film that was
+    searched and never surfaced is a failure: the pool is built from each
+    variant's library-wide top ``k``, so a film earns candidates or gets
+    none, and one that earns none from every variant on every query is
+    either not indexed or not reached by the query set. Grades drawn from
+    that pool cannot say anything about it, and nothing per-variant can see
+    the gap — each retriever's own list looks complete.
     """
     declared = variants if variants is not None else tuple(RETRIEVER_REGISTRY.values())
     text_records = [r for r in records if r.get("query_type") == "text"]
@@ -256,10 +254,10 @@ def analyse_pool(
         report.missing_films = sorted(set(library_films) - set(report.films))
         if report.missing_films:
             report.failures.append(
-                f"film(s) {report.missing_films} were searched and never reached any pool — "
-                f"raise --k to at least the film count ({len(set(library_films))}): the "
-                f"cross-film merge interleaves round-robin by sorted slug, so a k below "
-                f"that excludes the last-sorting films alphabetically, not by relevance"
+                f"film(s) {report.missing_films} were searched and never reached any pool: "
+                f"no variant ranked a scene of theirs into its top k for any query. Check "
+                f"that the film is indexed and that at least one query targets it — a "
+                f"graded pool that never shows a film cannot judge retrieval on it"
             )
     return report
 

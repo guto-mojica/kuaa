@@ -77,19 +77,36 @@ step nothing can do for you. See *Authoring a query set* below.
 
 ```bash
 uv run kuaa eval slate --queries data/eval/corpus01_queries.yaml \
-  --run corpus01 --root data/eval --modality all --k 11
+  --run corpus01 --root data/eval --modality all --k 10
 ```
 
 This calls the real retrievers and writes `corpus01.queries.json`. No judgment
 in it.
 
-**`--k` must be at least the number of films in the library.** The cross-film
-merge interleaves round-robin by sorted slug — rank 1 from every film, then
-rank 2 — so a `k` below the film count cuts mid-rotation and the
-last-sorting films are excluded from every query in the run, alphabetically
-rather than by relevance. `corpus01` has 11 films, hence `--k 11`. The
-composition report checks this and exits non-zero if any searched film never
-reached a pool, so the constraint is enforced rather than remembered.
+**`--k` is each variant's ranking depth, not a per-film quota.** A variant
+scores the whole library into one list and contributes its top `k`
+(`_slate_find_global` in `src/kuaa/eval/slates.py`) — the same ranking the
+Buscar tab serves. A film earns candidates or gets none. Set `k` to the depth
+the app actually shows, `search.top_k_default`, currently 9: a pool deeper
+than anyone sees spends grading hours no measurement reads, and a shallower
+one leaves part of the served page unjudged. `corpus01` runs at `--k 10`.
+
+**A per-film quota is the thing being avoided.** `_merge_across_films` seats
+every film in round-robin slug order, and a pool built that way does need `k`
+at least the film count, or the cut lands mid-rotation and drops the
+last-sorting slugs alphabetically. That interleave is a coverage device, not a
+ranking any retriever produces. Pooling from it yielded a graded set covering
+42-59% of what `aggregate` returns at k=10, and the unjudged remainder scores
+as irrelevant — which penalises whichever retriever diverges most from the
+pool rather than whichever ranks worst. The merge now serves only the
+film-scoped path, where there is no cross-film ordering to get wrong.
+
+The composition report still fails a run when a film that was searched never
+reached any pool. Under the global ranking that means no variant ranked any of
+its scenes into its top `k` for any query — the film is either not indexed or
+not reached by the query set, and grades from that pool cannot judge retrieval
+on it. It is not a `--k` problem: check the index and the queries, not the
+depth.
 
 It also writes two things beside the pool:
 

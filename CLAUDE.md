@@ -251,9 +251,16 @@ and `preprocess.service._migrate_eval_grades` relabels existing grades through
 the same `old_to_new` map the cut edit already computes.
 
 **`kuaa eval slate` exits non-zero on a pool that is not fit to grade** and
-writes `<run>.pool_composition.json` beside it. `--k` must be at least the
-film count — the cross-film merge interleaves round-robin by sorted slug, so a
-smaller `k` excludes the last-sorting films alphabetically.
+writes `<run>.pool_composition.json` beside it.
+
+**`--k` is each variant's ranking depth, not a per-film quota.** A variant
+scores the whole library into one list and contributes its top `k`, so a film
+earns candidates or gets none. Set it to the depth the app serves
+(`search.top_k_default`), never to the film count: a per-film quota pools from
+a round-robin interleave that no retriever produces, and the graded set it
+yields covers a fraction of what `aggregate` actually returns — the unjudged
+remainder scores as irrelevant, penalising whichever retriever diverges most
+from the pool rather than whichever ranks worst.
 
 **Three files, three roles** — the names do not make this obvious:
 

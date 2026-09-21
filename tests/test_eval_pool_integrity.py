@@ -460,14 +460,12 @@ def test_cut_edit_leaves_another_films_grades_alone(tmp_path):
 
 
 def test_composition_report_fails_when_a_film_never_reaches_the_pool():
-    """``k`` below the film count excludes films alphabetically, not by relevance.
+    """A film no variant surfaces on any query is unindexed or unreached.
 
-    The cross-film merge interleaves round-robin by sorted slug, so the ``k``
-    cut lands mid-rotation: on an 11-film library at ``k=9`` the two
-    last-sorting films are absent from *every* query in the run. No
-    per-variant check can see that — it is a property of ``k`` and the corpus
-    — so it has to be its own check rather than the operator's memory of what
-    ``--k`` should have been.
+    The pool is each variant's library-wide top ``k``, so a film earns
+    candidates or gets none. One that gets none everywhere is invisible to
+    the grades the pool will collect, and no per-variant check can see the
+    gap — every retriever's own list looks complete.
     """
     records = [
         _pool_record("q1", [{"scene_id": 1, "film_slug": "aaa", "pool": {"clip": 1}}]),
@@ -479,7 +477,7 @@ def test_composition_report_fails_when_a_film_never_reaches_the_pool():
     )
     assert not report.ok
     assert report.missing_films == ["zzz_last_alphabetically"]
-    assert any("raise --k" in f for f in report.failures)
+    assert any("never reached any pool" in f for f in report.failures)
 
 
 def test_composition_report_passes_when_every_searched_film_appears():
