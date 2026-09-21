@@ -140,10 +140,17 @@ class AblationTable:
     def _banner(self) -> list[str]:
         """The methodology banner: KI/PR/HY definitions + corpus + caveat."""
         if self.validated_label:
+            # No KI/PR/HY list here: those are the proxy tiers, and a graded
+            # table has no proxy tier to explain. Leaving the heading in place
+            # ended the banner on "Proxy signals:" followed by the table.
             return [
-                f"**Human-validated methodology.** {self.validated_label} "
-                "Every row below is scored on a common query set with the **same** "
-                "human grades, so the comparison is apples-to-apples. Proxy signals:",
+                f"**Human-validated methodology.** Labels are {self.validated_label}. "
+                "Every row is scored on the same query set against the same human "
+                "grades, so the comparison is apples-to-apples.",
+                "",
+                f"**Corpus.** {self.corpus or 'demo library'}.",
+                f"**Common query set.** {self.common_query_set or 'text queries'}.",
+                "",
             ]
         return [
             "**Proxy methodology.** These are **proxy metrics**, not human-graded "
@@ -175,14 +182,18 @@ class AblationTable:
         The methodology banner precedes the table; per-row footnotes (if any)
         follow it.
         """
-        headers = ["Retriever", "Proxy", *[label for _key, label in _METRIC_COLUMNS]]
+        label_col = "Labels" if self.validated_label else "Proxy"
+        headers = ["Retriever", label_col, *[label for _key, label in _METRIC_COLUMNS]]
         sep = ["---", "---", *["---:" for _ in _METRIC_COLUMNS]]
         lines = self._banner()
         lines.append("| " + " | ".join(headers) + " |")
         lines.append("| " + " | ".join(sep) + " |")
 
         for row_cfg, metrics in self.rows:
-            cells = [row_cfg.name, row_cfg.proxy]
+            # A graded row's label source is the grade log, not the row's proxy
+            # tier — rendering "HY" beside a human-graded number claims the
+            # wrong provenance for it.
+            cells = [row_cfg.name, "graded" if self.validated_label else row_cfg.proxy]
             if metrics is None:
                 reason = row_cfg.pending_reason or "not wired"
                 pending = f"pending ({reason})"
@@ -262,6 +273,7 @@ def _hy_text_dataset(
     library_dir: Path,
     cfg: Settings,
     graded_labels: dict[str, dict[str, float]] | None = None,
+    cross_film: bool = False,
 ) -> EvaluationDataset:
     """Build the common text :class:`EvaluationDataset` with HY proxy labels.
 
@@ -289,6 +301,12 @@ def _hy_text_dataset(
             raw_rel = graded_labels[q.id]
             # Canonicalise keys + keep only positive grades.
             relevance = {scene_id_key(k): float(v) for k, v in raw_rel.items() if float(v) > 0}
+            if not relevance and cross_film:
+                # Graded, but nothing in the pool was relevant. There is no
+                # cross-film proxy to fall back to, and a query with no
+                # relevant scene scores 0 for every row by construction.
+                logger.info("ablation: skipping %s — graded with no positive label", q.id)
+                continue
             if not relevance:
                 # All grades non-positive → fall back to proxy so this query
                 # contributes to the common set rather than being dropped.
@@ -303,6 +321,14 @@ def _hy_text_dataset(
             else:
                 rel_ids = tuple(relevance.keys())
                 method = "GRADED"
+        elif cross_film:
+            # Proxy labels are bare scene ordinals scoped to one film; a
+            # cross-film row ranks "<slug>/<scene_id>". Blending the two would
+            # score this query 0 against every row and pull the whole table
+            # down by an equal amount — invisible in the output, since a
+            # uniform drag still looks like a comparison.
+            logger.info("ablation: skipping %s — no human grades, and the run is cross-film", q.id)
+            continue
         else:
             rel_ids, relevance, method = proxy_labels(q, library_dir=library_dir, cfg=cfg)
             if method != "HY" or not rel_ids:
@@ -464,6 +490,61 @@ def _run_rerank_row(
     return summarize_results(results)
 
 
+def _run_variant_row_global(
+    cfg: Settings,
+    dataset: EvaluationDataset,
+    *,
+    library_dir: Path,
+    variant: RetrieverVariant,
+    seed: int,
+    top_k: int = 10,
+) -> dict[str, float | int]:
+    """One row over the library-wide ranking, keyed ``<slug>/<scene_id>``.
+
+    Used whenever the labels are human grades. A grade's key is
+    ``(query_id, "<film_slug>/<scene_id>")`` because ``scene_id`` alone is
+    unique only within a film and a pool spans the library — so the ranking
+    scored against it has to span the library too, and carry the same key.
+    The single-film rows below cannot: they scope the config to one slug and
+    rank bare ordinals, which joins to nothing and reads as 0.000 across the
+    whole table.
+
+    Retrieval comes from :func:`kuaa.eval.slates.rank_variant_global` — the
+    same call that built the pool — so the table cannot score a path the
+    grades do not cover.
+    """
+    from kuaa.eval.slates import _film_meta_loader, rank_variant_global
+    from kuaa.reproducibility import seed_everything
+    from kuaa.search import Query
+
+    seed_everything(seed)
+    load_meta = _film_meta_loader(cfg, library_dir)
+
+    results = []
+    for case in dataset.queries:
+        rows = rank_variant_global(
+            q=Query.of_text(case.text),
+            cfg=cfg,
+            library_dir=library_dir,
+            k=top_k,
+            variant=variant,
+            load_meta=load_meta,
+        )
+        ranked = tuple(f"{r['film_slug']}/{scene_id_key(r['scene_id'])}" for r in rows)
+        results.append(
+            evaluate_query(
+                query_id=case.id,
+                text=case.text,
+                relevant_scene_ids=case.relevant_scene_ids,
+                ranked_scene_ids=ranked,
+                relevance=case.relevance,
+            )
+        )
+    if not results:
+        raise EvalError("cross-film row produced no scorable queries")
+    return summarize_results(results)
+
+
 @dataclass(frozen=True)
 class _FilmCtx:
     """Minimal duck-typed ``film=`` arg for :func:`kuaa.search.find`.
@@ -532,8 +613,17 @@ def run_ablation(
     Returns:
         An :class:`AblationTable` ready to ``to_markdown()``.
     """
+    # Human grades are keyed "<slug>/<scene_id>" across the library, so they
+    # can only score a ranking that spans it. Proxy labels are bare ordinals
+    # from one film's query file, so they can only score the single-film rows.
+    # The label space, not a flag, decides which retrieval the table runs.
+    cross_film = graded_labels is not None
     dataset = _hy_text_dataset(
-        queries, library_dir=library_dir, cfg=cfg, graded_labels=graded_labels
+        queries,
+        library_dir=library_dir,
+        cfg=cfg,
+        graded_labels=graded_labels,
+        cross_film=cross_film,
     )
     slug = _primary_film_slug(library_dir, queries)
     corpus = _corpus_description(library_dir, slug, dataset)
@@ -556,6 +646,7 @@ def run_ablation(
                 library_dir=library_dir,
                 slug=slug,
                 seed=seed,
+                cross_film=cross_film,
             )
             rows.append((row_cfg, metrics))
         except Exception as exc:  # noqa: BLE001 - a failed row → honest pending
@@ -576,7 +667,7 @@ def run_ablation(
     return AblationTable(
         rows=rows,
         corpus=corpus,
-        common_query_set=f"{len(dataset.queries)} text queries (m3_full)",
+        common_query_set=f"{len(dataset.queries)} text queries",
         footnotes=footnotes,
         validated_label=validated_label,
     )
@@ -590,8 +681,19 @@ def _dispatch_row(
     library_dir: Path,
     slug: str,
     seed: int,
+    cross_film: bool = False,
 ) -> dict[str, float | int]:
     """Route one row config to its mechanics. Raises on an unknown retriever."""
+    if cross_film:
+        variant = RETRIEVER_REGISTRY.get(row_cfg.name)
+        if variant is None:
+            raise EvalError(
+                f"row {row_cfg.name!r} is not in the retriever registry — a cross-film row "
+                f"is run from the registry variant so it matches the pool the grades came from"
+            )
+        return _run_variant_row_global(
+            cfg, dataset, library_dir=library_dir, variant=variant, seed=seed
+        )
     retriever = row_cfg.retriever
     if row_cfg.rerank:
         return _run_rerank_row(cfg, dataset, library_dir=library_dir, slug=slug, seed=seed)

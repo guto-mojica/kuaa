@@ -292,7 +292,19 @@ def test_generate_slate_text_scopes_search_to_film_slug(tmp_path, monkeypatch):
             query=q,
         )
 
+    aggregated: list[int] = []
+
+    def fake_aggregate(q: Query, *, cfg, mode, top_k, weights=None, **kw):
+        aggregated.append(top_k)
+        return SearchResult(
+            hits=[Hit(scene_id=1, score=0.9, keyframe_path="", film_slug="alpha")],
+            mode="clip",
+            weights=None,
+            query=q,
+        )
+
     monkeypatch.setattr(slates, "find", fake_find)
+    monkeypatch.setattr(slates, "aggregate", fake_aggregate)
     monkeypatch.setattr(slates, "_iter_films", lambda lib: ["alpha", "beta"])
     monkeypatch.setattr(slates, "_ctx_for", lambda lib, slug: SimpleNamespace(slug=slug))
 
@@ -319,11 +331,13 @@ def test_generate_slate_text_scopes_search_to_film_slug(tmp_path, monkeypatch):
     # Every variant proposed the same scene, so it dedupes to one row.
     assert len(rows) == 1
 
-    # Unscoped (default): both films searched, still once per variant each.
+    # Unscoped (default): one library-wide ``aggregate`` per variant, and no
+    # per-film ``find`` walk at all — the global ranking already spans films.
     called.clear()
+    aggregated.clear()
     generate_slate(query=q, cfg=_cfg(), library_dir=tmp_path, k=5)
-    assert set(called) == {"alpha", "beta"}
-    assert len(called) == 2 * len(slates.POOL_VARIANTS)
+    assert called == [], "an unscoped text pool must not fall back to per-film find"
+    assert len(aggregated) == len(slates.POOL_VARIANTS)
 
 
 # ── text / image find path (cross-film, registry-free) ──────────────────────
@@ -348,12 +362,13 @@ def _hit(scene_id: int, score: float, film_slug: str) -> Any:
     )
 
 
-def test_generate_slate_dispatches_text_to_find(tmp_path: Path, monkeypatch):
-    """Text query → CLIP ``find`` per film, merged by descending score.
+def test_generate_slate_dispatches_text_to_aggregate(tmp_path: Path, monkeypatch):
+    """Text query → one library-wide ``aggregate`` per variant, unioned.
 
-    Exercises Fix #1: TWO on-disk film subdirs that are NOT registered in a
-    ``films.json`` still yield rows (the disk-scan fallback in ``_iter_films``
-    plus the path-derived ``_ctx_for`` must produce a real ``find`` context).
+    ``aggregate`` is the ranking the Buscar tab serves: every film's scenes in
+    one global list, so a film contributes as many candidates as it earns and
+    possibly none. Pooling from it is what makes the grades cover the system
+    the ablation table is supposed to score.
     """
     import kuaa.eval.slates as slates
 
@@ -362,17 +377,20 @@ def test_generate_slate_dispatches_text_to_find(tmp_path: Path, monkeypatch):
 
     captured: list[dict[str, Any]] = []
 
-    def _fake_find(query, *, film, mode, top_k, cfg, **kw):
-        # Capture per-call so we can assert the path-derived ctx + cross-film walk.
-        captured.append({"slug": film.slug, "is_text": query.text is not None, "mode": mode})
-        # Interleave scores across the two films so the global sort is observable.
-        per_film = {
-            "film_a": [_hit(10, 0.9, "film_a"), _hit(11, 0.5, "film_a")],
-            "film_b": [_hit(20, 0.8, "film_b"), _hit(21, 0.4, "film_b")],
-        }
-        return _search_result(per_film[film.slug])
+    def _fake_aggregate(query, *, cfg, mode, top_k, weights=None, **kw):
+        captured.append({"is_text": query.text is not None, "mode": mode, "top_k": top_k})
+        # One global list spanning both films — film_a takes two of the four
+        # places on merit, which the per-film interleave could never produce.
+        return _search_result(
+            [
+                _hit(10, 0.9, "film_a"),
+                _hit(20, 0.8, "film_b"),
+                _hit(11, 0.5, "film_a"),
+                _hit(21, 0.4, "film_b"),
+            ]
+        )
 
-    monkeypatch.setattr(slates, "find", _fake_find)
+    monkeypatch.setattr(slates, "aggregate", _fake_aggregate)
 
     q = ModalQuery(
         id="text-01",
@@ -388,17 +406,19 @@ def test_generate_slate_dispatches_text_to_find(tmp_path: Path, monkeypatch):
     )
     rows = rank_candidates(query=q, cfg=_cfg(), library_dir=tmp_path, k=9)
 
-    # find called once per (unregistered) film, per retriever variant.
-    assert {c["slug"] for c in captured} == {"film_a", "film_b"}
+    # Once per retriever variant, with the text query, and no per-film walk.
+    assert len(captured) == len(slates.POOL_VARIANTS)
     assert all(c["is_text"] for c in captured)
     # The pool spans every variant, not just CLIP — that is the whole point.
     assert {c["mode"] for c in captured} == {"clip", "bm25", "hybrid"}
+    # The rerank variant widens its first stage: reranking a k-length list can
+    # only permute the page the first stage already surfaced.
+    assert max(c["top_k"] for c in captured) > 9
     # Deduped by (film, scene): the same 4 scenes, however many variants
     # proposed them. Rows keep the 9-key contract plus the ``pool`` sidecar.
     assert len(rows) == 4
     for r in rows:
         assert set(r.keys()) == _ROWS_KEYS | {"pool"}
-    assert {r["film_slug"] for r in rows} == {"film_a", "film_b"}
     assert {(r["film_slug"], r["scene_id"]) for r in rows} == {
         ("film_a", 10),
         ("film_a", 11),
@@ -486,15 +506,27 @@ def _text_query(qid: str = "text-01") -> ModalQuery:
 
 
 def _pool_env(monkeypatch, per_variant: dict[str, list[tuple[int, float]]]):
-    """Stub ``find`` so each retriever mode returns its own hit list."""
+    """Stub the library-wide ``aggregate`` so each mode returns its own hit list.
+
+    An unscoped text pool retrieves through ``aggregate`` — the ranking the
+    Buscar tab serves — so that is the seam to stub. The rerank variant reaches
+    it as a second call: ``aggregate(mode="hybrid")`` followed by ``rerank``,
+    which is why the reranked list is keyed separately here.
+    """
     import kuaa.eval.slates as slates
 
-    def _fake_find(query, *, film, mode, top_k, cfg, rerank=False, **kw):
-        key = f"{mode}_rerank" if rerank else mode
-        hits = per_variant.get(key, per_variant.get(mode, []))
-        return _search_result([_hit(sid, score, film.slug) for sid, score in hits])
+    def _fake_aggregate(query, *, cfg, mode, top_k, weights=None, **kw):
+        hits = per_variant.get(mode, [])
+        return _search_result([_hit(sid, score, "film_a") for sid, score in hits])
 
-    monkeypatch.setattr(slates, "find", _fake_find)
+    def _fake_rerank(result, *, model="default", top_k_in=20):
+        hits = per_variant.get("hybrid_rerank")
+        if hits is None:
+            return result
+        return _search_result([_hit(sid, score, "film_a") for sid, score in hits])
+
+    monkeypatch.setattr(slates, "aggregate", _fake_aggregate)
+    monkeypatch.setattr(slates, "rerank", _fake_rerank)
     monkeypatch.setattr(slates, "_iter_films", lambda lib: ["film_a"])
     monkeypatch.setattr(slates, "_ctx_for", lambda lib, slug: SimpleNamespace(slug=slug))
 
@@ -532,19 +564,17 @@ def test_pool_dedupes_and_keeps_every_proposing_rank(tmp_path, monkeypatch):
 
 
 def test_metadata_leg_is_disabled_for_its_own_variant(tmp_path, monkeypatch):
-    """hybrid_no_metadata must actually hand find a config that says so."""
+    """hybrid_no_metadata must actually hand the retriever a config that says so."""
     import kuaa.eval.slates as slates
 
     seen: list[float] = []
 
-    def _fake_find(query, *, film, mode, top_k, cfg, rerank=False, **kw):
+    def _fake_aggregate(query, *, cfg, mode, top_k, weights=None, **kw):
         if mode == "hybrid":
             seen.append(cfg.search.hybrid_metadata_w)
         return _search_result([])
 
-    monkeypatch.setattr(slates, "find", _fake_find)
-    monkeypatch.setattr(slates, "_iter_films", lambda lib: ["film_a"])
-    monkeypatch.setattr(slates, "_ctx_for", lambda lib, slug: SimpleNamespace(slug=slug))
+    monkeypatch.setattr(slates, "aggregate", _fake_aggregate)
 
     cfg = _cfg()
     cfg.search = SimpleNamespace(hybrid_metadata_w=0.65)

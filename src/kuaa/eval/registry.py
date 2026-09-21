@@ -110,9 +110,11 @@ RETRIEVER_REGISTRY: dict[str, RetrieverVariant] = {
             derived_from=("hybrid",),
             footnote=(
                 "The bge-reranker-v2-m3 cross-encoder applied on top of the "
-                "`hybrid` row's candidate set. It reorders that set and never "
-                "extends it, so it adds no rows to the pool and no work to a "
-                "grading session — compare it to the `hybrid` row it sits on."
+                "`hybrid` leg. It reads a first stage widened to the reranker's "
+                "input window (`retrieval.reranker.top_k_in`), reorders it, and "
+                "cuts back to `k` — so it can promote a candidate `hybrid` "
+                "truncated away, and it does add rows to the pool. Compare it to "
+                "the `hybrid` row it sits on, not to `clip`."
             ),
         ),
     )

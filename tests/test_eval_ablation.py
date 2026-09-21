@@ -246,3 +246,103 @@ def test_dispatch_row_forwards_metadata_w(monkeypatch, tmp_path: Path) -> None:
         _dispatch_row(None, None, row, library_dir=tmp_path, slug="x", seed=0)
 
     assert seen == [None, 0.0]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Human-graded rows — the join that reads 0.000 when it breaks.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _graded_query(qid: str = "pt-01"):
+    from kuaa.eval.slates import ModalQuery
+
+    return ModalQuery(
+        id=qid,
+        query_type="text",
+        text="robô",
+        image_path=None,
+        anchor=None,
+        w=None,
+        lang="pt",
+        relevant_scene_ids=(),
+        relevance={},
+        notes=None,
+    )
+
+
+def _stub_library_ranking(monkeypatch, hits: list[tuple[str, int, float]]) -> None:
+    """Stub the library-wide retrieval both the pool and the table run on."""
+    import kuaa.eval.slates as slates
+    from kuaa.search.types import Hit, SearchResult
+
+    def _fake_aggregate(query, *, cfg, mode, top_k, weights=None, **kw):
+        return SearchResult(
+            hits=[
+                Hit(scene_id=sid, score=score, keyframe_path="", film_slug=slug)
+                for slug, sid, score in hits
+            ],
+            mode="clip",
+            weights=None,
+            query=query,
+        )
+
+    monkeypatch.setattr(slates, "aggregate", _fake_aggregate)
+    monkeypatch.setattr(slates, "rerank", lambda result, **kw: result)
+
+
+def test_graded_rows_join_to_the_pool_key_not_a_bare_ordinal(monkeypatch, tmp_path) -> None:
+    """A human-graded row must rank ``<slug>/<scene_id>``, the key a grade carries.
+
+    The single-film rows scope the config to one slug and rank bare ordinals.
+    Scored against grades that span the library, every cell reads 0.000 — and
+    nothing raises, because a join that matches nothing is not an error. This
+    is the regression: metrics must be non-zero when the ranking contains a
+    scene the grader marked relevant.
+    """
+    from kuaa.eval.ablation import run_ablation
+    from kuaa.eval.registry import RETRIEVER_REGISTRY
+
+    _stub_library_ranking(
+        monkeypatch,
+        [("chronopolis_1982", 100, 0.9), ("jangada_1949", 23, 0.8)],
+    )
+    monkeypatch.setattr(
+        "kuaa.eval.ablation._primary_film_slug", lambda lib, queries: "chronopolis_1982"
+    )
+    monkeypatch.setattr("kuaa.eval.ablation._corpus_description", lambda lib, slug, ds: "corpus")
+
+    table = run_ablation(
+        SimpleNamespace(),
+        library_dir=tmp_path,
+        queries=[_graded_query()],
+        configs=(AblationRowConfig(name="clip", retriever="clip"),),
+        graded_labels={"pt-01": {"chronopolis_1982/100": 3.0}},
+        validated_label="human-validated (run corpus01, n=1 grades)",
+    )
+
+    _row_cfg, metrics = table.rows[0]
+    assert metrics is not None, "the graded row must compute, not fall to pending"
+    assert metrics["recall_at_5"] > 0.0, (
+        "the relevant scene was ranked first — a zero here means the ranking "
+        "keys do not join to the graded keys"
+    )
+    assert set(RETRIEVER_REGISTRY) >= {"clip"}
+
+
+def test_graded_run_skips_a_query_with_no_grades(monkeypatch, tmp_path) -> None:
+    """An ungraded query is dropped from a cross-film run, not proxy-labelled.
+
+    Proxy labels are bare ordinals scoped to one film. Blending one into a
+    cross-film table scores that query 0 for every row, which drags the whole
+    table down by an equal amount and so still looks like a comparison.
+    """
+    from kuaa.eval.ablation import _hy_text_dataset
+
+    dataset = _hy_text_dataset(
+        [_graded_query("pt-01"), _graded_query("pt-99")],
+        library_dir=tmp_path,
+        cfg=SimpleNamespace(),
+        graded_labels={"pt-01": {"chronopolis_1982/100": 3.0}},
+        cross_film=True,
+    )
+    assert [q.id for q in dataset.queries] == ["pt-01"]

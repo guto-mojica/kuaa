@@ -32,8 +32,9 @@ from kuaa.library import Library, derive_fps, keyframe_url, load_metadata, to_sm
 from kuaa.retrieval.hybrid import DEFAULT_RRF_K
 from kuaa.rhymes import find_rhymes
 from kuaa.scene_ids import scene_id_key
-from kuaa.search import Query, find
+from kuaa.search import Query, aggregate, find, rerank
 from kuaa.search._aggregate.fusion import fuse_global_rrf
+from kuaa.search.types import Hit, HybridWeights, SearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -656,6 +657,117 @@ def _merge_across_films(
     return [by_key[key] for key, _score in fused[:k]]
 
 
+def _weights_from(cfg: Any) -> HybridWeights:
+    """Fusion weights as the app resolves them, not the dataclass defaults.
+
+    ``aggregate`` takes weights as an argument and defaults them to
+    ``HybridWeights()``; the running app passes the values seeded from
+    ``cfg.search``. A pool generated on the dataclass defaults would be a pool
+    for a system nobody runs the moment either value is retuned.
+    """
+    search = getattr(cfg, "search", None)
+    defaults = HybridWeights()
+    try:
+        return HybridWeights(
+            sem_w=float(getattr(search, "hybrid_sem_w", defaults.sem_w)),
+            bm25_w=float(getattr(search, "hybrid_bm25_w", defaults.bm25_w)),
+            rrf_k=_rrf_k_from(cfg),
+        )
+    except (TypeError, ValueError):
+        return defaults
+
+
+def _rerank_settings(cfg: Any) -> tuple[str, int]:
+    """``retrieval.reranker.{model,top_k_in}`` with the shipped defaults.
+
+    Read here rather than taken from ``retrieval.reranker.enabled``: the
+    rerank *variant* is enabled by the registry, not by config — the whole
+    point of pooling it is to measure a reranker the app currently ships
+    disabled. Only the model and the input window are config's to decide.
+    """
+    rr = getattr(getattr(cfg, "retrieval", None), "reranker", None)
+    if rr is None:
+        return "default", 20
+    try:
+        return str(getattr(rr, "model", "default")), int(getattr(rr, "top_k_in", 20))
+    except (TypeError, ValueError):
+        return "default", 20
+
+
+def _with_descriptions(result: SearchResult, load_meta) -> SearchResult:
+    """Fill each hit's description from per-film metadata before reranking.
+
+    The cross-encoder scores ``(query, description)`` pairs and ``aggregate``
+    materialises hits without one — ``materialize_hits`` carries slug, scene,
+    score, keyframe and timecode only. Handing those hits straight to
+    :func:`kuaa.search.rerank` scores every candidate against ``""``, which
+    produces a reordering that reflects nothing. The app avoids this by
+    enriching its cards before the rerank step; the pool reads the same
+    canonical descriptions through ``load_meta``.
+    """
+    filled: list[Hit] = []
+    for hit in result.hits:
+        slug = hit.film_slug or ""
+        meta = load_meta(slug)
+        entry = meta.desc_by_scene.get(scene_id_key(hit.scene_id)) or {}
+        description = str(entry.get("description", "")) if isinstance(entry, dict) else ""
+        filled.append(replace(hit, description=description))
+    return replace(result, hits=filled)
+
+
+def _slate_find_global(
+    *, q: Query, cfg, library_dir: Path, k: int, load_meta, variant: RetrieverVariant | None
+) -> list[CandidateRow]:
+    """One variant's cross-film ranking via the production ``aggregate`` path.
+
+    This is the ranking the Buscar tab serves for a library-wide search: every
+    film's scenes scored into one global list, top-``k`` taken from that list.
+    A film contributes as many candidates as it earns, or none.
+
+    It is deliberately NOT :func:`_merge_across_films`, which guarantees each
+    film a seat in round-robin slug order. That interleave is a coverage
+    device for a pool; it is not a ranking any retriever produces and no film
+    ordering can be read off it. Pooling from it yielded a graded set that
+    covered 42-59% of what ``aggregate`` returns at k=10 — the unjudged
+    remainder is scored as irrelevant, which penalises whichever retriever
+    diverges most from the pool rather than whichever ranks worst.
+
+    The rerank variant mirrors the app's two-stage shape: widen the first
+    stage to the reranker's input window, attach descriptions, reorder, then
+    cut to ``k``. Reranking a ``k``-length list can only permute the page the
+    first stage already surfaced.
+    """
+    variant = variant or CLIP_ONLY
+    call_cfg = _cfg_with(cfg, **variant.cfg_overrides)
+    first_stage_k = k
+    if variant.rerank:
+        _model, top_k_in = _rerank_settings(cfg)
+        first_stage_k = max(k, top_k_in)
+
+    result = aggregate(
+        q,
+        cfg=call_cfg,
+        mode=variant.mode,
+        top_k=first_stage_k,
+        weights=_weights_from(cfg),
+    )
+    if variant.rerank:
+        model, top_k_in = _rerank_settings(cfg)
+        result = rerank(_with_descriptions(result, load_meta), model=model, top_k_in=top_k_in)
+
+    rows: list[CandidateRow] = []
+    for hit in result.hits[:k]:
+        slug = hit.film_slug or ""
+        if not slug:
+            continue
+        rows.append(
+            _candidate_row(
+                scene_id=hit.scene_id, film_slug=slug, score=hit.score, meta=load_meta(slug)
+            )
+        )
+    return rows
+
+
 def _slate_find(
     *, q: Query, cfg, library_dir, k, load_meta, film_slug=None, variant: RetrieverVariant | None
 ) -> list[CandidateRow]:
@@ -704,6 +816,27 @@ def _slate_find(
     return _merge_across_films(per_film, k=k, rrf_k=_rrf_k_from(cfg))
 
 
+def rank_variant_global(
+    *, q: Query, cfg, library_dir: Path, k: int, variant: RetrieverVariant, load_meta=None
+) -> list[CandidateRow]:
+    """One variant's library-wide ranking — the pool's retrieval, exported.
+
+    The ablation table scores what the pool sampled. When the two use separate
+    implementations of "run this variant across the library" they drift, and
+    the failure is silent: the table's candidate keys stop matching the graded
+    ones and every metric reads 0.000 without anything raising. So there is one
+    definition and both callers reach it here.
+
+    ``load_meta`` defaults to a fresh per-film metadata loader; pass one to
+    share the cache across queries.
+    """
+    if load_meta is None:
+        load_meta = _film_meta_loader(cfg, library_dir)
+    return _slate_find_global(
+        q=q, cfg=cfg, library_dir=library_dir, k=k, load_meta=load_meta, variant=variant
+    )
+
+
 def _rrf_k_from(cfg: Any) -> int:
     """``cfg.search.bm25.rrf_k`` when present, else the shipped default."""
     bm25_cfg = getattr(getattr(cfg, "search", None), "bm25", None)
@@ -736,15 +869,29 @@ def pool_candidates(
     """
     pooled: dict[str, CandidateRow] = {}
     for variant in variants:
-        rows = _slate_find(
-            q=q,
-            cfg=cfg,
-            library_dir=library_dir,
-            k=k,
-            load_meta=load_meta,
-            film_slug=film_slug,
-            variant=variant,
-        )
+        # Unscoped text pools from the library-wide ranking the app serves
+        # (:func:`_slate_find_global`). A ``film_slug`` scopes the search to one
+        # film, where there is no cross-film ordering to get wrong and
+        # ``aggregate`` would have to be filtered back down to it anyway.
+        if film_slug is None and q.text is not None:
+            rows = _slate_find_global(
+                q=q,
+                cfg=cfg,
+                library_dir=library_dir,
+                k=k,
+                load_meta=load_meta,
+                variant=variant,
+            )
+        else:
+            rows = _slate_find(
+                q=q,
+                cfg=cfg,
+                library_dir=library_dir,
+                k=k,
+                load_meta=load_meta,
+                film_slug=film_slug,
+                variant=variant,
+            )
         for rank, row in enumerate(rows, start=1):
             key = f"{row['film_slug']}/{scene_id_key(row['scene_id'])}"
             seen = pooled.get(key)
@@ -914,5 +1061,6 @@ __all__ = [
     "load_modal_queries",
     "pool_candidates",
     "rank_candidates",
+    "rank_variant_global",
     "thin_rows",
 ]

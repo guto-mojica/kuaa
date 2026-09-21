@@ -141,15 +141,14 @@ def test_pool_candidates_output_order_is_the_fused_order(monkeypatch, tmp_path):
     class _Hit:
         def __init__(self, sid, score):
             self.scene_id, self.score = sid, score
+            self.film_slug = "film_a"
 
     per_variant = {"clip": [(7, 0.9), (3, 0.8)], "bm25": [(3, 0.7), (5, 0.6)]}
 
-    def _fake_find(query, *, film, mode, top_k, cfg, rerank=False, **kw):
+    def _fake_aggregate(query, *, cfg, mode, top_k, weights=None, **kw):
         return SimpleNamespace(hits=[_Hit(s, sc) for s, sc in per_variant.get(mode, [])])
 
-    monkeypatch.setattr(slates, "find", _fake_find)
-    monkeypatch.setattr(slates, "_iter_films", lambda lib: ["film_a"])
-    monkeypatch.setattr(slates, "_ctx_for", lambda lib, slug: SimpleNamespace(slug=slug))
+    monkeypatch.setattr(slates, "aggregate", _fake_aggregate)
 
     rows = pool_candidates(
         q=Query.of_text("x"),
@@ -159,7 +158,7 @@ def test_pool_candidates_output_order_is_the_fused_order(monkeypatch, tmp_path):
         load_meta=lambda slug: slates._empty_meta(slug, tmp_path),
         variants=(RETRIEVER_REGISTRY["clip"], RETRIEVER_REGISTRY["bm25"]),
     )
-    # clip's fused order first (7, 3), then bm25's candidates clip did not
+    # clip's ranking first (7, 3), then bm25's candidates clip did not
     # propose (5). Scene 3 keeps clip's position — first proposer wins.
     assert [r["scene_id"] for r in rows] == [7, 3, 5]
 
