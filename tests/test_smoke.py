@@ -137,6 +137,15 @@ def test_import_pipeline():
 # ─── LLM parsing — sem modelo ────────────────────────────────────────────────
 
 
+def test_parse_objects_drops_people_anatomy_and_picture_plane():
+    from kuaa.models.describer._common import _parse_objects
+
+    raw = "Rope, person, human head, dark background, boat, red, text, hammock"
+    assert _parse_objects(raw) == ["rope", "boat", "text", "hammock"]
+    # A modifier does not rescue a stop head noun; a role noun is kept.
+    assert _parse_objects("textured surface, astronaut, climber") == ["astronaut", "climber"]
+
+
 def test_parse_num_people():
     from kuaa.models.describer._common import _parse_num_people
 
