@@ -59,7 +59,17 @@ def post_grade(
     # The page checks this too, but a session left open across a cut edit
     # would keep POSTing against the numbering it was rendered with.
     require_current_pool(cfg, root=run_root, run_id=run_id)
-    grader = request.cookies.get("grader", "anon")
+    # An unnamed grader is refused rather than defaulted. The cookie is
+    # host-scoped and clearable, so the default silently attributed one
+    # person's resumed pass to a second annotator — and two names that
+    # share no judgment produce a kappa the agreement panel cannot
+    # compute and a reader cannot detect.
+    grader = (request.cookies.get("grader") or "").strip()
+    if not grader or grader == "anon":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Set your grader name (top right) before grading.",
+        )
 
     run = EvalRun(run_id=run_id, root=run_root)
     save_grade(

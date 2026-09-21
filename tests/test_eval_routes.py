@@ -34,6 +34,7 @@ def test_api_metrics_returns_403_without_token(client, monkeypatch):
 
 def test_api_grade_returns_403_without_token(client, monkeypatch):
     monkeypatch.delenv("EVAL_ADMIN_TOKEN", raising=False)
+    client.cookies.set("grader", "tester")
     r = client.post(
         "/api/eval/grade",
         data={"query_id": "q1", "scene_id": "jeca/1", "grade": "2"},
@@ -55,6 +56,7 @@ def test_post_grade_appends_to_run_jsonl(client, monkeypatch, tmp_path):
     monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
     monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
 
+    client.cookies.set("grader", "tester")
     r = client.post(
         "/api/eval/grade?token=test-token",
         data={"query_id": "q1", "scene_id": "jeca/1", "grade": "2"},
@@ -80,6 +82,7 @@ def test_post_grade_accepts_skip(client, monkeypatch, tmp_path):
     monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
     monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
 
+    client.cookies.set("grader", "tester")
     r = client.post(
         "/api/eval/grade?token=test-token",
         data={"query_id": "q1", "scene_id": "jeca/1", "grade": "-1"},
@@ -87,6 +90,50 @@ def test_post_grade_accepts_skip(client, monkeypatch, tmp_path):
     assert r.status_code == 200
     record = json.loads((tmp_path / "default.jsonl").read_text().strip())
     assert record["grade"] == -1
+
+
+def test_post_grade_refuses_an_unnamed_grader(client, monkeypatch, tmp_path):
+    """No grader cookie → 400, and nothing is written.
+
+    The route used to default the name to "anon". A cookie is host-scoped and
+    clearable, so the default let one person's resumed pass land under a second
+    name that shares no judgment with the first — which reads as two annotators
+    and cannot be told apart after the fact.
+    """
+
+    monkeypatch.setenv("EVAL_ADMIN_TOKEN", "test-token")
+    import api.services.eval_service as eval_service
+
+    monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
+    monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
+
+    client.cookies.delete("grader")
+    r = client.post(
+        "/api/eval/grade?token=test-token",
+        data={"query_id": "q1", "scene_id": "jeca/1", "grade": "2"},
+    )
+    assert r.status_code == 400, r.text
+    assert "grader name" in r.json()["detail"]
+    assert not (tmp_path / "default.jsonl").exists()
+
+
+def test_post_grade_refuses_the_literal_anon_cookie(client, monkeypatch, tmp_path):
+    """A cookie left at the old default is refused too, not taken at face value."""
+
+    monkeypatch.setenv("EVAL_ADMIN_TOKEN", "test-token")
+    import api.services.eval_service as eval_service
+
+    monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
+    monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
+
+    client.cookies.set("grader", "anon")
+    r = client.post(
+        "/api/eval/grade?token=test-token",
+        data={"query_id": "q1", "scene_id": "jeca/1", "grade": "2"},
+    )
+    client.cookies.delete("grader")
+    assert r.status_code == 400, r.text
+    assert not (tmp_path / "default.jsonl").exists()
 
 
 # ── Metrics: GET /api/eval/metrics ────────────────────────────────────────────
@@ -118,6 +165,7 @@ def test_get_metrics_reflects_grades(client, monkeypatch, tmp_path):
 
     # Three grades on q1 → P@3 = 2/3
     for sid, grade in (("jeca/1", "3"), ("jeca/2", "2"), ("jeca/3", "0")):
+        client.cookies.set("grader", "tester")
         r = client.post(
             "/api/eval/grade?token=test-token",
             data={"query_id": "q1", "scene_id": sid, "grade": grade},
@@ -143,6 +191,7 @@ def test_get_metrics_aggregate_lists_query_ids(client, monkeypatch, tmp_path):
     monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
 
     for qid, sid in (("q1", "jeca/1"), ("q2", "jeca/2"), ("q1", "jeca/3")):
+        client.cookies.set("grader", "tester")
         client.post(
             "/api/eval/grade?token=test-token",
             data={"query_id": qid, "scene_id": sid, "grade": "2"},
@@ -331,6 +380,7 @@ def test_eval_grade_then_metrics_round_trip(client, monkeypatch, tmp_path):
     monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
 
     # Same payload shape as gradeRow() in eval.js: form-encoded POST.
+    client.cookies.set("grader", "tester")
     r1 = client.post(
         "/api/eval/grade?token=test-token",
         data={"query_id": "q1", "scene_id": "jeca/1", "grade": "2"},
@@ -499,6 +549,7 @@ def test_eval_page_refuses_a_pool_whose_scene_numbering_moved(
     assert r.status_code == 409
     assert "scene numbering changed" in r.json()["detail"]
 
+    client.cookies.set("grader", "tester")
     posted = client.post(
         "/api/eval/grade?token=test-token",
         data={"query_id": "q1", "scene_id": "f/1", "grade": "2"},
@@ -524,3 +575,4 @@ def test_eval_page_still_renders_a_pool_written_before_the_manifest(client, monk
     monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
 
     assert client.get("/eval?token=test-token").status_code == 200
+
