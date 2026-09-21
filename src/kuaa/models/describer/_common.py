@@ -102,10 +102,20 @@ def _parse_num_people(text: str) -> int:
     Retorna:
         int >= 0 : número conhecido
         -1       : múltiplos/vago ("several", "many")
+
+    An explicit digit wins over a number word. The prompt asks for a count
+    first ("2 people talking"), and the answer that follows routinely uses
+    "one" as a pronoun — "2 people, one holding a gun" — so a number word
+    can only be read as the count when no digit is present. Words are
+    matched on boundaries for the same reason: "someone" contains "one".
     """
     text = text.lower()
     if any(w in text for w in ["no people", "nobody", "no person", "empty", "no one"]):
         return 0
+
+    match = re.search(r"\b(\d+)\b", text)
+    if match:
+        return int(match.group(1))
 
     word_to_num = {
         "one": 1,
@@ -124,12 +134,8 @@ def _parse_num_people(text: str) -> int:
         "one person": 1,
     }
     for word, num in word_to_num.items():
-        if word in text:
+        if re.search(rf"\b{word}\b", text):
             return num
-
-    match = re.search(r"\b(\d+)\b", text)
-    if match:
-        return int(match.group(1))
 
     if any(w in text for w in ["several", "many", "group", "crowd", "multiple"]):
         return -1

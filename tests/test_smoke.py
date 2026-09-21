@@ -145,6 +145,12 @@ def test_parse_num_people():
     assert _parse_num_people("a man standing") == 1
     assert _parse_num_people("several people in crowd") == -1
     assert _parse_num_people("3 workers") == 3
+    # A digit is the count; a later number word is a pronoun. Observed on
+    # jangada_1949: 6 of 47 keyframes tagged pessoa-unica off answers like
+    # these, because "one" was matched before the digit was looked for.
+    assert _parse_num_people("2 people, one holding a gun") == 2
+    assert _parse_num_people("2 people are visible, one is holding a clapperboard") == 2
+    assert _parse_num_people("someone walking") == -1
 
 
 def test_parse_objects():
