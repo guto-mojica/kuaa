@@ -28,6 +28,11 @@ class QueryCase:
     relevant_scene_ids: tuple[str, ...]
     relevance: dict[str, float] = field(default_factory=dict)
     negative_scene_ids: tuple[str, ...] = ()
+    #: Scenes a grader marked SKIP — "no opinion", not "irrelevant". A scorer
+    #: removes them from the ranked list before computing metrics, so they
+    #: count neither for nor against the retriever. Leaving them in scores
+    #: them as 0, which is the NOT_RELEVANT verdict the grader declined to give.
+    skipped_scene_ids: tuple[str, ...] = ()
     intent: str = ""
     notes: str = ""
 

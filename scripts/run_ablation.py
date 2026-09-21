@@ -277,9 +277,11 @@ def _load_graded_labels(
 ) -> tuple[dict | None, str | None]:
     """Load graded labels from a run ID or path; return (graded_labels, validated_label).
 
-    ``graded_labels`` is ``{query_id: {scene_id: float_grade}}`` with positive
-    grades only (the ablation caller filters zero/negative itself, but we skip
-    them here for clarity). Returns ``(None, None)`` when no ``--grades`` arg.
+    ``graded_labels`` is ``{query_id: {scene_id: float_grade}}`` carrying every
+    grade, SKIP (-1) included: the ablation needs the SKIPs to exclude those
+    scenes from the ranking rather than score them as irrelevant, and it
+    decides itself what a query with no positive grade does. Returns
+    ``(None, None)`` when no ``--grades`` arg.
     """
     if grades_arg is None:
         return None, None
@@ -298,11 +300,10 @@ def _load_graded_labels(
 
     exported = export_run(run)
     # graded_labels: {query_id: {scene_id: float_grade}}
-    graded_labels: dict = {}
-    for qid, scenes in exported["grades"].items():
-        pos = {sid: float(g) for sid, g in scenes.items() if float(g) > 0}
-        if pos:
-            graded_labels[qid] = pos
+    graded_labels: dict = {
+        qid: {sid: float(g) for sid, g in scenes.items()}
+        for qid, scenes in exported["grades"].items()
+    }
 
     distinct = exported["summary"]["distinct_pairs"]
     validated_label = f"human-validated (run {run.run_id}, n={distinct} grades)"

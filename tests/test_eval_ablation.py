@@ -346,3 +346,40 @@ def test_graded_run_skips_a_query_with_no_grades(monkeypatch, tmp_path) -> None:
         cross_film=True,
     )
     assert [q.id for q in dataset.queries] == ["pt-01"]
+
+
+def test_graded_run_excludes_skips_but_scores_zeros(monkeypatch, tmp_path) -> None:
+    """A SKIP grade is "no opinion": the scene leaves the ranking before scoring.
+
+    A NOT_RELEVANT (0) grade is a verdict and stays in. The regression: both
+    used to vanish from the relevance map alike, so a SKIPped scene ranked
+    first cost the variant its reciprocal rank exactly as if the grader had
+    judged it irrelevant — a penalty for surfacing what nobody judged.
+    """
+    from kuaa.eval.ablation import run_ablation
+
+    _stub_library_ranking(
+        monkeypatch,
+        [("chronopolis_1982", 7, 0.9), ("chronopolis_1982", 100, 0.8)],
+    )
+    monkeypatch.setattr(
+        "kuaa.eval.ablation._primary_film_slug", lambda lib, queries: "chronopolis_1982"
+    )
+    monkeypatch.setattr("kuaa.eval.ablation._corpus_description", lambda lib, slug, ds: "corpus")
+
+    def _mrr(grade_for_scene_7: float) -> float:
+        table = run_ablation(
+            SimpleNamespace(),
+            library_dir=tmp_path,
+            queries=[_graded_query()],
+            configs=(AblationRowConfig(name="clip", retriever="clip"),),
+            graded_labels={
+                "pt-01": {"chronopolis_1982/7": grade_for_scene_7, "chronopolis_1982/100": 3.0}
+            },
+        )
+        _row_cfg, metrics = table.rows[0]
+        assert metrics is not None
+        return float(metrics["mrr"])
+
+    assert _mrr(-1.0) == 1.0, "a SKIPped scene ranked first must not push the relevant one down"
+    assert _mrr(0.0) == 0.5, "a NOT_RELEVANT scene ranked first is a real miss"

@@ -297,10 +297,14 @@ def _hy_text_dataset(
             continue
 
         # Prefer human grades when available for this query.
+        skipped: tuple[str, ...] = ()
         if graded_labels is not None and q.id in graded_labels:
             raw_rel = graded_labels[q.id]
-            # Canonicalise keys + keep only positive grades.
+            # Canonicalise keys + keep only positive grades. A SKIP (-1) is
+            # kept apart: it is excluded from the ranking at scoring time,
+            # whereas a 0 stays in and scores as irrelevant.
             relevance = {scene_id_key(k): float(v) for k, v in raw_rel.items() if float(v) > 0}
+            skipped = tuple(scene_id_key(k) for k, v in raw_rel.items() if float(v) < 0)
             if not relevance and cross_film:
                 # Graded, but nothing in the pool was relevant. There is no
                 # cross-film proxy to fall back to, and a query with no
@@ -343,6 +347,7 @@ def _hy_text_dataset(
                 text=q.text,
                 relevant_scene_ids=rel_ids,
                 relevance=relevance or {sid: 1.0 for sid in rel_ids},
+                skipped_scene_ids=skipped,
                 notes=q.notes or "",
             )
         )
@@ -412,6 +417,21 @@ def _primary_film_slug(library_dir: Path, queries: list[ModalQuery]) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+def _without_skipped(ranked: tuple[str, ...], case: QueryCase) -> tuple[str, ...]:
+    """Drop the scenes a grader marked SKIP from a ranked list.
+
+    A SKIP is "no opinion". Left in the ranking it is absent from the
+    relevance map and so scores as NOT_RELEVANT, which penalises whichever
+    variant surfaced it as if the grader had judged against it. Removing the
+    scene lets the ranks close up, so the metric is computed over the items
+    the grader actually judged — the same rule ``grader_metrics`` applies.
+    """
+    if not case.skipped_scene_ids:
+        return ranked
+    skipped = set(case.skipped_scene_ids)
+    return tuple(sid for sid in ranked if sid not in skipped)
+
+
 def _run_text_retriever_row(
     cfg: Settings,
     dataset: EvaluationDataset,
@@ -475,7 +495,7 @@ def _run_rerank_row(
             rerank_model="default",
             cfg=scoped,
         )
-        ranked = tuple(scene_id_key(h.scene_id) for h in result.hits)
+        ranked = _without_skipped(tuple(scene_id_key(h.scene_id) for h in result.hits), case)
         results.append(
             evaluate_query(
                 query_id=case.id,
@@ -530,7 +550,9 @@ def _run_variant_row_global(
             variant=variant,
             load_meta=load_meta,
         )
-        ranked = tuple(f"{r['film_slug']}/{scene_id_key(r['scene_id'])}" for r in rows)
+        ranked = _without_skipped(
+            tuple(f"{r['film_slug']}/{scene_id_key(r['scene_id'])}" for r in rows), case
+        )
         results.append(
             evaluate_query(
                 query_id=case.id,
@@ -603,7 +625,10 @@ def run_ablation(
         graded_labels: optional per-query relevance from human grades.
             When provided, ``{query_id: {scene_id: float_grade}}`` maps take
             precedence over :func:`proxy_labels` for queries present in the
-            dict (positive grades only). Queries absent fall back to proxy.
+            dict. Pass every grade, SKIP (-1) included: positive grades become
+            the relevance map, SKIPs are removed from each ranking before it
+            is scored, and 0 stays in as NOT_RELEVANT. Queries absent fall
+            back to proxy.
             Without ``--grades``, behavior is byte-for-byte unchanged (still proxy).
         validated_label: when provided, the :class:`AblationTable` banner flips
             from the proxy wording to this string (e.g. ``"human-validated (run
