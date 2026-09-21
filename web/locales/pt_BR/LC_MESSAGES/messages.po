@@ -120,8 +120,8 @@ msgstr "nav"
 
 #: web/templates/eval/layout.html:142
 #, fuzzy
-msgid "next row"
-msgstr "Próxima cena"
+msgid "next row / query"
+msgstr "Próxima cena / busca"
 
 #: web/templates/eval/layout.html:143
 #, fuzzy
@@ -160,8 +160,8 @@ msgid "move the row cursor down / up"
 msgstr ""
 
 #: web/templates/eval/layout.html:167
-msgid "move to the next row (grades save on keypress)"
-msgstr ""
+msgid "next row; past the last row, the next query — once every row here is judged"
+msgstr "Próxima cena; depois da última, a próxima busca — quando todas as cenas daqui estiverem julgadas"
 
 #: web/templates/eval/layout.html:168
 msgid "blind mode — hide retriever scores"

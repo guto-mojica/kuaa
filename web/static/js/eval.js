@@ -325,17 +325,59 @@
         },
 
         // ── Save & advance / skip ───────────────────────────────────
-        // M1 behaviour: advance the row cursor when there's a next
-        // row; otherwise surface "query complete" via the toast bus.
-        // The cross-query advance lands with Task 33.
+        // Grades save on the grade keypress; ⌘⏎ only moves. Within a
+        // query it steps the row cursor. Past the last row it opens the
+        // next query in the queue — but only once every row here has a
+        // judgment. Leaving with rows unjudged is how a query gets
+        // half-graded and then read as done by whoever resumes, so an
+        // early ⌘⏎ jumps back to the first unjudged row instead.
         saveAndAdvance: function () {
           if (this.rowCount === 0) return;
           var nextRow = this.currentRow + 1;
           if (nextRow < this.rowCount) {
             this.currentRow = nextRow;
-          } else {
-            this.toast('Query complete', 'Advance to next query', 'success');
+            return;
           }
+          var unjudged = this.firstUnjudgedRow();
+          if (unjudged >= 0) {
+            this.currentRow = unjudged;
+            this.toast('Rows unjudged', 'Grade or skip every row before moving on', 'error');
+            return;
+          }
+          var href = this.nextQueryHref();
+          if (href) {
+            window.location.assign(href);
+          } else {
+            this.toast('Queue complete', 'No query after this one in the current filter', 'success');
+          }
+        },
+
+        // Index of the first row without a judgment, or -1. Server-rendered
+        // rows carry .graded when a grade exists; updateRowGrade adds it on
+        // a successful POST, so an in-flight grade does not count yet.
+        firstUnjudgedRow: function () {
+          var rows = rowEls();
+          for (var i = 0; i < rows.length; i++) {
+            if (!rows[i].classList.contains('graded')) return i;
+          }
+          return -1;
+        },
+
+        // The queue link after the current query, skipping links the
+        // active filter hides (x-show sets display:none, which empties
+        // offsetParent). Reading the DOM rather than component state keeps
+        // the filter local to the queue aside, where it lives.
+        nextQueryHref: function () {
+          var links = document.querySelectorAll('.ev-q-list .ev-q');
+          var cur = document.querySelector('.ev-q-list .ev-q.cur');
+          var seen = !cur;
+          for (var i = 0; i < links.length; i++) {
+            var link = links[i];
+            if (link === cur) { seen = true; continue; }
+            if (!seen || link.offsetParent === null) continue;
+            return link.getAttribute('href') || '';
+          }
+          return '';
         },
 
         skipCurrent: function () {

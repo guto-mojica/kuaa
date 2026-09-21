@@ -120,8 +120,8 @@ msgstr ""
 
 #: web/templates/eval/layout.html:142
 #, fuzzy
-msgid "next row"
-msgstr "Text"
+msgid "next row / query"
+msgstr ""
 
 #: web/templates/eval/layout.html:143
 msgid "blind / compare"
@@ -159,7 +159,7 @@ msgid "move the row cursor down / up"
 msgstr ""
 
 #: web/templates/eval/layout.html:167
-msgid "move to the next row (grades save on keypress)"
+msgid "next row; past the last row, the next query — once every row here is judged"
 msgstr ""
 
 #: web/templates/eval/layout.html:168
