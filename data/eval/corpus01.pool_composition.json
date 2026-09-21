@@ -20,36 +20,36 @@
       "name": "clip",
       "is_source": true,
       "queries_contributed": 56,
-      "candidates_proposed": 616,
-      "unique_candidates": 228
+      "candidates_proposed": 560,
+      "unique_candidates": 133
     },
     {
       "name": "bm25",
       "is_source": true,
       "queries_contributed": 52,
-      "candidates_proposed": 547,
-      "unique_candidates": 349
+      "candidates_proposed": 500,
+      "unique_candidates": 313
     },
     {
       "name": "hybrid",
       "is_source": false,
       "queries_contributed": 56,
-      "candidates_proposed": 616,
-      "unique_candidates": 34
+      "candidates_proposed": 560,
+      "unique_candidates": 15
     },
     {
       "name": "hybrid_no_metadata",
       "is_source": false,
       "queries_contributed": 56,
-      "candidates_proposed": 616,
-      "unique_candidates": 33
+      "candidates_proposed": 560,
+      "unique_candidates": 15
     },
     {
       "name": "hybrid_rerank",
       "is_source": false,
       "queries_contributed": 56,
-      "candidates_proposed": 616,
-      "unique_candidates": 418
+      "candidates_proposed": 560,
+      "unique_candidates": 159
     }
   ],
   "identical_pairs": [],
