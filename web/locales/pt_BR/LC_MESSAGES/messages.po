@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kuaa-ai 0.3.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-14 17:17-0300\n"
+"POT-Creation-Date: 2026-09-21 17:22-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pt_BR\n"
@@ -102,40 +102,94 @@ msgstr "seu nome"
 
 #: web/templates/eval/layout.html:114
 msgid "Grader name — identifies your judgments in the agreement metrics"
-msgstr "Nome do anotador — identifica seus julgamentos nas métricas de concordância"
+msgstr ""
+"Nome do anotador — identifica seus julgamentos nas métricas de "
+"concordância"
 
-#: web/templates/eval/layout.html:134
+#: web/templates/eval/layout.html:139
 msgid "grade"
 msgstr "nota"
 
-#: web/templates/eval/layout.html:135
+#: web/templates/eval/layout.html:140
 msgid "skip"
 msgstr "pular"
 
-#: web/templates/eval/layout.html:136
+#: web/templates/eval/layout.html:141
 msgid "nav"
 msgstr "nav"
 
-#: web/templates/eval/layout.html:137
-msgid "save & advance"
-msgstr "salvar & avançar"
+#: web/templates/eval/layout.html:142
+#, fuzzy
+msgid "next row"
+msgstr "Próxima cena"
 
-# ── Search tab ────────────────────────────────────────────────────────
-#: web/templates/eval/layout.html:138
-msgid "export"
-msgstr "exportar"
+#: web/templates/eval/layout.html:143
+#, fuzzy
+msgid "blind / compare"
+msgstr "Modo cego"
 
-#: web/templates/eval/layout.html:139
+#: web/templates/eval/layout.html:144
 msgid "help"
 msgstr "ajuda"
 
-#: web/templates/eval/layout.html:142
+#: web/templates/eval/layout.html:147
 msgid "row"
 msgstr "linha"
 
-#: web/templates/eval/layout.html:144
+#: web/templates/eval/layout.html:149
 msgid "session"
 msgstr "sessão"
+
+#: web/templates/eval/layout.html:160 web/templates/eval/layout.html:162
+#: web/templates/partials/_help_overlay.html:64
+#: web/templates/partials/about_modal.html:192
+#: web/templates/partials/about_modal.html:194
+msgid "Keyboard shortcuts"
+msgstr "Atalhos de teclado"
+
+#: web/templates/eval/layout.html:164
+msgid "grade the focused row"
+msgstr ""
+
+#: web/templates/eval/layout.html:165
+msgid "skip — explicit “no opinion”, not “later”"
+msgstr ""
+
+#: web/templates/eval/layout.html:166
+msgid "move the row cursor down / up"
+msgstr ""
+
+#: web/templates/eval/layout.html:167
+msgid "move to the next row (grades save on keypress)"
+msgstr ""
+
+#: web/templates/eval/layout.html:168
+msgid "blind mode — hide retriever scores"
+msgstr ""
+
+#: web/templates/eval/layout.html:169
+msgid "compare — show the other annotator’s grade"
+msgstr ""
+
+#: web/templates/eval/layout.html:170
+#, fuzzy
+msgid "this panel"
+msgstr "Esta ajuda"
+
+#: web/templates/eval/layout.html:171
+msgid "Esc"
+msgstr ""
+
+#: web/templates/eval/layout.html:171 web/templates/partials/_palette.html:78
+msgid "close"
+msgstr "fechar"
+
+#: web/templates/eval/layout.html:174
+msgid ""
+"Click any query in the left queue to jump to it — including ones you have"
+" already started. Grades are saved the moment you press a key; re-grading"
+" a row simply overwrites it."
+msgstr ""
 
 #: web/templates/eval/metrics.html:13
 msgid "METRICS"
@@ -221,39 +275,47 @@ msgstr "SALVAR & AVANÇAR"
 msgid "SKIP"
 msgstr "PULAR"
 
-#: web/templates/eval/queue.html:45
+#: web/templates/eval/queue.html:49
 msgid "Queue"
 msgstr "Fila"
 
-#: web/templates/eval/queue.html:52
+#: web/templates/eval/queue.html:56
 msgid "Filter queries…"
 msgstr "Filtrar buscas…"
 
-#: web/templates/eval/queue.html:53
+#: web/templates/eval/queue.html:57
 msgid "Filter queries"
 msgstr "Filtrar buscas"
 
-#: web/templates/eval/queue.html:60
+#: web/templates/eval/queue.html:64
 msgid "All"
 msgstr "Todas"
 
-#: web/templates/eval/queue.html:66
+#: web/templates/eval/queue.html:70
 msgid "Pending"
 msgstr "Pendentes"
 
-#: web/templates/eval/queue.html:72
+#: web/templates/eval/queue.html:80
+msgid "Needs a second annotator — conflict compares two graders."
+msgstr "Requer um segundo anotador — conflito compara dois anotadores."
+
+#: web/templates/eval/queue.html:83
 msgid "Conflict"
 msgstr "Conflito"
 
-#: web/templates/eval/queue.html:118
+#: web/templates/eval/queue.html:124
 msgid "No queries seeded for this run."
 msgstr "Nenhuma busca semeada para este run."
 
-#: web/templates/eval/queue.html:125
+#: web/templates/eval/queue.html:130
+msgid "No queries match this filter."
+msgstr "Nenhuma busca corresponde a este filtro."
+
+#: web/templates/eval/queue.html:136
 msgid "Blind mode"
 msgstr "Modo cego"
 
-#: web/templates/eval/queue.html:130
+#: web/templates/eval/queue.html:141
 msgid "Compare annotator"
 msgstr "Comparar anotador"
 
@@ -302,21 +364,21 @@ msgstr "Altamente"
 msgid "Skip"
 msgstr "Pular"
 
-#: web/templates/eval/rows.html:71
+#: web/templates/eval/rows.html:73
 msgid "rank"
 msgstr "rank"
 
-#: web/templates/eval/rows.html:100
+#: web/templates/eval/rows.html:105
 #: web/templates/partials/scenes_inspector.html:134
 #: web/templates/partials/search_results.html:96
 msgid "No description yet."
 msgstr "Sem descrição ainda."
 
-#: web/templates/eval/rows.html:138
+#: web/templates/eval/rows.html:143
 msgid "No candidate results loaded for this query."
 msgstr "Nenhum candidato carregado para esta busca."
 
-#: web/templates/eval/rows.html:144
+#: web/templates/eval/rows.html:149
 msgid "No query selected."
 msgstr "Nenhuma busca selecionada."
 
@@ -353,12 +415,6 @@ msgstr "Um filme com este nome já está no acervo."
 #, fuzzy
 msgid "This film is already in the library."
 msgstr "Um filme com este nome já está no acervo."
-
-#: web/templates/partials/_help_overlay.html:64
-#: web/templates/partials/about_modal.html:192
-#: web/templates/partials/about_modal.html:194
-msgid "Keyboard shortcuts"
-msgstr "Atalhos de teclado"
 
 #: web/templates/partials/_help_overlay.html:67
 #: web/templates/partials/_toast_host.html:28
@@ -486,10 +542,6 @@ msgstr "navegar"
 #: web/templates/partials/_palette.html:77
 msgid "select"
 msgstr "selecionar"
-
-#: web/templates/partials/_palette.html:78
-msgid "close"
-msgstr "fechar"
 
 #: web/templates/partials/_step_labels.html:9
 msgid "Scene detection"
@@ -2285,4 +2337,11 @@ msgstr "Linha do tempo das cenas do filme"
 
 #~ msgid "anon"
 #~ msgstr "anon"
+
+#~ msgid "save & advance"
+#~ msgstr "salvar & avançar"
+
+# ── Search tab ────────────────────────────────────────────────────────
+#~ msgid "export"
+#~ msgstr "exportar"
 

@@ -288,7 +288,13 @@ def export_run(run: EvalRun) -> dict:
 
 
 def grades_by_query(loaded: LoadedRun) -> dict[str, list[Grade]]:
-    """Group LoadedRun.grades by query_id."""
+    """Group LoadedRun.grades by query_id, across every grader and every pool.
+
+    A bag of grades, not a progress measure: it carries judgments collected
+    against pools the run no longer uses, so its length for a query can exceed
+    that query's candidate count. Ask :func:`judged_grades_by_query` when the
+    question is what *this* grader has judged on the *current* pool.
+    """
 
     out: dict[str, list[Grade]] = {}
     for (qid, _scene_id), entry in loaded.grades.items():
@@ -300,6 +306,38 @@ def grades_for_query(loaded: LoadedRun, query_id: str) -> list[Grade]:
     """Return the grade list for a single query (any scene id)."""
 
     return [entry.grade for (qid, _scene_id), entry in loaded.grades.items() if qid == query_id]
+
+
+def judged_grades_by_query(
+    per_annotator: dict[tuple[str, str], dict[str, GradeEntry]],
+    grader_name: str,
+) -> dict[str, dict[str, Grade]]:
+    """One grader's judgments as ``{query_id: {scene_key: grade}}``.
+
+    Keyed by scene key rather than counted, because every consumer asks a
+    membership question — is *this* candidate judged — and a count answers it
+    only while the pool has not moved under the grades. See
+    :func:`first_ungraded` for what that costs when it has.
+    """
+    out: dict[str, dict[str, Grade]] = {}
+    for (qid, sid), by_who in per_annotator.items():
+        entry = by_who.get(grader_name)
+        if entry is not None:
+            out.setdefault(str(qid), {})[str(sid)] = entry.grade
+    return out
+
+
+def candidate_keys(query: dict) -> list[str]:
+    """A query's candidate scene keys, in the order the pool presents them.
+
+    Order is load-bearing: the queue's progress pips are positional, so a row
+    rendered from anything but this order reports one candidate's grade under
+    another's.
+    """
+    return [
+        grade_scene_key(row.get("film_slug"), row.get("scene_id"))
+        for row in (query.get("results") or [])
+    ]
 
 
 def first_ungraded(
@@ -321,29 +359,35 @@ def first_ungraded(
     permanently. A grading session is long enough that stopping mid-query is
     the normal case, not the exception.
 
+    Finished is decided by *membership* — is there a judgment for each of this
+    query's candidates — not by comparing a judgment count to
+    ``candidate_count``. The two agree only while the pool a grader is looking
+    at is the one their grades were collected against. Regenerate the pool and
+    they diverge: grades for candidates the new pool no longer carries still
+    count toward the total, so a query reads as finished while its new
+    candidates have never been shown. On the ``corpus01`` regeneration that
+    was 55 of 56 queries and 703 hidden candidates — the grader is told they
+    are done and the pool is silently left ungraded.
+
     Drives the /eval session-resume landing row (open the page → first
     unfinished query for the active grader). Extracted from the api service so
     the resume rule lives next to the grade-loading primitives it reads.
     """
-    # Pre-compute this grader's judgment count per query to avoid an O(n²)
-    # inner scan. Counting, not membership: partial progress must not read as
-    # completion.
-    graded_counts: dict[str, int] = {}
-    for (qid, _sid), by_who in per_annotator.items():
-        if grader_name in by_who:
-            graded_counts[str(qid)] = graded_counts.get(str(qid), 0) + 1
+    # Pre-computed per query to avoid an O(n²) inner scan.
+    judged = judged_grades_by_query(per_annotator, grader_name)
 
     for q in queries:
         qid = str(q.get("id", ""))
         if not qid:
             continue
-        done = graded_counts.get(qid, 0)
-        expected = int(q.get("candidate_count") or len(q.get("results") or []) or 0)
-        if expected <= 0:
-            # Candidate count unknown — nothing to compare against, so keep
-            # the old rule: any judgment at all finishes the query.
-            if done == 0:
+        done = judged.get(qid, {})
+        candidates = candidate_keys(q)
+        if not candidates:
+            # No rows to compare against — keep the old rule: any judgment at
+            # all finishes the query, so a malformed record cannot trap the
+            # resume cursor on it forever.
+            if not done:
                 return q
-        elif done < expected:
+        elif any(key not in done for key in candidates):
             return q
     return None

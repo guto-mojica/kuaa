@@ -170,8 +170,15 @@
   background: var(--c-raised); border-radius: 8px;
 }
 .ev-lp .lpf-tabs .t.on .ct { background: var(--c-accent-dim); color: var(--c-text); }
+/* A tab whose measure needs data the run does not have (Conflict on a
+   single-grader run) stays visible and inert rather than emptying the
+   list with no reason given; the reason is on the title attribute. */
+.ev-lp .lpf-tabs .t[disabled] {
+  opacity: 0.45; cursor: not-allowed;
+}
 
 .ev-q-list { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 0 8px; }
+.ev-q-empty { padding: 18px 14px; color: var(--c-muted); font-size: 12px; }
 .ev-q {
   display: grid; grid-template-columns: 18px 1fr;
   gap: 9px; align-items: start;
@@ -242,6 +249,11 @@
 .ev-q .progress .pips .pp.g2 { background: var(--c-green); }
 .ev-q .progress .pips .pp.g3 { background: var(--c-accent); }
 .ev-q .progress .pips .pp.gp { background: var(--c-border-2); }
+/* Skip is a recorded "no opinion", not an ungraded row: hollow so it
+   reads as decided-but-abstained against .gp's solid ungraded pip. */
+.ev-q .progress .pips .pp.gs {
+  background: transparent; box-shadow: inset 0 0 0 1px var(--c-muted);
+}
 
 .ev-lp .controls {
   border-top: 1px solid var(--c-border);

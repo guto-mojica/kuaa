@@ -576,3 +576,48 @@ def test_eval_page_still_renders_a_pool_written_before_the_manifest(client, monk
 
     assert client.get("/eval?token=test-token").status_code == 200
 
+
+# ── Queue filter round-trip ───────────────────────────────────────────────────
+
+
+def _queue_run(monkeypatch, tmp_path, count: int = 3):
+    """Seed a run and point the eval service at it."""
+    from kuaa.eval.seed import write_seed
+
+    monkeypatch.setenv("EVAL_ADMIN_TOKEN", "test-token")
+    import api.services.eval_service as eval_service
+
+    write_seed(tmp_path, "default", count=count)
+    monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
+    monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
+
+
+def test_queue_filter_survives_opening_a_query(client, monkeypatch, tmp_path):
+    """Row links carry the active filter forward.
+
+    Opening a query is a full page load, so a filter held only in Alpine
+    state resets on every click — which is what made the tabs look
+    decorative: selectable, but never in force while grading.
+    """
+    _queue_run(monkeypatch, tmp_path)
+    r = client.get("/eval?token=test-token&filter=pendentes")
+    assert r.status_code == 200
+    assert "filter: 'pendentes'" in r.text
+    assert "&amp;filter=pendentes" in r.text
+
+
+def test_queue_filter_rejects_an_unknown_value(client, monkeypatch, tmp_path):
+    """An unknown filter falls back rather than 404s — it is a view preference."""
+    _queue_run(monkeypatch, tmp_path)
+    r = client.get("/eval?token=test-token&filter=../../etc/passwd")
+    assert r.status_code == 200
+    assert "filter: 'todas'" in r.text
+
+
+def test_conflict_tab_is_disabled_on_a_single_grader_run(client, monkeypatch, tmp_path):
+    """Conflict compares two annotators, so one grader can never populate it."""
+    _queue_run(monkeypatch, tmp_path)
+    r = client.get("/eval?token=test-token")
+    assert r.status_code == 200
+    tab = r.text.split('data-filter="conflito"', 1)[1].split("</button>", 1)[0]
+    assert "disabled" in tab

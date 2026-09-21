@@ -68,6 +68,13 @@ from kuaa.eval.paths import (  # noqa: F401
 from kuaa.eval.paths import (
     eval_run_id as _eval_run_id,
 )
+from kuaa.eval.queue_view import (
+    build_queue_rows as _build_queue_rows,
+)
+
+#: Queue filter tabs. Portuguese in the signal name because the queue's
+#: vocabulary is the project's — see the term table in CLAUDE.md.
+_QUEUE_FILTERS = frozenset({"todas", "pendentes", "conflito"})
 
 __all__ = [
     "build_eval_context",
@@ -113,6 +120,7 @@ def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
     compare_mode = False
     token = os.getenv("EVAL_ADMIN_TOKEN", "")
     requested_qid = ""
+    queue_filter = ""
     if request is not None:
         grader_name = request.cookies.get("grader", "anon")
         blind_cookie = request.cookies.get("eval_blind", "")
@@ -120,6 +128,7 @@ def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
         compare_mode = request.cookies.get("eval_compare", "") == "1"
         token = request.cookies.get("eval_admin") or request.query_params.get("token") or token
         requested_qid = str(request.query_params.get("query", "") or "")
+        queue_filter = str(request.query_params.get("filter", "") or "")
 
     # An explicit ``?query=`` wins over the resume rule. Every queue row in
     # queue.html has rendered exactly that link since the pane shipped, and
@@ -136,7 +145,6 @@ def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
         )
 
     annotator_count, iaa_kappa = _annotator_summary(per_annotator)
-    grades_by_query = _grades_by_query(loaded)
 
     # Multi-annotator IAA bundle for the right-pane panel + the queue's
     # Conflict tab + the per-row compare-mode chip. All three views
@@ -144,11 +152,25 @@ def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
     iaa = _build_iaa(per_annotator, current_grader=grader_name)
     query_conflict_set = _query_conflict_set(per_annotator)
 
-    # UI fields (Task 31). All have safe zero defaults so the
-    # template renders even on a fresh, unseeded run.
-    graded_count = sum(1 for grades in grades_by_query.values() if grades)
-    pending_count = max(0, len(queries) - graded_count)
-    conflict_count = len(query_conflict_set)
+    # Every tab badge is counted from the same rows the tab filters, so a badge
+    # cannot advertise a population the tab then fails to show. The rows carry
+    # the membership rule the resume cursor uses: finished means every
+    # candidate judged by THIS grader, not a judgment tally that a regenerated
+    # pool inflates past the candidate count.
+    queue_rows = _build_queue_rows(
+        queries,
+        per_annotator,
+        grader_name=grader_name,
+        conflict_ids=query_conflict_set,
+    )
+    pending_count = sum(1 for row in queue_rows if not row.done)
+    graded_count = len(queue_rows) - pending_count
+    conflict_count = sum(1 for row in queue_rows if row.conflict)
+    # Unknown values fall back rather than 404 — the filter is a view
+    # preference carried in the URL so it survives the full page load that
+    # opening a query costs, not an addressable resource.
+    if queue_filter not in _QUEUE_FILTERS:
+        queue_filter = "todas"
 
     # Hydrates current_query["results"] in place — see _current_query.
     cq_view = build_current_query_view(
@@ -165,10 +187,11 @@ def build_eval_context(cfg, *, request=None) -> dict[str, Any]:
         "run_id": run_id,
         "queries": queries,
         "current_query": current_query,
-        "grades_by_query": grades_by_query,
         "annotator_count": annotator_count,
         "iaa_kappa": iaa_kappa,
         # UI layer
+        "queue_rows": queue_rows,
+        "queue_filter": queue_filter,
         "graded_count": graded_count,
         "pending_count": pending_count,
         "conflict_count": conflict_count,
