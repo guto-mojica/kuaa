@@ -40,7 +40,10 @@
            return true;
          },
          noMatches() {
-           const rows = this.$el.querySelectorAll('.ev-q');
+           // $root, not $el: inside the x-show that calls this, $el is the
+           // message div itself, which contains no rows — so the query found
+           // nothing and the message never showed.
+           const rows = this.$root.querySelectorAll('.ev-q');
            if (!rows.length) return false;
            return !Array.from(rows).some(el => this.visible(el));
          }

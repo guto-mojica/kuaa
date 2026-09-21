@@ -35,6 +35,7 @@ Design notes
 
 from __future__ import annotations
 
+import os
 import socket
 import subprocess
 import sys
@@ -55,6 +56,11 @@ AXE_JS = Path(__file__).resolve().parent / "vendor" / "axe.min.js"
 # generous ceiling that also absorbs a first-run import of the (heavy) AI stack.
 _BOOT_TIMEOUT_S = 60.0
 _BOOT_POLL_S = 0.25
+
+#: The eval pane answers 403 unless ``EVAL_ADMIN_TOKEN`` is set for the server
+#: and presented on the request. The harness sets one for its own subprocess
+#: so the pane can be rendered; the value only has to match itself.
+EVAL_TOKEN = os.environ.get("EVAL_ADMIN_TOKEN") or "e2e-eval-token"
 
 
 def _free_port() -> int:
@@ -139,6 +145,7 @@ def live_server(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
             str(port),
         ],
         cwd=str(REPO_ROOT),
+        env={**os.environ, "EVAL_ADMIN_TOKEN": EVAL_TOKEN},
         stdout=log_file,
         stderr=subprocess.STDOUT,
     )
