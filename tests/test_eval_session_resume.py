@@ -14,7 +14,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from kuaa.eval.grades import EvalRun, Grade, save_grade
+from kuaa.eval.grades import EvalRun, Grade, grade_scene_key, save_grade
 from kuaa.eval.seed import SAMPLE_QUERIES, write_seed
 
 # ── helpers ─────────────────────────────────────────────────────────────────
@@ -56,9 +56,12 @@ def test_resume_picks_first_ungraded_for_grader(
     run = EvalRun(run_id=run_id, root=tmp_path)
 
     # Grade ALL scenes of query id 1 (id==1 → str "1") for grader "rg".
-    # The seed's query 1 has 9 results; scene_ids are the integer values
-    # stored in SAMPLE_QUERIES[0]["results"][*]["scene_id"].
-    q1_scene_ids = [str(r["scene_id"]) for r in SAMPLE_QUERIES[0]["results"]]
+    # The key is film-qualified — ``grade_scene_key`` — because that is what
+    # the /eval row POSTs and what resume matches against; a bare ordinal is
+    # only unique inside one film.
+    q1_scene_ids = [
+        grade_scene_key(r.get("film_slug"), r["scene_id"]) for r in SAMPLE_QUERIES[0]["results"]
+    ]
     for sid in q1_scene_ids:
         save_grade(run, query_id="1", scene_id=sid, grader="rg", grade=Grade.RELEVANT)
 
@@ -187,3 +190,43 @@ def test_resume_returns_to_a_partially_graded_query(
     assert str(ctx["current_query"]["id"]) == "1", (
         "a query with 1 of 9 judged is unfinished and must be resumed, not skipped"
     )
+
+
+def test_resume_ignores_grades_for_candidates_the_pool_no_longer_carries(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A regenerated pool must not read as finished on the old pool's grades.
+
+    Resume used to compare a judgment *count* against ``candidate_count``.
+    Regenerate the pool under existing grades and the two diverge: judgments
+    for candidates the new pool dropped still count toward the total, so a
+    query whose new candidates have never been shown reads as done. On the
+    corpus01 regeneration that was 55 of 56 queries and 703 hidden candidates.
+    """
+    run_id = "r"
+    write_seed(tmp_path, run_id, count=2)
+    run = EvalRun(run_id=run_id, root=tmp_path)
+
+    # As many judgments as query 1 has candidates — but on scenes that are not
+    # among them, exactly as a previous pool's grades would be.
+    for i in range(len(SAMPLE_QUERIES[0]["results"])):
+        save_grade(
+            run,
+            query_id="1",
+            scene_id=grade_scene_key("jeca", 9000 + i),
+            grader="rg",
+            grade=Grade.RELEVANT,
+        )
+
+    import api.services.eval_service as eval_service
+
+    monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
+    monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: run_id)
+
+    ctx = eval_service.build_eval_context(_make_cfg(tmp_path, run_id), request=_fake_request("rg"))
+
+    assert str(ctx["current_query"]["id"]) == "1", (
+        "query 1's own candidates are all ungraded — the cursor must land there"
+    )
+    assert ctx["graded_count"] == 0, "no query is finished; the header must not say otherwise"
+    assert ctx["pending_count"] == len(ctx["queries"])
