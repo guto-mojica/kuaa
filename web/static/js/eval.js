@@ -39,6 +39,63 @@
     return fromUrl || (body && body.dataset.token) || '';
   }
 
+  // ── Grader identity persistence ───────────────────────────────────
+  // The server reads the ``grader`` cookie on every grade and defaults
+  // it to "anon". A cookie is host-scoped and clearable, so a session
+  // reached at localhost:8501 instead of 127.0.0.1:8501, or a browser
+  // set to drop cookies on quit, silently resumes as a different
+  // annotator — which is how one person's grading pass ends up split
+  // across two names that share no judgment. localStorage is the same
+  // origin as the cookie but survives the cookie being cleared, so it
+  // can restore the name; the server refusing "anon" covers the rest.
+  var GRADER_KEY = 'kuaa.eval.grader';
+  var HEAL_FLAG = 'kuaa.eval.grader.healed';
+
+  function readGraderCookie() {
+    var m = document.cookie.match(/(?:^|;\s*)grader=([^;]*)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+
+  function writeGraderCookie(name) {
+    document.cookie =
+      'grader=' + encodeURIComponent(name) +
+      '; path=/; max-age=31536000; samesite=lax';
+  }
+
+  function storedGrader() {
+    try {
+      return window.localStorage.getItem(GRADER_KEY) || '';
+    } catch (err) {
+      return '';  // private mode / storage disabled
+    }
+  }
+
+  function storeGrader(name) {
+    try {
+      window.localStorage.setItem(GRADER_KEY, name);
+    } catch (err) {
+      /* nothing to do — the cookie is still the source of truth */
+    }
+  }
+
+  // Restore the cookie from localStorage when it has gone missing, and
+  // reload once so the server-rendered header, resume point and
+  // agreement panel all reflect the restored name rather than "anon".
+  // The sessionStorage flag makes the reload at most once per tab.
+  function healGraderCookie() {
+    if (readGraderCookie()) return;
+    var name = storedGrader();
+    if (!name) return;
+    writeGraderCookie(name);
+    try {
+      if (window.sessionStorage.getItem(HEAL_FLAG)) return;
+      window.sessionStorage.setItem(HEAL_FLAG, '1');
+    } catch (err) {
+      return;  // cannot guard the reload → settle for the cookie alone
+    }
+    window.location.reload();
+  }
+
   // i18n-invariant metric keys → canonical English label text. The
   // right-pane cards are matched by label text (see setMetric); in a
   // translated locale the match silently no-ops and the cards just
@@ -93,6 +150,9 @@
 
         init: function () {
           var self = this;
+          healGraderCookie();
+          var cookieName = readGraderCookie();
+          if (cookieName && cookieName !== 'anon') storeGrader(cookieName);
           this.countRows();
           // Re-count after an HTMX swap brings in a new row list
           // (forward-looking — no row partial swaps today, but the
@@ -123,8 +183,8 @@
             .trim()
             .slice(0, 40);
           if (!name) return;
-          document.cookie =
-            'grader=' + name + '; path=/; max-age=31536000; samesite=lax';
+          writeGraderCookie(name);
+          storeGrader(name);
           window.location.reload();
         },
 
@@ -189,7 +249,15 @@
           fetch('/api/eval/grade' + qs, { method: 'POST', body: fd })
             .then(function (resp) {
               if (!resp.ok) {
-                self.toast('Grade failed', 'Server ' + resp.status, 'error');
+                resp.json().then(function (body) {
+                  self.toast(
+                    'Grade failed',
+                    (body && body.detail) || ('Server ' + resp.status),
+                    'error'
+                  );
+                }).catch(function () {
+                  self.toast('Grade failed', 'Server ' + resp.status, 'error');
+                });
                 return;
               }
               self.updateRowGrade(rowEl, grade);
