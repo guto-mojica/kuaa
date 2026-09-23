@@ -131,12 +131,16 @@ Re-flip `retrieval.reranker.enabled` to `auto`/`true` only when **all** hold:
 ## Pointers
 
 - Measured deltas: the ablation row referenced above (§ "Why it's off", point 1)
-  is the current evidence trail. A full write-up of the evaluation ablation and
-  failure analysis behind that number is tracked internally and not yet
-  published as a standalone doc under `docs/`.
-- Forward plan: retrieval depth — deepening the first-stage candidate pool
-  ahead of trying fork A or B — is tracked as future work, not yet written up
-  as a standalone roadmap doc.
+  is the current evidence trail, and no standalone write-up of that ablation or
+  its failure analysis exists in this repository. The published table is
+  `docs/EVALUATION_RESULTS.md`, where the `hybrid+rerank` row reads
+  `pending (rerank off)` and stays that way until the re-measurement in
+  "Acceptance criteria" is run.
+- Forward plan: deepening the first-stage candidate pool ahead of fork A or B
+  has no roadmap entry of its own. What it would build on is already in the
+  tree — `retrieval.reranker.top_k_in` and the widening in
+  `api/services/_search_render.py` — so the prerequisite is the measurement,
+  not the mechanism.
 - Code: `kuaa/search/rerank.py` (the `rerank` verb), `api/services/_search_rerank.py`
   (config-aware wrapper + typed boundary), `api/services/_search_render.py`
   (first-stage widening), `kuaa/search/_dispatch.py` (`_attach_descriptions()`,
