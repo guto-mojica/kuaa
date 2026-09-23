@@ -6,15 +6,15 @@ to be inert, the pool costs a share of generation time, contributes nothing,
 and — worse — the ablation table later reports a row whose numbers are another
 row's numbers, with no signal that anything went wrong.
 
-That is not hypothetical. Measured on the shipped ``corpus01.queries.json``:
-``hybrid_rerank``'s rank map was identical to ``hybrid``'s on 56 of 56
-queries. The cross-encoder ran; the slate builder then re-sorted its output by
-``Hit.score``, which the reranker does not write, discarding the reordering it
-had just paid for. Nothing printed, nothing failed, and the pool advertised
+That is not hypothetical, and the shape it takes is quiet. A slate builder
+that re-sorts a reranked list by ``Hit.score`` — which ``rerank`` does not
+write, since it writes ``Hit.rerank_score`` — discards the reordering it just
+paid for, and the cross-encoder's leg collapses onto the leg it sits on. The
+run still succeeds: nothing prints, nothing fails, and the pool advertises
 five retrievers while spanning three.
 
 So the report is an artifact next to the pool, and it exits non-zero. A report
-nobody is forced to read is how that shipped.
+nobody is forced to read is how a pool reaches a grader in that state.
 
 Two checks, and which one applies depends on what kind of retriever it is
 (see :attr:`kuaa.eval.registry.RetrieverVariant.derived_from`):
@@ -30,10 +30,11 @@ Two checks, and which one applies depends on what kind of retriever it is
 A *derived* variant — a fusion of other legs, or a reranker over one — is
 exempt from the first check and not from the second. Its candidate set is
 contained in its parents' by construction, so zero unique candidates is
-correct behaviour rather than evidence of anything. On the shipped
-``corpus01`` pool ``hybrid`` proposes 560 candidates and 0 unique ones; a
-report that failed it for that would be crying wolf next to the one real
-finding.
+correct behaviour rather than evidence of anything, and a report that failed
+a derived variant for it would be crying wolf. What a derived variant does
+contribute is a measurement, not a property: read it off the run's own report
+(``data/eval/corpus01.pool_composition.json`` for ``corpus01``) rather than
+from prose here, which cannot track a regenerated pool.
 """
 
 from __future__ import annotations

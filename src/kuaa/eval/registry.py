@@ -50,12 +50,12 @@ class RetrieverVariant:
     a rank map distinguishable from the variants it derives from — that is
     what makes its leg separately scorable after grading.
 
-    Whether a derived variant widens the pool is therefore a measurement, not
-    a property. On the shipped ``corpus01`` pool (see
-    ``data/eval/corpus01.pool_composition.json``) both do: ``hybrid`` proposes
-    15 candidates unique to it of 560, and ``hybrid_rerank`` 159 of 560,
-    because a first stage widened to the reranker's input window reaches rows
-    the un-widened legs truncate away.
+    Whether a derived variant widens the pool anyway is a measurement, not a
+    property: a first stage widened to the reranker's input window reaches
+    rows the un-widened legs truncate away, so both shipped derived variants
+    do contribute unique candidates. The per-run counts live in that run's
+    report (``<run>.pool_composition.json``), which is where to read them —
+    a number repeated here cannot track a regenerated pool.
 
     An empty ``derived_from`` marks a **source**: a retriever that reaches the
     index on its own. A source that proposes nothing unique is doing nothing.
@@ -84,13 +84,12 @@ class RetrieverVariant:
 
 #: The retrievers under comparison, in declaration order.
 #:
-#: ``hybrid_rerank`` earns its place twice over: its rank map is what makes
-#: the reranker decision (``docs/RERANKER_DECISION.md``) answerable from
-#: grades instead of from judgment, and on ``corpus01`` it also widens the
-#: pool by 159 candidates no other variant proposed. Both are checks it has
-#: to keep passing — a rank map distinguishable from ``hybrid``'s is what the
-#: composition report requires of a derived variant, and a variant that stops
-#: clearing it is one the reranker's config has turned inert.
+#: ``hybrid_rerank`` is kept because its rank map is what makes the reranker
+#: decision (``docs/RERANKER_DECISION.md``) answerable from grades instead of
+#: from judgment. What it has to keep earning is a rank map distinguishable
+#: from ``hybrid``'s — the composition report's requirement for a derived
+#: variant, and the check that catches a reranker whose config has gone
+#: inert, since an inert one collapses onto the leg it sits on.
 RETRIEVER_REGISTRY: dict[str, RetrieverVariant] = {
     v.name: v
     for v in (
