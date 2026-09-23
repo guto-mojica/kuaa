@@ -44,9 +44,10 @@ domain packs, limitations, next steps), see [`CASE_STUDY.md`](CASE_STUDY.md).
 - Regression test coverage for web routes, services, search, processing, i18n,
   accessibility, and model protocol behavior.
 
-Known UI wiring gaps are tracked internally. The launch policy is that visible
-tool controls must be backed by current behavior; global prototype chrome has
-been removed.
+The launch policy is that a visible tool control must be backed by current
+behavior. A control whose backing is missing is removed rather than shipped
+inert, which is why the global prototype chrome is gone. There is no separate
+list of outstanding gaps: the policy is what disposes of one.
 
 ## Public baseline
 
