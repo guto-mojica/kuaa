@@ -275,6 +275,25 @@ def test_candidate_row_missing_keyframe_falls_back_to_empty():
     assert row["keyframe_url"] == ""
 
 
+def test_candidate_row_raises_when_the_key_contract_drifts(monkeypatch):
+    """The 9-key contract must be enforced by a ``raise``, not an ``assert``.
+
+    The check holds the built literal and ``_ROW_KEYS`` in agreement, and it is
+    the only thing that does — every consumer (the ``/eval`` rows template, the
+    graded-pool scorer) depends on exactly those keys. An ``assert`` here is
+    stripped by ``python -O``, under which drift would reach the grading page
+    as a missing column rather than as an error. Widening ``_ROW_KEYS`` is how
+    that drift looks from the outside.
+    """
+    import kuaa.eval.slates as slates
+
+    monkeypatch.setattr(slates, "_ROW_KEYS", (*slates._ROW_KEYS, "a_tenth_key"))
+
+    meta = slates._empty_meta("jeca", Path("/srv/data").resolve())
+    with pytest.raises(ValueError, match="candidate row key drift"):
+        slates._candidate_row(scene_id=1, film_slug="jeca", score=0.5, meta=meta)
+
+
 def test_generate_slate_text_scopes_search_to_film_slug(tmp_path, monkeypatch):
     """#3: film_slug scopes the search to that film BEFORE top-k truncation, so a
     film that another film would crowd out of the global head still returns rows."""
