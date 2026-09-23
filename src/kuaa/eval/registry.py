@@ -43,13 +43,19 @@ class RetrieverVariant:
       candidate set is contained in their union by construction;
     * a **reranker** — the cross-encoder scores the hits it is handed.
 
-    Either is *expected* to contribute zero candidates no other variant
-    proposed, so the report's unique-contribution check would fail it
-    permanently and for no reason. (It does, on the shipped ``corpus01``
-    pool: ``hybrid`` has 0 unique of 560 proposed.) What a derived variant
-    must instead show is a rank map distinguishable from the variants it
-    derives from — that is what makes its leg separately scorable after
-    grading, and it is exactly the check ``hybrid_rerank`` fails.
+    Either *may* contribute no candidate the variants it derives from did not
+    already propose, so the report's unique-contribution check cannot be
+    applied to it: failing a variant for that would fail it on its definition
+    rather than on its behaviour. What a derived variant must instead show is
+    a rank map distinguishable from the variants it derives from — that is
+    what makes its leg separately scorable after grading.
+
+    Whether a derived variant widens the pool is therefore a measurement, not
+    a property. On the shipped ``corpus01`` pool (see
+    ``data/eval/corpus01.pool_composition.json``) both do: ``hybrid`` proposes
+    15 candidates unique to it of 560, and ``hybrid_rerank`` 159 of 560,
+    because a first stage widened to the reranker's input window reaches rows
+    the un-widened legs truncate away.
 
     An empty ``derived_from`` marks a **source**: a retriever that reaches the
     index on its own. A source that proposes nothing unique is doing nothing.
@@ -78,13 +84,13 @@ class RetrieverVariant:
 
 #: The retrievers under comparison, in declaration order.
 #:
-#: ``hybrid_rerank`` is kept despite contributing zero *unique* candidates by
-#: construction (see ``derived_from``): it costs no extra grader time — the
-#: pool is a union of candidate sets and the reranker adds none — and its rank
-#: map is what makes the reranker decision (``docs/RERANKER_DECISION.md``)
-#: answerable from grades instead of from judgment. What it must earn is a
-#: rank map distinguishable from ``hybrid``'s, which is what the composition
-#: report checks and what it currently fails.
+#: ``hybrid_rerank`` earns its place twice over: its rank map is what makes
+#: the reranker decision (``docs/RERANKER_DECISION.md``) answerable from
+#: grades instead of from judgment, and on ``corpus01`` it also widens the
+#: pool by 159 candidates no other variant proposed. Both are checks it has
+#: to keep passing — a rank map distinguishable from ``hybrid``'s is what the
+#: composition report requires of a derived variant, and a variant that stops
+#: clearing it is one the reranker's config has turned inert.
 RETRIEVER_REGISTRY: dict[str, RetrieverVariant] = {
     v.name: v
     for v in (
