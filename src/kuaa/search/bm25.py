@@ -28,7 +28,7 @@ Public verbs:
 The module deliberately does NOT import from ``api.*`` — that boundary
 is enforced by import-linter (``kuaa core must not import api/``).
 The merged tag-index composition that used to be inlined here was
-promoted to :mod:`kuaa.search._tag_index` in T8 so the same
+promoted to :mod:`kuaa.search._tag_index` so the same
 loader can be shared with the Mojica context builders without
 re-introducing the ``api.services.catalog`` import. Semantics match
 byte-for-byte (raw, un-normalised, mixed-key dict; malformed

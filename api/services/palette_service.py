@@ -1,4 +1,4 @@
-"""Command-palette result aggregation (Phase 7 / Task 27).
+"""Command-palette result aggregation.
 
 The palette is a single global keyboard-driven entry point (⌘K / Ctrl+K) for
 navigation + cross-tab actions + library search. The service groups results
@@ -6,7 +6,7 @@ into stable categories the client renders in fixed order:
 
   * ``navigate`` — main tab destinations (Home, Search, Scenes, Annotate,
     Rhymes, Processing). The hotkeys ("1".."5") match the keyboard help
-    overlay (Task 28).
+    overlay.
   * ``actions`` — backed global commands (locale switch, about). Distinct
     from ``navigate`` because they may trigger server-side state changes.
   * ``films`` — registered library films, filtered by label.

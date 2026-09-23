@@ -1,6 +1,6 @@
 """Annotate tab routes — manual scene tagging (thin HTTP layer).
 
-Context builders live in :mod:`api.services.annotations` (A2 Task 5).
+Context builders live in :mod:`api.services.annotations`.
 """
 
 from __future__ import annotations
@@ -100,7 +100,7 @@ async def api_annotate_save(
     resp = _scene_resp(
         request, slug, filter, tab, build_scene_panel(fctx, scene_id, filter), saved=True
     )
-    # U7: success toast alongside the inline ✓ (rendered by annotate_tags.html
+    # Success toast alongside the inline ✓ (rendered by annotate_tags.html
     # on ``saved=True``). The header is set on the returned TemplateResponse —
     # see the api_library_add note for why injection-merge doesn't apply here.
     _ = request_gettext(request)

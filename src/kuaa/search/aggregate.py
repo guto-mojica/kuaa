@@ -1,6 +1,6 @@
 """Cross-film aggregate search — global retrieval lists over the library.
 
-Relocated from ``api/services/search.py`` during P1 / T11. The function
+Relocated from ``api/services/search.py``. The function
 walks every registered film, builds per-film CLIP + (optional) BM25
 ranked lists, concatenates them into two GLOBAL ranked lists keyed by
 ``(film_slug, scene_id)``, then dispatches by retriever mode:
@@ -13,12 +13,12 @@ Signature note: the function preserves the EXACT ``cfg``-taking, keyword-
 only signature that lived in ``api.services.search`` so the existing
 route call site (``api/routes/search.py``) and the 18 cross-film tests
 (``test_multi_film_search.py``, ``test_aggregate_search_hybrid.py``,
-``test_p1_search_snapshot.py``) keep passing byte-identical. A public
-typed ``aggregate(query, *, cfg, ...)`` wrapper lands in T13 — verbatim
-move first, signature reshape behind a stable public surface second.
+``test_p1_search_snapshot.py``) keep passing byte-identical. The typed
+``aggregate(query, *, cfg, ...)`` wrapper below is the reshape of that
+signature behind a stable public surface.
 
-T13 (P3.D.1): ``_get_embedder``, ``_get_search_index``, and
-``has_indexed_films`` now live here. ``api.services.search`` re-exports
+``_get_embedder``, ``_get_search_index``, and
+``has_indexed_films`` live here. ``api.services.search`` re-exports
 them for backward compatibility. Tests should monkeypatch
 ``kuaa.search.aggregate._get_embedder`` / ``_get_search_index``.
 """
@@ -180,7 +180,7 @@ def _load_film_artifacts(ctx: FilmContext) -> _FilmArtifacts:
     """Load the five per-film metadata artefacts off ``ctx.metadata_dir``.
 
     Each loader tolerates a missing/non-list payload (``[]`` / ``{}``), exactly
-    as the pre-C1 inline block did, so a film with partial metadata still scores.
+    as the original inline block did, so a film with partial metadata still scores.
     """
     kf_meta_data = load_json(ctx.metadata_dir / "keyframes_metadata.json") or []
     kf_meta = kf_meta_data if isinstance(kf_meta_data, list) else []
@@ -206,7 +206,7 @@ def _film_bm25_hits(
     ``"clip"`` mode skips BM25 loading entirely (no disk read for a corpus
     we'll ignore). A loader failure or an unbuilt corpus contributes nothing —
     in hybrid mode the scene still surfaces via CLIP, in pure-bm25 mode it
-    surfaces nothing (correct: BM25 has no signal). Verbatim from pre-C1.
+    surfaces nothing (correct: BM25 has no signal).
     """
     if sctx.retriever_mode == "clip":
         return []
@@ -263,7 +263,7 @@ def _score_film(sctx: _ScoringContext, cand: CandidateFilm, film: Any) -> _FilmS
     the whole film — the legacy ``continue`` that skips it entirely.
 
     Reads ``cand.index`` directly (load-once): the index is never re-loaded
-    here. Per-film logging is emitted verbatim from the pre-C1 loop body.
+    here. Per-film logging is emitted verbatim from the original loop body.
     """
     idx = cand.index  # load-once: read off the candidate, never re-load
     film_ctx = FilmContext.for_film(sctx.cfg, film.slug)
@@ -348,7 +348,7 @@ def _dispatch_ranked(
     ``metadata_w`` share (``cfg.search.hybrid_metadata_w``, default 0.65) and
     the CLIP/BM25 residual is split by their normalised sem/bm25 weights;
     otherwise it is the plain two-way sem/bm25 RRF. All weighting arithmetic
-    is verbatim from the pre-C1 Phase-3 dispatch.
+    is verbatim from the original dispatch.
 
     Global RRF (over the cross-film-concatenated lists) is deliberate: the
     pre-decomposition implementation ran per-film RRF and then sorted across
@@ -431,7 +431,7 @@ def _resolve_candidates(
     empty library short-circuits without paying the ~4 s CLIP model init.
 
     FilmFilter loads each film's index exactly once and attaches the loaded
-    :class:`SearchIndex` to its candidate, collapsing the pre-C1 double load
+    :class:`SearchIndex` to its candidate, collapsing the original double load
     (a pre-scan ``valid_slugs`` pass plus a re-loading main loop). The injected
     loader is ``_get_search_index`` — monkeypatched in tests, cached in prod —
     so test fixtures that stub the index are respected.
@@ -467,7 +467,7 @@ def _log_query_start(
     bm25_w: float,
     rrf_k: int,
 ) -> None:
-    """Emit the per-query INFO line (verbatim format from pre-C1)."""
+    """Emit the per-query INFO line (format unchanged from the original)."""
     logger.info(
         "aggregate_search: query=%r films=%d top_k=%d tags=%s min_sim=%.3f "
         "retriever=%s sem_w=%.2f bm25_w=%.2f rrf_k=%d",
@@ -491,7 +491,7 @@ def _log_result(
     global_metadata: _GlobalList,
     all_hits: list[dict],
 ) -> None:
-    """Emit the result-summary INFO line (verbatim format from pre-C1)."""
+    """Emit the result-summary INFO line (format unchanged from the original)."""
     logger.info(
         "aggregate_search: query=%r global_clip=%d global_bm25=%d global_metadata=%d "
         "returned=%d top_score=%.6f",
@@ -596,12 +596,12 @@ def aggregate_search(
     return all_hits
 
 
-# ── Typed public wrapper (T13) ────────────────────────────────────────────────
+# ── Typed public wrapper ────────────────────────────────────────────────
 # ``aggregate(query, *, cfg, mode, top_k, filters, weights)`` is the public
 # verb. It wraps the legacy ``aggregate_search`` (above, dict-returning)
-# with the locked P1 API surface — typed in, typed out. P2 replaces the
-# ``cfg=`` argument with ``library=Library`` once the Library type
-# lands; the rest of the signature stays.
+# with the locked public API surface — typed in, typed out. A later
+# revision replaces the ``cfg=`` argument with ``library=Library`` once the
+# Library type lands; the rest of the signature stays.
 
 
 def aggregate(
@@ -616,9 +616,9 @@ def aggregate(
     """Public verb: cross-film aggregate search.
 
     Wraps the legacy :func:`aggregate_search` (dict-returning) with the
-    typed API. P1 supports text queries only — image / audio / fusion
-    modalities land in later plans. ``cfg`` is the existing app-config
-    handle; P2 replaces it with ``library=Library``.
+    typed API. Text queries only — image / audio / fusion modalities land
+    later. ``cfg`` is the existing app-config handle; a later revision
+    replaces it with ``library=Library``.
 
     Returns a typed :class:`SearchResult`. ``no_index=True`` carries the
     empty-library / unindexed-films signal so the caller renders the
@@ -626,7 +626,7 @@ def aggregate(
     """
     if query.text is None:
         raise NotImplementedError(
-            "aggregate() supports text queries only in P1; "
+            "aggregate() supports text queries only; "
             "image / audio / fusion modalities land in later plans."
         )
     filters = filters or Filters()
@@ -736,7 +736,7 @@ def aggregate_image_search(
 def aggregate_hits_to_template_dicts(cfg: Settings, hits: list[dict]) -> list[dict]:
     """Convert ``aggregate_search`` raw hits to ``.b-card``-shaped template dicts.
 
-    Relocated from the aggregate path of ``api/routes/search.py`` (T15).
+    Relocated from the aggregate path of ``api/routes/search.py``.
     The ``data_dir`` MUST be the media-mount root (``cfg.paths.data_dir``),
     not ``library_dir`` — otherwise ``keyframe_url``'s ``relative_to``
     check fails for filepaths stored under ``data/frames/...`` or

@@ -1,6 +1,6 @@
-"""A4: map kuaa.errors -> HTTP envelope (JSON) or HTMX error partial.
+"""Map kuaa.errors -> HTTP envelope (JSON) or HTMX error partial.
 
-The HTTP status for each exception subclass is determined by the F2
+The HTTP status for each exception subclass is determined by the
 single source of truth: :func:`kuaa.errors.http_status_for`.
 This module intentionally does NOT duplicate the status table — it
 delegates to ``http_status_for`` so the mapping stays canonical in

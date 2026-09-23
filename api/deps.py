@@ -193,7 +193,7 @@ def make_ctx(request: Request, **kwargs) -> dict:
         "viewers": [],
         "notification_count": 0,
         "current_user": None,
-        # Mojica redesign (Task 10+): the Buscar tab reads retrieval UI
+        # Mojica redesign: the Buscar tab reads retrieval UI
         # gates/defaults straight from ``cfg.search.*``. Exposing the
         # full config here keeps the routes simple and avoids a separate
         # dependency for templates.
@@ -274,7 +274,7 @@ def toast_trigger(
     Calling this helper twice on the same response overwrites the prior
     header — htmx accepts a single ``HX-Trigger`` value per response.
     If a route needs to fire multiple toasts in a single response, batch
-    them with a custom event key (out of scope for Task 26).
+    them with a custom event key (out of scope here).
     """
     payload: dict[str, object] = {"title": title, "kind": kind}
     if sub:
@@ -304,7 +304,7 @@ def film_ctx(request: Request, cfg=None):
     return FilmContext.from_config(cfg)
 
 
-# ── A6: FilmContext FastAPI dependencies ──────────────────────────────────────
+# ── FilmContext FastAPI dependencies ─────────────────────────────────────────
 
 
 def resolve_film_context(cfg, slug: str | None, request):

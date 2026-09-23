@@ -1,4 +1,4 @@
-"""kuaa.config — typed settings (F1).
+"""kuaa.config — typed settings.
 
 Public surface unchanged for callers: ``load_config``, ``setup_logging``,
 the ``Config`` alias, plus dot-access / ``.get`` / ``.to_dict`` on the

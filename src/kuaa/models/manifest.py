@@ -1,4 +1,4 @@
-"""Model provenance manifest (F6).
+"""Model provenance manifest.
 
 A :class:`ModelCard` per model backend: identity, revision, vector dim /
 I-O shape, license, download hint, and an optional checksum.  ``CARDS``
@@ -11,7 +11,7 @@ manifest always reflects the *configured* backend, not a role-level
 default.
 
 The registry exposes :func:`kuaa.models.registry.model_card` as the
-config-aware entry point; docs (WS-6 D4/D9) render
+config-aware entry point; docs render
 ``MODEL_INVENTORY`` / ``LICENSES`` from these cards so there is no drift
 between code and documentation.
 """

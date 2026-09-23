@@ -1,11 +1,9 @@
 """Chrome context builder — Mojica TopBar + LeftPane.
 
-Phase-1 / Task 8 introduces a single source of truth for the Mojica
-chrome context: the variables consumed by ``_topbar.html``,
-``_left_pane.html`` and ``_left_pane_body.html``.
-
-Before Task 8 every full-page route built its own sparse chrome bag in
-``api/server.py::render_page``. The launch topbar now keeps only brand,
+A single source of truth for the Mojica chrome context: the variables
+consumed by ``_topbar.html``, ``_left_pane.html`` and
+``_left_pane_body.html``, which each full-page route would otherwise
+build for itself in ``api/server.py::render_page``. The launch topbar now keeps only brand,
 breadcrumb, and tool tabs; collaboration/notification identity keys remain in
 the context for compatibility but are not rendered by the topbar.
 

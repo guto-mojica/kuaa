@@ -15,8 +15,8 @@ Phase 4 hardens this module:
   * dependency-aware gating surfaces ``blocked`` steps so an upstream
     failure can no longer silently combine stale mixed outputs.
 
-WS-2 A9 — explicit guarded state machine
------------------------------------------
+Explicit guarded state machine
+------------------------------
 Job status is now :class:`JobStatus` (a ``str`` enum) with an explicit
 transition table :data:`_TRANSITIONS`. :meth:`JobState.transition_to`
 enforces legality, raising :exc:`kuaa.errors.PipelineError` on

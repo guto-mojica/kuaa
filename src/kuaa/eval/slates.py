@@ -1,4 +1,4 @@
-"""Per-modality slate generation for the eval grading UI (E3a).
+"""Per-modality slate generation for the eval grading UI.
 
 Given one parsed query from a query set (``data/eval/corpus01_queries.yaml``
 is the current one), this module
@@ -11,8 +11,8 @@ Layering: this is core (``kuaa.*``) and MUST NOT import from ``api.*``
 (enforced by import-linter); the scene_id→row join is implemented here with
 ``kuaa.*`` primitives only.
 
-E3a is hermetic and scoring-free: it produces the slate. Scoring, the CLI,
-and GPU acceptance are E3b.
+Slate generation is hermetic and scoring-free: it produces the slate.
+Scoring, the CLI and GPU acceptance are separate.
 """
 
 from __future__ import annotations
@@ -334,7 +334,7 @@ def _candidate_row(
         "keyframe_url": keyframe_url_val,
     }
     # The 9-key contract is a self-checking invariant: every consumer
-    # (the /eval rows template, E3b scoring) depends on exactly these keys.
+    # (the /eval rows template, the graded-pool scorer) depends on these keys.
     # A ``raise``, not an ``assert``: this is the sole enforcement of the
     # contract, and ``python -O`` strips asserts.
     if set(row) != set(_ROW_KEYS):

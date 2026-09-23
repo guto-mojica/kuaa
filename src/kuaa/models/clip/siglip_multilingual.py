@@ -65,7 +65,7 @@ _DEFAULT_MODEL_ID = "google/siglip2-large-patch16-256"
 class SiglipMultilingualEmbedder:
     """SigLIP-multilingual via HuggingFace transformers."""
 
-    #: Provenance for this backend (manifest single source of truth, C10/F6).
+    #: Provenance for this backend (manifest single source of truth).
     CARD: ModelCard = get_card("siglip_multilingual")
 
     def __init__(self, cfg: Settings | None = None, device: str | None = None) -> None:

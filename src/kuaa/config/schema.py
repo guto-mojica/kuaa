@@ -1,4 +1,4 @@
-"""Pydantic v2 typed configuration schema (F1).
+"""Pydantic v2 typed configuration schema.
 
 Every section of ``config/default.yaml`` is transcribed into a
 :class:`_Section` subclass with ``extra="forbid"`` so an unknown key (a

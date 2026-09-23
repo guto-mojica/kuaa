@@ -1,7 +1,7 @@
-"""ASGI middleware: request correlation + access logging (F5).
+"""ASGI middleware: request correlation + access logging.
 
 Generates (or echoes an inbound) ``X-Request-ID`` per request, stashes it
-on ``request.state.request_id`` for downstream handlers/SSE (WS-2 A8),
+on ``request.state.request_id`` for downstream handlers/SSE,
 times the request via :func:`kuaa.timing.timed`, and emits exactly
 one structured access-log line on the ``api.access`` logger.
 """

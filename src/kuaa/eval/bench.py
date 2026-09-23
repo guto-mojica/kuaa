@@ -1,8 +1,8 @@
-"""Retrieval-latency benchmark core (E6).
+"""Retrieval-latency benchmark core.
 
 Pure timing + stats logic extracted from ``scripts/bench_retrieval.py``.
 No ``api.*`` imports — this module is the reusable library function
-consumed by the WS-5 T9 CI job and by the eval pipeline.
+consumed by the CI job and by the eval pipeline.
 
 The script keeps:
   * ``BenchFixture`` dataclass + ``_build_fixture`` (api.services imports)
@@ -17,7 +17,7 @@ This module provides:
   * ``_time_clip / _time_bm25 / _time_hybrid / _warmup`` — per-query helpers
 
 The per-stage timing in ``_time_hybrid`` is re-keyed onto the ``timed``
-context manager (F5 hook, ``kuaa.timing``) rather than raw
+context manager (``kuaa.timing``) rather than raw
 ``time.perf_counter()`` deltas.  This makes the latency data available
 to any consumer that hooks into ``timed`` (e.g. structured logging).
 """

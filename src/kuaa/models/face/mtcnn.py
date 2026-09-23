@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class MTCNNFaceDetector:
     """Detects faces in frames using MTCNN (facenet-pytorch)."""
 
-    #: Provenance for this backend (manifest single source of truth, C10/F6).
+    #: Provenance for this backend (manifest single source of truth).
     CARD: ModelCard = get_card("mtcnn_pytorch")
 
     def __init__(self, cfg: Settings | None = None, device=None):

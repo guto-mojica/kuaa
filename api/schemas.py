@@ -1,7 +1,7 @@
-"""Pydantic v2 request/response models for the JSON API surface (A3).
+"""Pydantic v2 request/response models for the JSON API surface.
 
-Co-located here so A4 (ErrorEnvelope), A5 (HealthStatus/ReadyStatus), and
-A7 (Pagination) can all import from a single contract module rather than
+Co-located here so ``ErrorEnvelope``, ``HealthStatus`` / ``ReadyStatus`` and
+``Pagination`` can all import from a single contract module rather than
 scattering models across route files.
 
 All models use Pydantic v2 semantics (model_config, Field factories, etc.).
@@ -118,7 +118,7 @@ class SearchParams(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# System — health / ready (A5)
+# System — health / ready
 # ---------------------------------------------------------------------------
 
 
@@ -136,12 +136,12 @@ class ReadyStatus(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Error envelope (A4)
+# Error envelope
 # ---------------------------------------------------------------------------
 
 
 class ErrorEnvelope(BaseModel):
-    """Standard error response body returned by A4 exception handlers."""
+    """Standard error response body returned by the exception handlers."""
 
     error: str = Field(description="Human-readable error message")
     code: str = Field(description="Machine-readable error code (snake_case)")
@@ -150,12 +150,12 @@ class ErrorEnvelope(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Pagination query params (A7)
+# Pagination query params
 # ---------------------------------------------------------------------------
 
 
 class Pagination(BaseModel):
-    """Query-parameter pagination model; used via ``Depends(Pagination)`` (A7).
+    """Query-parameter pagination model; used via ``Depends(Pagination)``.
 
     FastAPI resolves the fields from query-string parameters:
       ``?limit=10&offset=20`` → ``Pagination(limit=10, offset=20)``

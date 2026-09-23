@@ -91,7 +91,7 @@ class SearchResult:
     weights: HybridWeights | None
     query: Query
     no_index: bool = False
-    # C9 per-query metadata (additive; feeds eval + UI affordances).
+    # Per-query metadata (additive; feeds eval + UI affordances).
     fusion_used: bool = False
     reranker_applied: bool = False
     retriever_mode: str = ""

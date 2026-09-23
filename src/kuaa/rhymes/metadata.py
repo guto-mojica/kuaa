@@ -36,7 +36,7 @@ def load_scene_meta(cfg: Settings, slug: str, scene_id: int) -> dict | None:
     never sees ``None`` on a sub-field.
 
     Returns ``None`` only when the scene id itself cannot be located in
-    the film's keyframe metadata — that is the signal Task 22's template
+    the film's keyframe metadata — that is the signal the template
     uses to render the "anchor missing" empty state.
     """
     try:
