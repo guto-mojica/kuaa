@@ -45,7 +45,9 @@
   <div class="ev-rows" id="ev-rows">
     {% set rows = current_query.results if current_query.results is defined and current_query.results else [] %}
     {% for r in rows %}
-      {% set scene_key = r.scene_id|string %}
+      {# Film-qualified: a pool spans films and scene_id repeats across them,
+         so the bare id would collide two films' scene 45 onto one grade. #}
+      {% set scene_key = r.grade_key if r.grade_key else (r.film_slug ~ '/' ~ r.scene_id if r.film_slug else r.scene_id|string) %}
       {% set g = grades_for_current.get(scene_key) if grades_for_current is defined else none %}
       {% set other_g = grades_for_current_other.get(scene_key) if grades_for_current_other is defined else none %}
       {% set is_graded = g is not none %}
@@ -64,7 +66,7 @@
          updateRowGrade read them) and add @click → onGradeClick. #}
       <article class="ev-row{% if is_graded %} graded{% endif %}"
                :class="{ cur: currentRow === {{ loop.index0 }} }"
-               data-scene-id="{{ r.scene_id }}"
+               data-scene-id="{{ scene_key }}"
                data-query-id="{{ current_query.id }}">
         <div class="rank">
           <span>{{ '%02d'|format(loop.index) }}</span>
@@ -76,14 +78,14 @@
                     class="gb{% if g == v %} {{ cls }}{% elif is_graded and g != -1 %} dim{% endif %}"
                     data-grade="{{ v }}"
                     data-query-id="{{ current_query.id }}"
-                    data-scene-id="{{ r.scene_id }}"
+                    data-scene-id="{{ scene_key }}"
                     @click="onGradeClick($el, {{ v }})">{{ v }}</button>
           {% endfor %}
           <button type="button"
                   class="gb k{% if g == -1 %} ons{% elif is_graded %} dim{% endif %}"
                   data-grade="-1"
                   data-query-id="{{ current_query.id }}"
-                  data-scene-id="{{ r.scene_id }}"
+                  data-scene-id="{{ scene_key }}"
                   @click="onGradeClick($el, -1)">S</button>
         </div>
         <div class="thumb"{% if r.keyframe_url %} style="background-image: url('{{ r.keyframe_url }}');"{% endif %}></div>
@@ -97,7 +99,10 @@
             </span>
             <span class="tc">{{ r.timecode or '00:00:00' }}</span>
           </div>
-          <div class="desc">{{ r.description or _('No description yet.') }}</div>
+          {# title= recovers the full description regardless of the clamp —
+             the contract asks the grader to judge the scene, so the text
+             that describes it must never be unreachable. #}
+          <div class="desc" title="{{ r.description }}">{{ r.description or _('No description yet.') }}</div>
           <div class="tags">
             {% for t in (r.tags or [])[:5] %}
               <span class="t">{{ t }}</span>{% if not loop.last %}<span class="t">·</span>{% endif %}

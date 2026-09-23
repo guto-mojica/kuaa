@@ -39,6 +39,63 @@
     return fromUrl || (body && body.dataset.token) || '';
   }
 
+  // ── Grader identity persistence ───────────────────────────────────
+  // The server reads the ``grader`` cookie on every grade and defaults
+  // it to "anon". A cookie is host-scoped and clearable, so a session
+  // reached at localhost:8501 instead of 127.0.0.1:8501, or a browser
+  // set to drop cookies on quit, silently resumes as a different
+  // annotator — which is how one person's grading pass ends up split
+  // across two names that share no judgment. localStorage is the same
+  // origin as the cookie but survives the cookie being cleared, so it
+  // can restore the name; the server refusing "anon" covers the rest.
+  var GRADER_KEY = 'kuaa.eval.grader';
+  var HEAL_FLAG = 'kuaa.eval.grader.healed';
+
+  function readGraderCookie() {
+    var m = document.cookie.match(/(?:^|;\s*)grader=([^;]*)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+
+  function writeGraderCookie(name) {
+    document.cookie =
+      'grader=' + encodeURIComponent(name) +
+      '; path=/; max-age=31536000; samesite=lax';
+  }
+
+  function storedGrader() {
+    try {
+      return window.localStorage.getItem(GRADER_KEY) || '';
+    } catch (err) {
+      return '';  // private mode / storage disabled
+    }
+  }
+
+  function storeGrader(name) {
+    try {
+      window.localStorage.setItem(GRADER_KEY, name);
+    } catch (err) {
+      /* nothing to do — the cookie is still the source of truth */
+    }
+  }
+
+  // Restore the cookie from localStorage when it has gone missing, and
+  // reload once so the server-rendered header, resume point and
+  // agreement panel all reflect the restored name rather than "anon".
+  // The sessionStorage flag makes the reload at most once per tab.
+  function healGraderCookie() {
+    if (readGraderCookie()) return;
+    var name = storedGrader();
+    if (!name) return;
+    writeGraderCookie(name);
+    try {
+      if (window.sessionStorage.getItem(HEAL_FLAG)) return;
+      window.sessionStorage.setItem(HEAL_FLAG, '1');
+    } catch (err) {
+      return;  // cannot guard the reload → settle for the cookie alone
+    }
+    window.location.reload();
+  }
+
   // i18n-invariant metric keys → canonical English label text. The
   // right-pane cards are matched by label text (see setMetric); in a
   // translated locale the match silently no-ops and the cards just
@@ -85,11 +142,17 @@
         currentRow: typeof opts.row === 'number' ? opts.row : 0,
         blind: !!opts.blind,
         compare: !!opts.compare,
+        // '?' toggles the shortcut overlay in layout.html. Not persisted —
+        // it is a reminder, not a preference.
+        help: false,
         rowCount: 0,
         token: readToken(),
 
         init: function () {
           var self = this;
+          healGraderCookie();
+          var cookieName = readGraderCookie();
+          if (cookieName && cookieName !== 'anon') storeGrader(cookieName);
           this.countRows();
           // Re-count after an HTMX swap brings in a new row list
           // (forward-looking — no row partial swaps today, but the
@@ -120,8 +183,8 @@
             .trim()
             .slice(0, 40);
           if (!name) return;
-          document.cookie =
-            'grader=' + name + '; path=/; max-age=31536000; samesite=lax';
+          writeGraderCookie(name);
+          storeGrader(name);
           window.location.reload();
         },
 
@@ -186,7 +249,15 @@
           fetch('/api/eval/grade' + qs, { method: 'POST', body: fd })
             .then(function (resp) {
               if (!resp.ok) {
-                self.toast('Grade failed', 'Server ' + resp.status, 'error');
+                resp.json().then(function (body) {
+                  self.toast(
+                    'Grade failed',
+                    (body && body.detail) || ('Server ' + resp.status),
+                    'error'
+                  );
+                }).catch(function () {
+                  self.toast('Grade failed', 'Server ' + resp.status, 'error');
+                });
                 return;
               }
               self.updateRowGrade(rowEl, grade);
@@ -322,17 +393,59 @@
         },
 
         // ── Save & advance / skip ───────────────────────────────────
-        // M1 behaviour: advance the row cursor when there's a next
-        // row; otherwise surface "query complete" via the toast bus.
-        // The cross-query advance lands with Task 33.
+        // Grades save on the grade keypress; ⌘⏎ only moves. Within a
+        // query it steps the row cursor. Past the last row it opens the
+        // next query in the queue — but only once every row here has a
+        // judgment. Leaving with rows unjudged is how a query gets
+        // half-graded and then read as done by whoever resumes, so an
+        // early ⌘⏎ jumps back to the first unjudged row instead.
         saveAndAdvance: function () {
           if (this.rowCount === 0) return;
           var nextRow = this.currentRow + 1;
           if (nextRow < this.rowCount) {
             this.currentRow = nextRow;
-          } else {
-            this.toast('Query complete', 'Advance to next query', 'success');
+            return;
           }
+          var unjudged = this.firstUnjudgedRow();
+          if (unjudged >= 0) {
+            this.currentRow = unjudged;
+            this.toast('Rows unjudged', 'Grade or skip every row before moving on', 'error');
+            return;
+          }
+          var href = this.nextQueryHref();
+          if (href) {
+            window.location.assign(href);
+          } else {
+            this.toast('Queue complete', 'No query after this one in the current filter', 'success');
+          }
+        },
+
+        // Index of the first row without a judgment, or -1. Server-rendered
+        // rows carry .graded when a grade exists; updateRowGrade adds it on
+        // a successful POST, so an in-flight grade does not count yet.
+        firstUnjudgedRow: function () {
+          var rows = rowEls();
+          for (var i = 0; i < rows.length; i++) {
+            if (!rows[i].classList.contains('graded')) return i;
+          }
+          return -1;
+        },
+
+        // The queue link after the current query, skipping links the
+        // active filter hides (x-show sets display:none, which empties
+        // offsetParent). Reading the DOM rather than component state keeps
+        // the filter local to the queue aside, where it lives.
+        nextQueryHref: function () {
+          var links = document.querySelectorAll('.ev-q-list .ev-q');
+          var cur = document.querySelector('.ev-q-list .ev-q.cur');
+          var seen = !cur;
+          for (var i = 0; i < links.length; i++) {
+            var link = links[i];
+            if (link === cur) { seen = true; continue; }
+            if (!seen || link.offsetParent === null) continue;
+            return link.getAttribute('href') || '';
+          }
+          return '';
         },
 
         skipCurrent: function () {
@@ -379,6 +492,15 @@
           } else if (k === 'c' || k === 'C') {
             e.preventDefault();
             this.compare = !this.compare;
+          } else if (k === '?') {
+            // The footer has advertised '?' since the pane shipped and no
+            // branch ever handled it. Escape closes, matching every other
+            // dismissible surface in the app.
+            e.preventDefault();
+            this.help = !this.help;
+          } else if (k === 'Escape' && this.help) {
+            e.preventDefault();
+            this.help = false;
           }
         },
 

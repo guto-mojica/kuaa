@@ -59,7 +59,7 @@ def test_table_marks_proxy_method_and_pending_rows() -> None:
         (AblationRowConfig(name="BM25", retriever="bm25", proxy="HY"), real_metrics),
         (
             AblationRowConfig(
-                name="hybrid+rerank",
+                name="hybrid_rerank",
                 retriever="hybrid",
                 proxy="HY",
                 rerank=True,
@@ -94,7 +94,7 @@ def test_table_marks_proxy_method_and_pending_rows() -> None:
     # The pending row renders the literal `pending (` cell, NOT a number/zero.
     assert "pending (rerank off)" in md
     # The pending row must NOT have leaked a fabricated 0.000 into its cells.
-    pending_line = next(ln for ln in md.splitlines() if "hybrid+rerank" in ln)
+    pending_line = next(ln for ln in md.splitlines() if "hybrid_rerank" in ln)
     assert "0.000" not in pending_line
     assert "pending (rerank off)" in pending_line
 
@@ -184,7 +184,7 @@ def test_run_ablation_produces_real_proxy_numbers() -> None:
         assert 0.0 <= r5 <= 1.0, f"{name} Recall@5 out of range: {r5}"
 
     # The rerank row is pending under the no-rerank config (its metrics are None).
-    rerank_metrics = by_name.get("hybrid+rerank")
+    rerank_metrics = by_name.get("hybrid_rerank")
     assert rerank_metrics is None, "rerank row must be pending under no-rerank config"
 
     # The whole table renders without raising and carries the banner.
@@ -200,7 +200,7 @@ def test_run_ablation_produces_real_proxy_numbers() -> None:
 
 def test_default_configs_carry_the_metadata_ablation_arm() -> None:
     """Both default row sets pair the shipped ``hybrid`` row (metadata_w=None →
-    cfg default) with a ``hybrid-metadata`` arm (metadata_w=0.0) so the delta
+    cfg default) with a ``hybrid_no_metadata`` arm (metadata_w=0.0) so the delta
     isolates the metadata signal."""
     from kuaa.eval.ablation import (
         DEFAULT_ABLATION_CONFIGS,
@@ -210,8 +210,18 @@ def test_default_configs_carry_the_metadata_ablation_arm() -> None:
     for configs in (DEFAULT_ABLATION_CONFIGS, DEFAULT_ABLATION_CONFIGS_NO_RERANK):
         by_name = {c.name: c for c in configs}
         assert by_name["hybrid"].metadata_w is None
-        assert by_name["hybrid-metadata"].metadata_w == 0.0
-        assert by_name["hybrid-metadata"].retriever == "hybrid"
+        assert by_name["hybrid_no_metadata"].metadata_w == 0.0
+        assert by_name["hybrid_no_metadata"].retriever == "hybrid"
+
+
+def test_ablation_rows_and_pool_variants_share_one_name_space() -> None:
+    """A graded pool records the POOL spelling of each variant. If the table
+    spells them differently, the join that scores the grades finds nothing —
+    and finds it silently."""
+    from kuaa.eval.ablation import DEFAULT_ABLATION_CONFIGS
+    from kuaa.eval.registry import POOL_VARIANTS
+
+    assert [c.name for c in DEFAULT_ABLATION_CONFIGS] == [v.name for v in POOL_VARIANTS]
 
 
 def test_dispatch_row_forwards_metadata_w(monkeypatch, tmp_path: Path) -> None:
@@ -231,8 +241,145 @@ def test_dispatch_row_forwards_metadata_w(monkeypatch, tmp_path: Path) -> None:
 
     for row in (
         AblationRowConfig(name="hybrid", retriever="hybrid"),
-        AblationRowConfig(name="hybrid-metadata", retriever="hybrid", metadata_w=0.0),
+        AblationRowConfig(name="hybrid_no_metadata", retriever="hybrid", metadata_w=0.0),
     ):
         _dispatch_row(None, None, row, library_dir=tmp_path, slug="x", seed=0)
 
     assert seen == [None, 0.0]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Human-graded rows — the join that reads 0.000 when it breaks.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _graded_query(qid: str = "pt-01"):
+    from kuaa.eval.slates import ModalQuery
+
+    return ModalQuery(
+        id=qid,
+        query_type="text",
+        text="robô",
+        image_path=None,
+        anchor=None,
+        w=None,
+        lang="pt",
+        relevant_scene_ids=(),
+        relevance={},
+        notes=None,
+    )
+
+
+def _stub_library_ranking(monkeypatch, hits: list[tuple[str, int, float]]) -> None:
+    """Stub the library-wide retrieval both the pool and the table run on."""
+    import kuaa.eval.slates as slates
+    from kuaa.search.types import Hit, SearchResult
+
+    def _fake_aggregate(query, *, cfg, mode, top_k, weights=None, **kw):
+        return SearchResult(
+            hits=[
+                Hit(scene_id=sid, score=score, keyframe_path="", film_slug=slug)
+                for slug, sid, score in hits
+            ],
+            mode="clip",
+            weights=None,
+            query=query,
+        )
+
+    monkeypatch.setattr(slates, "aggregate", _fake_aggregate)
+    monkeypatch.setattr(slates, "rerank", lambda result, **kw: result)
+
+
+def test_graded_rows_join_to_the_pool_key_not_a_bare_ordinal(monkeypatch, tmp_path) -> None:
+    """A human-graded row must rank ``<slug>/<scene_id>``, the key a grade carries.
+
+    The single-film rows scope the config to one slug and rank bare ordinals.
+    Scored against grades that span the library, every cell reads 0.000 — and
+    nothing raises, because a join that matches nothing is not an error. This
+    is the regression: metrics must be non-zero when the ranking contains a
+    scene the grader marked relevant.
+    """
+    from kuaa.eval.ablation import run_ablation
+    from kuaa.eval.registry import RETRIEVER_REGISTRY
+
+    _stub_library_ranking(
+        monkeypatch,
+        [("chronopolis_1982", 100, 0.9), ("jangada_1949", 23, 0.8)],
+    )
+    monkeypatch.setattr(
+        "kuaa.eval.ablation._primary_film_slug", lambda lib, queries: "chronopolis_1982"
+    )
+    monkeypatch.setattr("kuaa.eval.ablation._corpus_description", lambda lib, slug, ds: "corpus")
+
+    table = run_ablation(
+        SimpleNamespace(),
+        library_dir=tmp_path,
+        queries=[_graded_query()],
+        configs=(AblationRowConfig(name="clip", retriever="clip"),),
+        graded_labels={"pt-01": {"chronopolis_1982/100": 3.0}},
+        validated_label="human-validated (run corpus01, n=1 grades)",
+    )
+
+    _row_cfg, metrics = table.rows[0]
+    assert metrics is not None, "the graded row must compute, not fall to pending"
+    assert metrics["recall_at_5"] > 0.0, (
+        "the relevant scene was ranked first — a zero here means the ranking "
+        "keys do not join to the graded keys"
+    )
+    assert set(RETRIEVER_REGISTRY) >= {"clip"}
+
+
+def test_graded_run_skips_a_query_with_no_grades(monkeypatch, tmp_path) -> None:
+    """An ungraded query is dropped from a cross-film run, not proxy-labelled.
+
+    Proxy labels are bare ordinals scoped to one film. Blending one into a
+    cross-film table scores that query 0 for every row, which drags the whole
+    table down by an equal amount and so still looks like a comparison.
+    """
+    from kuaa.eval.ablation import _hy_text_dataset
+
+    dataset = _hy_text_dataset(
+        [_graded_query("pt-01"), _graded_query("pt-99")],
+        library_dir=tmp_path,
+        cfg=SimpleNamespace(),
+        graded_labels={"pt-01": {"chronopolis_1982/100": 3.0}},
+        cross_film=True,
+    )
+    assert [q.id for q in dataset.queries] == ["pt-01"]
+
+
+def test_graded_run_excludes_skips_but_scores_zeros(monkeypatch, tmp_path) -> None:
+    """A SKIP grade is "no opinion": the scene leaves the ranking before scoring.
+
+    A NOT_RELEVANT (0) grade is a verdict and stays in. The regression: both
+    used to vanish from the relevance map alike, so a SKIPped scene ranked
+    first cost the variant its reciprocal rank exactly as if the grader had
+    judged it irrelevant — a penalty for surfacing what nobody judged.
+    """
+    from kuaa.eval.ablation import run_ablation
+
+    _stub_library_ranking(
+        monkeypatch,
+        [("chronopolis_1982", 7, 0.9), ("chronopolis_1982", 100, 0.8)],
+    )
+    monkeypatch.setattr(
+        "kuaa.eval.ablation._primary_film_slug", lambda lib, queries: "chronopolis_1982"
+    )
+    monkeypatch.setattr("kuaa.eval.ablation._corpus_description", lambda lib, slug, ds: "corpus")
+
+    def _mrr(grade_for_scene_7: float) -> float:
+        table = run_ablation(
+            SimpleNamespace(),
+            library_dir=tmp_path,
+            queries=[_graded_query()],
+            configs=(AblationRowConfig(name="clip", retriever="clip"),),
+            graded_labels={
+                "pt-01": {"chronopolis_1982/7": grade_for_scene_7, "chronopolis_1982/100": 3.0}
+            },
+        )
+        _row_cfg, metrics = table.rows[0]
+        assert metrics is not None
+        return float(metrics["mrr"])
+
+    assert _mrr(-1.0) == 1.0, "a SKIPped scene ranked first must not push the relevant one down"
+    assert _mrr(0.0) == 0.5, "a NOT_RELEVANT scene ranked first is a real miss"

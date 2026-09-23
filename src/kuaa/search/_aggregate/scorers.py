@@ -93,7 +93,7 @@ _MIN_PARTIAL_COVERAGE = 0.5
 # disabled this entire leg — weighted 0.65, the largest share of hybrid
 # fusion — on any natural-language query. Measured against the project's
 # own eval slate, that guard fired on 13 of 15 text queries, which is why
-# the `hybrid` and `hybrid-metadata` ablation rows were byte-identical.
+# the `hybrid` and `hybrid_no_metadata` ablation rows were byte-identical.
 _MAX_SCORED_TERMS = 8
 
 

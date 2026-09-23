@@ -7,6 +7,7 @@ downloads, never touches repo data/.
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from kuaa.models.base import SceneDescriber
 from kuaa.models.describer._common import PROMPTS
@@ -115,6 +116,7 @@ def _patch_cuda(monkeypatch, available: bool):
     monkeypatch.setattr(torch.cuda, "is_available", lambda: available)
 
 
+@pytest.mark.heavy
 def test_warn_if_cpu_torch_warns_when_gpu_present_but_cpu_build(monkeypatch, caplog):
     """NVIDIA GPU present + CPU-only torch → loud WARNING."""
     from kuaa.models.describer import transformers_hf
@@ -127,6 +129,7 @@ def test_warn_if_cpu_torch_warns_when_gpu_present_but_cpu_build(monkeypatch, cap
     assert any("CPU-only" in r.message for r in caplog.records)
 
 
+@pytest.mark.heavy
 def test_warn_if_cpu_torch_silent_when_cuda_available(monkeypatch, caplog):
     """A genuine CUDA torch build must NOT warn."""
     from kuaa.models.describer import transformers_hf
@@ -139,6 +142,7 @@ def test_warn_if_cpu_torch_silent_when_cuda_available(monkeypatch, caplog):
     assert not caplog.records
 
 
+@pytest.mark.heavy
 def test_warn_if_cpu_torch_silent_without_nvidia_gpu(monkeypatch, caplog):
     """No nvidia-smi → CPU is expected, stay silent."""
     from kuaa.models.describer import transformers_hf

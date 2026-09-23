@@ -1,32 +1,31 @@
-{# Left pane — query queue with filter tabs + toggles (Task 31).
+{# Left pane — query queue with filter tabs + toggles.
 
-   Renders the run's queries as clickable rows. Each row shows:
-     - status dot (filled green when fully graded)
-     - query id + lang + source
-     - text (clamped to 2 lines)
-     - progress pips (one per candidate, coloured by grade)
+   Rows arrive fully resolved as ``queue_rows``
+   (kuaa.eval.queue_view.build_queue_rows): status, pips and the n/m counter
+   are all computed against THIS grader and the CURRENT pool. The template
+   derives nothing. It used to read grades_by_query, which bags every
+   judgment in the run — including ones taken against pools the run has
+   replaced — and so rendered counters like 56/22 and marked rows done that
+   the resume cursor still had candidates for.
 
-   Filter tabs (All / Pending / Conflict) drive a reactive
-   ``filter`` signal (Alpine x-data on the aside) — clicking a tab
-   sets the filter; each ``.ev-q`` row's ``x-show="visible($el)"``
-   re-evaluates and hides itself when its
-   ``data-status`` / ``data-conflict`` don't match.
+   Filter tabs (All / Pending / Conflict) drive a reactive ``filter``
+   signal; each row's ``x-show="visible($el)"`` re-evaluates and hides
+   itself when its ``data-status`` / ``data-conflict`` don't match. The
+   search input feeds the same predicate via the ``search`` signal.
 
-   The search input drives the same ``visible()`` predicate via the
-   ``search`` signal — substring match against each row's
-   ``data-text`` (lowercased query text + id).
+   The filter is seeded from ``?filter=`` and every row link carries the
+   live value back, because opening a query is a full page load: local
+   Alpine state would reset on each click, which is what made the tabs look
+   decorative — you could set one, but never grade under it.
 
-   Toggles (Blind mode / Compare annotator) sit at the bottom and use
-   the .swt switch primitive defined in eval.css. The checkboxes are
-   x-model-bound to the evalApp component's blind / compare signals
-   (eval.js — registered on body[x-data="evalApp(…)"]); the keyboard
-   router (B / C) flips the same signals, so keypress and click
-   stay in sync. The filter / search signals are LOCAL to this
-   aside — keeping them out of the evalApp component avoids
-   leaking queue-only UI state into the keyboard router's payload. #}
+   Toggles (Blind mode / Compare annotator) use the .swt switch primitive in
+   eval.css and are x-model-bound to the evalApp component (eval.js); the
+   keyboard router (B / C) flips the same signals, so keypress and click
+   stay in sync. The filter / search signals stay LOCAL to this aside to
+   keep queue-only UI state out of the keyboard router's payload. #}
 <aside class="ev-lp"
        x-data="{
-         filter: 'todas',
+         filter: '{{ queue_filter|default('todas') }}',
          search: '',
          visible(el) {
            const s = el.dataset.status || '';
@@ -39,11 +38,19 @@
              if (!hay.includes(needle)) return false;
            }
            return true;
+         },
+         noMatches() {
+           // $root, not $el: inside the x-show that calls this, $el is the
+           // message div itself, which contains no rows — so the query found
+           // nothing and the message never showed.
+           const rows = this.$root.querySelectorAll('.ev-q');
+           if (!rows.length) return false;
+           return !Array.from(rows).some(el => this.visible(el));
          }
        }">
   <div class="head">
     <span>{{ _('Queue') }}</span>
-    <span class="ct">{{ queries|length }}</span>
+    <span class="ct">{{ queue_rows|length }}</span>
   </div>
   <div class="filter">
     <span class="ico">⌕</span>
@@ -57,7 +64,7 @@
             :class="{ on: filter === 'todas' }"
             data-filter="todas"
             @click="filter = 'todas'">
-      {{ _('All') }} <span class="ct">{{ queries|length }}</span>
+      {{ _('All') }} <span class="ct">{{ queue_rows|length }}</span>
     </button>
     <button class="t" type="button"
             :class="{ on: filter === 'pendentes' }"
@@ -65,59 +72,66 @@
             @click="filter = 'pendentes'">
       {{ _('Pending') }} <span class="ct">{{ pending_count if pending_count is defined else 0 }}</span>
     </button>
+    {# Conflict is a two-annotator measure (|Δ| ≥ 2 between graders), so on a
+       single-grader run it can only ever match nothing. Disabled with the
+       reason on hover beats a tab that empties the list without saying why. #}
     <button class="t" type="button"
             :class="{ on: filter === 'conflito' }"
             data-filter="conflito"
+            {% if (annotator_count|default(0)) < 2 %}
+            disabled
+            title="{{ _('Needs a second annotator — conflict compares two graders.') }}"
+            {% endif %}
             @click="filter = 'conflito'">
       {{ _('Conflict') }} <span class="ct">{{ conflict_count if conflict_count is defined else 0 }}</span>
     </button>
   </div>
   <div class="ev-q-list">
-    {% for q in queries %}
-      {% set q_key = q.id|string %}
-      {% set q_grades = grades_by_query.get(q_key, []) %}
-      {% set candidate_count = q.candidate_count if q.candidate_count is defined and q.candidate_count else 9 %}
-      {% set is_current = current_query is not none and (q.id == current_query.id) %}
-      {% set is_done = q_grades|length >= candidate_count and candidate_count > 0 %}
-      {% set has_conflict = query_conflict_set is defined and (q.id|string) in query_conflict_set %}
-      {# data-status drives the Pendentes/Todas filter; data-conflict
-         drives the Conflito filter; data-text is the searchable
-         haystack (qid + text + lang + source). All three are
-         dataset attrs so Alpine's visible($el) can read them
-         without an extra round-trip through the component state. #}
-      <a class="ev-q{% if is_current %} cur{% endif %}"
-         href="?token={{ token or '' }}&amp;query={{ q.id }}"
-         data-status="{{ 'done' if is_done else 'pending' }}"
-         data-conflict="{{ 'true' if has_conflict else 'false' }}"
-         data-text="Q-{{ '%03d'|format(q.id) if q.id is number else q.id }} {{ q.text or '' }} {{ q.lang or 'pt' }} {{ q.source or 'manual' }}"
+    {% for row in queue_rows %}
+      {# data-status drives the Pending tab, data-conflict the Conflict tab,
+         data-text the search box. Dataset attrs so visible($el) reads them
+         without a round-trip through component state. #}
+      <a class="ev-q{% if current_query is not none and row.id == (current_query.id|string) %} cur{% endif %}"
+         href="?token={{ token or '' }}&amp;query={{ row.id }}&amp;filter={{ queue_filter|default('todas') }}"
+         :href="'?token={{ token or '' }}&amp;query={{ row.id }}&amp;filter=' + filter"
+         data-status="{{ row.status }}"
+         data-conflict="{{ 'true' if row.conflict else 'false' }}"
+         data-text="{{ row.search_text }}"
          x-show="visible($el)"
          x-cloak>
-        <span class="stat{% if is_done %} done{% endif %}{% if has_conflict %} conflict{% endif %}"></span>
+        <span class="stat{% if row.done %} done{% endif %}{% if row.conflict %} conflict{% endif %}"></span>
         <div>
           <div class="qrow">
-            <span class="id">Q-{{ '%03d'|format(q.id) if q.id is number else q.id }}</span>
-            <span class="lang">{{ q.lang or 'pt' }}</span>
-            <span class="src">{{ q.source or 'manual' }}</span>
+            <span class="id">{{ row.label }}</span>
+            <span class="lang">{{ row.lang }}</span>
+            <span class="src">{{ row.source }}</span>
           </div>
           {# title= recovers the full query past the 2-line clamp
              (eval.css .ev-q .text). #}
-          <div class="text" title="{{ q.text }}">{{ q.text }}</div>
+          <div class="text" title="{{ row.text }}">{{ row.text }}</div>
           <div class="progress">
             <span class="pips">
-              {% for i in range(candidate_count) %}
-                {% set g = q_grades[i] if i < q_grades|length else none %}
-                <span class="pp{% if g is none %} gp{% elif g == -1 %} gp{% elif g == 0 %} g0{% elif g == 1 %} g1{% elif g == 2 %} g2{% elif g == 3 %} g3{% else %} gp{% endif %}"></span>
+              {# Positional: pips[i] is candidate i's grade, None when
+                 unjudged. Skip (-1) gets its own pip — it is a recorded "no
+                 opinion", and showing it as ungraded would invite regrading
+                 a row the grader already decided about. #}
+              {% for g in row.pips %}
+                <span class="pp{% if g is none %} gp{% elif g == -1 %} gs{% elif g == 0 %} g0{% elif g == 1 %} g1{% elif g == 2 %} g2{% elif g == 3 %} g3{% else %} gp{% endif %}"></span>
               {% endfor %}
             </span>
-            <span>{{ q_grades|length }}/{{ candidate_count }}</span>
+            <span>{{ row.judged }}/{{ row.total }}</span>
           </div>
         </div>
       </a>
     {% else %}
-      <div style="padding: 18px 14px; color: var(--c-muted); font-size: 12px;">
-        {{ _('No queries seeded for this run.') }}
-      </div>
+      <div class="ev-q-empty">{{ _('No queries seeded for this run.') }}</div>
     {% endfor %}
+    {# Distinct from the no-queries case above: the run has rows, this
+       filter has none. Without it the tabs read as broken — the list just
+       goes blank. #}
+    <div class="ev-q-empty" x-show="noMatches()" x-cloak>
+      {{ _('No queries match this filter.') }}
+    </div>
   </div>
   <div class="controls">
     <label class="toggle" :class="{ on: blind }">

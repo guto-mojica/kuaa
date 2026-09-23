@@ -55,6 +55,7 @@ def test_metrics_per_query_keys(client, monkeypatch) -> None:
 def test_grade_ack_response_shape(client, monkeypatch) -> None:
     """POST /api/eval/grade returns a GradeAck-shaped body."""
     monkeypatch.setenv("EVAL_ADMIN_TOKEN", "t")
+    client.cookies.set("grader", "tester")
     r = client.post(
         "/api/eval/grade?token=t",
         data={"query_id": "q1", "scene_id": "jeca/1", "grade": "2"},

@@ -34,6 +34,7 @@ def test_api_metrics_returns_403_without_token(client, monkeypatch):
 
 def test_api_grade_returns_403_without_token(client, monkeypatch):
     monkeypatch.delenv("EVAL_ADMIN_TOKEN", raising=False)
+    client.cookies.set("grader", "tester")
     r = client.post(
         "/api/eval/grade",
         data={"query_id": "q1", "scene_id": "jeca/1", "grade": "2"},
@@ -55,6 +56,7 @@ def test_post_grade_appends_to_run_jsonl(client, monkeypatch, tmp_path):
     monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
     monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
 
+    client.cookies.set("grader", "tester")
     r = client.post(
         "/api/eval/grade?token=test-token",
         data={"query_id": "q1", "scene_id": "jeca/1", "grade": "2"},
@@ -80,6 +82,7 @@ def test_post_grade_accepts_skip(client, monkeypatch, tmp_path):
     monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
     monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
 
+    client.cookies.set("grader", "tester")
     r = client.post(
         "/api/eval/grade?token=test-token",
         data={"query_id": "q1", "scene_id": "jeca/1", "grade": "-1"},
@@ -87,6 +90,50 @@ def test_post_grade_accepts_skip(client, monkeypatch, tmp_path):
     assert r.status_code == 200
     record = json.loads((tmp_path / "default.jsonl").read_text().strip())
     assert record["grade"] == -1
+
+
+def test_post_grade_refuses_an_unnamed_grader(client, monkeypatch, tmp_path):
+    """No grader cookie → 400, and nothing is written.
+
+    The route used to default the name to "anon". A cookie is host-scoped and
+    clearable, so the default let one person's resumed pass land under a second
+    name that shares no judgment with the first — which reads as two annotators
+    and cannot be told apart after the fact.
+    """
+
+    monkeypatch.setenv("EVAL_ADMIN_TOKEN", "test-token")
+    import api.services.eval_service as eval_service
+
+    monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
+    monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
+
+    client.cookies.delete("grader")
+    r = client.post(
+        "/api/eval/grade?token=test-token",
+        data={"query_id": "q1", "scene_id": "jeca/1", "grade": "2"},
+    )
+    assert r.status_code == 400, r.text
+    assert "grader name" in r.json()["detail"]
+    assert not (tmp_path / "default.jsonl").exists()
+
+
+def test_post_grade_refuses_the_literal_anon_cookie(client, monkeypatch, tmp_path):
+    """A cookie left at the old default is refused too, not taken at face value."""
+
+    monkeypatch.setenv("EVAL_ADMIN_TOKEN", "test-token")
+    import api.services.eval_service as eval_service
+
+    monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
+    monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
+
+    client.cookies.set("grader", "anon")
+    r = client.post(
+        "/api/eval/grade?token=test-token",
+        data={"query_id": "q1", "scene_id": "jeca/1", "grade": "2"},
+    )
+    client.cookies.delete("grader")
+    assert r.status_code == 400, r.text
+    assert not (tmp_path / "default.jsonl").exists()
 
 
 # ── Metrics: GET /api/eval/metrics ────────────────────────────────────────────
@@ -118,6 +165,7 @@ def test_get_metrics_reflects_grades(client, monkeypatch, tmp_path):
 
     # Three grades on q1 → P@3 = 2/3
     for sid, grade in (("jeca/1", "3"), ("jeca/2", "2"), ("jeca/3", "0")):
+        client.cookies.set("grader", "tester")
         r = client.post(
             "/api/eval/grade?token=test-token",
             data={"query_id": "q1", "scene_id": sid, "grade": grade},
@@ -143,6 +191,7 @@ def test_get_metrics_aggregate_lists_query_ids(client, monkeypatch, tmp_path):
     monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
 
     for qid, sid in (("q1", "jeca/1"), ("q2", "jeca/2"), ("q1", "jeca/3")):
+        client.cookies.set("grader", "tester")
         client.post(
             "/api/eval/grade?token=test-token",
             data={"query_id": qid, "scene_id": sid, "grade": "2"},
@@ -331,6 +380,7 @@ def test_eval_grade_then_metrics_round_trip(client, monkeypatch, tmp_path):
     monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
 
     # Same payload shape as gradeRow() in eval.js: form-encoded POST.
+    client.cookies.set("grader", "tester")
     r1 = client.post(
         "/api/eval/grade?token=test-token",
         data={"query_id": "q1", "scene_id": "jeca/1", "grade": "2"},
@@ -426,3 +476,148 @@ def test_eval_header_grader_field_prefilled_from_cookie(client, monkeypatch, tmp
     r = client.get("/eval?token=test-token")
     assert r.status_code == 200, r.text
     assert 'value="guto"' in r.text
+
+
+# ── Pool integrity: refuse to grade against a stale scene numbering ───────────
+
+
+def _write_pool_with_manifest(root, library_dir, slug: str, manifest_hash: str) -> None:
+    """A pool file pinned to one film's scene numbering."""
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "default.queries.json").write_text(
+        json.dumps(
+            {
+                "run": "default",
+                "scene_manifests": {slug: manifest_hash},
+                "queries": [
+                    {
+                        "id": "q1",
+                        "query_type": "text",
+                        "text": "x",
+                        "results": [{"scene_id": 1, "film_slug": slug, "pool": {"clip": 1}}],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def _seed_film_scenes(library_dir, slug: str, boundaries: dict[int, tuple[int, int]]) -> None:
+    meta = library_dir / slug / "metadata"
+    meta.mkdir(parents=True, exist_ok=True)
+    (meta / "keyframes_metadata.json").write_text(
+        json.dumps(
+            [
+                {"scene_id": sid, "start_frame": s, "end_frame": e}
+                for sid, (s, e) in sorted(boundaries.items())
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_eval_page_refuses_a_pool_whose_scene_numbering_moved(
+    client, tmp_config, monkeypatch, tmp_path
+):
+    """A cut edit renumbers every scene after the edited boundary.
+
+    Grading against the stale pool would not fail — it would record judgments
+    about the wrong scenes, and nothing downstream could tell. So the page
+    refuses and the operator regenerates the pool.
+    """
+    from kuaa.eval.scene_manifest import scene_manifest_hash
+
+    monkeypatch.setenv("EVAL_ADMIN_TOKEN", "test-token")
+    import api.services.eval_service as eval_service
+
+    eval_root = tmp_path / "eval"
+    monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: eval_root)
+    monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
+
+    library_dir = tmp_config.paths.library_dir
+    _seed_film_scenes(library_dir, "f", {1: (0, 100), 2: (100, 200)})
+    pinned = scene_manifest_hash(library_dir, "f")
+    _write_pool_with_manifest(eval_root, library_dir, "f", pinned)
+
+    assert client.get("/eval?token=test-token").status_code == 200
+
+    # A merge: the two scenes become one, and scene ids renumber.
+    _seed_film_scenes(library_dir, "f", {1: (0, 200)})
+
+    r = client.get("/eval?token=test-token")
+    assert r.status_code == 409
+    assert "scene numbering changed" in r.json()["detail"]
+
+    client.cookies.set("grader", "tester")
+    posted = client.post(
+        "/api/eval/grade?token=test-token",
+        data={"query_id": "q1", "scene_id": "f/1", "grade": "2"},
+    )
+    assert posted.status_code == 409, "an open session must not keep POSTing either"
+
+
+def test_eval_page_still_renders_a_pool_written_before_the_manifest(client, monkeypatch, tmp_path):
+    """A legacy bare-list pool carries no manifest and cannot be pinned now.
+
+    Refusing to grade every such pool would be worse than saying so in the log.
+    """
+    monkeypatch.setenv("EVAL_ADMIN_TOKEN", "test-token")
+    import api.services.eval_service as eval_service
+
+    eval_root = tmp_path / "eval"
+    eval_root.mkdir(parents=True, exist_ok=True)
+    (eval_root / "default.queries.json").write_text(
+        json.dumps([{"id": "q1", "query_type": "text", "text": "x", "results": []}]),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: eval_root)
+    monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
+
+    assert client.get("/eval?token=test-token").status_code == 200
+
+
+# ── Queue filter round-trip ───────────────────────────────────────────────────
+
+
+def _queue_run(monkeypatch, tmp_path, count: int = 3):
+    """Seed a run and point the eval service at it."""
+    from kuaa.eval.seed import write_seed
+
+    monkeypatch.setenv("EVAL_ADMIN_TOKEN", "test-token")
+    import api.services.eval_service as eval_service
+
+    write_seed(tmp_path, "default", count=count)
+    monkeypatch.setattr(eval_service, "_eval_root", lambda cfg: tmp_path)
+    monkeypatch.setattr(eval_service, "_eval_run_id", lambda cfg: "default")
+
+
+def test_queue_filter_survives_opening_a_query(client, monkeypatch, tmp_path):
+    """Row links carry the active filter forward.
+
+    Opening a query is a full page load, so a filter held only in Alpine
+    state resets on every click — which is what made the tabs look
+    decorative: selectable, but never in force while grading.
+    """
+    _queue_run(monkeypatch, tmp_path)
+    r = client.get("/eval?token=test-token&filter=pendentes")
+    assert r.status_code == 200
+    assert "filter: 'pendentes'" in r.text
+    assert "&amp;filter=pendentes" in r.text
+
+
+def test_queue_filter_rejects_an_unknown_value(client, monkeypatch, tmp_path):
+    """An unknown filter falls back rather than 404s — it is a view preference."""
+    _queue_run(monkeypatch, tmp_path)
+    r = client.get("/eval?token=test-token&filter=../../etc/passwd")
+    assert r.status_code == 200
+    assert "filter: 'todas'" in r.text
+
+
+def test_conflict_tab_is_disabled_on_a_single_grader_run(client, monkeypatch, tmp_path):
+    """Conflict compares two annotators, so one grader can never populate it."""
+    _queue_run(monkeypatch, tmp_path)
+    r = client.get("/eval?token=test-token")
+    assert r.status_code == 200
+    tab = r.text.split('data-filter="conflito"', 1)[1].split("</button>", 1)[0]
+    assert "disabled" in tab

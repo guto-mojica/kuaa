@@ -67,13 +67,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--with-rerank",
         dest="with_rerank",
         action="store_true",
-        help="Compute the hybrid+rerank row via the production find() path.",
+        help="Compute the hybrid_rerank row via the production find() path.",
     )
     rerank.add_argument(
         "--no-rerank",
         dest="with_rerank",
         action="store_false",
-        help="Render the hybrid+rerank row as pending — the default.",
+        help="Render the hybrid_rerank row as pending — the default.",
     )
     parser.set_defaults(with_rerank=False)
     parser.add_argument(
@@ -96,9 +96,33 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _build_ablation_section(table_md: str, *, with_rerank: bool, seed: int, queries: Path) -> str:
-    """Wrap the rendered ablation table in the delimited doc section."""
+def _build_ablation_section(
+    table_md: str,
+    *,
+    with_rerank: bool,
+    seed: int,
+    queries: Path,
+    grades_arg: str | None = None,
+    query_count: int | None = None,
+) -> str:
+    """Wrap the rendered ablation table in the delimited doc section.
+
+    ``grades_arg`` switches the surrounding prose to the human-graded reading.
+    The section is published verbatim, so proxy caveats around a graded table
+    (or the reverse) would misdescribe the numbers a reader is looking at.
+    """
     mode = "with-rerank (cross-encoder live)" if with_rerank else "no-rerank (rerank row pending)"
+    set_size = f"{query_count} text queries" if query_count else "the text queries"
+    if grades_arg:
+        return _graded_section(
+            table_md,
+            mode=mode,
+            seed=seed,
+            queries=queries,
+            grades_arg=grades_arg,
+            set_size=set_size,
+            with_rerank=with_rerank,
+        )
     lines = [
         _ABLATION_START,
         "",
@@ -106,7 +130,7 @@ def _build_ablation_section(table_md: str, *, with_rerank: bool, seed: int, quer
         "",
         f"**Run date:** {date.today().isoformat()} — `scripts/run_ablation.py` "
         f"({mode}, seed={seed}).",
-        f"**Query set:** `{queries.name}` — the 15 text queries (common set).",
+        f"**Query set:** `{queries.name}` — {set_size} (common set).",
         "",
         "Retriever-variant ablation on a **common query set with the same proxy "
         "labels** (apples-to-apples). This is the launch ablation: it is producible "
@@ -131,7 +155,7 @@ def _build_ablation_section(table_md: str, *, with_rerank: bool, seed: int, quer
         "labels neither reward nor penalise. Use `scripts/check_pt_parity.py` for "
         "that axis.",
         "",
-        "- **`hybrid` vs `hybrid-metadata` is finally a real comparison.** The two "
+        "- **`hybrid` vs `hybrid_no_metadata` is finally a real comparison.** The two "
         "rows were byte-identical for as long as they shipped, because the "
         "metadata scorer bailed out on any query over 4 tokens and so returned `{}` "
         "on 13 of these 15 queries — the ablation was subtracting a leg that was "
@@ -148,6 +172,68 @@ def _build_ablation_section(table_md: str, *, with_rerank: bool, seed: int, quer
         "uv run python scripts/run_ablation.py \\",
         f"  --queries {_rel(queries)} --library-dir data/library \\",
         f"  --seed {seed} --{'with' if with_rerank else 'no'}-rerank \\",
+        "  --out docs/EVALUATION_RESULTS.md",
+        "```",
+        "",
+        _ABLATION_END,
+    ]
+    return "\n".join(lines)
+
+
+def _graded_section(
+    table_md: str,
+    *,
+    mode: str,
+    seed: int,
+    queries: Path,
+    grades_arg: str,
+    set_size: str,
+    with_rerank: bool,
+) -> str:
+    """The doc section for a table scored on human grades."""
+    lines = [
+        _ABLATION_START,
+        "",
+        "## Retriever-variant ablation, human-graded (SigLIP2 default)",
+        "",
+        f"**Run date:** {date.today().isoformat()} — `scripts/run_ablation.py` "
+        f"({mode}, seed={seed}, `--grades {grades_arg}`).",
+        f"**Query set:** `{queries.name}` — {set_size}, each scored against the "
+        f"grades recorded for it in run `{grades_arg}`.",
+        "",
+        "Every row retrieves through the library-wide path the app serves "
+        "(`kuaa.search.aggregate`), which is also the path the graded pool was "
+        "drawn from — so each row is scored on candidates a human actually "
+        "judged rather than on the pool's leftovers.",
+        "",
+        table_md,
+        "",
+        "**Reading the numbers:**",
+        "",
+        "- **Relevance is pooled, so recall is recall over judged scenes.** A "
+        "candidate no retriever in the pool proposed was never shown to a grader "
+        "and counts as irrelevant. That is the standard pooled-evaluation "
+        "contract; it means these numbers compare the pooled variants to each "
+        "other, and do not estimate absolute recall over the corpus.",
+        "",
+        "- **`hybrid` vs `hybrid_no_metadata` isolates the exact-lexical leg.** "
+        "The two rows differ only in `metadata_w`, so the delta is that signal's "
+        "contribution and nothing else.",
+        "",
+        "- **The rerank row sits on the `hybrid` row's candidates.** It widens "
+        "the first stage to the reranker's input window, reorders, and cuts back "
+        "— compare it to `hybrid`, not to `clip`.",
+        "",
+        "- **PT/EN is a design axis of the query set, not of this table.** The "
+        "pt-NN / en-NN pairs make the gap measurable per query; "
+        "`scripts/check_pt_parity.py` is the surface that reports it.",
+        "",
+        "Reproduce:",
+        "",
+        "```bash",
+        "uv run python scripts/run_ablation.py \\",
+        f"  --queries {_rel(queries)} --library-dir data/library \\",
+        f"  --seed {seed} --{'with' if with_rerank else 'no'}-rerank --grades {grades_arg} \\",
         "  --out docs/EVALUATION_RESULTS.md",
         "```",
         "",
@@ -191,9 +277,11 @@ def _load_graded_labels(
 ) -> tuple[dict | None, str | None]:
     """Load graded labels from a run ID or path; return (graded_labels, validated_label).
 
-    ``graded_labels`` is ``{query_id: {scene_id: float_grade}}`` with positive
-    grades only (the ablation caller filters zero/negative itself, but we skip
-    them here for clarity). Returns ``(None, None)`` when no ``--grades`` arg.
+    ``graded_labels`` is ``{query_id: {scene_id: float_grade}}`` carrying every
+    grade, SKIP (-1) included: the ablation needs the SKIPs to exclude those
+    scenes from the ranking rather than score them as irrelevant, and it
+    decides itself what a query with no positive grade does. Returns
+    ``(None, None)`` when no ``--grades`` arg.
     """
     if grades_arg is None:
         return None, None
@@ -212,15 +300,24 @@ def _load_graded_labels(
 
     exported = export_run(run)
     # graded_labels: {query_id: {scene_id: float_grade}}
-    graded_labels: dict = {}
-    for qid, scenes in exported["grades"].items():
-        pos = {sid: float(g) for sid, g in scenes.items() if float(g) > 0}
-        if pos:
-            graded_labels[qid] = pos
+    graded_labels: dict = {
+        qid: {sid: float(g) for sid, g in scenes.items()}
+        for qid, scenes in exported["grades"].items()
+    }
 
     distinct = exported["summary"]["distinct_pairs"]
     validated_label = f"human-validated (run {run.run_id}, n={distinct} grades)"
     return graded_labels, validated_label
+
+
+def _scored_query_count(table) -> int | None:
+    """Queries actually scored, read off the first computed row."""
+    for _cfg, metrics in table.rows:
+        if metrics:
+            count = metrics.get("query_count")
+            if count:
+                return int(count)
+    return None
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -262,7 +359,12 @@ def main(argv: list[str] | None = None) -> int:
 
     table_md = table.to_markdown()
     ablation_section = _build_ablation_section(
-        table_md, with_rerank=args.with_rerank, seed=args.seed, queries=queries_path
+        table_md,
+        with_rerank=args.with_rerank,
+        seed=args.seed,
+        queries=queries_path,
+        grades_arg=getattr(args, "grades", None),
+        query_count=len(table.rows) and _scored_query_count(table),
     )
 
     # Echo the per-row numbers so a CI log / terminal shows the real result.

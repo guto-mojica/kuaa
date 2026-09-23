@@ -11,9 +11,8 @@ import typer
 
 # Imported at module scope so tests can monkeypatch these names on the
 # eval_cmd module (the `slate` command calls them via the module binding).
+from kuaa.eval.registry import CLIP_ONLY, POOL_VARIANTS
 from kuaa.eval.slates import (
-    CLIP_ONLY,
-    POOL_VARIANTS,
     ModalQuery,
     generate_slate,
     load_modal_queries,
@@ -127,8 +126,22 @@ def eval_slate(
     ``<root>/<run>.queries.json`` in the rows-template contract the
     ``kuaa eval seed`` command produces. The ``/eval`` page then
     renders the generated slates with no template changes.
+
+    The file also records ``scene_manifests`` — a hash of each film's scene
+    numbering at generation time. ``scene_id`` is an ordinal that a cut edit
+    renumbers, so without it a grade collected today silently points at a
+    different scene tomorrow (see :mod:`kuaa.eval.scene_manifest`).
+
+    A pool composition report is written beside the pool and printed. **The
+    command exits non-zero when the pool is not fit to grade** — a variant
+    that widened it by nothing, or two variants that are not distinguishable.
+    The pool file is still written, so the failure can be inspected rather
+    than merely reported; it is a refusal to certify, not a refusal to build.
     """
     from kuaa.config import load_config
+    from kuaa.eval.composition import analyse_pool, write_report
+    from kuaa.eval.scene_manifest import MANIFEST_KEY, build_manifest
+    from kuaa.eval.slates import _iter_films
 
     if modality != "all" and modality not in _SLATE_MODALITIES:
         typer.echo(
@@ -144,11 +157,13 @@ def eval_slate(
     selected = [q for q in all_queries if q.query_type in wanted]
 
     records: list[dict] = []
+    slugs: set[str] = set()
     for q in selected:
         # blind_seed is the run id: a slate regenerated for the same run
         # presents in the same order, so a grader resuming mid-run does not
         # meet a reshuffled queue.
         rows = generate_slate(query=q, cfg=cfg, library_dir=library_dir, k=k, blind_seed=run)
+        slugs.update(str(r.get("film_slug", "")) for r in rows)
         # Persist provenance only — the /eval page rehydrates presentation from
         # per-film metadata. See kuaa.eval.slates.thin_rows.
         records.append(_slate_query_record(q, thin_rows(rows), k=k))
@@ -156,10 +171,32 @@ def eval_slate(
     root.mkdir(parents=True, exist_ok=True)
     out_path = root / f"{run}.queries.json"
     out_path.write_text(
-        json.dumps(records, indent=2, ensure_ascii=False) + "\n",
+        json.dumps(
+            {
+                "run": run,
+                MANIFEST_KEY: build_manifest(library_dir, sorted(s for s in slugs if s)),
+                "queries": records,
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+        + "\n",
         encoding="utf-8",
     )
     typer.echo(f"✓ Wrote {len(records)} slate queries ({modality}) to {out_path}")
+
+    report = analyse_pool(
+        records,
+        run=run,
+        expect_text="text" in wanted,
+        library_films=_iter_films(library_dir),
+    )
+    report_path = write_report(report, root=root)
+    typer.echo("")
+    typer.echo(report.to_text())
+    typer.echo(f"→ {report_path}")
+    if not report.ok:
+        raise typer.Exit(code=1)
 
 
 # ─── kuaa eval export ──────────────────────────────────────────────────

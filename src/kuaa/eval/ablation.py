@@ -14,18 +14,22 @@ The common query set must carry the maintainer's pre-curator hypothesis
 the whole table is **one honesty tier** — no tautological pseudo-relevance, no
 structurally-zero rhyme row blended into the average.
 
-Rows:
+Rows come from :data:`kuaa.eval.registry.RETRIEVER_REGISTRY`, which is also
+what builds the graded pool. That is deliberate: grades persist the pool's
+spelling of a variant name, so a table that spelled the same rows ``CLIP`` /
+``hybrid-metadata`` / ``hybrid+rerank`` could not be joined to the grades meant
+to score it — and the join failed by finding nothing, not by raising.
 
-===================  ==========================================================  =====
-row                  how                                                         proxy
-===================  ==========================================================  =====
-``CLIP``             :func:`run_retrieval_eval` (SigLIP2 default index)          HY
-``BM25``             :func:`run_retrieval_eval` ``retriever="bm25"``             HY
-``hybrid``           :func:`run_retrieval_eval` ``retriever="hybrid"`` — the     HY
-                     SHIPPED 3-way fusion (CLIP + BM25 + metadata leg)
-``hybrid-metadata``  same, ``metadata_w=0.0`` — isolates the metadata signal     HY
-``hybrid+rerank``    production ``find(mode="hybrid", rerank=...)``               HY
-===================  ==========================================================  =====
+======================  =======================================================  =====
+row                     how                                                      proxy
+======================  =======================================================  =====
+``clip``                :func:`run_retrieval_eval` (SigLIP2 default index)       HY
+``bm25``                :func:`run_retrieval_eval` ``retriever="bm25"``          HY
+``hybrid``              :func:`run_retrieval_eval` ``retriever="hybrid"`` —      HY
+                        the SHIPPED 3-way fusion (CLIP + BM25 + metadata)
+``hybrid_no_metadata``  same, ``metadata_w=0.0`` — isolates the metadata leg     HY
+``hybrid_rerank``       production ``find(mode="hybrid", rerank=...)``           HY
+======================  =======================================================  =====
 
 The reranker only scores **text** queries (it reads ``query.text``), which is
 the common set, so the rerank delta is well-defined. The rerank row uses the
@@ -60,6 +64,7 @@ from kuaa.errors import EvalError
 from kuaa.eval.datasets import EvaluationDataset, QueryCase
 from kuaa.eval.metrics import evaluate_query, summarize_results
 from kuaa.eval.proxy import proxy_labels
+from kuaa.eval.registry import RETRIEVER_REGISTRY, RetrieverVariant
 from kuaa.eval.retrieval import RetrievalRun, run_retrieval_eval
 from kuaa.eval.slates import ModalQuery
 from kuaa.scene_ids import scene_id_key
@@ -81,7 +86,8 @@ class AblationRowConfig:
     """One row of the ablation table.
 
     Attributes:
-        name: published row label (e.g. ``"hybrid+rerank"``).
+        name: row label; the registry variant name, which is also the
+            spelling grades persist (e.g. ``"hybrid_rerank"``).
         retriever: which retriever mechanism to run — ``"clip" | "bm25" | "hybrid"``.
         proxy: the proxy signal used for the row's labels — ``"KI" | "PR" |
             "HY"`` (the whole launch table is ``"HY"``; the field exists so a
@@ -134,10 +140,17 @@ class AblationTable:
     def _banner(self) -> list[str]:
         """The methodology banner: KI/PR/HY definitions + corpus + caveat."""
         if self.validated_label:
+            # No KI/PR/HY list here: those are the proxy tiers, and a graded
+            # table has no proxy tier to explain. Leaving the heading in place
+            # ended the banner on "Proxy signals:" followed by the table.
             return [
-                f"**Human-validated methodology.** {self.validated_label} "
-                "Every row below is scored on a common query set with the **same** "
-                "human grades, so the comparison is apples-to-apples. Proxy signals:",
+                f"**Human-validated methodology.** Labels are {self.validated_label}. "
+                "Every row is scored on the same query set against the same human "
+                "grades, so the comparison is apples-to-apples.",
+                "",
+                f"**Corpus.** {self.corpus or 'demo library'}.",
+                f"**Common query set.** {self.common_query_set or 'text queries'}.",
+                "",
             ]
         return [
             "**Proxy methodology.** These are **proxy metrics**, not human-graded "
@@ -169,14 +182,18 @@ class AblationTable:
         The methodology banner precedes the table; per-row footnotes (if any)
         follow it.
         """
-        headers = ["Retriever", "Proxy", *[label for _key, label in _METRIC_COLUMNS]]
+        label_col = "Labels" if self.validated_label else "Proxy"
+        headers = ["Retriever", label_col, *[label for _key, label in _METRIC_COLUMNS]]
         sep = ["---", "---", *["---:" for _ in _METRIC_COLUMNS]]
         lines = self._banner()
         lines.append("| " + " | ".join(headers) + " |")
         lines.append("| " + " | ".join(sep) + " |")
 
         for row_cfg, metrics in self.rows:
-            cells = [row_cfg.name, row_cfg.proxy]
+            # A graded row's label source is the grade log, not the row's proxy
+            # tier — rendering "HY" beside a human-graded number claims the
+            # wrong provenance for it.
+            cells = [row_cfg.name, "graded" if self.validated_label else row_cfg.proxy]
             if metrics is None:
                 reason = row_cfg.pending_reason or "not wired"
                 pending = f"pending ({reason})"
@@ -199,48 +216,49 @@ class AblationTable:
 # Default row configs.
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Full set (rerank row REAL — uses production find ± the reranker). The ``hybrid`` row
-# measures the SHIPPED 3-way fusion (metadata_w=None → cfg default);
-# ``hybrid-metadata`` is identical except the metadata leg is off, so the
+
+def _row_from_variant(
+    variant: RetrieverVariant, *, pending_reason: str | None = None
+) -> AblationRowConfig:
+    """One table row per registry variant, sharing the variant's name.
+
+    The name matters more than it looks. Grades persist the *pool* spelling of
+    a variant (``hybrid_no_metadata``); this table used to spell the same five
+    rows ``CLIP`` / ``hybrid-metadata`` / ``hybrid+rerank``. Joining a graded
+    pool to the table meant to score it found nothing under those names, and
+    nothing raised — the join just came up empty. One name-space, derived, so
+    the drift cannot come back on the next variant.
+    """
+    return AblationRowConfig(
+        name=variant.name,
+        retriever=variant.mode,
+        proxy="HY",
+        rerank=variant.rerank,
+        metadata_w=variant.metadata_w,
+        pending_reason=pending_reason,
+    )
+
+
+# Full set (rerank row REAL — uses production find ± the reranker). The ``hybrid``
+# row measures the SHIPPED 3-way fusion (metadata_w=None → cfg default);
+# ``hybrid_no_metadata`` is identical except the metadata leg is off, so the
 # delta between the two isolates the signal's contribution.
-DEFAULT_ABLATION_CONFIGS: tuple[AblationRowConfig, ...] = (
-    AblationRowConfig(name="CLIP", retriever="clip", proxy="HY"),
-    AblationRowConfig(name="BM25", retriever="bm25", proxy="HY"),
-    AblationRowConfig(name="hybrid", retriever="hybrid", proxy="HY"),
-    AblationRowConfig(name="hybrid-metadata", retriever="hybrid", proxy="HY", metadata_w=0.0),
-    AblationRowConfig(name="hybrid+rerank", retriever="hybrid", proxy="HY", rerank=True),
+DEFAULT_ABLATION_CONFIGS: tuple[AblationRowConfig, ...] = tuple(
+    _row_from_variant(v) for v in RETRIEVER_REGISTRY.values()
 )
 
 # No-rerank variant — the rerank row is left pending so the table is produced
 # without paying the cross-encoder cost (and the committed --no-rerank doc is
 # honest about which rows are real).
-DEFAULT_ABLATION_CONFIGS_NO_RERANK: tuple[AblationRowConfig, ...] = (
-    AblationRowConfig(name="CLIP", retriever="clip", proxy="HY"),
-    AblationRowConfig(name="BM25", retriever="bm25", proxy="HY"),
-    AblationRowConfig(name="hybrid", retriever="hybrid", proxy="HY"),
-    AblationRowConfig(name="hybrid-metadata", retriever="hybrid", proxy="HY", metadata_w=0.0),
-    AblationRowConfig(
-        name="hybrid+rerank",
-        retriever="hybrid",
-        proxy="HY",
-        rerank=True,
-        pending_reason="rerank off",
-    ),
+DEFAULT_ABLATION_CONFIGS_NO_RERANK: tuple[AblationRowConfig, ...] = tuple(
+    _row_from_variant(v, pending_reason="rerank off" if v.rerank else None)
+    for v in RETRIEVER_REGISTRY.values()
 )
 
 # Footnotes attached to the rendered table when the matching row is present.
+# Sourced from the registry so a variant's explanation lives with its definition.
 _ROW_FOOTNOTES: dict[str, str] = {
-    "hybrid-metadata": (
-        "Identical to `hybrid` except the exact-lexical metadata leg "
-        "(tags / descriptions / detected objects) is disabled (`metadata_w=0`) — "
-        "the delta to the `hybrid` row isolates that signal's contribution."
-    ),
-    "hybrid+rerank": (
-        'Rerank delta is measured on the production `find(mode="hybrid")` base '
-        "(± the bge-reranker-v2-m3 cross-encoder), which is a different hybrid "
-        "implementation from the harness `hybrid` row above — compare the rerank "
-        "row to the `find` hybrid base it sits on, not to the harness `hybrid` row."
-    ),
+    v.name: v.footnote for v in RETRIEVER_REGISTRY.values() if v.footnote
 }
 
 
@@ -255,6 +273,7 @@ def _hy_text_dataset(
     library_dir: Path,
     cfg: Settings,
     graded_labels: dict[str, dict[str, float]] | None = None,
+    cross_film: bool = False,
 ) -> EvaluationDataset:
     """Build the common text :class:`EvaluationDataset` with HY proxy labels.
 
@@ -278,10 +297,20 @@ def _hy_text_dataset(
             continue
 
         # Prefer human grades when available for this query.
+        skipped: tuple[str, ...] = ()
         if graded_labels is not None and q.id in graded_labels:
             raw_rel = graded_labels[q.id]
-            # Canonicalise keys + keep only positive grades.
+            # Canonicalise keys + keep only positive grades. A SKIP (-1) is
+            # kept apart: it is excluded from the ranking at scoring time,
+            # whereas a 0 stays in and scores as irrelevant.
             relevance = {scene_id_key(k): float(v) for k, v in raw_rel.items() if float(v) > 0}
+            skipped = tuple(scene_id_key(k) for k, v in raw_rel.items() if float(v) < 0)
+            if not relevance and cross_film:
+                # Graded, but nothing in the pool was relevant. There is no
+                # cross-film proxy to fall back to, and a query with no
+                # relevant scene scores 0 for every row by construction.
+                logger.info("ablation: skipping %s — graded with no positive label", q.id)
+                continue
             if not relevance:
                 # All grades non-positive → fall back to proxy so this query
                 # contributes to the common set rather than being dropped.
@@ -296,6 +325,14 @@ def _hy_text_dataset(
             else:
                 rel_ids = tuple(relevance.keys())
                 method = "GRADED"
+        elif cross_film:
+            # Proxy labels are bare scene ordinals scoped to one film; a
+            # cross-film row ranks "<slug>/<scene_id>". Blending the two would
+            # score this query 0 against every row and pull the whole table
+            # down by an equal amount — invisible in the output, since a
+            # uniform drag still looks like a comparison.
+            logger.info("ablation: skipping %s — no human grades, and the run is cross-film", q.id)
+            continue
         else:
             rel_ids, relevance, method = proxy_labels(q, library_dir=library_dir, cfg=cfg)
             if method != "HY" or not rel_ids:
@@ -310,6 +347,7 @@ def _hy_text_dataset(
                 text=q.text,
                 relevant_scene_ids=rel_ids,
                 relevance=relevance or {sid: 1.0 for sid in rel_ids},
+                skipped_scene_ids=skipped,
                 notes=q.notes or "",
             )
         )
@@ -379,6 +417,21 @@ def _primary_film_slug(library_dir: Path, queries: list[ModalQuery]) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+def _without_skipped(ranked: tuple[str, ...], case: QueryCase) -> tuple[str, ...]:
+    """Drop the scenes a grader marked SKIP from a ranked list.
+
+    A SKIP is "no opinion". Left in the ranking it is absent from the
+    relevance map and so scores as NOT_RELEVANT, which penalises whichever
+    variant surfaced it as if the grader had judged against it. Removing the
+    scene lets the ranks close up, so the metric is computed over the items
+    the grader actually judged — the same rule ``grader_metrics`` applies.
+    """
+    if not case.skipped_scene_ids:
+        return ranked
+    skipped = set(case.skipped_scene_ids)
+    return tuple(sid for sid in ranked if sid not in skipped)
+
+
 def _run_text_retriever_row(
     cfg: Settings,
     dataset: EvaluationDataset,
@@ -417,7 +470,7 @@ def _run_rerank_row(
     slug: str,
     seed: int,
 ) -> dict[str, float | int]:
-    """hybrid+rerank row — production ``find(mode="hybrid", rerank=True)``.
+    """hybrid_rerank row — production ``find(mode="hybrid", rerank=True)``.
 
     Scores each text query against the per-film index with the production
     retrieval path so the cross-encoder reranker reorders the hybrid top-N. The
@@ -442,7 +495,7 @@ def _run_rerank_row(
             rerank_model="default",
             cfg=scoped,
         )
-        ranked = tuple(scene_id_key(h.scene_id) for h in result.hits)
+        ranked = _without_skipped(tuple(scene_id_key(h.scene_id) for h in result.hits), case)
         results.append(
             evaluate_query(
                 query_id=case.id,
@@ -454,6 +507,63 @@ def _run_rerank_row(
         )
     if not results:
         raise EvalError("rerank row produced no scorable queries")
+    return summarize_results(results)
+
+
+def _run_variant_row_global(
+    cfg: Settings,
+    dataset: EvaluationDataset,
+    *,
+    library_dir: Path,
+    variant: RetrieverVariant,
+    seed: int,
+    top_k: int = 10,
+) -> dict[str, float | int]:
+    """One row over the library-wide ranking, keyed ``<slug>/<scene_id>``.
+
+    Used whenever the labels are human grades. A grade's key is
+    ``(query_id, "<film_slug>/<scene_id>")`` because ``scene_id`` alone is
+    unique only within a film and a pool spans the library — so the ranking
+    scored against it has to span the library too, and carry the same key.
+    The single-film rows below cannot: they scope the config to one slug and
+    rank bare ordinals, which joins to nothing and reads as 0.000 across the
+    whole table.
+
+    Retrieval comes from :func:`kuaa.eval.slates.rank_variant_global` — the
+    same call that built the pool — so the table cannot score a path the
+    grades do not cover.
+    """
+    from kuaa.eval.slates import _film_meta_loader, rank_variant_global
+    from kuaa.reproducibility import seed_everything
+    from kuaa.search import Query
+
+    seed_everything(seed)
+    load_meta = _film_meta_loader(cfg, library_dir)
+
+    results = []
+    for case in dataset.queries:
+        rows = rank_variant_global(
+            q=Query.of_text(case.text),
+            cfg=cfg,
+            library_dir=library_dir,
+            k=top_k,
+            variant=variant,
+            load_meta=load_meta,
+        )
+        ranked = _without_skipped(
+            tuple(f"{r['film_slug']}/{scene_id_key(r['scene_id'])}" for r in rows), case
+        )
+        results.append(
+            evaluate_query(
+                query_id=case.id,
+                text=case.text,
+                relevant_scene_ids=case.relevant_scene_ids,
+                ranked_scene_ids=ranked,
+                relevance=case.relevance,
+            )
+        )
+    if not results:
+        raise EvalError("cross-film row produced no scorable queries")
     return summarize_results(results)
 
 
@@ -515,7 +625,10 @@ def run_ablation(
         graded_labels: optional per-query relevance from human grades.
             When provided, ``{query_id: {scene_id: float_grade}}`` maps take
             precedence over :func:`proxy_labels` for queries present in the
-            dict (positive grades only). Queries absent fall back to proxy.
+            dict. Pass every grade, SKIP (-1) included: positive grades become
+            the relevance map, SKIPs are removed from each ranking before it
+            is scored, and 0 stays in as NOT_RELEVANT. Queries absent fall
+            back to proxy.
             Without ``--grades``, behavior is byte-for-byte unchanged (still proxy).
         validated_label: when provided, the :class:`AblationTable` banner flips
             from the proxy wording to this string (e.g. ``"human-validated (run
@@ -525,8 +638,17 @@ def run_ablation(
     Returns:
         An :class:`AblationTable` ready to ``to_markdown()``.
     """
+    # Human grades are keyed "<slug>/<scene_id>" across the library, so they
+    # can only score a ranking that spans it. Proxy labels are bare ordinals
+    # from one film's query file, so they can only score the single-film rows.
+    # The label space, not a flag, decides which retrieval the table runs.
+    cross_film = graded_labels is not None
     dataset = _hy_text_dataset(
-        queries, library_dir=library_dir, cfg=cfg, graded_labels=graded_labels
+        queries,
+        library_dir=library_dir,
+        cfg=cfg,
+        graded_labels=graded_labels,
+        cross_film=cross_film,
     )
     slug = _primary_film_slug(library_dir, queries)
     corpus = _corpus_description(library_dir, slug, dataset)
@@ -549,6 +671,7 @@ def run_ablation(
                 library_dir=library_dir,
                 slug=slug,
                 seed=seed,
+                cross_film=cross_film,
             )
             rows.append((row_cfg, metrics))
         except Exception as exc:  # noqa: BLE001 - a failed row → honest pending
@@ -569,7 +692,7 @@ def run_ablation(
     return AblationTable(
         rows=rows,
         corpus=corpus,
-        common_query_set=f"{len(dataset.queries)} text queries (m3_full)",
+        common_query_set=f"{len(dataset.queries)} text queries",
         footnotes=footnotes,
         validated_label=validated_label,
     )
@@ -583,8 +706,19 @@ def _dispatch_row(
     library_dir: Path,
     slug: str,
     seed: int,
+    cross_film: bool = False,
 ) -> dict[str, float | int]:
     """Route one row config to its mechanics. Raises on an unknown retriever."""
+    if cross_film:
+        variant = RETRIEVER_REGISTRY.get(row_cfg.name)
+        if variant is None:
+            raise EvalError(
+                f"row {row_cfg.name!r} is not in the retriever registry — a cross-film row "
+                f"is run from the registry variant so it matches the pool the grades came from"
+            )
+        return _run_variant_row_global(
+            cfg, dataset, library_dir=library_dir, variant=variant, seed=seed
+        )
     retriever = row_cfg.retriever
     if row_cfg.rerank:
         return _run_rerank_row(cfg, dataset, library_dir=library_dir, slug=slug, seed=seed)

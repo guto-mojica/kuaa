@@ -8,6 +8,8 @@ as an append-only JSONL log per run::
     {"query_id": "q1", "scene_id": "jeca/1", "grader": "rg",
      "grade": 2, "ts": "2026-05-20T18:42:00+00:00"}
 
+``scene_id`` is film-qualified — see :func:`grade_scene_key`.
+
 Append-only because re-grading the same (query, scene) pair is normal —
 keeping history lets us audit how a grader's opinion evolved and compute
 inter-annotator agreement across versions. ``load_run`` resolves the
@@ -44,6 +46,24 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import IntEnum
 from pathlib import Path
+from typing import Any
+
+
+def grade_scene_key(film_slug: Any, scene_id: Any) -> str:
+    """The ``scene_id`` half of a grade's ``(query_id, scene_id)`` key.
+
+    Film-qualified — ``"coisas_nossas_1931/45"`` — because ``scene_id`` alone
+    is only unique *within* a film. A pool spans the whole library, so two
+    films' scene 45 landed on the same grade key: grading one recorded a
+    judgment about the other, in the same query, silently. The shipped
+    ``corpus01`` pool has 104 such collisions across its 56 queries.
+
+    Falls back to the bare scene id when no slug is available (the seeded
+    single-film sample runs), which is what every row written before this
+    function existed already used.
+    """
+    slug = str(film_slug or "").strip()
+    return f"{slug}/{scene_id}" if slug else str(scene_id)
 
 
 class Grade(IntEnum):
@@ -268,7 +288,13 @@ def export_run(run: EvalRun) -> dict:
 
 
 def grades_by_query(loaded: LoadedRun) -> dict[str, list[Grade]]:
-    """Group LoadedRun.grades by query_id."""
+    """Group LoadedRun.grades by query_id, across every grader and every pool.
+
+    A bag of grades, not a progress measure: it carries judgments collected
+    against pools the run no longer uses, so its length for a query can exceed
+    that query's candidate count. Ask :func:`judged_grades_by_query` when the
+    question is what *this* grader has judged on the *current* pool.
+    """
 
     out: dict[str, list[Grade]] = {}
     for (qid, _scene_id), entry in loaded.grades.items():
@@ -282,32 +308,86 @@ def grades_for_query(loaded: LoadedRun, query_id: str) -> list[Grade]:
     return [entry.grade for (qid, _scene_id), entry in loaded.grades.items() if qid == query_id]
 
 
+def judged_grades_by_query(
+    per_annotator: dict[tuple[str, str], dict[str, GradeEntry]],
+    grader_name: str,
+) -> dict[str, dict[str, Grade]]:
+    """One grader's judgments as ``{query_id: {scene_key: grade}}``.
+
+    Keyed by scene key rather than counted, because every consumer asks a
+    membership question — is *this* candidate judged — and a count answers it
+    only while the pool has not moved under the grades. See
+    :func:`first_ungraded` for what that costs when it has.
+    """
+    out: dict[str, dict[str, Grade]] = {}
+    for (qid, sid), by_who in per_annotator.items():
+        entry = by_who.get(grader_name)
+        if entry is not None:
+            out.setdefault(str(qid), {})[str(sid)] = entry.grade
+    return out
+
+
+def candidate_keys(query: dict) -> list[str]:
+    """A query's candidate scene keys, in the order the pool presents them.
+
+    Order is load-bearing: the queue's progress pips are positional, so a row
+    rendered from anything but this order reports one candidate's grade under
+    another's.
+    """
+    return [
+        grade_scene_key(row.get("film_slug"), row.get("scene_id"))
+        for row in (query.get("results") or [])
+    ]
+
+
 def first_ungraded(
     queries: list[dict],
     per_annotator: dict[tuple[str, str], dict[str, GradeEntry]],
     grader_name: str,
 ) -> dict | None:
-    """Return the first query in ``queries`` that ``grader_name`` has not graded.
+    """Return the first query ``grader_name`` has not *finished* grading.
 
-    A query is graded by ``grader_name`` when at least one
-    ``(query_id, scene_id)`` entry in ``per_annotator`` carries
-    ``grader_name`` as a key. Returns ``None`` when the grader has graded
-    every query (or ``queries`` is empty) — the /eval context builder falls
-    back to ``queries[0]`` so a finished grader doesn't land on None.
+    Finished means every candidate judged: the grader's entry count for the
+    query has reached its ``candidate_count`` (falling back to ``len(results)``
+    when the count is absent). Returns ``None`` when every query is finished
+    (or ``queries`` is empty) — the /eval context builder falls back to
+    ``queries[0]`` so a finished grader doesn't land on None.
+
+    This used to treat *one* judgment as finishing a query, which made a
+    partially-graded query unreachable: the resume rule skipped past it and
+    the pane had no other way back, so stopping mid-query abandoned it
+    permanently. A grading session is long enough that stopping mid-query is
+    the normal case, not the exception.
+
+    Finished is decided by *membership* — is there a judgment for each of this
+    query's candidates — not by comparing a judgment count to
+    ``candidate_count``. The two agree only while the pool a grader is looking
+    at is the one their grades were collected against. Regenerate the pool and
+    they diverge: grades for candidates the new pool no longer carries still
+    count toward the total, so a query reads as finished while its new
+    candidates have never been shown. On the ``corpus01`` regeneration that
+    was 55 of 56 queries and 703 hidden candidates — the grader is told they
+    are done and the pool is silently left ungraded.
 
     Drives the /eval session-resume landing row (open the page → first
-    unjudged query for the active grader). Extracted from the api service so
+    unfinished query for the active grader). Extracted from the api service so
     the resume rule lives next to the grade-loading primitives it reads.
     """
-    # Pre-compute the set of query_ids grader_name has touched to avoid
-    # an O(n²) inner scan.
-    graded_qids: set[str] = set()
-    for (qid, _sid), by_who in per_annotator.items():
-        if grader_name in by_who:
-            graded_qids.add(str(qid))
+    # Pre-computed per query to avoid an O(n²) inner scan.
+    judged = judged_grades_by_query(per_annotator, grader_name)
 
     for q in queries:
         qid = str(q.get("id", ""))
-        if qid and qid not in graded_qids:
+        if not qid:
+            continue
+        done = judged.get(qid, {})
+        candidates = candidate_keys(q)
+        if not candidates:
+            # No rows to compare against — keep the old rule: any judgment at
+            # all finishes the query, so a malformed record cannot trap the
+            # resume cursor on it forever.
+            if not done:
+                return q
+        elif any(key not in done for key in candidates):
             return q
     return None

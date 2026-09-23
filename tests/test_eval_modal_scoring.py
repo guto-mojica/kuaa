@@ -4,11 +4,14 @@ These cover the pure scoring core of ``kuaa.eval.retrieval`` — the
 ``_default_relevance`` resolver, the shared ``_run_modal_eval`` loop, the
 ``relevance_resolver`` injection hook E2 depends on, the ``film_slug`` scope
 filter, and the "no scorable slate" error path — WITHOUT loading any model or
-real index. ``generate_slate`` (the only heavy collaborator) is monkeypatched
+real index. ``rank_candidates`` (the only heavy collaborator) is monkeypatched
 at the name it is bound to inside ``retrieval`` (the module imports it as a
-top-level symbol, so ``kuaa.eval.retrieval.generate_slate`` is the patch
+top-level symbol, so ``kuaa.eval.retrieval.rank_candidates`` is the patch
 target). The GPU end-to-end coverage lives in the ``@pytest.mark.acceptance``
 ``test_eval_multimodal_scoring`` GATE; this file is the CI-without-index half.
+
+One test deliberately does NOT patch that seam: modal eval must score the
+retriever's ranking, and the patch is what let it score a shuffle instead.
 """
 
 from __future__ import annotations
@@ -171,12 +174,23 @@ def test_default_relevance_hypothesis_keeps_only_positive_grades():
 
 
 def _patch_slate(monkeypatch, rows_by_qid: dict[str, list[dict]]):
-    """Patch generate_slate (as bound in retrieval) to return canned rows per qid."""
+    """Patch rank_candidates (as bound in retrieval) to return canned rows per qid.
 
-    def _fake_generate_slate(*, query, cfg, library_dir, k, film_slug=None):
+    Patching the candidate source is legitimate for the tests below: they
+    exercise the ``relevance_resolver`` hook and the per-query method
+    recording, neither of which is about retrieval. What it must NOT do is
+    stand in for a test of the call path itself — the previous version of this
+    helper patched ``generate_slate``, and that is precisely what hid
+    ``_run_modal_eval`` scoring a blinded (shuffled, score-nulled) slate for
+    the entire life of the image and rhyme metrics. See
+    ``test_modal_eval_scores_the_retriever_order_not_a_shuffle`` below, which
+    goes through the real path.
+    """
+
+    def _fake_rank_candidates(*, query, cfg, library_dir, k, film_slug=None):
         return list(rows_by_qid.get(query.id, []))
 
-    monkeypatch.setattr(retr, "generate_slate", _fake_generate_slate)
+    monkeypatch.setattr(retr, "rank_candidates", _fake_rank_candidates)
 
 
 def test_run_modal_eval_invokes_injected_resolver_once_per_query(monkeypatch):
@@ -365,7 +379,7 @@ def test_run_modal_eval_raises_evalerror_when_no_query_scorable(monkeypatch):
         _modal_query(qid="txt-1", query_type="text", text="x"),
         _modal_query(qid="txt-2", query_type="text", text="y"),
     ]
-    _patch_slate(monkeypatch, {})  # generate_slate returns [] for every qid
+    _patch_slate(monkeypatch, {})  # rank_candidates returns [] for every qid
 
     with pytest.raises(EvalError) as excinfo:
         _run_modal_eval(
@@ -391,3 +405,69 @@ def test_run_modal_eval_rejects_nonpositive_top_k():
             film_slug=None,
             top_k=0,
         )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# The real call path: modal eval must score the RETRIEVER's order (0.2)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def test_modal_eval_scores_the_retriever_order_not_a_shuffle(monkeypatch, tmp_path):
+    """MRR/nDCG are functions of rank, so the order fed to them must be the
+    retriever's — not the grader-facing blinded order.
+
+    This test goes through ``_run_modal_eval``'s real candidate call, stubbing
+    only ``find`` (the model boundary). Before the ``generate_slate`` /
+    ``rank_candidates`` split, ``_run_modal_eval`` called the blind-by-default
+    slate builder, so ``ranked_ids`` was a seeded permutation and every image
+    and rhyme metric this project ever published scored that permutation.
+    """
+    import kuaa.eval.slates as slates
+
+    hits = [(11, 0.99), (22, 0.98), (33, 0.97), (44, 0.96), (55, 0.95)]
+
+    class _Hit:
+        def __init__(self, sid, score):
+            self.scene_id, self.score = sid, score
+
+    def _fake_find(query, *, film, mode, top_k, cfg, rerank=False, **kw):
+        return SimpleNamespace(hits=[_Hit(s, sc) for s, sc in hits][:top_k])
+
+    monkeypatch.setattr(slates, "find", _fake_find)
+    monkeypatch.setattr(slates, "_iter_films", lambda lib: ["film_a"])
+    monkeypatch.setattr(slates, "_ctx_for", lambda lib, slug: SimpleNamespace(slug=slug))
+
+    q = _modal_query(qid="image-01", query_type="image", text=None, image_path=tmp_path / "a.jpg")
+    captured: list[tuple[str, ...]] = []
+
+    def _spy_resolver(query, rows):
+        captured.append(tuple(str(r["scene_id"]) for r in rows))
+        sid = str(rows[0]["scene_id"])
+        return (sid,), {sid: 1.0}, "known_item"
+
+    _run_modal_eval(
+        SimpleNamespace(),
+        [q],
+        modality="image",
+        library_dir=tmp_path,
+        film_slug=None,
+        top_k=5,
+        relevance_resolver=_spy_resolver,
+    )
+
+    assert captured == [("11", "22", "33", "44", "55")], (
+        "modal eval must see the retriever's ranking, not a blinded permutation"
+    )
+
+
+def test_modal_top_results_tolerates_a_blinded_row():
+    """``score=None`` is a present-but-null key, which ``.get(k, 0.0)`` misses.
+
+    A blinded row reaching the report writer used to raise TypeError inside
+    ``float(None)``. Reporting 0.0 is the honest answer — there is no score.
+    """
+    from kuaa.eval.retrieval import _modal_top_results
+
+    out = _modal_top_results([{"scene_id": 3, "score": None, "keyframe_url": "x.jpg"}], limit=5)
+    assert out[0]["similarity"] == 0.0
+    assert out[0]["scene_id"] == "3"

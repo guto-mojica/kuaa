@@ -44,13 +44,12 @@ from kuaa.retrieval.hybrid import (
 from kuaa.search._aggregate.fusion import fuse_global_rrf
 from kuaa.search.cache import SearchIndex
 from kuaa.search.clip import search_text
+from kuaa.search.types import SEARCH_MODES
 
 if TYPE_CHECKING:
     from kuaa.retrieval.bm25 import BM25Index  # noqa: F401  — used in annotations
 
 logger = logging.getLogger(__name__)
-
-_VALID_RETRIEVERS = {"clip", "bm25", "hybrid"}
 
 
 def resolve_retriever_args(
@@ -68,7 +67,7 @@ def resolve_retriever_args(
     policy — logged at WARNING). Either of ``sem_w`` / ``bm25_w`` being
     ``None`` uses the config default for that side.
     """
-    if retriever not in _VALID_RETRIEVERS:
+    if retriever not in SEARCH_MODES:
         logger.warning(
             "resolve_retriever_args: unknown retriever=%r — falling back to hybrid", retriever
         )
@@ -127,6 +126,11 @@ def search_hybrid(
             ``"clip"`` mode and on the CLIP side of ``"hybrid"`` (where
             it pre-filters before RRF). Not applied on ``"bm25"`` mode —
             BM25 scores are not in the cosine-similarity scale.
+        tags, tag_index: AND-intersection tag filter. Applied to every leg
+            *before* fusion and before the ``top_k`` cut, so a tag-constrained
+            query returns ``top_k`` rows whenever ``top_k`` tagged scenes exist
+            in the widened window. Filtering the fused list afterwards — the
+            previous order — silently returned short results.
 
     Mode behaviour:
         * ``"clip"`` — delegates to :func:`search_text` unchanged.
@@ -164,6 +168,8 @@ def search_hybrid(
     # only for the bm25 / hybrid branches that follow.
     best_row_by_sid = _best_row_by_sid_from_embeddings(index, query)
 
+    allowed = _allowed_scene_ids_for_tags(tags, tag_index)
+
     if retriever_mode == "bm25":
         # BM25 scores aren't cosine — min_similarity does not apply.
         hits = bm25.query(query, top_k=raw_k)
@@ -180,6 +186,16 @@ def search_hybrid(
         else []
     )
     bm25_hits = bm25.query(query, top_k=raw_k)
+
+    # Tag filter goes in FRONT of fusion, on every leg, matching the order
+    # ``aggregate`` uses. Filtering the fused list afterwards drops rows that
+    # were already inside the ``top_k`` cut, so a tag-constrained query could
+    # return fewer than ``top_k`` scenes while matching ones sat in the
+    # discarded tail. CLIP is filtered inside ``search_text``
+    # (``SemanticSearch.combined``); these two legs are the ones that were not.
+    if allowed is not None:
+        bm25_hits = [(sid, score) for sid, score in bm25_hits if sid in allowed]
+        metadata_ranked = [(sid, score) for sid, score in (metadata_ranked or []) if sid in allowed]
 
     if metadata_ranked and metadata_w > 0:
         # Same weighting the cross-film path uses: exact lexical metadata takes
@@ -399,7 +415,10 @@ def _fused_to_dataframe(
 
     Tag filter is AND-intersection (parity with CLIP / aggregate); when
     tags are requested but no scene matches all of them, the result is
-    empty rather than silently-unfiltered.
+    empty rather than silently-unfiltered. ``search_hybrid`` now filters
+    every leg *before* fusion, so on that path this is a redundant guard
+    rather than the enforcement point — kept because the helper is also
+    reachable with a fused list assembled elsewhere.
     """
     if not fused:
         return pd.DataFrame(columns=["scene_id", "similarity"])

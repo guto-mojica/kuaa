@@ -102,10 +102,20 @@ def _parse_num_people(text: str) -> int:
     Retorna:
         int >= 0 : número conhecido
         -1       : múltiplos/vago ("several", "many")
+
+    An explicit digit wins over a number word. The prompt asks for a count
+    first ("2 people talking"), and the answer that follows routinely uses
+    "one" as a pronoun — "2 people, one holding a gun" — so a number word
+    can only be read as the count when no digit is present. Words are
+    matched on boundaries for the same reason: "someone" contains "one".
     """
     text = text.lower()
     if any(w in text for w in ["no people", "nobody", "no person", "empty", "no one"]):
         return 0
+
+    match = re.search(r"\b(\d+)\b", text)
+    if match:
+        return int(match.group(1))
 
     word_to_num = {
         "one": 1,
@@ -124,17 +134,51 @@ def _parse_num_people(text: str) -> int:
         "one person": 1,
     }
     for word, num in word_to_num.items():
-        if word in text:
+        if re.search(rf"\b{word}\b", text):
             return num
-
-    match = re.search(r"\b(\d+)\b", text)
-    if match:
-        return int(match.group(1))
 
     if any(w in text for w in ["several", "many", "group", "crowd", "multiple"]):
         return -1
 
     return -1
+
+
+# Head nouns that are not objects. The ``objects`` prompt asks for notable
+# things in the frame, and the describer answers it with the people it sees
+# ("person", "man"), their anatomy ("human head", "legs") and the picture
+# plane itself ("dark background", "shadow", "textured surface"). None of
+# those is a subject an archivist would search for — people are already
+# covered by the count tags — yet each became a tag, and ``person`` alone
+# was the most frequent object tag on two films of very different kinds.
+# Matched on the candidate's last word, so a modifier does not rescue it:
+# "red background" and "human nose" fall with "background" and "nose".
+# Text-on-screen terms ("text", "logo", "writing") are deliberately kept:
+# slates and intertitles are content in a film archive.
+_OBJECT_STOP_HEADS: frozenset[str] = frozenset(
+    """
+    person people man men woman women figure figures human humans
+    head heads face faces body bodies nose mouth eye eyes ear ears
+    arm arms leg legs hand hands foot feet torso hair
+    background backgrounds shadow shadows silhouette silhouettes
+    lighting surface surfaces pattern patterns texture textures
+    line lines design blur blurry
+    """.split()
+)
+
+# Bare colours, which the describer lists when nothing else stands out.
+_OBJECT_STOP_WHOLE: frozenset[str] = frozenset(
+    "red orange yellow green blue purple pink black white grey gray brown".split()
+)
+
+
+def _is_object(candidate: str) -> bool:
+    """False for people, anatomy, and picture-plane terms — see the stoplists."""
+    words = candidate.split()
+    if not words:
+        return False
+    if candidate in _OBJECT_STOP_WHOLE:
+        return False
+    return words[-1] not in _OBJECT_STOP_HEADS
 
 
 def _parse_objects(text: str) -> list[str]:
@@ -147,7 +191,7 @@ def _parse_objects(text: str) -> list[str]:
     for p in parts:
         words = [w for w in p.strip().lower().split() if w not in stopwords]
         cleaned = " ".join(words)
-        if cleaned:
+        if cleaned and _is_object(cleaned):
             objects.append(cleaned)
     return objects[:6]
 

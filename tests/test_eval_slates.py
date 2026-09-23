@@ -28,7 +28,12 @@ import numpy as np
 import pytest
 
 from kuaa.errors import EvalError
-from kuaa.eval.slates import ModalQuery, generate_slate, load_modal_queries
+from kuaa.eval.slates import (
+    ModalQuery,
+    generate_slate,
+    load_modal_queries,
+    rank_candidates,
+)
 
 # The nine keys every candidate row must carry so the rows template renders.
 _ROWS_KEYS = {
@@ -270,6 +275,25 @@ def test_candidate_row_missing_keyframe_falls_back_to_empty():
     assert row["keyframe_url"] == ""
 
 
+def test_candidate_row_raises_when_the_key_contract_drifts(monkeypatch):
+    """The 9-key contract must be enforced by a ``raise``, not an ``assert``.
+
+    The check holds the built literal and ``_ROW_KEYS`` in agreement, and it is
+    the only thing that does — every consumer (the ``/eval`` rows template, the
+    graded-pool scorer) depends on exactly those keys. An ``assert`` here is
+    stripped by ``python -O``, under which drift would reach the grading page
+    as a missing column rather than as an error. Widening ``_ROW_KEYS`` is how
+    that drift looks from the outside.
+    """
+    import kuaa.eval.slates as slates
+
+    monkeypatch.setattr(slates, "_ROW_KEYS", (*slates._ROW_KEYS, "a_tenth_key"))
+
+    meta = slates._empty_meta("jeca", Path("/srv/data").resolve())
+    with pytest.raises(ValueError, match="candidate row key drift"):
+        slates._candidate_row(scene_id=1, film_slug="jeca", score=0.5, meta=meta)
+
+
 def test_generate_slate_text_scopes_search_to_film_slug(tmp_path, monkeypatch):
     """#3: film_slug scopes the search to that film BEFORE top-k truncation, so a
     film that another film would crowd out of the global head still returns rows."""
@@ -287,7 +311,19 @@ def test_generate_slate_text_scopes_search_to_film_slug(tmp_path, monkeypatch):
             query=q,
         )
 
+    aggregated: list[int] = []
+
+    def fake_aggregate(q: Query, *, cfg, mode, top_k, weights=None, **kw):
+        aggregated.append(top_k)
+        return SearchResult(
+            hits=[Hit(scene_id=1, score=0.9, keyframe_path="", film_slug="alpha")],
+            mode="clip",
+            weights=None,
+            query=q,
+        )
+
     monkeypatch.setattr(slates, "find", fake_find)
+    monkeypatch.setattr(slates, "aggregate", fake_aggregate)
     monkeypatch.setattr(slates, "_iter_films", lambda lib: ["alpha", "beta"])
     monkeypatch.setattr(slates, "_ctx_for", lambda lib, slug: SimpleNamespace(slug=slug))
 
@@ -314,11 +350,13 @@ def test_generate_slate_text_scopes_search_to_film_slug(tmp_path, monkeypatch):
     # Every variant proposed the same scene, so it dedupes to one row.
     assert len(rows) == 1
 
-    # Unscoped (default): both films searched, still once per variant each.
+    # Unscoped (default): one library-wide ``aggregate`` per variant, and no
+    # per-film ``find`` walk at all — the global ranking already spans films.
     called.clear()
+    aggregated.clear()
     generate_slate(query=q, cfg=_cfg(), library_dir=tmp_path, k=5)
-    assert set(called) == {"alpha", "beta"}
-    assert len(called) == 2 * len(slates.POOL_VARIANTS)
+    assert called == [], "an unscoped text pool must not fall back to per-film find"
+    assert len(aggregated) == len(slates.POOL_VARIANTS)
 
 
 # ── text / image find path (cross-film, registry-free) ──────────────────────
@@ -343,12 +381,13 @@ def _hit(scene_id: int, score: float, film_slug: str) -> Any:
     )
 
 
-def test_generate_slate_dispatches_text_to_find(tmp_path: Path, monkeypatch):
-    """Text query → CLIP ``find`` per film, merged by descending score.
+def test_generate_slate_dispatches_text_to_aggregate(tmp_path: Path, monkeypatch):
+    """Text query → one library-wide ``aggregate`` per variant, unioned.
 
-    Exercises Fix #1: TWO on-disk film subdirs that are NOT registered in a
-    ``films.json`` still yield rows (the disk-scan fallback in ``_iter_films``
-    plus the path-derived ``_ctx_for`` must produce a real ``find`` context).
+    ``aggregate`` is the ranking the Buscar tab serves: every film's scenes in
+    one global list, so a film contributes as many candidates as it earns and
+    possibly none. Pooling from it is what makes the grades cover the system
+    the ablation table is supposed to score.
     """
     import kuaa.eval.slates as slates
 
@@ -357,17 +396,20 @@ def test_generate_slate_dispatches_text_to_find(tmp_path: Path, monkeypatch):
 
     captured: list[dict[str, Any]] = []
 
-    def _fake_find(query, *, film, mode, top_k, cfg, **kw):
-        # Capture per-call so we can assert the path-derived ctx + cross-film walk.
-        captured.append({"slug": film.slug, "is_text": query.text is not None, "mode": mode})
-        # Interleave scores across the two films so the global sort is observable.
-        per_film = {
-            "film_a": [_hit(10, 0.9, "film_a"), _hit(11, 0.5, "film_a")],
-            "film_b": [_hit(20, 0.8, "film_b"), _hit(21, 0.4, "film_b")],
-        }
-        return _search_result(per_film[film.slug])
+    def _fake_aggregate(query, *, cfg, mode, top_k, weights=None, **kw):
+        captured.append({"is_text": query.text is not None, "mode": mode, "top_k": top_k})
+        # One global list spanning both films — film_a takes two of the four
+        # places on merit, which the per-film interleave could never produce.
+        return _search_result(
+            [
+                _hit(10, 0.9, "film_a"),
+                _hit(20, 0.8, "film_b"),
+                _hit(11, 0.5, "film_a"),
+                _hit(21, 0.4, "film_b"),
+            ]
+        )
 
-    monkeypatch.setattr(slates, "find", _fake_find)
+    monkeypatch.setattr(slates, "aggregate", _fake_aggregate)
 
     q = ModalQuery(
         id="text-01",
@@ -381,19 +423,21 @@ def test_generate_slate_dispatches_text_to_find(tmp_path: Path, monkeypatch):
         relevance={},
         notes=None,
     )
-    rows = generate_slate(query=q, cfg=_cfg(), library_dir=tmp_path, k=9, blind_rows=False)
+    rows = rank_candidates(query=q, cfg=_cfg(), library_dir=tmp_path, k=9)
 
-    # find called once per (unregistered) film, per retriever variant.
-    assert {c["slug"] for c in captured} == {"film_a", "film_b"}
+    # Once per retriever variant, with the text query, and no per-film walk.
+    assert len(captured) == len(slates.POOL_VARIANTS)
     assert all(c["is_text"] for c in captured)
     # The pool spans every variant, not just CLIP — that is the whole point.
     assert {c["mode"] for c in captured} == {"clip", "bm25", "hybrid"}
+    # The rerank variant widens its first stage: reranking a k-length list can
+    # only permute the page the first stage already surfaced.
+    assert max(c["top_k"] for c in captured) > 9
     # Deduped by (film, scene): the same 4 scenes, however many variants
     # proposed them. Rows keep the 9-key contract plus the ``pool`` sidecar.
     assert len(rows) == 4
     for r in rows:
         assert set(r.keys()) == _ROWS_KEYS | {"pool"}
-    assert {r["film_slug"] for r in rows} == {"film_a", "film_b"}
     assert {(r["film_slug"], r["scene_id"]) for r in rows} == {
         ("film_a", 10),
         ("film_a", 11),
@@ -443,7 +487,7 @@ def test_generate_slate_dispatches_image_to_find(tmp_path: Path, monkeypatch):
         relevance={},
         notes=None,
     )
-    rows = generate_slate(query=q, cfg=_cfg(), library_dir=tmp_path, k=9, blind_rows=False)
+    rows = rank_candidates(query=q, cfg=_cfg(), library_dir=tmp_path, k=9)
 
     # find was called with an image Query (image_path set, text None) in clip mode.
     assert captured["image_path"] == img.resolve()
@@ -481,15 +525,27 @@ def _text_query(qid: str = "text-01") -> ModalQuery:
 
 
 def _pool_env(monkeypatch, per_variant: dict[str, list[tuple[int, float]]]):
-    """Stub ``find`` so each retriever mode returns its own hit list."""
+    """Stub the library-wide ``aggregate`` so each mode returns its own hit list.
+
+    An unscoped text pool retrieves through ``aggregate`` — the ranking the
+    Buscar tab serves — so that is the seam to stub. The rerank variant reaches
+    it as a second call: ``aggregate(mode="hybrid")`` followed by ``rerank``,
+    which is why the reranked list is keyed separately here.
+    """
     import kuaa.eval.slates as slates
 
-    def _fake_find(query, *, film, mode, top_k, cfg, rerank=False, **kw):
-        key = f"{mode}_rerank" if rerank else mode
-        hits = per_variant.get(key, per_variant.get(mode, []))
-        return _search_result([_hit(sid, score, film.slug) for sid, score in hits])
+    def _fake_aggregate(query, *, cfg, mode, top_k, weights=None, **kw):
+        hits = per_variant.get(mode, [])
+        return _search_result([_hit(sid, score, "film_a") for sid, score in hits])
 
-    monkeypatch.setattr(slates, "find", _fake_find)
+    def _fake_rerank(result, *, model="default", top_k_in=20):
+        hits = per_variant.get("hybrid_rerank")
+        if hits is None:
+            return result
+        return _search_result([_hit(sid, score, "film_a") for sid, score in hits])
+
+    monkeypatch.setattr(slates, "aggregate", _fake_aggregate)
+    monkeypatch.setattr(slates, "rerank", _fake_rerank)
     monkeypatch.setattr(slates, "_iter_films", lambda lib: ["film_a"])
     monkeypatch.setattr(slates, "_ctx_for", lambda lib, slug: SimpleNamespace(slug=slug))
 
@@ -504,9 +560,7 @@ def test_pool_is_the_union_of_every_variant(tmp_path, monkeypatch):
             "hybrid": [(1, 0.7), (3, 0.6)],
         },
     )
-    rows = generate_slate(
-        query=_text_query(), cfg=_cfg(), library_dir=tmp_path, k=9, blind_rows=False
-    )
+    rows = rank_candidates(query=_text_query(), cfg=_cfg(), library_dir=tmp_path, k=9)
     assert {r["scene_id"] for r in rows} == {1, 2, 3}
 
 
@@ -520,9 +574,7 @@ def test_pool_dedupes_and_keeps_every_proposing_rank(tmp_path, monkeypatch):
             "hybrid": [(2, 0.7)],
         },
     )
-    rows = generate_slate(
-        query=_text_query(), cfg=_cfg(), library_dir=tmp_path, k=9, blind_rows=False
-    )
+    rows = rank_candidates(query=_text_query(), cfg=_cfg(), library_dir=tmp_path, k=9)
     scene_2 = next(r for r in rows if r["scene_id"] == 2)
     assert len([r for r in rows if r["scene_id"] == 2]) == 1, "deduped by (film, scene)"
     assert scene_2["pool"]["clip"] == 2, "CLIP ranked it second"
@@ -531,19 +583,17 @@ def test_pool_dedupes_and_keeps_every_proposing_rank(tmp_path, monkeypatch):
 
 
 def test_metadata_leg_is_disabled_for_its_own_variant(tmp_path, monkeypatch):
-    """hybrid_no_metadata must actually hand find a config that says so."""
+    """hybrid_no_metadata must actually hand the retriever a config that says so."""
     import kuaa.eval.slates as slates
 
     seen: list[float] = []
 
-    def _fake_find(query, *, film, mode, top_k, cfg, rerank=False, **kw):
+    def _fake_aggregate(query, *, cfg, mode, top_k, weights=None, **kw):
         if mode == "hybrid":
             seen.append(cfg.search.hybrid_metadata_w)
         return _search_result([])
 
-    monkeypatch.setattr(slates, "find", _fake_find)
-    monkeypatch.setattr(slates, "_iter_films", lambda lib: ["film_a"])
-    monkeypatch.setattr(slates, "_ctx_for", lambda lib, slug: SimpleNamespace(slug=slug))
+    monkeypatch.setattr(slates, "aggregate", _fake_aggregate)
 
     cfg = _cfg()
     cfg.search = SimpleNamespace(hybrid_metadata_w=0.65)
@@ -580,9 +630,7 @@ def test_blinding_differs_across_queries(tmp_path, monkeypatch):
 def test_blinding_does_not_preserve_retriever_order(tmp_path, monkeypatch):
     """Position must not be readable as the system's opinion."""
     _pool_env(monkeypatch, {"clip": [(i, 1.0 - i / 100) for i in range(1, 13)]})
-    ordered = generate_slate(
-        query=_text_query(), cfg=_cfg(), library_dir=tmp_path, k=12, blind_rows=False
-    )
+    ordered = rank_candidates(query=_text_query(), cfg=_cfg(), library_dir=tmp_path, k=12)
     blinded = generate_slate(
         query=_text_query(), cfg=_cfg(), library_dir=tmp_path, k=12, blind_seed="run-1"
     )
@@ -624,3 +672,158 @@ def test_pooled_run_defaults_to_blind_in_the_ui(tmp_path, monkeypatch):
     )
     ctx = build_eval_context(cfg)
     assert ctx["blind_mode"] is True, "pooled runs are blind unless told otherwise"
+
+
+# ── the row must describe ONE moment, not three ─────────────────────────────
+
+
+def _kf_rows(scene_id: int, n: int, *, start: float, end: float) -> list[dict]:
+    """``n`` keyframe rows for one scene, as scene detection writes them.
+
+    Every row carries the SCENE's start/end — the per-keyframe timestamp is
+    not recorded — so which row wins decides the thumbnail and nothing else.
+    """
+    return [
+        {
+            "scene_id": scene_id,
+            "keyframe_id": f"scene_{scene_id:04d}_kf_{i:02d}",
+            "filepath": f"/srv/data/library/jeca/frames/scenes/keyframes_content/kf_{i:02d}.jpg",
+            "start_time_s": start,
+            "end_time_s": end,
+        }
+        for i in range(1, n + 1)
+    ]
+
+
+def test_representative_keyframe_is_the_middle_one():
+    """The describer runs on the middle keyframe (``llm.keyframes: middle``),
+    and ``build_scene_list`` / ``_grouped_scenes`` pick the middle as the
+    scene's representative frame. The slate row has to agree with both, or the
+    thumbnail shows a different moment than the description beside it."""
+    from kuaa.eval.slates import _representative_keyframes
+
+    picked = _representative_keyframes(_kf_rows(3, 3, start=21.9, end=53.4))
+    assert picked[3]["keyframe_id"] == "scene_0003_kf_02"
+
+
+def test_representative_keyframe_is_not_the_last_row_written():
+    """The regression itself: a dict comprehension over the rows is
+    last-write-wins, so it selected the frame nearest the END of the scene."""
+    from kuaa.eval.slates import _representative_keyframes
+
+    rows = _kf_rows(3, 3, start=21.9, end=53.4)
+    naive = {int(e["scene_id"]): e for e in rows}
+    assert naive[3]["keyframe_id"] == "scene_0003_kf_03", "pins what the bug did"
+    assert _representative_keyframes(rows)[3]["keyframe_id"] != naive[3]["keyframe_id"]
+
+
+def test_representative_keyframe_ignores_row_order():
+    """'Middle' must mean the middle of the scene, not of however the rows
+    happened to be written."""
+    from kuaa.eval.slates import _representative_keyframes
+
+    rows = _kf_rows(3, 3, start=21.9, end=53.4)
+    assert _representative_keyframes(list(reversed(rows)))[3]["keyframe_id"] == ("scene_0003_kf_02")
+
+
+def test_representative_keyframe_handles_a_single_keyframe_scene():
+    """Films predating the N-per-scene convention have one row per scene."""
+    from kuaa.eval.slates import _representative_keyframes
+
+    picked = _representative_keyframes(_kf_rows(5, 1, start=1.0, end=2.0))
+    assert picked[5]["keyframe_id"] == "scene_0005_kf_01"
+
+
+def test_candidate_row_thumbnail_is_the_described_frame():
+    """End to end: the row's thumbnail and its description are one moment."""
+    from kuaa.eval.slates import _candidate_row, _FilmMeta, _representative_keyframes
+
+    data_dir = Path("/srv/data").resolve()
+    meta = _FilmMeta(
+        title="Jeca",
+        year=1959,
+        fps=15.0,
+        kf_by_scene=_representative_keyframes(_kf_rows(3, 3, start=21.9, end=53.4)),
+        # scene_descriptions.json records WHICH keyframe was described.
+        desc_by_scene={"3": {"description": "a title card", "keyframe_id": "scene_0003_kf_02"}},
+        tags_by_scene={},
+        data_dir=data_dir,
+    )
+    row = _candidate_row(scene_id=3, film_slug="jeca", score=0.9, meta=meta)
+    assert row["keyframe_url"].endswith("kf_02.jpg")
+    assert row["description"] == "a title card"
+    # The stamp opens at the scene START — the convention every other KUAA
+    # surface uses (search results, rhymes). It is not the frame's own
+    # timestamp, and the metadata does not record one. The end and duration
+    # follow so the grader can see how much scene sits between the stamp and
+    # the mid-scene thumbnail above.
+    assert row["timecode"] == "00:00:21:13 – 00:00:53:06 (32s)"
+
+
+# ── scene timecode is a range, not just the opening stamp ───────────────────
+
+
+def test_scene_timecode_shows_start_end_and_duration():
+    """The row must show the scene's extent, not only where it opens.
+
+    The thumbnail is the middle keyframe and the stamp is the start, so on a
+    long scene they are legitimately seconds apart. Without the extent that
+    reads as the row being wrong, and the grader goes to the video file to
+    check — which is most of the cost of a grading session.
+    """
+    from kuaa.eval.slates import _scene_timecode
+
+    out = _scene_timecode(83.0, 111.0, 24.0)
+    assert out == "00:01:23:00 – 00:01:51:00 (28s)"
+
+
+def test_scene_timecode_keeps_a_decimal_on_short_scenes():
+    """A cut rounded to "0s" reads as broken metadata."""
+    from kuaa.eval.slates import _scene_timecode
+
+    assert _scene_timecode(0.0, 0.4, 24.0).endswith("(0.4s)")
+    assert _scene_timecode(0.0, 9.5, 24.0).endswith("(9.5s)")
+    assert _scene_timecode(0.0, 12.0, 24.0).endswith("(12s)")
+
+
+def test_scene_timecode_falls_back_to_the_start_when_the_end_is_unknown():
+    """An unknown extent must not render as a zero-length one."""
+    from kuaa.eval.slates import _scene_timecode
+
+    assert _scene_timecode(83.0, 0.0, 24.0) == "00:01:23:00"
+    assert _scene_timecode(83.0, 83.0, 24.0) == "00:01:23:00"
+
+
+def test_first_scene_gets_a_real_range_not_the_missing_metadata_default():
+    """Scene 1 starts at 0.0, which the old ``start_s > 0`` gate read as
+    "no metadata" — so the one scene every film has showed a bare
+    ``00:00:00`` while its siblings showed a stamp."""
+    from kuaa.eval.slates import _candidate_row, _FilmMeta
+
+    meta = _FilmMeta(
+        title="F",
+        year=1949,
+        fps=24.0,
+        kf_by_scene={1: {"scene_id": 1, "start_time_s": 0.0, "end_time_s": 30.0}},
+        desc_by_scene={},
+        tags_by_scene={},
+        data_dir=Path("/srv/data"),
+    )
+    row = _candidate_row(scene_id=1, film_slug="f", score=1.0, meta=meta)
+    assert row["timecode"] == "00:00:00:00 – 00:00:30:00 (30s)"
+
+
+def test_candidate_row_without_keyframe_metadata_keeps_the_safe_default():
+    from kuaa.eval.slates import _candidate_row, _FilmMeta
+
+    meta = _FilmMeta(
+        title="F",
+        year=0,
+        fps=24.0,
+        kf_by_scene={},
+        desc_by_scene={},
+        tags_by_scene={},
+        data_dir=Path("/srv/data"),
+    )
+    row = _candidate_row(scene_id=9, film_slug="f", score=1.0, meta=meta)
+    assert row["timecode"] == "00:00:00"
