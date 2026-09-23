@@ -1,8 +1,8 @@
 """Films-by-id lookup + Mojica template defaults + per-film and
 aggregate search-context builders. Private to the search package.
 
-Extracted from ``api/services/search.py`` (T8). All four helpers were
-sized to fit inside ``kuaa.search``. After P2/T7 every helper
+Extracted from ``api/services/search.py``. All four helpers were
+sized to fit inside ``kuaa.search``. Every helper
 (``FilmContext``, ``load_json``, ``load_tag_index``) lives under
 ``kuaa.library`` — the prior ``api.services.*`` carve-outs in
 ``.importlinter`` have been deleted.
@@ -35,10 +35,10 @@ def enrich_hits_with_film_metadata(
     ``tags`` to ``[]``, both of which the template handles. ``pin_count``
     is always 0 today; pin persistence is not implemented.
 
-    Relocated from ``api/routes/search.py`` (T15). The helpers
+    Relocated from ``api/routes/search.py``. The helpers
     (``load_json``, ``load_tag_index``, ``FilmContext``) live under
-    ``kuaa.library`` after P2/T3-T5 — the previous lazy
-    ``api.services.*`` shim imports were retired in T7.
+    ``kuaa.library``; the previous lazy ``api.services.*`` shim imports
+    have been retired.
     """
     from kuaa.library import FilmContext, load_json, load_tag_index
 
@@ -100,7 +100,7 @@ def enrich_hits_with_film_metadata(
         if slug and sid is not None:
             descs, tags_by_scene = _load_film_meta(slug)
             # Prefer the library description over an empty/absent one coming
-            # from the search DataFrame (C5: _df_to_result now forwards the
+            # from the search DataFrame (``_df_to_result`` forwards the
             # description column, which may be "" when kf_df has no descriptions).
             if not r.get("description"):
                 r["description"] = descs.get(sid, "")
@@ -116,7 +116,7 @@ def enrich_hits_with_film_metadata(
 def films_by_id_lookup(cfg: Settings) -> dict:
     """Return ``{film.slug: film}`` for every registered film.
 
-    Task 11's ``.b-card`` markup looks up ``films_by_id[r.film_slug]``
+    The ``.b-card`` markup looks up ``films_by_id[r.film_slug]``
     to pull the film title + year onto each result card; the lookup is
     built here so both the per-film and aggregate routes (and the
     ``build_search_context*`` builders) populate the same shape.
@@ -137,14 +137,13 @@ def mojica_search_defaults() -> dict:
     """Defaults the Mojica Buscar template (``partials/search.html``)
     needs whenever no actual query has been issued.
 
-    Task 10 introduces a richer template context — query state, view
-    toggle, results list, film lookup, highlighted tags — that previous
-    tab-renders did not surface. These defaults let the page render
+    The template context is a rich one — query state, view toggle,
+    results list, film lookup, highlighted tags. These defaults let the page render
     the initial "type a query to search" empty state with no special
     casing on the template side.
 
-    The per-modality result list is intentionally empty here. Task 11
-    fills it with ``.b-card``-shaped dicts produced by the
+    The per-modality result list is intentionally empty here. It is
+    filled with ``.b-card``-shaped dicts produced by the
     ``/api/search`` handlers; ``films_by_id`` is populated lazily by
     callers that have a cfg in hand (see :func:`films_by_id_lookup`).
     """
@@ -171,7 +170,7 @@ def build_search_context(ctx: Any, cfg: Settings | None = None) -> dict:
     stays clean even when ``scene_tags.json`` carries leaked caption
     fragments.
 
-    Mojica-redesign keys (Task 10) live alongside ``available_tags`` so
+    Mojica-redesign keys live alongside ``available_tags`` so
     the rewritten template can render the empty state without forcing
     every route to populate them. The ``query`` / ``total`` /
     ``results`` defaults are overwritten by ``/api/search`` responses
@@ -205,7 +204,7 @@ def build_search_context_aggregate(cfg: Settings) -> dict:
     ``partials/search.html`` template renders identically in either
     mode.
 
-    Mojica-redesign keys (Task 10) are merged in via
+    Mojica-redesign keys are merged in via
     :func:`mojica_search_defaults` so the aggregate path and per-film
     path expose the same context shape. ``films_by_id`` is populated
     here so the template's title/year lookup resolves on every card.

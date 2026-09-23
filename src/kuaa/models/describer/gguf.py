@@ -38,7 +38,7 @@ _MMPROJ_GGUF = "moondream2-mmproj-f16.gguf"
 class MoondreamGGUFDescriber:
     """SceneDescriber backed by Moondream 2 GGUF + llama-cpp-python."""
 
-    #: Provenance for this backend (manifest single source of truth, C10/F6).
+    #: Provenance for this backend (manifest single source of truth).
     CARD: ModelCard = get_card("moondream_gguf")
 
     def __init__(self, cfg: Settings | None = None, device=None):

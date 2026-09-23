@@ -1,7 +1,6 @@
 """Eval set builder routes — admin-gated by ``EVAL_ADMIN_TOKEN`` env var.
 
-Admin gate and context builders live in :mod:`api.services.eval_service`
-(A2 Task 5).
+Admin gate and context builders live in :mod:`api.services.eval_service`.
 """
 
 from __future__ import annotations

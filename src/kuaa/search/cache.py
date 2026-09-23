@@ -29,7 +29,8 @@ Design notes inherited verbatim from the previous home in
 
 Duck-typed ``ctx``: ``load_index`` accepts any object exposing
 ``.slug`` (``str | None``) and ``.embeddings_dir`` (``Path``). The
-current producer is :class:`api.services.film_context.FilmContext`; P2
+current producer is :class:`api.services.film_context.FilmContext`; a
+later revision
 plans to swap in ``kuaa.library.Library`` without changing this
 surface — that is why ``FilmContext`` is deliberately NOT imported
 here.
@@ -212,7 +213,7 @@ def load_index(
 
     ``ctx`` is duck-typed: it must expose ``.slug`` (``str | None``) and
     ``.embeddings_dir`` (``Path``). The current single producer is
-    :class:`api.services.film_context.FilmContext`; P2 will replace it
+    :class:`api.services.film_context.FilmContext`; a later revision replaces it
     with ``kuaa.library.Library`` without changing the duck-typed
     surface.
 

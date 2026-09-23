@@ -1,6 +1,6 @@
 """About-surface context builder.
 
-Provides the data the redesigned About modal/page renders (Task 29 of the
+Provides the data the redesigned About modal/page renders (part of the
 Mojica frame redesign). The surface has five named blocks:
 
   * **Stats strip** — 4 cells (films, scenes, runtime, year range).

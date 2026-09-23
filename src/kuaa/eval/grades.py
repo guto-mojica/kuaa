@@ -1,4 +1,4 @@
-"""Eval-set-builder grade persistence (Task 30).
+"""Eval-set-builder grade persistence.
 
 The Eval set builder is the relevance-judgment grading UI used to label
 (query, scene) pairs for the v1.0 retrieval eval. Grades are persisted

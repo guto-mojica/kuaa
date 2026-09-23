@@ -1,4 +1,4 @@
-"""Config loading + logging setup (F1).
+"""Config loading + logging setup.
 
 Preserves the historical ``load_config`` signature and merge semantics
 (default.yaml ⊕ user override, relative→absolute path resolution,
@@ -145,7 +145,7 @@ def load_config(
 
 
 class _JsonFormatter(logging.Formatter):
-    """Minimal JSON log formatter for structured-logging mode (F5).
+    """Minimal JSON log formatter for structured-logging mode.
 
     Emits one JSON object per line.  The ``request_id`` field is
     populated when a handler passes it via the ``extra`` dict (e.g.

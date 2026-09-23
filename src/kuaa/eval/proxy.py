@@ -1,10 +1,10 @@
-"""Proxy-relevance labeller for the WS-4 ablation harness (E2a).
+"""Proxy-relevance labeller for the ablation harness.
 
-The launch ablation table (E2b) must be producible with **zero human grades**,
+The launch ablation table must be producible with **zero human grades**,
 yet every published number has to be honest about *what* it measures. This module
 attaches a relevance label to one :class:`~kuaa.eval.slates.ModalQuery` from
 one of three proxy signals, returning the signal's name alongside the labels so a
-consumer (E2b's runner) can segregate rows by honesty tier and never blend them
+consumer can segregate rows by honesty tier and never blend them
 into a single misleading average.
 
 The three proxy signals
@@ -21,7 +21,7 @@ anchor scene in ``query.anchor`` (``"<slug>/<scene_id>"``).
      **never** appear in a cross-film rhyme slate — recall and reciprocal-rank
      are 0 by construction, regardless of retriever quality. KI is a meaningful
      signal for ``image`` queries; for ``rhyme`` it certifies only that the
-     modality runs end-to-end. E2b will NOT publish a rhyme KI row.
+     modality runs end-to-end. A rhyme KI row is not publishable.
 
 **PR — Pseudo-Relevance.** The top-1 of a **reference retriever** (supplied by the
 caller via ``reference_hits``) is treated as relevant, to measure whether *other*
@@ -156,7 +156,7 @@ def proxy_labels(
     """Return ``(relevant_scene_ids, relevance, proxy_method)`` for one query.
 
     ``proxy_method`` is one of ``"KI"`` / ``"PR"`` / ``"HY"`` and records which
-    proxy signal produced the labels, so E2b can segregate rows by honesty tier.
+    proxy signal produced the labels, so a caller can segregate rows by honesty tier.
     ``relevant_scene_ids`` are canonical string ids (:func:`scene_id_key`);
     ``relevance`` maps canonical id -> POSITIVE float grade only (non-positive
     grades dropped to keep ``ndcg_at_k`` from raising).

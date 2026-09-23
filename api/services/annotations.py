@@ -69,11 +69,10 @@ def resolve_film_context(
     """Resolve a ``FilmContext`` from ``?film=<slug>`` or the request cookie.
 
     Centralises the ``slug → for_film / request → film_ctx / fallback``
-    resolution pattern shared by every annotate route handler.  Task 10
-    (A6 FilmContext dependency) will consolidate this into a FastAPI
-    ``Depends`` — for now it is a plain helper so the route bodies stay
-    small. Accepts ``request=None`` for call sites that always supply a
-    slug.
+    resolution pattern shared by every annotate route handler. Folding it
+    into a FastAPI ``Depends`` of its own is possible; for now it is a plain
+    helper so the route bodies stay small. Accepts ``request=None`` for call
+    sites that always supply a slug.
     """
     from api.deps import film_ctx
 
@@ -91,7 +90,7 @@ def resolve_film_context(
 # annotate route (``_BROKEN_LLM``).
 _BROKEN_LLM = "One or two sentences about subject"
 
-# Mojica Task 19: valid right-pane htab values for the .a-rp shell
+# Valid right-pane htab values for the .a-rp shell
 # (Comments / Annotations / Properties). Any other value falls back to
 # ``annotations`` — same defensive contract the Buscar inspector uses for
 # its ``inspector_tab`` query param.
@@ -127,7 +126,7 @@ def build_annotate_context(
     all_done empty-state branches). Same keys/values the templates
     already consume.
 
-    Mojica Task 18 addendum: a ``selected_film`` key is also emitted
+    Mojica redesign addendum: a ``selected_film`` key is also emitted
     (resolved from ``ctx.slug`` when present), giving the new
     ``.a-stage`` breadcrumb a real film title. ``None`` when the
     context is global/flat (single-film legacy layout) — the template

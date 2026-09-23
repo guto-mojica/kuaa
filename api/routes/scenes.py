@@ -1,7 +1,7 @@
 """Scenes tab routes — Cenas (Mojica redesign) browsing endpoints.
 
 Thin HTTP layer: request parsing + template rendering only. Context
-builders live in :mod:`api.services.scenes` (A2 Task 5).
+builders live in :mod:`api.services.scenes`.
 """
 
 from __future__ import annotations

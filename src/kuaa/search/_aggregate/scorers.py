@@ -1,8 +1,8 @@
-"""Per-film scorers for the decomposed aggregate pipeline (C1).
+"""Per-film scorers for the decomposed aggregate pipeline.
 
 Each scorer takes one film's loaded artefacts and returns a per-film
 ranked ``list[(scene_id, score)]``. Bodies are moved verbatim from the
-pre-C1 ``aggregate_search`` so behavior is byte-identical (snapshot-gated).
+original ``aggregate_search`` so behavior is byte-identical (snapshot-gated).
 """
 
 from __future__ import annotations

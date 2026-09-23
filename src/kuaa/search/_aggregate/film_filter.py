@@ -1,6 +1,6 @@
-"""Registry walk + valid-index gate for the aggregate pipeline (C1).
+"""Registry walk + valid-index gate for the aggregate pipeline.
 
-Collapses the pre-C1 *double* index load — the pre-scan loop that built
+Collapses the original *double* index load — the pre-scan loop that built
 ``valid_slugs`` and the main loop that re-loaded each index — into a
 single pass. :class:`FilmFilter` loads each film's index exactly ONCE
 and hands the orchestrator the loaded :class:`SearchIndex` on a
@@ -8,7 +8,7 @@ and hands the orchestrator the loaded :class:`SearchIndex` on a
 ``idx.kf_df`` straight off the candidate and never re-loads.
 
 The skip logging (``ValueError`` → warning, non-OK status → info) is
-preserved verbatim from the pre-C1 main loop; the pre-scan loop emitted
+preserved verbatim from the original main loop; the pre-scan loop emitted
 no logs, so collapsing the two passes does not add or drop any log line
 for a skipped film.
 """
@@ -58,7 +58,7 @@ class FilmFilter:
         Loads each slug's index exactly once. A slug whose loader raises
         ``ValueError`` (unregistered / invalid) is skipped with a warning;
         a slug whose index status is not ``OK`` is skipped with an info
-        line — both verbatim from the pre-C1 main loop.
+        line — both verbatim from the original main loop.
         """
         load_index = self._loader()
         candidates: list[CandidateFilm] = []

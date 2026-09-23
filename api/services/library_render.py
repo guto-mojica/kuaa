@@ -1,4 +1,4 @@
-"""Library context builders extracted from ``api/routes/library.py`` (A2 / Task 5).
+"""Library context builders extracted from ``api/routes/library.py``.
 
 These helpers build the template context for the library sidebar endpoints.
 The route keeps only the FastAPI handler shapes.

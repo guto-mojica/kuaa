@@ -93,7 +93,7 @@ async def api_annotate_description_save(
             **ctx,
         ),
     )
-    # U7: success toast alongside the inline ✓ "Description saved" row that
+    # Success toast alongside the inline ✓ "Description saved" row that
     # annotate_scene.html renders on ``desc_saved=True``.
     _ = request_gettext(request)
     toast_trigger(resp, title=_("Saved"), kind="success")

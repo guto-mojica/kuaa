@@ -4,7 +4,7 @@ The dispatcher wraps the legacy per-mode functions
 (:func:`kuaa.search.clip.search_text`,
 :func:`kuaa.search.clip.search_image`,
 :func:`kuaa.search.hybrid.search_hybrid`) behind the typed public
-API locked in the P1 spec:
+The locked public API:
 
   >>> result = search.find(search.Query.of_text("man on a horse"), film=ctx)
   >>> result.hits[0].scene_id
@@ -14,10 +14,10 @@ Design notes:
 
   * Image queries (``query.image_path is not None``) are CLIP-only. The
     ``mode`` argument is ignored — there is no hybrid/BM25 image search
-    in P1 (BM25 has no image input). The returned ``SearchResult`` reports
+    (BM25 has no image input). The returned ``SearchResult`` reports
     ``mode="clip"`` to match what actually ran.
   * Missing or corrupt CLIP index → ``SearchResult(hits=[], no_index=True)``.
-    The caller (the slim route in T15) renders the empty-state HTML.
+    The caller (the slim route) renders the empty-state HTML.
   * BM25 tunables (``stopwords_lang``, ``k1``, ``b``) are accepted as
     kwargs with defaults that match the legacy fallback path
     (``None / 1.5 / 0.75``). Callers that resolve ``cfg.search.bm25``
@@ -72,8 +72,9 @@ def find(
     bm25_stopwords_lang: str | None = None,
     bm25_k1: float = 1.5,
     bm25_b: float = 0.75,
-    # C5: typed reranker wiring — OFF by default pending WS-4 tuning evidence.
-    # Flip default to True only after E2/E6 ablation confirms a metric delta.
+    # Typed reranker wiring — OFF by default pending tuning evidence; see
+    # ``docs/RERANKER_DECISION.md``. Flip the default to True only after an
+    # ablation confirms a metric delta.
     rerank: bool = False,
     rerank_model: str = "default",
     cfg: Settings | None = None,
@@ -190,7 +191,7 @@ def _attach_descriptions(result: SearchResult, film: Any) -> SearchResult:
     loader), so hits built by :func:`_df_to_result` have an empty description.
     The cross-encoder reranker scores ``(query, description)`` pairs — without
     this it would score against ``""`` and produce a meaningless reordering
-    (this is exactly what confounded the WS-4 rerank ablation). Loaded lazily
+    (this is exactly what confounded the rerank ablation). Loaded lazily
     and only when reranking, via the shared canonical loader so the reranker
     scores the same text BM25 indexed and the Scenes tab displays. A missing
     ``metadata_dir`` or file leaves descriptions untouched, so callers that

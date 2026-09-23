@@ -1,12 +1,12 @@
-"""Library admin orchestration extracted from ``api/routes/library.py`` (A2 / Task 5).
+"""Library admin orchestration extracted from ``api/routes/library.py``.
 
 Handles the non-HTTP half of film registration (slug derivation, symlink
 creation, registry write) and film removal. The route retains all
 ``Form``/``Response``/``HX-Redirect`` shaping.
 
 Raises ``ValueError`` on invalid input; ``HTTPException(400)`` when the video
-path constraint is violated. A4 (Task 8) will map these to the
-``KuaaError`` envelope once F2 is available.
+path constraint is violated. Neither is a ``KuaaError``, so neither flows
+through the envelope in :mod:`api.error_handlers`.
 """
 
 from __future__ import annotations

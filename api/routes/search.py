@@ -49,7 +49,7 @@ async def api_search(
     tags: list[str] = Query(default=[]),
     slug: str | None = Depends(film_slug_query),
     ctx: FilmContext | None = Depends(optional_film_context),
-    offset: int = Query(default=0, ge=0),  # A7 paging: zero-based result offset
+    offset: int = Query(default=0, ge=0),  # paging: zero-based result offset
 ) -> HTMLResponse:
     """Semantic search across one (``?film=<slug>``) or all films.
 
@@ -71,7 +71,7 @@ async def api_search_image(
 ) -> HTMLResponse:
     """Image-similarity search. Upload validated first (→400 before index check).
 
-    On rejection (U1) the response keeps its honest 400 status (pinned by
+    On rejection the response keeps its honest 400 status (pinned by
     ``test_image_upload_rejection_is_4xx``) but its body is the accessible
     inline field-error fragment targeting ``#image-upload-error`` via an OOB
     swap. The ``htmx:beforeSwap`` shim in mojica.js permits that fragment to

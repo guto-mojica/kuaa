@@ -17,7 +17,7 @@ skipped and the result is returned unchanged, because a text-pair
 reranker has nothing to score against an image-only query.
 
 The config-aware wrapper (``rerank_enabled`` / ``rerank_model``) lives
-one level up in :mod:`api.services.search` — see Task 3.2.
+one level up in :mod:`api.services.search`.
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ from kuaa.search.types import Hit, SearchResult
 logger = logging.getLogger(__name__)
 
 #: Provenance for the cross-encoder reranker backend (manifest single source
-#: of truth, C10/F6). The reranker has no ``models.*`` config selector (it is
+#: of truth). The reranker has no ``models.*`` config selector (it is
 #: configured under ``retrieval.reranker.*``), so it is a module-level link
 #: rather than a class attribute; ``registry.model_card(settings, "reranker")``
 #: resolves to this same card.

@@ -1,6 +1,6 @@
 """Hybrid search dispatch — clip / bm25 / hybrid RRF over a single film.
 
-Relocated from ``api/services/search.py`` during P1 / T10. The dispatcher
+Relocated from ``api/services/search.py``. The dispatcher
 and its five private helpers form a self-contained block that orchestrates
 three retrieval pipelines and folds them into one canonical DataFrame
 shape (the same shape :func:`kuaa.search.clip.search_text`
@@ -15,7 +15,7 @@ shape that lived in ``api.services.search`` so the existing route call
 site (``api/routes/search.py``) and the 12 service-layer tests
 (``tests/test_search_hybrid_service.py``) keep passing byte-identical.
 A signature reshape into the deep-modules ``(query, film, mode)`` form
-lands in T13 when the public ``kuaa.search.find()`` verb is wired
+lands when the public ``kuaa.search.find()`` verb is wired
 up — verbatim move first, signature change behind a clean public verb
 second.
 
