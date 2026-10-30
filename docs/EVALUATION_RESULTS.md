@@ -2,50 +2,84 @@
 
 <!-- ABLATION START -->
 
-## Retriever-variant proxy ablation (SigLIP2 default)
+## Retriever-variant ablation, human-graded (SigLIP2 default)
 
-**Run date:** 2026-08-13 — `scripts/run_ablation.py` (no-rerank (rerank row pending), seed=0).
-**Query set:** `m3_full_queries.yaml` — the 15 text queries (common set).
+**Run date:** 2026-10-29 — `scripts/run_ablation.py` (with-rerank (cross-encoder live), seed=0, `--grades corpus01`).
+**Query set:** `corpus01_queries.yaml` — 56 text queries, each scored against the grades recorded for it in run `corpus01`.
 
-Retriever-variant ablation on a **common query set with the same proxy labels** (apples-to-apples). This is the launch ablation: it is producible with **zero human grades** and every cell is either a real proxy number or an honest `pending (...)`.
+Every row retrieves through the library-wide path the app serves (`kuaa.search.aggregate`), which is also the path the graded pool was drawn from — so each row is scored on candidates a human actually judged rather than on the pool's leftovers.
 
-**Proxy methodology.** These are **proxy metrics**, not human-graded ground truth — they upgrade to human-validated numbers once curator grades are recorded in the admin `/eval` grading UI and passed back via `run_ablation.py --grades`. Every row below is scored on a common query set with the **same** proxy labels, so the comparison is apples-to-apples. Proxy signals:
+**Human-validated methodology.** Labels are human-validated (run corpus01, n=2436 grades). Every row is scored on the same query set against the same human grades, so the comparison is apples-to-apples.
 
-- **HY (Hypothesis)** — the maintainer's pre-curator `relevant_scene_ids` / `relevance` from the query file. Best-guess relevant scenes recorded before any grading session.
-- **KI (Known-Item)** — the single anchor scene a query came from (image keyframe / rhyme anchor). Not used in this table.
-- **PR (Pseudo-Relevance)** — a reference retriever's top-1 treated as relevant (relative agreement). Not used in this table.
+**Corpus.** Chronopolis 1982 — 1230 keyframes indexed, 56 text queries.
+**Common query set.** 56 text queries.
 
-**Corpus.** Jeca Tatu 1959 — 1344 keyframes indexed, 15 text queries.
-**Common query set.** 15 text queries (m3_full) — all labelled **HY**.
-
-| Retriever | Proxy | Recall@5 | Recall@10 | MRR | nDCG@10 |
+| Retriever | Labels | Recall@5 | Recall@10 | MRR | nDCG@10 |
 | --- | --- | ---: | ---: | ---: | ---: |
-| CLIP | HY | 0.067 | 0.089 | 0.080 | 0.077 |
-| BM25 | HY | 0.089 | 0.089 | 0.090 | 0.075 |
-| hybrid | HY | 0.067 | 0.089 | 0.083 | 0.073 |
-| hybrid-metadata | HY | 0.089 | 0.089 | 0.096 | 0.076 |
-| hybrid+rerank | HY | pending (rerank off) | pending (rerank off) | pending (rerank off) | pending (rerank off) |
+| clip | graded | 0.183 | 0.350 | 0.961 | 0.644 |
+| bm25 | graded | 0.116 | 0.217 | 0.722 | 0.381 |
+| hybrid | graded | 0.178 | 0.344 | 0.920 | 0.677 |
+| hybrid_no_metadata | graded | 0.178 | 0.345 | 0.938 | 0.675 |
+| hybrid_rerank | graded | 0.188 | 0.355 | 0.932 | 0.676 |
 
-> **hybrid-metadata.** Identical to `hybrid` except the exact-lexical metadata leg (tags / descriptions / detected objects) is disabled (`metadata_w=0`) — the delta to the `hybrid` row isolates that signal's contribution.
-> **hybrid+rerank.** Rerank delta is measured on the production `find(mode="hybrid")` base (± the bge-reranker-v2-m3 cross-encoder), which is a different hybrid implementation from the harness `hybrid` row above — compare the rerank row to the `find` hybrid base it sits on, not to the harness `hybrid` row.
+> **hybrid_no_metadata.** Identical to `hybrid` except the exact-lexical metadata leg (tags / descriptions / detected objects) is disabled (`metadata_w=0`) — the delta to the `hybrid` row isolates that signal's contribution.
+> **hybrid_rerank.** The bge-reranker-v2-m3 cross-encoder applied on top of the `hybrid` leg. It reads a first stage widened to the reranker's input window (`retrieval.reranker.top_k_in`), reorders it, and cuts back to `k` — so it can promote a candidate `hybrid` truncated away, and it does add rows to the pool. Compare it to the `hybrid` row it sits on, not to `clip`.
 
-**Reading the numbers** (proxy / HY, not human-graded):
+**Reading the numbers:**
 
-- **Treat differences here as noise unless they are large.** This is 15 queries scored against the maintainer's pre-curator *hypothesis* labels, with roughly three relevant scenes each out of ~450. Every retriever lands near nDCG@10 ≈ 0.08, where one query's movement swings the third decimal. The table is a wiring check — it tells you a leg is connected and roughly not harmful — not a quality ranking.
+- **Relevance is pooled, so recall is recall over judged scenes.** A candidate no retriever in the pool proposed was never shown to a grader and counts as irrelevant. That is the standard pooled-evaluation contract; it means these numbers compare the pooled variants to each other, and do not estimate absolute recall over the corpus.
 
-- **It cannot see the PT/EN gap at all.** 8 of the 15 text queries are Portuguese, and the labels were authored against what the system used to return. Before the bilingual index expansion those PT queries retrieved *nothing* from BM25; they now retrieve plausible scenes, which these labels neither reward nor penalise. Use `scripts/check_pt_parity.py` for that axis.
+- **`hybrid` vs `hybrid_no_metadata` isolates the exact-lexical leg.** The two rows differ only in `metadata_w`, so the delta is that signal's contribution and nothing else.
 
-- **`hybrid` vs `hybrid-metadata` is finally a real comparison.** The two rows were byte-identical for as long as they shipped, because the metadata scorer bailed out on any query over 4 tokens and so returned `{}` on 13 of these 15 queries — the ablation was subtracting a leg that was already absent.
+- **The rerank row sits on the `hybrid` row's candidates.** It widens the first stage to the reranker's input window, reorders, and cuts back — compare it to `hybrid`, not to `clip`.
 
-- **Nothing here measures short object queries**, which is the case the metadata leg exists for. Its fusion share now tapers with query length (`kuaa.retrieval.hybrid.effective_metadata_w`); this slate only exercises the long end of that taper.
+- **PT/EN is a design axis of the query set, not of this table.** The pt-NN / en-NN pairs make the gap measurable per query; `scripts/check_pt_parity.py` is the surface that reports it.
 
 Reproduce:
 
 ```bash
 uv run python scripts/run_ablation.py \
-  --queries data/eval/m3_full_queries.yaml --library-dir data/library \
-  --seed 0 --no-rerank \
+  --queries data/eval/corpus01_queries.yaml --library-dir data/library \
+  --seed 0 --with-rerank --grades corpus01 \
   --out docs/EVALUATION_RESULTS.md
 ```
 
 <!-- ABLATION END -->
+
+## Per-query breakdown of the graded ablation
+
+The same five variants, the same grades and the same ranking path as the table
+above, scored one query at a time and then grouped. Every cell is nDCG@10. The
+groups hold 16–28 queries, so read differences of a few hundredths as noise:
+single queries swing by ±0.3 or more.
+
+| Group | n | clip | bm25 | hybrid | hybrid_no_metadata | hybrid_rerank |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| PT | 28 | 0.611 | 0.313 | 0.666 | 0.656 | 0.672 |
+| EN | 28 | 0.677 | 0.448 | 0.689 | 0.694 | 0.680 |
+| short (1–2 words) | 20 | 0.702 | 0.405 | 0.724 | 0.733 | 0.654 |
+| mid (3–5 words) | 20 | 0.567 | 0.272 | 0.610 | 0.596 | 0.666 |
+| long (6+ words) | 16 | 0.667 | 0.485 | 0.702 | 0.701 | 0.715 |
+
+- **The PT/EN gap is small for `hybrid`.** Over the 28 `pt-NN`/`en-NN` pairs the
+  mean PT−EN difference is −0.023 for `hybrid`, −0.065 for `clip` and −0.136 for
+  `bm25`. Fusion absorbs most of the gap that each leg has alone.
+- **The metadata leg does not help short object queries.** It exists for them,
+  but `hybrid_no_metadata` is not worse there (0.733 against 0.724). Across all
+  56 queries the two variants differ by more than 0.05 on only 16, split 8 wins
+  and 8 losses.
+- **The reranker nets to zero by cancelling.** Against `hybrid` it wins on 18
+  queries, loses on 23 and ties on 15, with swings from +0.64 (`en-22`) to −0.31
+  (`en-06`). It does worse on short queries and better on mid-length ones; with
+  20 queries a group, that split is not established.
+- **`hybrid` against `clip`:** 21 wins, 16 losses, 19 ties. Hybrid's gain is
+  carried by a few queries (`en-13` +0.61, `pt-13` +0.45).
+- **The weakest queries are compositional or about small objects:** `fish`
+  (best variant 0.33), `silhueta contra fundo claro` (0.40), `text overlaid on
+  the image` (0.54), `symmetrical composition with a central vanishing point`
+  (0.59). These are the cases where a caption loses what the frame shows.
+- **Recall@10 barely discriminates.** The median query has 27 relevant scenes,
+  so Recall@10 cannot exceed about 0.37. Use nDCG@10 and MRR to compare
+  variants, or raise `k` before drawing conclusions from recall.
+- **MRR is 0.96 for `clip`.** The first hit is almost always relevant; what
+  remains to gain is depth in the top 10.
