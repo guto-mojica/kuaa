@@ -113,13 +113,41 @@ Re-flip `retrieval.reranker.enabled` to `auto`/`true` only when **all** hold:
    cross-encoder real captions. Every ablation number produced *before* this
    fix landed should still be treated as an artifact.
 1. An ablation on **curator-graded** data (not proxy) shows rerank-on ≥ hybrid
-   baseline on nDCG@5 **and** does not regress PT-language queries. This has
-   not yet been run against the fixed core path.
+   baseline on nDCG@5 **and** does not regress PT-language queries. *(Status:
+   measured for the current text-only hard-replace; see "Measured on graded
+   data" below. nDCG@5 was not computed.)*
 2. Per-query latency stays within budget on the target profile (the `auto`
    GPU/CPU split exists precisely because the ~2.4 GB cross-encoder is
    multi-second on CPU).
 3. The chosen approach (A or B) is the one measured — not the current text-only
    hard-replace.
+
+## Measured on graded data
+
+The fixed core path was run on the graded `corpus01` pool (56 queries, one
+grader, 2436 grades; `docs/EVALUATION_RESULTS.md`). This is the current
+design: the cross-encoder reads the caption and hard-replaces the first-stage
+order. It is neither fork A nor fork B.
+
+| | Recall@5 | Recall@10 | MRR | nDCG@10 |
+|---|---:|---:|---:|---:|
+| hybrid | 0.178 | 0.344 | 0.920 | 0.677 |
+| hybrid_rerank | 0.188 | 0.355 | 0.932 | 0.676 |
+
+- **No measurable effect.** nDCG@10 differs by 0.001; the recall and MRR gains
+  (about +0.01) are inside the noise of 56 queries and one grader.
+- **No PT regression on nDCG@10.** PT 0.672 against 0.666 for `hybrid`.
+- **Large per-query swings that cancel.** 18 queries improve, 23 worsen and 15
+  tie, by up to ±0.6. It is worse on short queries (0.654 against 0.724) and
+  better on mid-length ones (0.666 against 0.610); those groups hold 20
+  queries each.
+- **Pooled evaluation understates it.** A candidate the reranker promotes that
+  no pooled variant proposed was never shown to a grader and counts as
+  irrelevant.
+
+Criterion 1 is therefore met only in the weak sense that it does not regress.
+Nothing here is a reason to enable it, so it stays off. Fork A is the cheap
+next measurement; fork B overlaps with testing a different describer.
 
 ## What ships
 
@@ -133,9 +161,8 @@ Re-flip `retrieval.reranker.enabled` to `auto`/`true` only when **all** hold:
 - Measured deltas: the ablation row referenced above (§ "Why it's off", point 1)
   is the current evidence trail, and no standalone write-up of that ablation or
   its failure analysis exists in this repository. The published table is
-  `docs/EVALUATION_RESULTS.md`, where the `hybrid+rerank` row reads
-  `pending (rerank off)` and stays that way until the re-measurement in
-  "Acceptance criteria" is run.
+  `docs/EVALUATION_RESULTS.md`, whose `hybrid_rerank` row is the graded
+  measurement summarised under "Measured on graded data".
 - Forward plan: deepening the first-stage candidate pool ahead of fork A or B
   has no roadmap entry of its own. What it would build on is already in the
   tree — `retrieval.reranker.top_k_in` and the widening in
