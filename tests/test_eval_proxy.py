@@ -1,8 +1,8 @@
-"""Hermetic unit tests for the proxy-relevance labeller (E2a).
+"""Hermetic unit tests for the proxy-relevance labeller.
 
 These cover ``kuaa.eval.proxy.proxy_labels`` — the per-query labeller that
 supplies ``(relevant_scene_ids, relevance, proxy_method)`` to the eval scorers so
-the WS-4 ablation table is producible with ZERO human grades, each row tagged with
+the ablation table is producible with ZERO human grades, each row tagged with
 which proxy signal produced it (KI / PR / HY).
 
 No model is loaded: KI parses a keyframe basename, PR reads a supplied reference

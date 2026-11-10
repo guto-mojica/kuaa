@@ -1,6 +1,6 @@
-"""A10: builder return dicts match their declared TypedDict keys.
+"""Builder return dicts match their declared TypedDict keys.
 
-Runtime key-coverage half of A10 (the static half is ``uv run mypy ...``).
+Runtime key-coverage half (the static half is ``uv run mypy ...``).
 Each test calls the real builder and asserts that the returned dict
 contains EVERY key declared as *required* in the matching TypedDict
 (i.e. keys that are NOT in ``__optional_keys__``).
@@ -82,7 +82,7 @@ def test_inspector_context_has_all_declared_keys(seed_metadata) -> None:
     from api.services.scenes import build_inspector_context
 
     # scene_id=351 is the default seeded scene; slug="default" is the
-    # registered test film (T9 layout in conftest).
+    # registered test film (the layout in conftest).
     ctx = build_inspector_context(get_config(), scene_id=351, slug="default")
     if ctx is None:
         pytest.skip("build_inspector_context returned None on seed data — cannot check keys")

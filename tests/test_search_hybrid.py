@@ -1,7 +1,7 @@
 """Unit tests for kuaa.search.hybrid — dispatch + RRF fusion.
 
 These tests target the relocated dispatcher directly via its new home
-in ``kuaa.search.hybrid`` (T10). They are deliberately thin —
+in ``kuaa.search.hybrid``. They are deliberately thin —
 the 12 service-layer tests in ``tests/test_search_hybrid_service.py``
 already cover every retriever_mode + tag-filter + min_similarity
 permutation; this file's job is to pin the new import path and prove

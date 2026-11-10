@@ -1,4 +1,4 @@
-"""Byte-identical snapshot gate for the scenes_service decomposition (A1)."""
+"""Byte-identical snapshot gate for the scenes_service decomposition."""
 
 from __future__ import annotations
 

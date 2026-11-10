@@ -102,7 +102,7 @@ def seeded_client(client):
     scenes 351/352/353, no timecode so the grid falls back to the
     per-scene "scene <id>" marker the ``_scene_ids`` parser keys on).
 
-    T9 fix: also registers a "default" film in library_dir and mirrors the
+    Also registers a "default" film in library_dir and mirrors the
     dataset to its per-film metadata dir so that /api/scenes (now using the
     aggregate grid path when no ?film= is given) reads from the library tree.
     """

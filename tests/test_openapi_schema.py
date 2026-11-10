@@ -1,4 +1,4 @@
-"""A3: /docs is presentable — assert the OpenAPI schema carries typed models."""
+"""``/docs`` is presentable — assert the OpenAPI schema carries typed models."""
 
 from __future__ import annotations
 

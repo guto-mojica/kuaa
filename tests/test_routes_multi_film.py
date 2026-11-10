@@ -1,6 +1,6 @@
 """End-to-end smoke tests for ?film=<slug> multi-film route support.
 
-Task T9 — Routes accept ?film=<slug>.
+Routes accept ?film=<slug>.
 
 These tests build a two-film library layout under the isolated
 ``tmp_config`` (shared conftest fixture), register both films, seed
@@ -84,7 +84,7 @@ def two_film_client(tmp_config, monkeypatch, client):
 class TestScenesRouteMultiFilm:
     """``/tab/scenes`` and ``/api/scenes`` dispatch on ``?film=``.
 
-    Task 15 (Mojica) swapped the legacy ``<p>N scenes</p>`` count line
+    The Mojica redesign swapped the legacy ``<p>N scenes</p>`` count line
     for the ``.countrow`` markup with the total in a ``<span class="v">``
     span followed by the localised ``scenes`` label. These tests pin
     the same scene-count contract on the new structure: the count
@@ -138,7 +138,7 @@ class TestScenesRouteMultiFilm:
 class TestScenesGridAggregate:
     """/api/scenes (no ?film=) uses the aggregate grid path.
 
-    Task 15 (Mojica): the grid partial renders ``.group`` headings +
+    Mojica redesign: the grid partial renders ``.group`` headings +
     ``.scenecard`` articles; the legacy ``<p>N scenes</p>`` count line
     is gone. The countrow lives in ``scenes.html`` (the toolbar parent
     template); the grid fragment only renders the per-group
@@ -193,7 +193,7 @@ class TestScenesGridAggregate:
         """Aggregate /api/scenes (no film param) must return 200 without crash.
 
         current_slug=None is injected into context but the template does
-        not render it yet (T10 adds sidebar highlighting). Key contract:
+        not render it yet (sidebar highlighting comes later). Key contract:
         no 500.
         """
         r = two_film_client.get("/api/scenes")

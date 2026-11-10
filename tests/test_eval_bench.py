@@ -1,4 +1,4 @@
-"""Tests for kuaa.eval.bench — TDD for E6.
+"""Tests for kuaa.eval.bench.
 
 Two test cases:
   1. test_summarize_percentiles  — nearest-rank percentile contract.

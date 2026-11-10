@@ -4,7 +4,7 @@ The index wraps ``rank_bm25.BM25Okapi`` with a ``query(text, top_k) ->
 list[(scene_id, score)]`` API that hides the internal doc-index ↔
 scene_id mapping. It does not touch disk — callers pass in already-
 loaded descriptions and tag_index. Cache + disk I/O live one layer up
-in ``api/services/search.py::_get_bm25_index_for_ctx`` (Task C2), so
+in ``api/services/search.py::_get_bm25_index_for_ctx``, so
 the retrieval package stays pure.
 """
 

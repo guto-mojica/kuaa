@@ -1,4 +1,4 @@
-"""C1 — per-unit tests for the decomposed aggregate pipeline."""
+"""Per-unit tests for the decomposed aggregate pipeline."""
 
 from __future__ import annotations
 
@@ -123,7 +123,7 @@ def test_bm25_scorer_queries_and_filters_by_allowed_keys() -> None:
 
 
 def test_film_filter_loads_each_index_once(monkeypatch) -> None:
-    """C1 acceptance: the index is loaded ONCE per film, not twice."""
+    """Acceptance: the index is loaded ONCE per film, not twice."""
     import kuaa.search._aggregate.film_filter as ff_mod
     from kuaa.search.cache import IndexStatus, SearchIndex
 

@@ -2,7 +2,7 @@
 
 These tests fix the HTML structure /api/search produces under the
 ``tmp_config`` fixture (no real CLIP model, no real library) BEFORE any
-P1 code moves. Every subsequent commit on this branch must keep them
+the code moves. Every subsequent commit on this branch must keep them
 passing — that is the contract that the refactor is behavior-preserving.
 
 Regenerate with ``UPDATE_SNAPSHOTS=1 uv run pytest tests/test_p1_search_snapshot.py``.
@@ -135,7 +135,7 @@ def _client() -> TestClient:
 
     The default locale is pt_BR; the en catalog has empty msgstrs that fall
     back to English msgids. Pinning en here keeps snapshots stable against
-    pt_BR translation edits during the rest of P1.
+    pt_BR translation edits.
     """
     c = TestClient(app)
     c.cookies.set("locale", "en")
@@ -248,7 +248,7 @@ def test_short_query_returns_empty(tmp_config):
     """Query < 2 chars short-circuits without running a search.
 
     No submit trigger (a bare request) → the body is the (empty) clear-error
-    OOB span for ``#search-query-error``, never an ``is-error`` message (U1).
+    OOB span for ``#search-query-error``, never an ``is-error`` message.
     The dispatcher is not invoked for keystroke noise.
     """
     client = _client()

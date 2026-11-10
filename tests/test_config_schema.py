@@ -1,6 +1,6 @@
-"""Typed config schema + loader equivalence (F1) — validation contract (T1).
+"""Typed config schema + loader equivalence — validation contract.
 
-Phase-0 F1 coverage (already present, not duplicated):
+Existing coverage (not duplicated):
   - test_load_default_returns_settings_with_dot_access: Settings instance, dot-access, config_version
   - test_get_and_to_dict_shims_work: .get() shim, .to_dict()
   - test_config_alias_is_settings: Config is Settings
@@ -8,7 +8,7 @@ Phase-0 F1 coverage (already present, not duplicated):
   - test_unknown_selector_value_raises_config_error: bad image_embedder Literal → ConfigError
   - test_unknown_top_level_key_rejected: extra top-level key → ConfigError
 
-T1 additions below: no-arg load, malformed YAML, nested section errors,
+Additions below: no-arg load, malformed YAML, nested section errors,
 local.yaml merge, seed/config_version defaults, ConfigError.code, additional
 model-selector roles.
 """
@@ -35,7 +35,7 @@ def _overlay(tmp_path: Path, patch: dict) -> Path:
     return p
 
 
-# ─── F1 coverage (do not duplicate) ─────────────────────────────────────────
+# ─── Existing coverage (do not duplicate) ───────────────────────────────────
 
 
 def test_load_default_returns_settings_with_dot_access(tmp_path):
@@ -86,14 +86,14 @@ def test_unknown_top_level_key_rejected(tmp_path):
         load_config(str(bad), project_root=tmp_path, ensure_dirs=False)
 
 
-# ─── T1 additions ─────────────────────────────────────────────────────────────
+# ─── Additions ────────────────────────────────────────────────────────────────
 
 
 def test_default_yaml_loads_no_args():
     """load_config() with no arguments resolves against CWD; must return Settings."""
     cfg = load_config(ensure_dirs=False)
     assert isinstance(cfg, Settings)
-    # Spec F1: dot-access and embeddings.batch_size check.
+    # Dot-access and embeddings.batch_size check.
     assert cfg.paths.metadata_dir is not None
     assert cfg.embeddings.batch_size >= 1
 
@@ -140,7 +140,7 @@ def test_config_version_matches_constant(tmp_path):
 
 
 def test_config_error_code_attribute():
-    """ConfigError carries a stable machine code (F2 error taxonomy contract)."""
+    """ConfigError carries a stable machine code (error taxonomy contract)."""
     exc = ConfigError("bad field", code="config.invalid")
     assert exc.code == "config.invalid"
     # Default code must also be set when no explicit code is passed.

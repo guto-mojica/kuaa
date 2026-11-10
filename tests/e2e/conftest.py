@@ -1,16 +1,16 @@
-"""Playwright e2e harness — fixtures + axe-core helper (WS-5 / T5).
+"""Playwright e2e harness — fixtures + axe-core helper.
 
 These tests drive a REAL browser (headless Chromium via Playwright) against a
 REAL uvicorn instance serving the REAL demo library (Jeca Tatu + Edwin Porter).
-They cover the runtime behaviour the U1/U2/U3 unit tests could only assert
+They cover the runtime behaviour the unit tests could only assert
 structurally:
 
-  * focus trap + restore-to-trigger for the modal overlays (U3);
-  * loading-skeleton visibility while a request is in flight (U2);
-  * inline form-error appearance with ``aria-invalid`` + ``role="alert"`` (U1).
+  * focus trap + restore-to-trigger for the modal overlays;
+  * loading-skeleton visibility while a request is in flight;
+  * inline form-error appearance with ``aria-invalid`` + ``role="alert"``.
 
 Plus a per-tab render smoke (200 + key element + no JS console errors) and the
-``run_axe`` helper the next task (U5) uses to assert zero serious/critical
+``run_axe`` helper the next task uses to assert zero serious/critical
 accessibility violations.
 
 Design notes
@@ -23,7 +23,7 @@ Design notes
   forks a supervised child that a single ``terminate()`` would orphan.
 * **Read-only against ``data/``.** Every interaction here either renders
   (search / scene / about) or submits an input the route REJECTS before any
-  write (the U1 image upload is a text file → 400 before disk touch). Nothing
+  write (the image upload is a text file → 400 before disk touch). Nothing
   mutates the archive — consistent with the repo-wide "never touch data/" rule.
 * **Marker.** Every test is ``@pytest.mark.e2e`` (see ``pytest_collection_modifyitems``
   below, which stamps the marker on the whole package so an individual test
@@ -252,7 +252,7 @@ def run_axe(page: Any, axe_source: str, *, context: Any = None) -> list[dict[str
     """Inject axe-core into ``page`` and return its violations list.
 
     Each violation is the raw axe result object (``id``, ``impact``,
-    ``description``, ``help``, ``helpUrl``, ``nodes`` …). U5 filters these to
+    ``description``, ``help``, ``helpUrl``, ``nodes`` …). The gate filters these to
     serious/critical and asserts the list is empty after its fixes; this
     harness only provides the mechanism.
 

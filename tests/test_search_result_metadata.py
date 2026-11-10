@@ -1,4 +1,4 @@
-"""C9 — SearchResult carries per-query metadata."""
+"""``SearchResult`` carries per-query metadata."""
 
 from __future__ import annotations
 

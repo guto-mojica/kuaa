@@ -1,4 +1,4 @@
-"""Tests for the proxy-first ablation table (E2b).
+"""Tests for the proxy-first ablation table.
 
 Two tiers:
 

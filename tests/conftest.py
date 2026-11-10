@@ -151,7 +151,7 @@ def tmp_config(tmp_path, monkeypatch):
 
     # Pin the image-embedder backend to the OpenClip baseline for hermetic
     # tests. Default.yaml now ships ``siglip_multilingual``
-    # pre-flight Task 4.2; that backend lazily loads ~2 GB of SigLIP2
+    # pre-flight; that backend lazily loads ~2 GB of SigLIP2
     # weights via HuggingFace on first call. Every existing test fixture
     # monkeypatches ``kuaa.models.clip.openclip.OpenClipEmbedder``
     # (the registry's ``clip_openclip`` branch resolves to that same
@@ -338,7 +338,7 @@ def seed_metadata(tmp_config):
         ``environment.location``, ``environment.time_of_day``,
         ``num_faces`` (the per-scene flattened shape the route expects).
 
-    T9 addendum: also populates the per-film library layout under
+    Also populates the per-film library layout under
     ``cfg.paths.library_dir`` so that aggregate-view routes
     (``/tab/scenes`` without ``?film=``) find the seeded dataset.
     The film is registered with slug ``"default"`` and title
@@ -370,7 +370,7 @@ def seed_metadata(tmp_config):
         before. Pass an arg explicitly (including ``None`` to skip
         writing that file) to override.
 
-        Also registers slug ``"default"`` in ``library_dir`` (T9) and
+        Also registers slug ``"default"`` in ``library_dir`` and
         mirrors the ``scenes`` list to the per-film metadata dir so
         aggregate-view routes see the same data.
         """
@@ -428,7 +428,7 @@ def seed_metadata(tmp_config):
         if visual_v is not None:
             (meta_dir / "visual_analysis.json").write_text(json.dumps(visual_v))
 
-        # ── T9: also populate library_dir so aggregate routes see the data ──
+        # ── Also populate library_dir so aggregate routes see the data ──
         # Register slug "default" (idempotent: skip if already registered).
         from kuaa.library import load_registry, register_film
 

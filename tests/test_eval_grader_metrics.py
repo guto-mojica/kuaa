@@ -1,4 +1,4 @@
-"""Tests for the Eval-set-builder grading metrics (Task 30).
+"""Tests for the Eval-set-builder grading metrics.
 
 Covers precision@K, nDCG@K, ranking inversions, grade histogram, and
 Cohen's kappa between two graders. These are the live-updating

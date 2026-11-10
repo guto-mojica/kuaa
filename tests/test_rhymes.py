@@ -17,7 +17,7 @@ def _write_film(
     vectors: np.ndarray,
     scene_ids: list[int],
 ) -> None:
-    """Lay out a minimal per-film embeddings directory the way Task 20 expects."""
+    """Lay out a minimal per-film embeddings directory the way the loader expects."""
     d = library_dir / slug / "embeddings"
     d.mkdir(parents=True)
     np.save(d / "keyframe_embeddings.npy", vectors)

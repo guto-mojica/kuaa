@@ -1,9 +1,9 @@
-"""C1 — golden snapshot of aggregate_search. Byte-identical across the decomposition.
+"""Golden snapshot of aggregate_search. Byte-identical across the decomposition.
 
 Drives the cross-film ``aggregate_search`` (the global-RRF function in
 ``kuaa.search.aggregate``) over a hermetic 2-film fixture across all
 three retriever modes and pins the returned hit list to a golden file. The
-snapshot is recorded from the CURRENT (pre-C1) code and MUST stay
+snapshot is recorded from the pre-decomposition code and MUST stay
 byte-identical through every extraction step — any drift means a unit's
 behaviour changed.
 

@@ -101,7 +101,7 @@ def test_buscar_renders_real_library_chrome(guarded_page: Any) -> None:
     # Two modality chips (text / image). Audio + fusion removed with the
     # audio feature (R2).
     assert guarded_page.locator(".modes .chip").count() == 2
-    # Toolbar popovers exist (the U3 negative-control surface).
+    # Toolbar popovers exist (the negative-control surface).
     assert guarded_page.locator(".knob-popover .popover").count() >= 1
     guarded_page.console_guard.assert_clean()
 
@@ -128,9 +128,9 @@ def test_run_axe_helper_executes_against_live_page(page: Any, axe_source: str) -
     """The ``run_axe`` helper injects axe-core and returns a violations list.
 
     This is the harness self-test (NOT the zero-violations assertion — that is
-    U5's gate). It proves the vendored axe.min.js loads, runs, and the bridge
+    the a11y gate). It proves the vendored axe.min.js loads, runs, and the bridge
     returns a JSON-serialisable list of violation objects with the expected
-    shape, so U5 can build its audit on a known-good mechanism.
+    shape, so the audit can build on a known-good mechanism.
     """
     page.goto("/search", wait_until="domcontentloaded")
     violations = run_axe(page, axe_source)

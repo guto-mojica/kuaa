@@ -1,4 +1,4 @@
-"""E2E inline-form-error runtime tests (U1) — accessible validation, live.
+"""E2E inline-form-error runtime tests — accessible validation, live.
 
 ``tests/test_form_validation_a11y.py`` asserts (server-side) that the routes
 RETURN the accessible OOB error fragment for each bad input. What it cannot

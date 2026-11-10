@@ -1,12 +1,12 @@
-"""U2 — loading skeletons for the three async panes.
+"""Loading skeletons for the three async panes.
 
 Skeletons are visual, so pytest cannot see them render; it CAN assert the
 markup + CSS that make them work:
 
   * the ``.skeleton`` shimmer primitive lives in ``fx.css`` and is built on
-    the U6 motion/colour tokens;
+    the motion/colour tokens;
   * a ``prefers-reduced-motion: reduce`` block neutralises the animation
-    (the calm static placeholder the U5 a11y gate checks for);
+    (the calm static placeholder the a11y gate checks for);
   * the indicator-gating rules wire the skeleton to htmx's request class;
   * each of the three panes (Buscar results · Cenas grid · scene inspector)
     renders a skeleton placeholder element AND at least one trigger that
@@ -51,7 +51,7 @@ def test_skeleton_rule_exists_in_fx_css() -> None:
 
 def test_skeleton_built_on_u6_tokens() -> None:
     """Shimmer reuses the canonical raised/hover colour tokens (no new
-    magic colours) — the U6 hygiene contract."""
+    magic colours) — the token hygiene contract."""
     # Slice the .skeleton base rule and assert it references the tokens.
     base = CSS.split(".skeleton {", 1)[1].split("}", 1)[0]
     assert "var(--c-raised)" in base
@@ -70,7 +70,7 @@ def test_prefers_reduced_motion_block_neutralises_skeleton() -> None:
     """Under reduced motion the sweep is removed and the moving gradient is
     replaced by a flat tint — a static, non-animated placeholder.
 
-    This feeds the U5 a11y gate, so it is asserted structurally here.
+    This feeds the a11y gate, so it is asserted structurally here.
     """
     assert "@media (prefers-reduced-motion: reduce)" in CSS
     # Isolate the reduced-motion block and confirm it kills the animation.
@@ -170,8 +170,8 @@ def test_search_result_cards_point_at_inspector_skeleton() -> None:
 
     Renders ``search_results.html`` directly with one synthetic hit (the
     search route's empty-query / no-index paths don't emit cards under the
-    hermetic fixtures, and those validation paths are U1's concern, not
-    U2's — here we assert the card markup itself carries the wiring)."""
+    hermetic fixtures, and those validation paths are form validation's
+    concern — here we assert the card markup itself carries the wiring)."""
     from api.templates import templates
 
     html = templates.env.get_template("partials/search_results.html").render(

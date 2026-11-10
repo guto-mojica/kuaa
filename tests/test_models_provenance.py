@@ -1,4 +1,4 @@
-"""C10 — describe_batch checkpoint is typed; each active backend has a ModelCard."""
+"""``describe_batch`` checkpoint is typed; each active backend has a ModelCard."""
 
 from __future__ import annotations
 

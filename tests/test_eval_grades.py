@@ -1,4 +1,4 @@
-"""Tests for the Eval-set-builder grade persistence (Task 30).
+"""Tests for the Eval-set-builder grade persistence.
 
 Covers the JSONL append-only log format, round-trip via ``load_run``, the
 ``Grade`` enum value contract, the "overwrite keeps history" semantics, and

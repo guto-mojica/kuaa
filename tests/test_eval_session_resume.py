@@ -1,6 +1,6 @@
 """Tests for eval session resume — build_eval_context picks the first ungraded query.
 
-Deliverable: E5 (agent part) — session resume.
+Session resume.
 
 Two cases:
   1. A grader who has graded ALL scenes of query id 1 resumes to query id 2.

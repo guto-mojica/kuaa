@@ -1,7 +1,7 @@
 """
 tests/test_pipeline_per_film.py
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-T11: Pipeline writes per-film paths.
+Pipeline writes per-film paths.
 
 Verifies that ``CatalogPipeline`` routes all outputs to
 ``data/library/<slug>/...`` when a slug is supplied, that it calls

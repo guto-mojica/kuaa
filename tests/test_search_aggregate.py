@@ -5,7 +5,7 @@ import aggregate_search``) so the public entry point of the relocated
 function is exercised. The existing per-film and hybrid behaviours are
 covered exhaustively by ``test_multi_film_search.py`` (11) and
 ``test_aggregate_search_hybrid.py`` (7); these three tests focus on the
-T11-extracted module's *callable shape*:
+The extracted module's *callable shape*:
 
   1. text-mode runs end-to-end against a 2-film hermetic library;
   2. non-text modalities raise NotImplementedError (the explicit
@@ -15,7 +15,7 @@ T11-extracted module's *callable shape*:
 
 Fixture style mirrors ``test_multi_film_search.py`` — inline per-film
 JSON + .npy + monkeypatched ``_get_embedder`` on ``kuaa.search.aggregate``
-(the canonical home after T13; ``api.services.search`` re-exports the name
+(the canonical home; ``api.services.search`` re-exports the name
 but tests must patch the module where the function is actually called).
 """
 

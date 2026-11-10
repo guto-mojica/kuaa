@@ -55,7 +55,7 @@ def test_api_search_reranker_enabled_logged(client, caplog) -> None:
 def test_api_search_threads_reranker_toggle_into_result_adapter(client, monkeypatch) -> None:
     """The route threads the request toggle into the typed rerank boundary.
 
-    C5: the dict round-trip adapter (``rerank_template_results``) is gone; the
+    The dict round-trip adapter (``rerank_template_results``) is gone; the
     render layer lifts enriched cards to a typed ``SearchResult``
     (``cards_to_result``, receiving query+mode) and reranks that typed result
     (``rerank_search_result``, receiving the request ``enabled`` toggle).

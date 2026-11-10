@@ -58,7 +58,7 @@ def test_for_film_unknown_slug_raises(tmp_path: Path) -> None:
 def test_for_film_rejects_traversal_slug(tmp_path: Path) -> None:
     """Slugs containing path separators or dot components are rejected
     before any disk math runs — closes a traversal attack vector before
-    T9 wires this to user-controlled HTTP input."""
+    This is wired to user-controlled HTTP input."""
     library_dir = tmp_path / "library"
     library_dir.mkdir()
     for bad_slug in ("../secret", "a/b", "", "."):

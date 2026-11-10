@@ -1,6 +1,6 @@
 """Tests for export_run — collapses append-only JSONL to graded structure.
 
-Deliverable: E5 (agent part) — grade export.
+Grade export.
 
 Two cases:
   1. Basic structure + last-write-wins collapse (a re-graded pair reflects

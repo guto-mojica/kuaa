@@ -1,4 +1,4 @@
-"""CLI surface for ``kuaa eval slate`` (E3b).
+"""CLI surface for ``kuaa eval slate``.
 
 The command loads an ``m3_full``-shaped query YAML, calls the real
 per-modality slate generator (``kuaa.eval.slates.generate_slate``)

@@ -1,4 +1,4 @@
-"""Hermetic tests for the per-modality slate-generation layer (E3a).
+"""Hermetic tests for the per-modality slate-generation layer.
 
 Two concerns are covered:
 
@@ -237,7 +237,7 @@ def test_generate_slate_dispatches_rhyme_to_find_rhymes(tmp_path: Path, monkeypa
 
 def test_candidate_row_resolves_real_keyframe_url():
     """Generated slate rows must use the scene's real stored keyframe path,
-    not a hardcoded /frames/scene_NNNN.jpg (review #4)."""
+    not a hardcoded /frames/scene_NNNN.jpg."""
     from kuaa.eval.slates import _candidate_row, _FilmMeta
 
     data_dir = Path("/srv/data").resolve()

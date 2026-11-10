@@ -142,7 +142,7 @@ def test_reranker_default_enabled_mirrors_auto(fake_cfg, monkeypatch):
 def test_typed_rerank_boundary_orders_enriched_cards(fake_cfg, monkeypatch):
     """Typed rerank boundary feeds descriptions in and re-emits reordered cards.
 
-    C5: replaces the old ``rerank_template_results`` dict round-trip. The card
+    Replaces the old ``rerank_template_results`` dict round-trip. The card
     list is lifted to a typed ``SearchResult`` (``cards_to_result``), reranked
     on that typed result (``rerank_search_result`` → ``search_rerank``), then
     projected back to template card dicts in result order (``result_to_cards``),

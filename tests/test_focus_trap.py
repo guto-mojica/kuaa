@@ -1,7 +1,7 @@
-"""U3 — focus management (trap + restore) for modal overlays.
+"""Focus management (trap + restore) for modal overlays.
 
 Runtime focus behaviour (Tab wrapping, restore-to-trigger) can only be
-exercised in a real browser; that is the job of the U5 / Playwright a11y
+exercised in a real browser; that is the job of the Playwright a11y
 gate. What pytest CAN pin — and what this module pins — is the *structural*
 contract the trap depends on:
 
@@ -35,7 +35,7 @@ def test_focus_trap_js_served(client) -> None:
     exposes the ``FocusTrap`` public surface (mirrors ToastBus / Palette).
 
     The asset is a vendored vanilla IIFE (no build step), so substring
-    assertions on the source are valid evidence the served file is the U3
+    assertions on the source are valid evidence the served file is the
     utility and not an empty placeholder.
     """
     r = client.get("/static/js/focus_trap.js")
@@ -70,7 +70,7 @@ def test_focus_trap_js_has_wrap_logic() -> None:
 
     Asserted via the structural markers (Tab key gate, shiftKey branch,
     first/last endpoints, and preventDefault on the wrap) rather than
-    behaviour, which is U5's remit.
+    behaviour, which is the a11y gate's remit.
     """
     assert "'Tab'" in JS or '"Tab"' in JS
     assert "shiftKey" in JS

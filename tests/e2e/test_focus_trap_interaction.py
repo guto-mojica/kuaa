@@ -1,9 +1,9 @@
-"""E2E focus-management runtime tests (U3) — the carry-in browser verification.
+"""E2E focus-management runtime tests — the carry-in browser verification.
 
 ``tests/test_focus_trap.py`` pins the *structural* contract (the vendored
 ``focus_trap.js`` surface, the ``role=dialog`` + ``aria-modal`` + ``data-focus-trap``
 trio on the three modal overlays, the non-modal popover negative control).
-What it explicitly defers to "the U5 / Playwright a11y gate" is the *runtime*
+What it explicitly defers to the Playwright a11y gate is the *runtime*
 behaviour — and that is what this module drives in a real browser:
 
   * **⌘K → focus lands on ``#cp-input``** (the palette pulls focus on open).

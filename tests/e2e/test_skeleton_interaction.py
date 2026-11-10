@@ -1,4 +1,4 @@
-"""E2E loading-skeleton runtime tests (U2) — visibility in flight vs idle.
+"""E2E loading-skeleton runtime tests — visibility in flight vs idle.
 
 ``tests/test_loading_skeletons.py`` pins the markup + CSS (the ``.skeleton``
 primitive, the ``prefers-reduced-motion`` neutraliser, the ``hx-indicator``

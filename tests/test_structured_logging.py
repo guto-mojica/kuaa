@@ -1,14 +1,14 @@
-"""T12: structured-logging wiring — json_logs toggle + access-log field contract.
+"""Structured-logging wiring — json_logs toggle + access-log field contract.
 
 Verifies:
 - ``setup_logging(cfg)`` with ``json_logs=True`` installs ``_JsonFormatter``
   on root handlers and each emitted line parses as valid JSON with the
   expected keys (ts / level / name / msg / request_id).
-- The ``api.access`` logger emits a ``LogRecord`` carrying the F5 extra
+- The ``api.access`` logger emits a ``LogRecord`` carrying the extra
   fields (method / path / status / duration_ms / request_id) on every
   request processed by ``RequestContextMiddleware``.
 
-No new dependencies — stdlib ``logging`` + the existing F5 formatter.
+No new dependencies — stdlib ``logging`` + the existing formatter.
 """
 
 from __future__ import annotations
@@ -121,21 +121,21 @@ def test_json_logs_toggle_installs_formatter_and_emits_valid_json(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Test 2: access-log record carries F5 extra fields
+# Test 2: access-log record carries the extra fields
 # ---------------------------------------------------------------------------
 
 
 def test_access_log_record_carries_f5_fields(client, caplog):
-    """RequestContextMiddleware emits an api.access record with all F5 fields.
+    """RequestContextMiddleware emits an api.access record with all fields.
 
-    F5 contract: method / path / status / duration_ms / request_id are
+    Contract: method / path / status / duration_ms / request_id are
     present as attributes on the LogRecord (set via ``extra=``).
     """
     with caplog.at_level(logging.INFO, logger="api.access"):
         r = client.get("/health")
 
     assert r.status_code == 200, (
-        f"/health returned {r.status_code}; F5 access-log test requires a 200 route"
+        f"/health returned {r.status_code}; the access-log test requires a 200 route"
     )
 
     access_records = [rec for rec in caplog.records if rec.name == "api.access"]

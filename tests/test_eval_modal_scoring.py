@@ -1,8 +1,8 @@
-"""Hermetic unit tests for the per-modality scorer logic (E3b).
+"""Hermetic unit tests for the per-modality scorer logic.
 
 These cover the pure scoring core of ``kuaa.eval.retrieval`` — the
 ``_default_relevance`` resolver, the shared ``_run_modal_eval`` loop, the
-``relevance_resolver`` injection hook E2 depends on, the ``film_slug`` scope
+``relevance_resolver`` injection hook the proxy labeller depends on, the ``film_slug`` scope
 filter, and the "no scorable slate" error path — WITHOUT loading any model or
 real index. ``rank_candidates`` (the only heavy collaborator) is monkeypatched
 at the name it is bound to inside ``retrieval`` (the module imports it as a
@@ -194,7 +194,7 @@ def _patch_slate(monkeypatch, rows_by_qid: dict[str, list[dict]]):
 
 
 def test_run_modal_eval_invokes_injected_resolver_once_per_query(monkeypatch):
-    """The E2 relevance_resolver hook is called once per scored query and its
+    """The relevance_resolver hook is called once per scored query and its
     3-tuple ``(ids, map, method)`` is used (not _default_relevance)."""
     calls: list[str] = []
 

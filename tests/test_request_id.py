@@ -1,4 +1,4 @@
-"""A8: every response carries X-Request-ID; the id is stable per request."""
+"""Every response carries X-Request-ID; the id is stable per request."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ def test_response_has_request_id(client) -> None:
 
 
 def test_request_id_echoed_when_supplied(client) -> None:
-    # If the client supplies an id, the middleware should echo it (F5 contract).
+    # If the client supplies an id, the middleware should echo it.
     r = client.get("/health", headers={"X-Request-ID": "abc-123"})
     assert r.headers["X-Request-ID"] == "abc-123"
 

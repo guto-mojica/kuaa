@@ -1,4 +1,4 @@
-"""Tests for the Eval-set-builder admin routes (Task 30).
+"""Tests for the Eval-set-builder admin routes.
 
 The /eval surface is admin-gated by the ``EVAL_ADMIN_TOKEN`` env var.
 Without a token set, every route returns 403. With a token, the same
@@ -219,7 +219,7 @@ def test_eval_page_with_valid_token_is_authorized(client, monkeypatch, tmp_path)
 
     r = client.get("/eval?token=test-token")
     # Task-30 ships the routes only; the eval/layout.html template lands
-    # in Task 31. Either 200 (template present) or 500 (template
+    # Either 200 (template present) or 500 (template
     # missing) is acceptable. 403 means auth gating mis-fired.
     assert r.status_code != 403
     assert r.status_code in {200, 500}
@@ -240,7 +240,7 @@ def test_eval_page_with_cookie_token_accepted(client, monkeypatch, tmp_path):
         client.cookies.delete("eval_admin")
 
 
-# ── Task 31: standalone 3-pane layout ─────────────────────────────────────────
+# ── Standalone 3-pane layout ─────────────────────────────────────────
 
 
 def test_eval_layout_renders_3pane_grid(client, monkeypatch, tmp_path):
@@ -325,7 +325,7 @@ def test_eval_metrics_pane_zero_state(client, monkeypatch, tmp_path):
     assert '@click="skipCurrent()"' in html
 
 
-# ── Task 32: keyboard router asset wiring ─────────────────────────────────────
+# ── Keyboard router asset wiring ─────────────────────────────────────
 
 
 def test_eval_js_asset_served(client):
@@ -400,7 +400,7 @@ def test_eval_grade_then_metrics_round_trip(client, monkeypatch, tmp_path):
         assert key in data
 
 
-# ── Task 33: seeded queries appear in the queue ───────────────────────────────
+# ── Seeded queries appear in the queue ───────────────────────────────
 
 
 def test_eval_page_shows_seeded_queries(client, monkeypatch, tmp_path):
