@@ -294,6 +294,17 @@ def test_candidate_row_raises_when_the_key_contract_drifts(monkeypatch):
         slates._candidate_row(scene_id=1, film_slug="jeca", score=0.5, meta=meta)
 
 
+def _stub_rerank(monkeypatch) -> None:
+    """Make the ``hybrid_rerank`` variant an identity rerank.
+
+    The real cross-encoder needs the FlagEmbedding package, which the fast
+    CI gate does not install; these tests assert on dispatch, not on ordering.
+    """
+    import kuaa.eval.slates as slates
+
+    monkeypatch.setattr(slates, "rerank", lambda result, **kw: result)
+
+
 def test_generate_slate_text_scopes_search_to_film_slug(tmp_path, monkeypatch):
     """#3: film_slug scopes the search to that film BEFORE top-k truncation, so a
     film that another film would crowd out of the global head still returns rows."""
@@ -324,6 +335,7 @@ def test_generate_slate_text_scopes_search_to_film_slug(tmp_path, monkeypatch):
 
     monkeypatch.setattr(slates, "find", fake_find)
     monkeypatch.setattr(slates, "aggregate", fake_aggregate)
+    _stub_rerank(monkeypatch)
     monkeypatch.setattr(slates, "_iter_films", lambda lib: ["alpha", "beta"])
     monkeypatch.setattr(slates, "_ctx_for", lambda lib, slug: SimpleNamespace(slug=slug))
 
@@ -410,6 +422,7 @@ def test_generate_slate_dispatches_text_to_aggregate(tmp_path: Path, monkeypatch
         )
 
     monkeypatch.setattr(slates, "aggregate", _fake_aggregate)
+    _stub_rerank(monkeypatch)
 
     q = ModalQuery(
         id="text-01",
