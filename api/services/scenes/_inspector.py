@@ -17,6 +17,7 @@ from api.services.catalog import (
 from api.services.scenes._tipo import tipo_of
 from kuaa.annotations.descriptions import canonical_description
 from kuaa.library import FilmContext
+from kuaa.library.keyframes import pick_keyframe_entry
 from kuaa.scene_ids import scene_id_key
 
 logger = logging.getLogger(__name__)
@@ -30,22 +31,6 @@ def _resolve_tab(tab: str | None) -> str:
     if tab in _VALID_TABS:
         return tab
     return "activity"
-
-
-def _scene_lookup(kf_meta: list, scene_id: int) -> dict | None:
-    """Return the keyframes_metadata entry whose ``scene_id`` matches.
-
-    ``keyframes_metadata.json`` uses INT scene ids (as the keyframe
-    extractor emits them); the inspector endpoint accepts an INT from
-    the URL path, so equality is direct here.
-    """
-    for entry in kf_meta:
-        try:
-            if int(entry.get("scene_id")) == scene_id:
-                return entry
-        except (TypeError, ValueError):
-            continue
-    return None
 
 
 def _films_by_slug(cfg: Any) -> dict:
@@ -104,6 +89,7 @@ def build_inspector_context(
     scene_id: int,
     slug: str | None,
     inspector_tab: str = "activity",
+    kf: str | None = None,
 ) -> InspectorContext | None:
     """Build the template context for the right-pane inspector partial.
 
@@ -132,7 +118,7 @@ def build_inspector_context(
     kf_meta = load_json(ctx.metadata_dir / "keyframes_metadata.json") or []
     if not isinstance(kf_meta, list):
         kf_meta = []
-    entry = _scene_lookup(kf_meta, scene_id)
+    entry = pick_keyframe_entry(kf_meta, scene_id, kf)
     if entry is None:
         logger.info("inspector: scene_id=%d not in %s → 404", scene_id, ctx.metadata_dir)
         return None
@@ -183,6 +169,7 @@ def build_inspector_context(
         "scene_id": scene_id,
         "film_slug": slug,
         "keyframe_url": img_url or "",
+        "kf": Path(str(entry.get("filepath", ""))).name,
         "timecode": timecode,
         "start_s": start_s,
         "end_s": end_s,

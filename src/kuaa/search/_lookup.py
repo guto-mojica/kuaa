@@ -13,6 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from kuaa.annotations.descriptions import canonical_description
 from kuaa.config import Settings
 from kuaa.library.metadata import load_tag_index
 from kuaa.search.display import filter_degenerate_tags
@@ -57,12 +58,9 @@ def enrich_hits_with_film_metadata(
         descs_raw = load_json(ctx.metadata_dir / "scene_descriptions.json") or []
         descs: dict[int, str] = {}
         if isinstance(descs_raw, list):
-            for entry in descs_raw:
-                sid = entry.get("scene_id")
-                if sid is None:
-                    continue
+            for sid_key, rec in canonical_description(descs_raw).items():
                 try:
-                    descs[int(sid)] = str(entry.get("description") or "")
+                    descs[int(sid_key)] = str(rec.get("description") or "")
                 except (TypeError, ValueError):
                     continue
         # Invert the merged tag_index into {scene_id: [tag, …]} so we

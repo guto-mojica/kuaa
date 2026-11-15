@@ -41,7 +41,7 @@
             class="htab{% if inspector_tab == 'activity' %} on{% endif %}"
             role="tab"
             aria-selected="{{ 'true' if inspector_tab == 'activity' else 'false' }}"
-            hx-get="/api/scenes/{{ selected_scene.scene_id }}/inspector?tab=activity{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
+            hx-get="/api/scenes/{{ selected_scene.scene_id }}/inspector?tab=activity{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}{% if selected_scene.kf %}&kf={{ selected_scene.kf|urlencode }}{% endif %}"
             hx-target="#right-pane"
             hx-swap="innerHTML"
             hx-indicator="#inspector-skeleton">
@@ -52,7 +52,7 @@
             class="htab{% if inspector_tab == 'annotations' %} on{% endif %}"
             role="tab"
             aria-selected="{{ 'true' if inspector_tab == 'annotations' else 'false' }}"
-            hx-get="/api/scenes/{{ selected_scene.scene_id }}/inspector?tab=annotations{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
+            hx-get="/api/scenes/{{ selected_scene.scene_id }}/inspector?tab=annotations{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}{% if selected_scene.kf %}&kf={{ selected_scene.kf|urlencode }}{% endif %}"
             hx-target="#right-pane"
             hx-swap="innerHTML"
             hx-indicator="#inspector-skeleton">
@@ -63,7 +63,7 @@
             class="htab{% if inspector_tab == 'properties' %} on{% endif %}"
             role="tab"
             aria-selected="{{ 'true' if inspector_tab == 'properties' else 'false' }}"
-            hx-get="/api/scenes/{{ selected_scene.scene_id }}/inspector?tab=properties{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}"
+            hx-get="/api/scenes/{{ selected_scene.scene_id }}/inspector?tab=properties{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}{% if selected_scene.kf %}&kf={{ selected_scene.kf|urlencode }}{% endif %}"
             hx-target="#right-pane"
             hx-swap="innerHTML"
             hx-indicator="#inspector-skeleton">

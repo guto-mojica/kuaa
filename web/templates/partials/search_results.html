@@ -63,7 +63,11 @@
              role="button"
              data-scene-id="{{ r.scene_id }}"
              data-film-slug="{{ r.film_slug or '' }}"
-             hx-get="/api/scenes/{{ r.scene_id }}/inspector{% if r.film_slug %}?film={{ r.film_slug }}{% endif %}"
+             {% set kf_name = (r.img_url or r.keyframe_path or '').split('/')[-1] %}
+             {% set film_qs = 'film=' ~ (r.film_slug|urlencode) if r.film_slug else '' %}
+             {% set kf_qs = 'kf=' ~ (kf_name|urlencode) if kf_name else '' %}
+             {% set qs = [film_qs, kf_qs]|select|join('&') %}
+             hx-get="/api/scenes/{{ r.scene_id }}/inspector{% if qs %}?{{ qs }}{% endif %}"
              hx-target="#right-pane"
              hx-swap="innerHTML"
              hx-indicator="#inspector-skeleton"
