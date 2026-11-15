@@ -1,4 +1,4 @@
-"""Registry → config-aware ModelCard accessor (F6).
+"""Registry → config-aware ModelCard accessor.
 
 model_card(settings, role) resolves the active backend for a role from
 settings.models.* and returns the corresponding ModelCard from the

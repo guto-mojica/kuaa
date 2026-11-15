@@ -1,9 +1,9 @@
 """Eval seed generation — produces a sample queries JSON for the grading UI.
 
-Task 33 of the Mojica redesign ships a small, hand-crafted set of sample
+The Mojica redesign ships a small, hand-crafted set of sample
 queries so the eval grading UI (``/eval``) has something to render on a
 fresh install. The JSON shape is the contract consumed by
-``api.services.eval_service._load_queries`` (Task 30): a list of query
+``api.services.eval_service._load_queries``: a list of query
 dicts with ``id``, ``text``, ``source``, ``lang``, ``k``,
 ``candidate_count``, ``latency_ms``, ``created_when`` and a ``results``
 list whose entries carry the per-candidate fields the rows template reads

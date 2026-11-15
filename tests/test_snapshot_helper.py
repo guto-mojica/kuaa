@@ -1,4 +1,4 @@
-"""Unit tests for the shared golden-snapshot helper (F4)."""
+"""Unit tests for the shared golden-snapshot helper."""
 
 from __future__ import annotations
 

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-14 17:17-0300\n"
+"POT-Creation-Date: 2026-09-21 17:22-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -105,36 +105,86 @@ msgstr ""
 msgid "Grader name — identifies your judgments in the agreement metrics"
 msgstr ""
 
-#: web/templates/eval/layout.html:134
+#: web/templates/eval/layout.html:139
 msgid "grade"
 msgstr ""
 
-#: web/templates/eval/layout.html:135
+#: web/templates/eval/layout.html:140
 msgid "skip"
 msgstr ""
 
-#: web/templates/eval/layout.html:136
+#: web/templates/eval/layout.html:141
 msgid "nav"
 msgstr ""
 
-#: web/templates/eval/layout.html:137
-msgid "save & advance"
-msgstr ""
-
-#: web/templates/eval/layout.html:138
-msgid "export"
-msgstr ""
-
-#: web/templates/eval/layout.html:139
-msgid "help"
-msgstr ""
-
 #: web/templates/eval/layout.html:142
-msgid "row"
+msgid "next row"
+msgstr ""
+
+#: web/templates/eval/layout.html:143
+msgid "blind / compare"
 msgstr ""
 
 #: web/templates/eval/layout.html:144
+msgid "help"
+msgstr ""
+
+#: web/templates/eval/layout.html:147
+msgid "row"
+msgstr ""
+
+#: web/templates/eval/layout.html:149
 msgid "session"
+msgstr ""
+
+#: web/templates/eval/layout.html:160 web/templates/eval/layout.html:162
+#: web/templates/partials/_help_overlay.html:64
+#: web/templates/partials/about_modal.html:192
+#: web/templates/partials/about_modal.html:194
+msgid "Keyboard shortcuts"
+msgstr ""
+
+#: web/templates/eval/layout.html:164
+msgid "grade the focused row"
+msgstr ""
+
+#: web/templates/eval/layout.html:165
+msgid "skip — explicit “no opinion”, not “later”"
+msgstr ""
+
+#: web/templates/eval/layout.html:166
+msgid "move the row cursor down / up"
+msgstr ""
+
+#: web/templates/eval/layout.html:167
+msgid "move to the next row (grades save on keypress)"
+msgstr ""
+
+#: web/templates/eval/layout.html:168
+msgid "blind mode — hide retriever scores"
+msgstr ""
+
+#: web/templates/eval/layout.html:169
+msgid "compare — show the other annotator’s grade"
+msgstr ""
+
+#: web/templates/eval/layout.html:170
+msgid "this panel"
+msgstr ""
+
+#: web/templates/eval/layout.html:171
+msgid "Esc"
+msgstr ""
+
+#: web/templates/eval/layout.html:171 web/templates/partials/_palette.html:78
+msgid "close"
+msgstr ""
+
+#: web/templates/eval/layout.html:174
+msgid ""
+"Click any query in the left queue to jump to it — including ones you have"
+" already started. Grades are saved the moment you press a key; re-grading"
+" a row simply overwrites it."
 msgstr ""
 
 #: web/templates/eval/metrics.html:13
@@ -221,39 +271,47 @@ msgstr ""
 msgid "SKIP"
 msgstr ""
 
-#: web/templates/eval/queue.html:45
+#: web/templates/eval/queue.html:49
 msgid "Queue"
 msgstr ""
 
-#: web/templates/eval/queue.html:52
+#: web/templates/eval/queue.html:56
 msgid "Filter queries…"
 msgstr ""
 
-#: web/templates/eval/queue.html:53
+#: web/templates/eval/queue.html:57
 msgid "Filter queries"
 msgstr ""
 
-#: web/templates/eval/queue.html:60
+#: web/templates/eval/queue.html:64
 msgid "All"
 msgstr ""
 
-#: web/templates/eval/queue.html:66
+#: web/templates/eval/queue.html:70
 msgid "Pending"
 msgstr ""
 
-#: web/templates/eval/queue.html:72
+#: web/templates/eval/queue.html:80
+msgid "Needs a second annotator — conflict compares two graders."
+msgstr ""
+
+#: web/templates/eval/queue.html:83
 msgid "Conflict"
 msgstr ""
 
-#: web/templates/eval/queue.html:118
+#: web/templates/eval/queue.html:124
 msgid "No queries seeded for this run."
 msgstr ""
 
-#: web/templates/eval/queue.html:125
+#: web/templates/eval/queue.html:130
+msgid "No queries match this filter."
+msgstr ""
+
+#: web/templates/eval/queue.html:136
 msgid "Blind mode"
 msgstr ""
 
-#: web/templates/eval/queue.html:130
+#: web/templates/eval/queue.html:141
 msgid "Compare annotator"
 msgstr ""
 
@@ -301,21 +359,21 @@ msgstr ""
 msgid "Skip"
 msgstr ""
 
-#: web/templates/eval/rows.html:71
+#: web/templates/eval/rows.html:73
 msgid "rank"
 msgstr ""
 
-#: web/templates/eval/rows.html:100
+#: web/templates/eval/rows.html:105
 #: web/templates/partials/scenes_inspector.html:134
 #: web/templates/partials/search_results.html:96
 msgid "No description yet."
 msgstr ""
 
-#: web/templates/eval/rows.html:138
+#: web/templates/eval/rows.html:143
 msgid "No candidate results loaded for this query."
 msgstr ""
 
-#: web/templates/eval/rows.html:144
+#: web/templates/eval/rows.html:149
 msgid "No query selected."
 msgstr ""
 
@@ -349,12 +407,6 @@ msgstr ""
 
 #: web/templates/partials/_field_error.html:60
 msgid "This film is already in the library."
-msgstr ""
-
-#: web/templates/partials/_help_overlay.html:64
-#: web/templates/partials/about_modal.html:192
-#: web/templates/partials/about_modal.html:194
-msgid "Keyboard shortcuts"
 msgstr ""
 
 #: web/templates/partials/_help_overlay.html:67
@@ -480,10 +532,6 @@ msgstr ""
 
 #: web/templates/partials/_palette.html:77
 msgid "select"
-msgstr ""
-
-#: web/templates/partials/_palette.html:78
-msgid "close"
 msgstr ""
 
 #: web/templates/partials/_step_labels.html:9

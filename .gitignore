@@ -45,14 +45,14 @@ data/demo/runtime/
 # Evaluation reports are generated runtime output; source query YAML is tracked.
 data/eval/reports/
 
-# Benchmark output (`cinemateca eval bench` / the timed CI hook) is generated metrics.
+# Benchmark output (the timed CI hook) is generated metrics.
 data/perf/
 
 # Per-run eval output (candidate slates, grades JSONL, frozen tarballs) are
 # runtime artefacts — only the committed seed YAMLs + README belong in git.
 # See docs/EVAL_PROTOCOL.md §5.
 # Patterns cover both directory layout (data/eval/<run_id>/) and the legacy
-# single-file layout that `cinemateca eval seed` writes (data/eval/<run_id>.queries.json
+# single-file layout that `kuaa eval seed` writes (data/eval/<run_id>.queries.json
 # + the matching <run_id>.jsonl grade log).
 data/eval/*-run-*/
 data/eval/*-run-*.queries.json
@@ -63,8 +63,8 @@ data/eval/*.frozen-*.tar.gz
 # Modelos são baixados automaticamente na primeira execução.
 # Não devem ser commitados (são GBs e têm suas próprias licenças).
 /models/
-# src/cinemateca/models/ is Python source code — must be tracked.
-!src/cinemateca/models/
+# src/kuaa/models/ is Python source code — must be tracked.
+!src/kuaa/models/
 *.pt
 *.pth
 *.onnx

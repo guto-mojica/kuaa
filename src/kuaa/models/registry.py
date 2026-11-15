@@ -168,7 +168,7 @@ def get_environment_classifier(cfg: Settings, device=None) -> EnvironmentClassif
 
 
 # ---------------------------------------------------------------------------
-# Config-aware manifest accessor (F6)
+# Config-aware manifest accessor
 # ---------------------------------------------------------------------------
 
 #: Model roles served by ``settings.models.*`` selectors.
@@ -201,8 +201,8 @@ def model_card(settings: Settings, role: str) -> ModelCard:
 
     Raises ``KeyError`` for unknown roles.
 
-    Used by provenance-aware code (WS-1 C10) and the docs renderers
-    (WS-6 D4/D9) so model identity has a single source of truth.
+    Used by provenance-aware code and the docs renderers so model identity
+    has a single source of truth.
     """
     from kuaa.models.manifest import get_card
 

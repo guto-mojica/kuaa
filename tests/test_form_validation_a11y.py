@@ -1,4 +1,4 @@
-"""U1 — accessible inline form validation + error states.
+"""Accessible inline form validation + error states.
 
 Covers the three input surfaces (image dropzone, add-film form, search) for:
   * ``aria-invalid="true"`` on the offending field;
@@ -42,7 +42,7 @@ def _describedby_target_exists(html: str, field_attr_chunk: str) -> bool:
 def test_image_upload_unsupported_type_returns_accessible_oob_error(client) -> None:
     """A non-image upload → 400 carrying the OOB field-error fragment.
 
-    Status stays 400 (A4 contract); the body is the accessible inline error,
+    Status stays 400 (envelope contract); the body is the accessible inline error,
     not the page-level envelope.
     """
     files = {"file": ("notes.txt", b"not an image", "text/plain")}

@@ -1,6 +1,6 @@
 """Tests for export_run — collapses append-only JSONL to graded structure.
 
-Deliverable: E5 (agent part) — grade export.
+Grade export.
 
 Two cases:
   1. Basic structure + last-write-wins collapse (a re-graded pair reflects
@@ -75,3 +75,24 @@ def test_export_run_exported_from_package() -> None:
     from kuaa.eval import export_run as _exported  # noqa: F401
 
     assert callable(_exported)
+
+
+def test_pool_grades_drops_judgments_the_current_pool_does_not_carry(tmp_path: Path) -> None:
+    """Grades from a replaced pool must not reach scoring, or they enlarge recall's denominator."""
+    from kuaa.eval.grades import pool_grades
+
+    run = EvalRun(run_id="t3", root=tmp_path)
+    save_grade(run, query_id="q1", scene_id="f/1", grader="rg", grade=Grade.RELEVANT)
+    save_grade(run, query_id="q1", scene_id="f/2", grader="rg", grade=Grade.SKIP)
+    save_grade(run, query_id="q1", scene_id="f/9", grader="rg", grade=Grade.HIGHLY_RELEVANT)
+    save_grade(run, query_id="q2", scene_id="f/9", grader="rg", grade=Grade.RELEVANT)
+
+    pool = [
+        {
+            "id": "q1",
+            "results": [{"film_slug": "f", "scene_id": 1}, {"film_slug": "f", "scene_id": 2}],
+        },
+        {"id": "q2", "results": [{"film_slug": "f", "scene_id": 3}]},
+    ]
+
+    assert pool_grades(run, pool) == {"q1": {"f/1": int(Grade.RELEVANT), "f/2": int(Grade.SKIP)}}

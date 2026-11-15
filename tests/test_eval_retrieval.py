@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from kuaa.eval.datasets import EvaluationDataset, QueryCase
 from kuaa.eval.retrieval import run_retrieval_eval
 
@@ -135,6 +137,7 @@ def _seed_hybrid_film(tmp_path: Path) -> SimpleNamespace:
     )
 
 
+@pytest.mark.heavy
 def test_hybrid_eval_measures_the_shipped_3way_fusion(tmp_path: Path, monkeypatch) -> None:
     """The ``hybrid`` retriever fuses the metadata leg by default (shipped
     behaviour); ``metadata_w=0.0`` is the 2-way ablation arm — and the run

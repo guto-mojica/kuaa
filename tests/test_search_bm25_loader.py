@@ -145,7 +145,7 @@ def test_loader_cache_invalidates_on_manual_annotations_change(tmp_path: Path) -
     assert b is not a, "manual_annotations.json write must invalidate the BM25 cache"
 
 
-# ── T7: new tests for the core ``kuaa.search.bm25`` module ─────────────
+# ── Tests for the core ``kuaa.search.bm25`` module ─────────────
 #
 # These exercise the relocated module directly (rather than via the
 # ``api.services.search`` re-export shim) so the boundary holds even if

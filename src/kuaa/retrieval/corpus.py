@@ -130,7 +130,7 @@ def build_corpus(
         desc = desc_by_sid.get(sid, "")
         tags = tags_by_sid.get(sid, [])
         # Tokenise the description and tag surfaces independently — via the
-        # resolved pluggable tokenizer (C6) — so the tag surface can be
+        # resolved pluggable tokenizer — so the tag surface can be
         # weighted (repeated ``boost`` times). With boost == 1 the token
         # multiset/order matches flat concatenation (whitespace is a token
         # boundary either way), so the default path is byte-identical to the

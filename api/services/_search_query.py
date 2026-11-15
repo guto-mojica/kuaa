@@ -1,7 +1,7 @@
 """GET /api/search orchestration, extracted from the route (LOC budget).
 
 Keeps ``api/routes/search.py`` HTTP-shape only. ``dispatch_search`` parses
-the validated params, applies the U1 accessible inline query validation, and
+the validated params, applies the accessible inline query validation, and
 fans out to the text render path in :mod:`api.services._search_render`.
 """
 
@@ -36,7 +36,7 @@ async def dispatch_search(
 ) -> HTMLResponse:
     """Validate → dispatch → render the search response.
 
-    U1 accessible inline query validation: a query < 2 chars surfaces an OOB
+    Accessible inline query validation: a query < 2 chars surfaces an OOB
     field-error into ``#search-query-error`` on an explicit SUBMIT
     (``query_empty`` / ``query_too_short``) but stays silent (empty slot) on a
     live keyup; a valid query dispatches to the text path and prepends an OOB

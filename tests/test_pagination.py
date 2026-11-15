@@ -1,4 +1,4 @@
-"""A7: limit/offset pagination on the scene grid + search results."""
+"""Limit/offset pagination on the scene grid + search results."""
 
 from __future__ import annotations
 

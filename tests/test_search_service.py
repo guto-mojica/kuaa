@@ -560,7 +560,7 @@ class TestSceneDedup:
                 rows["similarity"] = scores[order[:top_k]]
                 return rows.reset_index(drop=True)
 
-        # Monkeypatch SemanticSearch at its post-T9 home in
+        # Monkeypatch SemanticSearch at its home in
         # ``kuaa.search.clip``. The verb hoisted the
         # ``from kuaa.embeddings import SemanticSearch`` to module
         # scope, so patching the source module ``kuaa.embeddings``

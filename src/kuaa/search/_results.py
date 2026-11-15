@@ -1,13 +1,13 @@
 """DataFrame → template-dict conversion. Private to the search package.
 
-Extracted from ``api/services/search.py::results_to_dicts`` (T8). The
+Extracted from ``api/services/search.py::results_to_dicts``. The
 function is byte-equivalent to the prior implementation: each result
 row gains a resolved ``img_url`` (via ``kuaa.library.keyframe_url``)
 and, when ``meta_by_scene`` is supplied, a SMPTE ``timecode`` field
 computed from ``start_time_s`` (via ``kuaa.library.to_smpte``).
 
-Both helpers moved under ``kuaa.library`` in P2/T4 — the prior
-``api.services.catalog`` carve-out was deleted in T7.
+Both helpers live under ``kuaa.library``; the prior
+``api.services.catalog`` carve-out has been deleted.
 """
 
 from __future__ import annotations

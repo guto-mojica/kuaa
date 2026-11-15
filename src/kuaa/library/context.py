@@ -15,7 +15,7 @@ Two class-methods build a ``FilmContext``:
   ``try/except ValueError`` in ``api/deps.py:216`` depend on this).
 
 * ``from_paths(*, library_dir, slug, data_dir)`` — config-free constructor
-  added in P3 for service-layer and test code that already holds resolved
+  for service-layer and test code that already holds resolved
   paths.  Raises ``KeyError`` for an unregistered slug, matching the
   ``Library.get_film`` contract.
 

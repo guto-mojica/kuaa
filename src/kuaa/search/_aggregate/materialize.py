@@ -1,6 +1,6 @@
-"""Hit-dict materialisation for the aggregate pipeline (C1).
+"""Hit-dict materialisation for the aggregate pipeline.
 
-Verbatim Phase-4 of the pre-C1 ``aggregate_search``: turn the unified
+Verbatim from the original ``aggregate_search``: turn the unified
 ``ranked`` list of ``((film_slug, scene_id), score)`` pairs into the
 ``.b-card``-shaped hit dicts the route layer consumes, including the
 BM25-only ``iloc[0]`` fallback and the SMPTE timecode build.

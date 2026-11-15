@@ -1,6 +1,6 @@
 """Unit tests for kuaa.search._results + kuaa.search._lookup.
 
-The plan-mandated tests for T8. ``TestResultsToDicts`` in
+The plan-mandated tests. ``TestResultsToDicts`` in
 ``tests/test_search_service.py`` and
 ``test_build_search_context_aggregate_unions_and_filters`` in
 ``tests/test_multi_film_search.py`` continue to exercise the full

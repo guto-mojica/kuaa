@@ -1,4 +1,4 @@
-"""C11 — stacked ``find(hybrid) → rerank`` end-to-end against hermetic indexes.
+"""Stacked ``find(hybrid) → rerank`` end-to-end against hermetic indexes.
 
 ``hybrid_stub`` monkeypatches the dispatch seams so the ``find(hybrid) →
 rerank`` portion fuses two real lists and reranks them without loading any

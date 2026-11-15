@@ -10,8 +10,6 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.smoke
-
 # Adicionar src ao path para testes sem instalação
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
@@ -138,6 +136,52 @@ def test_import_pipeline():
 
 # ─── LLM parsing — sem modelo ────────────────────────────────────────────────
 
+# The parser tests below encode how ONE describer phrases its answers:
+# "2 people, one holding a gun" (a digit, then "one" as a pronoun), "person"
+# and "dark background" listed as objects. That phrasing was observed on the
+# library's stored _raw_responses under this revision and these prompts. A
+# different model, revision, or prompt may phrase the same facts differently
+# and walk past every rule the parser has — silently, since nothing raises.
+_OBSERVED_DESCRIBER_REVISION = "2025-01-09"
+_OBSERVED_PROMPTS = {
+    "people_and_action": (
+        "How many people are visible and what are they doing? "
+        "Answer briefly, e.g.: 2 people talking."
+    ),
+    "objects": "List the most notable objects in this scene, comma-separated. Maximum 6 items.",
+}
+
+
+def test_parser_rules_are_pinned_to_the_describer_that_produced_them():
+    """Fail loudly when the describer moves out from under the parser tests.
+
+    On failure: re-run the parser over stored raw answers from films described
+    with the new model/prompt, check the phrasings the tests assume still
+    hold, then update the pins here in the same commit.
+    """
+    from kuaa.models.describer._common import PROMPTS
+    from kuaa.models.manifest import get_card
+
+    for backend in ("moondream_transformers", "moondream_gguf"):
+        assert get_card(backend).revision == _OBSERVED_DESCRIBER_REVISION, (
+            f"{backend} revision changed — the parser rules in this file were "
+            f"calibrated on {_OBSERVED_DESCRIBER_REVISION}; re-verify them"
+        )
+    for field, text in _OBSERVED_PROMPTS.items():
+        assert PROMPTS[field][0] == text, (
+            f"the {field!r} prompt changed — the parser reads the answer shape "
+            "this prompt elicits; re-verify the rules and update the pin"
+        )
+
+
+def test_parse_objects_drops_people_anatomy_and_picture_plane():
+    from kuaa.models.describer._common import _parse_objects
+
+    raw = "Rope, person, human head, dark background, boat, red, text, hammock"
+    assert _parse_objects(raw) == ["rope", "boat", "text", "hammock"]
+    # A modifier does not rescue a stop head noun; a role noun is kept.
+    assert _parse_objects("textured surface, astronaut, climber") == ["astronaut", "climber"]
+
 
 def test_parse_num_people():
     from kuaa.models.describer._common import _parse_num_people
@@ -147,6 +191,12 @@ def test_parse_num_people():
     assert _parse_num_people("a man standing") == 1
     assert _parse_num_people("several people in crowd") == -1
     assert _parse_num_people("3 workers") == 3
+    # A digit is the count; a later number word is a pronoun. Observed on
+    # jangada_1949: 6 of 47 keyframes tagged pessoa-unica off answers like
+    # these, because "one" was matched before the digit was looked for.
+    assert _parse_num_people("2 people, one holding a gun") == 2
+    assert _parse_num_people("2 people are visible, one is holding a clapperboard") == 2
+    assert _parse_num_people("someone walking") == -1
 
 
 def test_parse_objects():

@@ -3,7 +3,7 @@
 Public API:
 
     from kuaa.library import (
-        Library,                        # typed handle (T10)
+        Library,                        # typed handle
         Film, LibraryState, FilmContext,
         scan_library, library_state,
         register_film, delete_film, load_registry, save_registry,

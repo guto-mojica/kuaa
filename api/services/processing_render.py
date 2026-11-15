@@ -1,6 +1,6 @@
 """Processing tab — rendering helpers and context builder.
 
-Extracted from ``api/routes/processing.py`` (A2 route-thinning refactor).
+Extracted from ``api/routes/processing.py`` (route-thinning refactor).
 The SSE generator in the route calls ``render_stepper`` / ``render_log_row``
 directly; ``build_processing_context`` is shared with ``api/server.py``'s
 ``_TAB_CONTEXT_BUILDERS["processing"]`` so both the HTMX fragment path
@@ -101,7 +101,7 @@ def build_processing_context(surface: str = "processing") -> ProcessingContext:
     display each other's runs: ``"processing"`` hides scene-detection jobs,
     ``"preprocess"`` shows only them.
 
-    Mojica Task 24 extends the context with the new ``.p-cp`` layout's
+    The context carries the ``.p-cp`` layout's
     requirements:
 
       * ``initial_log_lines`` — empty; SSE feeds the terminal log live.

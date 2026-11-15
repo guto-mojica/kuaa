@@ -1,11 +1,11 @@
-"""Cross-encoder reranker boundary (split from api/services/search.py — Task A1).
+"""Cross-encoder reranker boundary (split from api/services/search.py).
 
 ``apply_reranker`` is the typed verb wrapper: it reads
 ``retrieval.reranker.*`` off ``cfg`` and forwards a :class:`SearchResult`
 to :func:`kuaa.search.rerank`. It is re-exported on
 ``api.services.search`` so caller import paths are unchanged.
 
-C5: the production text-search path now carries a typed :class:`SearchResult`
+The production text-search path carries a typed :class:`SearchResult`
 from enrichment through rerank to the render boundary, so the old
 ``dict → SearchResult → dict`` adapter (``rerank_template_results``) is gone.
 The two thin boundary helpers that replace it —
@@ -153,7 +153,7 @@ def cards_to_result(
 ) -> tuple[SearchResult, dict[tuple[str, int], dict[str, Any]]]:
     """Lift enriched template-card dicts into a typed :class:`SearchResult`.
 
-    The *single* dict→typed boundary on the text-search path (C5). Enrichment
+    The *single* dict→typed boundary on the text-search path. Enrichment
     reads descriptions/tags as JSON dicts, so the card list is where typed
     :class:`Hit` objects are built once. The returned ``originals`` map (keyed
     by ``(film_slug, scene_id)``) lets :func:`result_to_cards` re-emit the

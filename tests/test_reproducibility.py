@@ -1,4 +1,4 @@
-"""Deterministic seeding utility (F3)."""
+"""Deterministic seeding utility."""
 
 from __future__ import annotations
 

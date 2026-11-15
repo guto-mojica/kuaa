@@ -22,7 +22,7 @@ class OpenCVEnvironmentClassifier:
     module does not trigger the full OpenCV load at server startup.
     """
 
-    #: Provenance for this backend (manifest single source of truth, C10/F6).
+    #: Provenance for this backend (manifest single source of truth).
     CARD: ModelCard = get_card("opencv_heuristic")
 
     def __init__(

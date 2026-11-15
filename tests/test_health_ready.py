@@ -1,4 +1,4 @@
-"""A5: liveness + readiness endpoints."""
+"""Liveness + readiness endpoints."""
 
 from __future__ import annotations
 

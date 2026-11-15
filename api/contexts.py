@@ -1,4 +1,4 @@
-"""A10: typed template-context contracts (TypedDict per page/partial).
+"""Typed template-context contracts (TypedDict per page/partial).
 
 One TypedDict per major page/partial.  These mirror the EXACT keys each
 ``build_*`` function returns today — transcribed from the real builder

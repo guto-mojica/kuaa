@@ -1,4 +1,4 @@
-"""C2 — WS-1 public entry points are typed with Settings, not Any.
+"""Public entry points are typed with Settings, not Any.
 
 The modules under test use ``from __future__ import annotations``, which
 causes ``inspect.signature`` to return annotation *strings* rather than

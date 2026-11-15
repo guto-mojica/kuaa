@@ -1,4 +1,4 @@
-"""C5 — find(rerank=True) returns a reranked, typed SearchResult end-to-end."""
+"""``find(rerank=True)`` returns a reranked, typed SearchResult end-to-end."""
 
 from __future__ import annotations
 
@@ -69,10 +69,10 @@ def test_find_rerank_false_is_passthrough(stub_index) -> None:
 
 
 def test_find_rerank_loads_descriptions_from_metadata(monkeypatch, tmp_path) -> None:
-    """Real CLIP indexes have NO description column (review #3); rerank must
+    """Real CLIP indexes have NO description column; rerank must
     load captions from scene_descriptions.json instead of scoring empty
     strings. Without the fix the cross-encoder sees [query, ""] and can't
-    reorder — which is what confounded the WS-4 rerank ablation.
+    reorder — which is what confounded the rerank ablation.
     """
     import json
 

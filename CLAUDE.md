@@ -227,15 +227,40 @@ exists so that pressure surfaces.
 ## Evaluation
 
 **Grade pools, never slates.** Candidates put in front of a grader must come
-from the union of every retriever under comparison — `kuaa.eval.slates.
-POOL_VARIANTS` — never from a single `mode`. Judgments drawn from one
-retriever's output are only valid for that retriever, and silently penalise
-every improvement that surfaces scenes the old pool never showed.
+from the union of every retriever under comparison —
+`kuaa.eval.registry.RETRIEVER_REGISTRY` — never from a single `mode`. That
+registry is the *only* name-space for a variant: the pool, the ablation table
+and the composition report all read it, because grades persist the pool's
+spelling and a table that spells the same row differently cannot be joined to
+them (and fails by finding nothing, not by raising).
 
-Rows reach the grader shuffled with `score` blanked, seeded by `(run, query)`
-so a resumed run presents in the same order. Each row carries `pool`
-(`{variant: rank}`), which the template ignores and the scorer needs: without
-it a graded pool can only be scored as a whole.
+Rows reach the grader in an order that is a sort on a per-candidate hash of
+`(run, query, film, scene)`, with `score` blanked. Not a list shuffle: keying
+on the candidate means adding or removing one moves only that one, so a
+resumed run presents identically *and* a changed variant can be re-graded as a
+diff. Each row carries `pool` (`{variant: rank}`), which the template ignores
+and the scorer needs: without it a graded pool can only be scored as a whole.
+
+**A grade's key is `(query_id, "<film_slug>/<scene_id>")`.** `scene_id` alone
+is unique only within a film, and a pool spans the library.
+
+**`scene_id` is an ordinal that a cut edit renumbers.** A pool records
+`scene_manifests` (a hash of each film's scene numbering) at generation;
+`/eval` returns 409 rather than collect grades against a numbering that moved,
+and `preprocess.service._migrate_eval_grades` relabels existing grades through
+the same `old_to_new` map the cut edit already computes.
+
+**`kuaa eval slate` exits non-zero on a pool that is not fit to grade** and
+writes `<run>.pool_composition.json` beside it.
+
+**`--k` is each variant's ranking depth, not a per-film quota.** A variant
+scores the whole library into one list and contributes its top `k`, so a film
+earns candidates or gets none. Set it to the depth the app serves
+(`search.top_k_default`), never to the film count: a per-film quota pools from
+a round-robin interleave that no retriever produces, and the graded set it
+yields covers a fraction of what `aggregate` actually returns — the unjudged
+remainder scores as irrelevant, penalising whichever retriever diverges most
+from the pool rather than whichever ranks worst.
 
 **Three files, three roles** — the names do not make this obvious:
 

@@ -22,7 +22,7 @@ from kuaa.eval.grader_metrics import (
 from kuaa.eval.grader_metrics import (
     other_grades_for_current as _other_grades_for_current,
 )
-from kuaa.eval.grades import Grade
+from kuaa.eval.grades import Grade, grade_scene_key
 from kuaa.eval.grades import grades_for_query as _grades_for_query
 from kuaa.eval.slates import hydrate_rows as _hydrate_rows
 
@@ -105,7 +105,14 @@ def build_current_query_view(
         library_dir = Path(
             getattr(getattr(cfg, "paths", None), "library_dir", None) or "data/library"
         )
-        current_query["results"] = _hydrate_rows(results, cfg=cfg, library_dir=library_dir)
+        hydrated = _hydrate_rows(results, cfg=cfg, library_dir=library_dir)
+        # ``grade_key`` is what the row POSTs as ``scene_id``. Derived here
+        # rather than in the template so the key format lives in one place
+        # next to the loader that reads it back — a pool spans films, and a
+        # bare scene_id is only unique inside one.
+        for row in hydrated:
+            row["grade_key"] = grade_scene_key(row.get("film_slug"), row.get("scene_id"))
+        current_query["results"] = hydrated
 
     return {
         "grades_for_current": grades_for_current,

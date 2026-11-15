@@ -1,6 +1,6 @@
 """Search service — thin HTTP adapter over :mod:`kuaa.search`.
 
-After P1's deep-modules refactor the search domain logic lives in
+After the deep-modules refactor the search domain logic lives in
 :mod:`kuaa.search`. This module is the HTTP-adapter surface the
 route layer + tests import through. It re-exports the symbols the app
 and tests pin against, plus wrappers that need the FastAPI config
@@ -24,7 +24,7 @@ from api.services.catalog import keyframe_url  # noqa: F401  — used by routes
 from kuaa.library import FilmContext
 from kuaa.retrieval.hybrid import resolve_metadata_w
 
-# Cross-encoder rerank verb (Task 3.1). Aliased so tests can monkeypatch
+# Cross-encoder rerank verb. Aliased so tests can monkeypatch
 # ``api.services.search.search_rerank`` without bypassing the wrapper.
 from kuaa.search import rerank as search_rerank  # noqa: F401
 from kuaa.search._lookup import (
@@ -34,8 +34,8 @@ from kuaa.search._lookup import (
     build_search_context_aggregate as _build_search_context_aggregate_core,
 )
 
-# Result conversion + Mojica context + films-by-id lookup (T8). T15
-# adds ``enrich_hits_with_film_metadata`` re-export so the slim route
+# Result conversion + Mojica context + films-by-id lookup. The
+# ``enrich_hits_with_film_metadata`` re-export lets the slim route
 # layer doesn't import ``kuaa.search._lookup`` directly (keeps
 # the routes-not-direct-core import-linter contract clean).
 from kuaa.search._lookup import (
@@ -44,11 +44,11 @@ from kuaa.search._lookup import (
 )
 from kuaa.search._results import results_to_dicts  # noqa: F401
 
-# Aggregate cross-film search (T11) — still reads ``_get_embedder`` and
+# Aggregate cross-film search — still reads ``_get_embedder`` and
 # ``_get_search_index`` off this module via lazy attribute access, so the
 # monkeypatches on ``api.services.search._get_*`` keep hitting the call path.
-# T15 adds ``aggregate_hits_to_template_dicts`` re-export (same rationale
-# as the ``enrich_hits_with_film_metadata`` re-export above).
+# ``aggregate_hits_to_template_dicts`` is re-exported for the same reason
+# as ``enrich_hits_with_film_metadata`` above.
 from kuaa.search.aggregate import (  # noqa: F401
     _get_embedder,
     _get_search_index,
@@ -58,14 +58,14 @@ from kuaa.search.aggregate import (  # noqa: F401
     has_indexed_films,
 )
 
-# BM25 loader + lru_cache (T7) — module self-registers its cache flusher
+# BM25 loader + lru_cache — module self-registers its cache flusher
 # with kuaa.search.cache so ``clear_index_cache()`` flushes BM25.
 from kuaa.search.bm25 import (
     _cached_bm25_index,  # noqa: F401  — legacy name for tests
     _file_stamp,  # noqa: F401  — legacy name for tests
 )
 
-# CLIP search-index loader + mtime/size cache (T6).
+# CLIP search-index loader + mtime/size cache.
 from kuaa.search.cache import (
     IndexStatus,  # noqa: F401
     SearchIndex,  # noqa: F401
@@ -73,18 +73,18 @@ from kuaa.search.cache import (
     load_index,  # noqa: F401
 )
 
-# CLIP search verbs (T9).
+# CLIP search verbs.
 from kuaa.search.clip import (
     search_image,  # noqa: F401
     search_text,  # noqa: F401
 )
 
-# Degenerate-tag display filter (T4).
+# Degenerate-tag display filter.
 from kuaa.search.display import (
     filter_degenerate_tags as _filter_degenerate_tags,  # noqa: F401
 )
 
-# Hybrid dispatch (T10). T15 adds ``resolve_retriever_args`` so the
+# Hybrid dispatch. ``resolve_retriever_args`` is re-exported so the
 # slim route imports HTTP-input normalisation from this layer rather
 # than reaching into ``kuaa.search.hybrid`` directly.
 from kuaa.search.hybrid import (  # noqa: F401
@@ -93,7 +93,7 @@ from kuaa.search.hybrid import (  # noqa: F401
     search_hybrid,
 )
 
-# Upload validation (T5). UploadRejected re-exported for the legacy
+# Upload validation. UploadRejected re-exported for the legacy
 # ``api.services.search.UploadRejected`` import path used by routes + tests.
 from kuaa.search.types import (  # noqa: F401
     Hit,
@@ -221,7 +221,7 @@ def dispatch_text_search(
     return result_df, False
 
 
-# A10: typed wrappers — ``api.contexts.SearchContext`` can't be imported in
+# Typed wrappers — ``api.contexts.SearchContext`` can't be imported in
 # ``kuaa.*`` (deep-modules rule), so we annotate at this api-layer boundary.
 
 

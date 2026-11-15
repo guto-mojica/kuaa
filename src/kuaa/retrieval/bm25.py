@@ -11,7 +11,7 @@ disk — it's the result of ``api/services/catalog.py::load_tag_index``
 merging ``scene_tags.json`` + the annotations file in memory.
 Keeping ``BM25Index`` pure means the retrieval package has zero
 dependency on the catalog service. The cache + disk + merge logic
-lives in ``api/services/search.py::_get_bm25_index_for_ctx`` (Task C2).
+lives in ``api/services/search.py::_get_bm25_index_for_ctx``.
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-# Cinemateca AI — thin uv task runner. NOT a container; every recipe is a
+# KUAA — thin uv task runner. NOT a container; every recipe is a
 # one-line `uv run …`. Install just: https://github.com/casey/just
 # (Fallback without just: copy any recipe body and run it directly.)
 

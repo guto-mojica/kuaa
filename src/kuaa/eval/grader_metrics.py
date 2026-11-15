@@ -1,4 +1,4 @@
-"""Eval-set-builder grading metrics (Task 30).
+"""Eval-set-builder grading metrics.
 
 Live-updating quality indicators on the /eval page right pane:
 

@@ -1,7 +1,7 @@
-"""A4: uniform KuaaError->HTTP envelope + status-code fixes.
+"""Uniform KuaaError->HTTP envelope + status-code fixes.
 
 Tests cover:
-  - The http_status_for mapping table (uses the F2 SoT, not the plan's 422
+  - The http_status_for mapping table (uses the single source of truth, not the plan's 422
     for RetrievalError — the SoT maps it to 500)
   - Image-upload rejection → 400 (was 200)
   - /api/library/select/{unknown} → 404 (was 200)
@@ -22,7 +22,7 @@ from kuaa.errors import (
 )
 
 # ---------------------------------------------------------------------------
-# Mapping table — statuses come from http_status_for (F2 SoT).
+# Mapping table — statuses come from http_status_for.
 # RetrievalError → 500 (NOT 422 as the plan draft said; the SoT wins).
 # IndexMissing   → 404 (subclass of RetrievalError, more-specific wins).
 # ---------------------------------------------------------------------------
@@ -57,7 +57,7 @@ def test_error_maps_to_status_and_envelope(client, exc, expected) -> None:
         body = r.json()
         assert set(body) >= {"error", "code", "status"}, f"missing envelope keys: {set(body)}"
         assert body["status"] == expected
-        assert body["code"]  # F2 base carries a stable .code
+        assert body["code"]  # the base error carries a stable .code
     finally:
         app.router.routes[:] = [rt for rt in app.router.routes if getattr(rt, "path", "") != path]
 

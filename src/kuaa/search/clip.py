@@ -1,7 +1,7 @@
 """CLIP-only search verbs.
 
 This module hosts the two pure CLIP search dispatchers extracted from
-``api/services/search.py`` during P1 (T9). They are intentionally sync —
+``api/services/search.py``. They are intentionally sync —
 the caller (an HTTP route or the hybrid dispatcher) is responsible for
 running them in a thread executor if it needs to keep the event loop
 free. Keeping the verbs sync makes the module framework-agnostic and

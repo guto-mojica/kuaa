@@ -1,8 +1,8 @@
-"""Per-film scorers for the decomposed aggregate pipeline (C1).
+"""Per-film scorers for the decomposed aggregate pipeline.
 
 Each scorer takes one film's loaded artefacts and returns a per-film
 ranked ``list[(scene_id, score)]``. Bodies are moved verbatim from the
-pre-C1 ``aggregate_search`` so behavior is byte-identical (snapshot-gated).
+original ``aggregate_search`` so behavior is byte-identical (snapshot-gated).
 """
 
 from __future__ import annotations
@@ -93,7 +93,7 @@ _MIN_PARTIAL_COVERAGE = 0.5
 # disabled this entire leg — weighted 0.65, the largest share of hybrid
 # fusion — on any natural-language query. Measured against the project's
 # own eval slate, that guard fired on 13 of 15 text queries, which is why
-# the `hybrid` and `hybrid-metadata` ablation rows were byte-identical.
+# the `hybrid` and `hybrid_no_metadata` ablation rows were byte-identical.
 _MAX_SCORED_TERMS = 8
 
 

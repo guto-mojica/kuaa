@@ -1,4 +1,4 @@
-"""Tests for the command palette (Phase 7 / Task 27).
+"""Tests for the command palette.
 
 Covers:
 

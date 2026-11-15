@@ -1,4 +1,4 @@
-"""A9: job lifecycle is an explicit, guarded state machine."""
+"""Job lifecycle is an explicit, guarded state machine."""
 
 from __future__ import annotations
 

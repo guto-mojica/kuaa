@@ -29,7 +29,7 @@ from typing import Any
 from kuaa.errors import EvalError
 from kuaa.eval.datasets import EvaluationDataset
 from kuaa.eval.metrics import RetrievalResult, evaluate_query, summarize_results
-from kuaa.eval.slates import ModalQuery, generate_slate
+from kuaa.eval.slates import ModalQuery, rank_candidates
 from kuaa.reproducibility import seed_everything
 from kuaa.retrieval.hybrid import (
     DEFAULT_RRF_K,
@@ -39,12 +39,16 @@ from kuaa.retrieval.hybrid import (
     resolve_weights,
 )
 from kuaa.scene_ids import scene_id_key
+from kuaa.search import SEARCH_MODES
 from kuaa.search._aggregate.scorers import build_query_terms
 
 logger = logging.getLogger(__name__)
 
 
-VALID_RETRIEVERS = ("clip", "bm25", "hybrid")
+#: Alias for the one mode name-space (:data:`kuaa.search.SEARCH_MODES`).
+#: Kept as a name because the eval error messages and a public test refer
+#: to it; it must never be a second hand-maintained copy.
+VALID_RETRIEVERS = SEARCH_MODES
 
 # Scene-number extractor for an image keyframe basename (e.g.
 # "...Scene-012-02.jpg" -> 12). Inlined here rather than imported from the
@@ -563,9 +567,9 @@ def run_retrieval_eval(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Per-modality scorers (E3b): image / rhyme.
+# Per-modality scorers: image / rhyme.
 #
-# Each calls kuaa.eval.slates.generate_slate — the REAL retrieval backend
+# Each calls kuaa.eval.slates.rank_candidates — the REAL retrieval backend
 # for that modality — and scores the returned candidate rows with the same
 # evaluate_query / summarize_results math the text path uses, so the result is a
 # RetrievalRun the existing report writer (report.build_payload) serialises
@@ -599,14 +603,14 @@ def _modal_dataset(modality: str, queries: list[ModalQuery], queries_path: Path 
 def _default_relevance(
     query: ModalQuery, rows: list[dict[str, Any]]
 ) -> tuple[tuple[str, ...], dict[str, float], str]:
-    """Minimal, honest relevance resolution for one modal query (E3b only).
+    """Minimal, honest relevance resolution for one modal query.
 
     Returns ``(relevant_scene_ids, relevance_map, method)``. ``method`` is one
     of ``"hypothesis" | "known_item" | "pseudo"`` and is recorded in the run
-    context for honesty. The full KI/PR/HY proxy labeller is task **E2**
-    (``kuaa.eval.proxy``); ``run_<modality>_eval`` accepts a
-    ``relevance_resolver`` with this exact 3-tuple signature so E2 swaps its
-    labeller in without touching the scorers.
+    context for honesty. The full KI/PR/HY proxy labeller lives in
+    :mod:`kuaa.eval.proxy`; ``run_<modality>_eval`` accepts a
+    ``relevance_resolver`` with this exact 3-tuple signature so that labeller
+    swaps in without touching the scorers.
 
     Strategy per modality:
 
@@ -623,7 +627,7 @@ def _default_relevance(
         rhyme row therefore measures only GATE-completeness (that the modality
         runs end-to-end and emits a metrics block), NOT rhyme quality. A real
         rhyme metric needs different labels — curator-graded cross-film matches
-        — which E2/E5 owns.
+        — which this resolver does not produce.
       * **any modality WITHOUT YAML labels** — pseudo-relevance placeholder
         (top-1 returned scene treated as relevant).
     """
@@ -654,7 +658,7 @@ def _default_relevance(
         return (sid,), {sid: 1.0}, "known_item"
 
     # any modality without labels (and any image whose basename didn't parse):
-    # PR placeholder — E2's proxy.proxy_labels (KI/PR/HY) supersedes this; here
+    # PR placeholder — :func:`kuaa.eval.proxy.proxy_labels` supersedes this; here
     # only to make run_eval produce metrics for the modality (GATE).
     if rows:
         sid = scene_id_key(rows[0]["scene_id"])
@@ -668,14 +672,21 @@ def _modal_top_results(rows: list[dict[str, Any]], *, limit: int) -> tuple[dict[
     The slate row carries ``scene_id`` / ``score`` / ``keyframe_url`` (no
     ``similarity`` / ``filepath`` / ``rank`` keys), so we map those across to
     match ``_result_rows``'s output contract used by the text path.
+
+    A blinded row carries ``score=None``, which ``float()`` cannot take. The
+    key being *present* and null is not the same as absent, so ``.get(k, 0.0)``
+    does not cover it — reaching here with a blinded row raised ``TypeError``
+    rather than reporting a missing score. Report ``0.0`` and keep going: a
+    row that reached the report writer without a score has no score to show.
     """
     out: list[dict[str, Any]] = []
     for i, row in enumerate(rows[:limit], start=1):
+        raw_score = row.get("score")
         out.append(
             {
                 "rank": i,
                 "scene_id": scene_id_key(row.get("scene_id", "")),
-                "similarity": float(row.get("score", 0.0)),
+                "similarity": float(raw_score) if raw_score is not None else 0.0,
                 "filepath": str(row.get("keyframe_url", "")),
             }
         )
@@ -695,13 +706,19 @@ def _run_modal_eval(
 ) -> RetrievalRun:
     """Shared scoring loop for the image / rhyme modalities.
 
-    Generates each query's slate via :func:`kuaa.eval.slates.generate_slate`
-    (the real backend), resolves relevance via ``relevance_resolver`` (defaults
-    to :func:`_default_relevance`), and scores with :func:`evaluate_query`.
-    Returns a :class:`RetrievalRun` the report writer serialises unchanged.
+    Ranks each query's candidates via :func:`kuaa.eval.slates.rank_candidates`
+    (the real backend, in the retriever's own order), resolves relevance via
+    ``relevance_resolver`` (defaults to :func:`_default_relevance`), and scores
+    with :func:`evaluate_query`. Returns a :class:`RetrievalRun` the report
+    writer serialises unchanged.
+
+    It calls ``rank_candidates``, not ``generate_slate``, because MRR and nDCG
+    are functions of rank: scoring the grader-facing (blinded) order measures a
+    seeded permutation of the candidate set and nothing else. Every image and
+    rhyme metric published before this change did exactly that.
 
     ``library_dir`` MUST be the full library root (``cfg.paths.library_dir``),
-    not a single-film override — ``generate_slate`` (and ``find_rhymes``) walk
+    not a single-film override — ``rank_candidates`` (and ``find_rhymes``) walk
     every film under it. Single-film modalities (image) are scoped to
     ``film_slug`` after generation when one is given; rhyme is inherently
     cross-film and is never scoped out.
@@ -712,7 +729,7 @@ def _run_modal_eval(
        (top-1 is *defined* as relevant, so their recall@k / RR are 1.0 by
        construction) and inflate the average; ``known_item`` rhyme queries are
        structurally 0 (see :func:`_default_relevance`). Any consumer that
-       publishes numbers (E2/E8 ablation tables) MUST segregate per query using
+       publishes numbers (the ablation tables) MUST segregate per query using
        ``context["relevance_methods_by_query"]`` (``{query_id: method}``) and
        report only the tier it intends to. ``context["relevance_method"]`` is the
        coarse ``"+".join`` aggregate, kept for back-compat only.
@@ -734,7 +751,7 @@ def _run_modal_eval(
         # filtering a global top-k afterwards could leave a scoped film with
         # zero rows when another film dominated the head. The post-filter below
         # is now a defensive no-op for scoped runs.
-        rows = generate_slate(
+        rows = rank_candidates(
             query=q, cfg=cfg, library_dir=library_dir, k=top_k, film_slug=scope_slug
         )
         if scope_slug:
@@ -778,7 +795,7 @@ def _run_modal_eval(
         "relevance_method": "+".join(sorted(methods)) if methods else "none",
         # Per-query method so a consumer can tell pseudo (tautological) from
         # real (hypothesis / known_item) queries and avoid publishing the
-        # blended average. This is the I2-mandated honesty hook for E2/E8.
+        # blended average. This is the honesty hook the ablation tables read.
         "relevance_methods_by_query": methods_by_query,
     }
 
@@ -832,7 +849,7 @@ def run_rhyme_eval(
     cross-film slate can NEVER contain — so the rhyme metrics are structurally
     0 and certify only GATE-completeness, not rhyme quality (see
     :func:`_default_relevance`). A real rhyme metric needs curator-graded
-    cross-film labels, supplied by E2/E5 via ``relevance_resolver``.
+    cross-film labels, supplied via ``relevance_resolver``.
     """
     return _run_modal_eval(
         cfg,

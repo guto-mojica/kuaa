@@ -1,4 +1,4 @@
-"""Byte-identical gate for the route-thinning relocations (A2)."""
+"""Byte-identical gate for the route-thinning relocations."""
 
 from __future__ import annotations
 

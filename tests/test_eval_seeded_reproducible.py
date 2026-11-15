@@ -1,4 +1,4 @@
-"""E1: Reproducible eval — same seed ⇒ byte-identical metrics + seed in context.
+"""Reproducible eval — same seed ⇒ byte-identical metrics + seed in context.
 
 Two test functions:
 

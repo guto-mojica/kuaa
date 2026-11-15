@@ -1,4 +1,4 @@
-"""Error taxonomy contract tests (F2)."""
+"""Error taxonomy contract tests."""
 
 from __future__ import annotations
 

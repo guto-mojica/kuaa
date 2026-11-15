@@ -1,4 +1,4 @@
-"""A6: FilmContext is provided by one dependency; routes don't construct it inline."""
+"""``FilmContext`` is provided by one dependency; routes don't construct it inline."""
 
 from __future__ import annotations
 

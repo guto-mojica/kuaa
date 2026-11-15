@@ -1,9 +1,9 @@
-"""Lightweight timing hook (F5).
+"""Lightweight timing hook.
 
 A context manager that measures wall-clock elapsed time in milliseconds
-and logs it at DEBUG. Consumed by the search dispatchers (WS-1 C9, which
+and logs it at DEBUG. Consumed by the search dispatchers (which
 attaches ``latency_ms`` to ``SearchResult``) and the benchmark harness
-(WS-4 E6 p50/p95/p99). Zero dependencies beyond stdlib.
+(p50/p95/p99). Zero dependencies beyond stdlib.
 """
 
 from __future__ import annotations

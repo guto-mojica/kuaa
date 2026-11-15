@@ -1,4 +1,4 @@
-"""Request-ID + access-log middleware (F5)."""
+"""Request-ID + access-log middleware."""
 
 from __future__ import annotations
 

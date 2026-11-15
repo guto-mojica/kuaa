@@ -11,6 +11,12 @@ from kuaa.retrieval.hybrid import DEFAULT_RRF_K
 
 SearchMode = Literal["clip", "bm25", "hybrid"]
 
+#: The same three names as a runtime value, in the Literal's order. Every
+#: module that needs to *check* a mode string reads this rather than
+#: re-spelling the set — three hand-maintained copies had already drifted in
+#: container type (set / tuple) and were one edit away from drifting in content.
+SEARCH_MODES: tuple[SearchMode, ...] = ("clip", "bm25", "hybrid")
+
 
 class UploadRejected(UserInputError):
     """Image upload failed server-side validation (size / content-type / suffix)."""
@@ -85,7 +91,7 @@ class SearchResult:
     weights: HybridWeights | None
     query: Query
     no_index: bool = False
-    # C9 per-query metadata (additive; feeds eval + UI affordances).
+    # Per-query metadata (additive; feeds eval + UI affordances).
     fusion_used: bool = False
     reranker_applied: bool = False
     retriever_mode: str = ""

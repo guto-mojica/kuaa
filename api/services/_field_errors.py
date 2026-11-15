@@ -1,4 +1,4 @@
-"""Shared accessible field-error rendering (U1).
+"""Shared accessible field-error rendering.
 
 One place that renders ``web/templates/partials/_field_error.html`` as a
 standalone, out-of-band-swappable fragment for the three input surfaces
@@ -39,9 +39,9 @@ def render_field_error_fragment(request: Request, *, slot_id: str, message_key: 
 
 
 def upload_error_response(request: Request, message_key: str) -> HTMLResponse:
-    """400 carrying the OOB image-upload field-error fragment (U1).
+    """400 carrying the OOB image-upload field-error fragment.
 
-    Status stays 400 (honest client error, pinned by the A4 envelope test);
+    Status stays 400 (honest client error, pinned by the envelope test);
     the body is the accessible OOB fragment for ``#image-upload-error``. The
     ``htmx:beforeSwap`` shim in mojica.js permits this fragment to apply
     despite the 4xx (HTMX suppresses body swaps on error codes by default).

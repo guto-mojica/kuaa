@@ -1,4 +1,4 @@
-"""Search render helpers extracted from ``api/routes/search.py`` (A2 / Task 5).
+"""Search render helpers extracted from ``api/routes/search.py``.
 
 These functions handle result enrichment and template assembly. The route
 keeps only the FastAPI handlers and param parsing; all rendering logic lives
@@ -152,7 +152,7 @@ async def run_text_search(
         if ctx is None:
             return no_index_response(request)
         cards = enriched_per_film(cfg, ctx, payload, slug)
-    # C5: carry a typed SearchResult from enrichment through rerank to the
+    # Carry a typed SearchResult from enrichment through rerank to the
     # render boundary. ``cards_to_result`` is the single dict→typed lift;
     # ``rerank_search_result`` operates on that result (no dict round-trip);
     # ``result_to_cards`` projects it back for the HTML template, which still

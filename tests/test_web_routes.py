@@ -73,7 +73,7 @@ def test_tab_fragment_routes_respond(client, path):
 
 
 def test_about_modal_responds(client):
-    """/api/about renders the redesigned About modal partial (Task 29).
+    """/api/about renders the redesigned About modal partial.
 
     The 0.3.0 version assertion the pre-Mojica test carried is replaced
     by a structural check: the modal now reads the runtime
@@ -120,10 +120,10 @@ def test_about_page_renders_full_page(client):
     assert 'class="ab-modal"' in r.text
 
 
-# ── U8: keyboard-shortcut discoverability in About ───────────────────────────
+# ── Keyboard-shortcut discoverability in About ───────────────────────────
 #
 # The ``?`` overlay (partials/_help_overlay.html) is unreachable on the
-# standalone /about page (it deliberately omits mojica.js). U8 surfaces the
+# standalone /about page (it deliberately omits mojica.js). The About page surfaces the
 # shortcut map as a STATIC reference inside the shared about_modal partial, so
 # both the modal and the standalone page document the shortcuts regardless of
 # scripting. These tests pin that the legend renders with its keys + labels.
@@ -153,7 +153,7 @@ def test_about_surfaces_keyboard_shortcuts(client, path):
     assert "<kbd>⌘</kbd>" in html
 
 
-# ── U11: offline status indicator ────────────────────────────────────────────
+# ── Offline status indicator ────────────────────────────────────────────
 #
 # A topbar badge reflecting ``navigator.onLine`` reinforces the offline-first
 # value prop. It is server-rendered hidden and toggled by a vanilla
@@ -216,7 +216,7 @@ def test_tab_processing_empty_has_no_active_jobs(client):
     assert "No active jobs." in r.text
 
 
-# ── Group 1b: Mojica chrome shell smoke (Task 6) ──────────────────────────────
+# ── Group 1b: Mojica chrome shell smoke ──────────────────────────────
 #
 # These assert the new chrome scaffolding (TopBar / IconRail / LeftPane / right
 # pane) is wired into the rendered shell. The chrome lives ALONGSIDE the legacy
@@ -316,9 +316,9 @@ def test_eval_shell_loads_mojica_eval_before_alpine(client, monkeypatch):
 def test_base_shell_includes_palette_and_help_roots(client):
     """Polish-layer mount points exist on the index page.
 
-    Task 27 replaced the ``#palette-root`` placeholder with the real
+    The ``#palette-root`` placeholder was replaced with the real
     server-rendered command-palette scaffold (``id="palette"`` + nested
-    ``#cp-input`` / ``#cp-list``). Task 28 replaced ``#help-root`` with
+    ``#cp-input`` / ``#cp-list``); ``#help-root`` was likewise replaced with
     the keyboard-help overlay scaffold (``id="help"`` + ``#kh-title``).
     The toast root stays as an empty mount because ToastBus creates
     toasts imperatively.
@@ -332,7 +332,7 @@ def test_base_shell_includes_palette_and_help_roots(client):
     assert 'id="toast-root"' in html
 
 
-# ── Group 1c: TopBar tab chips active state (Task 7) ──────────────────────────
+# ── Group 1c: TopBar tab chips active state ──────────────────────────
 #
 # The Mojica TopBar renders five tab chips with PT slugs (`data-tab="buscar"`,
 # `data-tab="cenas"`, `data-tab="anotar"`, `data-tab="rimas"`, `data-tab="proc"`)
@@ -360,7 +360,7 @@ def test_topbar_active_tab(client, path, active):
     assert html.count(f'data-tab="{active}"') >= 1
 
 
-# ── Group 1d: IconRail + LeftPane (Task 8) ────────────────────────────────────
+# ── Group 1d: IconRail + LeftPane ────────────────────────────────────
 #
 # The Mojica IconRail (56px column) renders five tab anchors plus Home.
 # The active tab carries the .ic.on class. The LeftPane (248px
@@ -419,7 +419,7 @@ def test_topbar_active_for_each_tab(client, path, active):
     assert href in html
 
 
-# ── Group 1e: Buscar main pane (Task 10) ──────────────────────────────────────
+# ── Group 1e: Buscar main pane ──────────────────────────────────────
 #
 # The Mojica Buscar template rewrites the legacy text/image toggle + raw
 # scene-grid into a single ``.b-cp`` section with:
@@ -431,7 +431,7 @@ def test_topbar_active_for_each_tab(client, path, active):
 #   * a tag-filter section + optional image-upload sub-panel.
 #
 # These two tests pin the new scaffolding without locking the exact copy or
-# legacy classes (Task 11 may still adjust). The film-slug propagation
+# legacy classes (these may still be adjusted). The film-slug propagation
 # tests in test_film_selector.py cover the form-id + hidden-input contract.
 
 
@@ -462,7 +462,7 @@ def test_buscar_renders_modes_and_knobs(client):
         chip = re.search(rf'<button[^>]*data-mode="{mode}"[^>]*>', html)
         assert chip and " disabled" not in chip.group(0), f"chip {mode!r} unexpectedly disabled"
     # Retrieval knob row — only backed controls are visible. Hybrid + k +
-    # Rerank are interactive Alpine popovers. Hybrid Search plan Task E2
+    # Rerank are interactive Alpine popovers. The Buscar toolrow
     # moved the sem/bm25 readout from a server-rendered float to a
     # client-computed ``x-text`` driven by the buscarRetrieval store,
     # so the bare ``sem 0.70`` substring no longer ships from the server.
@@ -494,7 +494,7 @@ def test_buscar_search_query_appears(client):
 def test_buscar_results_render_as_b_cards_or_empty_state(client):
     """``#search-results`` ships either ``.b-card`` cards or ``.empty-state``.
 
-    Task 11 (Mojica): the legacy ``.scene-card`` markup is gone. On an
+    Mojica redesign: the legacy ``.scene-card`` markup is gone. On an
     empty test corpus the partial renders the new ``.empty-state``
     wrapper; once results land it renders ``.b-card`` articles. Either
     branch is acceptable for the empty-data smoke client — we just need
@@ -557,11 +557,11 @@ def test_left_pane_collection_counts_follow_scene_buckets(seed_metadata):
     assert counts["interior"] == 0
 
 
-# ── Group 1f: Buscar inspector (Task 12) ──────────────────────────────────────
+# ── Group 1f: Buscar inspector ──────────────────────────────────────
 #
 # The Mojica Buscar inspector is the right-pane ``.b-rp`` partial swapped via
 # HTMX from any ``.b-card`` click handler (``hx-get="/api/scenes/<id>/inspector
-# ?film=<slug>"``). Task 12 ships the route + service + four partials. These
+# ?film=<slug>"``). The route + service + four partials ship together. These
 # tests pin three contracts at once:
 #
 #   1. The endpoint exists and either 200s (when the seeded scene exists)
@@ -661,7 +661,7 @@ def test_search_full_page_includes_inspector_partial_without_crashing(client):
     r = client.get("/search")
     assert r.status_code == 200, r.text[:500]
     # The inspector partial is included by search.html and now renders a
-    # ``.b-rp.b-rp-empty`` placeholder when no scene is selected. Since U6 it
+    # ``.b-rp.b-rp-empty`` placeholder when no scene is selected. It
     # also carries the shared ``.fx-empty`` primitive, so assert on the class
     # token rather than the exact attribute string. The full ``.b-rp`` chrome
     # (htabs, .insp-kf, .b-thread, …) must NOT be present.
@@ -671,7 +671,7 @@ def test_search_full_page_includes_inspector_partial_without_crashing(client):
     assert 'class="insp-kf"' not in r.text, "selected-state keyframe leaked into empty render"
 
 
-# ── Task E2: Buscar toolrow interactive popovers ──────────────────────────────
+# ── Buscar toolrow interactive popovers ──────────────────────────────
 #
 # The Hybrid Search plan replaces the read-only retrieval knob row in
 # Buscar with Alpine popovers driving the ``buscarRetrieval`` store +
@@ -717,7 +717,7 @@ def test_search_toolrow_wires_rerank_and_hides_search_mmr(client) -> None:
     assert 'data-state="readonly"' not in body
 
 
-# ── Group 1f-bis: Cenas inspector (Task 16) ───────────────────────────────────
+# ── Group 1f-bis: Cenas inspector ───────────────────────────────────
 #
 # The Mojica Cenas inspector reuses the same ``/api/scenes/<id>/inspector``
 # endpoint but discriminates on a new ``?kind=`` query param:
@@ -767,7 +767,7 @@ def test_buscar_inspector_defaults_to_b_rp(client, seed_metadata):
 
 
 def test_cenas_grid_scenecard_uses_kind_cenas(client, seed_metadata):
-    """Every ``.scenecard``'s ``hx-get`` includes ``kind=cenas`` (Task 16 wiring)."""
+    """Every ``.scenecard``'s ``hx-get`` includes ``kind=cenas``."""
     seed_metadata()
     # /scenes is the full-page route; if the grid renders any scenecards
     # they must point at the kind=cenas inspector.
@@ -776,15 +776,15 @@ def test_cenas_grid_scenecard_uses_kind_cenas(client, seed_metadata):
         assert "kind=cenas" in r.text
 
 
-# ── Group 1f.5: Anotar stage (Task 18) ────────────────────────────────────────
+# ── Group 1f.5: Anotar stage ────────────────────────────────────────
 #
 # The Mojica Anotar rewrite swaps the legacy filter/jump/form left pane for a
 # Frame.io-style stage: meta header + keyframe + timeline + player controls.
 # These tests pin the public contracts the rewrite establishes so future
 # changes that drop the stage markup, accidentally revive the legacy form on
 # the left, or stop collapsing the LeftPane fail loudly. The legacy form is
-# intentionally kept on the right (inside ``#annotate-scene``) by Task 18 —
-# Task 19 retires it into the proper ``.a-rp`` htabs + thread + composer.
+# intentionally kept on the right (inside ``#annotate-scene``); the
+# ``.a-rp`` htabs + thread + composer retire it.
 
 
 def test_anotar_renders_stage_meta_keyframe_timeline_player(client, seed_metadata):
@@ -843,7 +843,7 @@ def test_anotar_breadcrumb_shows_scene_number(client, seed_metadata):
     assert "scene 351" in html or "cena 351" in html
 
 
-# ── Group 1f-bis: Anotar right pane (Task 19) ─────────────────────────────────
+# ── Group 1f-bis: Anotar right pane ─────────────────────────────────
 #
 # The .a-rp shell carries htabs (Comments / Annotations / Properties), a
 # subhead and a dispatched sub-partial body. The HTMX endpoint
@@ -857,7 +857,7 @@ def test_anotar_inspector_returns_a_rp(client, seed_metadata):
     """``/api/annotate/scene`` renders the ``.a-rp`` shell with ``.htabs``.
 
     The legacy ``annotate_scene.html`` was a two-column LLM + tag form;
-    Task 19 replaces it with the Frame.io-style ``.a-rp`` (htabs +
+    It is replaced by the Frame.io-style ``.a-rp`` (htabs +
     subhead + dispatched thread). Both new class hooks must appear on
     every render so CSS / interaction tests targeting the right pane
     have stable selectors.
@@ -916,7 +916,7 @@ def test_anotar_inspector_tab_switching(client, seed_metadata):
 def test_anotar_save_endpoint_still_works(client, seed_metadata):
     """The legacy ``/api/annotate/save`` form contract is preserved.
 
-    Task 19's .a-rp rewrite moves the tag form into a sub-partial but
+    The .a-rp rewrite moves the tag form into a sub-partial but
     keeps the field names (``scene_id`` / ``filter`` / ``tags``) and
     the on-disk shape (str scene-id key, lower-kebab tags) unchanged.
     Posting the same body the old form used must still return 200 and
@@ -941,14 +941,14 @@ def test_anotar_save_endpoint_still_works(client, seed_metadata):
     assert on_disk["351"] == ["test", "demo"]
 
 
-# ── Group 1g: Buscar timeline (Task 13) ───────────────────────────────────────
+# ── Group 1g: Buscar timeline ───────────────────────────────────────
 #
 # The bottom-timeline (``.b-tl``) renders below the .b-cp results grid only
 # when ``?scene=&film=`` URL params resolve to a real film with on-disk
 # keyframe metadata. On the bare /search initial render (no selection) the
 # partial self-guards on ``selected_film`` and produces no chrome — same
-# pattern as Task 12's inspector. The partial is included from search.html
-# without ``ignore missing`` (Task 13 removes the guard).
+# pattern as the Cenas inspector. The partial is included from search.html
+# without ``ignore missing``.
 
 
 def test_search_timeline_absent_on_full_page_without_selection(client):
@@ -1176,9 +1176,9 @@ class TestProcessingSplitFilterCrash:
         assert "stepper__item--active" in html
 
 
-# ── Group 1h: Cenas tab — Mojica redesign (Task 15) ───────────────────────────
+# ── Group 1h: Cenas tab — Mojica redesign ───────────────────────────
 #
-# Task 15 rewrites ``scenes.html`` + ``scenes_grid.html`` onto the new
+# ``scenes.html`` + ``scenes_grid.html`` are built on the new
 # ``.c-cp + .toolrow + .countrow + .scenecard`` markup with film-grouped
 # sections. The three tests below pin (1) the toolrow / countrow / grid
 # scaffolding on the full-page route, (2) the grouped grid markup when
@@ -1427,9 +1427,9 @@ def test_scene_dict_carries_start_s_and_duration_s(client, seed_metadata):
         assert s["film"].slug == "default"
 
 
-# ── Group 1i: Rimas Visuais tab routes (Task 21) ──────────────────────────────
+# ── Group 1i: Rimas Visuais tab routes ──────────────────────────────
 #
-# Task 21 wires ``/tab/rimas`` + ``/api/rimas/echoes`` to the new
+# ``/tab/rimas`` + ``/api/rimas/echoes`` are wired to the new
 # ``api.services.rhymes_service.build_rimas_context`` builder which walks
 # the library, resolves the anchor scene, and calls
 # :func:`kuaa.rhymes.find_rhymes` for the cross-film kNN. These tests
@@ -1437,7 +1437,7 @@ def test_scene_dict_carries_start_s_and_duration_s(client, seed_metadata):
 # branch), (2) the HTMX tab fragment returns the ``.r-cp`` shell, (3) the
 # echoes endpoint returns a partial without crashing, and (4) the
 # ``?anchor=`` query param parses without crashing on an unknown slug.
-# Task 22 ships the real templates and tightens these assertions.
+# The real templates tighten these assertions.
 
 
 def test_rimas_page_renders(client):
@@ -1478,7 +1478,7 @@ def test_api_rimas_echoes_returns_fragment(client):
 
     On an empty library the grid renders the empty-state row inside
     ``.r-grid``. Locking only the structural anchors keeps the test
-    locale-stable and lets Task 22 swap the inner markup without
+    locale-stable and lets the inner markup be swapped without
     breaking this contract.
     """
     r = client.get("/api/rimas/echoes")
@@ -1497,7 +1497,7 @@ def test_rimas_with_explicit_anchor_does_not_crash(client):
     On a fresh empty library the slug never resolves — the service
     returns no anchor data and falls back to the empty-state branch.
     The contract under test is "the URL never crashes the page";
-    Task 22's seeded variant will pin the populated branch separately.
+    A seeded variant pins the populated branch separately.
     """
     r = client.get("/rimas?anchor=jeca/1")
     assert r.status_code == 200, r.text[:500]
@@ -1511,12 +1511,12 @@ def test_rimas_with_explicit_anchor_does_not_crash(client):
     assert r.status_code == 200, r.text[:500]
 
 
-# ── Group 1j: Rimas Visuais full template (Task 22) ───────────────────────────
+# ── Group 1j: Rimas Visuais full template ───────────────────────────
 #
-# Task 22 ships the real CSS-driven templates (.topbar / .controls / .r-anchor
-# / .r-grid / .r-rp / .r-pair / .r-similarity-card) and the new
+# The real CSS-driven templates (.topbar / .controls / .r-anchor
+# / .r-grid / .r-rp / .r-pair / .r-similarity-card) ship alongside the new
 # ``/api/rimas/inspector`` endpoint for HTMX echo-selection swaps. These tests
-# pin the structural anchors that Task 22's design requires; the empty-library
+# pin the structural anchors the design requires; the empty-library
 # branch is the canonical fixture state, so assertions stay locale-stable.
 
 
@@ -1577,9 +1577,9 @@ def test_rimas_grid_uses_echo_card_class(client):
     assert 'id="rimas-echoes"' in html
 
 
-# ── Group 1k: Processamento tab — Mojica redesign (Task 24) ───────────────────
+# ── Group 1k: Processamento tab — Mojica redesign ───────────────────
 #
-# Task 24 rewrites ``processing.html`` + ``processing_job.html`` onto the
+# ``processing.html`` + ``processing_job.html`` are built on the
 # Mojica ``.p-cp / .p-top / .p-active / .p-pbar / .p-steps / .p-log /
 # .p-side / .p-stats / .p-queue / .p-rp`` layout. The three tests below
 # pin the structural anchors the new template ships AND the empty-state
@@ -1631,7 +1631,7 @@ def test_proc_stats_section_present(client):
 
     Even on an empty library the cards render with all counts at 0;
     no data should make these sections vanish (the layout would
-    collapse). Task 24's ``aggregate_stats`` walks ``data/library/``
+    collapse). ``aggregate_stats`` walks ``data/library/``
     safely on an empty/absent directory and returns the zero-defaults
     dict.
     """
@@ -1695,7 +1695,7 @@ def test_pipeline_start_response_refreshes_full_processing_tab(client, seed_meta
     assert 'hx-swap-oob="innerHTML"' in html
 
 
-# ── Task 25 ───────────────────────────────────────────────────────────
+# ── SSE log auto-scroll ───────────────────────────────────────────────
 # mojica.js — Phase 6 seed: SSE log auto-scroll on the Processing tab.
 # Browser-level behaviour testing requires a real DOM (Playwright); these
 # tests pin the contract at the asset-serving + template-wiring level so
@@ -1731,7 +1731,7 @@ def test_processing_page_loads_mojica_js(client):
     assert "/static/js/mojica.js" in r.text
 
 
-# ── Task 26 ───────────────────────────────────────────────────────────
+# ── Toast / palette / help polish layer ───────────────────────────────
 # Phase 7 polish layer: `polish.css` ships the toast / palette / help /
 # poke-chip styles up front; `mojica.js` is extended with a `ToastBus`
 # IIFE that listens for ``HX-Trigger: {"toast": {...}}`` server events
@@ -1839,9 +1839,9 @@ def test_toast_trigger_helper_sets_hx_trigger_header():
     }
 
 
-# ── U7: success/confirmation states (toast bus wiring + inline ✓) ─────────────
+# ── Success/confirmation states (toast bus wiring + inline ✓) ─────────────
 #
-# The ``toast_trigger`` helper had 0 callers before U7. These tests pin the
+# The ``toast_trigger`` helper had 0 callers before the toast bus. These tests pin the
 # end-to-end wiring: the mutating routes (add-film + the annotate save /
 # description-save / tag-curation routes) now set the ``HX-Trigger`` toast
 # header on success, AND the annotate responses still carry the inline ✓
@@ -1893,7 +1893,7 @@ def test_add_film_success_redirects_to_processing(tmp_config, client):
 def test_add_film_failure_does_not_emit_toast(client):
     """A failed add (missing video) re-renders the form WITHOUT a toast.
 
-    The error path returns the add-film form with a U1 inline field error;
+    The error path returns the add-film form with an inline field error;
     no success toast must fire (the toast is a success-only affordance).
     """
     r = client.post(
@@ -1907,7 +1907,7 @@ def test_add_film_failure_does_not_emit_toast(client):
 def test_annotate_save_emits_toast_and_inline_check(seed_metadata, client):
     """``POST /api/annotate/save`` carries BOTH the toast and the inline ✓.
 
-    U7 requires the inline confirmation (next to the saved control) in
+    The inline confirmation (next to the saved control) is required in
     addition to the global toast. The inline ✓ is the
     ``annotate-feedback--success`` row rendered on ``saved=True``; the
     toast is the ``HX-Trigger`` header.
@@ -1991,7 +1991,7 @@ def test_toast_bus_consumes_hx_trigger_event(client):
     assert "ToastBus.push(evt && evt.detail)" in body
 
 
-# ── Phase 7 / Task 28: keyboard help overlay (?) ─────────────────────────────
+# ── Keyboard help overlay (?) ────────────────────────────────────────────────
 #
 # The help overlay scaffold lives in `partials/_help_overlay.html` and is
 # included from `base.html` (replacing the Phase-1 `#help-root` placeholder).
@@ -2074,16 +2074,16 @@ def test_mojica_js_contains_help_toggle(client):
 def test_mojica_js_registers_buscar_retrieval_store(client) -> None:
     """The Alpine store name + persist key + defaults are pinned strings.
 
-    Task E1 of the Hybrid Search plan: the Buscar knob row's popovers
-    (E2) bind to ``Alpine.store('buscarRetrieval')``, persisted under
+    The Buscar knob row's popovers bind to
+    ``Alpine.store('buscarRetrieval')``, persisted under
     ``mojica:buscar:retrieval``. Defaults match the search route's
     canonical hybrid baseline (``retriever=hybrid`` / ``sem_w=0.70``) so
     a first-paint UI never drifts from the server contract. ``bm25_w`` is
-    derived client-side as ``1 - sem_w`` in the hidden HTMX mirror (E3
-    follow-up: single source of truth for the weight pair), so the store
+    derived client-side as ``1 - sem_w`` in the hidden HTMX mirror (a
+    follow-up makes the weight pair a single source of truth), so the store
     no longer carries it as a persisted field. The ``top_k`` field is the
     UI-preferred value (9) and is intentionally distinct from the route's
-    FastAPI default (8) — the hidden HTMX mirror (E2) sends the UI value
+    FastAPI default (8) — the hidden HTMX mirror sends the UI value
     on every request.
     """
     resp = client.get("/static/js/mojica.js")

@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class OpenClipEmbedder:
     """CLIP (ViT-B/32 via open_clip) image/text embedder, L2-normalised."""
 
-    #: Provenance for this backend (manifest single source of truth, C10/F6).
+    #: Provenance for this backend (manifest single source of truth).
     #: Declared ``ModelCard | None`` so the unshipped ``MClipEmbedder`` subclass
     #: can override it to ``None`` (it has no manifest card); the value here is
     #: always a real card.

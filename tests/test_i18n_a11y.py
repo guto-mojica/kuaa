@@ -107,7 +107,7 @@ def test_about_full_page_route_works_js_off(raw_client):
     """The /about href must resolve to a standalone page (the modal-only
     affordance had no JS-off fallback before Phase 6).
 
-    Task 29 (Mojica redesign) replaced the legacy "Model attributions"
+    The Mojica redesign replaced the legacy "Model attributions"
     table with the redesigned ``.ab-modal`` panel: the en-source
     "Models" section header now identifies the surface. The full-page
     template's ``<a href="/" …>`` legacy back-link was removed because
@@ -145,7 +145,7 @@ def test_about_full_page_localized_pt(raw_client):
 def test_about_modal_and_page_share_credits(raw_client):
     """Modal (/api/about) and full page (/about) emit the same content.
 
-    Task 29 (Mojica redesign) collapsed the old shared
+    The Mojica redesign collapsed the old shared
     ``_about_credits.html`` partial into a single canonical surface:
     ``about_page.html`` now ``{% include %}``s
     ``partials/about_modal.html`` verbatim, so by construction every

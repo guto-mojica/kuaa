@@ -42,7 +42,7 @@ def _saved_scene(
 ) -> HTMLResponse:
     """Render ``partials/annotate_scene.html`` (saved=True) after a curation edit.
 
-    Also fires a U7 success toast (``HX-Trigger``) so every tag-curation
+    Also fires a success toast (``HX-Trigger``) so every tag-curation
     mutation (delete / rename / AI-tag suppress) surfaces feedback both
     inline (the ``saved=True`` ✓ row) and as the global toast.
     """

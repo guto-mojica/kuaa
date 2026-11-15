@@ -1,6 +1,6 @@
 # KUAA — Continuous Integration
 #
-# Eight jobs: lint (strict), docs (public-docs gate), test-smoke (fast/model-free),
+# Eight jobs: lint (strict), docs (public-docs gate), test-fast (model-free),
 # test-heavy (full matrix), typecheck (mypy, blocking), security (bandit + pip-audit),
 # build (sdist/wheel), benchmark (smoke).
 #
@@ -81,8 +81,8 @@ jobs:
       - name: Public docs package (headings, links, placeholders)
         run: python scripts/check_launch_package.py
 
-  test-smoke:
-    name: Tests — smoke (model-free)
+  test-fast:
+    name: Tests — fast gate (model-free)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -98,13 +98,16 @@ jobs:
         with:
           python-version: "3.12"
 
-      # Smoke tests are model-free: only the web extra + dev group are needed
+      # The fast gate is model-free: only the web extra + dev group are needed
       # for FastAPI TestClient + the non-model code paths.
       - name: Install (web extra + dev group)
         run: uv sync --extra web --group dev
 
-      - name: Pytest (smoke only)
-        run: uv run pytest tests/ -q -m smoke --no-cov
+      # Excluding `heavy` and `e2e` rather than selecting `smoke`. Selection
+      # by opt-in marker had drifted to 2% of the suite — see the `markers`
+      # note in pyproject.toml for the measurement that set this boundary.
+      - name: Pytest (fast gate)
+        run: uv run pytest tests/ -q -m "not heavy and not e2e" --no-cov
 
   test-heavy:
     name: Tests — heavy (full extra, matrix)
@@ -130,7 +133,7 @@ jobs:
       - name: Install project (full extra + dev group)
         run: uv sync --extra full --group dev
 
-      - name: Pytest (heavy + smoke, full extra)
+      - name: Pytest (everything but e2e, full extra)
         run: uv run pytest tests/ -q -m "not e2e" --cov=src/kuaa --cov=api --cov-report=term-missing
 
   typecheck:

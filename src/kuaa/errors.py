@@ -1,7 +1,7 @@
-"""KUAA error taxonomy (F2).
+"""KUAA error taxonomy.
 
 One base ``KuaaError`` carrying a stable ``.code`` and a flat
-subtree the HTTP layer (WS-2 A4) maps to status codes via
+subtree the HTTP layer maps to status codes via
 :func:`http_status_for`. Existing scattered exceptions migrate to inherit
 these (keeping their names as aliases) in a follow-up step of this task.
 """
@@ -74,8 +74,9 @@ class ArtefactError(KuaaError):
     default_code = "artefact.invalid"
 
 
-# Single source of truth for HTTP status. WS-2 A4's exception handler
-# imports this; nothing else hard-codes a status for a domain error.
+# Single source of truth for HTTP status. The exception handler in
+# ``api.error_handlers`` imports this; nothing else hard-codes a status for a
+# domain error.
 _STATUS_TABLE: tuple[tuple[type[KuaaError], int], ...] = (
     (UserInputError, 400),
     (IndexMissing, 404),

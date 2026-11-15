@@ -20,6 +20,7 @@ Types:
   * :class:`Hit` — one result row.
   * :class:`SearchResult` — typed return value with ``no_index`` flag.
   * :data:`SearchMode` — ``Literal["clip", "bm25", "hybrid"]``.
+  * :data:`SEARCH_MODES` — the same three names as a runtime tuple.
   * :class:`UploadRejected` — exception raised by upload validation.
 """
 
@@ -28,6 +29,7 @@ from kuaa.search.aggregate import aggregate
 from kuaa.search.bm25 import reindex_bm25
 from kuaa.search.rerank import rerank
 from kuaa.search.types import (
+    SEARCH_MODES,
     Filters,
     Hit,
     HybridWeights,
@@ -48,6 +50,7 @@ __all__ = [
     "Hit",
     "HybridWeights",
     "Query",
+    "SEARCH_MODES",
     "SearchMode",
     "SearchResult",
     "UploadRejected",

@@ -82,7 +82,7 @@ def build_rimas_context(
 
     Returned keys match what ``partials/rimas.html`` /
     ``partials/rimas_echoes.html`` / ``partials/rimas_inspector.html``
-    (Task 22) consume:
+    consume:
 
       * ``anchor_film`` — the :class:`kuaa.library.Film` carrying
         the anchor scene, or ``None`` when no anchor resolves.

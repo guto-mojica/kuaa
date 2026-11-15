@@ -1,4 +1,4 @@
-"""Behavior-preserving gate for the processing route thinning (A2/A9)."""
+"""Behavior-preserving gate for the processing route thinning."""
 
 from __future__ import annotations
 

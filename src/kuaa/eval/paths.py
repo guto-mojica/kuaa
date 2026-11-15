@@ -16,7 +16,7 @@ def eval_root(cfg: Settings) -> Path:
 
     Tests ``monkeypatch.setattr`` this function to redirect writes to
     a tmp dir. The runtime path goes through ``cfg.eval.root`` (new
-    config block added in Task 30) when present; otherwise it derives
+    config block) when present; otherwise it derives
     a path under ``cfg.paths.data_dir`` to stay inside the project
     sandbox; otherwise the literal ``"data/eval"`` fallback.
     """

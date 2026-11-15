@@ -1,4 +1,4 @@
-"""Model provenance manifest (F6).
+"""Model provenance manifest.
 
 A :class:`ModelCard` per model backend: identity, revision, vector dim /
 I-O shape, license, download hint, and an optional checksum.  ``CARDS``
@@ -11,7 +11,7 @@ manifest always reflects the *configured* backend, not a role-level
 default.
 
 The registry exposes :func:`kuaa.models.registry.model_card` as the
-config-aware entry point; docs (WS-6 D4/D9) render
+config-aware entry point; docs render
 ``MODEL_INVENTORY`` / ``LICENSES`` from these cards so there is no drift
 between code and documentation.
 """
@@ -130,10 +130,13 @@ CARDS: dict[str, ModelCard] = {
     ),
 }
 
-# Invariant: every card's .backend must equal its CARDS key.
-assert all(card.backend == key for key, card in CARDS.items()), (
-    "CARDS invariant violated: card.backend must equal its key"
-)
+# Invariant: every card's .backend must equal its CARDS key. A ``raise``, not
+# an ``assert``: this is the only thing that holds the two in agreement, and
+# ``python -O`` strips asserts — under which a mislabelled card would resolve
+# silently and the manifest would attribute one backend's provenance to another.
+_MISLABELLED = sorted(key for key, card in CARDS.items() if card.backend != key)
+if _MISLABELLED:
+    raise ValueError(f"CARDS invariant violated: card.backend must equal its key: {_MISLABELLED}")
 
 
 def get_card(backend: str) -> ModelCard:

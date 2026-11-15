@@ -1,14 +1,16 @@
-"""Admin gate for the eval routes.
+"""Admin gate and pool-integrity gate for the eval routes.
 
 Split out of the package ``__init__`` to keep it inside the 250-line
 ``api/services/**`` budget. Nothing here touches ``_eval_root`` /
 ``_eval_run_id``, the two seams test fixtures monkeypatch on the package
-module, so it relocates without changing what a patch reaches.
+module, so it relocates without changing what a patch reaches — the pool gate
+takes the already-resolved root and run id as arguments for that reason.
 """
 
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 
 def require_admin(request) -> None:
@@ -31,3 +33,28 @@ def require_admin(request) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Eval set builder requires a valid admin token.",
         )
+
+
+def require_current_pool(cfg, *, root: Path, run_id: str) -> None:
+    """Raise HTTPException(409) when the pool's scene numbering has moved.
+
+    Grades are keyed by ``(query_id, scene_id)`` and ``scene_id`` is an
+    ordinal that a cut edit renumbers. Grading against a stale pool does not
+    fail — it records judgments about the wrong scenes, and nothing
+    downstream can tell. So the page and the grade endpoint both refuse, and
+    the operator regenerates the pool.
+
+    A pool with no recorded manifest (written before the guard, or seeded)
+    passes with a log warning; see
+    :func:`kuaa.eval.scene_manifest.require_manifest_match`.
+    """
+    from fastapi import HTTPException, status
+
+    from kuaa.eval.datasets import load_pool
+    from kuaa.eval.scene_manifest import SceneManifestMismatch, require_manifest_match
+
+    library_dir = Path(getattr(getattr(cfg, "paths", None), "library_dir", "") or ".")
+    try:
+        require_manifest_match(load_pool(root, run_id).scene_manifests, library_dir, run=run_id)
+    except SceneManifestMismatch as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc

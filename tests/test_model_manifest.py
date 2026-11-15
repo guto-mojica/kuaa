@@ -1,4 +1,4 @@
-"""Model manifest (F6) — backend-keyed ModelCard registry.
+"""Model manifest — backend-keyed ModelCard registry.
 
 Spec §17 override: CARDS is keyed by backend id (not role), so the
 active card for a role is CARDS[settings.models.<role>].  Eight backends
@@ -110,7 +110,7 @@ def test_moondream_gguf_revision_matches_transformers():
     assert CARDS["moondream_gguf"].revision == CARDS["moondream_transformers"].revision
 
 
-# ── C10: every shipped backend references its ModelCard ───────────────────────
+# ── Every shipped backend references its ModelCard ───────────────────────
 
 
 def test_every_shipped_backend_references_a_real_card():

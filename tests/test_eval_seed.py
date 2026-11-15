@@ -1,4 +1,4 @@
-"""Tests for the eval seed module + CLI (Task 33).
+"""Tests for the eval seed module + CLI.
 
 The seed module ships a small bundle of sample queries used to populate
 the /eval grading UI on a fresh install. We verify three things:
@@ -34,7 +34,7 @@ def test_write_seed_creates_well_formed_file(tmp_path: Path):
     assert isinstance(data, list)
     assert len(data) == 3
 
-    # Per-query contract (Task 30 + queue/rows templates).
+    # Per-query contract (queue/rows templates).
     first = data[0]
     for key in ("id", "text", "source", "lang", "k", "candidate_count", "results"):
         assert key in first, f"missing {key} on seeded query"

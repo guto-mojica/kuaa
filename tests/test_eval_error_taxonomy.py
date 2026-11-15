@@ -1,4 +1,4 @@
-"""E0: EvalError lives in kuaa.errors and is re-exported correctly.
+"""EvalError lives in kuaa.errors and is re-exported correctly.
 
 Three invariants:
 1. Canonical home is ``kuaa.errors`` (issubclass chain + code).

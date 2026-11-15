@@ -1,4 +1,4 @@
-"""Global + scoped deterministic seeding (F3).
+"""Global + scoped deterministic seeding.
 
 ``seed_everything`` pins the process-wide PRNGs (python ``random``,
 numpy legacy global, and torch CPU+CUDA if installed) at pipeline and

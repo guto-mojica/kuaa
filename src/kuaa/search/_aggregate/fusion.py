@@ -1,4 +1,4 @@
-"""Global weighted-RRF fusion over per-film ranked lists (C1)."""
+"""Global weighted-RRF fusion over per-film ranked lists."""
 
 from __future__ import annotations
 

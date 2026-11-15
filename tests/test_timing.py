@@ -1,4 +1,4 @@
-"""Timing hook (F5)."""
+"""Timing hook."""
 
 from __future__ import annotations
 

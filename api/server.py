@@ -207,7 +207,7 @@ _TAB_CONTEXT_BUILDERS = {
     # annotate is handled directly in render_page's if/elif chain so it can
     # receive current_slug (from ?film= query param or active_film cookie).
     "processing": lambda: build_processing_context(),
-    # Rimas Visuais (cross-film visual rhymes) — Task 21 wires the real
+    # Rimas Visuais (cross-film visual rhymes) — wires the real
     # service builder. The full-page render reads ``?anchor=`` like the
     # tab-fragment endpoint so a deep-share URL (``/rimas?anchor=jeca/1``)
     # lands directly on the requested scene. ``anchor=None`` falls back
@@ -263,7 +263,7 @@ _TAB_CHROME = {
     "preprocessing": {"active_tab": "preproc", "compact_lp": False, "has_right_pane": False},
     # NOTE: the body's data-active-tab uses the short slug "proc" (not the
     # full PT "processamento") so the topbar tab chip's `data-tab="proc"`
-    # selector matches in CSS / JS. Task 7 wired this contract.
+    # selector matches in CSS / JS.
     "processing": {"active_tab": "proc", "compact_lp": False, "has_right_pane": False},
     "rimas": {"active_tab": "rimas", "compact_lp": False, "has_right_pane": False},
 }
@@ -338,7 +338,7 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
         tab_ctx = build_home_context(cfg)
     elif active_tab == "search":
         tab_ctx = search.build_search_context(current_slug)
-        # Mojica Task 10: ``?q=<text>`` survives push-url navigation back
+        # ``?q=<text>`` survives push-url navigation back
         # to ``/search`` (HTMX rewrites the bar on every form submit), so
         # the rewritten template can restore the query input value on a
         # full-page reload. The actual results list is not re-fetched
@@ -347,7 +347,7 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
         q = (request.query_params.get("q") or "").strip()
         if q:
             tab_ctx["query"] = q
-        # Mojica Task 13: when the URL carries ``?scene=<id>&film=<slug>``
+        # When the URL carries ``?scene=<id>&film=<slug>``
         # (a timeline-segment link or a deep-share URL into a specific
         # scene), populate the bottom-timeline (``.b-tl``) context. The
         # builder also returns ``selected_film`` (augmented with timeline
@@ -371,8 +371,8 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
                 if timeline_ctx is not None:
                     tab_ctx.update(timeline_ctx)
     elif active_tab == "rimas":
-        # Mojica Task 21: ``?anchor=<slug>/<scene_id>`` is a deep-share URL
-        # into a specific anchor scene. Task 22 adds ``?echo=<slug>/<scene_id>``
+        # ``?anchor=<slug>/<scene_id>`` is a deep-share URL
+        # into a specific anchor scene; ``?echo=<slug>/<scene_id>``
         # to pre-populate the right-pane inspector with one of the echo
         # cards highlighted. The service handles parsing + falling back
         # to the default anchor / no-echo when the params are absent or

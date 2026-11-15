@@ -1,6 +1,6 @@
 """Processing tab — stats aggregation and resource metrics.
 
-Extracted from ``api/services/processing_service.py`` (A2/G1 split).
+Extracted from ``api/services/processing_service.py``.
 ``processing_service.py`` re-imports these symbols so existing
 ``from api.services.processing_service import ...`` call sites are unchanged.
 """

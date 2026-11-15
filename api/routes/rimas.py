@@ -1,7 +1,7 @@
 """Rimas Visuais (cross-film visual rhymes) tab routes — Phase-5.
 
 Thin HTTP layer: param parsing + template dispatch only. Context builders
-live in :mod:`api.services.rhymes_service` (A2 Task 5).
+live in :mod:`api.services.rhymes_service`.
 """
 
 from __future__ import annotations

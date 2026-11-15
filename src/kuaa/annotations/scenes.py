@@ -239,7 +239,7 @@ def scene_context(
     on the ``no_llm`` vs ``annotated`` ambiguity; semantics preserved
     exactly, NOT changed here).
 
-    Mojica Task 18 addendum: a ``selected_scene`` dict is added with
+    Mojica redesign addendum: a ``selected_scene`` dict is added with
     the keyframe URL, SMPTE timecode, a short MM:SS timecode +
     duration, a progress percentage stub (0), and empty stub lists for
     ``pins`` / ``markers`` / ``timeline_avatars`` / ``timeline_ticks``
@@ -308,7 +308,7 @@ def scene_context(
         ss = int(seconds) % 60
         return f"{mm:02d}:{ss:02d}"
 
-    # Mojica Task 19: the .a-rp htabs + sub-partials reach into
+    # Mojica redesign: the .a-rp htabs + sub-partials reach into
     # ``selected_scene`` for ``film_slug`` (HTMX ?film= propagation on
     # tab clicks), the description text (rendered as the AI .a-com.ai
     # comment in the Comments sub-partial) and the manual tags list
@@ -356,7 +356,7 @@ def scene_context(
         "next_id": scenes[idx + 1]["scene_id"] if idx < len(scenes) - 1 else None,
     }
 
-    # Mojica Task 19: the .a-rp Comments htab pip counts the curator
+    # Mojica redesign: the .a-rp Comments htab pip counts the curator
     # thread — the AI moondream description is always row #0 when present,
     # plus any demo or real curator/viewer rows.
     comment_count = (1 if description_text else 0) + len(selected_scene["comments"])

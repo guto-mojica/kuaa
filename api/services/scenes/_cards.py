@@ -99,7 +99,7 @@ def build_cenas_context(
             film_slug = getattr(scene_film, "slug", None) or ""
             flat_cards.append({**s, "film_slug": film_slug})
 
-    # ── A7: pagination ────────────────────────────────────────────────────────
+    # ── Pagination ────────────────────────────────────────────────────────────
     # ``total_scenes`` / ``film_count`` / ``total_runtime_s`` remain UNPAGED
     # so the countrow shows the honest library-wide totals ("showing N of M").
     # The grid is sliced by building a paged flat sequence, then filtering the

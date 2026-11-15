@@ -107,3 +107,102 @@ def test_write_run_manifest_writes_next_to_metadata(tmp_config, tmp_path):
     assert payload["run"]["status"] == "done"
     assert payload["artifacts"]["run_manifest"]["path"].endswith(MANIFEST_FILENAME)
     assert payload["artifacts"]["run_manifest"]["exists"] is True
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 0.10 — skip_existing must read the hash the manifest already writes
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def test_step_hash_moves_only_for_the_step_whose_config_changed(tmp_config):
+    """Scoped per step, not over the whole config.
+
+    Hashing everything would make an unrelated edit — a retrieval weight, an
+    output path — invalidate every LLM description in the library and silently
+    trigger hours of re-inference on the next run. A step re-runs only when
+    something that actually feeds it moved.
+    """
+    from kuaa.run_manifest import step_config_hash
+
+    before = {
+        step: step_config_hash(tmp_config, step)
+        for step in ("scene_detection", "embeddings", "llm_description")
+    }
+    tmp_config.embeddings.batch_size = 99
+    after = {step: step_config_hash(tmp_config, step) for step in before}
+
+    assert after["embeddings"] != before["embeddings"]
+    assert after["scene_detection"] == before["scene_detection"]
+    assert after["llm_description"] == before["llm_description"]
+
+
+def test_step_hash_is_none_for_an_undeclared_step(tmp_config):
+    from kuaa.run_manifest import step_config_hash
+
+    assert step_config_hash(tmp_config, "no_such_step") is None
+
+
+def test_manifest_records_a_hash_per_step(tmp_config, tmp_path):
+    from kuaa.run_manifest import STEP_CONFIG_SECTIONS
+
+    payload = build_run_manifest(tmp_config, tmp_path / "v.mp4")
+    stored = payload["config"]["step_sha256"]
+    assert set(stored) == set(STEP_CONFIG_SECTIONS)
+    assert all(isinstance(v, str) and v for v in stored.values())
+
+
+def test_read_step_hashes_round_trips_through_the_written_manifest(tmp_config, tmp_path):
+    """The manifest has recorded a config hash on every run and nothing has
+    ever read one back. This is the read that turns it into a check."""
+    from kuaa.run_manifest import read_step_hashes
+
+    metadata_dir = tmp_path / "metadata"
+    write_run_manifest(tmp_config, tmp_path / "v.mp4", metadata_dir=metadata_dir)
+
+    stored = read_step_hashes(metadata_dir)
+    assert stored["embeddings"]
+    assert (
+        stored
+        == json.loads((metadata_dir / MANIFEST_FILENAME).read_text())["config"]["step_sha256"]
+    )
+
+
+def test_read_step_hashes_is_empty_when_there_is_no_manifest(tmp_path):
+    from kuaa.run_manifest import read_step_hashes
+
+    assert read_step_hashes(tmp_path / "nothing") == {}
+
+
+def test_pipeline_refuses_to_skip_when_the_steps_config_moved(tmp_config, tmp_path, caplog):
+    """A bare ``path.exists()`` reuses an artifact from a different generation.
+
+    A library assembled that way is a mixed corpus with nothing on disk saying
+    so — and the grades collected against it are spent on it.
+    """
+    from kuaa.pipeline import CatalogPipeline
+
+    metadata_dir = tmp_path / "metadata"
+    write_run_manifest(tmp_config, tmp_path / "v.mp4", metadata_dir=metadata_dir)
+
+    pipeline = CatalogPipeline(tmp_config)
+    pipeline._metadata_dir = lambda: metadata_dir  # type: ignore[method-assign]
+
+    assert pipeline._can_skip("embeddings", exists=True), "unchanged config still skips"
+
+    tmp_config.embeddings.batch_size = 99
+    with caplog.at_level("WARNING"):
+        assert not pipeline._can_skip("embeddings", exists=True)
+    assert "config changed" in caplog.text
+    # ...and a step the edit does not feed is still reused.
+    assert pipeline._can_skip("scene_detection", exists=True)
+
+
+def test_pipeline_skips_a_film_processed_before_provenance_checking(tmp_config, tmp_path):
+    """No recorded hash → skip as before. The guard cannot retroactively know
+    what produced that file, and re-running every pre-existing library would be
+    a worse answer than saying so in the log."""
+    from kuaa.pipeline import CatalogPipeline
+
+    pipeline = CatalogPipeline(tmp_config)
+    pipeline._metadata_dir = lambda: tmp_path / "no_manifest_here"  # type: ignore[method-assign]
+    assert pipeline._can_skip("embeddings", exists=True)

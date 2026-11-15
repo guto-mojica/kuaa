@@ -83,6 +83,44 @@ uv run kuaa eval slate --queries data/eval/corpus01_queries.yaml \
 This calls the real retrievers and writes `corpus01.queries.json`. No judgment
 in it.
 
+**`--k` is each variant's ranking depth, not a per-film quota.** A variant
+scores the whole library into one list and contributes its top `k`
+(`_slate_find_global` in `src/kuaa/eval/slates.py`) — the same ranking the
+Buscar tab serves. A film earns candidates or gets none. Set `k` to the depth
+the app actually shows, `search.top_k_default`, currently 9: a pool deeper
+than anyone sees spends grading hours no measurement reads, and a shallower
+one leaves part of the served page unjudged. `corpus01` runs at `--k 10`.
+
+**A per-film quota is the thing being avoided.** `_merge_across_films` seats
+every film in round-robin slug order, and a pool built that way does need `k`
+at least the film count, or the cut lands mid-rotation and drops the
+last-sorting slugs alphabetically. That interleave is a coverage device, not a
+ranking any retriever produces. Pooling from it yielded a graded set covering
+42-59% of what `aggregate` returns at k=10, and the unjudged remainder scores
+as irrelevant — which penalises whichever retriever diverges most from the
+pool rather than whichever ranks worst. The merge now serves only the
+film-scoped path, where there is no cross-film ordering to get wrong.
+
+The composition report still fails a run when a film that was searched never
+reached any pool. Under the global ranking that means no variant ranked any of
+its scenes into its top `k` for any query — the film is either not indexed or
+not reached by the query set, and grades from that pool cannot judge retrieval
+on it. It is not a `--k` problem: check the index and the queries, not the
+depth.
+
+It also writes two things beside the pool:
+
+- **`corpus01.pool_composition.json`** — which retriever contributed what.
+  The command exits non-zero when the pool is not fit to grade: a source
+  retriever that widened it by nothing, two variants that are not
+  distinguishable, a film that never appeared. Read it before booking anyone's
+  afternoon.
+- **`scene_manifests`**, inside the pool file — a hash of each film's scene
+  numbering at generation time. `scene_id` is an ordinal that a cut edit
+  renumbers, so without this a grade collected today silently points at a
+  different scene tomorrow. `/eval` refuses to render (409) when a film's
+  numbering has moved since generation; regenerate the pool.
+
 **3. Point the pane at the run, then grade.** The `/eval` pane reads
 `cfg.eval.run_id`, which defaults to `default` — passing `--run corpus01` above
 does **not** move it. Set it in `config/local.yaml`:
@@ -109,7 +147,88 @@ The pane resumes at your first ungraded row, per grader.
 
 **4. The `.jsonl` accumulates.** One row per keypress, appended.
 
+---
+
+## The grading contract — v1, frozen
+
+Everything in this section is cheap to decide now and expensive to change
+after the first keypress. Changing the scale orphans every grade already
+collected; deciding the adjudication rule after the first real disagreement
+means deciding it about that disagreement; stating the κ bar after seeing κ
+means stating whatever number came out. So all three are written down first,
+and this section is versioned.
+
+**Schema version: `1`.** Rows in a `.jsonl` written under this contract are
+comparable to each other and to nothing else. Bump it and you have started a
+new dataset, not extended this one.
+
+### 1. Label scale — graded 0–3
+
+| Key | Value | Meaning for THIS archive |
+|---|---|---|
+| `0` | IRRELEVANT | The query's subject is not in this scene. A viewer looking for it would say no. |
+| `1` | WEAKLY | Present but incidental — in the background, in one corner, or only by association. Would not be the scene you cite. |
+| `2` | RELEVANT | The query's subject is genuinely in the scene and legible. A reasonable answer. |
+| `3` | HIGHLY_RELEVANT | The scene is *about* the query's subject. The one you would pull for a curator who asked. |
+| `S` | SKIP (`-1`) | Explicit "no opinion" — the keyframe is too dark, too damaged, or too ambiguous to judge. **Not** "I'll come back to it", and distinct from ungraded. |
+
+Graded rather than binary, and the reason is mechanical: `grader_metrics._gain`
+computes `2^g - 1`, so the scale is already assumed to be integer-graded
+everywhere the metrics are computed. Collapsing it to binary later is a
+lossless projection; expanding binary labels to graded ones later is not
+possible without re-grading. Grade at the finer resolution.
+
+**Judge the scene, not the keyframe.** The thumbnail is a representative
+frame, not the unit of judgment. Where the frame is ambiguous but the
+description and timecode make the scene clear, grade the scene.
+
+**Judge against the query, not against the system.** A pool deliberately
+contains candidates every retriever proposed, including ones that are plainly
+wrong. `0` is a normal, frequent, useful answer.
+
+### 2. Adjudication protocol
+
+1. Two graders overlap on a declared subset of queries (see below).
+2. A **disagreement** is |Δ| ≥ 2 on the same `(query, scene)` — adjacent
+   grades (`1` vs `2`) are scale noise, not conflict. This is the same
+   threshold the pane's compare-mode chip already tints red.
+3. Every disagreement goes to a **consensus pass**: both graders look at the
+   scene together and one of them re-grades. The append-only log keeps both
+   original votes, so κ is still computed on the *independent* first pass —
+   consensus must not be allowed to inflate the agreement figure it is
+   supposed to be measured by.
+4. If consensus is not reached, the scene is graded `S`. It leaves the scored
+   set rather than being resolved by seniority.
+5. `SKIP` is excluded from κ and from every metric. It is not a grade.
+
+### 3. Pre-registered κ threshold
+
+Stated before any κ is computed, so it cannot be retrofitted to the number
+that comes out:
+
+| Cohen's κ | Reading |
+|---|---|
+| **≥ 0.60** | Labels are usable as ground truth; publish retrieval numbers from them. |
+| **0.40 – 0.59** | Publish only with the κ stated beside every number, and treat differences smaller than the between-grader spread as noise. |
+| **< 0.40** | The labels measure the graders, not the retrieval. Do not publish. Fix the grade definitions above and re-grade. |
+
+**The overlap subset is ~10 queries, and that is a directional read, not a
+precise one.** κ on ~10 queries × ~30 candidates carries a wide confidence
+interval; it can tell 0.2 from 0.7 and cannot tell 0.55 from 0.65. Report it
+as a range-check against the table above, never as a point estimate.
+
+**Intra-grader consistency, free.** The same scene appears in the pools of
+different queries, so each grader can be compared against themselves without
+labelling anything extra. Divergence there is the cheapest early warning that
+a grader was fatiguing or drifting mid-session — check it before reading κ,
+because a grader who disagrees with themselves explains a low κ that would
+otherwise be read as disagreement with the other person.
+
+---
+
 ### The grades
+
+The scale is defined above. Summarised for the pane:
 
 | Key | Value | Meaning |
 |---|---|---|
@@ -122,15 +241,18 @@ The pane resumes at your first ungraded row, per grader.
 ### Grade pools, never slates
 
 Candidates put in front of a grader come from the union of every retriever
-under comparison (`kuaa.eval.slates.POOL_VARIANTS`), never from a single
+under comparison (`kuaa.eval.registry.RETRIEVER_REGISTRY`), never from a single
 `mode`. Judgments drawn from one retriever's output are valid only for that
 retriever, and silently penalise every improvement that surfaces scenes the old
 pool never showed.
 
-Rows arrive shuffled with `score` blanked. That is deliberate: position would
-otherwise be the retriever's opinion, and a grader who reads it grades the
-system instead of the scene. The shuffle is seeded by `(run, query)`, so a
-resumed run presents in the same order. Each row carries a `pool` key recording
+Rows arrive in a scrambled order with `score` blanked. That is deliberate:
+position would otherwise be the retriever's opinion, and a grader who reads it
+grades the system instead of the scene. The order is a sort on a per-candidate
+hash of `(run, query, film_slug, scene_id)` — not a shuffle of the list — so a
+resumed run presents identically **and** adding or removing one candidate moves
+only that candidate. That second property is what makes re-grading a changed
+variant affordable as a diff rather than a full second pass. Each row carries a `pool` key recording
 which variant proposed it at which rank — the template ignores it, the scorer
 needs it. Without it a graded pool can only be scored as a whole.
 

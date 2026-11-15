@@ -1,4 +1,4 @@
-"""Byte-identical snapshot gate for the search service decomposition (A1)."""
+"""Byte-identical snapshot gate for the search service decomposition."""
 
 from __future__ import annotations
 

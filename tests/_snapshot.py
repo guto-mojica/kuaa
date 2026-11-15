@@ -1,4 +1,4 @@
-"""Shared golden-snapshot helper (F4).
+"""Shared golden-snapshot helper.
 
 One ergonomic record/compare/update primitive every behavior-preserving
 refactor uses to prove it changed nothing. Record or refresh with

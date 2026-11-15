@@ -287,6 +287,51 @@ class CatalogPipeline:
         except Exception as exc:  # noqa: BLE001 - manifest must not mask pipeline result
             logger.warning("Could not write run manifest: %s", exc)
 
+    def _can_skip(self, step: str, *, exists: bool) -> bool:
+        """May ``step`` reuse its existing artifact under the current config?
+
+        ``skip_existing`` used to be a bare ``path.exists()``. That is only
+        sound while the settings that produced the file are unchanged: change
+        the describer model or a detection threshold and the reused artifact
+        comes from a different generation than the ones beside it, with
+        nothing on disk saying so. A library assembled that way is a mixed
+        corpus, and the grades collected against it are spent on it.
+
+        The manifest has recorded a config hash on every run since it was
+        introduced and nothing has ever read one back. This reads the
+        step-scoped hash — see :data:`kuaa.run_manifest.STEP_CONFIG_SECTIONS`
+        for why scoped and not the whole config — and declines the skip when
+        it moved. Absent hash (a film processed before this existed) skips as
+        before: the guard cannot retroactively know what produced that file,
+        and forcing a re-run of every pre-existing library would be a worse
+        answer than saying so in the log.
+        """
+        if not (self.cfg.pipeline.skip_existing and exists):
+            return False
+        from kuaa.run_manifest import read_step_hashes, step_config_hash
+
+        current = step_config_hash(self.cfg, step)
+        if current is None:
+            return True
+        stored = read_step_hashes(self._metadata_dir()).get(step)
+        if stored is None:
+            logger.info(
+                "%s: reusing existing artifact with no recorded config hash "
+                "(processed before provenance checking) — re-run to pin it",
+                step,
+            )
+            return True
+        if stored != current:
+            logger.warning(
+                "%s: config changed since this artifact was written "
+                "(%s → %s) — re-running instead of reusing a stale one",
+                step,
+                stored[:12],
+                current[:12],
+            )
+            return False
+        return True
+
     @property
     def device(self):
         if self._device is None:
@@ -325,7 +370,7 @@ class CatalogPipeline:
         cuts_path = self._metadata_dir() / "scene_cuts.json"
         keyframes_dir = self._frames_dir() / "scenes" / "keyframes_content"
 
-        if self.cfg.pipeline.skip_existing and metadata_path.exists():
+        if self._can_skip(name, exists=metadata_path.exists()):
             logger.info("↷ Pulando scene_detection (metadados existentes)")
             return StepResult(
                 name=name,
@@ -370,7 +415,7 @@ class CatalogPipeline:
         name = "visual_analysis"
         output_path = self._metadata_dir() / "visual_analysis.json"
 
-        if self.cfg.pipeline.skip_existing and output_path.exists():
+        if self._can_skip(name, exists=output_path.exists()):
             logger.info("↷ Pulando visual_analysis (metadados existentes)")
             return StepResult(name=name, success=True, skipped=True, output=output_path)
 
@@ -403,7 +448,7 @@ class CatalogPipeline:
         emb_path = self._embeddings_dir() / emb_cfg.filename
         map_path = self._embeddings_dir() / emb_cfg.mapping_filename
 
-        if self.cfg.pipeline.skip_existing and emb_path.exists():
+        if self._can_skip(name, exists=emb_path.exists()):
             logger.info("↷ Pulando embeddings (arquivo existente)")
             return StepResult(
                 name=name,
@@ -475,7 +520,7 @@ class CatalogPipeline:
                 )
 
             # Pular apenas se TODAS as cenas válidas já foram descritas
-            if self.cfg.pipeline.skip_existing and desc_path.exists():
+            if self._can_skip("llm_description", exists=desc_path.exists()):
                 with open(desc_path, encoding="utf-8") as f:
                     existing_check = json.load(f)
                 described_ids = {r["scene_id"] for r in existing_check if "error" not in r}

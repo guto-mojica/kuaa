@@ -57,6 +57,61 @@ def config_hash(cfg: Config) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+#: Which config sections determine each pipeline step's output.
+#:
+#: ``skip_existing`` reuses an artifact when its file exists. That is only
+#: sound while the settings that produced it are unchanged: swap the describer
+#: model or move a detection threshold and the reused file is from a different
+#: generation than the ones beside it, with nothing on disk saying so. A pool
+#: built from a mixed corpus is graded once and the labels are spent.
+#:
+#: Scoped per step rather than hashing the whole config, because the whole
+#: config includes ``search`` and ``paths`` — editing a retrieval weight would
+#: otherwise invalidate every LLM description in the library and silently
+#: trigger hours of re-inference. A step re-runs only when something that
+#: actually feeds it moved.
+STEP_CONFIG_SECTIONS: dict[str, tuple[str, ...]] = {
+    "scene_detection": ("scene_detection",),
+    "visual_analysis": ("visual_analysis", "models"),
+    "embeddings": ("embeddings", "models"),
+    "llm_description": ("llm", "models", "domain"),
+}
+
+
+def step_config_hash(cfg: Config, step: str) -> str | None:
+    """SHA-256 over the config sections that determine ``step``'s output.
+
+    Returns ``None`` for a step with no declared sections — an unknown step
+    cannot be checked, and guessing would either over- or under-trigger.
+    """
+    sections = STEP_CONFIG_SECTIONS.get(step)
+    if not sections:
+        return None
+    snapshot = config_snapshot(cfg)
+    scoped = {name: snapshot.get(name) for name in sections}
+    payload = json.dumps(scoped, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def read_step_hashes(metadata_dir: str | Path) -> dict[str, str]:
+    """Read ``config.step_sha256`` back out of a film's ``run_manifest.json``.
+
+    Empty when the manifest is absent, unreadable, or predates the field.
+    The manifest has been write-only since it was introduced; this is the
+    first read of it, which is what turns it from a record into a check.
+    """
+    path = Path(metadata_dir) / MANIFEST_FILENAME
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    config = payload.get("config") if isinstance(payload, dict) else None
+    stored = config.get("step_sha256") if isinstance(config, dict) else None
+    if not isinstance(stored, dict):
+        return {}
+    return {str(k): str(v) for k, v in stored.items()}
+
+
 def _iso_from_epoch(value: float | None) -> str | None:
     if value is None:
         return None
@@ -247,6 +302,12 @@ def build_run_manifest(
         "input": input_identity(video_path),
         "config": {
             "sha256": config_hash(cfg),
+            # Per-step hashes, read back by ``pipeline._skip_step`` to decide
+            # whether an existing artifact is still the artifact this config
+            # would produce. See STEP_CONFIG_SECTIONS.
+            "step_sha256": {
+                step: step_config_hash(cfg, step) for step in sorted(STEP_CONFIG_SECTIONS)
+            },
             "snapshot": config_snapshot(cfg),
         },
         "domain": domain_snapshot(cfg),

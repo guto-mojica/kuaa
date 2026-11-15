@@ -1,4 +1,4 @@
-"""C6 — pluggable tokenizer; PT-aware option folds diacritics/stopwords."""
+"""Pluggable tokenizer; PT-aware option folds diacritics/stopwords."""
 
 from __future__ import annotations
 

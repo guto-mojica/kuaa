@@ -1,4 +1,4 @@
-"""C3 — Query.text is a plain field; of_text is the text constructor."""
+"""``Query.text`` is a plain field; of_text is the text constructor."""
 
 from __future__ import annotations
 

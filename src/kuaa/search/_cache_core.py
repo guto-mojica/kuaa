@@ -1,4 +1,4 @@
-"""Unified mtime+size-keyed cache for CLIP / BM25 indexes (C4).
+"""Unified mtime+size-keyed cache for CLIP / BM25 indexes.
 
 Collapses the duplicated cache implementations (search.cache,
 search.bm25) onto one ``StatCache``. The cache key's first element is

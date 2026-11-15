@@ -4,7 +4,7 @@ Note: ``_get_embedder`` monkeypatches target ``kuaa.search.aggregate``
 (the module), accessed via ``sys.modules`` because the ``aggregate`` function
 name shadows the submodule in the ``kuaa.search`` package namespace.
 
-Task D2 — the per-film fan-out branches on ``retriever_mode``:
+The per-film fan-out branches on ``retriever_mode``:
 
   * ``"clip"``   — inline cosine over the per-film CLIP index, identical
     to the pre-hybrid behaviour (regression pin).
@@ -175,7 +175,7 @@ def test_aggregate_clip_mode_regression(two_film_library_cfg: object) -> None:
 
     Pin: calling ``aggregate_search`` with explicit ``retriever_mode="clip"``
     must produce byte-identical hits to the legacy default-kwarg path.
-    Guards against D2 accidentally branching out of the legacy code path
+    Guards against accidentally branching out of the legacy code path
     even when "clip" is requested.
     """
     clip_hits = aggregate_search(
@@ -360,7 +360,7 @@ def test_aggregate_hybrid_mode_tag_filter_drops_metadata_only_hit(
 ) -> None:
     """A ``tags=[...]`` filter must also prune the hybrid METADATA list.
 
-    Coverage gap closed (C1 review follow-up): the metadata tag-filter
+    Coverage gap closed: the metadata tag-filter
     list-comprehension in ``_score_film`` (``[(sid, s) for sid, s in
     metadata_ranked if scene_id_key(sid) in allowed_scene_keys]``) runs
     only when ``metadata_ranked`` is non-empty, and ``metadata_ranked`` is

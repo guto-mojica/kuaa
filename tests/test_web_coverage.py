@@ -138,7 +138,7 @@ class TestNoDataState:
         """< 2 chars short-circuits before any index touch (no crash) —
         documents the guard, CLIP-free.
 
-        U1: with no submit trigger the body is the (empty) clear-error OOB
+        With no submit trigger the body is the (empty) clear-error OOB
         span for ``#search-query-error`` rather than a literal empty string,
         and never carries an ``is-error`` message."""
         r = client.get("/api/search", params={"q": "a"})
@@ -157,7 +157,7 @@ class TestSeededScenes:
         r = client.get("/tab/scenes")
         assert r.status_code == 200, r.text[:300]
         assert SCENES_NO_DATA not in r.text
-        # 2 seeded scenes → Task 15's countrow renders the total as a
+        # 2 seeded scenes → the countrow renders the total as a
         # ``<span class="v">N</span>`` value followed by the localised
         # "scenes" label. The legacy ``<p>N scenes</p>`` count line is
         # gone with the Mojica rewrite.
@@ -389,12 +389,12 @@ def _register_film_in_tmp(library_dir: Path, slug: str, title: str) -> Path:
 class TestLibrary:
     """``/api/library/filter`` + the multi-film library sidebar contract.
 
-    T9 rewrote this class to use the registry-backed multi-film layout.
+    This class uses the registry-backed multi-film layout.
     ``scan_library`` reads ``films.json``; ``library_state`` aggregates
     across all registered films. Films are registered via
     ``_register_film_in_tmp``; per-film artefacts live under
     ``library_dir/<slug>/``. There is NO ``/api/library/{slug}/select``
-    route — the per-film affordance is deferred to T10.
+    route — the per-film affordance is deferred.
     """
 
     def test_filter_empty_library_shows_no_films(self, client):
@@ -422,7 +422,7 @@ class TestLibrary:
         assert "Jeca Tatu" not in r.text
 
     def test_inventory_is_not_clickable_and_carries_no_fake_per_film_state(self, client):
-        """T9 update of the CONVERTED Phase-2 tripwire.
+        """Update of the CONVERTED Phase-2 tripwire.
 
         Old contract (v0.3 single-film, now removed): no clickable per-film
         ``/api/library/select/{slug}`` navigates via HX-Redirect; the old
@@ -465,7 +465,7 @@ class TestLibrary:
         """The sidebar surfaces the AGGREGATE artifact state derived from
         per-film ``keyframes_metadata.json`` files (not fabricated).
 
-        T9 fixture rework: registers a film via the registry and uses the
+        Registers a film via the registry and uses the
         per-film directory layout instead of the flat raw_dir/metadata_dir.
         Three states are verified in order:
           1. No films registered → "No source video".
@@ -670,7 +670,7 @@ def _write_wellformed_index(cfg):
     Shape mirrors ``test_search_service._write_index``: N embedding rows
     == N keyframe/scene-id mapping rows == declared total_vectors.
 
-    NOTE (WS-2 A4): after the status-code fix, ``/api/search/image`` now
+    NOTE: after the status-code fix, ``/api/search/image`` now
     validates the upload BEFORE loading the index. An index is no longer
     required to reach the upload-rejection branch — a bad file is rejected
     immediately with 400. This helper is kept for tests that exercise the
@@ -693,8 +693,8 @@ def test_image_search_rejected_upload_degrades_gracefully(client, stub_search_em
     """A POST to /api/search/image that ``validate_upload`` rejects must
     return HTTP 400 (client error), NOT HTML 200.
 
-    The 400 status is preserved (honest client error). U1 changes the BODY:
-    instead of the JSON / page-level A4 envelope, the route returns the
+    The 400 status is preserved (honest client error). The BODY:
+    instead of the JSON / page-level error envelope, the route returns the
     accessible inline field-error fragment (OOB swap into
     ``#image-upload-error``) so the HTMX dropzone shows a field-level message.
     The mojica.js ``htmx:beforeSwap`` shim lets that fragment apply despite
