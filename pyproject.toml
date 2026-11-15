@@ -9,7 +9,7 @@ description = "Sistema de catalogação audiovisual com IA para acervos cinemato
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "KUAA Team" }]
+authors = [{ name = "Augusto C. Santos" }]
 keywords = ["computer-vision", "kuaa", "film-archive", "AI", "catalogação"]
 
 # Dependências mínimas — modelos ML são opcionais para não forçar download
