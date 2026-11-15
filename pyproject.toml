@@ -107,7 +107,7 @@ search = [
 ]
 
 [project.scripts]
-# Após instalação: kuaa process --video meu_filme.mp4
+# Após instalação: kuaa process meu_filme.mp4
 kuaa = "kuaa.__main__:main"
 
 [tool.setuptools.packages.find]

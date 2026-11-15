@@ -64,15 +64,17 @@ A estrutura que você deve ver:
 ```
 kuaa/
 ├── app.py                  ← entrypoint FastAPI (uvicorn api.server:app)
-├── pyproject.toml          ← definição do pacote
+├── pyproject.toml          ← definição do pacote e dependências
+├── uv.lock                 ← versões fixadas (uv)
+├── justfile                ← atalhos de desenvolvimento (opcional)
 ├── api/                    ← rotas HTTP (FastAPI)
-├── web/                    ← templates Jinja2 + HTMX + i18n
-├── config/
-│   └── default.yaml        ← parâmetros padrão
-├── src/
-│   └── kuaa/         ← núcleo AI (search, library, annotations, rhymes, eval, ...)
-└── tests/
-    └── test_smoke.py
+├── src/kuaa/               ← núcleo de IA (search, library, rhymes, eval, ...)
+├── web/                    ← templates Jinja2, HTMX e i18n
+├── config/                 ← default.yaml (versionado) e local.yaml (seu override)
+├── docs/                   ← documentação de design, arquitetura e operação
+├── scripts/                ← demo, avaliação e verificação
+├── site/                   ← site público (GitHub Pages)
+└── tests/                  ← testes (pytest)
 ```
 
 ---
@@ -118,9 +120,10 @@ Com o ambiente criado (`uv venv`):
 # de desenvolvimento (grupo "dev"):
 uv sync --extra full --group dev
 
-# Sem uv (alternativa — funciona porque não há lockfile):
+# Sem uv (alternativa, não suportada): o pip ignora o uv.lock, então
+# as versões instaladas podem diferir das testadas:
 #   python3 -m venv .venv && source .venv/bin/activate
-#   pip install -e ".[full]" && pip install pytest pytest-cov black ruff mypy
+#   pip install -e ".[full]" && pip install pytest pytest-cov ruff pre-commit mypy httpx import-linter
 ```
 
 O que `-e ".[full]"` significa:
@@ -144,6 +147,21 @@ busca semântica sem o módulo LLM):
 uv sync --extra search    # só CLIP e busca
 uv sync --extra web       # só a interface FastAPI + HTMX
 ```
+
+**Ferramentas opcionais:**
+
+- Hooks de pre-commit (ruff, etc.), instalados no seu clone:
+  ```bash
+  uv run pre-commit install
+  ```
+- Testes de interface no navegador (grupo `e2e`, Playwright). Não entram
+  na instalação padrão:
+  ```bash
+  uv sync --group e2e
+  uv run playwright install chromium
+  ```
+- Atalhos do projeto estão no arquivo `justfile`. Para usá-los, instale o
+  programa `just` e leia os nomes das receitas no arquivo.
 
 **Verificar instalação:**
 ```bash
@@ -216,7 +234,7 @@ Com o ambiente virtual ativado e dependências instaladas:
 ```bash
 # Demo público com artefatos pré-computados
 uv run python scripts/prepare_demo.py --download
-uv run kuaa serve --config config/demo.yaml
+KUAA_CONFIG=config/demo.yaml uv run kuaa serve
 
 # Avaliação do índice demo preparado
 uv run python scripts/run_eval.py --config config/demo.yaml \
@@ -225,10 +243,12 @@ uv run python scripts/run_eval.py --config config/demo.yaml \
 
 # Interface principal FastAPI + HTMX
 uv run kuaa serve
-
-# Ou com seu arquivo de configuração local:
-uv run kuaa serve --config config/local.yaml
 ```
+
+`kuaa serve` aceita só `--host`, `--port`, `--reload` e `--no-reload`.
+O arquivo `config/local.yaml`, se existir, é aplicado automaticamente
+(veja `uv run kuaa config show`). Para usar outra configuração na
+interface, defina a variável `KUAA_CONFIG` antes do comando.
 
 Acesse manualmente: **http://localhost:8501**
 
@@ -299,7 +319,8 @@ uv run kuaa serve --host 0.0.0.0 --port 8501
 
 **Para manter rodando após fechar o terminal** (em servidores):
 ```bash
-# Usando nohup (simples):
+# Usando nohup (simples). A pasta logs/ não é versionada, então crie-a antes:
+mkdir -p logs
 nohup uv run kuaa serve --host 0.0.0.0 --port 8501 > logs/kuaa-web.log 2>&1 &
 
 # O processo continua mesmo após logout. Para parar:
@@ -313,42 +334,67 @@ pkill -f "kuaa serve"
 O pacote também tem uma interface de linha de comando,
 útil para processar vídeos em batch ou em servidores sem interface gráfica.
 
+Crie a pasta `data/raw/` e coloque nela o vídeo que você quer processar.
+Os exemplos abaixo usam `data/raw/<your-video>.mp4` como caminho de exemplo.
+
 **Inspecionar um vídeo:**
 ```bash
-uv run kuaa info data/raw/jeca_tatu_1959.mp4
+uv run kuaa info data/raw/<your-video>.mp4
 ```
 
 **Processar um vídeo completo:**
 ```bash
-uv run kuaa process data/raw/jeca_tatu_1959.mp4
+uv run kuaa process data/raw/<your-video>.mp4
 ```
+
+**Escolher o identificador do filme** (`--slug`):
+```bash
+uv run kuaa process data/raw/<your-video>.mp4 --slug <slug>
+```
+Sem `--slug`, o identificador é o nome do arquivo, slugificado.
+Os arquivos do filme ficam em `data/library/<slug>/` (veja
+[Estrutura de dados gerada](#estrutura-de-dados-gerada)).
 
 **Processar com configuração personalizada:**
 ```bash
-uv run kuaa process data/raw/jeca_tatu_1959.mp4 --config config/local.yaml
+uv run kuaa process data/raw/<your-video>.mp4 --config config/local.yaml
 ```
 
 **Executar apenas etapas específicas** (útil para retomar processamento interrompido):
 ```bash
-# Só detecção de cenas e embeddings (pula frames e análise visual)
-uv run kuaa process data/raw/jeca_tatu_1959.mp4 --steps scenes,embeddings
+# Só detecção de cenas e embeddings (pula análise visual e descrição LLM)
+uv run kuaa process data/raw/<your-video>.mp4 --steps scenes,embeddings
 ```
 
 Nomes válidos para `--steps`:
-`frames`, `scenes`, `visual`, `embeddings`, `llm`
+`scenes`, `visual`, `embeddings`, `llm`
 (separados por vírgula, sem espaços)
+
+**Listar, ver a configuração e remover filmes:**
+```bash
+uv run kuaa library list                 # filmes registrados e seu estado
+uv run kuaa config show                  # configuração efetiva (default + local)
+uv run kuaa library delete <slug>        # remove o filme e seus arquivos (pede confirmação)
+```
+
+**Medir movimento por cena** (opcional, etapa separada):
+```bash
+uv run kuaa motion run
+```
 
 ---
 
 ## 9. Primeira execução — o que esperar
 
 Na primeira execução, o sistema baixa os modelos automaticamente.
-Isso acontece **uma vez** — ficam em cache para as execuções seguintes.
+Esse download exige acesso à internet. Isso acontece **uma vez** — ficam
+em cache para as execuções seguintes. Depois do download, a inferência
+roda offline.
 
 | Modelo | Tamanho | Quando |
 |---|---|---|
 | YOLOv8n | ~6 MB | Primeiro uso da análise visual |
-| CLIP ViT-B/32 | ~150 MB | Primeiro uso de embeddings ou busca |
+| SigLIP 2 (`google/siglip2-large-patch16-256`) | — | Primeiro uso de embeddings ou busca |
 | Moondream 2 | ~1.9 GB | Primeiro uso de descrição LLM |
 
 **Tempo estimado por etapa** (filme de ~90min, CPU):
@@ -364,7 +410,7 @@ O módulo LLM (Moondream) é o gargalo principal em CPU.
 Com Apple Silicon M2 ou GPU NVIDIA, ele é 3–5× mais rápido.
 
 **O processamento pode ser interrompido e retomado.**
-O sistema salva checkpoints a cada 25 cenas. Se interromper
+O sistema salva checkpoints a cada 25 frames (`llm.checkpoint_interval`, padrão `25`). Se interromper
 com Ctrl+C e executar novamente, ele continua de onde parou.
 
 ---
@@ -380,10 +426,10 @@ source .venv/bin/activate
 pip install -e ".[full]"
 ```
 
-**`RuntimeError: FFmpeg não encontrado`**
+**`RuntimeError: FFprobe não encontrado. Instale o FFmpeg: https://ffmpeg.org/download.html`**
 ```bash
-# Verificar se está instalado:
-which ffmpeg   # deve retornar um caminho, não vazio
+# Verificar se estão instalados:
+which ffmpeg ffprobe   # cada um deve retornar um caminho, não vazio
 
 # Se não estiver, instalar (ver seção 5)
 ```
@@ -450,31 +496,31 @@ git checkout abc1234   # voltar para aquele estado
 
 ## Estrutura de dados gerada
 
-Após processar um vídeo, esta é a estrutura que o sistema cria:
+Cada filme processado ocupa uma pasta `data/library/<slug>/`.
+Esta é a estrutura que o sistema cria para um filme:
 
 ```
 data/
-├── raw/
-│   └── jeca_tatu_1959.mp4          ← vídeo original
-├── frames/
-│   ├── sample/                     ← frames extraídos (1/segundo)
-│   │   ├── frame_0001.jpg
-│   │   └── ...
-│   └── scenes/
-│       └── keyframes_content/      ← keyframes por cena
-│           ├── Scene-001-01.jpg
-│           └── ...
-├── embeddings/
-│   ├── keyframe_embeddings.npy     ← vetores CLIP (busca semântica)
-│   └── index_mapping.json          ← mapeamento índice → cena
-└── metadata/
-    ├── video_properties.json       ← resolução, fps, duração
-    ├── keyframes_metadata.json     ← timecodes de cada cena
-    ├── visual_analysis.json        ← faces, objetos, ambiente
-    ├── scene_descriptions.json     ← descrições geradas pelo LLM
-    ├── scene_tags.json             ← índice invertido de tags
-    ├── manual_annotations.json     ← anotações humanas (quando houver)
-    └── run_manifest.json           ← proveniência da última execução
+├── raw/                            ← vídeos de entrada (você cria esta pasta)
+│   └── <your-video>.mp4
+└── library/
+    ├── films.json                  ← registro dos filmes
+    └── <slug>/
+        ├── raw/
+        ├── frames/
+        │   └── scenes/
+        │       └── keyframes_content/   ← keyframes por cena
+        │           └── ...
+        ├── embeddings/
+        │   ├── keyframe_embeddings.npy  ← vetores SigLIP 2 (busca semântica)
+        │   └── index_mapping.json       ← mapeamento índice → cena
+        └── metadata/
+            ├── scene_cuts.json          ← cortes detectados (editáveis na aba Pré-processamento)
+            ├── keyframes_metadata.json  ← timecodes de cada cena
+            ├── visual_analysis.json     ← faces, objetos, ambiente
+            ├── scene_descriptions.json  ← descrições geradas pelo LLM
+            ├── scene_tags.json          ← índice invertido de tags
+            └── run_manifest.json        ← proveniência da última execução
 ```
 
 Estes arquivos são a "memória" do sistema — uma vez gerados, a
