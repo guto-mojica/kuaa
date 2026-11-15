@@ -11,7 +11,7 @@ Every row retrieves through the library-wide path the app serves (`kuaa.search.a
 
 **Human-validated methodology.** Labels are human-validated (run corpus01, n=1288 grades). Every row is scored on the same query set against the same human grades, so the comparison is apples-to-apples.
 
-**Corpus.** Chronopolis 1982 — 1230 keyframes indexed, 56 text queries.
+**Corpus.** Whole library — 11 films, 3018 keyframes indexed, 56 text queries.
 **Common query set.** 56 text queries.
 
 | Retriever | Labels | Recall@5 | Recall@10 | MRR | nDCG@10 |

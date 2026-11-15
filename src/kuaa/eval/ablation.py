@@ -651,7 +651,13 @@ def run_ablation(
         cross_film=cross_film,
     )
     slug = _primary_film_slug(library_dir, queries)
-    corpus = _corpus_description(library_dir, slug, dataset)
+    # A graded run ranks the whole library, so naming the largest film as its
+    # corpus would understate what the numbers cover.
+    corpus = (
+        _library_description(library_dir, dataset)
+        if cross_film
+        else _corpus_description(library_dir, slug, dataset)
+    )
 
     rows: list[tuple[AblationRowConfig, dict[str, float | int] | None]] = []
     footnotes: dict[str, str] = {}
@@ -762,6 +768,24 @@ def _corpus_description(library_dir: Path, slug: str, dataset: EvaluationDataset
         tail.append(f"{n_scenes} keyframes indexed")
     tail.append(f"{len(dataset.queries)} text queries")
     return f"{head} — " + ", ".join(tail)
+
+
+def _library_description(library_dir: Path, dataset: EvaluationDataset) -> str:
+    """Human banner string for a library-wide run: films, keyframes, queries."""
+    films, keyframes = 0, 0
+    for child in sorted(library_dir.iterdir()) if library_dir.exists() else ():
+        emb = child / "embeddings" / "keyframe_embeddings.npy"
+        if not emb.exists():
+            continue
+        films += 1
+        try:
+            keyframes += int(np.load(emb, mmap_mode="r").shape[0])
+        except Exception:  # noqa: BLE001 - unreadable index still counts as a film
+            pass
+    return (
+        f"Whole library — {films} films, {keyframes} keyframes indexed, "
+        f"{len(dataset.queries)} text queries"
+    )
 
 
 __all__ = [
