@@ -287,6 +287,31 @@ def export_run(run: EvalRun) -> dict:
     }
 
 
+def pool_grades(run: EvalRun, queries: list[dict]) -> dict[str, dict[str, int]]:
+    """Latest grade per candidate, restricted to the pool ``queries`` carries.
+
+    Scoring must read this rather than :func:`export_run`. A run's JSONL keeps
+    every judgment it ever collected, including ones against pools it has since
+    replaced. Those still name real scenes, so a positive one left in a
+    relevance map enlarges the Recall denominator and the ideal DCG for a scene
+    no current variant was pooled on. On ``corpus01`` that was 461 extra
+    relevant scenes, which moved the median per query from 19 to 27.
+
+    Returns ``{query_id: {scene_key: grade}}``. A query with no judged
+    candidate is omitted. SKIP (-1) is kept, because the scorer needs it to
+    drop that scene from the ranking.
+    """
+    exported = export_run(run)["grades"]
+    out: dict[str, dict[str, int]] = {}
+    for query in queries:
+        qid = str(query.get("id"))
+        judged = exported.get(qid, {})
+        kept = {key: judged[key] for key in candidate_keys(query) if key in judged}
+        if kept:
+            out[qid] = kept
+    return out
+
+
 def grades_by_query(loaded: LoadedRun) -> dict[str, list[Grade]]:
     """Group LoadedRun.grades by query_id, across every grader and every pool.
 

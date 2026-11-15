@@ -278,17 +278,21 @@ def _load_graded_labels(
     """Load graded labels from a run ID or path; return (graded_labels, validated_label).
 
     ``graded_labels`` is ``{query_id: {scene_id: float_grade}}`` carrying every
-    grade, SKIP (-1) included: the ablation needs the SKIPs to exclude those
-    scenes from the ranking rather than score them as irrelevant, and it
-    decides itself what a query with no positive grade does. Returns
-    ``(None, None)`` when no ``--grades`` arg.
+    grade on the run's current pool, SKIP (-1) included: the ablation needs the
+    SKIPs to exclude those scenes from the ranking rather than score them as
+    irrelevant, and it decides itself what a query with no positive grade does.
+    Grades against a pool the run has replaced are left out (see
+    :func:`kuaa.eval.grades.pool_grades`), and ``n`` counts what is kept.
+    Returns ``(None, None)`` when no ``--grades`` arg.
     """
     if grades_arg is None:
         return None, None
 
     from pathlib import Path as _Path
 
-    from kuaa.eval.grades import EvalRun, export_run
+    from kuaa.errors import EvalError
+    from kuaa.eval.datasets import load_pool
+    from kuaa.eval.grades import EvalRun, pool_grades
 
     path = _Path(grades_arg)
     if path.is_absolute() and path.exists():
@@ -298,14 +302,15 @@ def _load_graded_labels(
         run_root = REPO_ROOT / "data" / "eval"
         run = EvalRun(run_id=grades_arg, root=run_root)
 
-    exported = export_run(run)
-    # graded_labels: {query_id: {scene_id: float_grade}}
+    pool = load_pool(run.root, run.run_id)
+    if not pool.queries:
+        raise EvalError(f"no pool at {run.root / (run.run_id + '.queries.json')}")
+    graded = pool_grades(run, pool.queries)
     graded_labels: dict = {
-        qid: {sid: float(g) for sid, g in scenes.items()}
-        for qid, scenes in exported["grades"].items()
+        qid: {sid: float(g) for sid, g in scenes.items()} for qid, scenes in graded.items()
     }
 
-    distinct = exported["summary"]["distinct_pairs"]
+    distinct = sum(len(scenes) for scenes in graded.values())
     validated_label = f"human-validated (run {run.run_id}, n={distinct} grades)"
     return graded_labels, validated_label
 
@@ -336,9 +341,8 @@ def main(argv: list[str] | None = None) -> int:
     config_path = project_path(args.config)
     out_path = project_path(args.out)
 
-    graded_labels, validated_label = _load_graded_labels(getattr(args, "grades", None))
-
     try:
+        graded_labels, validated_label = _load_graded_labels(getattr(args, "grades", None))
         cfg = load_config(config_path, project_root=REPO_ROOT, ensure_dirs=False)
         queries = load_modal_queries(queries_path)
         configs = (

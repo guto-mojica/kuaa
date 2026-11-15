@@ -125,25 +125,26 @@ Re-flip `retrieval.reranker.enabled` to `auto`/`true` only when **all** hold:
 ## Measured on graded data
 
 The fixed core path was run on the graded `corpus01` pool (56 queries, one
-grader, 2436 grades; `docs/EVALUATION_RESULTS.md`). This is the current
-design: the cross-encoder reads the caption and hard-replaces the first-stage
-order. It is neither fork A nor fork B.
+grader, 1288 grades on the current pool; `docs/EVALUATION_RESULTS.md`). This
+is the current design: the cross-encoder reads the caption and hard-replaces
+the first-stage order. It is neither fork A nor fork B.
 
 | | Recall@5 | Recall@10 | MRR | nDCG@10 |
 |---|---:|---:|---:|---:|
-| hybrid | 0.178 | 0.344 | 0.920 | 0.677 |
-| hybrid_rerank | 0.188 | 0.355 | 0.932 | 0.676 |
+| hybrid | 0.262 | 0.499 | 0.920 | 0.701 |
+| hybrid_rerank | 0.273 | 0.512 | 0.923 | 0.696 |
 
-- **No measurable effect.** nDCG@10 differs by 0.001; the recall and MRR gains
-  (about +0.01) are inside the noise of 56 queries and one grader.
-- **No PT regression on nDCG@10.** PT 0.672 against 0.666 for `hybrid`.
-- **Large per-query swings that cancel.** 18 queries improve, 23 worsen and 15
-  tie, by up to ±0.6. It is worse on short queries (0.654 against 0.724) and
-  better on mid-length ones (0.666 against 0.610); those groups hold 20
-  queries each.
+- **No measurable effect.** nDCG@10 is 0.005 lower; the recall gain (about
+  +0.01) and the MRR gain (+0.003) are inside the noise of 56 queries and one
+  grader.
+- **No PT regression on nDCG@10.** PT 0.688 against 0.685 for `hybrid`.
+- **Large per-query swings that cancel.** With differences under 0.05 counted
+  as ties, 17 queries improve, 24 worsen and 15 tie, from +0.66 to −0.33. It is
+  worse on short queries (0.673 against 0.749) and better on mid-length ones
+  (0.686 against 0.635); those groups hold 20 queries each.
 - **Pooled evaluation understates it.** A candidate the reranker promotes that
   no pooled variant proposed was never shown to a grader and counts as
-  irrelevant.
+  irrelevant. On this run that is 11 of its 544 top-10 hits.
 
 Criterion 1 is therefore met only in the weak sense that it does not regress.
 Nothing here is a reason to enable it, so it stays off. Fork A is the cheap
