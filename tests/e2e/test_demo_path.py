@@ -30,9 +30,12 @@ from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
 import pytest
-from playwright.sync_api import expect
 
 from .conftest import REPO_ROOT
+
+# Collected by the model-free gates too, which have no Playwright installed;
+# skip at import instead of failing collection.
+expect = pytest.importorskip("playwright.sync_api").expect
 
 pytestmark = pytest.mark.e2e
 

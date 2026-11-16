@@ -9,9 +9,12 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from playwright.sync_api import expect
 
 from .conftest import REPO_ROOT
+
+# Collected by the model-free gates too, which have no Playwright installed;
+# skip at import instead of failing collection.
+expect = pytest.importorskip("playwright.sync_api").expect
 
 pytestmark = pytest.mark.e2e
 
