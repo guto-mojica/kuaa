@@ -10,6 +10,22 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ## [Não lançado]
 
+## [0.11.1] - 2026-11-16
+
+### Corrigido
+
+- **Aba Anotar mostrava o keyframe todo preto na maioria dos filmes.** Os
+  nomes de arquivo dos keyframes carregam o nome do vídeo de origem, que
+  muitas vezes tem espaços (`band of outsiders-Scene-001-01.jpg`). O palco
+  usava `background-image: url(...)` sem aspas, e o CSS descarta um `url()`
+  sem aspas que contém espaço. Só os quatro filmes sem espaço no nome
+  (Cine Jornal 187, Chronopolis, Jangada, Os Tiranos) apareciam. A URL agora
+  vai entre aspas, como nos demais templates.
+
+### Alterado
+
+- Versão 0.11.0 → 0.11.1.
+
 ## [0.11.0] - 2026-11-16
 
 ### Adicionado

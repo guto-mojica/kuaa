@@ -8,7 +8,7 @@ config_version: 1
 
 project:
   name: "KUAA"
-  version: "0.11.0"   # keep in sync with pyproject.toml / kuaa.__version__
+  version: "0.11.1"   # keep in sync with pyproject.toml / kuaa.__version__
 
 # ── Domain pack ───────────────────────────────────────────────────────────────
 # Domain packs define prompts, metadata fields, filters, taxonomy, and export
