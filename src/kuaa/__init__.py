@@ -24,7 +24,7 @@ Uso rápido:
     print(result.summary())
 """
 
-__version__ = "0.10.0"
+__version__ = "0.11.0"
 __author__ = "KUAA Team"
 
 from kuaa.config import load_config, setup_logging

@@ -11,7 +11,7 @@ Project site: https://guto-mojica.github.io/kuaa/
 [![CI](https://github.com/guto-mojica/kuaa/actions/workflows/ci.yml/badge.svg)](https://github.com/guto-mojica/kuaa/actions/workflows/ci.yml)
 [![Licença: MIT](https://img.shields.io/badge/Licença-MIT-amber.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://python.org)
-[![Versão](https://img.shields.io/badge/versão-0.10.0-blue.svg)](CHANGELOG.md)
+[![Versão](https://img.shields.io/badge/versão-0.11.0-blue.svg)](CHANGELOG.md)
 
 ---
 

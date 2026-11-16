@@ -10,7 +10,59 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ## [Não lançado]
 
+## [0.11.0] - 2026-11-16
+
+### Adicionado
+
+- **Interpolação entre âncoras** (Rimas Visuais): busca nos pontos *entre*
+  duas cenas âncora, o espaço que nenhuma delas traria sozinha.
+- **Sinal de movimento por cena** (`kuaa motion run`): estatísticas de fluxo
+  óptico separando câmera de sujeito, gravadas em `scene_motion.json`. É o
+  único sinal que não vem de um quadro parado.
+- **Avaliação por pool:** candidatos reunidos de todos os retrievers de
+  `RETRIEVER_REGISTRY` e fila de julgamento cega (ordem por hash do
+  candidato, `score` oculto). Conjunto de consultas `corpus01` e o modelo de
+  três arquivos documentados. Ablação graduada pontuada sobre o ranking do
+  acervo inteiro. Nome do grader editável no cabeçalho do painel; ⌘⏎ após a
+  última linha abre a próxima consulta da fila.
+- **Seleção de cenas persistente entre abas**, com barra compartilhada para
+  agir sobre a seleção (Buscar → Cenas → Anotar).
+- **Teste e2e que percorre o caminho da demo** somente-leitura e falha em
+  erros de console ou imagens quebradas. Os módulos e2e são pulados quando o
+  Playwright não está instalado.
+
+- **Disjuntor de degeneração no `describe_batch`** (ambos os backends).
+  Após `llm.max_consecutive_degenerate` cenas consecutivas degeneradas
+  (padrão 3; 0 desliga), o step faz checkpoint das linhas boas e aborta com
+  `ModelError` explicando a causa provável. Sem isso, o lote de 2026-08-14
+  gastou 6,5 horas para produzir uma cena aproveitável em vinte antes de a
+  GPU falhar de vez.
+
+- **`MoondreamTransformersDescriber.release()`** — devolve os pesos ao
+  alocador e chama `torch.mps.empty_cache()` / `torch.cuda.empty_cache()`,
+  invocado no `finally` do `describe_batch` (inclusive no caminho de aborto).
+  Os alocadores de cache guardam blocos liberados no próprio pool: soltar a
+  última referência a um Moondream fp16 de 3,7 GB não devolve nada ao SO
+  sozinho. Num `kuaa serve` longevo que descreve vários filmes, cada
+  describer empilhava sobre os blocos retidos do anterior — foi assim que a
+  GPU acabou. `_encode` também descarta o `EncodedImage` anterior (KV cache
+  estático de 384 MiB) *antes* de alocar o próximo, em vez de manter os dois
+  vivos durante a alocação.
+
 ### Corrigido
+
+- **UI:** filme e cena seguem de um resultado do Buscar para as outras abas;
+  cada tela mostra um keyframe e uma descrição por cena; as coleções do painel
+  esquerdo contam por cena e têm rótulos traduzidos; o selo do cartão do Buscar
+  sai do caminho quando o checkbox de seleção aparece.
+- **Inspetor:** o formulário de tags do painel Buscar não reescreve mais tags
+  manuais, e consulta um único filme por requisição em vez de varrer o acervo.
+- **i18n:** entradas `fuzzy` e vazias do pt_BR traduzidas; "Buscar" no lugar de
+  "Pesquisar".
+- **Avaliação:** ablação graduada pontua só as notas do pool atual e rotula o
+  corpus como acervo inteiro; o grader mantém o nome após limpar o cookie;
+  testes de slate usam o reranker stub (gate rápido sem modelos).
+- **Licença:** titular do copyright correto; nome antigo do projeto removido.
 
 - **Saída degenerada do describer não é mais indexada como conteúdo.**
   Incidente de 2026-08-14: durante o lote noturno, o `kuaa serve` esgotou a
@@ -50,27 +102,12 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
   usar `query(settings={"max_tokens": N})`, com fallback ruidoso e único para
   revisões anteriores ao `query`.
 
-### Adicionado
-
-- **Disjuntor de degeneração no `describe_batch`** (ambos os backends).
-  Após `llm.max_consecutive_degenerate` cenas consecutivas degeneradas
-  (padrão 3; 0 desliga), o step faz checkpoint das linhas boas e aborta com
-  `ModelError` explicando a causa provável. Sem isso, o lote de 2026-08-14
-  gastou 6,5 horas para produzir uma cena aproveitável em vinte antes de a
-  GPU falhar de vez.
-
-- **`MoondreamTransformersDescriber.release()`** — devolve os pesos ao
-  alocador e chama `torch.mps.empty_cache()` / `torch.cuda.empty_cache()`,
-  invocado no `finally` do `describe_batch` (inclusive no caminho de aborto).
-  Os alocadores de cache guardam blocos liberados no próprio pool: soltar a
-  última referência a um Moondream fp16 de 3,7 GB não devolve nada ao SO
-  sozinho. Num `kuaa serve` longevo que descreve vários filmes, cada
-  describer empilhava sobre os blocos retidos do anterior — foi assim que a
-  GPU acabou. `_encode` também descarta o `EncodedImage` anterior (KV cache
-  estático de 384 MiB) *antes* de alocar o próximo, em vez de manter os dois
-  vivos durante a alocação.
-
 ### Alterado
+
+- Versão 0.10.0 → 0.11.0 (`pyproject.toml`, `src/kuaa/__init__.py`,
+  `config/default.yaml`, `uv.lock`, `SETUP.md`, README, páginas do site).
+- IDs internos de tracker removidos de `src/`, `api/` e `tests/`; `SETUP.md`
+  alinhado à CLI e ao layout atuais.
 
 - **LOC budget agora cobre todo o `api/`, por prefixo mais específico.**
   `scripts/check_loc_budget.py` usava `glob("*.py")` em `api/services` e
@@ -108,7 +145,6 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
   existe apenas para caber no limite. Isso sugere que o cap de 250 está
   apertado para o trabalho real, mas afrouxá-lo é decisão separada e
   deliberada — não foi feita aqui.
-
 ## [0.10.0] - 2026-08-05
 
 ### Corrigido
