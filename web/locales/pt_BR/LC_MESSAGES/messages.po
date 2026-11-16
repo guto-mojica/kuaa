@@ -120,14 +120,12 @@ msgid "nav"
 msgstr "nav"
 
 #: web/templates/eval/layout.html:142
-#, fuzzy
 msgid "next row / query"
-msgstr "Próxima cena / busca"
+msgstr "próxima linha / busca"
 
 #: web/templates/eval/layout.html:143
-#, fuzzy
 msgid "blind / compare"
-msgstr "Modo cego"
+msgstr "cego / comparar"
 
 #: web/templates/eval/layout.html:144
 msgid "help"
@@ -150,15 +148,15 @@ msgstr "Atalhos de teclado"
 
 #: web/templates/eval/layout.html:164
 msgid "grade the focused row"
-msgstr ""
+msgstr "julgar a linha em foco"
 
 #: web/templates/eval/layout.html:165
 msgid "skip — explicit “no opinion”, not “later”"
-msgstr ""
+msgstr "pular — “sem opinião” explícito, não “depois”"
 
 #: web/templates/eval/layout.html:166
 msgid "move the row cursor down / up"
-msgstr ""
+msgstr "mover o cursor de linha para baixo / cima"
 
 #: web/templates/eval/layout.html:167
 msgid ""
@@ -170,20 +168,19 @@ msgstr ""
 
 #: web/templates/eval/layout.html:168
 msgid "blind mode — hide retriever scores"
-msgstr ""
+msgstr "modo cego — oculta as pontuações dos recuperadores"
 
 #: web/templates/eval/layout.html:169
 msgid "compare — show the other annotator’s grade"
-msgstr ""
+msgstr "comparar — mostra o julgamento do outro anotador"
 
 #: web/templates/eval/layout.html:170
-#, fuzzy
 msgid "this panel"
-msgstr "Esta ajuda"
+msgstr "este painel"
 
 #: web/templates/eval/layout.html:171
 msgid "Esc"
-msgstr ""
+msgstr "Esc"
 
 #: web/templates/eval/layout.html:171 web/templates/partials/_palette.html:78
 msgid "close"
@@ -194,7 +191,7 @@ msgid ""
 "Click any query in the left queue to jump to it — including ones you have"
 " already started. Grades are saved the moment you press a key; re-grading"
 " a row simply overwrites it."
-msgstr ""
+msgstr "Clique em qualquer busca na fila à esquerda para ir até ela, inclusive as que você já começou. Os julgamentos são salvos assim que você aperta uma tecla; julgar uma linha de novo apenas sobrescreve o anterior."
 
 #: web/templates/eval/metrics.html:13
 msgid "METRICS"
@@ -398,7 +395,7 @@ msgstr "Tipo de arquivo não suportado. Use uma imagem PNG, JPG ou WebP."
 
 #: web/templates/partials/_field_error.html:50
 msgid "Type a query to search."
-msgstr "Digite uma busca para pesquisar."
+msgstr "Digite um termo para buscar."
 
 #: web/templates/partials/_field_error.html:52
 msgid "Type at least 2 characters to search."
@@ -417,9 +414,8 @@ msgid "A film with this name is already in the library."
 msgstr "Um filme com este nome já está no acervo."
 
 #: web/templates/partials/_field_error.html:60
-#, fuzzy
 msgid "This film is already in the library."
-msgstr "Um filme com este nome já está no acervo."
+msgstr "Este filme já está no acervo."
 
 #: web/templates/partials/_help_overlay.html:67
 #: web/templates/partials/_toast_host.html:28
@@ -508,9 +504,8 @@ msgstr "Adicionar filme"
 
 # ── Processing tab ────────────────────────────────────────────────────
 #: web/templates/partials/_left_pane_body.html:48
-#, fuzzy
 msgid "All films"
-msgstr "filmes"
+msgstr "Todos os filmes"
 
 #: web/templates/partials/_left_pane_body.html:86
 #: web/templates/partials/annotate.html:97
@@ -549,9 +544,8 @@ msgid "select"
 msgstr "selecionar"
 
 #: web/templates/partials/_selection_bar.html:14
-#, fuzzy
 msgid "scene(s) selected"
-msgstr "Nenhuma cena selecionada"
+msgstr "cena(s) selecionada(s)"
 
 #: web/templates/partials/_selection_bar.html:19
 msgid "Open in Scenes"
@@ -559,9 +553,8 @@ msgstr "Abrir em Cenas"
 
 # ── Search tab ────────────────────────────────────────────────────────
 #: web/templates/partials/_selection_bar.html:26
-#, fuzzy
 msgid "Export EDL"
-msgstr "exportar"
+msgstr "Exportar EDL"
 
 #: web/templates/partials/_selection_bar.html:29
 #: web/templates/partials/annotate_tags.html:122
@@ -723,18 +716,16 @@ msgstr "Execute a etapa Detecção de cenas primeiro."
 
 #: web/templates/partials/annotate.html:79
 #: web/templates/partials/annotate.html:80
-#, fuzzy
 msgid "Back to Scenes"
-msgstr "Online novamente"
+msgstr "Voltar para Cenas"
 
 #: web/templates/partials/annotate.html:88
 msgid "Current film"
 msgstr "Filme atual"
 
 #: web/templates/partials/annotate.html:96
-#, fuzzy
 msgid "Jump to scene"
-msgstr "Próxima cena"
+msgstr "Ir para a cena"
 
 #: web/templates/partials/annotate.html:118
 #: web/templates/partials/annotate_props.html:65
@@ -761,7 +752,7 @@ msgstr "Posição de reprodução da cena"
 #: web/templates/partials/annotate.html:170
 #, python-format
 msgid "Frame at %(pct)s%%"
-msgstr ""
+msgstr "Quadro em %(pct)s%%"
 
 #: web/templates/partials/annotate.html:187
 #: web/templates/partials/annotate.html:188
@@ -904,7 +895,7 @@ msgstr "Anotações"
 
 #: web/templates/partials/annotate_scene.html:81
 msgid "Comments — available in a future version"
-msgstr ""
+msgstr "Comentários — disponível em uma versão futura"
 
 #: web/templates/partials/annotate_scene.html:82
 msgid "Comments"
@@ -996,9 +987,8 @@ msgid "Add"
 msgstr "Adicionar"
 
 #: web/templates/partials/annotate_tags.html:45
-#, fuzzy
 msgid "No LLM description yet."
-msgstr "Sem descrição ainda."
+msgstr "Ainda sem descrição do LLM."
 
 #: web/templates/partials/annotate_tags.html:52
 msgid "tag(s) saved"
@@ -1212,14 +1202,11 @@ msgid "Detecting…"
 msgstr "Detectando…"
 
 #: web/templates/partials/preprocess.html:114
-#, fuzzy
 msgid ""
 "Re-detecting replaces the current cuts — including manual edits and any "
 "pending, not-yet-applied changes — and clears the downstream visual, "
 "embeddings, and description outputs."
-msgstr ""
-"Redetectar substitui os cortes atuais — incluindo edições manuais — e "
-"limpa as saídas posteriores de análise visual, embeddings e descrições."
+msgstr "Redetectar substitui os cortes atuais — incluindo edições manuais e quaisquer alterações pendentes, ainda não aplicadas — e limpa as saídas posteriores de análise visual, embeddings e descrições."
 
 #: web/templates/partials/preprocess.html:116
 msgid ""
@@ -1386,14 +1373,12 @@ msgid "Starting…"
 msgstr "Iniciando…"
 
 #: web/templates/partials/processing.html:118
-#, fuzzy
 msgid "+ Queue"
-msgstr "FILA"
+msgstr "+ Fila"
 
 #: web/templates/partials/processing.html:121
-#, fuzzy
 msgid "Queuing…"
-msgstr "FILA"
+msgstr "Enfileirando…"
 
 #: web/templates/partials/processing.html:138
 msgid "No active jobs."
@@ -1428,14 +1413,13 @@ msgid "QUEUE"
 msgstr "FILA"
 
 #: web/templates/partials/processing_queue.html:16
-#, fuzzy
 msgid "Start"
-msgstr "ESTATÍSTICAS"
+msgstr "Iniciar"
 
 #: web/templates/partials/processing_queue.html:30
 #: web/templates/partials/processing_queue.html:31
 msgid "Remove from queue"
-msgstr ""
+msgstr "Remover da fila"
 
 #: web/templates/partials/processing_queue.html:39
 msgid "No history yet."
@@ -1720,7 +1704,7 @@ msgstr "Compacto"
 
 #: web/templates/partials/scenes.html:137
 msgid "Per page"
-msgstr ""
+msgstr "Por página"
 
 # ── Processing tab ────────────────────────────────────────────────────
 #: web/templates/partials/scenes.html:172
@@ -1838,22 +1822,20 @@ msgstr ""
 "descrição."
 
 #: web/templates/partials/scenes_grid.html:56
-#, fuzzy
 msgid "Pagination"
-msgstr "Posição"
+msgstr "Paginação"
 
 #: web/templates/partials/scenes_grid.html:72
 msgid "of"
-msgstr ""
+msgstr "de"
 
 #: web/templates/partials/scenes_grid.html:81
 msgid "← Prev"
-msgstr ""
+msgstr "← Anterior"
 
 #: web/templates/partials/scenes_grid.html:89
-#, fuzzy
 msgid "Next →"
-msgstr "Próxima cena"
+msgstr "Próxima →"
 
 #: web/templates/partials/scenes_grid.html:96
 msgid "No scenes match the filters."
@@ -1869,9 +1851,8 @@ msgid "TYPE"
 msgstr "TIPO"
 
 #: web/templates/partials/scenes_grid.html:181
-#, fuzzy
 msgid "Load more"
-msgstr "Modo cego"
+msgstr "Carregar mais"
 
 #: web/templates/partials/scenes_inspector.html:43
 msgid "Item selected"
@@ -1949,18 +1930,16 @@ msgid "Cross-encoder rerank"
 msgstr "Reordenador cross-encoder"
 
 #: web/templates/partials/search.html:384
-#, fuzzy
 msgid "Scope"
-msgstr "abrir"
+msgstr "Escopo"
 
 #: web/templates/partials/search.html:391
 msgid "Switch to library-wide search"
-msgstr ""
+msgstr "Mudar para busca em todo o acervo"
 
 #: web/templates/partials/search.html:393
-#, fuzzy
 msgid "Library-wide"
-msgstr "Acervo"
+msgstr "Todo o acervo"
 
 #: web/templates/partials/search.html:417
 msgid "results"
