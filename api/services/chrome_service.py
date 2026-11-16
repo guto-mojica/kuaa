@@ -60,6 +60,7 @@ def _collection_counts(cfg: Any, films: list[Film]) -> Counter[str]:
     that builds Cenas cards instead of maintaining separate static metadata.
     Missing or malformed per-film artefacts are skipped; the overall
     ``Entire library`` count still comes from ``LibraryState.scene_count``.
+    A scene owns several keyframe rows but is counted once, as the grid does.
     """
     from api.services.catalog import load_metadata
     from api.services.scenes import tipo_of
@@ -79,10 +80,14 @@ def _collection_counts(cfg: Any, films: list[Film]) -> Counter[str]:
             for scene_id in scene_ids:
                 tags_by_scene.setdefault(scene_id_key(scene_id), []).append(tag)
 
+        seen: set[str] = set()
         for entry in kf_meta:
             if not isinstance(entry, dict) or "scene_id" not in entry:
                 continue
             sid = scene_id_key(entry["scene_id"])
+            if sid in seen:
+                continue
+            seen.add(sid)
             desc = desc_by_scene.get(sid, {}).get("description") or ""
             counts[tipo_of(tags_by_scene.get(sid, []), desc)] += 1
     return counts
@@ -97,7 +102,7 @@ def _default_collections(
 
       * Entire library — active by default; count == sum of scenes
         across the registry.
-      * Rural exteriors / Title cards / Dialogues / Night scenes — four
+      * Exteriors / Title cards / Dialogues / Interiors — four
         curated semantic buckets. Counts come from the per-scene tipo
         classifier shared with the Cenas grid.
 
@@ -143,7 +148,7 @@ def _default_collections(
         },
         {
             "active": current_bucket == "interior",
-            "label": "Night scenes",
+            "label": "Interiors",
             "icon": "folder",
             "count": bucket_counts["interior"],
             "category": "interior",

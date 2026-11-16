@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kuaa-ai 0.3.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-15 21:14-0300\n"
+"POT-Creation-Date: 2026-11-15 22:07-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -527,6 +527,26 @@ msgstr "No films in library"
 
 #: web/templates/partials/_left_pane_body.html:117
 msgid "Collections"
+msgstr ""
+
+#: web/templates/partials/_left_pane_body.html:119
+msgid "Entire library"
+msgstr ""
+
+#: web/templates/partials/_left_pane_body.html:119
+msgid "Exteriors"
+msgstr ""
+
+#: web/templates/partials/_left_pane_body.html:119
+msgid "Title cards"
+msgstr ""
+
+#: web/templates/partials/_left_pane_body.html:119
+msgid "Dialogues"
+msgstr ""
+
+#: web/templates/partials/_left_pane_body.html:119
+msgid "Interiors"
 msgstr ""
 
 #: web/templates/partials/_palette.html:56

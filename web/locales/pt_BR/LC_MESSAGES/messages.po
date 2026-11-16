@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kuaa-ai 0.3.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-15 21:14-0300\n"
+"POT-Creation-Date: 2026-11-15 22:07-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pt_BR\n"
@@ -191,7 +191,10 @@ msgid ""
 "Click any query in the left queue to jump to it — including ones you have"
 " already started. Grades are saved the moment you press a key; re-grading"
 " a row simply overwrites it."
-msgstr "Clique em qualquer busca na fila à esquerda para ir até ela, inclusive as que você já começou. Os julgamentos são salvos assim que você aperta uma tecla; julgar uma linha de novo apenas sobrescreve o anterior."
+msgstr ""
+"Clique em qualquer busca na fila à esquerda para ir até ela, inclusive as"
+" que você já começou. Os julgamentos são salvos assim que você aperta uma"
+" tecla; julgar uma linha de novo apenas sobrescreve o anterior."
 
 #: web/templates/eval/metrics.html:13
 msgid "METRICS"
@@ -526,6 +529,26 @@ msgstr "Nenhum filme no acervo"
 #: web/templates/partials/_left_pane_body.html:117
 msgid "Collections"
 msgstr "Coleções"
+
+#: web/templates/partials/_left_pane_body.html:119
+msgid "Entire library"
+msgstr "Todo o acervo"
+
+#: web/templates/partials/_left_pane_body.html:119
+msgid "Exteriors"
+msgstr "Exteriores"
+
+#: web/templates/partials/_left_pane_body.html:119
+msgid "Title cards"
+msgstr "Cartelas"
+
+#: web/templates/partials/_left_pane_body.html:119
+msgid "Dialogues"
+msgstr "Diálogos"
+
+#: web/templates/partials/_left_pane_body.html:119
+msgid "Interiors"
+msgstr "Interiores"
 
 #: web/templates/partials/_palette.html:56
 msgid "Search films, scenes, actions…"
@@ -1206,7 +1229,10 @@ msgid ""
 "Re-detecting replaces the current cuts — including manual edits and any "
 "pending, not-yet-applied changes — and clears the downstream visual, "
 "embeddings, and description outputs."
-msgstr "Redetectar substitui os cortes atuais — incluindo edições manuais e quaisquer alterações pendentes, ainda não aplicadas — e limpa as saídas posteriores de análise visual, embeddings e descrições."
+msgstr ""
+"Redetectar substitui os cortes atuais — incluindo edições manuais e "
+"quaisquer alterações pendentes, ainda não aplicadas — e limpa as saídas "
+"posteriores de análise visual, embeddings e descrições."
 
 #: web/templates/partials/preprocess.html:116
 msgid ""

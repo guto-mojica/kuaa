@@ -116,7 +116,7 @@
 <div class="fx-ph">
   <span>{{ _('Collections') }}</span>
 </div>
-
+{# Collection labels arrive as data, so name them here for extraction. #}{% if false %}{{ _("Entire library") }}{{ _("Exteriors") }}{{ _("Title cards") }}{{ _("Dialogues") }}{{ _("Interiors") }}{% endif %}
 {% for col in (collections or []) %}
   <a class="ch-coll{% if col.active %} active{% endif %}"
      href="{{ col.url or '#' }}"
