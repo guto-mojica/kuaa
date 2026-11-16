@@ -282,6 +282,6 @@ def test_field_errors_translate_to_pt(tmp_config) -> None:
             params={"q": ""},
             headers={"HX-Request": "true", "HX-Trigger": "search-text-form"},
         )
-        assert "Digite uma busca para pesquisar" in r.text
+        assert "Digite um termo para buscar" in r.text
     finally:
         c.__exit__(None, None, None)

@@ -122,6 +122,33 @@
   opacity: 1; background: var(--c-green); border-color: var(--c-green); color: #0E1014;
 }
 
+/* Search cards share the Scenes card's checkbox; .b-card is not positioned
+   by buscar.css, so the absolute .check needs it here. */
+.b-card { position: relative; }
+.b-card .check {
+  position: absolute; top: 7px; left: 7px;
+  width: 18px; height: 18px; border-radius: 4px; padding: 0;
+  background: rgba(14,16,20,0.75); border: 1px solid var(--c-border-2);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; opacity: 0; transition: opacity var(--dur-fast);
+  color: var(--c-text); z-index: var(--z-overlay-content);
+}
+.b-card:hover .check, .b-card .check:focus-visible { opacity: 1; }
+/* The status badge sits in the same top-left corner; it steps aside by the
+   checkbox's width plus its gap whenever the checkbox is showing. */
+.b-card .kf .tl { transition: transform var(--dur-fast); }
+.b-card:hover .kf .tl, .b-card:focus-within .kf .tl, .b-card.checked .kf .tl {
+  transform: translateX(24px);
+}
+.b-card.checked { border-color: var(--c-green); box-shadow: 0 0 0 2px var(--c-green-bg); }
+.b-card.checked .check {
+  opacity: 1; background: var(--c-green); border-color: var(--c-green); color: #0E1014;
+}
+
+/* Line above the grid when /scenes was opened with ?sel= */
+.c-cp .sel-notice { margin: 0 0 10px; font-size: 13px; color: var(--c-muted); }
+.c-cp .sel-notice a { margin-left: 8px; color: var(--c-accent); }
+
 /* Selection action bar — flex child of .c-cp, sits below the scroll area */
 .selection-bar {
   display: flex; align-items: center; justify-content: space-between;

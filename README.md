@@ -6,6 +6,8 @@
 
 *kuaa* — Guarani for *to know* — is a local-first applied AI workbench designed to transform raw video files into searchable, human-reviewable scene catalogs. Specifically engineered for film archives, it handles the "messy" realities of historical footage: sparse metadata, inconsistent aspect ratios, and degraded signal quality.
 
+Project site: https://guto-mojica.github.io/kuaa/
+
 [![CI](https://github.com/guto-mojica/kuaa/actions/workflows/ci.yml/badge.svg)](https://github.com/guto-mojica/kuaa/actions/workflows/ci.yml)
 [![Licença: MIT](https://img.shields.io/badge/Licença-MIT-amber.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://python.org)
@@ -83,7 +85,7 @@ uv run kuaa serve
 To explore the system with a pre-built dataset of Library of Congress footage:
 ```bash
 uv run python scripts/prepare_demo.py --download
-uv run kuaa serve --config config/demo.yaml
+KUAA_CONFIG=config/demo.yaml uv run kuaa serve
 ```
 
 ---

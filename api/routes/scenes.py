@@ -16,6 +16,7 @@ from api.schemas import Pagination
 from api.services.scenes import (
     build_cenas_context,
     build_inspector_context,
+    parse_selection,
     resolve_inspector_template,
 )
 from api.templates import templates
@@ -77,6 +78,7 @@ async def api_scenes(
     bucket: str | None = None,
     page: Pagination = Depends(Pagination),
     append: bool = Query(default=False),
+    sel: str | None = None,
 ) -> HTMLResponse:
     """Return the filtered Cenas grid fragment for HTMX swaps.
 
@@ -95,6 +97,7 @@ async def api_scenes(
         bucket=bucket,
         limit=page.limit,
         offset=page.offset,
+        selection=parse_selection(sel),
     )
     grid_ctx = {
         "groups_by_film": ctx["groups_by_film"],
@@ -129,11 +132,12 @@ async def api_scene_inspector(
     scene_id: int,
     tab: str = Query(default="activity"),
     kind: str = Query(default="buscar"),
+    kf: str | None = Query(default=None),
     slug: str | None = Depends(film_slug_query),
 ) -> HTMLResponse:
     """Render the right-pane scene inspector (HTMX swap target)."""
     cfg = get_config()
-    ctx = build_inspector_context(cfg, scene_id=scene_id, slug=slug, inspector_tab=tab)
+    ctx = build_inspector_context(cfg, scene_id=scene_id, slug=slug, inspector_tab=tab, kf=kf)
     if ctx is None:
         raise HTTPException(status_code=404, detail="scene not found")
     template_name, inspector_kind = resolve_inspector_template(kind)

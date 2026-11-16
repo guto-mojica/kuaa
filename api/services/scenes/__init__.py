@@ -7,6 +7,7 @@ enforced by ``scripts/check_loc_budget.py``.
 
 from api.services.scenes._cards import build_cenas_context
 from api.services.scenes._inspector import build_inspector_context, resolve_inspector_template
+from api.services.scenes._selection import parse_selection
 from api.services.scenes._timeline import build_timeline_context
 from api.services.scenes._tipo import tipo_of
 
@@ -14,6 +15,7 @@ __all__ = [
     "build_cenas_context",
     "build_inspector_context",
     "build_timeline_context",
+    "parse_selection",
     "resolve_inspector_template",
     "tipo_of",
 ]

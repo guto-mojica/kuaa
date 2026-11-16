@@ -15,8 +15,10 @@ from api.services.catalog import (
     to_smpte,
 )
 from api.services.scenes._tipo import tipo_of
+from kuaa.annotations import load_annotations
 from kuaa.annotations.descriptions import canonical_description
-from kuaa.library import FilmContext
+from kuaa.library import Film, FilmContext, load_registry
+from kuaa.library.keyframes import pick_keyframe_entry
 from kuaa.scene_ids import scene_id_key
 
 logger = logging.getLogger(__name__)
@@ -32,34 +34,26 @@ def _resolve_tab(tab: str | None) -> str:
     return "activity"
 
 
-def _scene_lookup(kf_meta: list, scene_id: int) -> dict | None:
-    """Return the keyframes_metadata entry whose ``scene_id`` matches.
+def _film_for(cfg: Any, slug: str, kf_meta: list) -> Film | None:
+    """Return the registered ``Film`` for ``slug``, or ``None`` if unregistered.
 
-    ``keyframes_metadata.json`` uses INT scene ids (as the keyframe
-    extractor emits them); the inspector endpoint accepts an INT from
-    the URL path, so equality is direct here.
+    Reads only ``films.json`` and reuses the keyframe rows the caller already
+    loaded, so one film's inspector never opens another film's metadata. The
+    fields match what ``kuaa.library.scan_library`` yields for that film.
     """
-    for entry in kf_meta:
-        try:
-            if int(entry.get("scene_id")) == scene_id:
-                return entry
-        except (TypeError, ValueError):
-            continue
-    return None
-
-
-def _films_by_slug(cfg: Any) -> dict:
-    """Return ``{slug: Film}`` for every registered film.
-
-    Local copy of ``api.services.search.films_by_id_lookup`` semantics —
-    duplicated here to avoid a back-reference from the inspector service
-    into the search service (which would couple two layers that should
-    stay independent).
-    """
-    from kuaa.library import scan_library
-
     library_dir = Path(cfg.paths.library_dir)
-    return {film.slug: film for film in scan_library(library_dir)}
+    entry = load_registry(library_dir).get(slug)
+    if entry is None:
+        return None
+    scene_count = len({e.get("scene_id") for e in kf_meta})
+    return Film(
+        slug=slug,
+        title=entry.get("title", slug),
+        raw_path=library_dir / slug / "raw" / entry.get("raw_filename", ""),
+        scene_count=scene_count,
+        is_processed=scene_count > 0,
+        year=entry.get("year"),
+    )
 
 
 def _description_for(metadata_dir: Path, scene_id: int) -> str:
@@ -98,12 +92,25 @@ def _tags_for(metadata_dir: Path, scene_id: int) -> list[str]:
     return tags
 
 
+def _manual_tags_for(ctx: FilmContext, scene_id: int) -> list[str]:
+    """Return only the manual tags of ``scene_id`` (empty when absent or malformed).
+
+    The save route replaces a scene's manual tags with the form's contents,
+    so the form is prefilled from this list, not the merged one."""
+    try:
+        raw = load_annotations(ctx).get(str(scene_id))
+    except (OSError, ValueError, AttributeError):
+        raw = None
+    return [t for t in raw if isinstance(t, str)] if isinstance(raw, list) else []
+
+
 def build_inspector_context(
     cfg: Any,
     *,
     scene_id: int,
     slug: str | None,
     inspector_tab: str = "activity",
+    kf: str | None = None,
 ) -> InspectorContext | None:
     """Build the template context for the right-pane inspector partial.
 
@@ -132,13 +139,12 @@ def build_inspector_context(
     kf_meta = load_json(ctx.metadata_dir / "keyframes_metadata.json") or []
     if not isinstance(kf_meta, list):
         kf_meta = []
-    entry = _scene_lookup(kf_meta, scene_id)
+    entry = pick_keyframe_entry(kf_meta, scene_id, kf)
     if entry is None:
         logger.info("inspector: scene_id=%d not in %s → 404", scene_id, ctx.metadata_dir)
         return None
 
-    films_by_slug = _films_by_slug(cfg)
-    selected_film = films_by_slug.get(slug)
+    selected_film = _film_for(cfg, slug, kf_meta)
     if selected_film is None:
         # The slug resolves to a directory on disk but is not registered
         # in films.json. Render the inspector anyway with a stub film
@@ -183,6 +189,7 @@ def build_inspector_context(
         "scene_id": scene_id,
         "film_slug": slug,
         "keyframe_url": img_url or "",
+        "kf": Path(str(entry.get("filepath", ""))).name,
         "timecode": timecode,
         "start_s": start_s,
         "end_s": end_s,
@@ -191,6 +198,7 @@ def build_inspector_context(
         "title": None,
         "description": description,
         "tags": tags,
+        "manual_tags": _manual_tags_for(ctx, scene_id),
         "pin_count": 0,
         "activity_count": 0,
         "annotation_count": 0,

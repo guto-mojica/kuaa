@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from kuaa.annotations.descriptions import canonical_description
 from kuaa.config import Settings
 from kuaa.library import (
     FilmContext,
@@ -20,6 +21,8 @@ from kuaa.library import (
     load_tag_index,
     to_smpte,
 )
+from kuaa.library.keyframes import pick_keyframe_entry
+from kuaa.scene_ids import scene_id_key
 
 logger = logging.getLogger(__name__)
 
@@ -49,14 +52,7 @@ def load_scene_meta(cfg: Settings, slug: str, scene_id: int) -> dict | None:
     if not isinstance(kf_meta, list):
         return None
 
-    entry: dict | None = None
-    for e in kf_meta:
-        try:
-            if int(e.get("scene_id")) == scene_id:
-                entry = e
-                break
-        except (TypeError, ValueError):
-            continue
+    entry = pick_keyframe_entry(kf_meta, scene_id)
     if entry is None:
         return None
 
@@ -83,20 +79,12 @@ def load_scene_meta(cfg: Settings, slug: str, scene_id: int) -> dict | None:
 
 
 def description_for(metadata_dir: Path, scene_id: int) -> str:
-    """Look up the moondream description for ``scene_id`` (``""`` if absent)."""
+    """Look up the canonical description for ``scene_id`` (``""`` if absent)."""
     descs = load_json(metadata_dir / "scene_descriptions.json") or []
     if not isinstance(descs, list):
         return ""
-    for entry in descs:
-        sid = entry.get("scene_id")
-        if sid is None:
-            continue
-        try:
-            if int(sid) == scene_id:
-                return str(entry.get("description") or "")
-        except (TypeError, ValueError):
-            continue
-    return ""
+    rec = canonical_description(descs).get(scene_id_key(scene_id))
+    return str(rec.get("description") or "") if rec else ""
 
 
 def tags_for(metadata_dir: Path, scene_id: int) -> list[str]:
@@ -120,10 +108,9 @@ def keyframe_index(cfg: Settings, slug: str) -> tuple[dict[int, dict], float, Pa
     """Load one film's keyframe metadata once, for batch enrichment.
 
     Returns ``(by_scene, fps, data_dir)`` where ``by_scene`` maps each
-    ``scene_id`` to its *first* keyframe entry. The production pipeline writes
-    N rows per scene (``scene_NNNN_kf_01..0N``); the first row is the one the
-    single-scene resolvers (``_resolve_keyframe_url`` / :func:`resolve_timecode`)
-    have always returned, so first-row-wins keeps the resolved URL byte-identical.
+    ``scene_id`` to its middle keyframe entry. The pipeline writes N rows per
+    scene (``scene_NNNN_kf_01..0N``); the middle row is the one every other
+    screen shows, via :func:`kuaa.library.keyframes.pick_keyframe_entry`.
 
     Returns ``None`` when the film is unresolvable or the metadata file is
     missing/malformed, so callers fall back to empty url/timecode exactly as the
@@ -138,14 +125,14 @@ def keyframe_index(cfg: Settings, slug: str) -> tuple[dict[int, dict], float, Pa
     kf_meta = load_json(ctx.metadata_dir / "keyframes_metadata.json") or []
     if not isinstance(kf_meta, list):
         return None
-    by_scene: dict[int, dict] = {}
+    rows_by_scene: dict[int, list[dict]] = {}
     for entry in kf_meta:
         try:
             sid = int(entry.get("scene_id"))
         except (AttributeError, TypeError, ValueError):
             continue
-        if sid not in by_scene:  # first row per scene wins (matches legacy resolvers)
-            by_scene[sid] = entry
+        rows_by_scene.setdefault(sid, []).append(entry)
+    by_scene = {sid: rows[len(rows) // 2] for sid, rows in rows_by_scene.items()}
     return by_scene, derive_fps(kf_meta), ctx.data_dir
 
 
@@ -158,12 +145,8 @@ def resolve_timecode(cfg: Settings, slug: str, scene_id: int) -> str:
     kf_meta = load_json(ctx.metadata_dir / "keyframes_metadata.json") or []
     if not isinstance(kf_meta, list) or not kf_meta:
         return ""
-    fps = derive_fps(kf_meta)
-    for entry in kf_meta:
-        try:
-            if int(entry.get("scene_id")) == scene_id:
-                start_s = float(entry.get("start_time_s") or 0.0)
-                return to_smpte(start_s, fps) if start_s > 0 else ""
-        except (TypeError, ValueError):
-            continue
-    return ""
+    entry = pick_keyframe_entry(kf_meta, scene_id)
+    if entry is None:
+        return ""
+    start_s = float(entry.get("start_time_s") or 0.0)
+    return to_smpte(start_s, derive_fps(kf_meta)) if start_s > 0 else ""

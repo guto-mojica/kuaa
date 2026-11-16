@@ -527,6 +527,73 @@
 // Anotar ↔ Rimas round-trips land on the same scene instead of the
 // first one. Each tab exposes the selection in its own URL param:
 // /scenes → ?scene=, /annotate → ?id=, /rimas → ?anchor=<slug>/<id>.
+// Search cards load the inspector through HTMX and leave the URL alone, so
+// the film and scene a user is looking at there would be lost on a tab
+// switch. They are remembered per browser session (not localStorage: a new
+// session starts with no film) under ``kuaa.context``. Storage can throw in
+// private windows; every access falls back to "empty".
+(function () {
+  'use strict';
+  var KEY = 'kuaa.context';
+
+  function read() {
+    try {
+      var raw = window.sessionStorage.getItem(KEY);
+      var v = raw ? JSON.parse(raw) : null;
+      if (v && typeof v.film === 'string' && v.film) {
+        return { film: v.film, scene: v.scene == null ? null : v.scene };
+      }
+    } catch (_) { /* behave as empty */ }
+    return null;
+  }
+
+  function write(film, scene) {
+    if (!film) return;
+    var n = parseInt(scene, 10);
+    try {
+      window.sessionStorage.setItem(KEY, JSON.stringify({
+        film: film,
+        scene: isNaN(n) ? null : n
+      }));
+    } catch (_) { /* storage unavailable */ }
+  }
+
+  function clear() {
+    try { window.sessionStorage.removeItem(KEY); } catch (_) { /* ignore */ }
+  }
+
+  window.kuaaContextRead = read;
+  window.kuaaContextWrite = write;
+  window.kuaaContextClear = clear;
+
+  function fromCard(e) {
+    var card = e.target.closest && e.target.closest('.b-card');
+    if (!card) return;
+    write(card.getAttribute('data-film-slug') || '',
+          card.getAttribute('data-scene-id'));
+  }
+  document.addEventListener('click', function (e) {
+    // Delegated: the left pane is re-rendered by HTMX swaps and its markup is
+    // pinned by a render snapshot.
+    if (e.target.closest && e.target.closest('.ch-film--all')) clear();
+    fromCard(e);
+  });
+  document.addEventListener('keyup', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') fromCard(e);
+  });
+
+  var p = new URLSearchParams(window.location.search);
+  var film = p.get('film');
+  var scene = p.get('scene') || p.get('id');
+  var anchor = p.get('anchor');
+  if (anchor && anchor.indexOf('/') > 0) {
+    var parts = anchor.split('/');
+    film = parts[0];
+    scene = parts[1];
+  }
+  if (film) write(film, scene);
+})();
+
 window.sceneAwareTabHref = function (path) {
   var p = new URLSearchParams(window.location.search);
   var film = p.get('film');
@@ -537,6 +604,15 @@ window.sceneAwareTabHref = function (path) {
     var parts = anchor.split('/');
     film = parts[0];
     scene = parts[1];
+  }
+  if (!film) {
+    // A stored scene belongs to the stored film only, so both come from the
+    // store or neither does.
+    var ctx = window.kuaaContextRead();
+    if (ctx) {
+      film = ctx.film;
+      scene = ctx.scene == null ? '' : String(ctx.scene);
+    }
   }
   var out = new URLSearchParams();
   if (film) out.set('film', film);
@@ -730,11 +806,34 @@ document.addEventListener('click', function (e) {
     window.Alpine.store('buscarRetrieval', loadPrefs(KEYS.retrieval,  DEFAULTS.retrieval));
     window.Alpine.store('rimasRetrieval',  loadPrefs(KEYS.rimasRetrieval, DEFAULTS.rimasRetrieval));
 
-    // scenesSelection — ephemeral multi-selection of scene cards.
-    // Not persisted to localStorage (a selection is a transient gesture).
+    // scenesSelection — multi-selection of scene cards. Kept in sessionStorage
+    // because a selection must survive the full page load of a tab change but
+    // not outlive the browser session. Capped so the "Open in Scenes" URL and
+    // the one-page Scenes render stay bounded.
     // Shape: { _entries: [{scene_id, film_slug, scene_slug}], ... methods }
+    var SEL_KEY = 'kuaa.selection';
+    var SEL_MAX = 200;
+    function loadSelection() {
+      try {
+        var v = JSON.parse(window.sessionStorage.getItem(SEL_KEY) || '[]');
+        if (!Array.isArray(v)) return [];
+        return v.filter(function (e) {
+          return e && typeof e === 'object' && Number.isInteger(e.scene_id) &&
+            typeof e.film_slug === 'string' && e.film_slug !== '';
+        }).slice(0, SEL_MAX).map(function (e) {
+          return {
+            scene_id: e.scene_id,
+            film_slug: e.film_slug,
+            scene_slug: typeof e.scene_slug === 'string' ? e.scene_slug : 'scene ' + e.scene_id,
+          };
+        });
+      } catch (_) { return []; }
+    }
+    function saveSelection(entries) {
+      try { window.sessionStorage.setItem(SEL_KEY, JSON.stringify(entries)); } catch (_) { /* storage unavailable */ }
+    }
     window.Alpine.store('scenesSelection', {
-      _entries: [],
+      _entries: loadSelection(),
       has: function (sceneId, filmSlug) {
         return this._entries.some(function (e) { return e.scene_id === sceneId && e.film_slug === filmSlug; });
       },
@@ -742,11 +841,12 @@ document.addEventListener('click', function (e) {
         var idx = this._entries.findIndex(function (e) { return e.scene_id === sceneId && e.film_slug === filmSlug; });
         if (idx >= 0) {
           this._entries.splice(idx, 1);
-        } else {
+        } else if (this._entries.length < SEL_MAX) {
           this._entries.push({ scene_id: sceneId, film_slug: filmSlug, scene_slug: sceneSlug });
         }
+        saveSelection(this._entries);
       },
-      clear: function () { this._entries = []; },
+      clear: function () { this._entries = []; saveSelection(this._entries); },
       get count() { return this._entries.length; },
     });
 
@@ -784,6 +884,24 @@ window.rimasRefire = function (anchor) {
     target: '#rimas-echoes',
     swap: 'outerHTML',
   });
+};
+
+// ─── Selection navigation ─────────────────────────────────────────────
+// Targets for the selection bar's "Open in Scenes" and "Annotate" buttons.
+// Annotate edits one scene, so it gets the first selected one; the selection
+// persists, so the user can come back for the rest.
+window.selectionScenesHref = function () {
+  var store = window.Alpine && window.Alpine.store('scenesSelection');
+  var parts = (store ? store._entries : []).map(function (e) {
+    return encodeURIComponent(e.film_slug) + '/' + encodeURIComponent(e.scene_id);
+  });
+  return '/scenes?sel=' + parts.join(',');
+};
+window.selectionAnnotateHref = function () {
+  var store = window.Alpine && window.Alpine.store('scenesSelection');
+  var e = store && store._entries[0];
+  if (!e) return '/annotate';
+  return '/annotate?film=' + encodeURIComponent(e.film_slug) + '&id=' + encodeURIComponent(e.scene_id);
 };
 
 // ─── EDL download helper ──────────────────────────────────────────────
