@@ -410,6 +410,9 @@
     {% if active_bucket %}
     <input type="hidden" name="bucket" value="{{ active_bucket }}">
     {% endif %}
+    {% if sel_raw | default('') %}
+    <input type="hidden" name="sel" value="{{ sel_raw }}">
+    {% endif %}
 
     <span class="grow" aria-hidden="true"></span>
     {# ``.find`` keyword input — HTMX-swaps the grid on every change. The
@@ -460,6 +463,12 @@
 
     {# ── Grid (HTMX swap target for the .find input). The included partial
          renders one ``.group`` heading per film followed by its scenecards. #}
+    {% if sel_raw | default('') %}
+    <p class="sel-notice">
+      {{ _('Showing %(n)s selected scenes') % {'n': sel_count} }}
+      <a href="/scenes">{{ _('Show all') }}</a>
+    </p>
+    {% endif %}
     <div id="scenes-grid" class="grid">
       {% include "partials/scenes_grid.html" %}
     </div>
@@ -470,27 +479,7 @@
     {{ skeleton_grid("scenes-skeleton", count=8) }}
   </div>
 
-  {# ── Selection action bar — sits at bottom of .c-cp (flex child, not scrolled).
-       Alpine reads the ephemeral scenesSelection store (not persisted).
-       x-cloak hides it on first paint before Alpine boots. #}
-  <div class="selection-bar"
-       x-data
-       x-show="$store.scenesSelection.count > 0"
-       x-cloak
-       x-transition.opacity.duration.150ms>
-    <span class="sel-count">
-      <span x-text="$store.scenesSelection.count"></span>
-      {{ _('scene(s) selected') }}
-    </span>
-    <div class="sel-actions">
-      <button type="button" class="sel-btn sel-btn--primary" @click="window.downloadSelectionEdl()">
-        {{ _('Export EDL') }}
-      </button>
-      <button type="button" class="sel-btn sel-btn--ghost" @click="$store.scenesSelection.clear()">
-        {{ _('Clear') }}
-      </button>
-    </div>
-  </div>
+  {% include "partials/_selection_bar.html" %}
 
 </section>
 

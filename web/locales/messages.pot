@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-21 17:22-0300\n"
+"POT-Creation-Date: 2026-11-15 21:14-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -40,6 +40,7 @@ msgid "Scenes"
 msgstr ""
 
 #: web/templates/base.html:128 web/templates/partials/_help_overlay.html:77
+#: web/templates/partials/_selection_bar.html:23
 #: web/templates/partials/_topbar.html:69
 #: web/templates/partials/about_modal.html:198
 #: web/templates/partials/scenes_inspector.html:145
@@ -118,7 +119,7 @@ msgid "nav"
 msgstr ""
 
 #: web/templates/eval/layout.html:142
-msgid "next row"
+msgid "next row / query"
 msgstr ""
 
 #: web/templates/eval/layout.html:143
@@ -157,7 +158,9 @@ msgid "move the row cursor down / up"
 msgstr ""
 
 #: web/templates/eval/layout.html:167
-msgid "move to the next row (grades save on keypress)"
+msgid ""
+"next row; past the last row, the next query — once every row here is "
+"judged"
 msgstr ""
 
 #: web/templates/eval/layout.html:168
@@ -271,47 +274,47 @@ msgstr ""
 msgid "SKIP"
 msgstr ""
 
-#: web/templates/eval/queue.html:49
+#: web/templates/eval/queue.html:52
 msgid "Queue"
 msgstr ""
 
-#: web/templates/eval/queue.html:56
+#: web/templates/eval/queue.html:59
 msgid "Filter queries…"
 msgstr ""
 
-#: web/templates/eval/queue.html:57
+#: web/templates/eval/queue.html:60
 msgid "Filter queries"
 msgstr ""
 
-#: web/templates/eval/queue.html:64
+#: web/templates/eval/queue.html:67
 msgid "All"
 msgstr ""
 
-#: web/templates/eval/queue.html:70
+#: web/templates/eval/queue.html:73
 msgid "Pending"
 msgstr ""
 
-#: web/templates/eval/queue.html:80
+#: web/templates/eval/queue.html:83
 msgid "Needs a second annotator — conflict compares two graders."
 msgstr ""
 
-#: web/templates/eval/queue.html:83
+#: web/templates/eval/queue.html:86
 msgid "Conflict"
 msgstr ""
 
-#: web/templates/eval/queue.html:124
+#: web/templates/eval/queue.html:127
 msgid "No queries seeded for this run."
 msgstr ""
 
-#: web/templates/eval/queue.html:130
+#: web/templates/eval/queue.html:133
 msgid "No queries match this filter."
 msgstr ""
 
-#: web/templates/eval/queue.html:136
+#: web/templates/eval/queue.html:139
 msgid "Blind mode"
 msgstr ""
 
-#: web/templates/eval/queue.html:141
+#: web/templates/eval/queue.html:144
 msgid "Compare annotator"
 msgstr ""
 
@@ -365,7 +368,7 @@ msgstr ""
 
 #: web/templates/eval/rows.html:105
 #: web/templates/partials/scenes_inspector.html:134
-#: web/templates/partials/search_results.html:96
+#: web/templates/partials/search_results.html:106
 msgid "No description yet."
 msgstr ""
 
@@ -534,6 +537,24 @@ msgstr ""
 msgid "select"
 msgstr ""
 
+#: web/templates/partials/_selection_bar.html:14
+msgid "scene(s) selected"
+msgstr ""
+
+#: web/templates/partials/_selection_bar.html:19
+msgid "Open in Scenes"
+msgstr ""
+
+#: web/templates/partials/_selection_bar.html:26
+msgid "Export EDL"
+msgstr ""
+
+#: web/templates/partials/_selection_bar.html:29
+#: web/templates/partials/annotate_tags.html:122
+#: web/templates/partials/scenes.html:260
+msgid "Clear"
+msgstr ""
+
 #: web/templates/partials/_step_labels.html:9
 msgid "Scene detection"
 msgstr ""
@@ -698,7 +719,7 @@ msgstr ""
 #: web/templates/partials/annotate_props.html:65
 #: web/templates/partials/scenes_inspector.html:114
 #: web/templates/partials/search_inspector.html:114
-#: web/templates/partials/search_results.html:74
+#: web/templates/partials/search_results.html:84
 msgid "indexed"
 msgstr ""
 
@@ -973,24 +994,18 @@ msgid "Manual tags"
 msgstr ""
 
 #: web/templates/partials/annotate_tags.html:109
-#: web/templates/partials/inspector_annotations.html:35
+#: web/templates/partials/inspector_annotations.html:34
 msgid "rural, exterior, horse, single-person"
 msgstr ""
 
 #: web/templates/partials/annotate_tags.html:112
-#: web/templates/partials/inspector_annotations.html:39
+#: web/templates/partials/inspector_annotations.html:38
 msgid "Use hyphens for compound tags: two-people, night-scene"
 msgstr ""
 
 #: web/templates/partials/annotate_tags.html:115
-#: web/templates/partials/inspector_annotations.html:42
+#: web/templates/partials/inspector_annotations.html:41
 msgid "Save"
-msgstr ""
-
-#: web/templates/partials/annotate_tags.html:122
-#: web/templates/partials/scenes.html:260
-#: web/templates/partials/scenes.html:490
-msgid "Clear"
 msgstr ""
 
 #: web/templates/partials/annotate_tags.html:133
@@ -1023,7 +1038,7 @@ msgid "Acervo inteiro"
 msgstr ""
 
 #: web/templates/partials/home.html:14 web/templates/partials/rimas.html:40
-#: web/templates/partials/rimas.html:238 web/templates/partials/scenes.html:452
+#: web/templates/partials/rimas.html:238 web/templates/partials/scenes.html:455
 #: web/templates/partials/search.html:422
 msgid "films"
 msgstr ""
@@ -1031,7 +1046,7 @@ msgstr ""
 #: web/templates/partials/home.html:30
 #: web/templates/partials/preprocess_filmstrip.html:39
 #: web/templates/partials/processing_stats.html:19
-#: web/templates/partials/scenes.html:449
+#: web/templates/partials/scenes.html:452
 #: web/templates/partials/search_timeline.html:45
 msgid "scenes"
 msgstr ""
@@ -1056,13 +1071,13 @@ msgstr ""
 msgid "Tags saved"
 msgstr ""
 
-#: web/templates/partials/inspector_annotations.html:48
+#: web/templates/partials/inspector_annotations.html:47
 msgid "Current tags"
 msgstr ""
 
 #: web/templates/partials/inspector_properties.html:20
 #: web/templates/partials/preprocess_filmstrip.html:133
-#: web/templates/partials/scenes.html:519
+#: web/templates/partials/scenes.html:508
 msgid "Scene"
 msgstr ""
 
@@ -1562,7 +1577,7 @@ msgstr ""
 
 #: web/templates/partials/rimas_echoes.html:34
 #: web/templates/partials/scenes_grid.html:134
-#: web/templates/partials/search_results.html:71
+#: web/templates/partials/search_results.html:81
 msgid "Keyframe"
 msgstr ""
 
@@ -1727,32 +1742,33 @@ msgstr ""
 msgid "most pinned first"
 msgstr ""
 
-#: web/templates/partials/scenes.html:437
+#: web/templates/partials/scenes.html:440
 msgid "Search…"
 msgstr ""
 
-#: web/templates/partials/scenes.html:455
+#: web/templates/partials/scenes.html:458
 #: web/templates/partials/scenes_grid.html:110
 msgid "runtime"
 msgstr ""
 
-#: web/templates/partials/scenes.html:458
+#: web/templates/partials/scenes.html:461
 msgid "keyframes"
 msgstr ""
 
-#: web/templates/partials/scenes.html:483
-msgid "scene(s) selected"
+#: web/templates/partials/scenes.html:468
+#, python-format
+msgid "Showing %(n)s selected scenes"
 msgstr ""
 
-#: web/templates/partials/scenes.html:487
-msgid "Export EDL"
+#: web/templates/partials/scenes.html:469
+msgid "Show all"
 msgstr ""
 
-#: web/templates/partials/scenes.html:528
+#: web/templates/partials/scenes.html:517
 msgid "No scene selected"
 msgstr ""
 
-#: web/templates/partials/scenes.html:529
+#: web/templates/partials/scenes.html:518
 msgid "Select a scene in the grid to inspect its keyframe, tags, and description."
 msgstr ""
 
@@ -1777,6 +1793,7 @@ msgid "No scenes match the filters."
 msgstr ""
 
 #: web/templates/partials/scenes_grid.html:132
+#: web/templates/partials/search_results.html:77
 msgid "Select"
 msgstr ""
 

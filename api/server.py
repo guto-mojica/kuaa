@@ -41,7 +41,7 @@ from api.services.annotations import build_annotate_context, normalize_annotate_
 from api.services.chrome_service import build_chrome_context
 from api.services.processing_render import build_processing_context
 from api.services.rhymes_service import build_rimas_context
-from api.services.scenes import build_cenas_context, build_timeline_context
+from api.services.scenes import build_cenas_context, build_timeline_context, parse_selection
 from api.templates import templates
 from kuaa.library import keyframe_url, load_json, scan_library
 
@@ -403,6 +403,7 @@ def render_page(request: Request, active_tab: str) -> HTMLResponse:
             slug=current_slug,
             bucket=request.query_params.get("bucket"),
             selected_scene_id=selected_scene_id,
+            selection=parse_selection(request.query_params.get("sel")),
         )
         # Sentinel params: the pagination bar + load-more sentinel bake these
         # into their hx-include scope. The HTMX route (/tab/scenes) always set

@@ -68,6 +68,9 @@ class CenasContext(_CenasContextRequired, total=False):
     sentinel_q: str
     sentinel_tags: list[str]
     sentinel_slug: str
+    # Set by the builder only when the page shows a selection (``?sel=``).
+    sel_raw: str
+    sel_count: int
 
 
 # ---------------------------------------------------------------------------

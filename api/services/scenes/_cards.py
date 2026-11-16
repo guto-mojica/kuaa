@@ -18,6 +18,11 @@ from api.services.scenes._grouping import (
     _VALID_GROUPS,
     _VALID_SORTS,
 )
+from api.services.scenes._selection import (
+    MAX_SELECTION,
+    filter_groups_to_selection,
+    format_selection,
+)
 from api.services.scenes._tipo import _VALID_BUCKETS
 
 logger = logging.getLogger(__name__)
@@ -35,6 +40,7 @@ def build_cenas_context(
     bucket: str | None = None,
     limit: int = 50,
     offset: int = 0,
+    selection: list[tuple[str, int]] | None = None,
 ) -> CenasContext:
     """Return the full Cenas-tab template context.
 
@@ -65,6 +71,10 @@ def build_cenas_context(
     """
     tags = list(tags or [])
     keyword = keyword or ""
+    if selection:
+        # Selection mode: scenes across films on one page, so the film
+        # filter and pagination are bypassed.
+        slug, limit, offset = None, MAX_SELECTION, 0
     (
         groups,
         films,
@@ -80,6 +90,11 @@ def build_cenas_context(
         sort=sort,
         bucket=bucket,
     )
+    if selection:
+        groups = filter_groups_to_selection(groups, selection)
+        total_scenes = sum(len(g["scenes"]) for g in groups)
+        film_runtimes = {g["film"].slug: g["film"].runtime_s for g in groups if g.get("film")}
+        total_runtime_s = sum(film_runtimes.values())
 
     # Flat cards list — preserves the legacy context key so older
     # template includes and tests that read ``cards`` directly do not
@@ -157,4 +172,6 @@ def build_cenas_context(
         "active_group": group if group in _VALID_GROUPS else "film",
         "active_sort": sort if sort in _VALID_SORTS else "timecode",
         "active_bucket": bucket if bucket in _VALID_BUCKETS else "",
+        "sel_raw": format_selection(selection) if selection else "",
+        "sel_count": total_scenes if selection else 0,
     }

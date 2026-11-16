@@ -1,0 +1,32 @@
+{# Selection action bar — flex child at the bottom of the centre pane.
+   Reads the scenesSelection store, which is kept in sessionStorage so the
+   selection survives the full page load of a tab change. Must sit outside any
+   element HTMX replaces. ``sel_raw`` is set when /scenes was opened with
+   ``?sel=``; "Open in Scenes" would then reload the view already shown.
+   x-cloak hides the bar on first paint before Alpine boots. #}
+<div class="selection-bar"
+     x-data
+     x-show="$store.scenesSelection.count > 0"
+     x-cloak
+     x-transition.opacity.duration.150ms>
+  <span class="sel-count">
+    <span x-text="$store.scenesSelection.count"></span>
+    {{ _('scene(s) selected') }}
+  </span>
+  <div class="sel-actions">
+    {% if not (sel_raw | default('')) %}
+    <button type="button" class="sel-btn sel-btn--primary" @click="window.location.href = window.selectionScenesHref()">
+      {{ _('Open in Scenes') }}
+    </button>
+    {% endif %}
+    <button type="button" class="sel-btn" @click="window.location.href = window.selectionAnnotateHref()">
+      {{ _('Annotate') }}
+    </button>
+    <button type="button" class="sel-btn" @click="window.downloadSelectionEdl()">
+      {{ _('Export EDL') }}
+    </button>
+    <button type="button" class="sel-btn sel-btn--ghost" @click="$store.scenesSelection.clear()">
+      {{ _('Clear') }}
+    </button>
+  </div>
+</div>

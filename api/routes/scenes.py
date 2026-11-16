@@ -16,6 +16,7 @@ from api.schemas import Pagination
 from api.services.scenes import (
     build_cenas_context,
     build_inspector_context,
+    parse_selection,
     resolve_inspector_template,
 )
 from api.templates import templates
@@ -77,6 +78,7 @@ async def api_scenes(
     bucket: str | None = None,
     page: Pagination = Depends(Pagination),
     append: bool = Query(default=False),
+    sel: str | None = None,
 ) -> HTMLResponse:
     """Return the filtered Cenas grid fragment for HTMX swaps.
 
@@ -95,6 +97,7 @@ async def api_scenes(
         bucket=bucket,
         limit=page.limit,
         offset=page.offset,
+        selection=parse_selection(sel),
     )
     grid_ctx = {
         "groups_by_film": ctx["groups_by_film"],

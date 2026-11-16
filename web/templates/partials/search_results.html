@@ -71,7 +71,13 @@
              hx-target="#right-pane"
              hx-swap="innerHTML"
              hx-indicator="#inspector-skeleton"
+             x-bind:class="{ 'checked': $store.scenesSelection.has({{ r.scene_id }}, '{{ r.film_slug or '' }}') }"
              hx-trigger="click, keyup[key=='Enter' || key==' ']">
+      {% if r.film_slug %}
+      <button type="button" class="check" title="{{ _('Select') }}" aria-label="{{ _('Select') }}"
+              @click.stop="$store.scenesSelection.toggle({{ r.scene_id }}, '{{ r.film_slug }}', 'scene {{ r.scene_id }}')"
+              @keyup.stop>{{ icon('check', 12) }}</button>
+      {% endif %}
       <div class="kf" role="img" aria-label="{{ _('Keyframe') }}"{% if r.img_url %} style="background-image: url('{{ r.img_url }}');"{% endif %}>
         <span class="tl">
           <span class="dot"></span>
