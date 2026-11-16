@@ -806,6 +806,19 @@ def test_anotar_renders_stage_meta_keyframe_timeline_player(client, seed_metadat
     assert 'class="a-pl"' in html
 
 
+def test_anotar_keyframe_background_url_is_quoted(client, seed_metadata):
+    """The keyframe's ``background-image: url(...)`` quotes the URL.
+
+    Keyframe filenames carry the source video's name, which often has
+    spaces (``band of outsiders-Scene-001-01.jpg``). CSS discards an
+    unquoted ``url()`` that contains a space, so the stage renders black.
+    """
+    seed_metadata()
+    html = client.get("/annotate").text
+    assert "url('${frame}')" in html
+    assert "url(' + frame + ')" not in html
+
+
 def test_anotar_uses_compact_lp(client):
     """The Anotar tab collapses the LeftPane via the compact-lp body modifier.
 
