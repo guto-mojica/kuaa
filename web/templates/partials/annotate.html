@@ -134,7 +134,7 @@
     <div class="a-keyframe"
          role="img"
          aria-label="{{ _('Scene %(n)s keyframe') % {'n': selected_scene.scene_id or 0} }}"
-         :style="frame ? 'background-image: url(' + frame + ')' : ''">
+         :style="frame ? `background-image: url('${frame}')` : ''">
       {# A single neutral annotation pin marks the keyframe. The prototype's
          floating curator/AI comment popover (.commentpop) is deliberately NOT
          rendered: it attributes a quote to a fabricated curator, which this
