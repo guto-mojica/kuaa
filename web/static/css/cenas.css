@@ -134,6 +134,12 @@
   color: var(--c-text); z-index: var(--z-overlay-content);
 }
 .b-card:hover .check, .b-card .check:focus-visible { opacity: 1; }
+/* The status badge sits in the same top-left corner; it steps aside by the
+   checkbox's width plus its gap whenever the checkbox is showing. */
+.b-card .kf .tl { transition: transform var(--dur-fast); }
+.b-card:hover .kf .tl, .b-card:focus-within .kf .tl, .b-card.checked .kf .tl {
+  transform: translateX(24px);
+}
 .b-card.checked { border-color: var(--c-green); box-shadow: 0 0 0 2px var(--c-green-bg); }
 .b-card.checked .check {
   opacity: 1; background: var(--c-green); border-color: var(--c-green); color: #0E1014;
