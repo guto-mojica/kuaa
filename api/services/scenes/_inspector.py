@@ -16,7 +16,7 @@ from api.services.catalog import (
 )
 from api.services.scenes._tipo import tipo_of
 from kuaa.annotations.descriptions import canonical_description
-from kuaa.library import FilmContext
+from kuaa.library import Film, FilmContext, load_registry
 from kuaa.library.keyframes import pick_keyframe_entry
 from kuaa.scene_ids import scene_id_key
 
@@ -33,18 +33,26 @@ def _resolve_tab(tab: str | None) -> str:
     return "activity"
 
 
-def _films_by_slug(cfg: Any) -> dict:
-    """Return ``{slug: Film}`` for every registered film.
+def _film_for(cfg: Any, slug: str, kf_meta: list) -> Film | None:
+    """Return the registered ``Film`` for ``slug``, or ``None`` if unregistered.
 
-    Local copy of ``api.services.search.films_by_id_lookup`` semantics —
-    duplicated here to avoid a back-reference from the inspector service
-    into the search service (which would couple two layers that should
-    stay independent).
+    Reads only ``films.json`` and reuses the keyframe rows the caller already
+    loaded, so one film's inspector never opens another film's metadata. The
+    fields match what ``kuaa.library.scan_library`` yields for that film.
     """
-    from kuaa.library import scan_library
-
     library_dir = Path(cfg.paths.library_dir)
-    return {film.slug: film for film in scan_library(library_dir)}
+    entry = load_registry(library_dir).get(slug)
+    if entry is None:
+        return None
+    scene_count = len({e.get("scene_id") for e in kf_meta})
+    return Film(
+        slug=slug,
+        title=entry.get("title", slug),
+        raw_path=library_dir / slug / "raw" / entry.get("raw_filename", ""),
+        scene_count=scene_count,
+        is_processed=scene_count > 0,
+        year=entry.get("year"),
+    )
 
 
 def _description_for(metadata_dir: Path, scene_id: int) -> str:
@@ -123,8 +131,7 @@ def build_inspector_context(
         logger.info("inspector: scene_id=%d not in %s → 404", scene_id, ctx.metadata_dir)
         return None
 
-    films_by_slug = _films_by_slug(cfg)
-    selected_film = films_by_slug.get(slug)
+    selected_film = _film_for(cfg, slug, kf_meta)
     if selected_film is None:
         # The slug resolves to a directory on disk but is not registered
         # in films.json. Render the inspector anyway with a stub film
