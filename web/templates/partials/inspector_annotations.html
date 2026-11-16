@@ -5,10 +5,10 @@
 
    The Anotar tab still owns the full prev/next + LLM-edit surface;
    this is the inline variant — current tags + free-text input + save.
-   After save the route re-renders the full ``annotate_scene.html``
-   partial, so we target ``#right-pane`` and ask for the inspector
-   refresh via ``hx-on::after-request`` so the inspector reflects the
-   newly saved tag list.
+   The save route answers with the full ``annotate_scene.html`` partial,
+   which this pane must not show, so the form swaps nothing (the toast
+   still fires from the HX-Trigger header). ``hx-on::after-request``
+   re-fetches the inspector, keyframe included, as the only refresh.
 #}
 <div class="anno">
 
@@ -22,16 +22,15 @@
   </div>
 
   <form hx-post="/api/annotate/save{% if selected_scene.film_slug %}?film={{ selected_scene.film_slug }}{% endif %}"
-        hx-target="#right-pane"
-        hx-swap="innerHTML"
-        hx-on::after-request="if (event.detail.successful) htmx.ajax('GET', '/api/scenes/{{ selected_scene.scene_id }}/inspector?tab=annotations{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}', {target: '#right-pane', swap: 'innerHTML'})">
+        hx-swap="none"
+        hx-on::after-request="if (event.detail.successful) htmx.ajax('GET', '/api/scenes/{{ selected_scene.scene_id }}/inspector?tab=annotations{% if selected_scene.film_slug %}&film={{ selected_scene.film_slug }}{% endif %}{% if selected_scene.kf %}&kf={{ selected_scene.kf|urlencode }}{% endif %}', {target: '#right-pane', swap: 'innerHTML'})">
     <input type="hidden" name="scene_id" value="{{ selected_scene.scene_id }}">
     <input type="hidden" name="filter" value="all">
     <div class="anno-input-wrap">
       <input class="anno-input"
              name="tags"
              type="text"
-             value="{{ (selected_scene.tags or []) | join(', ') }}"
+             value="{{ (selected_scene.manual_tags or []) | join(', ') }}"
              placeholder="{{ _('rural, exterior, horse, single-person') }}"
              autocomplete="off">
     </div>

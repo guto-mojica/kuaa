@@ -15,6 +15,7 @@ from api.services.catalog import (
     to_smpte,
 )
 from api.services.scenes._tipo import tipo_of
+from kuaa.annotations import load_annotations
 from kuaa.annotations.descriptions import canonical_description
 from kuaa.library import Film, FilmContext, load_registry
 from kuaa.library.keyframes import pick_keyframe_entry
@@ -89,6 +90,18 @@ def _tags_for(metadata_dir: Path, scene_id: int) -> list[str]:
             except (TypeError, ValueError):
                 continue
     return tags
+
+
+def _manual_tags_for(ctx: FilmContext, scene_id: int) -> list[str]:
+    """Return only the manual tags of ``scene_id`` (empty when absent or malformed).
+
+    The save route replaces a scene's manual tags with the form's contents,
+    so the form is prefilled from this list, not the merged one."""
+    try:
+        raw = load_annotations(ctx).get(str(scene_id))
+    except (OSError, ValueError, AttributeError):
+        raw = None
+    return [t for t in raw if isinstance(t, str)] if isinstance(raw, list) else []
 
 
 def build_inspector_context(
@@ -185,6 +198,7 @@ def build_inspector_context(
         "title": None,
         "description": description,
         "tags": tags,
+        "manual_tags": _manual_tags_for(ctx, scene_id),
         "pin_count": 0,
         "activity_count": 0,
         "annotation_count": 0,
